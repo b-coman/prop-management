@@ -83,63 +83,66 @@ export function CouponTable({ coupons }: CouponTableProps) {
           const exclusionPeriodsDates = deserializeExclusionPeriods(coupon.exclusionPeriods);
 
 
+          // Removed whitespace between fragment and TableRow
           return (
-            // Removed whitespace between fragment and TableRow
-            <><TableRow key={coupon.id}>
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => toggleRowExpansion(coupon.id)}
-                    aria-expanded={isExpanded}
-                    aria-controls={`details-${coupon.id}`}
-                  >
-                    {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    <span className="sr-only">{isExpanded ? 'Collapse' : 'Expand'} details</span>
-                  </Button>
-                </TableCell>
-                <TableCell className="font-medium">{coupon.code}</TableCell>
-                <TableCell>{coupon.discount}%</TableCell>
-                <TableCell>{coupon.description || "-"}</TableCell>
-                <TableCell>
-                  {validUntilDate ? (
-                    <CouponExpiryEdit couponId={coupon.id} currentExpiryDate={validUntilDate} />
-                  ) : (
-                    "No Expiry"
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={ effectiveStatus === "Active" ? "default" : effectiveStatus === "Inactive" ? "secondary" : "destructive" }>
-                    {effectiveStatus}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <CouponStatusToggle couponId={coupon.id} isActive={coupon.isActive} isDisabled={isExpired} />
-                </TableCell>
-              </TableRow>{/* Expanded Row for Additional Details */}
-              {isExpanded && (
-                <TableRow id={`details-${coupon.id}`} className="bg-muted/50 hover:bg-muted/50">
-                  <TableCell colSpan={7} className="p-4"> {/* Use colSpan to span all columns */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                       <div>
-                         <h4 className="font-semibold mb-2">Booking Validity</h4>
-                         <CouponBookingValidityEdit
-                            couponId={coupon.id}
-                            currentBookingValidFrom={bookingValidFromDate}
-                            currentBookingValidUntil={bookingValidUntilDate}
-                         />
-                       </div>
-                       <div>
-                          <h4 className="font-semibold mb-2">Exclusion Periods</h4>
-                          <CouponExclusionsEdit
-                             couponId={coupon.id}
-                             currentExclusionPeriods={exclusionPeriodsDates}
-                           />
-                       </div>
-                    </div>
+            <React.Fragment key={coupon.id}>
+              <TableRow>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => toggleRowExpansion(coupon.id)}
+                      aria-expanded={isExpanded}
+                      aria-controls={`details-${coupon.id}`}
+                    >
+                      {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      <span className="sr-only">{isExpanded ? 'Collapse' : 'Expand'} details</span>
+                    </Button>
+                  </TableCell>
+                  <TableCell className="font-medium">{coupon.code}</TableCell>
+                  <TableCell>{coupon.discount}%</TableCell>
+                  <TableCell>{coupon.description || "-"}</TableCell>
+                  <TableCell>
+                    {validUntilDate ? (
+                      <CouponExpiryEdit couponId={coupon.id} currentExpiryDate={validUntilDate} />
+                    ) : (
+                      "No Expiry"
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={ effectiveStatus === "Active" ? "default" : effectiveStatus === "Inactive" ? "secondary" : "destructive" }>
+                      {effectiveStatus}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <CouponStatusToggle couponId={coupon.id} isActive={coupon.isActive} isDisabled={isExpired} />
                   </TableCell>
                 </TableRow>
-              )}</>
+                {/* Expanded Row for Additional Details */}
+                {isExpanded && (
+                  <TableRow id={`details-${coupon.id}`} className="bg-muted/50 hover:bg-muted/50">
+                    <TableCell colSpan={7} className="p-4"> {/* Use colSpan to span all columns */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <h4 className="font-semibold mb-2">Booking Validity</h4>
+                          <CouponBookingValidityEdit
+                              couponId={coupon.id}
+                              currentBookingValidFrom={bookingValidFromDate}
+                              currentBookingValidUntil={bookingValidUntilDate}
+                          />
+                        </div>
+                        <div>
+                            <h4 className="font-semibold mb-2">Exclusion Periods</h4>
+                            <CouponExclusionsEdit
+                              couponId={coupon.id}
+                              currentExclusionPeriods={exclusionPeriodsDates}
+                            />
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+            </React.Fragment>
           );
         })}
       </TableBody>
