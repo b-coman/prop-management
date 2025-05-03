@@ -29,7 +29,9 @@ export interface Property {
   // Details moved to top-level
   pricePerNight: number;
   cleaningFee: number;
-  maxGuests: number;
+  maxGuests: number; // Absolute maximum guests allowed
+  baseOccupancy: number; // Number of guests included in the base price
+  extraGuestFee: number; // Fee per additional guest per night
   bedrooms: number;
   beds: number; // Added from usage, assumed present in details
   bathrooms: number;
@@ -73,10 +75,13 @@ export interface Booking {
   checkOutDate: Timestamp; // Use Timestamp in Firestore
   numberOfGuests: number;
   pricing: {
-    baseRate: number; // Price per night at time of booking
+    baseRate: number; // Price per night at time of booking (for base occupancy)
     numberOfNights: number;
     cleaningFee: number;
-    subtotal: number; // baseRate * numberOfNights + cleaningFee
+    extraGuestFee?: number; // Store the fee applied at the time of booking
+    numberOfExtraGuests?: number; // Number of guests exceeding base occupancy
+    accommodationTotal: number; // (baseRate + extraGuestFee * numberOfExtraGuests) * numberOfNights
+    subtotal: number; // accommodationTotal + cleaningFee
     taxes?: number; // Optional, can be calculated or stored
     total: number; // Final amount paid
   };
@@ -181,8 +186,3 @@ export interface SyncCalendar {
   lastSyncedAt?: Timestamp;
   isActive: boolean;
 }
-
-
-// Security rules are managed directly in the Firebase console.
-// Refer to the example provided previously or the official Firebase documentation
-// for guidance on writing Firestore security rules.

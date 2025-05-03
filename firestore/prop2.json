@@ -1,3 +1,4 @@
+
 {
   "name": "Coltei Apartment Bucharest",
   "slug": "coltei-apartment-bucharest",
@@ -44,6 +45,8 @@
   "pricePerNight": 95,
   "cleaningFee": 25,
   "maxGuests": 3,
+  "baseOccupancy": 2,
+  "extraGuestFee": 20,
   "bedrooms": 1,
   "beds": 2,
   "bathrooms": 1,

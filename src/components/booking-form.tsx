@@ -4,6 +4,7 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { format, differenceInDays, addDays, parseISO } from 'date-fns';
+import type { DateRange } from 'react-day-picker'; // Ensure DateRange is imported
 import { Calendar as CalendarIcon, Users, Minus, Plus, Loader2, TestTubeDiagonal } from 'lucide-react'; // Added Loader2 and TestTubeDiagonal
 
 import { cn } from '@/lib/utils';
@@ -15,12 +16,13 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+import { Input } from '@/components/ui/input'; // Although not used for guests, keep import if needed elsewhere
 import { useToast } from "@/hooks/use-toast";
 import type { Property, Booking } from '@/types'; // Import Booking type for status
 import { Separator } from './ui/separator';
 import { createCheckoutSession } from '@/app/actions/create-checkout-session'; // Import server action
 import { getUnavailableDatesForProperty, createBooking, type CreateBookingData } from '@/services/bookingService'; // Import booking services
+
 
 interface BookingFormProps {
   property: Property;
@@ -37,11 +39,11 @@ if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
 
 
 export function BookingForm({ property }: BookingFormProps) {
-  // console.log("--- [BookingForm] Component Rendered ---"); // Reduced logging
   const [date, setDate] = useState<DateRange | undefined>(undefined);
-  const [numberOfGuests, setNumberOfGuests] = useState(1);
+  const [numberOfGuests, setNumberOfGuests] = useState(1); // Start with 1 guest
   const [totalPrice, setTotalPrice] = useState<number | null>(null);
   const [numberOfNights, setNumberOfNights] = useState(0);
+  const [extraGuestCost, setExtraGuestCost] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false); // Loading state for Stripe
   const [isTesting, setIsTesting] = useState(false); // Loading state for Test Booking
   const [unavailableDates, setUnavailableDates] = useState<Date[]>([]); // State for unavailable dates
@@ -50,7 +52,6 @@ export function BookingForm({ property }: BookingFormProps) {
 
   // Fetch unavailable dates when the component mounts or property changes
   useEffect(() => {
-    // console.log("[BookingForm Effect] Starting to fetch availability for property:", property.id); // Reduced logging
     async function fetchAvailability() {
       setIsLoadingAvailability(true);
       try {
@@ -74,34 +75,33 @@ export function BookingForm({ property }: BookingFormProps) {
 
 
   useEffect(() => {
-    // console.log("[BookingForm Effect] Date range changed:", date); // Reduced logging
-    if (date?.from && date?.to) {
-      if (date.to > date.from) {
-        const nights = differenceInDays(date.to, date.from);
-        setNumberOfNights(nights);
-        const calculatedPrice = nights * property.pricePerNight + property.cleaningFee;
-        setTotalPrice(calculatedPrice);
-      } else {
-        setNumberOfNights(0);
-        setTotalPrice(null);
-      }
+    if (date?.from && date?.to && date.to > date.from) {
+      const nights = differenceInDays(date.to, date.from);
+      setNumberOfNights(nights);
+
+      // Calculate extra guest cost
+      const extraGuests = Math.max(0, numberOfGuests - property.baseOccupancy);
+      const calculatedExtraGuestCost = extraGuests * property.extraGuestFee * nights;
+      setExtraGuestCost(calculatedExtraGuestCost);
+
+      // Calculate total price
+      const baseAccommodationCost = nights * property.pricePerNight;
+      const calculatedPrice = baseAccommodationCost + calculatedExtraGuestCost + property.cleaningFee;
+      setTotalPrice(calculatedPrice);
+
     } else {
       setNumberOfNights(0);
+      setExtraGuestCost(0);
       setTotalPrice(null);
     }
-  }, [date, property.pricePerNight, property.cleaningFee]); // Recalculate when date or property price changes
+  }, [date, numberOfGuests, property.pricePerNight, property.cleaningFee, property.baseOccupancy, property.extraGuestFee]);
 
 
   const handleGuestChange = (change: number) => {
     setNumberOfGuests((prev) => {
       const newCount = prev + change;
-      if (newCount < 1) {
-        return 1;
-      }
-      if (newCount > property.maxGuests) {
-        return property.maxGuests;
-      }
-      return newCount;
+      // Enforce limits: 1 to maxGuests
+      return Math.max(1, Math.min(newCount, property.maxGuests));
     });
   };
 
@@ -130,7 +130,6 @@ export function BookingForm({ property }: BookingFormProps) {
     }
 
     if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
-        console.error("❌ [BookingForm handleSubmit] Stripe Publishable Key not set!");
        toast({
         title: "Configuration Error",
         description: "Stripe is not configured correctly. Cannot proceed with booking.",
@@ -144,18 +143,20 @@ export function BookingForm({ property }: BookingFormProps) {
     try {
       // 1. Call server action to create checkout session
       const checkoutInput = {
-        property: property,
+        property: property, // Pass the whole property or necessary details
         checkInDate: date.from!.toISOString(),
         checkOutDate: date.to!.toISOString(),
         numberOfGuests: numberOfGuests,
-        totalPrice: totalPrice,
+        totalPrice: totalPrice, // Pass the calculated total price
         numberOfNights: numberOfNights,
+        // Add baseOccupancy and extraGuestFee for metadata if needed by webhook
+        // baseOccupancy: property.baseOccupancy,
+        // extraGuestFee: property.extraGuestFee,
       };
       const result = await createCheckoutSession(checkoutInput);
 
 
        if (result.error || !result.sessionId) {
-         console.error("❌ [BookingForm handleSubmit] Error from createCheckoutSession:", result.error || 'Missing session ID.');
         throw new Error(result.error || 'Failed to get session ID.');
       }
 
@@ -165,7 +166,6 @@ export function BookingForm({ property }: BookingFormProps) {
       // 2. Redirect to Stripe Checkout
       const stripe = await stripePromise;
       if (!stripe) {
-         console.error("❌ [BookingForm handleSubmit] Stripe.js failed to load.");
          throw new Error('Stripe.js has not loaded yet.');
       }
 
@@ -194,7 +194,6 @@ export function BookingForm({ property }: BookingFormProps) {
    // --- Handle Test Booking Creation ---
    const handleTestBookingClick = async () => {
      setIsTesting(true);
-     console.log("[TestBookingButton] Attempting to create test booking using form data...");
 
      if (!isDateRangeValid() || !totalPrice) {
        toast({
@@ -206,15 +205,19 @@ export function BookingForm({ property }: BookingFormProps) {
        return;
      }
 
-     // Construct mock data using form state
+     // Construct mock data using form state, including new pricing fields
+     const extraGuests = Math.max(0, numberOfGuests - property.baseOccupancy);
+     const accommodationTotal = (property.pricePerNight * numberOfNights) + extraGuestCost;
+     const subtotal = accommodationTotal + property.cleaningFee;
+
      const mockBookingData: CreateBookingData = {
        propertyId: property.id,
        guestInfo: {
-         firstName: "Test",
-         lastName: "User",
-         email: `test.user.${Date.now()}@example.com`, // Unique email
-         userId: "test-user-id-123",
-         phone: "+15559990000",
+         firstName: "Dev",
+         lastName: "Tester",
+         email: `dev.tester.${Date.now()}@example.com`, // Unique email
+         userId: "dev-user-123",
+         phone: "+15551112233", // Example phone
        },
        checkInDate: date.from!.toISOString(),
        checkOutDate: date.to!.toISOString(),
@@ -223,9 +226,12 @@ export function BookingForm({ property }: BookingFormProps) {
          baseRate: property.pricePerNight,
          numberOfNights: numberOfNights,
          cleaningFee: property.cleaningFee,
-         subtotal: totalPrice - (totalPrice * 0), // Assuming 0 tax for test
+         extraGuestFee: property.extraGuestFee, // Add extra fee
+         numberOfExtraGuests: extraGuests,     // Add number of extra guests
+         accommodationTotal: accommodationTotal, // Add accommodation total
+         subtotal: subtotal,                   // Updated subtotal
          taxes: 0, // Assuming 0 tax for test
-         total: totalPrice,
+         total: totalPrice, // Final calculated total
        },
        paymentInput: {
          stripePaymentIntentId: `mock_test_${Date.now()}`, // Unique mock ID
@@ -233,25 +239,23 @@ export function BookingForm({ property }: BookingFormProps) {
          status: "succeeded", // Simulate success
        },
        status: 'confirmed' as Booking['status'], // Directly set status
-       source: 'test-button-form',
+       source: 'test-button',
        notes: `Test booking created from form for ${numberOfGuests} guests.`,
      };
 
      try {
-       console.log("[TestBookingButton] Calling createBooking with constructed mock data:", mockBookingData);
        const bookingId = await createBooking(mockBookingData);
 
        if (bookingId) {
-         console.log(`[TestBookingButton] Test booking created successfully! ID: ${bookingId}`);
          toast({
            title: "Test Booking Successful",
            description: `Test booking created in Firestore with ID: ${bookingId}`,
          });
-         // Optionally reset the form or provide further feedback
-         // setDate(undefined);
-         // setNumberOfGuests(1);
+         // Refresh availability after test booking
+         const unavailable = await getUnavailableDatesForProperty(property.id);
+         setUnavailableDates(unavailable);
+         setDate(undefined); // Reset date after successful test booking
        } else {
-         console.error("[TestBookingButton] createBooking returned a falsy value.");
          toast({
            title: "Test Booking Possibly Failed",
            description: "Booking creation completed but didn't return a valid ID.",
@@ -357,7 +361,10 @@ export function BookingForm({ property }: BookingFormProps) {
               <Plus className="h-4 w-4" />
             </Button>
         </div>
-         <p className="text-xs text-muted-foreground mt-1">Max {property.maxGuests} guests</p>
+         <p className="text-xs text-muted-foreground mt-1">
+            Max {property.maxGuests} guests. Base price for {property.baseOccupancy}.
+            {property.extraGuestFee > 0 && ` $${property.extraGuestFee}/extra guest/night.`}
+          </p>
       </div>
 
 
@@ -365,18 +372,30 @@ export function BookingForm({ property }: BookingFormProps) {
        {totalPrice !== null && numberOfNights > 0 && (
         <div className="space-y-2 text-sm">
           <Separator className="my-4" />
+          {/* Base Accommodation Cost */}
           <div className="flex justify-between">
             <span>
-              ${property.pricePerNight} x {numberOfNights} {numberOfNights === 1 ? 'night' : 'nights'}
+              ${property.pricePerNight} x {numberOfNights} {numberOfNights === 1 ? 'night' : 'nights'} (for {property.baseOccupancy} {property.baseOccupancy === 1 ? 'guest' : 'guests'})
             </span>
             <span>${(property.pricePerNight * numberOfNights).toFixed(2)}</span>
           </div>
+           {/* Extra Guest Fees (if applicable) */}
+           {extraGuestCost > 0 && (
+            <div className="flex justify-between text-muted-foreground">
+              <span>
+                Extra guest fee (${property.extraGuestFee}/guest/night x {Math.max(0, numberOfGuests - property.baseOccupancy)} guests x {numberOfNights} nights)
+              </span>
+              <span>${extraGuestCost.toFixed(2)}</span>
+            </div>
+          )}
+          {/* Cleaning Fee */}
           <div className="flex justify-between">
             <span>Cleaning fee</span>
             <span>${property.cleaningFee.toFixed(2)}</span>
           </div>
            {/* Add other fees like service fee if applicable */}
           <Separator className="my-2" />
+           {/* Total Price */}
           <div className="flex justify-between font-bold text-base">
             <span>Total</span>
             <span>${totalPrice.toFixed(2)}</span>

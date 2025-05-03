@@ -1,3 +1,4 @@
+
 {
   "name": "Prahova Mountain Chalet",
   "slug": "prahova-mountain-chalet",
@@ -44,6 +45,8 @@
   "pricePerNight": 180,
   "cleaningFee": 40,
   "maxGuests": 6,
+  "baseOccupancy": 4,
+  "extraGuestFee": 25,
   "bedrooms": 3,
   "beds": 4,
   "bathrooms": 2,

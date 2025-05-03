@@ -41,6 +41,9 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
 
   const origin = headers().get('origin') || 'http://localhost:9002'; // Default for local dev
 
+  // Calculate number of extra guests
+  const numberOfExtraGuests = Math.max(0, numberOfGuests - property.baseOccupancy);
+
   try {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -49,8 +52,8 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: `${property.name} (${numberOfNights} nights)`,
-              description: `Booking from ${new Date(checkInDate).toLocaleDateString()} to ${new Date(checkOutDate).toLocaleDateString()} for ${numberOfGuests} guests.`,
+              name: `${property.name} (${numberOfNights} nights, ${numberOfGuests} guests)`,
+              description: `Booking from ${new Date(checkInDate).toLocaleDateString()} to ${new Date(checkOutDate).toLocaleDateString()}.`,
               images: [property.images.find(img => img.isFeatured)?.url || property.images[0]?.url || ''], // Use featured or first image
             },
             // Ensure totalPrice is converted to cents correctly
@@ -75,6 +78,9 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
         totalPrice: String(totalPrice), // Total price paid (in dollars)
         cleaningFee: String(property.cleaningFee),
         pricePerNight: String(property.pricePerNight),
+        baseOccupancy: String(property.baseOccupancy), // Add base occupancy
+        extraGuestFee: String(property.extraGuestFee), // Add extra guest fee
+        numberOfExtraGuests: String(numberOfExtraGuests), // Add number of extra guests
         // Include guest name if available
         guestFirstName: guestFirstName || '',
         guestLastName: guestLastName || '',
@@ -97,3 +103,4 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
     return { error: `Failed to create checkout session: ${error instanceof Error ? error.message : String(error)}` };
   }
 }
+
