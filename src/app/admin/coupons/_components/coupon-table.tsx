@@ -1,5 +1,6 @@
 
 "use client";
+import * as React from 'react'; // Import React
 
 import type { Coupon, SerializableTimestamp } from "@/types";
 import {
@@ -82,8 +83,6 @@ export function CouponTable({ coupons }: CouponTableProps) {
           const bookingValidUntilDate = deserializeTimestamp(coupon.bookingValidUntil);
           const exclusionPeriodsDates = deserializeExclusionPeriods(coupon.exclusionPeriods);
 
-
-          // Removed whitespace between fragment and TableRow
           return (
             <React.Fragment key={coupon.id}>
               <TableRow>
