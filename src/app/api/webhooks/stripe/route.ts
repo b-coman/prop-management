@@ -12,97 +12,67 @@ const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 if (!stripeSecretKey) {
-  throw new Error('STRIPE_SECRET_KEY is not set in environment variables.');
+  console.error('❌ FATAL: STRIPE_SECRET_KEY is not set in environment variables.');
+  // In a real app, you might want to prevent startup or return an error immediately
 }
 if (!stripeWebhookSecret) {
-  console.warn("⚠️ STRIPE_WEBHOOK_SECRET is not set. Webhook verification will fail in production.");
+  console.warn("⚠️ STRIPE_WEBHOOK_SECRET is not set. Webhook verification will be skipped (UNSAFE for production).");
 }
 
-const stripe = new Stripe(stripeSecretKey);
-
-// Mock data for testing - Updated pricing structure
-const mockBookingData: CreateBookingData = {
-  propertyId: "some-property-id",
-  guestInfo: {
-    firstName: "Test",
-    lastName: "Guest",
-    email: "test@example.com",
-    userId: "some-user-id",
-  },
-  checkInDate: new Date().toISOString(),
-  checkOutDate: new Date(Date.now() + 86400000 * 2).toISOString(),
-  numberOfGuests: 3, // Example: More than base
-  pricing: { // Updated pricing structure
-    baseRate: 100,
-    numberOfNights: 2,
-    cleaningFee: 20,
-    extraGuestFee: 15, // Example extra fee
-    numberOfExtraGuests: 1, // Example: 1 extra guest
-    accommodationTotal: (100 * 2) + (15 * 1 * 2), // base * nights + (extraFee * extraGuests * nights)
-    subtotal: (100 * 2) + (15 * 1 * 2) + 20, // accommodation + cleaning
-    taxes: 0,
-    discountAmount: 0, // No discount in mock by default
-    total: (100 * 2) + (15 * 1 * 2) + 20 + 0, // subtotal + taxes - discount
-  },
-  appliedCouponCode: undefined, // No coupon in mock
-  paymentInput: {
-    stripePaymentIntentId: "mock-payment-intent-id",
-    amount: (100 * 2) + (15 * 1 * 2) + 20 + 0,
-    status: "succeeded",
-  },
-  status: 'confirmed',
-};
+const stripe = new Stripe(stripeSecretKey || ''); // Initialize even if key is missing to avoid early crash
 
 export async function POST(req: NextRequest) {
+  console.log('--- [Webhook] Received POST request ---'); // Log start
+
+  if (!stripeSecretKey) {
+      console.error('❌ [Webhook Error] STRIPE_SECRET_KEY is missing. Cannot process webhook.');
+      return NextResponse.json({ error: 'Stripe not configured on server' }, { status: 500 });
+  }
+
   const body = await req.text();
   const signature = headers().get('stripe-signature') as string;
+  console.log('[Webhook] Received signature:', signature ? 'Present' : 'Missing');
 
   let event: Stripe.Event;
 
   try {
-    // Skip verification if secret is missing (for local testing only)
-    if (!stripeWebhookSecret) {
-        console.warn("⚠️ Skipping webhook signature verification (STRIPE_WEBHOOK_SECRET not set).");
-        event = JSON.parse(body) as Stripe.Event; // Parse directly, UNSAFE for production
-    } else {
+    // Skip verification only if secret is missing AND in development
+    if (!stripeWebhookSecret && process.env.NODE_ENV === 'development') {
+        console.warn("⚠️ [Webhook] Skipping signature verification (DEV mode & STRIPE_WEBHOOK_SECRET not set).");
+        event = JSON.parse(body) as Stripe.Event;
+    } else if (!stripeWebhookSecret) {
+        console.error('❌ [Webhook Error] STRIPE_WEBHOOK_SECRET is missing in production. Cannot verify webhook.');
+        return NextResponse.json({ error: 'Webhook secret not configured' }, { status: 500 });
+    }
+     else {
+        console.log('[Webhook] Attempting signature verification...');
         event = stripe.webhooks.constructEvent(
           body,
           signature,
           stripeWebhookSecret
         );
+        console.log(`✅ [Webhook] Signature verified successfully for event ID: ${event.id}`);
     }
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error';
     console.error(`❌ [Webhook Error] Error verifying webhook signature: ${errorMessage}`);
-    return NextResponse.json({ error: `Webhook Error: ${errorMessage}` }, { status: 400 });
+    return NextResponse.json({ error: `Webhook signature verification failed: ${errorMessage}` }, { status: 400 });
   }
 
-  // --- Check for Test Mode ---
-  const headersList = headers();
-  const testMode = headersList.get('x-test-mode');
-  if (testMode === 'true') {
-      console.warn("⚠️ [Webhook] Test mode enabled. Using mocked data.");
-      try {
-        const bookingId = await createBooking(mockBookingData);
-        console.log(`✅ [Webhook] Mock Booking ${bookingId} created successfully (Test Mode)`);
-      } catch(error) {
-        console.error(`❌ [Webhook Test Mode Error] Failed to create mock booking:`, error);
-        return NextResponse.json({ error: 'Failed to create mock booking in test mode' }, { status: 500 });
-      }
-      return NextResponse.json({ received: true, testMode: true });
-  }
+  console.log(`[Webhook] Processing event type: ${event.type}, ID: ${event.id}`);
 
   // Handle the checkout.session.completed event
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
     const sessionId = session.id;
-    console.log(`✅ [Webhook] checkout.session.completed event received: ${sessionId}`);
+    console.log(`✅ [Webhook] Handling checkout.session.completed event: ${sessionId}`);
 
     // --- Validate session data ---
     if (session.payment_status !== 'paid') {
         console.warn(`⚠️ [Webhook] Session ${sessionId} payment status is ${session.payment_status}. No booking created.`);
         return NextResponse.json({ received: true, message: 'Payment not completed' });
     }
+    console.log(`[Webhook] Session ${sessionId} payment status: ${session.payment_status}`);
 
     const paymentIntentId = typeof session.payment_intent === 'string'
         ? session.payment_intent
@@ -112,15 +82,16 @@ export async function POST(req: NextRequest) {
        console.error(`❌ [Webhook Error] Missing payment_intent ID in session ${sessionId}`);
        return NextResponse.json({ error: 'Missing payment intent ID' }, { status: 400 });
      }
+     console.log(`[Webhook] Session ${sessionId} Payment Intent ID: ${paymentIntentId}`);
 
     const metadata = session.metadata;
     if (!metadata) {
       console.error(`❌ [Webhook Error] Missing metadata in session ${sessionId}`);
       return NextResponse.json({ error: 'Missing metadata' }, { status: 400 });
     }
-     // console.log(`[Webhook Metadata ${sessionId}] Received:`, JSON.stringify(metadata, null, 2));
+     console.log(`[Webhook Metadata ${sessionId}] Received:`, JSON.stringify(metadata, null, 2));
 
-     // --- Safely parse metadata (including new fields) ---
+     // --- Safely parse metadata ---
      const propertyId = metadata.propertyId;
      const checkInDate = metadata.checkInDate; // ISO string
      const checkOutDate = metadata.checkOutDate; // ISO string
@@ -128,40 +99,39 @@ export async function POST(req: NextRequest) {
      const numberOfNights = parseInt(metadata.numberOfNights || '0', 10);
      const pricePerNight = parseFloat(metadata.pricePerNight || '0');
      const cleaningFee = parseFloat(metadata.cleaningFee || '0');
-     const baseOccupancy = parseInt(metadata.baseOccupancy || '1', 10); // Parse base occupancy
-     const extraGuestFee = parseFloat(metadata.extraGuestFee || '0'); // Parse extra guest fee
-     const numberOfExtraGuests = parseInt(metadata.numberOfExtraGuests || '0', 10); // Parse number of extra guests
-     const finalTotal = session.amount_total ? session.amount_total / 100 : parseFloat(metadata.totalPrice || '0'); // Use session amount if available
+     const baseOccupancy = parseInt(metadata.baseOccupancy || '1', 10);
+     const extraGuestFee = parseFloat(metadata.extraGuestFee || '0');
+     const numberOfExtraGuests = parseInt(metadata.numberOfExtraGuests || '0', 10);
+     const finalTotal = session.amount_total ? session.amount_total / 100 : parseFloat(metadata.totalPrice || '0');
      const guestFirstName = metadata.guestFirstName || 'Guest';
-     const guestLastName = metadata.guestLastName || ''; // Default to empty string if not provided
-     const guestEmail = session.customer_details?.email; // Get email from customer_details
-     // Extract coupon details from metadata
+     const guestLastName = metadata.guestLastName || '';
+     const guestEmail = session.customer_details?.email;
      const appliedCouponCode = metadata.appliedCouponCode;
      const discountPercentage = metadata.discountPercentage ? parseFloat(metadata.discountPercentage) : undefined;
 
-     // Validate required metadata (add checks for new fields if necessary)
+     console.log(`[Webhook Parsed Metadata ${sessionId}] propertyId=${propertyId}, checkIn=${checkInDate}, checkOut=${checkOutDate}, guests=${numberOfGuests}, nights=${numberOfNights}, total=${finalTotal}, email=${guestEmail}`);
+
+     // --- Validate required metadata ---
      if (!propertyId || !checkInDate || !checkOutDate || isNaN(numberOfGuests) || numberOfGuests <= 0 || isNaN(numberOfNights) || numberOfNights <= 0 || isNaN(pricePerNight) || isNaN(cleaningFee) || isNaN(finalTotal) || !guestEmail || isNaN(baseOccupancy) || isNaN(extraGuestFee) || isNaN(numberOfExtraGuests)) {
-        console.error(`❌ [Webhook Error - Session ${sessionId}] Invalid or missing metadata fields. Metadata:`, metadata);
-        // Log all parsed values for easier debugging
+        console.error(`❌ [Webhook Error - Session ${sessionId}] Invalid or missing metadata fields. Raw Metadata:`, metadata);
         console.error(`[Validation Check] propId: ${propertyId}, checkIn: ${checkInDate}, checkOut: ${checkOutDate}, guests: ${numberOfGuests}, nights: ${numberOfNights}, price: ${pricePerNight}, cleaning: ${cleaningFee}, total: ${finalTotal}, email: ${guestEmail}, baseOcc: ${baseOccupancy}, extraFee: ${extraGuestFee}, extraGuests: ${numberOfExtraGuests}`);
         return NextResponse.json({ error: 'Invalid or missing metadata fields' }, { status: 400 });
      }
-      if (new Date(checkOutDate) <= new Date(checkInDate)) {
+     if (new Date(checkOutDate) <= new Date(checkInDate)) {
          console.error(`❌ [Webhook Error - Session ${sessionId}] Check-out date must be after check-in date.`);
          return NextResponse.json({ error: 'Check-out date must be after check-in date' }, { status: 400 });
-      }
+     }
+     console.log(`[Webhook] Metadata validation passed for session ${sessionId}`);
 
 
-     // Calculate accommodation total and subtotal based on metadata
+     // --- Calculate pricing details ---
      const calculatedAccommodationTotal = (pricePerNight * numberOfNights) + (extraGuestFee * numberOfExtraGuests * numberOfNights);
      const calculatedSubtotal = calculatedAccommodationTotal + cleaningFee;
-     // Calculate discount amount based on percentage from metadata
      const calculatedDiscountAmount = discountPercentage ? calculatedSubtotal * (discountPercentage / 100) : 0;
-     // Estimate taxes as the difference between Stripe's total and our calculated subtotal minus discount
-     const taxes = finalTotal - (calculatedSubtotal - calculatedDiscountAmount);
+     const taxes = Math.max(0, finalTotal - (calculatedSubtotal - calculatedDiscountAmount)); // Ensure taxes aren't negative
+     console.log(`[Webhook Pricing Calc ${sessionId}] Accommodation: ${calculatedAccommodationTotal}, Subtotal: ${calculatedSubtotal}, Discount: ${calculatedDiscountAmount}, Taxes: ${taxes}, FinalTotal: ${finalTotal}`);
 
-
-    // --- Prepare booking data conforming to CreateBookingData structure ---
+    // --- Prepare booking data ---
     const bookingDataForDb: CreateBookingData = {
       propertyId: propertyId,
       guestInfo: {
@@ -169,48 +139,48 @@ export async function POST(req: NextRequest) {
         lastName: guestLastName,
         email: guestEmail,
         userId: metadata.userId || undefined,
+        phone: session.customer_details?.phone || undefined, // Try to get phone from Stripe customer details
       },
       checkInDate: checkInDate,
       checkOutDate: checkOutDate,
       numberOfGuests: numberOfGuests,
-      pricing: { // Match the updated pricing structure
+      pricing: {
         baseRate: pricePerNight,
         numberOfNights: numberOfNights,
         cleaningFee: cleaningFee,
         extraGuestFee: extraGuestFee,
         numberOfExtraGuests: numberOfExtraGuests,
         accommodationTotal: calculatedAccommodationTotal,
-        subtotal: calculatedSubtotal, // Subtotal BEFORE discount
-        taxes: taxes > 0 ? taxes : 0, // Ensure taxes aren't negative
-        discountAmount: calculatedDiscountAmount, // Store the calculated discount
-        total: finalTotal, // Final price paid
+        subtotal: calculatedSubtotal,
+        taxes: taxes,
+        discountAmount: calculatedDiscountAmount,
+        total: finalTotal,
       },
-      appliedCouponCode: appliedCouponCode, // Store applied coupon code
-      status: 'confirmed' as Booking['status'], // Set initial status
+      appliedCouponCode: appliedCouponCode,
+      status: 'confirmed' as Booking['status'],
       paymentInput: {
         stripePaymentIntentId: paymentIntentId,
         amount: finalTotal,
-        status: session.payment_status, // e.g., 'paid'
+        status: session.payment_status,
       },
-      source: metadata.source || 'website',
+      source: metadata.source || 'website-stripe', // Indicate source
       notes: metadata.notes || undefined,
       externalId: metadata.externalId || undefined,
     };
 
-    // console.log(`[Webhook Data - Session ${sessionId}] Prepared for createBooking:`, JSON.stringify(bookingDataForDb, null, 2));
+    console.log(`[Webhook Data - Session ${sessionId}] Prepared for createBooking:`, JSON.stringify(bookingDataForDb, null, 2));
 
     // --- Create booking in Firestore ---
     try {
+      console.log(`[Webhook] Calling createBooking for session ${sessionId}...`);
       const bookingId = await createBooking(bookingDataForDb);
-      console.log(`✅ [Webhook] Booking ${bookingId} created successfully for session ${sessionId} (Payment Intent: ${paymentIntentId})`);
+      console.log(`✅✅ [Webhook] Booking ${bookingId} created successfully for session ${sessionId} (Payment Intent: ${paymentIntentId})`);
 
-      // TODO:
-      // 1. Update property availability (already called within createBooking)
-      // 2. Send confirmation email to the guest.
-      // 3. Send notification email/SMS to the property owner.
+      // TODO: Add post-booking actions like sending confirmation emails here
 
     } catch (error) {
-      console.error(`❌ [Webhook Error - Session ${sessionId}] Error saving booking:`, error instanceof Error ? error.message : String(error));
+      console.error(`❌❌ [Webhook Error - Session ${sessionId}] Error calling createBooking:`, error instanceof Error ? error.message : String(error));
+      // Optionally: Add more specific error handling or retry logic here
       return NextResponse.json({ error: 'Failed to save booking' }, { status: 500 });
     }
   } else {
@@ -218,5 +188,6 @@ export async function POST(req: NextRequest) {
   }
 
   // Return a 200 response to acknowledge receipt of the event
+  console.log(`--- [Webhook] Finished processing event ID: ${event.id}. Responding 200 OK ---`);
   return NextResponse.json({ received: true });
 }
