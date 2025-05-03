@@ -1,10 +1,24 @@
 // src/services/bookingService.ts
 'use server'; // Mark this module for server-side execution
 
-import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import {
+  collection,
+  addDoc,
+  doc,
+  getDoc,
+  updateDoc,
+  query,
+  where,
+  getDocs,
+  serverTimestamp,
+  Timestamp,
+  writeBatch,
+  setDoc,
+} from 'firebase/firestore';
 import { z } from 'zod'; // Import Zod
 import { db } from '@/lib/firebase'; // Import your initialized Firestore instance
-import type { Booking } from '@/types';
+import type { Booking, Availability } from '@/types';
+import { differenceInCalendarDays, eachDayOfInterval, format, parse } from 'date-fns'; // Import date-fns helpers
 
 // Define the structure for creating a booking, based on bookingExample and required inputs.
 // Omit fields that are auto-generated or should not be provided at creation.
@@ -72,6 +86,7 @@ const CreateBookingDataSchema = z.object({
 /**
  * Creates a new booking document in Firestore based on the bookingExample structure.
  * Includes enhanced error handling, logging, and Zod validation.
+ * Calls updatePropertyAvailability upon successful booking creation.
  *
  * @param rawBookingData - The raw data for the new booking, conforming to CreateBookingData.
  * @returns The ID of the newly created booking document.
@@ -101,9 +116,11 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
     const bookingsCollection = collection(db, 'bookings');
 
     // --- Data Transformation ---
-    // Convert date strings to Firestore Timestamps using validated data
-    const checkInTimestamp = Timestamp.fromDate(new Date(bookingData.checkInDate));
-    const checkOutTimestamp = Timestamp.fromDate(new Date(bookingData.checkOutDate));
+    const checkInDate = new Date(bookingData.checkInDate);
+    const checkOutDate = new Date(bookingData.checkOutDate);
+    const checkInTimestamp = Timestamp.fromDate(checkInDate);
+    const checkOutTimestamp = Timestamp.fromDate(checkOutDate);
+
 
     // Construct the paymentInfo object using validated data
     const paymentInfo: Booking['paymentInfo'] = {
@@ -137,9 +154,23 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
 
     // --- Firestore Operation ---
     const docRef = await addDoc(bookingsCollection, docData);
+    const bookingId = docRef.id;
+    console.log(`✅ Booking created successfully with ID: ${bookingId} for Payment Intent [${paymentIntentId}]`);
 
-    console.log(`✅ Booking created successfully with ID: ${docRef.id} for Payment Intent [${paymentIntentId}]`);
-    return docRef.id;
+    // --- Update Availability ---
+    // After successful booking, update the availability for the property
+    // Note: The check-out day itself is usually considered available for the next guest.
+    try {
+        await updatePropertyAvailability(bookingData.propertyId, checkInDate, checkOutDate, false); // Mark as unavailable
+        console.log(`[Availability Update] Marked dates as unavailable for property ${bookingData.propertyId} for booking ${bookingId}.`);
+    } catch (availabilityError) {
+        // Log the error but don't fail the whole booking process if availability update fails
+        console.error(`⚠️ Failed to update availability for property ${bookingData.propertyId} after creating booking ${bookingId}:`, availabilityError);
+        // Consider adding a retry mechanism or background job for availability updates
+    }
+
+
+    return bookingId;
 
   } catch (error) {
      // --- Firestore/Other Error Handling & Logging ---
@@ -160,11 +191,197 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
   }
 }
 
-// TODO: Add functions for:
-// - getBookingById(bookingId: string): Promise<Booking | null>
-// - updateBookingStatus(bookingId: string, status: Booking['status']): Promise<void>
-// - getBookingsForProperty(propertyId: string): Promise<Booking[]>
-// - getBookingsForUser(userId: string): Promise<Booking[]>
-// - Function to update property availability based on a new booking
-//   - async function updatePropertyAvailability(propertyId: string, checkInDate: Date, checkOutDate: Date, booked: boolean)
+/**
+ * Retrieves a booking document by its ID.
+ *
+ * @param bookingId The ID of the booking document.
+ * @returns A Promise resolving to the Booking object or null if not found.
+ */
+export async function getBookingById(bookingId: string): Promise<Booking | null> {
+    try {
+        const bookingRef = doc(db, 'bookings', bookingId);
+        const docSnap = await getDoc(bookingRef);
 
+        if (docSnap.exists()) {
+            // Combine document ID with data
+            return { id: docSnap.id, ...docSnap.data() } as Booking;
+        } else {
+            console.log(`[getBookingById] No booking found with ID: ${bookingId}`);
+            return null;
+        }
+    } catch (error) {
+        console.error(`❌ Error fetching booking with ID ${bookingId}:`, error);
+        throw new Error(`Failed to fetch booking: ${error instanceof Error ? error.message : String(error)}`);
+    }
+}
+
+/**
+ * Updates the status of a specific booking document.
+ *
+ * @param bookingId The ID of the booking document to update.
+ * @param status The new status to set.
+ * @returns A Promise resolving when the update is complete.
+ */
+export async function updateBookingStatus(bookingId: string, status: Booking['status']): Promise<void> {
+    try {
+        const bookingRef = doc(db, 'bookings', bookingId);
+        await updateDoc(bookingRef, {
+            status: status,
+            updatedAt: serverTimestamp(),
+        });
+        console.log(`[updateBookingStatus] Successfully updated booking ${bookingId} to status: ${status}`);
+    } catch (error) {
+        console.error(`❌ Error updating status for booking ${bookingId}:`, error);
+        throw new Error(`Failed to update booking status: ${error instanceof Error ? error.message : String(error)}`);
+    }
+}
+
+/**
+ * Retrieves all bookings associated with a specific property ID.
+ *
+ * @param propertyId The ID of the property.
+ * @returns A Promise resolving to an array of Booking objects.
+ */
+export async function getBookingsForProperty(propertyId: string): Promise<Booking[]> {
+    const bookings: Booking[] = [];
+    try {
+        const bookingsCollection = collection(db, 'bookings');
+        const q = query(bookingsCollection, where('propertyId', '==', propertyId));
+        const querySnapshot = await getDocs(q);
+
+        querySnapshot.forEach((doc) => {
+            bookings.push({ id: doc.id, ...doc.data() } as Booking);
+        });
+        console.log(`[getBookingsForProperty] Found ${bookings.length} bookings for property ${propertyId}`);
+        return bookings;
+    } catch (error) {
+        console.error(`❌ Error fetching bookings for property ${propertyId}:`, error);
+        throw new Error(`Failed to fetch bookings for property: ${error instanceof Error ? error.message : String(error)}`);
+    }
+}
+
+/**
+ * Retrieves all bookings associated with a specific user ID (from guestInfo.userId).
+ *
+ * @param userId The ID of the user.
+ * @returns A Promise resolving to an array of Booking objects.
+ */
+export async function getBookingsForUser(userId: string): Promise<Booking[]> {
+     const bookings: Booking[] = [];
+    try {
+        const bookingsCollection = collection(db, 'bookings');
+        // Use dot notation to query nested field
+        const q = query(bookingsCollection, where('guestInfo.userId', '==', userId));
+        const querySnapshot = await getDocs(q);
+
+        querySnapshot.forEach((doc) => {
+            bookings.push({ id: doc.id, ...doc.data() } as Booking);
+        });
+         console.log(`[getBookingsForUser] Found ${bookings.length} bookings for user ${userId}`);
+        return bookings;
+    } catch (error) {
+        console.error(`❌ Error fetching bookings for user ${userId}:`, error);
+        throw new Error(`Failed to fetch bookings for user: ${error instanceof Error ? error.message : String(error)}`);
+    }
+}
+
+/**
+ * Updates the availability status for a given property and date range.
+ * WARNING: This implementation uses the `availabilityExample` structure (daily map within a monthly doc).
+ * This structure can lead to large documents and potential performance issues or exceeding Firestore limits
+ * for busy properties or long date ranges. Consider storing booked ranges as separate documents instead.
+ *
+ * @param propertyId The ID of the property.
+ * @param checkInDate The start date of the range (inclusive).
+ * @param checkOutDate The end date of the range (exclusive - the day the guest leaves).
+ * @param available The availability status to set (true = available, false = booked/unavailable).
+ * @returns A Promise resolving when the update is complete.
+ */
+export async function updatePropertyAvailability(propertyId: string, checkInDate: Date, checkOutDate: Date, available: boolean): Promise<void> {
+  if (checkOutDate <= checkInDate) {
+    console.warn(`[updatePropertyAvailability] Check-out date (${checkOutDate}) must be after check-in date (${checkInDate}). No update performed.`);
+    return;
+  }
+
+  // Get all dates in the range, EXCLUDING the check-out date itself, as it should remain available.
+  const datesToUpdate = eachDayOfInterval({
+    start: checkInDate,
+    end: new Date(checkOutDate.setDate(checkOutDate.getDate() - 1)) // Decrement checkout date by 1 day
+  });
+
+  // Group dates by month (YYYY-MM)
+  const updatesByMonth: { [month: string]: { [day: number]: boolean } } = {};
+  datesToUpdate.forEach(date => {
+    const monthStr = format(date, 'yyyy-MM');
+    const dayOfMonth = date.getDate(); // Day as number (1-31)
+    if (!updatesByMonth[monthStr]) {
+      updatesByMonth[monthStr] = {};
+    }
+    updatesByMonth[monthStr][dayOfMonth] = available;
+  });
+
+  const batch = writeBatch(db);
+  const availabilityCollection = collection(db, 'availability');
+
+  try {
+    // Process updates for each month
+    for (const monthStr in updatesByMonth) {
+      const availabilityDocId = `${propertyId}_${monthStr}`;
+      const availabilityDocRef = doc(availabilityCollection, availabilityDocId);
+      const updatesForMonth = updatesByMonth[monthStr];
+
+      // Prepare the update object using dot notation for nested fields
+      const updatePayload: { [key: string]: boolean | Timestamp } = {};
+      for (const day in updatesForMonth) {
+        updatePayload[`available.${day}`] = updatesForMonth[day]; // e.g., available.15: false
+      }
+      updatePayload.updatedAt = serverTimestamp(); // Update the timestamp
+
+      // Check if the document exists. If not, create it with the initial data.
+      // Note: This adds an extra read per month. A more robust solution might handle this differently.
+      const docSnap = await getDoc(availabilityDocRef);
+
+      if (docSnap.exists()) {
+        // Document exists, update the specific days
+         console.log(`[Availability Batch Update] Updating existing doc ${availabilityDocId} with payload:`, updatePayload);
+        batch.update(availabilityDocRef, updatePayload);
+      } else {
+         // Document doesn't exist, create it with all days for the month (defaulting to available)
+         // and then apply the specific updates.
+         const [year, month] = monthStr.split('-').map(Number);
+         const daysInMonth = differenceInCalendarDays(
+             new Date(year, month, 1), // First day of next month
+             new Date(year, month - 1, 1) // First day of current month
+         );
+         const initialAvailableMap: { [day: number]: boolean } = {};
+         for (let day = 1; day <= daysInMonth; day++) {
+             initialAvailableMap[day] = true; // Default to available
+         }
+         // Merge the specific updates for this month
+         const mergedAvailableMap = { ...initialAvailableMap, ...updatesForMonth };
+
+         const newDocData: Partial<Availability> = {
+             propertyId: propertyId,
+             month: monthStr,
+             available: mergedAvailableMap,
+             updatedAt: serverTimestamp(),
+         };
+         console.log(`[Availability Batch Update] Creating new doc ${availabilityDocId} with data:`, newDocData);
+         batch.set(availabilityDocRef, newDocData); // Use set to create the new document
+      }
+    }
+
+    // Commit the batch
+    await batch.commit();
+    console.log(`[updatePropertyAvailability] Successfully updated availability for property ${propertyId} from ${format(checkInDate, 'yyyy-MM-dd')} to ${format(checkOutDate, 'yyyy-MM-dd')} (exclusive) to ${available ? 'available' : 'unavailable'}`);
+
+  } catch (error) {
+    console.error(`❌ Error updating property availability for ${propertyId}:`, error);
+    throw new Error(`Failed to update property availability: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+
+// TODO: Add functions for:
+// - (Maybe) getAvailabilityForDateRange(propertyId: string, startDate: Date, endDate: Date): Promise<AvailabilityData> // Complex due to monthly structure
+// - Consider refactoring availability to store booked ranges instead of daily maps.
