@@ -1,6 +1,11 @@
 // scripts/load-properties.ts
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+
+// Load environment variables from .env.local at the project root
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+
 import fs from 'fs/promises'; // Use promises for async file reading
-import path from 'path';
 import { collection, doc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase'; // Adjust the path if your firebase init file is elsewhere
 import { convertObjectToFirestoreTimestamps } from './convertTimestamps'; // Import the helper
@@ -50,6 +55,16 @@ async function loadPropertyData(filePath: string, docId: string) {
 
 async function main() {
     console.log('--- Starting Firestore Property Data Loading Script ---');
+
+    // Check if environment variables are loaded (simple check)
+    if (!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) {
+        console.error("❌ Environment variables not loaded correctly. Ensure .env.local exists and is readable.");
+        process.exit(1);
+    } else {
+        console.log(`✅ Environment variables loaded. Project ID: ${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}`);
+    }
+
+
     try {
         // Define the paths to your JSON files relative to the project root
         const filePaths = [
