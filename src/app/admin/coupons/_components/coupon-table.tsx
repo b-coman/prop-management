@@ -83,6 +83,7 @@ export function CouponTable({ coupons }: CouponTableProps) {
           const bookingValidUntilDate = deserializeTimestamp(coupon.bookingValidUntil);
           const exclusionPeriodsDates = deserializeExclusionPeriods(coupon.exclusionPeriods);
 
+          // Removed whitespace between fragment and TableRow
           return (
             <React.Fragment key={coupon.id}>
               <TableRow>
@@ -116,8 +117,7 @@ export function CouponTable({ coupons }: CouponTableProps) {
                   <TableCell className="text-right">
                     <CouponStatusToggle couponId={coupon.id} isActive={coupon.isActive} isDisabled={isExpired} />
                   </TableCell>
-                </TableRow>
-                {/* Expanded Row for Additional Details */}
+                </TableRow>{/* Expanded Row for Additional Details */}
                 {isExpanded && (
                   <TableRow id={`details-${coupon.id}`} className="bg-muted/50 hover:bg-muted/50">
                     <TableCell colSpan={7} className="p-4"> {/* Use colSpan to span all columns */}
