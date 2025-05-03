@@ -1,4 +1,3 @@
-
 // src/app/admin/coupons/page.tsx
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { fetchCoupons } from './actions'; // Import the fetch function
@@ -20,6 +19,7 @@ export default async function ManageCouponsPage() {
         </CardHeader>
         <CardContent>
           {coupons.length > 0 ? (
+            // Pass the fetched coupons to the table component
             <CouponTable coupons={coupons} />
           ) : (
             <p className="text-center text-muted-foreground">No coupons found.</p>

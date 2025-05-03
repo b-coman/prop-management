@@ -2,7 +2,7 @@ import type { Timestamp as FirestoreTimestamp } from 'firebase/firestore'; // Us
 
 // Type alias for values that might be Timestamps server-side but serialized for the client
 // Allow null for optional dates
-export type SerializableTimestamp = FirestoreTimestamp | string | number | null;
+export type SerializableTimestamp = FirestoreTimestamp | string | number | Date | null; // Added Date
 
 
 // Aligned with propertyExample structure
@@ -196,22 +196,23 @@ export interface SyncCalendar {
 // Firestore 'coupons' collection structure
 // Adjusted date fields to use SerializableTimestamp for client components
 export interface Coupon {
-    id: string; // Document ID (can be the coupon code itself for easy lookup)
+    id: string; // Document ID
     code: string; // The actual coupon code string
     discount: number; // Percentage discount (e.g., 10 for 10%)
-    validUntil: SerializableTimestamp; // Coupon expiry date
+    validUntil: SerializableTimestamp | null; // Coupon expiry date (use null if no expiry)
     description?: string; // Optional description of the coupon
     isActive: boolean; // Whether the coupon can currently be used
     createdAt: SerializableTimestamp; // Firestore server timestamp for when it was created
     updatedAt?: SerializableTimestamp; // Firestore server timestamp for last update
 
-    // NEW FIELDS for booking timeframe validity and exclusions
-    bookingValidFrom?: SerializableTimestamp | null; // Coupon only valid FOR bookings starting ON or AFTER this date
-    bookingValidUntil?: SerializableTimestamp | null; // Coupon only valid FOR bookings ending ON or BEFORE this date
-    exclusionPeriods?: Array<{ start: SerializableTimestamp; end: SerializableTimestamp }> | null; // Array of date ranges where coupon is NOT valid
+    // Fields for booking timeframe validity and exclusions
+    // Use null when not set, consistent with Firestore potential values
+    bookingValidFrom?: SerializableTimestamp | null;
+    bookingValidUntil?: SerializableTimestamp | null;
+    exclusionPeriods?: Array<{ start: SerializableTimestamp; end: SerializableTimestamp }> | null;
 
-    // Optional: Add usage limits if needed
-    // maxUses?: number;
+    // Optional: Add usage limits if needed in the future
+    // maxUses?: number | null;
     // currentUses?: number;
 }
 
@@ -221,3 +222,4 @@ export type CreateCouponResult = {
   code?: string;
   error?: string;
 };
+
