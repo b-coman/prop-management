@@ -1,0 +1,61 @@
+
+'use client';
+
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { XCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Header } from '@/components/header';
+import { Footer } from '@/components/footer';
+import { Suspense } from 'react';
+
+function BookingCancelContent() {
+    const searchParams = useSearchParams();
+    const propertySlug = searchParams.get('property_slug');
+
+    return (
+        <div className="flex min-h-screen flex-col">
+            <Header />
+            <main className="flex-grow container py-12 md:py-16 lg:py-20 flex items-center justify-center">
+                <Card className="w-full max-w-lg text-center shadow-xl">
+                    <CardHeader>
+                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-destructive">
+                            <XCircle className="h-10 w-10" />
+                        </div>
+                        <CardTitle className="text-3xl font-bold">Booking Cancelled</CardTitle>
+                        <CardDescription>
+                            Your booking process was cancelled. You have not been charged.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <p className="text-muted-foreground">
+                            You can return to the property page to try booking again or explore other options.
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                            {propertySlug && (
+                                <Button asChild variant="outline">
+                                    <Link href={`/properties/${propertySlug}`}>Return to Property</Link>
+                                </Button>
+                            )}
+                            <Button asChild>
+                                <Link href="/properties">Explore Other Properties</Link>
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            </main>
+            <Footer />
+        </div>
+    );
+}
+
+
+export default function BookingCancelPage() {
+  return (
+    // Wrap with Suspense because useSearchParams() might suspend
+    <Suspense fallback={<div>Loading...</div>}>
+      <BookingCancelContent />
+    </Suspense>
+  );
+}

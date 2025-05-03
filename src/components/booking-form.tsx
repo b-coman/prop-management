@@ -1,10 +1,12 @@
-"use client"; // Required for form handling and state
+
+"use client"; // Required for form handling, state, and Stripe JS
 
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { format, differenceInDays, addDays, parseISO } from 'date-fns';
-import { Calendar as CalendarIcon, Users, Minus, Plus } from 'lucide-react';
+import { Calendar as CalendarIcon, Users, Minus, Plus, Loader2 } from 'lucide-react'; // Added Loader2
 import { DateRange } from 'react-day-picker';
+import { loadStripe, type Stripe } from '@stripe/stripe-js'; // Import Stripe JS
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -19,11 +21,11 @@ import { Input } from '@/components/ui/input';
 import { useToast } from "@/hooks/use-toast";
 import type { Property } from '@/types';
 import { Separator } from './ui/separator';
+import { createCheckoutSession } from '@/app/actions/create-checkout-session'; // Import server action
 
 interface BookingFormProps {
   property: Property;
-  // In a real app, you'd likely pass unavailable dates here
-  // unavailableDates?: Date[];
+  // unavailableDates?: Date[]; // Consider fetching/passing this from Firestore
 }
 
 // Mock unavailable dates for demonstration
@@ -35,22 +37,34 @@ const mockUnavailableDates = [
   addDays(new Date(), 12),
 ];
 
+// Load Stripe outside component to avoid recreating on every render
+// Ensure your Stripe publishable key is in an environment variable
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
+if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+  console.warn('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not set. Stripe functionality will be limited.');
+}
+
+
 export function BookingForm({ property }: BookingFormProps) {
   const [date, setDate] = useState<DateRange | undefined>(undefined);
   const [numberOfGuests, setNumberOfGuests] = useState(1);
   const [totalPrice, setTotalPrice] = useState<number | null>(null);
   const [numberOfNights, setNumberOfNights] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Loading state
   const { toast } = useToast();
 
   useEffect(() => {
     if (date?.from && date?.to) {
-      const nights = differenceInDays(date.to, date.from);
-      setNumberOfNights(nights);
-      if (nights > 0) {
+      // Ensure 'to' is strictly after 'from'
+      if (date.to > date.from) {
+        const nights = differenceInDays(date.to, date.from);
+        setNumberOfNights(nights);
         const calculatedPrice = nights * property.pricePerNight + property.cleaningFee;
         setTotalPrice(calculatedPrice);
       } else {
-        setTotalPrice(null); // Reset price if dates are invalid or same day
+         // Reset if 'to' is not after 'from'
+        setNumberOfNights(0);
+        setTotalPrice(null);
       }
     } else {
       setNumberOfNights(0);
@@ -68,8 +82,9 @@ export function BookingForm({ property }: BookingFormProps) {
     });
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    setIsSubmitting(true); // Start loading
 
     if (!date?.from || !date?.to) {
        toast({
@@ -77,6 +92,7 @@ export function BookingForm({ property }: BookingFormProps) {
         description: "Please select check-in and check-out dates.",
         variant: "destructive",
       });
+       setIsSubmitting(false);
       return;
     }
 
@@ -86,27 +102,78 @@ export function BookingForm({ property }: BookingFormProps) {
         description: "Check-out date must be after check-in date.",
         variant: "destructive",
       });
+      setIsSubmitting(false);
       return;
     }
 
-    console.log('Booking submitted:', {
-      propertyId: property.id,
-      checkInDate: date.from,
-      checkOutDate: date.to,
-      numberOfGuests,
-      totalPrice,
-    });
+     if (!totalPrice) {
+       toast({
+        title: "Error",
+        description: "Could not calculate total price.",
+        variant: "destructive",
+      });
+       setIsSubmitting(false);
+       return;
+    }
 
-    // TODO: Implement actual booking logic (e.g., call API, Stripe integration)
-    // Redirect to a confirmation page or show success message
-    toast({
-      title: "Booking Request Submitted (Demo)",
-      description: `Booking for ${property.name} from ${format(date.from, 'LLL dd, y')} to ${format(date.to, 'LLL dd, y')} for ${numberOfGuests} guests. Total: $${totalPrice?.toFixed(2)}`,
-    });
+    if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+       toast({
+        title: "Configuration Error",
+        description: "Stripe is not configured correctly. Cannot proceed with booking.",
+        variant: "destructive",
+      });
+       setIsSubmitting(false);
+       return;
+    }
 
-    // Reset form after submission (optional)
-    // setDate(undefined);
-    // setNumberOfGuests(1);
+
+    try {
+      // 1. Call the server action to create a checkout session
+      const result = await createCheckoutSession({
+        property: property,
+        checkInDate: date.from.toISOString(),
+        checkOutDate: date.to.toISOString(),
+        numberOfGuests: numberOfGuests,
+        totalPrice: totalPrice,
+        numberOfNights: numberOfNights,
+      });
+
+       if (result.error || !result.sessionId) {
+        throw new Error(result.error || 'Failed to get session ID.');
+      }
+
+      const { sessionId } = result;
+
+      // 2. Redirect to Stripe Checkout
+      const stripe = await stripePromise;
+      if (!stripe) {
+         throw new Error('Stripe.js has not loaded yet.');
+      }
+
+      const { error } = await stripe.redirectToCheckout({ sessionId });
+
+      if (error) {
+        console.error('Stripe redirect error:', error);
+        toast({
+          title: "Error Redirecting",
+          description: error.message || "Could not redirect to Stripe.",
+          variant: "destructive",
+        });
+      }
+      // If redirectToCheckout is successful, the user is navigated away,
+      // so no need to reset loading state here unless there's an error.
+
+    } catch (error) {
+      console.error('Booking submission error:', error);
+      toast({
+        title: "Booking Error",
+        description: error instanceof Error ? error.message : "An unexpected error occurred during booking.",
+        variant: "destructive",
+      });
+       setIsSubmitting(false); // Stop loading on error
+    }
+     // Don't set submitting false here if redirect is successful
+     // setIsSubmitting(false);
   };
 
   return (
@@ -123,6 +190,7 @@ export function BookingForm({ property }: BookingFormProps) {
                 'w-full justify-start text-left font-normal',
                 !date && 'text-muted-foreground'
               )}
+              disabled={isSubmitting} // Disable while submitting
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
               {date?.from ? (
@@ -166,7 +234,7 @@ export function BookingForm({ property }: BookingFormProps) {
               size="icon"
               className="h-7 w-7"
               onClick={() => handleGuestChange(-1)}
-              disabled={numberOfGuests <= 1}
+              disabled={numberOfGuests <= 1 || isSubmitting} // Disable while submitting
               aria-label="Decrease guests"
             >
               <Minus className="h-4 w-4" />
@@ -180,7 +248,7 @@ export function BookingForm({ property }: BookingFormProps) {
               size="icon"
                className="h-7 w-7"
               onClick={() => handleGuestChange(1)}
-              disabled={numberOfGuests >= property.maxGuests}
+              disabled={numberOfGuests >= property.maxGuests || isSubmitting} // Disable while submitting
               aria-label="Increase guests"
             >
               <Plus className="h-4 w-4" />
@@ -196,7 +264,7 @@ export function BookingForm({ property }: BookingFormProps) {
           <Separator className="my-4" />
           <div className="flex justify-between">
             <span>
-              ${property.pricePerNight} x {numberOfNights} nights
+              ${property.pricePerNight} x {numberOfNights} {numberOfNights === 1 ? 'night' : 'nights'}
             </span>
             <span>${(property.pricePerNight * numberOfNights).toFixed(2)}</span>
           </div>
@@ -204,6 +272,7 @@ export function BookingForm({ property }: BookingFormProps) {
             <span>Cleaning fee</span>
             <span>${property.cleaningFee.toFixed(2)}</span>
           </div>
+           {/* Add other fees like service fee if applicable */}
           <Separator className="my-2" />
           <div className="flex justify-between font-bold text-base">
             <span>Total</span>
@@ -212,11 +281,19 @@ export function BookingForm({ property }: BookingFormProps) {
         </div>
       )}
 
-      <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={!date?.from || !date?.to || numberOfNights <= 0}>
-        Request to Book
+      <Button
+        type="submit"
+        className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
+        disabled={!date?.from || !date?.to || numberOfNights <= 0 || !totalPrice || isSubmitting} // Add submitting state to disabled condition
+        >
+        {isSubmitting ? (
+           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+         ) : (
+           'Proceed to Payment' // Updated button text
+         )}
       </Button>
       <p className="text-xs text-center text-muted-foreground">
-        You won't be charged yet
+         You will be redirected to Stripe to complete your payment.
       </p>
     </form>
   );
