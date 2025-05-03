@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'; // Import Input for guest count
 import { Label } from '@/components/ui/label'; // Import Label
 import { placeholderProperties } from '@/data/properties'; // Using placeholder data
 import type { Property } from '@/types';
-import { BedDouble, Bath, Users, Wifi, ParkingCircle, Tv, Utensils, Clock, XCircle, CheckCircle, MapPin } from 'lucide-react';
+import { BedDouble, Bath, Users, Wifi, ParkingCircle, Tv, Utensils, Clock, XCircle, CheckCircle, MapPin, Home } from 'lucide-react'; // Added Home import
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { BookingForm } from '@/components/booking-form'; // Import BookingForm
