@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(propertyId) {
+      return isSignedIn() && 
+        get(/databases/$(database)/documents/properties/$(propertyId)).data.ownerId == request.auth.uid;
+    }
+    
+    function isAdmin() {
+      return isSignedIn() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Properties collection
+    match /properties/{propertyId} {
+      allow read: if true; // Public read access
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isOwner(propertyId) || isAdmin();
+      
+      // Sub-collections can be defined here
+    }
+    
+    // Availability collection
+    match /availability/{document} {
+      allow read: if true; // Public read access
+      allow write: if isSignedIn() && 
+        isOwner(document.split('_')[0]) || isAdmin();
+    }
+    
+    // Bookings collection
+    match /bookings/{bookingId} {
+      allow create: if true; // Anyone can create a booking
+      allow read, update: if isSignedIn() && 
+        (request.auth.uid == resource.data.guestInfo.userId || 
+         isOwner(resource.data.propertyId) || 
+         isAdmin());
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow read, write: if request.auth.uid == userId || isAdmin();
+    }
+    
+    // Reviews collection
+    match /reviews/{reviewId} {
+      allow read: if true; // Public read access
+      allow create: if isSignedIn(); // Must be signed in to leave review
+      allow update, delete: if isAdmin();
+    }
+    
+    // Settings collection
+    match /settings/{document} {
+      allow read: if true; // Public read access
+      allow write: if isAdmin();
+    }
+    
+    // SyncCalendars collection
+    match /syncCalendars/{document} {
+      allow read: if isSignedIn() && 
+        (isOwner(resource.data.propertyId) || isAdmin());
+      allow write: if isSignedIn() && 
+        (isOwner(resource.data.propertyId) || isAdmin());
+    }
+  }
+}
