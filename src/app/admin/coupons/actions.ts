@@ -1,4 +1,3 @@
-
 "use server";
 
 import { z } from "zod";
@@ -35,20 +34,18 @@ export async function createCouponAction(
     const couponsCollection = collection(db, 'coupons');
 
     // Prepare data for Firestore
-    const couponData: Omit<Coupon, 'id'> = {
+    // Keep Timestamps for Firestore write
+    const couponDataForDb: Omit<Coupon, 'id' | 'createdAt' | 'updatedAt' | 'validUntil'> & { validUntil: Timestamp, createdAt: any } = {
       code: code,
       discount: discount,
       validUntil: Timestamp.fromDate(validUntil), // Convert Date to Firestore Timestamp
       isActive: isActive,
       description: description || "", // Ensure description is not undefined
-      createdAt: serverTimestamp(), // Add createdAt timestamp
-      // Add usage limits if needed in the future
-      // maxUses: null,
-      // currentUses: 0,
+      createdAt: serverTimestamp(), // Add createdAt server timestamp
     };
 
     // Add the document to Firestore
-    const docRef = await addDoc(couponsCollection, couponData);
+    const docRef = await addDoc(couponsCollection, couponDataForDb);
 
     console.log(`[Create Coupon Action] Coupon "${code}" created successfully with ID: ${docRef.id}`);
     revalidatePath('/admin/coupons'); // Revalidate the coupon list page
@@ -142,6 +139,9 @@ export async function updateCouponExpiryAction(
 
 
 // --- Function to fetch coupons (can be called by the page component) ---
+// Convert Firestore Timestamps to a serializable format (e.g., ISO string or number)
+// before returning them, because Timestamp objects cannot be directly passed
+// from Server Components to Client Components.
 export async function fetchCoupons(): Promise<Coupon[]> {
   try {
     const couponsCollection = collection(db, 'coupons');
@@ -149,10 +149,35 @@ export async function fetchCoupons(): Promise<Coupon[]> {
     const q = query(couponsCollection, orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
 
-    const coupons = querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as Coupon[];
+    const coupons = querySnapshot.docs.map((doc) => {
+        const data = doc.data();
+
+        // Helper to safely convert Timestamp to ISO string
+        const toSerializableDate = (timestamp: any): string | null => {
+            if (timestamp instanceof Timestamp) {
+                return timestamp.toDate().toISOString();
+            }
+            // Handle potential serverTimestamp placeholders if data is read immediately after write
+            // Or handle if it's already serialized somehow (less likely here)
+            if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
+                 return new Date(timestamp.seconds * 1000 + timestamp.nanoseconds / 1000000).toISOString();
+            }
+            return null; // Or return undefined, depending on how you want to handle missing/invalid dates
+        };
+
+        return {
+          id: doc.id,
+          code: data.code,
+          discount: data.discount,
+          isActive: data.isActive,
+          description: data.description,
+          // Convert Timestamps to ISO strings for serialization
+          validUntil: toSerializableDate(data.validUntil),
+          createdAt: toSerializableDate(data.createdAt),
+          updatedAt: toSerializableDate(data.updatedAt),
+        };
+      // Assert the final type after mapping and serialization
+    }) as Coupon[];
 
     return coupons;
 

@@ -1,7 +1,6 @@
-
 "use client";
 
-import type { Coupon } from "@/types";
+import type { Coupon, SerializableTimestamp } from "@/types"; // Import SerializableTimestamp
 import {
   Table,
   TableBody,
@@ -12,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns"; // Import parseISO
 import { CouponStatusToggle } from "./coupon-status-toggle"; // Import the status toggle component
 import { CouponExpiryEdit } from "./coupon-expiry-edit"; // Import the expiry edit component
 
@@ -21,12 +20,35 @@ interface CouponTableProps {
 }
 
 export function CouponTable({ coupons }: CouponTableProps) {
-  // Function to convert Firestore Timestamp to Date object
-  const timestampToDate = (timestamp: any): Date | null => {
-    if (!timestamp || typeof timestamp.seconds !== 'number' || typeof timestamp.nanoseconds !== 'number') {
-      return null;
+  // Function to convert Firestore Timestamp or serialized date to Date object
+  const deserializeTimestamp = (timestamp: SerializableTimestamp | null | undefined): Date | null => {
+    if (!timestamp) return null;
+
+    // Check if it's already a Date object (less likely after serialization)
+    if (timestamp instanceof Date) {
+        return timestamp;
     }
-    return new Date(timestamp.seconds * 1000 + timestamp.nanoseconds / 1000000);
+    // Check if it's a Firestore Timestamp object (less likely after serialization)
+     if (typeof timestamp === 'object' && 'seconds' in timestamp && 'nanoseconds' in timestamp) {
+       // @ts-ignore Assuming it's a Firestore Timestamp-like object
+       return new Date(timestamp.seconds * 1000 + timestamp.nanoseconds / 1000000);
+     }
+    // Check if it's an ISO string
+    if (typeof timestamp === 'string') {
+      try {
+        return parseISO(timestamp);
+      } catch (e) {
+        console.error("Failed to parse ISO string:", timestamp, e);
+        return null;
+      }
+    }
+    // Check if it's a number (milliseconds since epoch)
+    if (typeof timestamp === 'number') {
+      return new Date(timestamp);
+    }
+
+    console.warn("Unknown timestamp format received:", timestamp);
+    return null;
   };
 
   return (
@@ -44,8 +66,8 @@ export function CouponTable({ coupons }: CouponTableProps) {
       </TableHeader>
       <TableBody>
         {coupons.map((coupon) => {
-          const validUntilDate = timestampToDate(coupon.validUntil);
-          const createdAtDate = timestampToDate(coupon.createdAt);
+          const validUntilDate = deserializeTimestamp(coupon.validUntil);
+          const createdAtDate = deserializeTimestamp(coupon.createdAt); // Deserialize createdAt too if needed elsewhere
           const isExpired = validUntilDate ? validUntilDate < new Date() : false;
           const effectiveStatus = isExpired ? "Expired" : coupon.isActive ? "Active" : "Inactive";
 
@@ -59,7 +81,7 @@ export function CouponTable({ coupons }: CouponTableProps) {
                    // Pass couponId and current date to the edit component
                    <CouponExpiryEdit couponId={coupon.id} currentExpiryDate={validUntilDate} />
                 ) : (
-                  "N/A"
+                  "N/A" // Or "No Expiry"
                 )}
               </TableCell>
               <TableCell>

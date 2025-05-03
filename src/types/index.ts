@@ -1,6 +1,8 @@
+import type { Timestamp as FirestoreTimestamp } from 'firebase/firestore'; // Use FirestoreTimestamp alias
 
+// Type alias for values that might be Timestamps server-side but serialized for the client
+type SerializableTimestamp = FirestoreTimestamp | string | number;
 
-import type { Timestamp } from 'firebase/firestore';
 
 // Aligned with propertyExample structure
 export interface Property {
@@ -47,8 +49,8 @@ export interface Property {
     average: number;
     count: number;
   };
-  createdAt?: Timestamp; // Use Timestamp in Firestore
-  updatedAt?: Timestamp; // Use Timestamp in Firestore
+  createdAt?: SerializableTimestamp; // Use serializable type
+  updatedAt?: SerializableTimestamp; // Use serializable type
   ownerId?: string; // Reference to the property owner (User ID)
   isActive?: boolean;
   // Fields for external platform synchronization
@@ -72,8 +74,8 @@ export interface Booking {
     zipCode?: string; // Optional
     userId?: string; // Optional: Link to User document if guest is a registered user
   };
-  checkInDate: Timestamp; // Use Timestamp in Firestore
-  checkOutDate: Timestamp; // Use Timestamp in Firestore
+  checkInDate: SerializableTimestamp; // Use serializable type
+  checkOutDate: SerializableTimestamp; // Use serializable type
   numberOfGuests: number;
   pricing: {
     baseRate: number; // Price per night at time of booking (for base occupancy)
@@ -93,13 +95,13 @@ export interface Booking {
     stripePaymentIntentId: string; // Store Payment Intent ID
     amount: number; // Should match pricing.total (in dollars)
     status: string; // e.g., 'succeeded', 'paid', 'requires_payment_method' from Stripe
-    paidAt: Timestamp | null; // Timestamp when payment succeeded, or null
+    paidAt: SerializableTimestamp | null; // Use serializable type
   };
   notes?: string; // Optional notes from the guest
   source?: string; // Optional: e.g., 'website', 'airbnb', 'booking.com'
   externalId?: string; // Optional: Booking ID from an external platform
-  createdAt: Timestamp; // Firestore server timestamp
-  updatedAt: Timestamp; // Firestore server timestamp
+  createdAt: SerializableTimestamp; // Use serializable type
+  updatedAt: SerializableTimestamp; // Use serializable type
 }
 
 // Aligned with userExample structure
@@ -115,9 +117,9 @@ export interface User {
     emailNotifications?: boolean;
     smsNotifications?: boolean;
   };
-  createdAt: Timestamp; // Firestore server timestamp
-  updatedAt: Timestamp; // Firestore server timestamp
-  lastLogin?: Timestamp; // Updated on successful login
+  createdAt: SerializableTimestamp; // Use serializable type
+  updatedAt: SerializableTimestamp; // Use serializable type
+  lastLogin?: SerializableTimestamp; // Use serializable type
 }
 
 // Aligned with reviewExample structure
@@ -130,10 +132,10 @@ export interface Review {
   rating: number; // e.g., 1-5 stars
   comment: string;
   photos?: string[]; // URLs of photos uploaded with the review
-  date: Timestamp; // Date the review was submitted
+  date: SerializableTimestamp; // Use serializable type
   ownerResponse?: { // Optional response from the property owner
     comment: string;
-    date: Timestamp;
+    date: SerializableTimestamp; // Use serializable type
   };
   isPublished: boolean; // Whether the review is visible on the site
 }
@@ -147,7 +149,7 @@ export interface Availability {
   available: { [day: number]: boolean }; // Map of day number (1-31) to availability status
   pricingModifiers?: { [day: number]: number }; // Optional: Map of day number to price multiplier (e.g., 1.2 for 20% increase)
   minimumStay?: { [day: number]: number }; // Optional: Map of day number to minimum stay requirement
-  updatedAt: Timestamp; // Firestore server timestamp
+  updatedAt: SerializableTimestamp; // Use serializable type
 }
 
 
@@ -175,7 +177,7 @@ export interface GlobalSettings {
     isMaintenanceMode?: boolean;
     maintenanceMessage?: string;
   };
-  updatedAt: Timestamp;
+  updatedAt: SerializableTimestamp; // Use serializable type
 }
 
 // Aligned with syncCalendarExample structure
@@ -186,20 +188,21 @@ export interface SyncCalendar {
   calendarId?: string; // Optional ID from the platform
   importUrl?: string; // URL to import external calendar data
   exportUrl?: string; // URL for external platforms to fetch this property's calendar
-  lastSyncedAt?: Timestamp;
+  lastSyncedAt?: SerializableTimestamp; // Use serializable type
   isActive: boolean;
 }
 
 // Firestore 'coupons' collection structure
+// Adjusted date fields to use SerializableTimestamp for client components
 export interface Coupon {
     id: string; // Document ID (can be the coupon code itself for easy lookup)
     code: string; // The actual coupon code string
     discount: number; // Percentage discount (e.g., 10 for 10%)
-    validUntil: Timestamp; // The timestamp when the coupon expires
+    validUntil: SerializableTimestamp; // The timestamp when the coupon expires
     description?: string; // Optional description of the coupon
     isActive: boolean; // Whether the coupon can currently be used
-    createdAt: Timestamp; // Firestore server timestamp for when it was created
-    updatedAt?: Timestamp; // Firestore server timestamp for last update
+    createdAt: SerializableTimestamp; // Firestore server timestamp for when it was created
+    updatedAt?: SerializableTimestamp; // Firestore server timestamp for last update
     // Optional: Add usage limits if needed
     // maxUses?: number;
     // currentUses?: number;
