@@ -1,4 +1,5 @@
 
+
 import type { Timestamp } from 'firebase/firestore';
 
 // Aligned with propertyExample structure
@@ -61,7 +62,7 @@ export interface Booking {
   propertyId: string; // Reference to the property document
   guestInfo: {
     firstName: string;
-    lastName: string;
+    lastName?: string; // Made optional based on usage
     email: string;
     phone?: string; // Optional
     address?: string; // Optional
@@ -197,7 +198,15 @@ export interface Coupon {
     validUntil: Timestamp; // The timestamp when the coupon expires
     description?: string; // Optional description of the coupon
     isActive: boolean; // Whether the coupon can currently be used
+    createdAt: Timestamp; // Firestore server timestamp for when it was created
     // Optional: Add usage limits if needed
     // maxUses?: number;
     // currentUses?: number;
 }
+
+// Added type definition for the server action result
+export type CreateCouponResult = {
+  id?: string;
+  code?: string;
+  error?: string;
+};
