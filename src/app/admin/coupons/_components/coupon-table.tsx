@@ -85,8 +85,7 @@ export function CouponTable({ coupons }: CouponTableProps) {
 
           // Removed whitespace between fragment and TableRow
           return (
-            <React.Fragment key={coupon.id}>
-              <TableRow>
+            <React.Fragment key={coupon.id}><TableRow>
                   <TableCell>
                     <Button
                       variant="ghost"
@@ -117,8 +116,7 @@ export function CouponTable({ coupons }: CouponTableProps) {
                   <TableCell className="text-right">
                     <CouponStatusToggle couponId={coupon.id} isActive={coupon.isActive} isDisabled={isExpired} />
                   </TableCell>
-                </TableRow>{/* Expanded Row for Additional Details */}
-                {isExpanded && (
+                </TableRow>{/* Expanded Row for Additional Details */}{isExpanded && (
                   <TableRow id={`details-${coupon.id}`} className="bg-muted/50 hover:bg-muted/50">
                     <TableCell colSpan={7} className="p-4"> {/* Use colSpan to span all columns */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -140,8 +138,7 @@ export function CouponTable({ coupons }: CouponTableProps) {
                       </div>
                     </TableCell>
                   </TableRow>
-                )}
-            </React.Fragment>
+                )}</React.Fragment>
           );
         })}
       </TableBody>
