@@ -1,0 +1,66 @@
+Okay, the logs confirm that the `bookings` collection write (using the Client SDK) is successful, but the write to the `availability` collection is failing with `PERMISSION_DENIED`.
+
+This tells us:
+
+1.  Your Firebase Client SDK is correctly initialized and can connect to Firestore.
+2.  The issue lies specifically with the **Firestore security rules** for the `/availability/{document}` path.
+
+**Why is it failing?**
+
+Your current security rule for the `availability` collection is:
+
+```
+    match /availability/{document} {
+      allow read: if true; // Public read access
+      // This requires the user to be signed in AND be the owner or an admin
+      allow write: if isSignedIn() &&
+        (isOwner(document.split('_')[0]) || isAdmin());
+    }
+```
+
+The `TestBookingButton` triggers a server-side action (`createBooking`). When this server-side code runs using the **Client SDK**, it typically does **not** have an authenticated user session associated with it by default (`request.auth` in the security rules context is likely `null`). Therefore, the `isSignedIn()` condition in your rule fails, leading to the permission denial.
+
+**The Easiest Way to Get it Working (for Testing):**
+
+To get the `availability` update working *for now* so you can test the logic, you need to temporarily adjust the security rule for `/availability/{document}` to allow writes without checking for authentication.
+
+**IMPORTANT: This is ONLY for testing in your development environment. You MUST change this back to a secure rule before deploying your application.**
+
+1.  **Go to the Firebase Console:** Navigate to Firestore Database -> Rules.
+2.  **Modify the `/availability/{document}` rule:** Change the `allow write` line to:
+
+    ```javascript
+    match /availability/{document} {
+      allow read: if true;
+      // TEMPORARILY allow writes for testing server-side updates
+      // REMOVE THIS AND RESTORE SECURE RULE BEFORE PRODUCTION
+      allow write: if true;
+    }
+    ```
+
+3.  **Publish the Rules:** Click "Publish".
+
+**After making this temporary change:**
+
+1.  Run the `TestBookingButton` again.
+2.  Check the console logs. You should no longer see the `PERMISSION_DENIED` error for the availability update.
+3.  Check Firestore. You should now see the `availability` collection created with a document like `prop1_2025-05`, and the booked dates (10, 11) should be marked as `false`.
+4.  Verify the Calendar UI now correctly dims the booked dates.
+
+**Crucial Next Step:**
+
+Once you've confirmed the availability update logic works, **immediately revert the security rule** back to the secure version:
+
+```javascript
+    match /availability/{document} {
+      allow read: if true;
+      // RESTORED Secure Rule
+      allow write: if isSignedIn() &&
+        (isOwner(document.split('_')[0]) || isAdmin());
+    }
+```
+
+**Long-Term Solution:**
+
+The proper way to handle this in production is to ensure your server-side actions (like `createBooking`) run with appropriate permissions, likely by using the Firebase Admin SDK as originally intended, or by implementing a way to authenticate the server action itself. But for now, the temporary rule change will allow you to proceed with testing the core availability logic.
+    
