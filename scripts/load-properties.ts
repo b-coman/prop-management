@@ -1,4 +1,3 @@
-
 // scripts/load-properties.ts
 import fs from 'fs/promises'; // Use promises for async file reading
 import path from 'path';
