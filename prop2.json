@@ -1,0 +1,71 @@
+{
+  "name": "Coltei Apartment Bucharest",
+  "slug": "coltei-apartment-bucharest",
+  "description": "Discover Bucharest from our modern and centrally located apartment near Coltei Hospital. Ideal for city explorers and business travelers, offering easy access to the Old Town, University Square, and public transport. Bright, comfortable, and fully equipped for your stay.",
+  "shortDescription": "Modern, central apartment near Old Town Bucharest.",
+  "location": {
+    "address": "Bulevardul Ion C. Brătianu 5",
+    "city": "Bucharest",
+    "state": "Sector 3",
+    "country": "Romania",
+    "zipCode": "030171",
+    "coordinates": {
+      "latitude": 44.4355,
+      "longitude": 26.1025
+    }
+  },
+  "images": [
+    {
+      "url": "https://picsum.photos/seed/apt1/800/600",
+      "alt": "Modern living area",
+      "isFeatured": true,
+      "data-ai-hint": "modern apartment living room Bucharest"
+    },
+    {
+      "url": "https://picsum.photos/seed/apt2/800/600",
+      "alt": "Bedroom with city view",
+      "isFeatured": false,
+      "data-ai-hint": "apartment bedroom city view Bucharest"
+    },
+    {
+      "url": "https://picsum.photos/seed/apt3/800/600",
+      "alt": "Compact kitchen",
+      "isFeatured": false,
+      "data-ai-hint": "apartment kitchen"
+    },
+    {
+      "url": "https://picsum.photos/seed/apt4/800/600",
+      "alt": "Bathroom",
+      "isFeatured": false,
+      "data-ai-hint": "apartment bathroom"
+    }
+  ],
+  "amenities": ["WiFi", "Kitchen", "TV", "Air Conditioning", "Washer/Dryer", "Elevator"],
+  "pricePerNight": 95,
+  "cleaningFee": 25,
+  "maxGuests": 3,
+  "bedrooms": 1,
+  "beds": 2,
+  "bathrooms": 1,
+  "squareFeet": 550,
+  "checkInTime": "2:00 PM",
+  "checkOutTime": "12:00 PM",
+  "houseRules": ["No smoking", "No parties", "Respect quiet hours"],
+  "cancellationPolicy": "Moderate: Full refund 5 days prior to arrival.",
+  "airbnbListingId": null,
+  "bookingComListingId": null,
+  "ownerId": "YOUR_USER_ID",
+  "isActive": true,
+  "ratings": {
+    "average": 4.7,
+    "count": 21
+  },
+  "createdAt": {
+    "_seconds": 1746200000,
+    "_nanoseconds": 0
+   },
+  "updatedAt": {
+    "_seconds": 1746200000,
+    "_nanoseconds": 0
+   }
+}
