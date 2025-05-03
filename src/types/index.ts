@@ -46,10 +46,10 @@ export interface Property {
     average: number;
     count: number;
   };
-  createdAt?: Timestamp; // Use Timestamp in Firestore - Made optional as example lacks it
-  updatedAt?: Timestamp; // Use Timestamp in Firestore - Made optional as example lacks it
-  ownerId?: string; // Reference to the property owner (User ID) - Made optional as example lacks it
-  isActive?: boolean; // Made optional as example lacks it
+  createdAt?: Timestamp; // Use Timestamp in Firestore
+  updatedAt?: Timestamp; // Use Timestamp in Firestore
+  ownerId?: string; // Reference to the property owner (User ID)
+  isActive?: boolean;
   // Fields for external platform synchronization
   airbnbListingId?: string;
   bookingComListingId?: string;
@@ -83,8 +83,10 @@ export interface Booking {
     accommodationTotal: number; // (baseRate + extraGuestFee * numberOfExtraGuests) * numberOfNights
     subtotal: number; // accommodationTotal + cleaningFee
     taxes?: number; // Optional, can be calculated or stored
-    total: number; // Final amount paid
+    discountAmount?: number; // Optional: Amount discounted via coupon
+    total: number; // Final amount paid (subtotal + taxes - discountAmount)
   };
+  appliedCouponCode?: string; // Store the code that was applied
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   paymentInfo: {
     stripePaymentIntentId: string; // Store Payment Intent ID
@@ -185,4 +187,17 @@ export interface SyncCalendar {
   exportUrl?: string; // URL for external platforms to fetch this property's calendar
   lastSyncedAt?: Timestamp;
   isActive: boolean;
+}
+
+// Firestore 'coupons' collection structure
+export interface Coupon {
+    id: string; // Document ID (can be the coupon code itself for easy lookup)
+    code: string; // The actual coupon code string
+    discount: number; // Percentage discount (e.g., 10 for 10%)
+    validUntil: Timestamp; // The timestamp when the coupon expires
+    description?: string; // Optional description of the coupon
+    isActive: boolean; // Whether the coupon can currently be used
+    // Optional: Add usage limits if needed
+    // maxUses?: number;
+    // currentUses?: number;
 }

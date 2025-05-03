@@ -2,10 +2,10 @@
 "use client"; // Required for form handling, state, and Stripe JS
 
 import * as React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { format, differenceInDays, addDays, parseISO } from 'date-fns';
 import type { DateRange } from 'react-day-picker'; // Ensure DateRange is imported
-import { Calendar as CalendarIcon, Users, Minus, Plus, Loader2, TestTubeDiagonal } from 'lucide-react'; // Added Loader2 and TestTubeDiagonal
+import { Calendar as CalendarIcon, Users, Minus, Plus, Loader2, TestTubeDiagonal, TicketPercent, X } from 'lucide-react'; // Added Loader2, TestTubeDiagonal, TicketPercent, X
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -16,13 +16,13 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input'; // Although not used for guests, keep import if needed elsewhere
+import { Input } from '@/components/ui/input'; // Keep input for coupon
 import { useToast } from "@/hooks/use-toast";
-import type { Property, Booking } from '@/types'; // Import Booking type for status
+import type { Property, Booking, Coupon } from '@/types'; // Import Booking type for status, Coupon type
 import { Separator } from './ui/separator';
 import { createCheckoutSession } from '@/app/actions/create-checkout-session'; // Import server action
 import { getUnavailableDatesForProperty, createBooking, type CreateBookingData } from '@/services/bookingService'; // Import booking services
-
+import { validateAndApplyCoupon } from '@/services/couponService'; // Import coupon service
 
 interface BookingFormProps {
   property: Property;
@@ -39,22 +39,21 @@ if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
 
 
 export function BookingForm({ property }: BookingFormProps) {
-  // console.log('--- [BookingForm] Component Rendered ---');
-  // console.log('[BookingForm] Property ID:', property?.id); // Log property ID
-
   const [date, setDate] = useState<DateRange | undefined>(undefined);
   const [numberOfGuests, setNumberOfGuests] = useState(1); // Start with 1 guest
   const [totalPrice, setTotalPrice] = useState<number | null>(null);
+  const [subtotal, setSubtotal] = useState<number | null>(null); // Store pre-discount subtotal
   const [numberOfNights, setNumberOfNights] = useState(0);
   const [extraGuestCost, setExtraGuestCost] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false); // Loading state for Stripe
   const [isTesting, setIsTesting] = useState(false); // Loading state for Test Booking
   const [unavailableDates, setUnavailableDates] = useState<Date[]>([]); // State for unavailable dates
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountPercentage: number } | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const { toast } = useToast();
-
-  // Log current state when the component renders
-  // console.log('[BookingForm Render] Current state:', { isLoadingAvailability, isSubmitting, date });
 
 
   // Fetch unavailable dates when the component mounts or property changes
@@ -80,8 +79,8 @@ export function BookingForm({ property }: BookingFormProps) {
     fetchAvailability();
   }, [property.id, toast]); // Dependency array includes property.id and toast
 
-
-  useEffect(() => {
+  // Calculate price based on dates, guests, and applied coupon
+  const calculatePrice = useCallback(() => {
     if (date?.from && date?.to && date.to > date.from) {
       const nights = differenceInDays(date.to, date.from);
       setNumberOfNights(nights);
@@ -91,17 +90,36 @@ export function BookingForm({ property }: BookingFormProps) {
       const calculatedExtraGuestCost = extraGuests * property.extraGuestFee * nights;
       setExtraGuestCost(calculatedExtraGuestCost);
 
-      // Calculate total price
+      // Calculate base accommodation cost
       const baseAccommodationCost = nights * property.pricePerNight;
-      const calculatedPrice = baseAccommodationCost + calculatedExtraGuestCost + property.cleaningFee;
-      setTotalPrice(calculatedPrice);
+      const accommodationTotal = baseAccommodationCost + calculatedExtraGuestCost;
+
+      // Calculate subtotal (before discount)
+      const currentSubtotal = accommodationTotal + property.cleaningFee;
+      setSubtotal(currentSubtotal);
+
+      // Apply discount if a coupon is applied
+      let finalPrice = currentSubtotal;
+      let discountAmount = 0;
+      if (appliedCoupon) {
+        discountAmount = currentSubtotal * (appliedCoupon.discountPercentage / 100);
+        finalPrice = currentSubtotal - discountAmount;
+      }
+      setTotalPrice(finalPrice);
 
     } else {
       setNumberOfNights(0);
       setExtraGuestCost(0);
+      setSubtotal(null);
       setTotalPrice(null);
     }
-  }, [date, numberOfGuests, property.pricePerNight, property.cleaningFee, property.baseOccupancy, property.extraGuestFee]);
+  }, [date, numberOfGuests, property, appliedCoupon]); // Dependencies
+
+
+  // Recalculate price whenever relevant state changes
+  useEffect(() => {
+    calculatePrice();
+  }, [calculatePrice]);
 
 
   const handleGuestChange = (change: number) => {
@@ -118,6 +136,50 @@ export function BookingForm({ property }: BookingFormProps) {
        return false;
      }
      return date.to > date.from;
+   };
+
+   // --- Handle Coupon Application ---
+   const handleApplyCoupon = async () => {
+     if (!couponCode.trim()) {
+       setCouponError('Please enter a coupon code.');
+       return;
+     }
+     setIsApplyingCoupon(true);
+     setCouponError(null);
+     setAppliedCoupon(null); // Reset previous coupon on new attempt
+
+     try {
+       const result = await validateAndApplyCoupon(couponCode.trim());
+       if (result.error) {
+         setCouponError(result.error);
+         setAppliedCoupon(null);
+       } else if (result.discountPercentage) {
+         setAppliedCoupon({ code: couponCode.trim().toUpperCase(), discountPercentage: result.discountPercentage });
+         toast({
+           title: "Coupon Applied!",
+           description: `Successfully applied ${result.discountPercentage}% discount.`,
+         });
+       }
+     } catch (error) {
+       console.error('❌ [BookingForm handleApplyCoupon] Error:', error);
+       setCouponError('Could not apply coupon. Please try again.');
+       setAppliedCoupon(null);
+     } finally {
+       setIsApplyingCoupon(false);
+     }
+   };
+
+   // --- Handle Coupon Removal ---
+   const handleRemoveCoupon = () => {
+     setAppliedCoupon(null);
+     setCouponCode(''); // Optionally clear the input field
+     setCouponError(null);
+     toast({
+       title: "Coupon Removed",
+       description: "The discount has been removed.",
+       variant: "default", // Use default variant or another suitable one
+     });
+     // Price recalculation will happen automatically due to useEffect dependency on appliedCoupon
    };
 
 
@@ -154,11 +216,11 @@ export function BookingForm({ property }: BookingFormProps) {
         checkInDate: date.from!.toISOString(),
         checkOutDate: date.to!.toISOString(),
         numberOfGuests: numberOfGuests,
-        totalPrice: totalPrice, // Pass the calculated total price
+        totalPrice: totalPrice, // Pass the FINAL price after discount
         numberOfNights: numberOfNights,
-        // Add baseOccupancy and extraGuestFee for metadata if needed by webhook
-        // baseOccupancy: property.baseOccupancy,
-        // extraGuestFee: property.extraGuestFee,
+        // Pass coupon info in metadata
+        appliedCouponCode: appliedCoupon?.code,
+        discountPercentage: appliedCoupon?.discountPercentage,
       };
       const result = await createCheckoutSession(checkoutInput);
 
@@ -187,6 +249,7 @@ export function BookingForm({ property }: BookingFormProps) {
         });
          setIsSubmitting(false);
       }
+      // No need to setIsSubmitting(false) here, as redirect should happen
     } catch (error) {
       console.error('❌ [BookingForm handleSubmit] Booking submission error:', error);
       toast({
@@ -202,10 +265,10 @@ export function BookingForm({ property }: BookingFormProps) {
    const handleTestBookingClick = async () => {
      setIsTesting(true);
 
-     if (!isDateRangeValid() || !totalPrice) {
+     if (!isDateRangeValid() || !totalPrice || subtotal === null) { // Check subtotal too
        toast({
          title: "Test Booking Error",
-         description: "Please select valid check-in/check-out dates before creating a test booking.",
+         description: "Please select valid dates and ensure price is calculated before creating a test booking.",
          variant: "destructive",
        });
        setIsTesting(false);
@@ -215,7 +278,9 @@ export function BookingForm({ property }: BookingFormProps) {
      // Construct mock data using form state, including new pricing fields
      const extraGuests = Math.max(0, numberOfGuests - property.baseOccupancy);
      const accommodationTotal = (property.pricePerNight * numberOfNights) + extraGuestCost;
-     const subtotal = accommodationTotal + property.cleaningFee;
+     const calculatedSubtotal = accommodationTotal + property.cleaningFee; // Recalculate subtotal for safety
+     const discountAmount = appliedCoupon ? calculatedSubtotal * (appliedCoupon.discountPercentage / 100) : 0;
+     const finalTotal = calculatedSubtotal - discountAmount; // Final price after potential discount
 
      const mockBookingData: CreateBookingData = {
        propertyId: property.id,
@@ -229,25 +294,27 @@ export function BookingForm({ property }: BookingFormProps) {
        checkInDate: date.from!.toISOString(),
        checkOutDate: date.to!.toISOString(),
        numberOfGuests: numberOfGuests,
-       pricing: {
+       pricing: { // Ensure this matches the structure expected by createBooking
          baseRate: property.pricePerNight,
          numberOfNights: numberOfNights,
          cleaningFee: property.cleaningFee,
-         extraGuestFee: property.extraGuestFee, // Add extra fee
-         numberOfExtraGuests: extraGuests,     // Add number of extra guests
-         accommodationTotal: accommodationTotal, // Add accommodation total
-         subtotal: subtotal,                   // Updated subtotal
+         extraGuestFee: property.extraGuestFee,
+         numberOfExtraGuests: extraGuests,
+         accommodationTotal: accommodationTotal,
+         subtotal: calculatedSubtotal, // Store the subtotal before discount
          taxes: 0, // Assuming 0 tax for test
-         total: totalPrice, // Final calculated total
+         discountAmount: discountAmount, // Store the discount amount
+         total: finalTotal, // Final calculated total
        },
+       appliedCouponCode: appliedCoupon?.code, // Include applied coupon code
        paymentInput: {
          stripePaymentIntentId: `mock_pi_${Date.now()}`, // Unique mock ID
-         amount: totalPrice,
+         amount: finalTotal, // Use the final total
          status: "succeeded", // Simulate success
        },
        status: 'confirmed' as Booking['status'], // Directly set status
        source: 'test-button',
-       notes: `Test booking created from form for ${numberOfGuests} guests.`,
+       notes: `Test booking for ${numberOfGuests} guests.${appliedCoupon ? ` Coupon: ${appliedCoupon.code}` : ''}`,
      };
 
      try {
@@ -262,6 +329,8 @@ export function BookingForm({ property }: BookingFormProps) {
          const unavailable = await getUnavailableDatesForProperty(property.id);
          setUnavailableDates(unavailable);
          setDate(undefined); // Reset date after successful test booking
+         setAppliedCoupon(null); // Reset coupon
+         setCouponCode('');
        } else {
          toast({
            title: "Test Booking Possibly Failed",
@@ -282,7 +351,7 @@ export function BookingForm({ property }: BookingFormProps) {
    };
 
 
-  const isButtonDisabled = !isDateRangeValid() || !totalPrice || isSubmitting || isTesting || isLoadingAvailability;
+  const isButtonDisabled = !isDateRangeValid() || totalPrice === null || isSubmitting || isTesting || isLoadingAvailability;
 
   return (
     <form onSubmit={handleStripeSubmit} className="space-y-6">
@@ -374,15 +443,60 @@ export function BookingForm({ property }: BookingFormProps) {
           </p>
       </div>
 
+      <Separator className="my-4" />
+
+      {/* Coupon Code Input */}
+      <div>
+        <Label htmlFor="coupon">Discount Coupon</Label>
+        <div className="flex gap-2 mt-1">
+           <Input
+             id="coupon"
+             placeholder="Enter coupon code"
+             value={couponCode}
+             onChange={(e) => setCouponCode(e.target.value)}
+             className="flex-grow"
+             disabled={isApplyingCoupon || !!appliedCoupon || isSubmitting || isTesting} // Disable if applying, applied, or submitting
+             aria-describedby="coupon-feedback"
+           />
+           {!appliedCoupon ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleApplyCoupon}
+                disabled={isApplyingCoupon || !couponCode.trim()}
+                aria-label="Apply Coupon"
+              >
+                {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <TicketPercent className="h-4 w-4" />}
+                <span className="ml-2 hidden sm:inline">Apply</span>
+              </Button>
+            ) : (
+               <Button
+                 type="button"
+                 variant="ghost" // Use ghost or outline for removal
+                 size="icon"
+                 onClick={handleRemoveCoupon}
+                 aria-label="Remove Coupon"
+                 className='text-destructive hover:bg-destructive/10'
+               >
+                 <X className="h-4 w-4" />
+               </Button>
+            )}
+        </div>
+        <div id="coupon-feedback" className="mt-1 h-4 text-xs">
+           {couponError && <p className="text-destructive">{couponError}</p>}
+           {appliedCoupon && <p className="text-green-600">Applied: {appliedCoupon.code} ({appliedCoupon.discountPercentage}%)</p>}
+        </div>
+      </div>
+
 
       {/* Price Calculation */}
-       {totalPrice !== null && numberOfNights > 0 && (
+       {totalPrice !== null && subtotal !== null && numberOfNights > 0 && (
         <div className="space-y-2 text-sm">
           <Separator className="my-4" />
           {/* Base Accommodation Cost */}
           <div className="flex justify-between">
             <span>
-              ${property.pricePerNight} x {numberOfNights} {numberOfNights === 1 ? 'night' : 'nights'} (for {property.baseOccupancy} {property.baseOccupancy === 1 ? 'guest' : 'guests'})
+              ${property.pricePerNight} x {numberOfNights} {numberOfNights === 1 ? 'night' : 'nights'} ({property.baseOccupancy} {property.baseOccupancy === 1 ? 'guest' : 'guests'})
             </span>
             <span>${(property.pricePerNight * numberOfNights).toFixed(2)}</span>
           </div>
@@ -390,17 +504,31 @@ export function BookingForm({ property }: BookingFormProps) {
            {extraGuestCost > 0 && (
             <div className="flex justify-between text-muted-foreground">
               <span>
-                Extra guest fee (${property.extraGuestFee}/guest/night x {Math.max(0, numberOfGuests - property.baseOccupancy)} guests x {numberOfNights} nights)
+                Extra guest fee (${property.extraGuestFee}/guest x {Math.max(0, numberOfGuests - property.baseOccupancy)} x {numberOfNights} nights)
               </span>
-              <span>${extraGuestCost.toFixed(2)}</span>
+              <span>+${extraGuestCost.toFixed(2)}</span>
             </div>
           )}
           {/* Cleaning Fee */}
           <div className="flex justify-between">
             <span>Cleaning fee</span>
-            <span>${property.cleaningFee.toFixed(2)}</span>
+            <span>+${property.cleaningFee.toFixed(2)}</span>
           </div>
-           {/* Add other fees like service fee if applicable */}
+           <Separator className="my-1" />
+            {/* Subtotal */}
+            <div className="flex justify-between font-medium">
+               <span>Subtotal</span>
+               <span>${subtotal.toFixed(2)}</span>
+            </div>
+
+          {/* Discount (if applicable) */}
+          {appliedCoupon && (
+            <div className="flex justify-between text-green-600">
+              <span>Discount ({appliedCoupon.discountPercentage}% - {appliedCoupon.code})</span>
+              <span>-${(subtotal * (appliedCoupon.discountPercentage / 100)).toFixed(2)}</span>
+            </div>
+          )}
+
           <Separator className="my-2" />
            {/* Total Price */}
           <div className="flex justify-between font-bold text-base">

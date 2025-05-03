@@ -18,12 +18,15 @@ interface CreateCheckoutSessionInput {
   checkInDate: string; // ISO string format
   checkOutDate: string; // ISO string format
   numberOfGuests: number;
-  totalPrice: number; // In dollars
+  totalPrice: number; // FINAL price in dollars (after discount)
   numberOfNights: number;
   // Optional guest info if available upfront
   guestFirstName?: string;
   guestLastName?: string;
   guestEmail?: string; // Pass guest email if available
+  // Optional coupon info
+  appliedCouponCode?: string;
+  discountPercentage?: number;
 }
 
 export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
@@ -32,17 +35,49 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
     checkInDate,
     checkOutDate,
     numberOfGuests,
-    totalPrice,
+    totalPrice, // This is the final price AFTER discount
     numberOfNights,
     guestEmail, // Capture guest email if provided
     guestFirstName,
     guestLastName,
+    appliedCouponCode, // Get coupon code
+    discountPercentage, // Get discount percentage
   } = input;
 
   const origin = headers().get('origin') || 'http://localhost:9002'; // Default for local dev
 
   // Calculate number of extra guests
   const numberOfExtraGuests = Math.max(0, numberOfGuests - property.baseOccupancy);
+
+  // --- Prepare metadata ---
+  const metadata: Stripe.MetadataParam = {
+    propertyId: property.id,
+    propertyName: property.name,
+    checkInDate: checkInDate,
+    checkOutDate: checkOutDate,
+    numberOfGuests: String(numberOfGuests),
+    numberOfNights: String(numberOfNights),
+    totalPrice: String(totalPrice), // Final price paid
+    cleaningFee: String(property.cleaningFee),
+    pricePerNight: String(property.pricePerNight),
+    baseOccupancy: String(property.baseOccupancy),
+    extraGuestFee: String(property.extraGuestFee),
+    numberOfExtraGuests: String(numberOfExtraGuests),
+    guestFirstName: guestFirstName || '',
+    guestLastName: guestLastName || '',
+    // userId: loggedInUserId || '', // Add user ID if available
+  };
+
+  // Add coupon info to metadata if applied
+  if (appliedCouponCode && discountPercentage !== undefined) {
+    metadata.appliedCouponCode = appliedCouponCode;
+    metadata.discountPercentage = String(discountPercentage);
+    // Optionally, calculate and add original subtotal and discount amount
+    // const subtotalBeforeDiscount = (property.pricePerNight * numberOfNights) + (property.extraGuestFee * numberOfExtraGuests * numberOfNights) + property.cleaningFee;
+    // const discountAmount = subtotalBeforeDiscount * (discountPercentage / 100);
+    // metadata.subtotalBeforeDiscount = String(subtotalBeforeDiscount);
+    // metadata.discountAmount = String(discountAmount);
+  }
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -52,12 +87,12 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: `${property.name} (${numberOfNights} nights, ${numberOfGuests} guests)`,
+              name: `${property.name} (${numberOfNights} nights, ${numberOfGuests} guests)${appliedCouponCode ? ` - Coupon: ${appliedCouponCode}` : ''}`, // Add coupon info to name
               description: `Booking from ${new Date(checkInDate).toLocaleDateString()} to ${new Date(checkOutDate).toLocaleDateString()}.`,
               images: [property.images.find(img => img.isFeatured)?.url || property.images[0]?.url || ''], // Use featured or first image
             },
             // Ensure totalPrice is converted to cents correctly
-            unit_amount: Math.round(totalPrice * 100),
+            unit_amount: Math.round(totalPrice * 100), // Use final price
           },
           quantity: 1,
         },
@@ -68,25 +103,7 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
        // Include customer email if available, helps Stripe populate customer info
       customer_email: guestEmail, // Pass guest email to Stripe
       // Pass necessary booking details in metadata for the webhook
-      metadata: {
-        propertyId: property.id,
-        propertyName: property.name, // Keep for potential display on success page
-        checkInDate: checkInDate, // ISO String
-        checkOutDate: checkOutDate, // ISO String
-        numberOfGuests: String(numberOfGuests),
-        numberOfNights: String(numberOfNights),
-        totalPrice: String(totalPrice), // Total price paid (in dollars)
-        cleaningFee: String(property.cleaningFee),
-        pricePerNight: String(property.pricePerNight),
-        baseOccupancy: String(property.baseOccupancy), // Add base occupancy
-        extraGuestFee: String(property.extraGuestFee), // Add extra guest fee
-        numberOfExtraGuests: String(numberOfExtraGuests), // Add number of extra guests
-        // Include guest name if available
-        guestFirstName: guestFirstName || '',
-        guestLastName: guestLastName || '',
-        // Add any other relevant info needed by the webhook (e.g., userId if logged in)
-        // userId: loggedInUserId || '',
-      },
+      metadata: metadata, // Pass the prepared metadata
        // payment_intent_data: {
       //   capture_method: 'automatic', // Or 'manual' if you capture later
       // },
@@ -103,4 +120,3 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
     return { error: `Failed to create checkout session: ${error instanceof Error ? error.message : String(error)}` };
   }
 }
-

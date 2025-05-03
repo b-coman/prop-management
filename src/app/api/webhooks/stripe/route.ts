@@ -41,8 +41,10 @@ const mockBookingData: CreateBookingData = {
     accommodationTotal: (100 * 2) + (15 * 1 * 2), // base * nights + (extraFee * extraGuests * nights)
     subtotal: (100 * 2) + (15 * 1 * 2) + 20, // accommodation + cleaning
     taxes: 0,
-    total: (100 * 2) + (15 * 1 * 2) + 20 + 0, // subtotal + taxes
+    discountAmount: 0, // No discount in mock by default
+    total: (100 * 2) + (15 * 1 * 2) + 20 + 0, // subtotal + taxes - discount
   },
+  appliedCouponCode: undefined, // No coupon in mock
   paymentInput: {
     stripePaymentIntentId: "mock-payment-intent-id",
     amount: (100 * 2) + (15 * 1 * 2) + 20 + 0,
@@ -116,7 +118,7 @@ export async function POST(req: NextRequest) {
       console.error(`❌ [Webhook Error] Missing metadata in session ${sessionId}`);
       return NextResponse.json({ error: 'Missing metadata' }, { status: 400 });
     }
-     console.log(`[Webhook Metadata ${sessionId}] Received:`, JSON.stringify(metadata, null, 2));
+     // console.log(`[Webhook Metadata ${sessionId}] Received:`, JSON.stringify(metadata, null, 2));
 
      // --- Safely parse metadata (including new fields) ---
      const propertyId = metadata.propertyId;
@@ -133,6 +135,9 @@ export async function POST(req: NextRequest) {
      const guestFirstName = metadata.guestFirstName || 'Guest';
      const guestLastName = metadata.guestLastName || ''; // Default to empty string if not provided
      const guestEmail = session.customer_details?.email; // Get email from customer_details
+     // Extract coupon details from metadata
+     const appliedCouponCode = metadata.appliedCouponCode;
+     const discountPercentage = metadata.discountPercentage ? parseFloat(metadata.discountPercentage) : undefined;
 
      // Validate required metadata (add checks for new fields if necessary)
      if (!propertyId || !checkInDate || !checkOutDate || isNaN(numberOfGuests) || numberOfGuests <= 0 || isNaN(numberOfNights) || numberOfNights <= 0 || isNaN(pricePerNight) || isNaN(cleaningFee) || isNaN(finalTotal) || !guestEmail || isNaN(baseOccupancy) || isNaN(extraGuestFee) || isNaN(numberOfExtraGuests)) {
@@ -150,8 +155,10 @@ export async function POST(req: NextRequest) {
      // Calculate accommodation total and subtotal based on metadata
      const calculatedAccommodationTotal = (pricePerNight * numberOfNights) + (extraGuestFee * numberOfExtraGuests * numberOfNights);
      const calculatedSubtotal = calculatedAccommodationTotal + cleaningFee;
-     // Estimate taxes as the difference between Stripe's total and our calculated subtotal
-     const taxes = finalTotal - calculatedSubtotal;
+     // Calculate discount amount based on percentage from metadata
+     const calculatedDiscountAmount = discountPercentage ? calculatedSubtotal * (discountPercentage / 100) : 0;
+     // Estimate taxes as the difference between Stripe's total and our calculated subtotal minus discount
+     const taxes = finalTotal - (calculatedSubtotal - calculatedDiscountAmount);
 
 
     // --- Prepare booking data conforming to CreateBookingData structure ---
@@ -173,10 +180,12 @@ export async function POST(req: NextRequest) {
         extraGuestFee: extraGuestFee,
         numberOfExtraGuests: numberOfExtraGuests,
         accommodationTotal: calculatedAccommodationTotal,
-        subtotal: calculatedSubtotal,
+        subtotal: calculatedSubtotal, // Subtotal BEFORE discount
         taxes: taxes > 0 ? taxes : 0, // Ensure taxes aren't negative
-        total: finalTotal,
+        discountAmount: calculatedDiscountAmount, // Store the calculated discount
+        total: finalTotal, // Final price paid
       },
+      appliedCouponCode: appliedCouponCode, // Store applied coupon code
       status: 'confirmed' as Booking['status'], // Set initial status
       paymentInput: {
         stripePaymentIntentId: paymentIntentId,
@@ -188,7 +197,7 @@ export async function POST(req: NextRequest) {
       externalId: metadata.externalId || undefined,
     };
 
-    console.log(`[Webhook Data - Session ${sessionId}] Prepared for createBooking:`, JSON.stringify(bookingDataForDb, null, 2));
+    // console.log(`[Webhook Data - Session ${sessionId}] Prepared for createBooking:`, JSON.stringify(bookingDataForDb, null, 2));
 
     // --- Create booking in Firestore ---
     try {
@@ -211,4 +220,3 @@ export async function POST(req: NextRequest) {
   // Return a 200 response to acknowledge receipt of the event
   return NextResponse.json({ received: true });
 }
-
