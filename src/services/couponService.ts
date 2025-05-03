@@ -5,7 +5,7 @@
 import { collection, doc, getDoc, Timestamp, where, query, getDocs, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase'; // Client SDK Firestore instance
 import type { Coupon, SerializableTimestamp } from '@/types';
-import { parseISO, isWithinInterval, overlaps } from 'date-fns';
+import { parseISO, isWithinInterval, areIntervalsOverlapping } from 'date-fns'; // Changed 'overlaps' to 'areIntervalsOverlapping'
 
 // Helper function to convert SerializableTimestamp to Date or null
 const toDate = (timestamp: SerializableTimestamp | undefined | null): Date | null => {
@@ -79,10 +79,13 @@ export async function validateAndApplyCoupon(
 
     const couponExpiryDate = toDate(couponData.validUntil);
     const now = new Date(); // Compare with current date, not just timestamp
-    if (couponExpiryDate && couponExpiryDate < now) {
-      console.warn(`[Coupon Service] Coupon code "${couponCodeUpper}" has expired.`);
+    // Make comparison based on the start of the day for coupon expiry
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (couponExpiryDate && couponExpiryDate < todayStart) {
+      console.warn(`[Coupon Service] Coupon code "${couponCodeUpper}" has expired on ${couponExpiryDate.toISOString().split('T')[0]}.`);
       return { error: 'Coupon code has expired.' };
     }
+
 
     if (typeof couponData.discount !== 'number' || couponData.discount <= 0 || couponData.discount > 100) {
       console.error(`[Coupon Service] Invalid discount percentage (${couponData.discount}) for coupon "${couponCodeUpper}".`);
@@ -100,23 +103,36 @@ export async function validateAndApplyCoupon(
     }
 
     // Check if booking ends after the valid period
-    if (bookingValidUntil && bookingCheckOutDate > bookingValidUntil) {
-        console.warn(`[Coupon Service] Booking check-out (${bookingCheckOutDate.toISOString().split('T')[0]}) is after coupon booking validity end (${bookingValidUntil.toISOString().split('T')[0]}) for "${couponCodeUpper}".`);
-        return { error: 'Coupon not valid for selected check-out date.' };
+    // For bookingValidUntil, we should check if the *check-in* date is after the validity end date
+    // OR if the check-out date is strictly after the validity end date.
+    if (bookingValidUntil) {
+         // Set validity end to the end of the day for comparison
+         const validityEndDate = new Date(bookingValidUntil.getFullYear(), bookingValidUntil.getMonth(), bookingValidUntil.getDate(), 23, 59, 59, 999);
+         if (bookingCheckInDate > validityEndDate) {
+             console.warn(`[Coupon Service] Booking check-in (${bookingCheckInDate.toISOString().split('T')[0]}) is after coupon booking validity end (${bookingValidUntil.toISOString().split('T')[0]}) for "${couponCodeUpper}".`);
+             return { error: 'Coupon not valid for selected check-in date.' };
+         }
+         // Note: Check-out date is typically exclusive. A booking ending on the validity date should be allowed.
+         // However, if the policy is strict, you might compare bookingCheckOutDate > validityEndDate + 1 day or similar.
+         // Sticking to check-in date for simplicity based on typical coupon logic.
     }
+
 
     // --- Exclusion Period Validations ---
     if (couponData.exclusionPeriods && Array.isArray(couponData.exclusionPeriods)) {
-        const bookingInterval = { start: bookingCheckInDate, end: bookingCheckOutDate };
+        // The booking interval includes the check-in day but excludes the check-out day for night calculations.
+        // For overlap checking, we should consider the full range of occupied days.
+        const bookingInterval = { start: bookingCheckInDate, end: new Date(bookingCheckOutDate.getTime() - 1) }; // Adjust end date to be inclusive
 
         for (const period of couponData.exclusionPeriods) {
             const exclusionStart = toDate(period.start);
             const exclusionEnd = toDate(period.end);
 
             if (exclusionStart && exclusionEnd) {
-                const exclusionInterval = { start: exclusionStart, end: exclusionEnd };
+                // Ensure exclusion end is inclusive for overlap check
+                const exclusionInterval = { start: exclusionStart, end: new Date(exclusionEnd.getFullYear(), exclusionEnd.getMonth(), exclusionEnd.getDate(), 23, 59, 59, 999)};
                 // Check if the booking interval overlaps with any exclusion interval
-                if (overlaps(bookingInterval, exclusionInterval)) {
+                if (areIntervalsOverlapping(bookingInterval, exclusionInterval, { inclusive: true })) { // Use areIntervalsOverlapping
                      console.warn(`[Coupon Service] Booking dates (${bookingCheckInDate.toISOString().split('T')[0]} - ${bookingCheckOutDate.toISOString().split('T')[0]}) overlap with exclusion period (${exclusionStart.toISOString().split('T')[0]} - ${exclusionEnd.toISOString().split('T')[0]}) for "${couponCodeUpper}".`);
                      return { error: 'Coupon not valid for the selected dates due to an exclusion period.' };
                 }
@@ -137,4 +153,3 @@ export async function validateAndApplyCoupon(
     return { error: 'Could not validate coupon code. Please try again.' }; // Generic error for the user
   }
 }
-
