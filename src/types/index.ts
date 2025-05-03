@@ -1,3 +1,4 @@
+
 import type { Timestamp } from 'firebase/firestore';
 
 // Aligned with propertyExample structure
@@ -22,6 +23,7 @@ export interface Property {
     url: string;
     alt: string;
     isFeatured: boolean;
+    'data-ai-hint'?: string; // Allow the data-ai-hint attribute
   }>;
   amenities: string[];
   // Details moved to top-level
@@ -182,3 +184,5 @@ export interface SyncCalendar {
   lastSyncedAt?: Timestamp;
   isActive: boolean;
 }
+
+    

@@ -1,3 +1,4 @@
+
 import type { Property } from '@/types';
 
 export const placeholderProperties: Property[] = [
@@ -17,10 +18,10 @@ export const placeholderProperties: Property[] = [
       coordinates: { latitude: 45.2530, longitude: 25.6346 }, // Approximate coordinates for Comarnic
     },
     images: [
-      { url: 'https://picsum.photos/seed/chalet1/800/600', alt: 'Chalet exterior view', isFeatured: true, data-ai-hint: "mountain chalet exterior Romania" },
-      { url: 'https://picsum.photos/seed/chalet2/800/600', alt: 'Cozy living room with fireplace', isFeatured: false, data-ai-hint: "chalet living room fireplace" },
-      { url: 'https://picsum.photos/seed/chalet3/800/600', alt: 'Mountain view from balcony', isFeatured: false, data-ai-hint: "mountain view balcony Romania" },
-      { url: 'https://picsum.photos/seed/chalet4/800/600', alt: 'Kitchen area', isFeatured: false, data-ai-hint: "chalet kitchen" },
+      { url: 'https://picsum.photos/seed/chalet1/800/600', alt: 'Chalet exterior view', isFeatured: true, 'data-ai-hint': "mountain chalet exterior Romania" },
+      { url: 'https://picsum.photos/seed/chalet2/800/600', alt: 'Cozy living room with fireplace', isFeatured: false, 'data-ai-hint': "chalet living room fireplace" },
+      { url: 'https://picsum.photos/seed/chalet3/800/600', alt: 'Mountain view from balcony', isFeatured: false, 'data-ai-hint': "mountain view balcony Romania" },
+      { url: 'https://picsum.photos/seed/chalet4/800/600', alt: 'Kitchen area', isFeatured: false, 'data-ai-hint': "chalet kitchen" },
     ],
     amenities: ['WiFi', 'Kitchen', 'Parking', 'Fireplace', 'TV', 'Garden', 'Mountain View'],
     pricePerNight: 180, // Example price
@@ -54,10 +55,10 @@ export const placeholderProperties: Property[] = [
       coordinates: { latitude: 44.4355, longitude: 26.1025 }, // Approximate coordinates for central Bucharest
     },
     images: [
-      { url: 'https://picsum.photos/seed/apt1/800/600', alt: 'Modern living area', isFeatured: true, data-ai-hint:"modern apartment living room Bucharest" },
-      { url: 'https://picsum.photos/seed/apt2/800/600', alt: 'Bedroom with city view', isFeatured: false, data-ai-hint:"apartment bedroom city view Bucharest" },
-      { url: 'https://picsum.photos/seed/apt3/800/600', alt: 'Compact kitchen', isFeatured: false, data-ai-hint:"apartment kitchen" },
-      { url: 'https://picsum.photos/seed/apt4/800/600', alt: 'Bathroom', isFeatured: false, data-ai-hint:"apartment bathroom" },
+      { url: 'https://picsum.photos/seed/apt1/800/600', alt: 'Modern living area', isFeatured: true, 'data-ai-hint':"modern apartment living room Bucharest" },
+      { url: 'https://picsum.photos/seed/apt2/800/600', alt: 'Bedroom with city view', isFeatured: false, 'data-ai-hint':"apartment bedroom city view Bucharest" },
+      { url: 'https://picsum.photos/seed/apt3/800/600', alt: 'Compact kitchen', isFeatured: false, 'data-ai-hint':"apartment kitchen" },
+      { url: 'https://picsum.photos/seed/apt4/800/600', alt: 'Bathroom', isFeatured: false, 'data-ai-hint':"apartment bathroom" },
     ],
     amenities: ['WiFi', 'Kitchen', 'TV', 'Air Conditioning', 'Washer/Dryer', 'Elevator'],
     pricePerNight: 95, // Example price
@@ -114,3 +115,6 @@ export const placeholderProperties: Property[] = [
   //   bookingComListingId: 'booking101',
   // },
 ];
+
+
+    

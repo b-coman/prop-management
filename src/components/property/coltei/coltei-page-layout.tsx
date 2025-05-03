@@ -1,3 +1,4 @@
+
 import Image from 'next/image';
 import type { Property } from '@/types';
 import { ColteiHeader } from './coltei-header'; // Specific header for Coltei
@@ -154,3 +155,5 @@ export function ColteiPageLayout({ property }: ColteiPageLayoutProps) {
     </div>
   );
 }
+
+    

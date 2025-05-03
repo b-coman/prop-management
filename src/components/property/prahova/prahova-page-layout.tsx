@@ -1,3 +1,4 @@
+
 import Image from 'next/image';
 import type { Property } from '@/types';
 import { PrahovaHeader } from './prahova-header'; // Specific header for Prahova
@@ -133,7 +134,7 @@ export function PrahovaPageLayout({ property }: PrahovaPageLayoutProps) {
 
           {/* Right Column: Booking Card */}
            <div className="lg:col-span-1">
-            <Card className="sticky top-24 shadow-lg bg-white border-gray-200">
+            <Card id="booking-form" className="sticky top-24 shadow-lg bg-white border-gray-200">
               <CardHeader>
                 <CardTitle className="text-xl">
                    <span className="text-2xl font-bold text-green-800">${property.pricePerNight}</span> / night
@@ -155,3 +156,5 @@ export function PrahovaPageLayout({ property }: PrahovaPageLayoutProps) {
     </div>
   );
 }
+
+    
