@@ -199,6 +199,7 @@ export interface Coupon {
     description?: string; // Optional description of the coupon
     isActive: boolean; // Whether the coupon can currently be used
     createdAt: Timestamp; // Firestore server timestamp for when it was created
+    updatedAt?: Timestamp; // Firestore server timestamp for last update
     // Optional: Add usage limits if needed
     // maxUses?: number;
     // currentUses?: number;

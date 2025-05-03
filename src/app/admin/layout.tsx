@@ -16,6 +16,7 @@ export default function AdminLayout({
             <Link href="/admin" className="text-lg font-semibold text-primary">Admin Panel</Link>
              <nav>
                 {/* Add admin navigation links here */}
+                <Link href="/admin/coupons" className="mr-4 text-sm hover:underline">Manage Coupons</Link>
                 <Link href="/admin/coupons/new" className="mr-4 text-sm hover:underline">Create Coupon</Link>
                 {/* <Link href="/admin/bookings" className="mr-4 text-sm hover:underline">View Bookings</Link> */}
                 {/* <Link href="/admin/properties" className="text-sm hover:underline">Manage Properties</Link> */}
