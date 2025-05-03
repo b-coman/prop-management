@@ -164,8 +164,10 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
 
     // --- Update Property Availability (Local Firestore) ---
     try {
+      // Call availability update *after* successful booking creation
+      console.log(`[createBooking - Post Booking] Triggering availability update for property ${bookingData.propertyId}, booking ${bookingId}`);
       await updatePropertyAvailability(bookingData.propertyId, checkInDate, checkOutDate, false); // Mark as unavailable
-      console.log(`[Availability Update] Marked local dates as unavailable for property ${bookingData.propertyId} for booking ${bookingId}.`);
+      console.log(`[Availability Update] Successfully finished update call for local dates for property ${bookingData.propertyId}, booking ${bookingId}.`);
     } catch (availabilityError) {
       console.error(`⚠️ Failed to update local availability for property ${bookingData.propertyId} after creating booking ${bookingId}:`, availabilityError);
       // Decide if this should be a fatal error or just logged
@@ -180,7 +182,6 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
             if (propertyDetails.airbnbListingId) {
                 console.log(`[Sync] Attempting to update Airbnb listing ${propertyDetails.airbnbListingId} for booking ${bookingId}...`);
                 // Assuming updateAirbnbListingAvailability marks the dates as unavailable
-                // TODO: Pass actual date range to updateAirbnbListingAvailability
                 await updateAirbnbListingAvailability(propertyDetails.airbnbListingId, false, checkInDate, checkOutDate); // Pass dates
                 console.log(`[Sync] Successfully initiated Airbnb availability update for listing ${propertyDetails.airbnbListingId}.`);
             } else {
@@ -191,7 +192,6 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
             if (propertyDetails.bookingComListingId) {
                 console.log(`[Sync] Attempting to update Booking.com listing ${propertyDetails.bookingComListingId} for booking ${bookingId}...`);
                 // Assuming updateBookingComListingAvailability marks the dates as unavailable
-                // TODO: Pass actual date range to updateBookingComListingAvailability
                 await updateBookingComListingAvailability(propertyDetails.bookingComListingId, false, checkInDate, checkOutDate); // Pass dates
                  console.log(`[Sync] Successfully initiated Booking.com availability update for listing ${propertyDetails.bookingComListingId}.`);
             } else {
@@ -406,8 +406,10 @@ export async function getBookingsForUser(userId: string): Promise<Booking[]> {
  * @returns A Promise resolving when the update is complete.
  */
 export async function updatePropertyAvailability(propertyId: string, checkInDate: Date, checkOutDate: Date, available: boolean): Promise<void> {
+  console.log(`[updatePropertyAvailability] Starting for property ${propertyId}, from ${format(checkInDate, 'yyyy-MM-dd')} to ${format(checkOutDate, 'yyyy-MM-dd')} (exclusive), set available: ${available}`);
+
   if (checkOutDate <= checkInDate) {
-    console.warn(`[updatePropertyAvailability] Check-out date (${checkOutDate}) must be after check-in date (${checkInDate}). No update performed.`);
+    console.warn(`[updatePropertyAvailability] Check-out date (${format(checkOutDate, 'yyyy-MM-dd')}) must be after check-in date (${format(checkInDate, 'yyyy-MM-dd')}). No update performed.`);
     return;
   }
 
@@ -422,6 +424,7 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
       console.log("[updatePropertyAvailability] No dates to update (check-in and check-out might be consecutive).");
       return;
   }
+  console.log(`[updatePropertyAvailability] Dates to update (${datesToUpdate.length}): ${datesToUpdate.map(d => format(d, 'yyyy-MM-dd')).join(', ')}`);
 
 
   // Group dates by month (YYYY-MM)
@@ -434,6 +437,7 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
     }
     updatesByMonth[monthStr][dayOfMonth] = available;
   });
+  console.log(`[updatePropertyAvailability] Updates grouped by month:`, JSON.stringify(updatesByMonth));
 
   const batch = writeBatch(db);
   const availabilityCollection = collection(db, 'availability');
@@ -442,8 +446,11 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
     // Process updates for each month involved in the date range
     // Use Promise.all to fetch existing docs concurrently for efficiency
     const monthStrings = Object.keys(updatesByMonth);
+    console.log(`[updatePropertyAvailability] Processing months: ${monthStrings.join(', ')}`);
     const docRefs = monthStrings.map(monthStr => doc(availabilityCollection, `${propertyId}_${monthStr}`));
     const docSnaps = await Promise.all(docRefs.map(ref => getDoc(ref)));
+    console.log(`[updatePropertyAvailability] Fetched existing availability docs for months: ${monthStrings.join(', ')}`);
+
 
     docSnaps.forEach((docSnap, index) => {
       const monthStr = monthStrings[index];
@@ -463,6 +470,7 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
       if (docSnap.exists()) {
         // Document exists, merge the update using updateDoc
         console.log(`[Availability Batch] Updating existing doc ${availabilityDocId} with days:`, Object.keys(updatesForDay).join(', '));
+        console.log(`[Availability Batch] Update payload for ${availabilityDocId}:`, updatePayload);
         batch.update(availabilityDocRef, updatePayload);
       } else {
         // Document doesn't exist, create it with the *entire* month's data
@@ -493,8 +501,9 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
 
 
     // Commit the batch write
+    console.log(`[updatePropertyAvailability] Preparing to commit batch for property ${propertyId}, months: ${monthStrings.join(', ')}`);
     await batch.commit();
-    console.log(`[updatePropertyAvailability] Successfully updated local availability for property ${propertyId} from ${format(checkInDate, 'yyyy-MM-dd')} to ${format(checkOutDate, 'yyyy-MM-dd')} (exclusive) to ${available ? 'available' : 'unavailable'}`);
+    console.log(`✅ [updatePropertyAvailability] Successfully committed batch updates for local availability for property ${propertyId} from ${format(checkInDate, 'yyyy-MM-dd')} to ${format(checkOutDate, 'yyyy-MM-dd')} (exclusive) to ${available ? 'available' : 'unavailable'}`);
 
   } catch (error) {
     console.error(`❌ Error updating local property availability for ${propertyId}:`, error);
@@ -528,6 +537,7 @@ export async function getUnavailableDatesForProperty(propertyId: string, monthsT
       const monthStr = format(targetMonth, 'yyyy-MM');
       monthDocIds.push(`${propertyId}_${monthStr}`);
     }
+     console.log(`[getUnavailableDates] Querying for document IDs: ${monthDocIds.join(', ')}`);
 
     // Build the query using 'in' operator (limit of 30 IDs per query)
     // If monthsToFetch > 30, we'd need multiple queries.
@@ -553,7 +563,7 @@ export async function getUnavailableDatesForProperty(propertyId: string, monthsT
         const monthStr = data.month; // Get month string from data
 
         if (monthStr && data.available && typeof data.available === 'object') {
-             console.log(`[getUnavailableDates] Processing month: ${monthStr}`);
+             // console.log(`[getUnavailableDates] Processing month: ${monthStr} from doc ${doc.id}`); // More detailed log if needed
             const [year, monthIndex] = monthStr.split('-').map(num => parseInt(num, 10));
             const month = monthIndex - 1; // JS months are 0-indexed
 
@@ -573,6 +583,8 @@ export async function getUnavailableDatesForProperty(propertyId: string, monthsT
                                 if (date >= todayUtc) {
                                     unavailableDates.push(date);
                                     // console.log(`[getUnavailableDates] Marked ${format(date, 'yyyy-MM-dd')} as unavailable.`);
+                                } else {
+                                     // console.log(`[getUnavailableDates] Skipping past date ${format(date, 'yyyy-MM-dd')}`);
                                 }
                              } else {
                                 console.warn(`[getUnavailableDates] Invalid date created for ${year}-${monthStr}-${dayStr}. Skipping.`);
@@ -594,6 +606,7 @@ export async function getUnavailableDatesForProperty(propertyId: string, monthsT
     console.log(`[getUnavailableDates] Total unavailable dates found for property ${propertyId}: ${unavailableDates.length}`);
     // Sort dates before returning
     unavailableDates.sort((a, b) => a.getTime() - b.getTime());
+    // console.log(`[getUnavailableDates] Returning unavailable dates: ${unavailableDates.map(d => format(d, 'yyyy-MM-dd')).join(', ')}`); // Log returned dates if needed
     return unavailableDates;
 
   } catch (error) {
