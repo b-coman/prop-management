@@ -1,11 +1,10 @@
+
 "use client"; // Required for form handling, state, and Stripe JS
 
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { format, differenceInDays, addDays, parseISO } from 'date-fns';
-import { Calendar as CalendarIcon, Users, Minus, Plus, Loader2 } from 'lucide-react'; // Added Loader2
-import { DateRange } from 'react-day-picker';
-import { loadStripe, type Stripe } from '@stripe/stripe-js'; // Import Stripe JS
+import { Calendar as CalendarIcon, Users, Minus, Plus, Loader2, TestTubeDiagonal } from 'lucide-react'; // Added Loader2 and TestTubeDiagonal
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -18,18 +17,20 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useToast } from "@/hooks/use-toast";
-import type { Property } from '@/types';
+import type { Property, Booking } from '@/types'; // Import Booking type for status
 import { Separator } from './ui/separator';
 import { createCheckoutSession } from '@/app/actions/create-checkout-session'; // Import server action
-import { getUnavailableDatesForProperty } from '@/services/bookingService'; // Import function to get unavailable dates
+import { getUnavailableDatesForProperty, createBooking, type CreateBookingData } from '@/services/bookingService'; // Import booking services
 
 interface BookingFormProps {
   property: Property;
 }
 
+
 // Load Stripe outside component to avoid recreating on every render
 // Ensure your Stripe publishable key is in an environment variable
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
+const stripePromise = import('@stripe/stripe-js').then(m => m.loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''));
+
 if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
   console.warn('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not set. Stripe functionality will be limited.');
 }
@@ -37,12 +38,12 @@ if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
 
 export function BookingForm({ property }: BookingFormProps) {
   // console.log("--- [BookingForm] Component Rendered ---"); // Reduced logging
-  // console.log("[BookingForm] Property ID:", property.id); // Reduced logging
   const [date, setDate] = useState<DateRange | undefined>(undefined);
   const [numberOfGuests, setNumberOfGuests] = useState(1);
   const [totalPrice, setTotalPrice] = useState<number | null>(null);
   const [numberOfNights, setNumberOfNights] = useState(0);
-  const [isSubmitting, setIsSubmitting] = useState(false); // Loading state
+  const [isSubmitting, setIsSubmitting] = useState(false); // Loading state for Stripe
+  const [isTesting, setIsTesting] = useState(false); // Loading state for Test Booking
   const [unavailableDates, setUnavailableDates] = useState<Date[]>([]); // State for unavailable dates
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
   const { toast } = useToast();
@@ -52,11 +53,8 @@ export function BookingForm({ property }: BookingFormProps) {
     // console.log("[BookingForm Effect] Starting to fetch availability for property:", property.id); // Reduced logging
     async function fetchAvailability() {
       setIsLoadingAvailability(true);
-      // console.log("[BookingForm fetchAvailability] Set loading state to true."); // Reduced logging
       try {
-        // console.log(`[BookingForm fetchAvailability] Calling getUnavailableDatesForProperty for property ${property.id}...`); // Reduced logging
         const unavailable = await getUnavailableDatesForProperty(property.id);
-        // console.log(`[BookingForm fetchAvailability] Received ${unavailable.length} unavailable dates for property ${property.id}.`); // Reduced logging
         setUnavailableDates(unavailable);
       } catch (error) {
         console.error(`❌ [BookingForm fetchAvailability] Error fetching property availability for ${property.id}:`, error);
@@ -67,7 +65,6 @@ export function BookingForm({ property }: BookingFormProps) {
         });
         setUnavailableDates([]);
       } finally {
-        // console.log("[BookingForm fetchAvailability] Setting loading state to false."); // Reduced logging
         setIsLoadingAvailability(false);
       }
     }
@@ -81,18 +78,14 @@ export function BookingForm({ property }: BookingFormProps) {
     if (date?.from && date?.to) {
       if (date.to > date.from) {
         const nights = differenceInDays(date.to, date.from);
-        // console.log(`[BookingForm Effect] Calculated nights: ${nights}`); // Reduced logging
         setNumberOfNights(nights);
         const calculatedPrice = nights * property.pricePerNight + property.cleaningFee;
-        // console.log(`[BookingForm Effect] Calculated price: ${calculatedPrice}`); // Reduced logging
         setTotalPrice(calculatedPrice);
       } else {
-        // console.log("[BookingForm Effect] Check-out date not after check-in. Resetting price/nights."); // Reduced logging
         setNumberOfNights(0);
         setTotalPrice(null);
       }
     } else {
-       // console.log("[BookingForm Effect] Date range incomplete. Resetting price/nights."); // Reduced logging
       setNumberOfNights(0);
       setTotalPrice(null);
     }
@@ -102,60 +95,38 @@ export function BookingForm({ property }: BookingFormProps) {
   const handleGuestChange = (change: number) => {
     setNumberOfGuests((prev) => {
       const newCount = prev + change;
-       // console.log(`[BookingForm handleGuestChange] Attempting to change guests from ${prev} by ${change} to ${newCount}`); // Reduced logging
       if (newCount < 1) {
-        // console.log("[BookingForm handleGuestChange] Guest count cannot be less than 1."); // Reduced logging
         return 1;
       }
       if (newCount > property.maxGuests) {
-        // console.log(`[BookingForm handleGuestChange] Guest count cannot exceed max guests (${property.maxGuests}).`); // Reduced logging
         return property.maxGuests;
       }
-       // console.log(`[BookingForm handleGuestChange] Setting guest count to ${newCount}.`); // Reduced logging
       return newCount;
     });
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
+   // Function to check if the selected date range is valid
+   const isDateRangeValid = (): boolean => {
+     if (!date?.from || !date?.to) {
+       return false;
+     }
+     return date.to > date.from;
+   };
+
+
+  // --- Handle Stripe Checkout Submission ---
+  const handleStripeSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    // console.log("--- [BookingForm handleSubmit] Form submitted ---"); // Reduced logging
-    setIsSubmitting(true); // Start loading
-    // console.log("[BookingForm handleSubmit] Set submitting state to true."); // Reduced logging
+    setIsSubmitting(true);
 
-    if (!date?.from || !date?.to) {
-       // console.log("[BookingForm handleSubmit] Validation failed: Date range incomplete."); // Reduced logging
+    if (!isDateRangeValid() || !totalPrice) {
        toast({
         title: "Error",
-        description: "Please select check-in and check-out dates.",
+        description: "Please select valid check-in/check-out dates.",
         variant: "destructive",
       });
        setIsSubmitting(false);
-       // console.log("--- [BookingForm handleSubmit] Finished (validation error) ---"); // Reduced logging
       return;
-    }
-
-    if (numberOfNights <= 0) {
-       // console.log("[BookingForm handleSubmit] Validation failed: Check-out date not after check-in."); // Reduced logging
-       toast({
-        title: "Error",
-        description: "Check-out date must be after check-in date.",
-        variant: "destructive",
-      });
-      setIsSubmitting(false);
-       // console.log("--- [BookingForm handleSubmit] Finished (validation error) ---"); // Reduced logging
-      return;
-    }
-
-     if (!totalPrice) {
-        // console.log("[BookingForm handleSubmit] Validation failed: Total price not calculated."); // Reduced logging
-       toast({
-        title: "Error",
-        description: "Could not calculate total price.",
-        variant: "destructive",
-      });
-       setIsSubmitting(false);
-        // console.log("--- [BookingForm handleSubmit] Finished (validation error) ---"); // Reduced logging
-       return;
     }
 
     if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
@@ -166,25 +137,21 @@ export function BookingForm({ property }: BookingFormProps) {
         variant: "destructive",
       });
        setIsSubmitting(false);
-        // console.log("--- [BookingForm handleSubmit] Finished (config error) ---"); // Reduced logging
        return;
     }
 
 
     try {
-      // console.log("[BookingForm handleSubmit] Calling createCheckoutSession server action..."); // Reduced logging
-      // 1. Call the server action to create a checkout session
+      // 1. Call server action to create checkout session
       const checkoutInput = {
         property: property,
-        checkInDate: date.from.toISOString(),
-        checkOutDate: date.to.toISOString(),
+        checkInDate: date.from!.toISOString(),
+        checkOutDate: date.to!.toISOString(),
         numberOfGuests: numberOfGuests,
         totalPrice: totalPrice,
         numberOfNights: numberOfNights,
       };
-      // console.log("[BookingForm handleSubmit] Checkout Session Input:", JSON.stringify(checkoutInput, null, 2)); // Reduced logging
       const result = await createCheckoutSession(checkoutInput);
-      // console.log("[BookingForm handleSubmit] createCheckoutSession Result:", result); // Reduced logging
 
 
        if (result.error || !result.sessionId) {
@@ -193,21 +160,17 @@ export function BookingForm({ property }: BookingFormProps) {
       }
 
       const { sessionId } = result;
-      // console.log(`[BookingForm handleSubmit] Received Stripe Session ID: ${sessionId}`); // Reduced logging
 
 
       // 2. Redirect to Stripe Checkout
-      // console.log("[BookingForm handleSubmit] Attempting to load Stripe.js..."); // Reduced logging
       const stripe = await stripePromise;
       if (!stripe) {
          console.error("❌ [BookingForm handleSubmit] Stripe.js failed to load.");
          throw new Error('Stripe.js has not loaded yet.');
       }
-      // console.log("[BookingForm handleSubmit] Stripe.js loaded. Redirecting to checkout..."); // Reduced logging
 
       const { error } = await stripe.redirectToCheckout({ sessionId });
 
-      // This part is only reached if redirectToCheckout fails immediately
       if (error) {
         console.error('❌ [BookingForm handleSubmit] Stripe redirect error:', error);
         toast({
@@ -215,13 +178,8 @@ export function BookingForm({ property }: BookingFormProps) {
           description: error.message || "Could not redirect to Stripe.",
           variant: "destructive",
         });
-         setIsSubmitting(false); // Stop loading on redirect error
-      } else {
-          // console.log("[BookingForm handleSubmit] Redirecting to Stripe..."); // Reduced logging
-          // User is redirected, no need to set submitting false here.
+         setIsSubmitting(false);
       }
-
-
     } catch (error) {
       console.error('❌ [BookingForm handleSubmit] Booking submission error:', error);
       toast({
@@ -229,16 +187,94 @@ export function BookingForm({ property }: BookingFormProps) {
         description: error instanceof Error ? error.message : "An unexpected error occurred during booking.",
         variant: "destructive",
       });
-       setIsSubmitting(false); // Stop loading on error
+       setIsSubmitting(false);
     }
-     // console.log("--- [BookingForm handleSubmit] Finished execution (unless redirected) ---"); // Reduced logging
-     // Don't set submitting false here if redirect is successful
   };
 
-  // console.log("[BookingForm Render] Current state: isLoadingAvailability=", isLoadingAvailability, "isSubmitting=", isSubmitting, "date=", date); // Reduced logging
+   // --- Handle Test Booking Creation ---
+   const handleTestBookingClick = async () => {
+     setIsTesting(true);
+     console.log("[TestBookingButton] Attempting to create test booking using form data...");
+
+     if (!isDateRangeValid() || !totalPrice) {
+       toast({
+         title: "Test Booking Error",
+         description: "Please select valid check-in/check-out dates before creating a test booking.",
+         variant: "destructive",
+       });
+       setIsTesting(false);
+       return;
+     }
+
+     // Construct mock data using form state
+     const mockBookingData: CreateBookingData = {
+       propertyId: property.id,
+       guestInfo: {
+         firstName: "Test",
+         lastName: "User",
+         email: `test.user.${Date.now()}@example.com`, // Unique email
+         userId: "test-user-id-123",
+         phone: "+15559990000",
+       },
+       checkInDate: date.from!.toISOString(),
+       checkOutDate: date.to!.toISOString(),
+       numberOfGuests: numberOfGuests,
+       pricing: {
+         baseRate: property.pricePerNight,
+         numberOfNights: numberOfNights,
+         cleaningFee: property.cleaningFee,
+         subtotal: totalPrice - (totalPrice * 0), // Assuming 0 tax for test
+         taxes: 0, // Assuming 0 tax for test
+         total: totalPrice,
+       },
+       paymentInput: {
+         stripePaymentIntentId: `mock_test_${Date.now()}`, // Unique mock ID
+         amount: totalPrice,
+         status: "succeeded", // Simulate success
+       },
+       status: 'confirmed' as Booking['status'], // Directly set status
+       source: 'test-button-form',
+       notes: `Test booking created from form for ${numberOfGuests} guests.`,
+     };
+
+     try {
+       console.log("[TestBookingButton] Calling createBooking with constructed mock data:", mockBookingData);
+       const bookingId = await createBooking(mockBookingData);
+
+       if (bookingId) {
+         console.log(`[TestBookingButton] Test booking created successfully! ID: ${bookingId}`);
+         toast({
+           title: "Test Booking Successful",
+           description: `Test booking created in Firestore with ID: ${bookingId}`,
+         });
+         // Optionally reset the form or provide further feedback
+         // setDate(undefined);
+         // setNumberOfGuests(1);
+       } else {
+         console.error("[TestBookingButton] createBooking returned a falsy value.");
+         toast({
+           title: "Test Booking Possibly Failed",
+           description: "Booking creation completed but didn't return a valid ID.",
+           variant: "destructive",
+         });
+       }
+     } catch (error) {
+       console.error("[TestBookingButton] Error creating test booking:", error);
+       toast({
+         title: "Test Booking Failed",
+         description: error instanceof Error ? error.message : "An unknown error occurred.",
+         variant: "destructive",
+       });
+     } finally {
+       setIsTesting(false);
+     }
+   };
+
+
+  const isButtonDisabled = !isDateRangeValid() || !totalPrice || isSubmitting || isTesting || isLoadingAvailability;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleStripeSubmit} className="space-y-6">
       {/* Date Range Picker */}
       <div className={cn('grid gap-2')}>
          <Label htmlFor="date">Check-in / Check-out Dates</Label>
@@ -251,7 +287,7 @@ export function BookingForm({ property }: BookingFormProps) {
                 'w-full justify-start text-left font-normal',
                 !date && 'text-muted-foreground'
               )}
-              disabled={isSubmitting || isLoadingAvailability} // Disable while submitting or loading availability
+              disabled={isSubmitting || isTesting || isLoadingAvailability} // Disable while submitting or loading availability
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
               {isLoadingAvailability ? (
@@ -301,7 +337,7 @@ export function BookingForm({ property }: BookingFormProps) {
               size="icon"
               className="h-7 w-7"
               onClick={() => handleGuestChange(-1)}
-              disabled={numberOfGuests <= 1 || isSubmitting} // Disable while submitting
+              disabled={numberOfGuests <= 1 || isSubmitting || isTesting} // Disable while submitting/testing
               aria-label="Decrease guests"
             >
               <Minus className="h-4 w-4" />
@@ -315,7 +351,7 @@ export function BookingForm({ property }: BookingFormProps) {
               size="icon"
                className="h-7 w-7"
               onClick={() => handleGuestChange(1)}
-              disabled={numberOfGuests >= property.maxGuests || isSubmitting} // Disable while submitting
+              disabled={numberOfGuests >= property.maxGuests || isSubmitting || isTesting} // Disable while submitting/testing
               aria-label="Increase guests"
             >
               <Plus className="h-4 w-4" />
@@ -348,10 +384,11 @@ export function BookingForm({ property }: BookingFormProps) {
         </div>
       )}
 
+      {/* Stripe Payment Button */}
       <Button
         type="submit"
-        className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
-        disabled={!date?.from || !date?.to || numberOfNights <= 0 || !totalPrice || isSubmitting || isLoadingAvailability} // Add loading states to disabled condition
+        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" // Use primary color
+        disabled={isButtonDisabled}
         >
         {isSubmitting ? (
            <>
@@ -361,12 +398,40 @@ export function BookingForm({ property }: BookingFormProps) {
          ) : isLoadingAvailability ? (
              'Loading Availability...'
          ) : (
-           'Proceed to Payment' // Updated button text
+           'Proceed to Payment'
          )}
       </Button>
       <p className="text-xs text-center text-muted-foreground">
          You will be redirected to Stripe to complete your payment.
       </p>
+
+      {/* Test Booking Button (Development Only) */}
+      {process.env.NODE_ENV === 'development' && (
+        <>
+         <Separator className="my-4 border-dashed" />
+          <Button
+            type="button" // Important: Change type to 'button' to prevent form submission
+            variant="outline"
+            className="w-full border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={handleTestBookingClick}
+            disabled={isButtonDisabled}
+          >
+            {isTesting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating Test...
+              </>
+            ) : (
+              <>
+                <TestTubeDiagonal className="mr-2 h-4 w-4" />
+                Create Test Booking (Firestore Only)
+              </>
+            )}
+          </Button>
+           <p className="text-xs text-center text-muted-foreground mt-2">
+             (Development only - Bypasses Stripe)
+          </p>
+        </>
+      )}
     </form>
   );
 }

@@ -1,3 +1,4 @@
+
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import type { Property } from '@/types';
@@ -5,7 +6,7 @@ import { placeholderProperties } from '@/data/properties';
 import { PrahovaPageLayout } from '@/components/property/prahova/prahova-page-layout';
 import { ColteiPageLayout } from '@/components/property/coltei/coltei-page-layout';
 import { Header } from '@/components/header'; // Assuming a generic header might still be needed, adjust if not
-import { TestBookingButton } from '@/components/TestBookingButton'; // Import the test button
+// Removed import: import { TestBookingButton } from '@/components/TestBookingButton'; // Import the test button
 
 
 // Function to get property data by slug (replace with actual data fetching)
@@ -44,12 +45,7 @@ export default async function PropertyDetailsPage({ params }: PropertyDetailsPag
   if (LayoutComponent) {
     return (
        <div>
-        {/* Conditionally render TestBookingButton only in development */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="container my-4">
-             <TestBookingButton />
-          </div>
-        )}
+        {/* Removed TestBookingButton component usage */}
          <LayoutComponent property={property} />
        </div>
     );
@@ -59,12 +55,7 @@ export default async function PropertyDetailsPage({ params }: PropertyDetailsPag
   // Fallback for properties without a specific layout (or could redirect/show error)
   return (
     <div className="flex min-h-screen flex-col">
-       {/* Conditionally render TestBookingButton */}
-       {process.env.NODE_ENV === 'development' && (
-         <div className="container my-4">
-           <TestBookingButton />
-         </div>
-       )}
+      {/* Removed TestBookingButton component usage */}
       {/* Render a generic header/layout or handle differently */}
        <Header />
       <main className="flex-grow container py-12 md:py-16">
