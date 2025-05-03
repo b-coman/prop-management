@@ -34,13 +34,22 @@ export interface BookingComListing {
  */
 export async function getPropertyForSync(propertyId: string): Promise<Property | null> {
     const propertyRef = doc(db, 'properties', propertyId);
-    const docSnap = await getDoc(propertyRef);
-    if (docSnap.exists()) {
-        // Assuming the data structure matches the Property type, including optional external IDs
-        return { id: docSnap.id, ...docSnap.data() } as Property;
-    } else {
-        console.warn(`[getPropertyForSync] Property not found: ${propertyId}`);
-        return null;
+    try {
+        const docSnap = await getDoc(propertyRef);
+        if (docSnap.exists()) {
+            // Assuming the data structure matches the Property type, including optional external IDs
+            return { id: docSnap.id, ...docSnap.data() } as Property;
+        } else {
+            // This is likely where the "Property not found: prop1" error occurs.
+            // It means there is no document with the ID "prop1" in the 'properties' collection.
+            // SOLUTION: Ensure you have added the property data (e.g., using the Firebase Console or a script)
+            // to the 'properties' collection with the correct document ID ("prop1").
+            console.warn(`[getPropertyForSync] Property document not found in Firestore: properties/${propertyId}`);
+            return null;
+        }
+    } catch (error) {
+         console.error(`❌ [getPropertyForSync] Error fetching property ${propertyId}:`, error);
+         return null;
     }
 }
 
@@ -107,7 +116,7 @@ export async function updateAirbnbListingAvailability(
   // TODO: Replace with actual API call to Airbnb, passing the specific date range to block/unblock.
   // Example: Call Airbnb API endpoint to update calendar for the given dates.
   await new Promise(resolve => setTimeout(resolve, 150)); // Simulate network delay
-  console.log(`[Sync Placeholder] Airbnb update call simulated for listing ${listingId}.`);
+  // console.log(`[Sync Placeholder] Airbnb update call simulated for listing ${listingId}.`);
   return;
 }
 
@@ -135,7 +144,7 @@ export async function updateBookingComListingAvailability(
   // TODO: Replace with actual API call to Booking.com, passing the specific date range to block/unblock.
   // Example: Call Booking.com API endpoint to update calendar for the given dates.
   await new Promise(resolve => setTimeout(resolve, 150)); // Simulate network delay
-  console.log(`[Sync Placeholder] Booking.com update call simulated for listing ${listingId}.`);
+  // console.log(`[Sync Placeholder] Booking.com update call simulated for listing ${listingId}.`);
   return;
 }
 

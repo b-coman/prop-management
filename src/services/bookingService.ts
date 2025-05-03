@@ -100,19 +100,19 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
    // --- Initial Log ---
    console.log("--- [createBooking] Function called ---");
    const paymentIntentId = rawBookingData?.paymentInput?.stripePaymentIntentId || 'N/A';
-   console.log(`[createBooking] Received raw data for Payment Intent [${paymentIntentId}]:`, JSON.stringify(rawBookingData, null, 2));
+   console.log(`[createBooking] Received raw data for Payment Intent [${paymentIntentId}]`); // Log less verbose data
 
    let bookingData: z.infer<typeof CreateBookingDataSchema>; // Declare bookingData here
 
    // --- Zod Validation ---
-   console.log(`[createBooking] Starting Zod validation for Payment Intent [${paymentIntentId}]...`);
+   // console.log(`[createBooking] Starting Zod validation for Payment Intent [${paymentIntentId}]...`);
    const validationResult = CreateBookingDataSchema.safeParse(rawBookingData);
 
    if (!validationResult.success) {
      const errorMessages = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
      const validationError = new Error(`Invalid booking data: ${errorMessages}`);
      console.error(`❌ [createBooking] Validation Error for Payment Intent [${paymentIntentId}]:`, validationError.message);
-     console.error(`[createBooking Validation Error Data - Payment Intent: ${paymentIntentId}] Data:`, JSON.stringify(rawBookingData, null, 2));
+     // console.error(`[createBooking Validation Error Data - Payment Intent: ${paymentIntentId}] Data:`, JSON.stringify(rawBookingData, null, 2));
      console.log("--- [createBooking] Function throwing validation error ---");
      throw validationError; // Re-throw the specific validation error
    }
@@ -123,11 +123,11 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
 
   // Start main try block here to encompass all subsequent operations
   try {
-    console.log(`[createBooking] Entered main try block for Payment Intent [${paymentIntentId}]`);
+    // console.log(`[createBooking] Entered main try block for Payment Intent [${paymentIntentId}]`);
     const bookingsCollection = collection(db, 'bookings');
 
     // --- Data Transformation ---
-    console.log(`[createBooking] Transforming data for Firestore for Payment Intent [${paymentIntentId}]...`);
+    // console.log(`[createBooking] Transforming data for Firestore for Payment Intent [${paymentIntentId}]...`);
     const checkInDate = new Date(bookingData.checkInDate);
     const checkOutDate = new Date(bookingData.checkOutDate);
     const checkInTimestamp = Timestamp.fromDate(checkInDate);
@@ -158,10 +158,10 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
         status: restOfBookingData.status || 'confirmed', // Default to confirmed if not provided
     };
 
-    console.log(`[createBooking] Firestore Doc Data Prepared for Payment Intent [${paymentIntentId}]:`, JSON.stringify(docData, (key, value) =>
-        // Custom replacer to handle Timestamp objects for logging
-        value instanceof Timestamp ? value.toDate().toISOString() : value,
-    2));
+    // console.log(`[createBooking] Firestore Doc Data Prepared for Payment Intent [${paymentIntentId}]:`, JSON.stringify(docData, (key, value) =>
+    //     // Custom replacer to handle Timestamp objects for logging
+    //     value instanceof Timestamp ? value.toDate().toISOString() : value,
+    // 2));
 
     // --- Firestore Operation ---
     console.log(`[createBooking] Attempting to add booking document to Firestore for Payment Intent [${paymentIntentId}]...`);
@@ -175,9 +175,13 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
       await updatePropertyAvailability(bookingData.propertyId, checkInDate, checkOutDate, false); // Mark as unavailable
       console.log(`✅ [createBooking] Successfully finished update call for local availability for property ${bookingData.propertyId}, booking ${bookingId}.`);
     } catch (availabilityError) {
+      // This is where the PERMISSION_DENIED error originates if rules are strict
+      // and the server action doesn't have the necessary auth context.
       console.error(`⚠️ [createBooking] Failed to update local availability for property ${bookingData.propertyId} after creating booking ${bookingId}:`, availabilityError);
-      // Decide if this should be a fatal error or just logged
-      // Depending on policy, you might want to re-throw or compensate
+      // Log the error, but don't necessarily fail the entire booking creation,
+      // especially if the booking document itself was successfully created.
+      // Manual intervention might be needed for availability.
+      // Consider adding a retry mechanism or flagging the booking for review.
     }
 
      // --- Synchronize Availability with External Platforms ---
@@ -185,19 +189,19 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
      try {
         const propertyDetails = await getPropertyForSync(bookingData.propertyId);
         if (propertyDetails) {
-            console.log(`[createBooking Sync] Found property details for ${bookingData.propertyId}. IDs: Airbnb=${propertyDetails.airbnbListingId}, Booking.com=${propertyDetails.bookingComListingId}`);
+            // console.log(`[createBooking Sync] Found property details for ${bookingData.propertyId}. IDs: Airbnb=${propertyDetails.airbnbListingId}, Booking.com=${propertyDetails.bookingComListingId}`);
             // Sync with Airbnb if ID exists
             if (propertyDetails.airbnbListingId) {
-                console.log(`[createBooking Sync] Attempting to update Airbnb listing ${propertyDetails.airbnbListingId}...`);
+                // console.log(`[createBooking Sync] Attempting to update Airbnb listing ${propertyDetails.airbnbListingId}...`);
                 await updateAirbnbListingAvailability(propertyDetails.airbnbListingId, false, checkInDate, checkOutDate); // Pass dates
-                console.log(`✅ [createBooking Sync] Successfully initiated Airbnb availability update for listing ${propertyDetails.airbnbListingId}.`);
+                 console.log(`✅ [createBooking Sync] Successfully initiated Airbnb availability update for listing ${propertyDetails.airbnbListingId}.`);
             } else {
                  console.log(`[createBooking Sync] No Airbnb Listing ID found for property ${bookingData.propertyId}. Skipping Airbnb sync.`);
             }
 
             // Sync with Booking.com if ID exists
             if (propertyDetails.bookingComListingId) {
-                console.log(`[createBooking Sync] Attempting to update Booking.com listing ${propertyDetails.bookingComListingId}...`);
+                // console.log(`[createBooking Sync] Attempting to update Booking.com listing ${propertyDetails.bookingComListingId}...`);
                 await updateBookingComListingAvailability(propertyDetails.bookingComListingId, false, checkInDate, checkOutDate); // Pass dates
                  console.log(`✅ [createBooking Sync] Successfully initiated Booking.com availability update for listing ${propertyDetails.bookingComListingId}.`);
             } else {
@@ -205,6 +209,7 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
             }
         } else {
              console.warn(`[createBooking Sync] Could not retrieve property details for ${bookingData.propertyId} to perform external sync.`);
+             // This indicates property "prop1" needs to be added to the 'properties' collection in Firestore.
         }
     } catch (syncError) {
         console.error(`❌ [createBooking Sync] Error synchronizing availability with external platforms for property ${bookingData.propertyId} after creating booking ${bookingId}:`, syncError);
@@ -220,7 +225,7 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
      // Log the error only if it's not a Zod validation error (already logged above)
      if (!(error instanceof Error && error.message.startsWith('Invalid booking data:'))) {
          console.error(`❌ [createBooking] Error during booking creation process for Payment Intent [${paymentIntentId}]:`, error);
-         console.error(`[createBooking Error Data - Payment Intent: ${paymentIntentId}] Data:`, JSON.stringify(bookingData || rawBookingData, null, 2)); // Log validated data if available, else raw
+         // console.error(`[createBooking Error Data - Payment Intent: ${paymentIntentId}] Data:`, JSON.stringify(bookingData || rawBookingData, null, 2)); // Log validated data if available, else raw
      }
 
     // Construct a more informative error message (unless it's already a validation error)
@@ -242,14 +247,14 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
  * @returns A Promise resolving to the Booking object or null if not found.
  */
 export async function getBookingById(bookingId: string): Promise<Booking | null> {
-    console.log(`--- [getBookingById] Function called for ID: ${bookingId} ---`);
+    // console.log(`--- [getBookingById] Function called for ID: ${bookingId} ---`);
     try {
         const bookingRef = doc(db, 'bookings', bookingId);
-        console.log(`[getBookingById] Attempting to get document: bookings/${bookingId}`);
+        // console.log(`[getBookingById] Attempting to get document: bookings/${bookingId}`);
         const docSnap = await getDoc(bookingRef);
 
         if (docSnap.exists()) {
-             console.log(`[getBookingById] Document found for ID: ${bookingId}`);
+             // console.log(`[getBookingById] Document found for ID: ${bookingId}`);
             // Combine document ID with data
             // Convert Timestamps to Dates or ISO strings if needed client-side
             const data = docSnap.data();
@@ -267,16 +272,16 @@ export async function getBookingById(bookingId: string): Promise<Booking | null>
                     paidAt: data.paymentInfo?.paidAt, // Keep as Timestamp or null
                 },
             } as Booking; // Cast carefully or define a client-side type
-            console.log(`--- [getBookingById] Function returning booking data for ID: ${bookingId} ---`);
+            // console.log(`--- [getBookingById] Function returning booking data for ID: ${bookingId} ---`);
             return bookingResult;
         } else {
             console.log(`[getBookingById] No booking found with ID: ${bookingId}`);
-             console.log(`--- [getBookingById] Function returning null for ID: ${bookingId} ---`);
+            //  console.log(`--- [getBookingById] Function returning null for ID: ${bookingId} ---`);
             return null;
         }
     } catch (error) {
         console.error(`❌ [getBookingById] Error fetching booking with ID ${bookingId}:`, error);
-        console.log(`--- [getBookingById] Function throwing error for ID: ${bookingId} ---`);
+        // console.log(`--- [getBookingById] Function throwing error for ID: ${bookingId} ---`);
         throw new Error(`Failed to fetch booking: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
@@ -292,7 +297,7 @@ export async function updateBookingStatus(bookingId: string, status: Booking['st
     console.log(`--- [updateBookingStatus] Function called for ID: ${bookingId}, Status: ${status} ---`);
     try {
         const bookingRef = doc(db, 'bookings', bookingId);
-        console.log(`[updateBookingStatus] Attempting to update status for booking: ${bookingId}`);
+        // console.log(`[updateBookingStatus] Attempting to update status for booking: ${bookingId}`);
         await updateDoc(bookingRef, {
             status: status,
             updatedAt: serverTimestamp(),
@@ -309,6 +314,7 @@ export async function updateBookingStatus(bookingId: string, status: Booking['st
             const checkOut = (booking.checkOutDate as Timestamp).toDate();
             console.log(`[updateBookingStatus] Releasing local dates for cancelled booking ${bookingId} from ${checkIn.toISOString()} to ${checkOut.toISOString()}`);
             try {
+                // TODO: This updatePropertyAvailability call might also fail due to permissions if run from an unauthenticated context.
                 await updatePropertyAvailability(booking.propertyId, checkIn, checkOut, true); // Mark as available
                 console.log(`✅ [updateBookingStatus] Successfully updated local availability for cancelled booking ${bookingId}.`);
             } catch (availError) {
@@ -322,12 +328,12 @@ export async function updateBookingStatus(bookingId: string, status: Booking['st
                 const propertyDetails = await getPropertyForSync(booking.propertyId);
                 if (propertyDetails) {
                     if (propertyDetails.airbnbListingId) {
-                        console.log(`[updateBookingStatus Sync] Releasing Airbnb dates for listing ${propertyDetails.airbnbListingId}`);
+                        // console.log(`[updateBookingStatus Sync] Releasing Airbnb dates for listing ${propertyDetails.airbnbListingId}`);
                         await updateAirbnbListingAvailability(propertyDetails.airbnbListingId, true, checkIn, checkOut);
                          console.log(`✅ [updateBookingStatus Sync] Initiated Airbnb date release for ${propertyDetails.airbnbListingId}`);
                     }
                      if (propertyDetails.bookingComListingId) {
-                        console.log(`[updateBookingStatus Sync] Releasing Booking.com dates for listing ${propertyDetails.bookingComListingId}`);
+                        // console.log(`[updateBookingStatus Sync] Releasing Booking.com dates for listing ${propertyDetails.bookingComListingId}`);
                         await updateBookingComListingAvailability(propertyDetails.bookingComListingId, true, checkIn, checkOut);
                          console.log(`✅ [updateBookingStatus Sync] Initiated Booking.com date release for ${propertyDetails.bookingComListingId}`);
                     }
@@ -346,7 +352,7 @@ export async function updateBookingStatus(bookingId: string, status: Booking['st
 
     } catch (error) {
         console.error(`❌ [updateBookingStatus] Error updating status for booking ${bookingId}:`, error);
-        console.log(`--- [updateBookingStatus] Function throwing error for ID: ${bookingId} ---`);
+        // console.log(`--- [updateBookingStatus] Function throwing error for ID: ${bookingId} ---`);
         throw new Error(`Failed to update booking status: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
@@ -358,14 +364,14 @@ export async function updateBookingStatus(bookingId: string, status: Booking['st
  * @returns A Promise resolving to an array of Booking objects.
  */
 export async function getBookingsForProperty(propertyId: string): Promise<Booking[]> {
-    console.log(`--- [getBookingsForProperty] Function called for Property ID: ${propertyId} ---`);
+    // console.log(`--- [getBookingsForProperty] Function called for Property ID: ${propertyId} ---`);
     const bookings: Booking[] = [];
     try {
         const bookingsCollection = collection(db, 'bookings');
         const q = query(bookingsCollection, where('propertyId', '==', propertyId));
-        console.log(`[getBookingsForProperty] Querying bookings for property ${propertyId}...`);
+        // console.log(`[getBookingsForProperty] Querying bookings for property ${propertyId}...`);
         const querySnapshot = await getDocs(q);
-         console.log(`[getBookingsForProperty] Found ${querySnapshot.size} bookings for property ${propertyId}`);
+         // console.log(`[getBookingsForProperty] Found ${querySnapshot.size} bookings for property ${propertyId}`);
 
         querySnapshot.forEach((doc) => {
             const data = doc.data();
@@ -383,11 +389,11 @@ export async function getBookingsForProperty(propertyId: string): Promise<Bookin
                 },
             } as Booking);
         });
-         console.log(`--- [getBookingsForProperty] Function returning ${bookings.length} bookings for Property ID: ${propertyId} ---`);
+         // console.log(`--- [getBookingsForProperty] Function returning ${bookings.length} bookings for Property ID: ${propertyId} ---`);
         return bookings;
     } catch (error) {
         console.error(`❌ [getBookingsForProperty] Error fetching bookings for property ${propertyId}:`, error);
-         console.log(`--- [getBookingsForProperty] Function throwing error for Property ID: ${propertyId} ---`);
+         // console.log(`--- [getBookingsForProperty] Function throwing error for Property ID: ${propertyId} ---`);
         throw new Error(`Failed to fetch bookings for property: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
@@ -399,15 +405,15 @@ export async function getBookingsForProperty(propertyId: string): Promise<Bookin
  * @returns A Promise resolving to an array of Booking objects.
  */
 export async function getBookingsForUser(userId: string): Promise<Booking[]> {
-    console.log(`--- [getBookingsForUser] Function called for User ID: ${userId} ---`);
+    // console.log(`--- [getBookingsForUser] Function called for User ID: ${userId} ---`);
      const bookings: Booking[] = [];
     try {
         const bookingsCollection = collection(db, 'bookings');
         // Use dot notation to query nested field
         const q = query(bookingsCollection, where('guestInfo.userId', '==', userId));
-        console.log(`[getBookingsForUser] Querying bookings for user ${userId}...`);
+        // console.log(`[getBookingsForUser] Querying bookings for user ${userId}...`);
         const querySnapshot = await getDocs(q);
-         console.log(`[getBookingsForUser] Found ${querySnapshot.size} bookings for user ${userId}`);
+         // console.log(`[getBookingsForUser] Found ${querySnapshot.size} bookings for user ${userId}`);
 
         querySnapshot.forEach((doc) => {
              const data = doc.data();
@@ -424,11 +430,11 @@ export async function getBookingsForUser(userId: string): Promise<Booking[]> {
                 },
              } as Booking);
         });
-         console.log(`--- [getBookingsForUser] Function returning ${bookings.length} bookings for User ID: ${userId} ---`);
+         // console.log(`--- [getBookingsForUser] Function returning ${bookings.length} bookings for User ID: ${userId} ---`);
         return bookings;
     } catch (error) {
         console.error(`❌ [getBookingsForUser] Error fetching bookings for user ${userId}:`, error);
-        console.log(`--- [getBookingsForUser] Function throwing error for User ID: ${userId} ---`);
+        // console.log(`--- [getBookingsForUser] Function throwing error for User ID: ${userId} ---`);
         throw new Error(`Failed to fetch bookings for user: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
@@ -437,11 +443,24 @@ export async function getBookingsForUser(userId: string): Promise<Booking[]> {
  * Updates the availability status for a given property and date range in Firestore.
  * This uses the monthly document structure (`propertyId_YYYY-MM`).
  *
+ * IMPORTANT: This function runs on the server-side via a Server Action ('use server').
+ * By default, server actions in Next.js run without user authentication context unless explicitly passed.
+ * Firestore security rules requiring authentication (like `isSignedIn()`, `isOwner()`, `isAdmin()`) WILL LIKELY FAIL
+ * when this function is called from the TestBookingButton or the Stripe Webhook, as these contexts are unauthenticated.
+ *
+ * SOLUTION:
+ * 1. Development Testing: Temporarily relax Firestore rules for `/availability/{document}` to `allow write: if true;`
+ *    ONLY FOR TESTING THE FUNCTIONALITY. **REMEMBER TO REVERT TO SECURE RULES BEFORE PRODUCTION.**
+ * 2. Production: Ensure this function is only called from contexts where authentication is properly handled
+ *    (e.g., an authenticated API route, or a Cloud Function with appropriate triggers and service account permissions).
+ *    Alternatively, pass the necessary authentication information (like user ID) if feasible and adjust rules accordingly.
+ *
  * @param propertyId The ID of the property.
  * @param checkInDate The start date of the range (inclusive).
  * @param checkOutDate The end date of the range (exclusive - the day the guest leaves).
  * @param available The availability status to set (true = available, false = booked/unavailable).
  * @returns A Promise resolving when the update is complete.
+ * @throws Throws an error if the Firestore operation fails.
  */
 export async function updatePropertyAvailability(propertyId: string, checkInDate: Date, checkOutDate: Date, available: boolean): Promise<void> {
   console.log(`--- [updatePropertyAvailability] Function called ---`);
@@ -449,7 +468,7 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
 
   if (checkOutDate <= checkInDate) {
     console.warn(`[updatePropertyAvailability] Check-out date (${format(checkOutDate, 'yyyy-MM-dd')}) must be after check-in date (${format(checkInDate, 'yyyy-MM-dd')}). No update performed.`);
-    console.log(`--- [updatePropertyAvailability] Function finished early (invalid date range) ---`);
+    // console.log(`--- [updatePropertyAvailability] Function finished early (invalid date range) ---`);
     return;
   }
 
@@ -461,15 +480,15 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
   });
 
   if (datesToUpdate.length === 0) {
-      console.log("[updatePropertyAvailability] No dates to update (check-in and check-out might be consecutive).");
-      console.log(`--- [updatePropertyAvailability] Function finished early (no dates to update) ---`);
+      // console.log("[updatePropertyAvailability] No dates to update (check-in and check-out might be consecutive).");
+      // console.log(`--- [updatePropertyAvailability] Function finished early (no dates to update) ---`);
       return;
   }
-  console.log(`[updatePropertyAvailability] Dates to update (${datesToUpdate.length}): ${datesToUpdate.map(d => format(d, 'yyyy-MM-dd')).join(', ')}`);
+  // console.log(`[updatePropertyAvailability] Dates to update (${datesToUpdate.length}): ${datesToUpdate.map(d => format(d, 'yyyy-MM-dd')).join(', ')}`);
 
 
   // Group dates by month (YYYY-MM)
-  console.log(`[updatePropertyAvailability] Grouping updates by month...`);
+  // console.log(`[updatePropertyAvailability] Grouping updates by month...`);
   const updatesByMonth: { [month: string]: { [day: number]: boolean } } = {};
   datesToUpdate.forEach(date => {
     const monthStr = format(date, 'yyyy-MM');
@@ -479,27 +498,27 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
     }
     updatesByMonth[monthStr][dayOfMonth] = available;
   });
-  console.log(`[updatePropertyAvailability] Updates grouped by month:`, JSON.stringify(updatesByMonth));
+  // console.log(`[updatePropertyAvailability] Updates grouped by month:`, JSON.stringify(updatesByMonth));
 
   const batch = writeBatch(db);
   const availabilityCollection = collection(db, 'availability');
-  console.log(`[updatePropertyAvailability] Initialized Firestore batch.`);
+  // console.log(`[updatePropertyAvailability] Initialized Firestore batch.`);
 
   try {
     // Process updates for each month involved in the date range
     const monthStrings = Object.keys(updatesByMonth);
-    console.log(`[updatePropertyAvailability] Processing months: ${monthStrings.join(', ')}`);
+    // console.log(`[updatePropertyAvailability] Processing months: ${monthStrings.join(', ')}`);
 
      if (monthStrings.length === 0) {
-        console.log("[updatePropertyAvailability] No months to process in batch. This shouldn't happen if datesToUpdate was not empty.");
-        console.log(`--- [updatePropertyAvailability] Function finished (no months to process) ---`);
+        // console.log("[updatePropertyAvailability] No months to process in batch. This shouldn't happen if datesToUpdate was not empty.");
+        // console.log(`--- [updatePropertyAvailability] Function finished (no months to process) ---`);
         return; // Exit if no months, though likely indicates an earlier logic error
     }
 
     // Construct document references
     const docRefs = monthStrings.map(monthStr => {
        const docId = `${propertyId}_${monthStr}`;
-       console.log(`[updatePropertyAvailability] Creating doc reference for ID: ${docId}`);
+       // console.log(`[updatePropertyAvailability] Creating doc reference for ID: ${docId}`);
        return doc(availabilityCollection, docId);
     });
 
@@ -514,7 +533,7 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
       const availabilityDocId = `${propertyId}_${monthStr}`;
       const availabilityDocRef = docRefs[index]; // Use the ref from the map
       const updatesForDay = updatesByMonth[monthStr]; // e.g., { 15: false, 16: false }
-      console.log(`[updatePropertyAvailability Batch Prep] Processing month ${monthStr} (Doc ID: ${availabilityDocId}). Updates needed for days: ${Object.keys(updatesForDay).join(', ')}`);
+      // console.log(`[updatePropertyAvailability Batch Prep] Processing month ${monthStr} (Doc ID: ${availabilityDocId}). Updates needed for days: ${Object.keys(updatesForDay).join(', ')}`);
 
 
       // Prepare the update payload using dot notation for nested 'available' map
@@ -525,16 +544,16 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
       }
        // Ensure updatedAt field uses dot notation if nested, or is top-level
       updatePayload.updatedAt = serverTimestamp(); // Always update the timestamp
-      console.log(`[updatePropertyAvailability Batch Prep] Prepared update payload for ${availabilityDocId}:`, JSON.stringify(updatePayload, (key, value) => value instanceof Timestamp ? "ServerTimestamp" : value, 2));
+      // console.log(`[updatePropertyAvailability Batch Prep] Prepared update payload for ${availabilityDocId}:`, JSON.stringify(updatePayload, (key, value) => value instanceof Timestamp ? "ServerTimestamp" : value, 2));
 
 
       if (docSnap.exists()) {
         // Document exists, merge the update using updateDoc in the batch
-        console.log(`[updatePropertyAvailability Batch Prep] Doc ${availabilityDocId} exists. Adding UPDATE operation to batch.`);
+        // console.log(`[updatePropertyAvailability Batch Prep] Doc ${availabilityDocId} exists. Adding UPDATE operation to batch.`);
         batch.update(availabilityDocRef, updatePayload);
       } else {
         // Document doesn't exist, create it with the *entire* month's data
-        console.log(`[updatePropertyAvailability Batch Prep] Doc ${availabilityDocId} DOES NOT exist. Creating initial data for month ${monthStr}.`);
+        // console.log(`[updatePropertyAvailability Batch Prep] Doc ${availabilityDocId} DOES NOT exist. Creating initial data for month ${monthStr}.`);
         const [year, month] = monthStr.split('-').map(Number);
         // Calculate days in the month correctly
         const daysInMonth = new Date(year, month, 0).getDate();
@@ -543,7 +562,7 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
           // Default to available unless it's one of the days being explicitly updated
           initialAvailableMap[day] = updatesForDay[day] !== undefined ? updatesForDay[day] : true; // Default to available
         }
-        console.log(`[updatePropertyAvailability Batch Prep] Calculated initial availability map for ${daysInMonth} days in ${monthStr}.`);
+        // console.log(`[updatePropertyAvailability Batch Prep] Calculated initial availability map for ${daysInMonth} days in ${monthStr}.`);
 
 
         const newDocData: Partial<Availability> = { // Use Partial<Availability> for creation
@@ -554,10 +573,10 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
           // minimumStay: {}, // Initialize if needed
           updatedAt: serverTimestamp(), // Use serverTimestamp for consistency
         };
-         console.log(`[updatePropertyAvailability Batch Prep] New doc data for ${availabilityDocId}:`, JSON.stringify(newDocData, (key, value) => value instanceof Timestamp ? "ServerTimestamp" : value, 2));
+        //  console.log(`[updatePropertyAvailability Batch Prep] New doc data for ${availabilityDocId}:`, JSON.stringify(newDocData, (key, value) => value instanceof Timestamp ? "ServerTimestamp" : value, 2));
          // Use set to create the new document with the full month's availability map
          // Pass merge: true to avoid overwriting other potential fields if the doc unexpectedly exists
-         console.log(`[updatePropertyAvailability Batch Prep] Adding SET operation (merge: true) to batch for ${availabilityDocId}.`);
+         // console.log(`[updatePropertyAvailability Batch Prep] Adding SET operation (merge: true) to batch for ${availabilityDocId}.`);
          batch.set(availabilityDocRef, newDocData, { merge: true });
       }
     });
@@ -570,8 +589,10 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
     console.log(`--- [updatePropertyAvailability] Function finished successfully ---`);
 
   } catch (error) {
+    // This is where the PERMISSION_DENIED error is caught if Firestore rules prevent the write.
     console.error(`❌ Error during batch update/creation for property availability ${propertyId}:`, error);
     console.log(`--- [updatePropertyAvailability] Function throwing error ---`);
+    // Re-throw the error so the calling function (createBooking) knows the availability update failed.
     throw new Error(`Failed to update local property availability: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
@@ -592,7 +613,7 @@ export async function getUnavailableDatesForProperty(propertyId: string, monthsT
   const today = new Date();
   const currentMonthStart = startOfMonth(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1))); // Start from beginning of current month UTC
 
-  console.log(`[getUnavailableDatesForProperty] Today (UTC): ${today.toISOString()}, Current Month Start (UTC): ${currentMonthStart.toISOString()}`);
+  // console.log(`[getUnavailableDatesForProperty] Today (UTC): ${today.toISOString()}, Current Month Start (UTC): ${currentMonthStart.toISOString()}`);
 
 
   try {
@@ -604,7 +625,7 @@ export async function getUnavailableDatesForProperty(propertyId: string, monthsT
       const monthStr = format(targetMonth, 'yyyy-MM'); // Format should be consistent with document IDs
       monthDocIds.push(`${propertyId}_${monthStr}`);
     }
-     console.log(`[getUnavailableDatesForProperty] Querying for document IDs: ${monthDocIds.join(', ')}`);
+     // console.log(`[getUnavailableDatesForProperty] Querying for document IDs: ${monthDocIds.join(', ')}`);
 
     // Build the query using 'in' operator (limit of 30 IDs per query)
     // If monthsToFetch > 30, we'd need multiple queries. Handle this limitation.
@@ -612,34 +633,34 @@ export async function getUnavailableDatesForProperty(propertyId: string, monthsT
     for (let i = 0; i < monthDocIds.length; i += 30) {
         queryBatches.push(monthDocIds.slice(i, i + 30));
     }
-    console.log(`[getUnavailableDatesForProperty] Split into ${queryBatches.length} query batches due to 'in' operator limit.`);
+    // console.log(`[getUnavailableDatesForProperty] Split into ${queryBatches.length} query batches due to 'in' operator limit.`);
 
 
      if (monthDocIds.length === 0) {
-        console.log("[getUnavailableDatesForProperty] No month IDs to query. Returning empty array.");
-        console.log(`--- [getUnavailableDatesForProperty] Function returning early (no months) ---`);
+        // console.log("[getUnavailableDatesForProperty] No month IDs to query. Returning empty array.");
+        // console.log(`--- [getUnavailableDatesForProperty] Function returning early (no months) ---`);
         return [];
     }
 
     // Execute queries for each batch
     const allQuerySnapshots = await Promise.all(
       queryBatches.map(batchIds => {
-          console.log(`[getUnavailableDatesForProperty] Executing query for batch: ${batchIds.join(', ')}`);
+          // console.log(`[getUnavailableDatesForProperty] Executing query for batch: ${batchIds.join(', ')}`);
           const q = query(availabilityCollection, where('__name__', 'in', batchIds));
           return getDocs(q);
       })
     );
 
-    console.log(`[getUnavailableDatesForProperty] Fetched results from ${allQuerySnapshots.length} batches.`);
+    // console.log(`[getUnavailableDatesForProperty] Fetched results from ${allQuerySnapshots.length} batches.`);
 
     // Process results from all snapshots
     allQuerySnapshots.forEach((querySnapshot, batchIndex) => {
-         console.log(`[getUnavailableDatesForProperty] Processing batch ${batchIndex + 1}: Found ${querySnapshot.size} documents.`);
+         // console.log(`[getUnavailableDatesForProperty] Processing batch ${batchIndex + 1}: Found ${querySnapshot.size} documents.`);
          querySnapshot.forEach((doc) => {
             // Check if data exists and has the 'available' map
             const data = doc.data() as Partial<Availability>; // Use Partial<> for safer access
              const docId = doc.id; // Get doc ID for logging
-             console.log(`[getUnavailableDatesForProperty] Processing document: ${docId}`);
+             // console.log(`[getUnavailableDatesForProperty] Processing document: ${docId}`);
 
             // Extract month string robustly from ID or data
             const monthStrFromId = docId.split('_')[1]; // Assumes format propertyId_YYYY-MM
@@ -653,7 +674,7 @@ export async function getUnavailableDatesForProperty(propertyId: string, monthsT
 
 
             if (data.available && typeof data.available === 'object') {
-                 console.log(`[getUnavailableDatesForProperty] Found 'available' map for month: ${monthStr} from doc ${docId}`);
+                 // console.log(`[getUnavailableDatesForProperty] Found 'available' map for month: ${monthStr} from doc ${docId}`);
                 const [year, monthIndex] = monthStr.split('-').map(num => parseInt(num, 10));
                 const month = monthIndex - 1; // JS months are 0-indexed
 
@@ -699,14 +720,14 @@ export async function getUnavailableDatesForProperty(propertyId: string, monthsT
     console.log(`[getUnavailableDatesForProperty] Total unavailable dates found for property ${propertyId}: ${unavailableDates.length}`);
     // Sort dates before returning
     unavailableDates.sort((a, b) => a.getTime() - b.getTime());
-    console.log(`[getUnavailableDatesForProperty] Returning sorted unavailable dates: ${unavailableDates.map(d => format(d, 'yyyy-MM-dd')).join(', ')}`); // Log returned dates if needed
+    // console.log(`[getUnavailableDatesForProperty] Returning sorted unavailable dates: ${unavailableDates.map(d => format(d, 'yyyy-MM-dd')).join(', ')}`); // Log returned dates if needed
     console.log(`--- [getUnavailableDatesForProperty] Function finished successfully ---`);
     return unavailableDates;
 
   } catch (error) {
     console.error(`❌ Error fetching unavailable dates for property ${propertyId}:`, error);
     // Return empty array or re-throw depending on how you want to handle errors upstream
-     console.log(`--- [getUnavailableDatesForProperty] Function throwing error ---`);
+    // console.log(`--- [getUnavailableDatesForProperty] Function throwing error ---`);
     return [];
     // throw new Error(`Failed to fetch unavailable dates: ${error instanceof Error ? error.message : String(error)}`);
   }
