@@ -7,7 +7,7 @@ import { XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Header } from '@/components/header';
-import { Footer } from '@/components/footer';
+// Removed Footer import: import { Footer } from '@/components/footer';
 import { Suspense } from 'react';
 
 function BookingCancelContent() {
@@ -47,7 +47,14 @@ function BookingCancelContent() {
                     </CardContent>
                 </Card>
             </main>
-            <Footer />
+             {/* Removed Footer usage */}
+             {/* <Footer /> */}
+             {/* Optional simple footer */}
+            <footer className="border-t bg-muted/50">
+                <div className="container py-4 text-center text-xs text-muted-foreground">
+                    RentalSpot &copy; {new Date().getFullYear()}
+                </div>
+            </footer>
         </div>
     );
 }

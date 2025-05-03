@@ -8,7 +8,7 @@ import { CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Header } from '@/components/header';
-import { Footer } from '@/components/footer';
+// Removed Footer import: import { Footer } from '@/components/footer';
 
 // No need to fetch session details client-side anymore.
 // The booking creation logic is handled securely by the webhook.
@@ -62,7 +62,14 @@ function BookingSuccessContent() {
           </CardContent>
         </Card>
       </main>
-      <Footer />
+      {/* Removed Footer usage */}
+      {/* <Footer /> */}
+       {/* Optional simple footer */}
+        <footer className="border-t bg-muted/50">
+            <div className="container py-4 text-center text-xs text-muted-foreground">
+                RentalSpot &copy; {new Date().getFullYear()}
+            </div>
+        </footer>
     </div>
   );
 }
