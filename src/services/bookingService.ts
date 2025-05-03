@@ -17,11 +17,12 @@ import {
   setDoc as clientSetDoc, // Rename client setDoc
   QueryConstraint,
   limit,
+  documentId, // Import documentId for querying by ID
 } from 'firebase/firestore';
 import { z } from 'zod';
-import { db } from '@/lib/firebase'; // Client SDK Firestore instance
-import { dbAdmin } from '@/lib/firebaseAdmin'; // **** Import Admin SDK Firestore instance ****
-import * as admin from 'firebase-admin'; // Import admin types
+import { db } from '@/lib/firebase'; // **** Use Client SDK Firestore instance ****
+// import { dbAdmin } from '@/lib/firebaseAdmin'; // **** No longer using Admin SDK here ****
+// import * as admin from 'firebase-admin'; // No longer using admin types here
 import type { Booking, Availability, Property } from '@/types';
 import { differenceInCalendarDays, eachDayOfInterval, format, parse, subDays, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { updateAirbnbListingAvailability, updateBookingComListingAvailability, getPropertyForSync } from './booking-sync';
@@ -87,7 +88,7 @@ const CreateBookingDataSchema = z.object({
 
 /**
  * Creates a new booking document in Firestore using the Client SDK.
- * Calls updatePropertyAvailability (which now uses the Admin SDK) upon success.
+ * Calls updatePropertyAvailability (which now also uses the Client SDK) upon success.
  */
 export async function createBooking(rawBookingData: CreateBookingData): Promise<string> {
    console.log("--- [createBooking] Function called ---");
@@ -158,15 +159,16 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
     const bookingId = docRef.id;
     console.log(`✅ [createBooking] Booking document created successfully! ID: ${bookingId} for Payment Intent [${paymentIntentId}]`);
 
-    // --- Update Property Availability (Admin SDK) ---
-    console.log(`[createBooking] Triggering local availability update (Admin SDK) for property ${bookingData.propertyId}, booking ${bookingId}`);
+    // --- Update Property Availability (Client SDK) ---
+    console.log(`[createBooking] Triggering local availability update (Client SDK) for property ${bookingData.propertyId}, booking ${bookingId}`);
     try {
-      // **** Call the function that now uses the Admin SDK ****
+      // **** Call the function that now uses the Client SDK ****
       await updatePropertyAvailability(bookingData.propertyId, checkInDate, checkOutDate, false);
-      console.log(`✅ [createBooking] Successfully finished update call for local availability (Admin SDK) for property ${bookingData.propertyId}, booking ${bookingId}.`);
+      console.log(`✅ [createBooking] Successfully finished update call for local availability (Client SDK) for property ${bookingData.propertyId}, booking ${bookingId}.`);
     } catch (availabilityError) {
       // Log error, but don't fail the booking if availability update fails
-      console.error(`⚠️ [createBooking] Failed to update local availability (Admin SDK) for property ${bookingData.propertyId} after creating booking ${bookingId}:`, availabilityError);
+      // IMPORTANT: This failure might indicate security rule issues or problems writing availability data.
+      console.error(`❌ [createBooking] Failed to update local availability (Client SDK) for property ${bookingData.propertyId} after creating booking ${bookingId}:`, availabilityError);
     }
 
      // --- Synchronize Availability with External Platforms ---
@@ -187,7 +189,7 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
                  console.log(`[createBooking Sync] No Booking.com Listing ID found for property ${bookingData.propertyId}. Skipping Booking.com sync.`);
             }
         } else {
-             console.warn(`[createBooking Sync] Could not retrieve property details for ${bookingData.propertyId} to perform external sync.`);
+             console.warn(`[createBooking Sync] Could not retrieve property details for ${bookingData.propertyId} to perform external sync. Check if property exists in Firestore.`);
         }
     } catch (syncError) {
         console.error(`❌ [createBooking Sync] Error synchronizing availability with external platforms for property ${bookingData.propertyId} after creating booking ${bookingId}:`, syncError);
@@ -244,7 +246,7 @@ export async function getBookingById(bookingId: string): Promise<Booking | null>
 
 /**
  * Updates the status of a specific booking document using the Client SDK.
- * Calls updatePropertyAvailability (Admin SDK) if status is 'cancelled'.
+ * Calls updatePropertyAvailability (Client SDK) if status is 'cancelled'.
  */
 export async function updateBookingStatus(bookingId: string, status: Booking['status']): Promise<void> {
     console.log(`--- [updateBookingStatus] Function called for ID: ${bookingId}, Status: ${status} ---`);
@@ -257,7 +259,7 @@ export async function updateBookingStatus(bookingId: string, status: Booking['st
         console.log(`✅ [updateBookingStatus] Successfully updated booking ${bookingId} to status: ${status} (Client SDK)`);
 
         if (status === 'cancelled') {
-          console.log(`[updateBookingStatus] Booking ${bookingId} cancelled. Attempting to release dates (Admin SDK)...`);
+          console.log(`[updateBookingStatus] Booking ${bookingId} cancelled. Attempting to release dates (Client SDK)...`);
           const booking = await getBookingById(bookingId); // Re-fetch using Client SDK
           if (booking && booking.checkInDate && booking.checkOutDate) {
             // Convert Client Timestamps back to Dates
@@ -265,11 +267,12 @@ export async function updateBookingStatus(bookingId: string, status: Booking['st
             const checkOut = (booking.checkOutDate as ClientTimestamp).toDate();
             console.log(`[updateBookingStatus] Releasing local dates for cancelled booking ${bookingId} from ${checkIn.toISOString()} to ${checkOut.toISOString()}`);
             try {
-                // **** Call function using Admin SDK ****
+                // **** Call function using Client SDK ****
                 await updatePropertyAvailability(booking.propertyId, checkIn, checkOut, true);
-                console.log(`✅ [updateBookingStatus] Successfully updated local availability (Admin SDK) for cancelled booking ${bookingId}.`);
+                console.log(`✅ [updateBookingStatus] Successfully updated local availability (Client SDK) for cancelled booking ${bookingId}.`);
             } catch (availError) {
-                 console.error(`⚠️ [updateBookingStatus] Failed to update local availability (Admin SDK) for cancelled booking ${bookingId}:`, availError);
+                 // IMPORTANT: This failure might indicate security rule issues.
+                 console.error(`❌ [updateBookingStatus] Failed to update local availability (Client SDK) for cancelled booking ${bookingId}:`, availError);
             }
 
              // Trigger external sync
@@ -369,26 +372,18 @@ export async function getBookingsForUser(userId: string): Promise<Booking[]> {
 
 /**
  * Updates the availability status for a given property and date range in Firestore
- * using the **Firebase Admin SDK** to bypass security rules.
+ * using the **Firebase Client SDK**.
  *
- * This function is intended to be called from trusted server-side environments
- * (like after a successful booking creation) where security rules might otherwise
- * prevent the Client SDK from writing to the availability collection.
+ * This function relies on Firestore security rules to allow the necessary writes.
+ * It should be called from a trusted server environment (e.g., a Next.js server action)
+ * that runs under an appropriate authentication context if required by the rules.
  */
 export async function updatePropertyAvailability(propertyId: string, checkInDate: Date, checkOutDate: Date, available: boolean): Promise<void> {
-  console.log(`--- [updatePropertyAvailability - ADMIN SDK] Function called ---`);
-  console.log(`[updatePropertyAvailability - ADMIN SDK] Args: propertyId=${propertyId}, checkIn=${format(checkInDate, 'yyyy-MM-dd')}, checkOut=${format(checkOutDate, 'yyyy-MM-dd')} (exclusive), available=${available}`);
-
-   // Add a log to check the state of dbAdmin *before* the check
-   console.log(`[updatePropertyAvailability - ADMIN SDK] Checking dbAdmin instance state... dbAdmin defined: ${!!dbAdmin}`);
-
-  if (!dbAdmin) {
-      console.error("❌ [updatePropertyAvailability - ADMIN SDK] Admin SDK Firestore instance (dbAdmin) is not initialized. Cannot update availability.");
-      throw new Error("Admin SDK is not initialized. Check Firebase Admin setup.");
-  }
+  console.log(`--- [updatePropertyAvailability - CLIENT SDK] Function called ---`);
+  console.log(`[updatePropertyAvailability - CLIENT SDK] Args: propertyId=${propertyId}, checkIn=${format(checkInDate, 'yyyy-MM-dd')}, checkOut=${format(checkOutDate, 'yyyy-MM-dd')} (exclusive), available=${available}`);
 
   if (checkOutDate <= checkInDate) {
-    console.warn(`[updatePropertyAvailability - ADMIN SDK] Check-out date (${format(checkOutDate, 'yyyy-MM-dd')}) must be after check-in date (${format(checkInDate, 'yyyy-MM-dd')}). No update performed.`);
+    console.warn(`[updatePropertyAvailability - CLIENT SDK] Check-out date (${format(checkOutDate, 'yyyy-MM-dd')}) must be after check-in date (${format(checkInDate, 'yyyy-MM-dd')}). No update performed.`);
     return;
   }
 
@@ -398,12 +393,12 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
   });
 
   if (datesToUpdate.length === 0) {
-      console.log("[updatePropertyAvailability - ADMIN SDK] No dates need updating.");
+      console.log("[updatePropertyAvailability - CLIENT SDK] No dates need updating.");
       return;
   }
-  console.log(`[updatePropertyAvailability - ADMIN SDK] Dates to update (${datesToUpdate.length}): ${datesToUpdate.map(d => format(d, 'yyyy-MM-dd')).join(', ')}`);
+  console.log(`[updatePropertyAvailability - CLIENT SDK] Dates to update (${datesToUpdate.length}): ${datesToUpdate.map(d => format(d, 'yyyy-MM-dd')).join(', ')}`);
 
-   console.log("[updatePropertyAvailability - ADMIN SDK] Grouping updates by month...");
+  console.log("[updatePropertyAvailability - CLIENT SDK] Grouping updates by month...");
   const updatesByMonth: { [month: string]: { [day: number]: boolean } } = {};
   datesToUpdate.forEach(date => {
     const monthStr = format(date, 'yyyy-MM');
@@ -413,47 +408,64 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
     }
     updatesByMonth[monthStr][dayOfMonth] = available;
   });
-  console.log(`[updatePropertyAvailability - ADMIN SDK] Updates grouped by month:`, JSON.stringify(updatesByMonth));
+  console.log(`[updatePropertyAvailability - CLIENT SDK] Updates grouped by month:`, JSON.stringify(updatesByMonth));
 
-  // **** Use Admin SDK's batch and Firestore instance ****
-   console.log("[updatePropertyAvailability - ADMIN SDK] Initialized Firestore Admin batch.");
-  const batch = dbAdmin.batch();
-  const availabilityCollection = dbAdmin.collection('availability');
-
+  // **** Use Client SDK's batch and Firestore instance ****
+  console.log("[updatePropertyAvailability - CLIENT SDK] Initialized Firestore Client batch.");
+  const batch = clientWriteBatch(db); // Use clientWriteBatch with client db
+  const availabilityCollection = collection(db, 'availability'); // Use client db
 
   try {
     const monthStrings = Object.keys(updatesByMonth);
-    console.log(`[updatePropertyAvailability - ADMIN SDK] Processing months: ${monthStrings.join(', ')}`);
+    console.log(`[updatePropertyAvailability - CLIENT SDK] Processing months: ${monthStrings.join(', ')}`);
 
-     if (monthStrings.length === 0) {
-        console.log("[updatePropertyAvailability - ADMIN SDK] No months to process after grouping.");
-        return;
+    if (monthStrings.length === 0) {
+      console.log("[updatePropertyAvailability - CLIENT SDK] No months to process after grouping.");
+      return;
     }
 
-    // Fetch existing docs using Admin SDK
-    const docRefs = monthStrings.map(monthStr => availabilityCollection.doc(`${propertyId}_${monthStr}`));
-    console.log(`[updatePropertyAvailability - ADMIN SDK] Fetching existing availability docs for ${monthStrings.length} months...`);
-    const docSnaps = await dbAdmin.getAll(...docRefs); // Use dbAdmin.getAll
-    console.log(`[updatePropertyAvailability - ADMIN SDK] Fetched ${docSnaps.length} doc snapshots.`);
+    // Fetch existing docs using Client SDK 'in' query
+    const docIdsToFetch = monthStrings.map(monthStr => `${propertyId}_${monthStr}`);
+    console.log(`[updatePropertyAvailability - CLIENT SDK] Fetching existing availability docs for ${docIdsToFetch.length} months...`);
 
-    docSnaps.forEach((docSnap, index) => {
-      const monthStr = monthStrings[index];
+    // Split into batches if necessary (max 30 IDs per 'in' query)
+    const idBatches: string[][] = [];
+    for (let i = 0; i < docIdsToFetch.length; i += 30) {
+      idBatches.push(docIdsToFetch.slice(i, i + 30));
+    }
+
+    const fetchedDocsMap = new Map<string, Availability>();
+    await Promise.all(idBatches.map(async (batchIds) => {
+      if (batchIds.length === 0) return;
+      const q = query(availabilityCollection, where(documentId(), 'in', batchIds));
+      const querySnapshot = await getDocs(q);
+      querySnapshot.forEach(docSnap => {
+        if (docSnap.exists()) {
+          fetchedDocsMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() } as Availability);
+        }
+      });
+    }));
+
+    console.log(`[updatePropertyAvailability - CLIENT SDK] Fetched ${fetchedDocsMap.size} existing doc snapshots.`);
+
+    monthStrings.forEach(monthStr => {
       const availabilityDocId = `${propertyId}_${monthStr}`;
-      const availabilityDocRef = docRefs[index];
+      const availabilityDocRef = doc(availabilityCollection, availabilityDocId); // Use client db
       const updatesForDay = updatesByMonth[monthStr];
       console.log(`[updatePropertyAvailability Batch Prep] Processing month ${monthStr} (Doc ID: ${availabilityDocId}). Updates needed for days: ${Object.keys(updatesForDay).join(', ')}`);
 
-
-      const updatePayload: { [key: string]: boolean | admin.firestore.FieldValue } = {};
+      const updatePayload: { [key: string]: boolean | any } = {}; // Use 'any' for clientServerTimestamp
       for (const day in updatesForDay) {
         updatePayload[`available.${String(day)}`] = updatesForDay[day];
       }
-      updatePayload.updatedAt = admin.firestore.FieldValue.serverTimestamp(); // Use Admin serverTimestamp
-      console.log(`[updatePropertyAvailability Batch Prep] Prepared update payload for ${availabilityDocId}:`, JSON.stringify(updatePayload, (key, value) => typeof value === 'object' && value !== null && value.constructor?.name === 'FieldValue' ? "ServerTimestamp" : value, 2));
+      updatePayload.updatedAt = clientServerTimestamp(); // Use Client serverTimestamp
+      console.log(`[updatePropertyAvailability Batch Prep] Prepared update payload for ${availabilityDocId}:`, JSON.stringify(updatePayload, (key, value) => typeof value === 'object' && value !== null && value.constructor?.name?.includes('Timestamp') ? "ServerTimestamp" : value, 2));
 
 
-      if (docSnap.exists) {
-        console.log(`[updatePropertyAvailability Batch Prep] Doc ${availabilityDocId} exists. Adding UPDATE operation to batch.`);
+      const existingDoc = fetchedDocsMap.get(availabilityDocId);
+
+      if (existingDoc) {
+        console.log(`[updatePropertyAvailability Batch Prep] Doc ${availabilityDocId} exists. Adding UPDATE operation to client batch.`);
         batch.update(availabilityDocRef, updatePayload);
       } else {
         console.log(`[updatePropertyAvailability Batch Prep] Doc ${availabilityDocId} DOES NOT exist. Creating initial data for month ${monthStr}.`);
@@ -469,24 +481,25 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
           propertyId: propertyId,
           month: monthStr,
           available: initialAvailableMap,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(), // Use Admin serverTimestamp
+          updatedAt: clientServerTimestamp(), // Use Client serverTimestamp
         };
-         console.log(`[updatePropertyAvailability Batch Prep] New doc data for ${availabilityDocId}:`, JSON.stringify(newDocData, (key, value) => typeof value === 'object' && value !== null && value.constructor?.name === 'FieldValue' ? "ServerTimestamp" : value, 2));
-        console.log(`[updatePropertyAvailability Batch Prep] Adding SET operation (merge: true) to batch for ${availabilityDocId}.`);
-         batch.set(availabilityDocRef, newDocData, { merge: true }); // Use merge: true to avoid overwriting existing fields if any
+        console.log(`[updatePropertyAvailability Batch Prep] New doc data for ${availabilityDocId}:`, JSON.stringify(newDocData, (key, value) => typeof value === 'object' && value !== null && value.constructor?.name?.includes('Timestamp') ? "ServerTimestamp" : value, 2));
+        console.log(`[updatePropertyAvailability Batch Prep] Adding SET operation (merge: true) to client batch for ${availabilityDocId}.`);
+        batch.set(availabilityDocRef, newDocData, { merge: true }); // Use merge: true to avoid overwriting existing fields if any
       }
     });
 
-    // Commit the Admin SDK batch write
-    console.log(`[updatePropertyAvailability - ADMIN SDK] Preparing to commit batch for property ${propertyId}, months: ${monthStrings.join(', ')}...`);
+    // Commit the Client SDK batch write
+    console.log(`[updatePropertyAvailability - CLIENT SDK] Preparing to commit client batch for property ${propertyId}, months: ${monthStrings.join(', ')}...`);
     await batch.commit();
-    console.log(`✅ [updatePropertyAvailability - ADMIN SDK] Successfully committed batch updates for local availability.`);
-    console.log(`--- [updatePropertyAvailability - ADMIN SDK] Function finished successfully ---`);
+    console.log(`✅ [updatePropertyAvailability - CLIENT SDK] Successfully committed client batch updates for local availability.`);
+    console.log(`--- [updatePropertyAvailability - CLIENT SDK] Function finished successfully ---`);
 
   } catch (error) {
-    console.error(`❌ Error during Admin SDK batch update/creation for property availability ${propertyId}:`, error);
-    console.log(`--- [updatePropertyAvailability - ADMIN SDK] Function throwing error ---`);
-    throw new Error(`Failed to update local property availability using Admin SDK: ${error instanceof Error ? error.message : String(error)}`);
+    // This error might be due to Firestore security rules denying the write.
+    console.error(`❌ Error during Client SDK batch update/creation for property availability ${propertyId}:`, error);
+    console.log(`--- [updatePropertyAvailability - CLIENT SDK] Function throwing error ---`);
+    throw new Error(`Failed to update local property availability using Client SDK: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -528,9 +541,9 @@ export async function getUnavailableDatesForProperty(propertyId: string, monthsT
 
     // Execute queries using Client SDK
     const allQuerySnapshots = await Promise.all(
-      queryBatches.map((batchIds, index) => {
+      queryBatches.map(async (batchIds, index) => {
            console.log(`[getUnavailableDatesForProperty] Executing query for batch ${index + 1}: ${batchIds.join(', ')}`);
-          const q = query(availabilityCollection, where('__name__', 'in', batchIds));
+          const q = query(availabilityCollection, where(documentId(), 'in', batchIds)); // Use documentId() for client query
           return getDocs(q);
       })
     );
