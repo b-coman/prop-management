@@ -4,6 +4,8 @@
  */
 'use server';
 
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import type { Property } from '@/types'; // Assuming Property type includes external IDs
 
 /**
@@ -23,6 +25,25 @@ export interface BookingComListing {
   isAvailable: boolean;
   pricePerNight: number;
 }
+
+/**
+ * Fetches property details including external listing IDs.
+ *
+ * @param propertyId The ID of the property to fetch.
+ * @returns The Property object or null if not found.
+ */
+export async function getPropertyForSync(propertyId: string): Promise<Property | null> {
+    const propertyRef = doc(db, 'properties', propertyId);
+    const docSnap = await getDoc(propertyRef);
+    if (docSnap.exists()) {
+        // Assuming the data structure matches the Property type, including optional external IDs
+        return { id: docSnap.id, ...docSnap.data() } as Property;
+    } else {
+        console.warn(`[getPropertyForSync] Property not found: ${propertyId}`);
+        return null;
+    }
+}
+
 
 /**
  * Asynchronously retrieves Airbnb listing details.
@@ -69,10 +90,20 @@ export async function getBookingComListing(listingId: string): Promise<BookingCo
  *
  * @param listingId The Airbnb listing ID.
  * @param isAvailable The new availability status (true for available, false for blocked).
+ * @param checkInDate The start date of the range (optional).
+ * @param checkOutDate The end date of the range (optional).
  * @returns A promise that resolves when the update attempt is complete.
  */
-export async function updateAirbnbListingAvailability(listingId: string, isAvailable: boolean): Promise<void> {
-  console.log(`[Sync Placeholder] Updating Airbnb listing ${listingId} availability to ${isAvailable}. Dates need to be specified.`);
+export async function updateAirbnbListingAvailability(
+    listingId: string,
+    isAvailable: boolean,
+    checkInDate?: Date,
+    checkOutDate?: Date
+): Promise<void> {
+  const dateRangeString = checkInDate && checkOutDate
+    ? ` from ${checkInDate.toISOString().split('T')[0]} to ${checkOutDate.toISOString().split('T')[0]}`
+    : '';
+  console.log(`[Sync Placeholder] Updating Airbnb listing ${listingId} availability to ${isAvailable}${dateRangeString}.`);
   // TODO: Replace with actual API call to Airbnb, passing the specific date range to block/unblock.
   // Example: Call Airbnb API endpoint to update calendar for the given dates.
   await new Promise(resolve => setTimeout(resolve, 150)); // Simulate network delay
@@ -87,10 +118,20 @@ export async function updateAirbnbListingAvailability(listingId: string, isAvail
  *
  * @param listingId The Booking.com listing ID.
  * @param isAvailable The new availability status (true for available, false for blocked).
+ * @param checkInDate The start date of the range (optional).
+ * @param checkOutDate The end date of the range (optional).
  * @returns A promise that resolves when the update attempt is complete.
  */
-export async function updateBookingComListingAvailability(listingId: string, isAvailable: boolean): Promise<void> {
-  console.log(`[Sync Placeholder] Updating Booking.com listing ${listingId} availability to ${isAvailable}. Dates need to be specified.`);
+export async function updateBookingComListingAvailability(
+    listingId: string,
+    isAvailable: boolean,
+    checkInDate?: Date,
+    checkOutDate?: Date
+): Promise<void> {
+   const dateRangeString = checkInDate && checkOutDate
+     ? ` from ${checkInDate.toISOString().split('T')[0]} to ${checkOutDate.toISOString().split('T')[0]}`
+     : '';
+   console.log(`[Sync Placeholder] Updating Booking.com listing ${listingId} availability to ${isAvailable}${dateRangeString}.`);
   // TODO: Replace with actual API call to Booking.com, passing the specific date range to block/unblock.
   // Example: Call Booking.com API endpoint to update calendar for the given dates.
   await new Promise(resolve => setTimeout(resolve, 150)); // Simulate network delay

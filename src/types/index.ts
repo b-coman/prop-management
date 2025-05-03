@@ -130,21 +130,18 @@ export interface Review {
   isPublished: boolean; // Whether the review is visible on the site
 }
 
-// Aligned with availabilityExample structure (simplified for now)
-// Note: Storing availability day-by-day can be complex.
-// A simpler approach might be storing booked date ranges per property.
-// This structure follows the example but might need refinement.
+// Aligned with availabilityExample structure
+// Represents the document structure in Firestore `availability` collection.
 export interface Availability {
-  id: string; // propertyId_YYYY-MM
+  id: string; // Document ID: propertyId_YYYY-MM
   propertyId: string;
-  month: string; // YYYY-MM format
-  // Using an object might exceed Firestore document size limits for busy properties.
-  // Consider storing booked ranges or using a dedicated availability service.
-  available: { [day: number]: boolean }; // e.g., { 1: true, 2: false, ... }
-  pricingModifiers?: { [day: number]: number }; // e.g., { 6: 1.2 } for 20% higher rate on day 6
-  minimumStay?: { [day: number]: number }; // e.g., { 1: 2 } for 2-night min on day 1
-  updatedAt: Timestamp;
+  month: string; // Format: YYYY-MM
+  available: { [day: number]: boolean }; // Map of day number (1-31) to availability status
+  pricingModifiers?: { [day: number]: number }; // Optional: Map of day number to price multiplier (e.g., 1.2 for 20% increase)
+  minimumStay?: { [day: number]: number }; // Optional: Map of day number to minimum stay requirement
+  updatedAt: Timestamp; // Firestore server timestamp
 }
+
 
 // Aligned with settingsExample structure
 export interface GlobalSettings {
@@ -184,3 +181,100 @@ export interface SyncCalendar {
   lastSyncedAt?: Timestamp;
   isActive: boolean;
 }
+
+
+// Store this content in the Firebase Console -> Firestore Database -> Rules tab
+export const securityRulesExample = `
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(propertyId) {
+      // Check if the user is signed in and if their UID matches the ownerId of the property document
+      // Ensure the property document exists before accessing its data
+      return isSignedIn() && exists(/databases/$(database)/documents/properties/$(propertyId)) &&
+             get(/databases/$(database)/documents/properties/$(propertyId)).data.ownerId == request.auth.uid;
+    }
+
+    function isAdmin() {
+      // Check if the user is signed in and if their user document has the role 'admin'
+      // Ensure the user document exists before accessing its data
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Properties collection
+    match /properties/{propertyId} {
+      allow read: if true; // Anyone can read property listings
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid; // Only signed-in users can create properties, and they must be the owner
+      allow update: if isOwner(propertyId) || isAdmin(); // Only the owner or an admin can update
+      allow delete: if isOwner(propertyId) || isAdmin(); // Only the owner or an admin can delete
+    }
+
+    // Availability collection
+    match /availability/{documentId} {
+       // Extract propertyId from documentId (e.g., "prop1_2024-12")
+      let propertyId = documentId.split('_')[0];
+      allow read: if true; // Anyone can read availability
+      // Allow write only if the user is the owner of the corresponding property or an admin
+      allow write: if isOwner(propertyId) || isAdmin();
+    }
+
+    // Bookings collection
+    match /bookings/{bookingId} {
+      // Allow create by anyone (e.g., through the website form/Stripe webhook)
+      // Tighten this if necessary, e.g., require authentication for logged-in users
+      allow create: if true;
+      // Allow read only by the guest who made the booking (using userId), the property owner, or an admin
+      allow read: if isSignedIn() &&
+                     (request.auth.uid == resource.data.guestInfo.userId ||
+                      isOwner(resource.data.propertyId) ||
+                      isAdmin());
+       // Allow update (e.g., status change) only by the property owner or admin
+       // Guests might only be allowed to cancel, which could be a specific update rule
+      allow update: if isOwner(resource.data.propertyId) || isAdmin();
+       // Generally, bookings shouldn't be deleted directly, but marked as cancelled.
+       // Allow delete only by admin for cleanup purposes if absolutely necessary.
+      allow delete: if isAdmin();
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // Allow users to read and write their own data
+      // Allow admins to read/write any user data
+      allow read, write: if request.auth.uid == userId || isAdmin();
+      // Prevent users from changing their own role unless they are admin
+      allow update: if request.auth.uid == userId && !(request.resource.data.role != resource.data.role) || isAdmin();
+       // Only admins can create new user documents directly (usually handled by Auth triggers)
+      allow create: if isAdmin();
+    }
+
+    // Reviews collection
+    match /reviews/{reviewId} {
+      allow read: if true; // Reviews are public
+      // Allow create only if the user is signed in (they might need to have completed a booking - more complex rule)
+      allow create: if isSignedIn();
+      // Allow update (e.g., publishing, owner response) only by admin or property owner
+      allow update: if isAdmin() || isOwner(resource.data.propertyId);
+      // Allow delete only by admin
+      allow delete: if isAdmin();
+    }
+
+    // Settings collection
+    match /settings/global { // Assuming a single document with ID "global"
+      allow read: if true; // Global settings are public
+      allow write: if isAdmin(); // Only admins can change global settings
+    }
+
+    // SyncCalendars collection
+    match /syncCalendars/{documentId} {
+      // Allow read/write only by the property owner or an admin
+      allow read, write: if isOwner(resource.data.propertyId) || isAdmin();
+    }
+  }
+}
+`;
