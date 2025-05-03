@@ -97,6 +97,7 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
    let bookingData: z.infer<typeof CreateBookingDataSchema>;
 
    // Zod Validation
+   console.log(`[createBooking] Starting Zod validation for Payment Intent [${paymentIntentId}]...`);
    const validationResult = CreateBookingDataSchema.safeParse(rawBookingData);
    if (!validationResult.success) {
      const errorMessages = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
@@ -109,9 +110,11 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
    console.log(`[createBooking] Data passed validation for Payment Intent [${paymentIntentId}]`);
 
   try {
+    console.log(`[createBooking] Entered main try block for Payment Intent [${paymentIntentId}]`);
     const bookingsCollection = collection(db, 'bookings'); // Use Client SDK 'db' for booking creation
 
     // Data Transformation
+    console.log(`[createBooking] Transforming data for Firestore for Payment Intent [${paymentIntentId}]...`);
     const checkInDate = new Date(bookingData.checkInDate);
     const checkOutDate = new Date(bookingData.checkOutDate);
     const checkInTimestamp = ClientTimestamp.fromDate(checkInDate); // Use Client Timestamp
@@ -137,6 +140,17 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
         updatedAt: clientServerTimestamp(), // Use Client serverTimestamp
         status: restOfBookingData.status || 'confirmed',
     };
+    console.log(`[createBooking] Firestore Doc Data Prepared for Payment Intent [${paymentIntentId}]:`, JSON.stringify(docData, (key, value) => {
+        if (value && typeof value === 'object' && value.hasOwnProperty('_methodName') && value._methodName === 'serverTimestamp') {
+            return 'ServerTimestamp'; // Replace serverTimestamp placeholder for cleaner logging
+        }
+         if (value && typeof value === 'object' && value.hasOwnProperty('seconds') && value.hasOwnProperty('nanoseconds')) {
+            // Basic check for Firestore Timestamp-like structure
+            return `Timestamp(${new Date(value.seconds * 1000).toISOString()})`;
+        }
+        return value;
+    }, 2));
+
 
     // Firestore Operation (Client SDK)
     console.log(`[createBooking] Attempting to add booking document to Firestore (Client SDK) for Payment Intent [${paymentIntentId}]...`);
@@ -365,6 +379,9 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
   console.log(`--- [updatePropertyAvailability - ADMIN SDK] Function called ---`);
   console.log(`[updatePropertyAvailability - ADMIN SDK] Args: propertyId=${propertyId}, checkIn=${format(checkInDate, 'yyyy-MM-dd')}, checkOut=${format(checkOutDate, 'yyyy-MM-dd')} (exclusive), available=${available}`);
 
+   // Add a log to check the state of dbAdmin *before* the check
+   console.log(`[updatePropertyAvailability - ADMIN SDK] Checking dbAdmin instance state... dbAdmin defined: ${!!dbAdmin}`);
+
   if (!dbAdmin) {
       console.error("❌ [updatePropertyAvailability - ADMIN SDK] Admin SDK Firestore instance (dbAdmin) is not initialized. Cannot update availability.");
       throw new Error("Admin SDK is not initialized. Check Firebase Admin setup.");
@@ -381,10 +398,12 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
   });
 
   if (datesToUpdate.length === 0) {
+      console.log("[updatePropertyAvailability - ADMIN SDK] No dates need updating.");
       return;
   }
   console.log(`[updatePropertyAvailability - ADMIN SDK] Dates to update (${datesToUpdate.length}): ${datesToUpdate.map(d => format(d, 'yyyy-MM-dd')).join(', ')}`);
 
+   console.log("[updatePropertyAvailability - ADMIN SDK] Grouping updates by month...");
   const updatesByMonth: { [month: string]: { [day: number]: boolean } } = {};
   datesToUpdate.forEach(date => {
     const monthStr = format(date, 'yyyy-MM');
@@ -397,15 +416,17 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
   console.log(`[updatePropertyAvailability - ADMIN SDK] Updates grouped by month:`, JSON.stringify(updatesByMonth));
 
   // **** Use Admin SDK's batch and Firestore instance ****
+   console.log("[updatePropertyAvailability - ADMIN SDK] Initialized Firestore Admin batch.");
   const batch = dbAdmin.batch();
   const availabilityCollection = dbAdmin.collection('availability');
-  console.log(`[updatePropertyAvailability - ADMIN SDK] Initialized Firestore Admin batch.`);
+
 
   try {
     const monthStrings = Object.keys(updatesByMonth);
     console.log(`[updatePropertyAvailability - ADMIN SDK] Processing months: ${monthStrings.join(', ')}`);
 
      if (monthStrings.length === 0) {
+        console.log("[updatePropertyAvailability - ADMIN SDK] No months to process after grouping.");
         return;
     }
 
@@ -420,25 +441,28 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
       const availabilityDocId = `${propertyId}_${monthStr}`;
       const availabilityDocRef = docRefs[index];
       const updatesForDay = updatesByMonth[monthStr];
+      console.log(`[updatePropertyAvailability Batch Prep] Processing month ${monthStr} (Doc ID: ${availabilityDocId}). Updates needed for days: ${Object.keys(updatesForDay).join(', ')}`);
+
 
       const updatePayload: { [key: string]: boolean | admin.firestore.FieldValue } = {};
       for (const day in updatesForDay) {
         updatePayload[`available.${String(day)}`] = updatesForDay[day];
       }
       updatePayload.updatedAt = admin.firestore.FieldValue.serverTimestamp(); // Use Admin serverTimestamp
-      console.log(`[updatePropertyAvailability - ADMIN SDK Batch Prep] Prepared update payload for ${availabilityDocId}:`, JSON.stringify(updatePayload, (key, value) => typeof value === 'object' && value !== null && value.constructor?.name === 'FieldValue' ? "ServerTimestamp" : value, 2));
+      console.log(`[updatePropertyAvailability Batch Prep] Prepared update payload for ${availabilityDocId}:`, JSON.stringify(updatePayload, (key, value) => typeof value === 'object' && value !== null && value.constructor?.name === 'FieldValue' ? "ServerTimestamp" : value, 2));
 
 
       if (docSnap.exists) {
-        console.log(`[updatePropertyAvailability - ADMIN SDK Batch Prep] Doc ${availabilityDocId} exists. Adding UPDATE operation to batch.`);
+        console.log(`[updatePropertyAvailability Batch Prep] Doc ${availabilityDocId} exists. Adding UPDATE operation to batch.`);
         batch.update(availabilityDocRef, updatePayload);
       } else {
-        console.log(`[updatePropertyAvailability - ADMIN SDK Batch Prep] Doc ${availabilityDocId} DOES NOT exist. Creating initial data for month ${monthStr}.`);
+        console.log(`[updatePropertyAvailability Batch Prep] Doc ${availabilityDocId} DOES NOT exist. Creating initial data for month ${monthStr}.`);
         const [year, month] = monthStr.split('-').map(Number);
         const daysInMonth = new Date(year, month, 0).getDate();
+        console.log(`[updatePropertyAvailability Batch Prep] Calculated initial availability map for ${daysInMonth} days in ${monthStr}.`);
         const initialAvailableMap: { [day: number]: boolean } = {};
         for (let day = 1; day <= daysInMonth; day++) {
-          initialAvailableMap[day] = updatesForDay[day] !== undefined ? updatesForDay[day] : true;
+          initialAvailableMap[day] = updatesForDay[day] !== undefined ? updatesForDay[day] : true; // Apply update if exists, else default to true
         }
 
         const newDocData: Partial<Availability> = {
@@ -447,8 +471,9 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
           available: initialAvailableMap,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(), // Use Admin serverTimestamp
         };
-        console.log(`[updatePropertyAvailability - ADMIN SDK Batch Prep] Adding SET operation (merge: true) to batch for ${availabilityDocId}.`);
-         batch.set(availabilityDocRef, newDocData, { merge: true });
+         console.log(`[updatePropertyAvailability Batch Prep] New doc data for ${availabilityDocId}:`, JSON.stringify(newDocData, (key, value) => typeof value === 'object' && value !== null && value.constructor?.name === 'FieldValue' ? "ServerTimestamp" : value, 2));
+        console.log(`[updatePropertyAvailability Batch Prep] Adding SET operation (merge: true) to batch for ${availabilityDocId}.`);
+         batch.set(availabilityDocRef, newDocData, { merge: true }); // Use merge: true to avoid overwriting existing fields if any
       }
     });
 
@@ -477,6 +502,8 @@ export async function getUnavailableDatesForProperty(propertyId: string, monthsT
   const availabilityCollection = collection(db, 'availability'); // Use Client SDK 'db'
   const today = new Date();
   const currentMonthStart = startOfMonth(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1)));
+   console.log(`[getUnavailableDatesForProperty] Today (UTC): ${today.toISOString()}, Current Month Start (UTC): ${currentMonthStart.toISOString()}`);
+
 
   try {
     const monthDocIds: string[] = [];
@@ -485,19 +512,24 @@ export async function getUnavailableDatesForProperty(propertyId: string, monthsT
       const monthStr = format(targetMonth, 'yyyy-MM');
       monthDocIds.push(`${propertyId}_${monthStr}`);
     }
+    console.log(`[getUnavailableDatesForProperty] Querying for document IDs: ${monthDocIds.join(', ')}`);
 
     const queryBatches: string[][] = [];
-    for (let i = 0; i < monthDocIds.length; i += 30) {
+    for (let i = 0; i < monthDocIds.length; i += 30) { // Firestore 'in' query supports up to 30 elements
         queryBatches.push(monthDocIds.slice(i, i + 30));
     }
+    console.log(`[getUnavailableDatesForProperty] Split into ${queryBatches.length} query batches due to 'in' operator limit.`);
+
 
      if (monthDocIds.length === 0) {
+        console.log("[getUnavailableDatesForProperty] No month document IDs to query. Returning empty array.");
         return [];
     }
 
     // Execute queries using Client SDK
     const allQuerySnapshots = await Promise.all(
-      queryBatches.map(batchIds => {
+      queryBatches.map((batchIds, index) => {
+           console.log(`[getUnavailableDatesForProperty] Executing query for batch ${index + 1}: ${batchIds.join(', ')}`);
           const q = query(availabilityCollection, where('__name__', 'in', batchIds));
           return getDocs(q);
       })
@@ -505,12 +537,16 @@ export async function getUnavailableDatesForProperty(propertyId: string, monthsT
     console.log(`[getUnavailableDatesForProperty] Fetched results from ${allQuerySnapshots.length} batches.`);
 
     allQuerySnapshots.forEach((querySnapshot, batchIndex) => {
+         console.log(`[getUnavailableDatesForProperty] Processing batch ${batchIndex + 1}: Found ${querySnapshot.size} documents.`);
          querySnapshot.forEach((doc) => {
             const data = doc.data() as Partial<Availability>;
             const docId = doc.id;
             const monthStrFromId = docId.split('_')[1];
             const monthStrFromData = data.month;
+            // Prefer month from data if available, fallback to parsing from ID
             const monthStr = monthStrFromData || monthStrFromId;
+             console.log(`[getUnavailableDatesForProperty] Processing doc ${docId}, using month string: ${monthStr}`);
+
 
              if (!monthStr || !/^\d{4}-\d{2}$/.test(monthStr)) {
                  console.warn(`[getUnavailableDatesForProperty] Could not determine valid month string for doc ${docId}. Skipping.`);
@@ -518,20 +554,29 @@ export async function getUnavailableDatesForProperty(propertyId: string, monthsT
              }
 
             if (data.available && typeof data.available === 'object') {
+                 console.log(`[getUnavailableDatesForProperty] Found 'available' map for doc ${docId}. Parsing days...`);
                 const [year, monthIndex] = monthStr.split('-').map(num => parseInt(num, 10));
-                const month = monthIndex - 1;
+                const month = monthIndex - 1; // JS months are 0-indexed
 
                 for (const dayStr in data.available) {
                     const day = parseInt(dayStr, 10);
                     if (!isNaN(day) && data.available[day] === false) {
+                        // Date components seem valid, try creating the Date object
                         try {
                             if (year > 0 && month >= 0 && month < 12 && day > 0 && day <= 31) {
+                                // Create date in UTC to avoid timezone issues
                                 const date = new Date(Date.UTC(year, month, day));
+                                 // Double-check if the created date is valid (accounts for invalid days like Feb 30)
                                  if (date.getUTCFullYear() === year && date.getUTCMonth() === month && date.getUTCDate() === day) {
+                                    // Ensure the date is not in the past
                                     const todayUtcStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
                                     if (date >= todayUtcStart) {
+                                        // console.log(`[getUnavailableDatesForProperty] Adding unavailable date: ${date.toISOString().split('T')[0]}`);
                                         unavailableDates.push(date);
                                     }
+                                    // else {
+                                    //     console.log(`[getUnavailableDatesForProperty] Skipping past unavailable date: ${date.toISOString().split('T')[0]}`);
+                                    // }
                                  } else {
                                     console.warn(`[getUnavailableDatesForProperty] Invalid date created for ${year}-${monthStr}-${dayStr} in doc ${docId}. Skipping.`);
                                  }
@@ -551,11 +596,12 @@ export async function getUnavailableDatesForProperty(propertyId: string, monthsT
 
     console.log(`[getUnavailableDatesForProperty] Total unavailable dates found for property ${propertyId}: ${unavailableDates.length}`);
     unavailableDates.sort((a, b) => a.getTime() - b.getTime());
+    // console.log(`[getUnavailableDatesForProperty] Returning sorted unavailable dates: `, unavailableDates.map(d => d.toISOString().split('T')[0]));
     console.log(`--- [getUnavailableDatesForProperty] Function finished successfully ---`);
     return unavailableDates;
 
   } catch (error) {
     console.error(`❌ Error fetching unavailable dates for property ${propertyId}:`, error);
-    return [];
+    return []; // Return empty array on error
   }
 }
