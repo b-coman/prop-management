@@ -73,6 +73,17 @@ const formSchema = z.object({
 }, {
     message: "Booking validity end date must be after start date.",
     path: ["bookingValidUntil"],
+})
+.refine(data => {
+    // Coupon expiry must be on or after booking validity end date if set
+    if (data.validUntil && data.bookingValidUntil) {
+        // Compare dates only, ignore time if needed, or use startOfDay
+        return data.validUntil >= data.bookingValidUntil;
+    }
+    return true;
+}, {
+    message: "Coupon expiry date must be on or after the booking validity end date.",
+    path: ["validUntil"],
 });
 
 export function CouponForm() {
@@ -280,25 +291,29 @@ export function CouponForm() {
                  </div>
              ))}
          </div>
-          <Button
-             type="button"
-             variant="outline"
-             size="sm"
-             onClick={() => appendExclusion({ start: new Date(), end: new Date(new Date().setDate(new Date().getDate() + 1)) })} // Default to 1 day period
-           >
-             <Plus className="mr-2 h-4 w-4" /> Add Exclusion Period
-         </Button>
-
-        {/* Submit Button */}
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...
-            </>
-          ) : (
-            "Create Coupon"
-          )}
+        {/* Add Exclusion Button - Moved below the list */}
+         <Button
+            type="button"
+            variant="outline"
+            size="sm"
+           className="mt-4" // Add margin top
+            onClick={() => appendExclusion({ start: new Date(), end: new Date(new Date().setDate(new Date().getDate() + 1)) })} // Default to 1 day period
+          >
+            <Plus className="mr-2 h-4 w-4" /> Add Exclusion Period
         </Button>
+
+         {/* Submit Button - Moved to its own line */}
+        <Separator />
+         <Button type="submit" disabled={isSubmitting}>
+           {isSubmitting ? (
+             <>
+               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+               Creating...
+             </>
+           ) : (
+             'Create Coupon'
+           )}
+         </Button>
       </form>
     </Form>
   );
