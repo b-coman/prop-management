@@ -20,6 +20,10 @@ interface CreateCheckoutSessionInput {
   numberOfGuests: number;
   totalPrice: number; // In dollars
   numberOfNights: number;
+  // Optional guest info if available upfront
+  guestFirstName?: string;
+  guestLastName?: string;
+  guestEmail?: string; // Pass guest email if available
 }
 
 export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
@@ -30,6 +34,9 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
     numberOfGuests,
     totalPrice,
     numberOfNights,
+    guestEmail, // Capture guest email if provided
+    guestFirstName,
+    guestLastName,
   } = input;
 
   const origin = headers().get('origin') || 'http://localhost:9002'; // Default for local dev
@@ -46,7 +53,8 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
               description: `Booking from ${new Date(checkInDate).toLocaleDateString()} to ${new Date(checkOutDate).toLocaleDateString()} for ${numberOfGuests} guests.`,
               images: [property.images.find(img => img.isFeatured)?.url || property.images[0]?.url || ''], // Use featured or first image
             },
-            unit_amount: Math.round(totalPrice * 100), // Price in cents
+            // Ensure totalPrice is converted to cents correctly
+            unit_amount: Math.round(totalPrice * 100),
           },
           quantity: 1,
         },
@@ -54,20 +62,26 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
       mode: 'payment',
       success_url: `${origin}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/booking/cancel?property_slug=${property.slug}`,
+       // Include customer email if available, helps Stripe populate customer info
+      customer_email: guestEmail, // Pass guest email to Stripe
+      // Pass necessary booking details in metadata for the webhook
       metadata: {
         propertyId: property.id,
-        propertyName: property.name,
-        checkInDate: checkInDate,
-        checkOutDate: checkOutDate,
+        propertyName: property.name, // Keep for potential display on success page
+        checkInDate: checkInDate, // ISO String
+        checkOutDate: checkOutDate, // ISO String
         numberOfGuests: String(numberOfGuests),
         numberOfNights: String(numberOfNights),
-        totalPrice: String(totalPrice),
+        totalPrice: String(totalPrice), // Total price paid (in dollars)
         cleaningFee: String(property.cleaningFee),
         pricePerNight: String(property.pricePerNight),
+        // Include guest name if available
+        guestFirstName: guestFirstName || '',
+        guestLastName: guestLastName || '',
+        // Add any other relevant info needed by the webhook (e.g., userId if logged in)
+        // userId: loggedInUserId || '',
       },
-       // You might need customer email for receipts, etc.
-      // customer_email: guestEmail, // Pass guest email if available
-      // payment_intent_data: {
+       // payment_intent_data: {
       //   capture_method: 'automatic', // Or 'manual' if you capture later
       // },
     });
