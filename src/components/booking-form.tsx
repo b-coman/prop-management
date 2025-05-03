@@ -1,4 +1,3 @@
-
 "use client"; // Required for form handling, state, and Stripe JS
 
 import * as React from 'react';
@@ -22,20 +21,21 @@ import { useToast } from "@/hooks/use-toast";
 import type { Property } from '@/types';
 import { Separator } from './ui/separator';
 import { createCheckoutSession } from '@/app/actions/create-checkout-session'; // Import server action
+import { getUnavailableDatesForProperty } from '@/services/bookingService'; // Import function to get unavailable dates
 
 interface BookingFormProps {
   property: Property;
-  // unavailableDates?: Date[]; // Consider fetching/passing this from Firestore
+  // unavailableDates?: Date[]; // Consider fetching/passing this from Firestore - REMOVED, WILL FETCH INTERNALLY
 }
 
-// Mock unavailable dates for demonstration
-const mockUnavailableDates = [
-  addDays(new Date(), 5),
-  addDays(new Date(), 6),
-  addDays(new Date(), 10),
-  addDays(new Date(), 11),
-  addDays(new Date(), 12),
-];
+// Mock unavailable dates for demonstration - REMOVED, WILL FETCH FROM FIRESTORE
+// const mockUnavailableDates = [
+//   addDays(new Date(), 5),
+//   addDays(new Date(), 6),
+//   addDays(new Date(), 10),
+//   addDays(new Date(), 11),
+//   addDays(new Date(), 12),
+// ];
 
 // Load Stripe outside component to avoid recreating on every render
 // Ensure your Stripe publishable key is in an environment variable
@@ -51,7 +51,34 @@ export function BookingForm({ property }: BookingFormProps) {
   const [totalPrice, setTotalPrice] = useState<number | null>(null);
   const [numberOfNights, setNumberOfNights] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false); // Loading state
+  const [unavailableDates, setUnavailableDates] = useState<Date[]>([]); // State for unavailable dates
+  const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
   const { toast } = useToast();
+
+  // Fetch unavailable dates when the component mounts or property changes
+  useEffect(() => {
+    async function fetchAvailability() {
+      setIsLoadingAvailability(true);
+      try {
+        const unavailable = await getUnavailableDatesForProperty(property.id);
+        setUnavailableDates(unavailable);
+      } catch (error) {
+        console.error("Error fetching property availability:", error);
+        toast({
+          title: "Error",
+          description: "Could not load property availability. Please try again.",
+          variant: "destructive",
+        });
+        // Set empty array or handle error state appropriately
+        setUnavailableDates([]);
+      } finally {
+        setIsLoadingAvailability(false);
+      }
+    }
+
+    fetchAvailability();
+  }, [property.id, toast]);
+
 
   useEffect(() => {
     if (date?.from && date?.to) {
@@ -190,10 +217,12 @@ export function BookingForm({ property }: BookingFormProps) {
                 'w-full justify-start text-left font-normal',
                 !date && 'text-muted-foreground'
               )}
-              disabled={isSubmitting} // Disable while submitting
+              disabled={isSubmitting || isLoadingAvailability} // Disable while submitting or loading availability
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {date?.from ? (
+              {isLoadingAvailability ? (
+                <span>Loading availability...</span>
+              ) : date?.from ? (
                 date.to ? (
                   <>
                     {format(date.from, 'LLL dd, y')} -{' '}
@@ -215,9 +244,9 @@ export function BookingForm({ property }: BookingFormProps) {
               selected={date}
               onSelect={setDate}
               numberOfMonths={1} // Show 1 month for simplicity in card
-              disabled={[ // Disable past dates and mock unavailable dates
+              disabled={[ // Disable past dates and fetched unavailable dates
                   { before: new Date() },
-                  ...mockUnavailableDates
+                  ...unavailableDates // Spread the fetched unavailable dates
                 ]}
             />
           </PopoverContent>
@@ -284,7 +313,7 @@ export function BookingForm({ property }: BookingFormProps) {
       <Button
         type="submit"
         className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
-        disabled={!date?.from || !date?.to || numberOfNights <= 0 || !totalPrice || isSubmitting} // Add submitting state to disabled condition
+        disabled={!date?.from || !date?.to || numberOfNights <= 0 || !totalPrice || isSubmitting || isLoadingAvailability} // Add loading states to disabled condition
         >
         {isSubmitting ? (
            <Loader2 className="mr-2 h-4 w-4 animate-spin" />

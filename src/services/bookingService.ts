@@ -14,11 +14,13 @@ import {
   Timestamp,
   writeBatch,
   setDoc,
+  QueryConstraint, // Import QueryConstraint
+  limit,
 } from 'firebase/firestore';
 import { z } from 'zod'; // Import Zod
 import { db } from '@/lib/firebase'; // Import your initialized Firestore instance
 import type { Booking, Availability, Property } from '@/types'; // Added Property type import
-import { differenceInCalendarDays, eachDayOfInterval, format, parse, subDays } from 'date-fns'; // Import date-fns helpers
+import { differenceInCalendarDays, eachDayOfInterval, format, parse, subDays, startOfMonth, endOfMonth, parseISO } from 'date-fns'; // Import date-fns helpers
 import { updateAirbnbListingAvailability, updateBookingComListingAvailability, getPropertyForSync } from './booking-sync'; // Import sync functions
 
 // Define the structure for creating a booking, based on bookingExample and required inputs.
@@ -222,7 +224,7 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
     // Re-throw the error to be handled by the caller (e.g., the webhook handler)
     throw new Error(errorMessage);
   }
-} // This closing brace was likely the source of the original error if there was an extra one before it.
+}
 
 
 /**
@@ -474,18 +476,18 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
           initialAvailableMap[day] = updatesForDay[day] !== undefined ? updatesForDay[day] : true;
         }
 
-        const newDocData: Omit<Availability, 'id'> = { // Use Omit<Availability, 'id'>
+        const newDocData: Partial<Availability> = { // Use Partial<Availability> for creation
           propertyId: propertyId,
           month: monthStr,
           available: initialAvailableMap,
-          // Initialize optional fields if needed, otherwise leave them out
-          // pricingModifiers: {},
-          // minimumStay: {},
+          // pricingModifiers: {}, // Initialize if needed
+          // minimumStay: {}, // Initialize if needed
           updatedAt: serverTimestamp(), // Use serverTimestamp for consistency
         };
          console.log(`[Availability Batch] New doc ${availabilityDocId} initial data:`, newDocData);
          // Use set to create the new document with the full month's availability map
-         batch.set(availabilityDocRef, newDocData);
+         // Pass merge: true to avoid overwriting other potential fields if the doc unexpectedly exists
+         batch.set(availabilityDocRef, newDocData, { merge: true });
       }
     });
 
@@ -497,5 +499,107 @@ export async function updatePropertyAvailability(propertyId: string, checkInDate
   } catch (error) {
     console.error(`❌ Error updating local property availability for ${propertyId}:`, error);
     throw new Error(`Failed to update local property availability: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+
+/**
+ * Fetches all unavailable dates for a given property within a reasonable future range (e.g., next 12 months).
+ *
+ * @param propertyId The ID of the property.
+ * @param monthsToFetch Number of future months to fetch availability for (default: 12).
+ * @returns A Promise resolving to an array of Date objects representing unavailable dates.
+ */
+export async function getUnavailableDatesForProperty(propertyId: string, monthsToFetch: number = 12): Promise<Date[]> {
+  const unavailableDates: Date[] = [];
+  const availabilityCollection = collection(db, 'availability');
+  const today = new Date();
+  const currentMonth = startOfMonth(today);
+
+  console.log(`[getUnavailableDates] Fetching for property ${propertyId} for the next ${monthsToFetch} months.`);
+
+  try {
+    // Generate month strings for the query range
+    const monthQueries: QueryConstraint[] = [];
+    const monthDocIds: string[] = []; // Keep track of doc IDs we expect
+
+    for (let i = 0; i < monthsToFetch; i++) {
+      const targetMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + i, 1);
+      const monthStr = format(targetMonth, 'yyyy-MM');
+      monthDocIds.push(`${propertyId}_${monthStr}`);
+    }
+
+    // Build the query using 'in' operator (limit of 30 IDs per query)
+    // If monthsToFetch > 30, we'd need multiple queries.
+    if (monthDocIds.length > 30) {
+        console.warn("[getUnavailableDates] Requesting more than 30 months, querying only the first 30.");
+        monthDocIds.splice(30); // Limit to 30
+    }
+     if (monthDocIds.length === 0) {
+        console.log("[getUnavailableDates] No month IDs to query. Returning empty array.");
+        return [];
+    }
+
+
+    const q = query(availabilityCollection, where('__name__', 'in', monthDocIds));
+
+    const querySnapshot = await getDocs(q);
+
+    console.log(`[getUnavailableDates] Fetched ${querySnapshot.size} availability documents for property ${propertyId}.`);
+
+    querySnapshot.forEach((doc) => {
+        // Check if data exists and has the 'available' map
+        const data = doc.data() as Partial<Availability>; // Use Partial<> for safer access
+        const monthStr = data.month; // Get month string from data
+
+        if (monthStr && data.available && typeof data.available === 'object') {
+             console.log(`[getUnavailableDates] Processing month: ${monthStr}`);
+            const [year, monthIndex] = monthStr.split('-').map(num => parseInt(num, 10));
+            const month = monthIndex - 1; // JS months are 0-indexed
+
+            // Iterate through the days in the 'available' map
+            for (const dayStr in data.available) {
+                const day = parseInt(dayStr, 10);
+                // Check if the day entry exists and is explicitly false
+                if (!isNaN(day) && data.available[day] === false) {
+                    try {
+                        // Validate date components before creating Date object
+                        if (year > 0 && month >= 0 && month < 12 && day > 0 && day <= 31) {
+                            const date = new Date(Date.UTC(year, month, day)); // Use UTC to avoid timezone issues
+                             // Basic check if the date is valid (e.g., not Feb 30th)
+                             if (date.getUTCFullYear() === year && date.getUTCMonth() === month && date.getUTCDate() === day) {
+                                // Add check to ensure the date is not in the past relative to today
+                                const todayUtc = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+                                if (date >= todayUtc) {
+                                    unavailableDates.push(date);
+                                    // console.log(`[getUnavailableDates] Marked ${format(date, 'yyyy-MM-dd')} as unavailable.`);
+                                }
+                             } else {
+                                console.warn(`[getUnavailableDates] Invalid date created for ${year}-${monthStr}-${dayStr}. Skipping.`);
+                             }
+
+                        } else {
+                             console.warn(`[getUnavailableDates] Invalid year/month/day components found in doc ${doc.id}: year=${year}, month=${monthIndex}, day=${dayStr}. Skipping.`);
+                        }
+                    } catch (dateError) {
+                         console.warn(`[getUnavailableDates] Error creating date for ${year}-${monthStr}-${dayStr}:`, dateError, `. Skipping.`);
+                    }
+                }
+            }
+        } else {
+             console.warn(`[getUnavailableDates] Document ${doc.id} has missing or invalid 'available' data. Skipping.`);
+        }
+    });
+
+    console.log(`[getUnavailableDates] Total unavailable dates found for property ${propertyId}: ${unavailableDates.length}`);
+    // Sort dates before returning
+    unavailableDates.sort((a, b) => a.getTime() - b.getTime());
+    return unavailableDates;
+
+  } catch (error) {
+    console.error(`❌ Error fetching unavailable dates for property ${propertyId}:`, error);
+    // Return empty array or re-throw depending on how you want to handle errors upstream
+    return [];
+    // throw new Error(`Failed to fetch unavailable dates: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
