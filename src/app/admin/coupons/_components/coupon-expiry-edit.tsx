@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react'; // Added useEffect
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, Loader2, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -22,13 +22,23 @@ interface CouponExpiryEditProps {
 
 export function CouponExpiryEdit({ couponId, currentExpiryDate }: CouponExpiryEditProps) {
   const [newExpiryDate, setNewExpiryDate] = useState<Date | undefined>(currentExpiryDate);
+  const [formattedDate, setFormattedDate] = useState<string | null>(null); // State for client-side formatted date
   const [isOpen, setIsOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
+  // Format date on the client side after hydration
+  useEffect(() => {
+    if (newExpiryDate) {
+      setFormattedDate(format(newExpiryDate, 'PPP'));
+    } else {
+      setFormattedDate('No expiry');
+    }
+  }, [newExpiryDate]); // Re-run if newExpiryDate changes
+
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) return;
-    setNewExpiryDate(date);
+    setNewExpiryDate(date); // Update the date state
     startTransition(async () => {
       const result = await updateCouponExpiryAction({ couponId, validUntil: date });
       if (result.success) {
@@ -43,7 +53,8 @@ export function CouponExpiryEdit({ couponId, currentExpiryDate }: CouponExpiryEd
           description: result.error || "Could not update expiry date.",
           variant: "destructive",
         });
-        // Optionally revert local state: setNewExpiryDate(currentExpiryDate);
+        // Revert local state if API failed
+        setNewExpiryDate(currentExpiryDate);
       }
     });
   };
@@ -61,7 +72,8 @@ export function CouponExpiryEdit({ couponId, currentExpiryDate }: CouponExpiryEd
           disabled={isPending}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
-          {newExpiryDate ? format(newExpiryDate, 'PPP') : <span>No expiry</span>}
+          {/* Render placeholder until formattedDate is ready */}
+          {formattedDate !== null ? formattedDate : <span>Loading date...</span>}
            <Pencil className="ml-auto h-3 w-3 opacity-50" />
         </Button>
       </PopoverTrigger>
