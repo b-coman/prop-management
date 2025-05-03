@@ -1,4 +1,3 @@
-
 // src/lib/firebaseAdmin.ts
 import * as admin from 'firebase-admin';
 import * as dotenv from 'dotenv';
@@ -22,10 +21,28 @@ if (!admin.apps.length) {
       const serviceAccountFullPath = path.resolve(serviceAccountPath);
       console.log('🔑 Attempting Firebase Admin SDK initialization with service account:', serviceAccountFullPath);
 
-      // Initialize ONLY with the credential. The service account key contains the project ID.
+      // --- Debugging Step 1: Log the service account path ---
+      console.log('[Admin Init Debug] Service account path:', serviceAccountFullPath);
+
+      // --- Debugging Step 2: Attempt to load the credential ---
+      let credential;
+      try {
+          credential = admin.credential.cert(serviceAccountFullPath);
+          console.log('[Admin Init Debug] Successfully loaded credential from path.');
+      } catch (credError) {
+          console.error('❌ [Admin Init Debug] Error loading credential from path:', credError);
+          throw credError; // Re-throw credential loading error
+      }
+
+      // --- Debugging Step 3: Attempt to initialize app ---
+      // Initialize ONLY with the credential. The service account key should contain the project ID.
       adminApp = admin.initializeApp({
-        credential: admin.credential.cert(serviceAccountFullPath),
+        credential: credential,
+        // No databaseURL needed for Firestore Admin SDK v9+
+        // projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID, // Removed explicit projectId
       });
+      console.log('[Admin Init Debug] Successfully called admin.initializeApp.');
+
 
       dbAdmin = admin.firestore(adminApp);
       console.log('✅ Firebase Admin SDK initialized successfully.');
