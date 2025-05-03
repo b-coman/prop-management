@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Coupon, SerializableTimestamp } from "@/types";
@@ -35,6 +36,7 @@ export function CouponTable({ coupons }: CouponTableProps) {
   const deserializeTimestamp = (timestamp: SerializableTimestamp | null | undefined): Date | null => {
     if (!timestamp) return null;
     if (timestamp instanceof Date) return timestamp;
+     // @ts-ignore Assuming it's a Firestore Timestamp-like object
      if (typeof timestamp === 'object' && 'seconds' in timestamp && 'nanoseconds' in timestamp) {
        // @ts-ignore Assuming it's a Firestore Timestamp-like object
        return new Date(timestamp.seconds * 1000 + timestamp.nanoseconds / 1000000);
@@ -82,8 +84,8 @@ export function CouponTable({ coupons }: CouponTableProps) {
 
 
           return (
-            <>
-              <TableRow key={coupon.id}>
+            // Removed whitespace between fragment and TableRow
+            <><TableRow key={coupon.id}>
                 <TableCell>
                   <Button
                     variant="ghost"
@@ -114,8 +116,7 @@ export function CouponTable({ coupons }: CouponTableProps) {
                 <TableCell className="text-right">
                   <CouponStatusToggle couponId={coupon.id} isActive={coupon.isActive} isDisabled={isExpired} />
                 </TableCell>
-              </TableRow>
-              {/* Expanded Row for Additional Details */}
+              </TableRow>{/* Expanded Row for Additional Details */}
               {isExpanded && (
                 <TableRow id={`details-${coupon.id}`} className="bg-muted/50 hover:bg-muted/50">
                   <TableCell colSpan={7} className="p-4"> {/* Use colSpan to span all columns */}
@@ -138,8 +139,7 @@ export function CouponTable({ coupons }: CouponTableProps) {
                     </div>
                   </TableCell>
                 </TableRow>
-              )}
-            </>
+              )}</>
           );
         })}
       </TableBody>
