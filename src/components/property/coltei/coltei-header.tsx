@@ -86,6 +86,3 @@ export function ColteiHeader() {
     </header>
   );
 }
-```
-  </change>
-  <

@@ -56,8 +56,8 @@ export function ColteiPageLayout({ property }: ColteiPageLayoutProps) {
                   <Image
                     src={featuredImage.url}
                     alt={featuredImage.alt || `Featured image of ${property.name}`}
-                    layout="fill"
-                    objectFit="cover"
+                    fill
+                    style={{objectFit: "cover"}}
                     priority
                     data-ai-hint={featuredImage['data-ai-hint']}
                   />
@@ -68,8 +68,8 @@ export function ColteiPageLayout({ property }: ColteiPageLayoutProps) {
                   <Image
                     src={image.url}
                     alt={image.alt || `Gallery image ${index + 1} of ${property.name}`}
-                    layout="fill"
-                    objectFit="cover"
+                    fill
+                    style={{objectFit: "cover"}}
                      data-ai-hint={image['data-ai-hint']}
                   />
                 </div>
@@ -188,7 +188,3 @@ export function ColteiPageLayout({ property }: ColteiPageLayoutProps) {
     </div>
   );
 }
-```
-  </change>
-  <change>
-    <file>src
