@@ -1,7 +1,8 @@
 import type { Timestamp as FirestoreTimestamp } from 'firebase/firestore'; // Use FirestoreTimestamp alias
 
 // Type alias for values that might be Timestamps server-side but serialized for the client
-type SerializableTimestamp = FirestoreTimestamp | string | number;
+// Allow null for optional dates
+export type SerializableTimestamp = FirestoreTimestamp | string | number | null;
 
 
 // Aligned with propertyExample structure
@@ -198,11 +199,17 @@ export interface Coupon {
     id: string; // Document ID (can be the coupon code itself for easy lookup)
     code: string; // The actual coupon code string
     discount: number; // Percentage discount (e.g., 10 for 10%)
-    validUntil: SerializableTimestamp; // The timestamp when the coupon expires
+    validUntil: SerializableTimestamp; // Coupon expiry date
     description?: string; // Optional description of the coupon
     isActive: boolean; // Whether the coupon can currently be used
     createdAt: SerializableTimestamp; // Firestore server timestamp for when it was created
     updatedAt?: SerializableTimestamp; // Firestore server timestamp for last update
+
+    // NEW FIELDS for booking timeframe validity and exclusions
+    bookingValidFrom?: SerializableTimestamp | null; // Coupon only valid FOR bookings starting ON or AFTER this date
+    bookingValidUntil?: SerializableTimestamp | null; // Coupon only valid FOR bookings ending ON or BEFORE this date
+    exclusionPeriods?: Array<{ start: SerializableTimestamp; end: SerializableTimestamp }> | null; // Array of date ranges where coupon is NOT valid
+
     // Optional: Add usage limits if needed
     // maxUses?: number;
     // currentUses?: number;

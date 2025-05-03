@@ -144,12 +144,23 @@ export function BookingForm({ property }: BookingFormProps) {
        setCouponError('Please enter a coupon code.');
        return;
      }
+     if (!isDateRangeValid()) {
+       setCouponError('Please select valid booking dates first.');
+       return;
+     }
+
      setIsApplyingCoupon(true);
      setCouponError(null);
      setAppliedCoupon(null); // Reset previous coupon on new attempt
 
      try {
-       const result = await validateAndApplyCoupon(couponCode.trim());
+        // Pass the booking dates to the validation function
+       const result = await validateAndApplyCoupon(
+           couponCode.trim(),
+           date?.from ?? null, // Pass Date objects
+           date?.to ?? null
+        );
+
        if (result.error) {
          setCouponError(result.error);
          setAppliedCoupon(null);
@@ -463,7 +474,7 @@ export function BookingForm({ property }: BookingFormProps) {
                 type="button"
                 variant="outline"
                 onClick={handleApplyCoupon}
-                disabled={isApplyingCoupon || !couponCode.trim()}
+                disabled={isApplyingCoupon || !couponCode.trim() || !isDateRangeValid()} // Also disable if dates not selected
                 aria-label="Apply Coupon"
               >
                 {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <TicketPercent className="h-4 w-4" />}
