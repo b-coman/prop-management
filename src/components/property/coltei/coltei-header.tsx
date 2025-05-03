@@ -27,9 +27,12 @@ export function ColteiHeader() {
            <Link href="/properties/coltei-apartment-bucharest#contact" className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
             Contact
           </Link>
-           <Button asChild size="sm" className="bg-blue-700 hover:bg-blue-800 text-white">
-             <Link href="#booking-form">Book Now</Link> {/* Link to booking section */}
-           </Button>
+           {/* Changed: Wrap Button inside Link */}
+           <Link href="#booking-form">
+             <Button size="sm" className="bg-blue-700 hover:bg-blue-800 text-white">
+               Book Now
+             </Button>
+           </Link>
         </nav>
 
         {/* Mobile Navigation */}
@@ -62,9 +65,12 @@ export function ColteiHeader() {
                 <Phone className="h-5 w-5" />
                 Contact
               </Link>
-              <Button asChild size="lg" className="mt-4 bg-blue-700 hover:bg-blue-800 text-white">
-                 <Link href="#booking-form">Book Now</Link>
-              </Button>
+              {/* Changed: Wrap Button inside Link */}
+              <Link href="#booking-form">
+                 <Button size="lg" className="mt-4 bg-blue-700 hover:bg-blue-800 text-white">
+                   Book Now
+                 </Button>
+              </Link>
             </nav>
           </SheetContent>
         </Sheet>

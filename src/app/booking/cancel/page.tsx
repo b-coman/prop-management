@@ -34,13 +34,15 @@ function BookingCancelContent() {
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
                             {propertySlug && (
-                                <Button asChild variant="outline">
-                                    <Link href={`/properties/${propertySlug}`}>Return to Property</Link>
-                                </Button>
+                                // Changed: Wrap Button inside Link
+                                <Link href={`/properties/${propertySlug}`}>
+                                    <Button variant="outline">Return to Property</Button>
+                                </Link>
                             )}
-                            <Button asChild>
-                                <Link href="/properties">Explore Other Properties</Link>
-                            </Button>
+                             {/* Changed: Wrap Button inside Link */}
+                            <Link href="/properties">
+                               <Button>Explore Other Properties</Button>
+                            </Link>
                         </div>
                     </CardContent>
                 </Card>

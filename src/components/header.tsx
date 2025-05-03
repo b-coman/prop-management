@@ -35,9 +35,12 @@ export function Header() {
           {/* <Link href="/about" className="text-sm font-medium text-foreground/70 transition-colors hover:text-foreground">
             About
           </Link> */}
-           {/* <Button asChild variant="outline">
-             <Link href="/login">Login</Link>
-           </Button> */}
+           {/* Changed: Wrap Button inside Link */}
+           {/* <Link href="/login">
+             <Button variant="outline">
+               Login
+             </Button>
+           </Link> */}
         </nav>
 
         {/* Mobile Navigation */}

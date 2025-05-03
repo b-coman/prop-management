@@ -18,16 +18,18 @@ export default function Home() {
           Explore our unique properties:
         </p>
         <div className="flex flex-col sm:flex-row gap-6">
-          <Button asChild size="lg">
-            <Link href="/properties/prahova-mountain-chalet">
+          {/* Changed: Wrap Button inside Link */}
+          <Link href="/properties/prahova-mountain-chalet">
+            <Button size="lg">
               Prahova Mountain Chalet
-            </Link>
-          </Button>
-          <Button asChild size="lg" variant="secondary">
-            <Link href="/properties/coltei-apartment-bucharest">
-              Coltei Apartment Bucharest
-            </Link>
-          </Button>
+            </Button>
+          </Link>
+          {/* Changed: Wrap Button inside Link */}
+          <Link href="/properties/coltei-apartment-bucharest">
+             <Button size="lg" variant="secondary">
+               Coltei Apartment Bucharest
+             </Button>
+          </Link>
           {/* Add more buttons if you have more properties */}
         </div>
          {/* Optionally add a link to a generic property list if you still want one */}

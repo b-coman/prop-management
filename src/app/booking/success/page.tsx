@@ -49,13 +49,16 @@ function BookingSuccessContent() {
                     (Ref: {sessionId.substring(0, 15)}...) {/* Optionally display part of the session ID */}
                  </p>
              )}
-             <Button asChild className="w-full mt-6">
-              <Link href="/properties">Explore More Properties</Link>
-            </Button>
+             {/* Changed: Wrap Button inside Link */}
+             <Link href="/properties">
+               <Button className="w-full mt-6">Explore More Properties</Button>
+             </Link>
              {/* Optionally, add a link to a "My Bookings" page if implemented */}
-             {/* <Button asChild variant="outline" className="w-full">
-                <Link href="/my-bookings">View My Bookings</Link>
-             </Button> */}
+             {/* <Link href="/my-bookings">
+                 <Button variant="outline" className="w-full">
+                   View My Bookings
+                 </Button>
+              </Link> */}
           </CardContent>
         </Card>
       </main>
