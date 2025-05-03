@@ -1,6 +1,6 @@
 
 import { Header } from '@/components/header'; // Or an admin-specific header
-import { Footer } from '@/components/footer'; // Or an admin-specific footer
+// Removed Footer import: import { Footer } from '@/components/footer'; // Or an admin-specific footer
 import Link from 'next/link';
 
 export default function AdminLayout({
@@ -25,8 +25,15 @@ export default function AdminLayout({
 
       <main className="flex-grow">{children}</main>
 
-      {/* Consider an Admin specific footer */}
-      <Footer />
+      {/* Removed Footer usage */}
+      {/* <Footer /> */}
+
+      {/* Optional: Add a simple inline footer for the admin section */}
+       <footer className="border-t bg-muted/50">
+         <div className="container py-4 text-center text-xs text-muted-foreground">
+           RentalSpot Admin Panel &copy; {new Date().getFullYear()}
+         </div>
+       </footer>
     </div>
   );
 }
