@@ -184,6 +184,8 @@ export interface SyncCalendar {
 
 
 // Store this content in the Firebase Console -> Firestore Database -> Rules tab
+// WARNING: The write rule for /availability/{document} is temporarily set to allow all writes
+// for testing the server-side button. Make this more restrictive before production.
 export const securityRulesExample = `
 rules_version = '2';
 service cloud.firestore {
@@ -196,6 +198,7 @@ service cloud.firestore {
     function isOwner(propertyId) {
       // Check if the user is signed in and if their UID matches the ownerId of the property document
       // Ensure the property document exists before accessing its data
+      // Add checks for null data if necessary
       return isSignedIn() && exists(/databases/$(database)/documents/properties/$(propertyId)) &&
              get(/databases/$(database)/documents/properties/$(propertyId)).data.ownerId == request.auth.uid;
     }
@@ -203,6 +206,7 @@ service cloud.firestore {
     function isAdmin() {
       // Check if the user is signed in and if their user document has the role 'admin'
       // Ensure the user document exists before accessing its data
+      // Add checks for null data if necessary
       return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
@@ -210,18 +214,18 @@ service cloud.firestore {
     // Properties collection
     match /properties/{propertyId} {
       allow read: if true; // Anyone can read property listings
-      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid; // Only signed-in users can create properties, and they must be the owner
+      // Allow create only if signed in and the ownerId in the new data matches the user's UID
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
       allow update: if isOwner(propertyId) || isAdmin(); // Only the owner or an admin can update
       allow delete: if isOwner(propertyId) || isAdmin(); // Only the owner or an admin can delete
     }
 
     // Availability collection
     match /availability/{documentId} {
-       // Extract propertyId from documentId (e.g., "prop1_2024-12")
-      let propertyId = documentId.split('_')[0];
-      allow read: if true; // Anyone can read availability
-      // Allow write only if the user is the owner of the corresponding property or an admin
-      allow write: if isOwner(propertyId) || isAdmin();
+       allow read: if true; // Anyone can read availability
+       // WARNING: TEMPORARILY ALLOWING ALL WRITES for testing server-side functions.
+       // RESTORE a more secure rule like `if isOwner(documentId.split('_')[0]) || isAdmin();` before production.
+       allow write: if true;
     }
 
     // Bookings collection
@@ -248,7 +252,7 @@ service cloud.firestore {
       // Allow admins to read/write any user data
       allow read, write: if request.auth.uid == userId || isAdmin();
       // Prevent users from changing their own role unless they are admin
-      allow update: if request.auth.uid == userId && !(request.resource.data.role != resource.data.role) || isAdmin();
+      allow update: if (request.auth.uid == userId && !(request.resource.data.role != resource.data.role)) || isAdmin();
        // Only admins can create new user documents directly (usually handled by Auth triggers)
       allow create: if isAdmin();
     }
@@ -272,8 +276,12 @@ service cloud.firestore {
 
     // SyncCalendars collection
     match /syncCalendars/{documentId} {
-      // Allow read/write only by the property owner or an admin
-      allow read, write: if isOwner(resource.data.propertyId) || isAdmin();
+       // Ensure resource.data is checked before accessing propertyId
+       function isRelevantOwnerOrAdmin() {
+         return resource.data != null && (isOwner(resource.data.propertyId) || isAdmin());
+       }
+       // Allow read/write only by the property owner or an admin
+       allow read, write: if isRelevantOwnerOrAdmin();
     }
   }
 }
