@@ -7,7 +7,8 @@ import { BookingForm } from '@/components/booking-form'; // Reusable booking for
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { BedDouble, Bath, Users, Wifi, ParkingCircle, Tv, Utensils, Clock, CheckCircle, MapPin, Home, Building, Wind } from 'lucide-react'; // Added specific icons
+import { Button } from '@/components/ui/button';
+import { BedDouble, Bath, Users, Wifi, ParkingCircle, Tv, Utensils, Clock, CheckCircle, MapPin, Home, Building, Wind, ListChecks } from 'lucide-react'; // Added specific icons and ListChecks
 
 interface ColteiPageLayoutProps {
   property: Property;
@@ -49,7 +50,7 @@ export function ColteiPageLayout({ property }: ColteiPageLayoutProps) {
             </div>
 
              {/* Image Gallery */}
-            <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div id="gallery" className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2">
               {featuredImage && (
                  <div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-md md:col-span-2">
                   <Image
@@ -109,15 +110,22 @@ export function ColteiPageLayout({ property }: ColteiPageLayoutProps) {
 
                <Separator className="my-6 border-blue-200" />
 
-              <h3 className="text-xl font-semibold mb-3 text-blue-900">House Rules</h3>
-              <ul className="list-none pl-0 mb-6 space-y-2 text-sm">
-                 {property.houseRules.map((rule, index) => (
-                   <li key={index} className="flex items-center">
-                    <CheckCircle className="h-4 w-4 mr-2 text-blue-700 shrink-0" />
-                    {rule}
-                  </li>
-                 ))}
-              </ul>
+               {/* House Rules Section */}
+               <div id="house-rules" className="mb-8">
+                  <h3 className="text-xl font-semibold mb-3 text-blue-900 flex items-center">
+                     <ListChecks className="h-5 w-5 mr-2 text-blue-700" /> House Rules
+                  </h3>
+                  <ul className="list-none pl-0 space-y-2 text-sm">
+                    {property.houseRules.map((rule, index) => (
+                      <li key={index} className="flex items-center">
+                        <CheckCircle className="h-4 w-4 mr-2 text-blue-700 shrink-0" />
+                        {rule}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+               <Separator className="my-6 border-blue-200" />
 
                <h3 className="text-xl font-semibold mb-3 text-blue-900">Check-in / Check-out</h3>
                <div className="flex gap-4 mb-6 text-sm">
@@ -128,6 +136,31 @@ export function ColteiPageLayout({ property }: ColteiPageLayoutProps) {
 
               <h3 className="text-xl font-semibold mb-3 text-blue-900">Cancellation Policy</h3>
               <p className="text-sm text-muted-foreground">{property.cancellationPolicy}</p>
+            </div>
+
+             {/* Location Section Placeholder */}
+            <Separator className="my-8 border-blue-200" />
+            <div id="location" className="mb-8">
+                <h2 className="text-2xl font-semibold mb-4 text-blue-900">Location</h2>
+                 <p className="text-muted-foreground mb-4">
+                    Located in {property.location.city}, {property.location.state}. Exact address provided after booking.
+                 </p>
+                 {/* Placeholder for map */}
+                <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
+                    <MapPin className="h-12 w-12 text-muted-foreground/50" />
+                    {/* In a real app, embed Google Maps here */}
+                </div>
+            </div>
+
+             {/* Contact Section Placeholder */}
+            <Separator className="my-8 border-blue-200" />
+            <div id="contact" className="mb-8">
+                <h2 className="text-2xl font-semibold mb-4 text-blue-900">Contact Host</h2>
+                 <p className="text-muted-foreground mb-4">
+                    Have questions? Reach out to the property owner.
+                 </p>
+                 {/* Placeholder for contact form or details */}
+                 <Button variant="outline">Contact Owner</Button>
             </div>
           </div>
 
@@ -155,5 +188,7 @@ export function ColteiPageLayout({ property }: ColteiPageLayoutProps) {
     </div>
   );
 }
-
-    
+```
+  </change>
+  <change>
+    <file>src

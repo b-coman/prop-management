@@ -1,7 +1,8 @@
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, Home, MountainSnow, Camera, Map, Phone } from 'lucide-react'; // Specific icons
+import { Menu, Home, MountainSnow, Camera, Map, Phone, ListChecks } from 'lucide-react'; // Specific icons, added ListChecks
 
 export function PrahovaHeader() {
   return (
@@ -18,13 +19,16 @@ export function PrahovaHeader() {
           <Link href="/properties/prahova-mountain-chalet" className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
             Home
           </Link>
-          <Link href="/properties/prahova-mountain-chalet#gallery" className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
+          <Link href="#gallery" className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
             Gallery
           </Link>
-           <Link href="/properties/prahova-mountain-chalet#location" className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
+           <Link href="#house-rules" className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
+            Rules
+          </Link>
+           <Link href="#location" className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
             Location
           </Link>
-           <Link href="/properties/prahova-mountain-chalet#contact" className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
+           <Link href="#contact" className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
             Contact
           </Link>
            {/* Changed: Wrap Button inside Link */}
@@ -53,15 +57,19 @@ export function PrahovaHeader() {
                 <Home className="h-5 w-5" />
                 Home
               </Link>
-              <Link href="/properties/prahova-mountain-chalet#gallery" className="flex items-center gap-4 px-2.5 text-gray-700 hover:text-green-700">
+              <Link href="#gallery" className="flex items-center gap-4 px-2.5 text-gray-700 hover:text-green-700">
                 <Camera className="h-5 w-5" />
                 Gallery
               </Link>
-               <Link href="/properties/prahova-mountain-chalet#location" className="flex items-center gap-4 px-2.5 text-gray-700 hover:text-green-700">
+               <Link href="#house-rules" className="flex items-center gap-4 px-2.5 text-gray-700 hover:text-green-700">
+                 <ListChecks className="h-5 w-5" />
+                 Rules
+               </Link>
+               <Link href="#location" className="flex items-center gap-4 px-2.5 text-gray-700 hover:text-green-700">
                 <Map className="h-5 w-5" />
                 Location
               </Link>
-               <Link href="/properties/prahova-mountain-chalet#contact" className="flex items-center gap-4 px-2.5 text-gray-700 hover:text-green-700">
+               <Link href="#contact" className="flex items-center gap-4 px-2.5 text-gray-700 hover:text-green-700">
                 <Phone className="h-5 w-5" />
                 Contact
               </Link>
@@ -78,3 +86,7 @@ export function PrahovaHeader() {
     </header>
   );
 }
+```
+  </change>
+  <change>
+    <file>src

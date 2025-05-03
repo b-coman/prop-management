@@ -1,7 +1,8 @@
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, Home, Building, Camera, Map, Phone } from 'lucide-react'; // Specific icons
+import { Menu, Home, Building, Camera, Map, Phone, ListChecks } from 'lucide-react'; // Specific icons, added ListChecks
 
 export function ColteiHeader() {
   return (
@@ -18,13 +19,16 @@ export function ColteiHeader() {
           <Link href="/properties/coltei-apartment-bucharest" className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
             Home
           </Link>
-          <Link href="/properties/coltei-apartment-bucharest#gallery" className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
+          <Link href="#gallery" className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
             Gallery
           </Link>
-           <Link href="/properties/coltei-apartment-bucharest#location" className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
+           <Link href="#house-rules" className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
+            Rules
+          </Link>
+           <Link href="#location" className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
             Location
           </Link>
-           <Link href="/properties/coltei-apartment-bucharest#contact" className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
+           <Link href="#contact" className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
             Contact
           </Link>
            {/* Changed: Wrap Button inside Link */}
@@ -53,15 +57,19 @@ export function ColteiHeader() {
                 <Home className="h-5 w-5" />
                 Home
               </Link>
-              <Link href="/properties/coltei-apartment-bucharest#gallery" className="flex items-center gap-4 px-2.5 text-gray-700 hover:text-blue-700">
+              <Link href="#gallery" className="flex items-center gap-4 px-2.5 text-gray-700 hover:text-blue-700">
                 <Camera className="h-5 w-5" />
                 Gallery
               </Link>
-               <Link href="/properties/coltei-apartment-bucharest#location" className="flex items-center gap-4 px-2.5 text-gray-700 hover:text-blue-700">
+               <Link href="#house-rules" className="flex items-center gap-4 px-2.5 text-gray-700 hover:text-blue-700">
+                 <ListChecks className="h-5 w-5" />
+                 Rules
+               </Link>
+               <Link href="#location" className="flex items-center gap-4 px-2.5 text-gray-700 hover:text-blue-700">
                 <Map className="h-5 w-5" />
                 Location
               </Link>
-               <Link href="/properties/coltei-apartment-bucharest#contact" className="flex items-center gap-4 px-2.5 text-gray-700 hover:text-blue-700">
+               <Link href="#contact" className="flex items-center gap-4 px-2.5 text-gray-700 hover:text-blue-700">
                 <Phone className="h-5 w-5" />
                 Contact
               </Link>
@@ -78,3 +86,6 @@ export function ColteiHeader() {
     </header>
   );
 }
+```
+  </change>
+  <
