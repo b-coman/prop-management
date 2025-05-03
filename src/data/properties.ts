@@ -26,7 +26,7 @@ export const placeholderProperties: Property[] = [
     amenities: ['WiFi', 'Kitchen', 'Parking', 'Fireplace', 'TV', 'Garden', 'Mountain View'],
     pricePerNight: 180, // Example price
     cleaningFee: 40,
-    maxGuests: 6,
+    maxGuests: 7,
     baseOccupancy: 4, // Price includes up to 4 guests
     extraGuestFee: 25, // $25 per extra guest per night
     bedrooms: 3,

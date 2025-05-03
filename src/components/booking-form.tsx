@@ -39,6 +39,9 @@ if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
 
 
 export function BookingForm({ property }: BookingFormProps) {
+  // console.log('--- [BookingForm] Component Rendered ---');
+  // console.log('[BookingForm] Property ID:', property?.id); // Log property ID
+
   const [date, setDate] = useState<DateRange | undefined>(undefined);
   const [numberOfGuests, setNumberOfGuests] = useState(1); // Start with 1 guest
   const [totalPrice, setTotalPrice] = useState<number | null>(null);
@@ -49,6 +52,10 @@ export function BookingForm({ property }: BookingFormProps) {
   const [unavailableDates, setUnavailableDates] = useState<Date[]>([]); // State for unavailable dates
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
   const { toast } = useToast();
+
+  // Log current state when the component renders
+  // console.log('[BookingForm Render] Current state:', { isLoadingAvailability, isSubmitting, date });
+
 
   // Fetch unavailable dates when the component mounts or property changes
   useEffect(() => {
@@ -234,7 +241,7 @@ export function BookingForm({ property }: BookingFormProps) {
          total: totalPrice, // Final calculated total
        },
        paymentInput: {
-         stripePaymentIntentId: `mock_test_${Date.now()}`, // Unique mock ID
+         stripePaymentIntentId: `mock_pi_${Date.now()}`, // Unique mock ID
          amount: totalPrice,
          status: "succeeded", // Simulate success
        },
