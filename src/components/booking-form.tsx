@@ -46,6 +46,8 @@ if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
 
 
 export function BookingForm({ property }: BookingFormProps) {
+  console.log("--- [BookingForm] Component Rendered ---");
+  console.log("[BookingForm] Property ID:", property.id);
   const [date, setDate] = useState<DateRange | undefined>(undefined);
   const [numberOfGuests, setNumberOfGuests] = useState(1);
   const [totalPrice, setTotalPrice] = useState<number | null>(null);
@@ -57,141 +59,185 @@ export function BookingForm({ property }: BookingFormProps) {
 
   // Fetch unavailable dates when the component mounts or property changes
   useEffect(() => {
+    console.log("[BookingForm Effect] Starting to fetch availability for property:", property.id);
     async function fetchAvailability() {
       setIsLoadingAvailability(true);
+      console.log("[BookingForm fetchAvailability] Set loading state to true.");
       try {
+        console.log(`[BookingForm fetchAvailability] Calling getUnavailableDatesForProperty for property ${property.id}...`);
         const unavailable = await getUnavailableDatesForProperty(property.id);
+        console.log(`[BookingForm fetchAvailability] Received ${unavailable.length} unavailable dates for property ${property.id}.`);
+        // console.log("[BookingForm fetchAvailability] Unavailable Dates:", unavailable.map(d => format(d, 'yyyy-MM-dd'))); // Log formatted dates
         setUnavailableDates(unavailable);
       } catch (error) {
-        console.error("Error fetching property availability:", error);
+        console.error(`❌ [BookingForm fetchAvailability] Error fetching property availability for ${property.id}:`, error);
         toast({
-          title: "Error",
-          description: "Could not load property availability. Please try again.",
+          title: "Error Loading Availability",
+          description: "Could not load property availability. Please try refreshing the page.",
           variant: "destructive",
         });
         // Set empty array or handle error state appropriately
         setUnavailableDates([]);
       } finally {
+        console.log("[BookingForm fetchAvailability] Setting loading state to false.");
         setIsLoadingAvailability(false);
       }
     }
 
     fetchAvailability();
-  }, [property.id, toast]);
+  }, [property.id, toast]); // Dependency array includes property.id and toast
 
 
   useEffect(() => {
+    console.log("[BookingForm Effect] Date range changed:", date);
     if (date?.from && date?.to) {
       // Ensure 'to' is strictly after 'from'
       if (date.to > date.from) {
         const nights = differenceInDays(date.to, date.from);
+        console.log(`[BookingForm Effect] Calculated nights: ${nights}`);
         setNumberOfNights(nights);
         const calculatedPrice = nights * property.pricePerNight + property.cleaningFee;
+        console.log(`[BookingForm Effect] Calculated price: ${calculatedPrice}`);
         setTotalPrice(calculatedPrice);
       } else {
          // Reset if 'to' is not after 'from'
+         console.log("[BookingForm Effect] Check-out date not after check-in. Resetting price/nights.");
         setNumberOfNights(0);
         setTotalPrice(null);
       }
     } else {
+       console.log("[BookingForm Effect] Date range incomplete. Resetting price/nights.");
       setNumberOfNights(0);
       setTotalPrice(null);
     }
-  }, [date, property.pricePerNight, property.cleaningFee]);
+  }, [date, property.pricePerNight, property.cleaningFee]); // Recalculate when date or property price changes
 
 
   const handleGuestChange = (change: number) => {
     setNumberOfGuests((prev) => {
       const newCount = prev + change;
-      if (newCount < 1) return 1;
-      if (newCount > property.maxGuests) return property.maxGuests;
+       console.log(`[BookingForm handleGuestChange] Attempting to change guests from ${prev} by ${change} to ${newCount}`);
+      if (newCount < 1) {
+        console.log("[BookingForm handleGuestChange] Guest count cannot be less than 1.");
+        return 1;
+      }
+      if (newCount > property.maxGuests) {
+        console.log(`[BookingForm handleGuestChange] Guest count cannot exceed max guests (${property.maxGuests}).`);
+        return property.maxGuests;
+      }
+       console.log(`[BookingForm handleGuestChange] Setting guest count to ${newCount}.`);
       return newCount;
     });
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    console.log("--- [BookingForm handleSubmit] Form submitted ---");
     setIsSubmitting(true); // Start loading
+    console.log("[BookingForm handleSubmit] Set submitting state to true.");
 
     if (!date?.from || !date?.to) {
+       console.log("[BookingForm handleSubmit] Validation failed: Date range incomplete.");
        toast({
         title: "Error",
         description: "Please select check-in and check-out dates.",
         variant: "destructive",
       });
        setIsSubmitting(false);
+       console.log("--- [BookingForm handleSubmit] Finished (validation error) ---");
       return;
     }
 
     if (numberOfNights <= 0) {
+       console.log("[BookingForm handleSubmit] Validation failed: Check-out date not after check-in.");
        toast({
         title: "Error",
         description: "Check-out date must be after check-in date.",
         variant: "destructive",
       });
       setIsSubmitting(false);
+       console.log("--- [BookingForm handleSubmit] Finished (validation error) ---");
       return;
     }
 
      if (!totalPrice) {
+        console.log("[BookingForm handleSubmit] Validation failed: Total price not calculated.");
        toast({
         title: "Error",
         description: "Could not calculate total price.",
         variant: "destructive",
       });
        setIsSubmitting(false);
+        console.log("--- [BookingForm handleSubmit] Finished (validation error) ---");
        return;
     }
 
     if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+        console.error("❌ [BookingForm handleSubmit] Stripe Publishable Key not set!");
        toast({
         title: "Configuration Error",
         description: "Stripe is not configured correctly. Cannot proceed with booking.",
         variant: "destructive",
       });
        setIsSubmitting(false);
+        console.log("--- [BookingForm handleSubmit] Finished (config error) ---");
        return;
     }
 
 
     try {
+      console.log("[BookingForm handleSubmit] Calling createCheckoutSession server action...");
       // 1. Call the server action to create a checkout session
-      const result = await createCheckoutSession({
+      const checkoutInput = {
         property: property,
         checkInDate: date.from.toISOString(),
         checkOutDate: date.to.toISOString(),
         numberOfGuests: numberOfGuests,
         totalPrice: totalPrice,
         numberOfNights: numberOfNights,
-      });
+      };
+      console.log("[BookingForm handleSubmit] Checkout Session Input:", JSON.stringify(checkoutInput, null, 2));
+      const result = await createCheckoutSession(checkoutInput);
+      console.log("[BookingForm handleSubmit] createCheckoutSession Result:", result);
+
 
        if (result.error || !result.sessionId) {
+         console.error("❌ [BookingForm handleSubmit] Error from createCheckoutSession:", result.error || 'Missing session ID.');
         throw new Error(result.error || 'Failed to get session ID.');
       }
 
       const { sessionId } = result;
+      console.log(`[BookingForm handleSubmit] Received Stripe Session ID: ${sessionId}`);
+
 
       // 2. Redirect to Stripe Checkout
+      console.log("[BookingForm handleSubmit] Attempting to load Stripe.js...");
       const stripe = await stripePromise;
       if (!stripe) {
+         console.error("❌ [BookingForm handleSubmit] Stripe.js failed to load.");
          throw new Error('Stripe.js has not loaded yet.');
       }
+      console.log("[BookingForm handleSubmit] Stripe.js loaded. Redirecting to checkout...");
 
       const { error } = await stripe.redirectToCheckout({ sessionId });
 
+      // This part is only reached if redirectToCheckout fails immediately
       if (error) {
-        console.error('Stripe redirect error:', error);
+        console.error('❌ [BookingForm handleSubmit] Stripe redirect error:', error);
         toast({
           title: "Error Redirecting",
           description: error.message || "Could not redirect to Stripe.",
           variant: "destructive",
         });
+         setIsSubmitting(false); // Stop loading on redirect error
+      } else {
+          console.log("[BookingForm handleSubmit] Redirecting to Stripe...");
+          // User is redirected, no need to set submitting false here.
       }
-      // If redirectToCheckout is successful, the user is navigated away,
-      // so no need to reset loading state here unless there's an error.
+
 
     } catch (error) {
-      console.error('Booking submission error:', error);
+      console.error('❌ [BookingForm handleSubmit] Booking submission error:', error);
       toast({
         title: "Booking Error",
         description: error instanceof Error ? error.message : "An unexpected error occurred during booking.",
@@ -199,9 +245,12 @@ export function BookingForm({ property }: BookingFormProps) {
       });
        setIsSubmitting(false); // Stop loading on error
     }
+     console.log("--- [BookingForm handleSubmit] Finished execution (unless redirected) ---");
      // Don't set submitting false here if redirect is successful
      // setIsSubmitting(false);
   };
+
+  console.log("[BookingForm Render] Current state: isLoadingAvailability=", isLoadingAvailability, "isSubmitting=", isSubmitting, "date=", date);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -237,18 +286,22 @@ export function BookingForm({ property }: BookingFormProps) {
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              initialFocus
-              mode="range"
-              defaultMonth={date?.from}
-              selected={date}
-              onSelect={setDate}
-              numberOfMonths={1} // Show 1 month for simplicity in card
-              disabled={[ // Disable past dates and fetched unavailable dates
-                  { before: new Date() },
-                  ...unavailableDates // Spread the fetched unavailable dates
-                ]}
-            />
+             {isLoadingAvailability ? (
+                <div className="p-4 text-center text-muted-foreground">Loading...</div>
+             ) : (
+                 <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={date?.from || new Date()} // Use current month if no date selected
+                  selected={date}
+                  onSelect={setDate}
+                  numberOfMonths={1} // Show 1 month for simplicity in card
+                  disabled={[ // Disable past dates and fetched unavailable dates
+                      { before: new Date(new Date().setHours(0, 0, 0, 0)) }, // Disable dates before today accurately
+                      ...unavailableDates // Spread the fetched unavailable dates
+                    ]}
+                 />
+             )}
           </PopoverContent>
         </Popover>
       </div>
@@ -316,7 +369,12 @@ export function BookingForm({ property }: BookingFormProps) {
         disabled={!date?.from || !date?.to || numberOfNights <= 0 || !totalPrice || isSubmitting || isLoadingAvailability} // Add loading states to disabled condition
         >
         {isSubmitting ? (
-           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+           <>
+             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+             Processing...
+           </>
+         ) : isLoadingAvailability ? (
+             'Loading Availability...'
          ) : (
            'Proceed to Payment' // Updated button text
          )}
