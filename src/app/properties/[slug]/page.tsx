@@ -1,9 +1,12 @@
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import type { Property } from '@/types';
-import { placeholderProperties } from '@/data/properties'; // Using placeholder data
+import { placeholderProperties } from '@/data/properties';
 import { PrahovaPageLayout } from '@/components/property/prahova/prahova-page-layout';
 import { ColteiPageLayout } from '@/components/property/coltei/coltei-page-layout';
+import { Header } from '@/components/header'; // Assuming a generic header might still be needed, adjust if not
+import { TestBookingButton } from '@/components/TestBookingButton'; // Import the test button
+
 
 // Function to get property data by slug (replace with actual data fetching)
 async function getPropertyBySlug(slug: string): Promise<Property | undefined> {
@@ -32,45 +35,42 @@ export default async function PropertyDetailsPage({ params }: PropertyDetailsPag
   }
 
   // Conditionally render the layout based on the property slug
-  if (property.slug === 'prahova-mountain-chalet') {
-    return <PrahovaPageLayout property={property} />;
+  const LayoutComponent = property.slug === 'prahova-mountain-chalet'
+    ? PrahovaPageLayout
+    : property.slug === 'coltei-apartment-bucharest'
+      ? ColteiPageLayout
+      : null; // Fallback or default layout if needed
+
+  if (LayoutComponent) {
+    return (
+       <div>
+        {/* Conditionally render TestBookingButton only in development */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="container my-4">
+             <TestBookingButton />
+          </div>
+        )}
+         <LayoutComponent property={property} />
+       </div>
+    );
   }
 
-  if (property.slug === 'coltei-apartment-bucharest') {
-    return <ColteiPageLayout property={property} />;
-  }
 
-  // Fallback for other properties or a default template if needed
-  // For now, return notFound if the slug doesn't match known properties
-  // Or render a default structure if desired
-  // return <DefaultPropertyLayout property={property} />;
-  notFound();
-
+  // Fallback for properties without a specific layout (or could redirect/show error)
+  return (
+    <div className="flex min-h-screen flex-col">
+       {/* Conditionally render TestBookingButton */}
+       {process.env.NODE_ENV === 'development' && (
+         <div className="container my-4">
+           <TestBookingButton />
+         </div>
+       )}
+      {/* Render a generic header/layout or handle differently */}
+       <Header />
+      <main className="flex-grow container py-12 md:py-16">
+        <h1>{property.name}</h1>
+        <p>Generic property page - Layout not defined.</p>
+      </main>
+    </div>
+  );
 }
-
-// Note: DefaultPropertyLayout would be a component you create
-// if you want a standard template for properties not explicitly handled above.
-// Example:
-//
-// import { Header } from '@/components/header'; // Generic header
-// import { Footer } from '@/components/footer'; // Generic footer
-// import { BookingForm } from '@/components/booking-form';
-// import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-// import { Separator } from '@/components/ui/separator';
-// // ... other imports
-//
-// function DefaultPropertyLayout({ property }: { property: Property }) {
-//   // ... standard layout structure using generic Header/Footer and property data ...
-//   return (
-//     <div className="flex min-h-screen flex-col">
-//       <Header /> {/* Use generic header */}
-//       <main className="flex-grow container py-12 md:py-16">
-//         {/* Content similar to the previous [slug]/page.tsx structure */}
-//         <h1>{property.name}</h1>
-//         {/* ... rest of the default details */}
-//         <BookingForm property={property} />
-//       </main>
-//       <Footer /> {/* Use generic footer */}
-//     </div>
-//   );
-// }

@@ -22,6 +22,33 @@ if (!stripeWebhookSecret) {
 
 const stripe = new Stripe(stripeSecretKey);
 
+// Mock data for testing
+const mockBookingData: CreateBookingData = {
+  propertyId: "some-property-id",
+  guestInfo: {
+    firstName: "Test",
+    lastName: "Guest",
+    email: "test@example.com",
+    userId: "some-user-id",
+  },
+  checkInDate: new Date().toISOString(),
+  checkOutDate: new Date(Date.now() + 86400000 * 2).toISOString(),
+  numberOfGuests: 2,
+  pricing: {
+    baseRate: 100,
+    numberOfNights: 2,
+    cleaningFee: 20,
+    subtotal: 220,
+    taxes: 0,
+    total: 220,
+  },
+  paymentInput: {
+    stripePaymentIntentId: "mock-payment-intent-id",
+    amount: 220,
+    status: "succeeded",
+  },
+};
+
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const signature = headers().get('stripe-signature') as string;
@@ -44,6 +71,16 @@ export async function POST(req: NextRequest) {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error';
     console.error(`❌ [Webhook Error] Error verifying webhook signature: ${errorMessage}`);
     return NextResponse.json({ error: `Webhook Error: ${errorMessage}` }, { status: 400 });
+  }
+
+  // --- Check for Test Mode ---
+  const headersList = headers();
+  const testMode = headersList.get('x-test-mode');
+  if (testMode === 'true') {
+      console.warn("⚠️ [Webhook] Test mode enabled. Using mocked data.");
+      const bookingId = await createBooking(mockBookingData);
+      console.log(`✅ [Webhook] Mock Booking ${bookingId} created successfully (Test Mode)`);
+      return NextResponse.json({ received: true, testMode: true });
   }
 
   // Handle the checkout.session.completed event
