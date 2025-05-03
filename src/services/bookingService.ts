@@ -2,6 +2,7 @@
 'use server'; // Mark this module for server-side execution
 
 import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { z } from 'zod'; // Import Zod
 import { db } from '@/lib/firebase'; // Import your initialized Firestore instance
 import type { Booking } from '@/types';
 
@@ -27,42 +28,84 @@ export type CreateBookingData = Omit<Booking,
   };
 };
 
+// Define Zod schema for validation
+const CreateBookingDataSchema = z.object({
+  propertyId: z.string().min(1, { message: 'Property ID is required.' }),
+  guestInfo: z.object({
+    firstName: z.string().min(1, { message: 'Guest first name is required.' }),
+    lastName: z.string(), // Optional
+    email: z.string().email({ message: 'Invalid guest email address.' }),
+    phone: z.string().optional(),
+    address: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    country: z.string().optional(),
+    zipCode: z.string().optional(),
+    userId: z.string().optional(),
+  }),
+  checkInDate: z.string().datetime({ message: 'Invalid check-in date format (ISO string expected).' }),
+  checkOutDate: z.string().datetime({ message: 'Invalid check-out date format (ISO string expected).' }),
+  numberOfGuests: z.number().int().positive({ message: 'Number of guests must be positive.' }),
+  pricing: z.object({
+    baseRate: z.number().positive({ message: 'Base rate must be positive.' }),
+    numberOfNights: z.number().int().positive({ message: 'Number of nights must be positive.' }),
+    cleaningFee: z.number().nonnegative({ message: 'Cleaning fee cannot be negative.' }),
+    subtotal: z.number().positive({ message: 'Subtotal must be positive.' }),
+    taxes: z.number().nonnegative({ message: 'Taxes cannot be negative.' }).optional(),
+    total: z.number().positive({ message: 'Total price must be positive.' }),
+  }),
+  status: z.enum(['pending', 'confirmed', 'cancelled', 'completed']).optional(), // Allow optional status, default below
+  paymentInput: z.object({
+    stripePaymentIntentId: z.string().min(1, { message: 'Stripe Payment Intent ID is required.' }),
+    amount: z.number().positive({ message: 'Payment amount must be positive.' }),
+    status: z.string().min(1, { message: 'Payment status is required.' }),
+  }),
+  notes: z.string().optional(),
+  source: z.string().optional(),
+  externalId: z.string().optional(),
+}).refine(data => new Date(data.checkOutDate) > new Date(data.checkInDate), {
+  message: 'Check-out date must be after check-in date.',
+  path: ['checkOutDate'], // Specify the path of the error
+});
+
 
 /**
  * Creates a new booking document in Firestore based on the bookingExample structure.
- * Includes enhanced error handling and logging.
+ * Includes enhanced error handling, logging, and Zod validation.
  *
- * @param bookingData - The data for the new booking, conforming to CreateBookingData.
+ * @param rawBookingData - The raw data for the new booking, conforming to CreateBookingData.
  * @returns The ID of the newly created booking document.
- * @throws Throws an error if the booking cannot be created, including context like Payment Intent ID.
+ * @throws Throws an error if validation fails or the booking cannot be created, including context like Payment Intent ID.
  */
-export async function createBooking(bookingData: CreateBookingData): Promise<string> {
-   const paymentIntentId = bookingData?.paymentInput?.stripePaymentIntentId || 'N/A';
-   console.log(`[createBooking] Received data for Payment Intent [${paymentIntentId}]:`, JSON.stringify(bookingData, null, 2));
+export async function createBooking(rawBookingData: CreateBookingData): Promise<string> {
+   const paymentIntentId = rawBookingData?.paymentInput?.stripePaymentIntentId || 'N/A';
+   console.log(`[createBooking] Received raw data for Payment Intent [${paymentIntentId}]:`, JSON.stringify(rawBookingData, null, 2));
+
+   // --- Zod Validation ---
+   const validationResult = CreateBookingDataSchema.safeParse(rawBookingData);
+
+   if (!validationResult.success) {
+     const errorMessages = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+     const validationError = new Error(`Invalid booking data: ${errorMessages}`);
+     console.error(`❌ Validation Error creating booking for Payment Intent [${paymentIntentId}]:`, validationError.message);
+     console.error(`[Validation Error Data - Payment Intent: ${paymentIntentId}] Data:`, JSON.stringify(rawBookingData, null, 2));
+     throw validationError; // Re-throw the specific validation error
+   }
+
+   // Use the validated data from now on
+   const bookingData = validationResult.data;
+   console.log(`[createBooking] Data passed validation for Payment Intent [${paymentIntentId}]`);
+
 
   try {
     const bookingsCollection = collection(db, 'bookings');
 
-    // --- Input Validation ---
-    if (!bookingData.propertyId) throw new Error('Missing propertyId.');
-    if (!bookingData.guestInfo?.email) throw new Error('Missing guest email.');
-    if (!bookingData.checkInDate || !bookingData.checkOutDate || isNaN(new Date(bookingData.checkInDate).getTime()) || isNaN(new Date(bookingData.checkOutDate).getTime())) {
-        throw new Error('Invalid check-in or check-out date format received.');
-    }
-     if (new Date(bookingData.checkOutDate) <= new Date(bookingData.checkInDate)) {
-         throw new Error('Check-out date must be after check-in date.');
-     }
-    if (!bookingData.paymentInput?.stripePaymentIntentId) throw new Error('Missing Stripe Payment Intent ID.');
-    if (typeof bookingData.paymentInput?.amount !== 'number' || bookingData.paymentInput.amount <= 0) throw new Error('Invalid payment amount.');
-    if (!bookingData.pricing?.total || bookingData.pricing.total <= 0) throw new Error('Invalid pricing total.');
-    // Add more specific validations as needed...
-
     // --- Data Transformation ---
-    // Convert date strings to Firestore Timestamps
+    // Convert date strings to Firestore Timestamps using validated data
     const checkInTimestamp = Timestamp.fromDate(new Date(bookingData.checkInDate));
     const checkOutTimestamp = Timestamp.fromDate(new Date(bookingData.checkOutDate));
 
-    // Construct the paymentInfo object
+    // Construct the paymentInfo object using validated data
     const paymentInfo: Booking['paymentInfo'] = {
       stripePaymentIntentId: bookingData.paymentInput.stripePaymentIntentId,
       amount: bookingData.paymentInput.amount,
@@ -78,7 +121,7 @@ export async function createBooking(bookingData: CreateBookingData): Promise<str
     const { paymentInput, ...restOfBookingData } = bookingData;
 
     const docData: Omit<Booking, 'id'> = {
-        ...restOfBookingData, // Spread the rest of the data
+        ...restOfBookingData, // Spread the rest of the validated data
         checkInDate: checkInTimestamp,
         checkOutDate: checkOutTimestamp,
         paymentInfo: paymentInfo,
@@ -99,13 +142,19 @@ export async function createBooking(bookingData: CreateBookingData): Promise<str
     return docRef.id;
 
   } catch (error) {
-    // --- Error Handling & Logging ---
-    console.error(`❌ Error creating booking in Firestore for Payment Intent [${paymentIntentId}]:`, error);
-    // Log the data that caused the error for easier debugging
-    console.error(`[createBooking Error Data - Payment Intent: ${paymentIntentId}] Data causing error:`, JSON.stringify(bookingData, null, 2));
+     // --- Firestore/Other Error Handling & Logging ---
+     // Avoid logging validation errors again if they were already caught
+     if (!(error instanceof Error && error.message.startsWith('Invalid booking data:'))) {
+         console.error(`❌ Error creating booking in Firestore for Payment Intent [${paymentIntentId}]:`, error);
+         // Log the data that caused the error for easier debugging
+         console.error(`[createBooking Error Data - Payment Intent: ${paymentIntentId}] Data causing error:`, JSON.stringify(bookingData, null, 2)); // Log validated data here
+     }
 
-    // Construct a more informative error message
-    const errorMessage = `Failed to create booking (Payment Intent: ${paymentIntentId}): ${error instanceof Error ? error.message : String(error)}`;
+    // Construct a more informative error message (unless it's already a validation error)
+    const errorMessage = error instanceof Error
+        ? (error.message.startsWith('Invalid booking data:') ? error.message : `Failed to create booking (Payment Intent: ${paymentIntentId}): ${error.message}`)
+        : `Failed to create booking (Payment Intent: ${paymentIntentId}): ${String(error)}`;
+
     // Re-throw the error to be handled by the caller (e.g., the webhook handler)
     throw new Error(errorMessage);
   }
@@ -118,3 +167,4 @@ export async function createBooking(bookingData: CreateBookingData): Promise<str
 // - getBookingsForUser(userId: string): Promise<Booking[]>
 // - Function to update property availability based on a new booking
 //   - async function updatePropertyAvailability(propertyId: string, checkInDate: Date, checkOutDate: Date, booked: boolean)
+
