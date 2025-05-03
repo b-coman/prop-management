@@ -31,7 +31,7 @@ export function PrahovaHeader() {
            <Link href="#contact" className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900">
             Contact
           </Link>
-           {/* Changed: Wrap Button inside Link */}
+           {/* Link to booking form section */}
            <Link href="#booking-form">
              <Button size="sm" className="bg-green-700 hover:bg-green-800 text-white">
                Book Now
@@ -73,7 +73,7 @@ export function PrahovaHeader() {
                 <Phone className="h-5 w-5" />
                 Contact
               </Link>
-               {/* Changed: Wrap Button inside Link */}
+               {/* Link to booking form section */}
               <Link href="#booking-form">
                  <Button size="lg" className="mt-4 bg-green-700 hover:bg-green-800 text-white">
                    Book Now
@@ -86,7 +86,3 @@ export function PrahovaHeader() {
     </header>
   );
 }
-```
-  </change>
-  <change>
-    <file>src
