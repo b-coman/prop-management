@@ -13,7 +13,7 @@ export interface Property {
     state: string;
     country: string;
     zipCode: string;
-    coordinates: {
+    coordinates: { // Using GeoPoint structure is better in Firestore, but keeping as object for simplicity here
       latitude: number;
       longitude: number;
     };
@@ -24,133 +24,158 @@ export interface Property {
     isFeatured: boolean;
   }>;
   amenities: string[];
-  // Renamed 'details' sub-object properties to top-level for consistency with previous version
-  pricePerNight: number; // Was details.pricePerNight
-  cleaningFee: number; // Was details.cleaningFee
-  maxGuests: number; // Was details.maxGuests
-  bedrooms: number; // Was details.bedrooms
-  beds: number; // Was details.beds - Added based on existing usage
-  bathrooms: number; // Was details.bathrooms
-  squareFeet: number; // Was details.squareFeet
-  // Renamed 'rules' sub-object properties to top-level for consistency
-  checkInTime: string; // Was rules.checkInTime
-  checkOutTime: string; // Was rules.checkOutTime
-  houseRules: string[]; // Was rules.houseRules
-  cancellationPolicy: string; // Was rules.cancellationPolicy
-  // Added fields from propertyExample
-  ratings?: { // Optional as it might not exist initially
+  // Details moved to top-level
+  pricePerNight: number;
+  cleaningFee: number;
+  maxGuests: number;
+  bedrooms: number;
+  beds: number; // Added from usage, assumed present in details
+  bathrooms: number;
+  squareFeet: number;
+  // Rules moved to top-level
+  checkInTime: string;
+  checkOutTime: string;
+  houseRules: string[];
+  cancellationPolicy: string;
+  // Added from propertyExample
+  ratings?: {
     average: number;
     count: number;
   };
-  createdAt?: Timestamp | string; // Allow string for example, use Timestamp in practice
-  updatedAt?: Timestamp | string;
-  ownerId?: string;
-  isActive?: boolean;
+  createdAt: Timestamp; // Use Timestamp in Firestore
+  updatedAt: Timestamp; // Use Timestamp in Firestore
+  ownerId: string; // Reference to the property owner (User ID)
+  isActive: boolean;
 }
 
 // Aligned with bookingExample structure
 export interface Booking {
   id: string; // Corresponds to Document ID
-  propertyId: string;
+  propertyId: string; // Reference to the property document
   guestInfo: {
     firstName: string;
     lastName: string;
     email: string;
-    phone?: string; // Optional as per example
+    phone?: string; // Optional
     address?: string; // Optional
     city?: string; // Optional
     state?: string; // Optional
     country?: string; // Optional
     zipCode?: string; // Optional
-    // Added userId for potential linking to a user account, aligning with security rules example
-    userId?: string;
+    userId?: string; // Optional: Link to User document if guest is a registered user
   };
-  checkInDate: Timestamp | string; // Use Timestamp in practice, allow string for example/metadata
-  checkOutDate: Timestamp | string; // Use Timestamp in practice, allow string for example/metadata
+  checkInDate: Timestamp; // Use Timestamp in Firestore
+  checkOutDate: Timestamp; // Use Timestamp in Firestore
   numberOfGuests: number;
   pricing: {
-    baseRate: number;
+    baseRate: number; // Price per night at time of booking
     numberOfNights: number;
     cleaningFee: number;
-    subtotal: number;
-    taxes?: number; // Optional as per example
-    total: number;
+    subtotal: number; // baseRate * numberOfNights + cleaningFee
+    taxes?: number; // Optional, can be calculated or stored
+    total: number; // Final amount paid
   };
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed'; // Added 'pending'
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   paymentInfo: {
-    stripePaymentIntentId: string; // Renamed from stripeCheckoutSessionId for clarity
-    amount: number;
-    status: string; // e.g., 'succeeded', 'pending', 'failed'
-    paidAt: Timestamp | null | string; // Use Timestamp or null
+    stripePaymentIntentId: string; // Store Payment Intent ID
+    amount: number; // Should match pricing.total (in dollars)
+    status: string; // e.g., 'succeeded', 'paid', 'requires_payment_method' from Stripe
+    paidAt: Timestamp | null; // Timestamp when payment succeeded, or null
   };
-  notes?: string; // Optional
-  source?: string; // Optional (e.g., 'website', 'airbnb')
-  externalId?: string; // Optional
-  createdAt: Timestamp | string;
-  updatedAt: Timestamp | string;
+  notes?: string; // Optional notes from the guest
+  source?: string; // Optional: e.g., 'website', 'airbnb', 'booking.com'
+  externalId?: string; // Optional: Booking ID from an external platform
+  createdAt: Timestamp; // Firestore server timestamp
+  updatedAt: Timestamp; // Firestore server timestamp
 }
 
-// Added User type based on userExample
+// Aligned with userExample structure
 export interface User {
-  id: string; // Corresponds to Document ID (auth user ID)
-  email: string;
+  id: string; // Corresponds to Auth User ID
+  email: string; // From Auth
   firstName?: string;
   lastName?: string;
   phone?: string;
-  role: 'guest' | 'owner' | 'admin'; // Added 'guest' role
-  properties?: string[]; // Property IDs owned/managed
+  role: 'guest' | 'owner' | 'admin'; // Role determines permissions
+  properties?: string[]; // Array of property IDs owned/managed by 'owner' or 'admin'
   settings?: {
     emailNotifications?: boolean;
     smsNotifications?: boolean;
   };
-  createdAt: Timestamp | string;
-  updatedAt: Timestamp | string;
-  lastLogin?: Timestamp | string;
+  createdAt: Timestamp; // Firestore server timestamp
+  updatedAt: Timestamp; // Firestore server timestamp
+  lastLogin?: Timestamp; // Updated on successful login
 }
 
-// Added Review type based on reviewExample
+// Aligned with reviewExample structure
 export interface Review {
   id: string; // Corresponds to Document ID
   propertyId: string;
-  bookingId: string;
-  guestName: string; // Or potentially guestId: string;
-  rating: number;
+  bookingId: string; // Link review to a specific booking
+  guestId?: string; // Optional: Link to User document if guest is registered
+  guestName: string; // Display name (can be anonymized if needed)
+  rating: number; // e.g., 1-5 stars
   comment: string;
-  photos?: string[];
-  date: Timestamp | string;
-  ownerResponse?: {
+  photos?: string[]; // URLs of photos uploaded with the review
+  date: Timestamp; // Date the review was submitted
+  ownerResponse?: { // Optional response from the property owner
     comment: string;
-    date: Timestamp | string;
+    date: Timestamp;
   };
-  isPublished?: boolean;
+  isPublished: boolean; // Whether the review is visible on the site
 }
 
-// --- Placeholder types (can be expanded later if needed) ---
-
-// Minimal Availability type (can be expanded based on availabilityExample)
+// Aligned with availabilityExample structure (simplified for now)
+// Note: Storing availability day-by-day can be complex.
+// A simpler approach might be storing booked date ranges per property.
+// This structure follows the example but might need refinement.
 export interface Availability {
   id: string; // propertyId_YYYY-MM
   propertyId: string;
-  month: string; // YYYY-MM
-  // Simple representation, can be enhanced later
-  unavailableDays: number[]; // Array of day numbers [3, 4, 5]
-  updatedAt: Timestamp | string;
+  month: string; // YYYY-MM format
+  // Using an object might exceed Firestore document size limits for busy properties.
+  // Consider storing booked ranges or using a dedicated availability service.
+  available: { [day: number]: boolean }; // e.g., { 1: true, 2: false, ... }
+  pricingModifiers?: { [day: number]: number }; // e.g., { 6: 1.2 } for 20% higher rate on day 6
+  minimumStay?: { [day: number]: number }; // e.g., { 1: 2 } for 2-night min on day 1
+  updatedAt: Timestamp;
 }
 
-// Minimal Settings type (can be expanded based on settingsExample)
+// Aligned with settingsExample structure
 export interface GlobalSettings {
-  taxRate?: number;
-  defaultMinimumStay?: number;
-  updatedAt?: Timestamp | string;
+  // Document ID should be 'global' or similar singleton ID
+  siteInfo?: {
+    name?: string;
+    contact?: {
+      email?: string;
+      phone?: string;
+    };
+    socialMedia?: {
+      facebook?: string;
+      instagram?: string;
+      // Add others as needed
+    };
+  };
+  booking?: {
+    defaultMinimumStay?: number;
+    maxAdvanceBookingDays?: number;
+    taxRate?: number; // e.g., 0.08 for 8%
+  };
+  maintenance?: {
+    isMaintenanceMode?: boolean;
+    maintenanceMessage?: string;
+  };
+  updatedAt: Timestamp;
 }
 
-// Minimal SyncCalendar type (can be expanded based on syncCalendarExample)
+// Aligned with syncCalendarExample structure
 export interface SyncCalendar {
   id: string; // Corresponds to Document ID
   propertyId: string;
-  platform: string;
-  importUrl?: string;
-  exportUrl?: string;
-  lastSyncedAt?: Timestamp | string;
-  isActive?: boolean;
+  platform: string; // e.g., 'airbnb', 'booking.com', 'vrbo'
+  calendarId?: string; // Optional ID from the platform
+  importUrl?: string; // URL to import external calendar data
+  exportUrl?: string; // URL for external platforms to fetch this property's calendar
+  lastSyncedAt?: Timestamp;
+  isActive: boolean;
 }

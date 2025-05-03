@@ -45,9 +45,19 @@ export async function POST(req: NextRequest) {
     // --- Validate session data ---
     if (session.payment_status !== 'paid') {
         console.warn(`⚠️ Session ${session.id} payment status is ${session.payment_status}. No booking created.`);
-        // Respond early, no booking needed if not paid
         return NextResponse.json({ received: true, message: 'Payment not completed' });
     }
+
+    // Ensure payment_intent is a string or retrieve it if needed
+    const paymentIntentId = typeof session.payment_intent === 'string'
+        ? session.payment_intent
+        : session.payment_intent?.id; // Handle expanded object case if necessary
+
+     if (!paymentIntentId) {
+       console.error(`❌ Missing payment_intent ID in session ${session.id}`);
+       return NextResponse.json({ error: 'Missing payment intent ID' }, { status: 400 });
+     }
+
 
     const metadata = session.metadata;
     if (!metadata) {
@@ -55,56 +65,80 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing metadata' }, { status: 400 });
     }
 
-    // --- Prepare booking data from metadata ---
-    // It's crucial that the metadata keys match exactly what you set in createCheckoutSession
-    const bookingData: Omit<Booking, 'id' | 'createdAt' | 'updatedAt'> = {
-      propertyId: metadata.propertyId,
-      // Placeholder guest info - ideally retrieve from session or customer object if available
-      // In a real app, you might require login or collect guest details before checkout
+     // --- Safely parse metadata ---
+     const propertyId = metadata.propertyId;
+     const checkInDate = metadata.checkInDate; // ISO string
+     const checkOutDate = metadata.checkOutDate; // ISO string
+     const numberOfGuests = parseInt(metadata.numberOfGuests || '1', 10);
+     const numberOfNights = parseInt(metadata.numberOfNights || '0', 10);
+     const pricePerNight = parseFloat(metadata.pricePerNight || '0');
+     const cleaningFee = parseFloat(metadata.cleaningFee || '0');
+     const totalPrice = parseFloat(metadata.totalPrice || '0'); // Total price passed from frontend
+     const guestFirstName = metadata.guestFirstName || 'Guest';
+     const guestLastName = metadata.guestLastName || 'User';
+     const guestEmail = session.customer_details?.email;
+
+     // Validate required metadata
+     if (!propertyId || !checkInDate || !checkOutDate || isNaN(numberOfGuests) || isNaN(numberOfNights) || isNaN(pricePerNight) || isNaN(cleaningFee) || isNaN(totalPrice) || !guestEmail) {
+        console.error(`❌ Invalid or missing metadata fields in session ${session.id}. Metadata:`, metadata);
+        return NextResponse.json({ error: 'Invalid or missing metadata fields' }, { status: 400 });
+     }
+
+     // Calculate subtotal based on metadata provided (can be adjusted if needed)
+     const calculatedSubtotal = (pricePerNight * numberOfNights) + cleaningFee;
+     // Taxes can be complex; using the difference as a fallback if not explicitly provided/calculated elsewhere
+     const taxes = session.total_details?.amount_tax ? session.total_details.amount_tax / 100 : totalPrice - calculatedSubtotal;
+     const finalTotal = session.amount_total ? session.amount_total / 100 : totalPrice; // Prefer total from session
+
+
+    // --- Prepare booking data conforming to CreateBookingData structure ---
+    const bookingDataForDb = {
+      propertyId: propertyId,
       guestInfo: {
-        firstName: metadata.guestFirstName || 'Guest', // Example: get from metadata or session
-        lastName: metadata.guestLastName || 'User',
-        email: session.customer_details?.email || 'unknown@example.com', // Get email from customer details
-        // Add other guest fields if collected and passed in metadata
+        firstName: guestFirstName,
+        lastName: guestLastName,
+        email: guestEmail,
+        // phone: session.customer_details?.phone, // Add if collected/needed
+        userId: metadata.userId || undefined, // Include if you pass userId in metadata
       },
-      checkInDate: metadata.checkInDate, // Pass as ISO string
-      checkOutDate: metadata.checkOutDate, // Pass as ISO string
-      numberOfGuests: parseInt(metadata.numberOfGuests, 10) || 1,
+      checkInDate: checkInDate, // Pass ISO string
+      checkOutDate: checkOutDate, // Pass ISO string
+      numberOfGuests: numberOfGuests,
       pricing: {
-        baseRate: parseFloat(metadata.pricePerNight) || 0, // From metadata
-        numberOfNights: parseInt(metadata.numberOfNights, 10) || 0, // From metadata
-        cleaningFee: parseFloat(metadata.cleaningFee) || 0, // From metadata
-        // Calculate subtotal based on fetched data
-        subtotal: (parseFloat(metadata.pricePerNight) * parseInt(metadata.numberOfNights, 10)) + parseFloat(metadata.cleaningFee),
-        // Taxes might be calculated or retrieved differently
-        taxes: session.total_details?.amount_tax ? session.total_details.amount_tax / 100 : 0, // Get tax from session if available
-        total: session.amount_total ? session.amount_total / 100 : 0, // Total from session (in dollars)
+        baseRate: pricePerNight,
+        numberOfNights: numberOfNights,
+        cleaningFee: cleaningFee,
+        subtotal: calculatedSubtotal, // Use calculated subtotal
+        taxes: taxes, // Use calculated or session tax
+        total: finalTotal, // Use total from session
       },
-      status: 'confirmed', // Set status to confirmed since payment is successful
-      paymentInfo: {
-        stripePaymentIntentId: typeof session.payment_intent === 'string' ? session.payment_intent : '',
-        amount: session.amount_total ? session.amount_total / 100 : 0, // Amount from session (in dollars)
+      status: 'confirmed' as Booking['status'], // Set initial status to confirmed
+      paymentInput: {
+        stripePaymentIntentId: paymentIntentId, // Use the Payment Intent ID
+        amount: finalTotal, // Use final total
         status: session.payment_status, // e.g., 'paid'
-        paidAt: session.payment_status === 'paid' ? new Date().toISOString() : null, // Set paidAt if paid
       },
-      source: 'website',
-      // Add other relevant fields from metadata if needed
+      source: metadata.source || 'website', // Add source if passed in metadata
+      // Add other optional fields if present in metadata
+      notes: metadata.notes || undefined,
+      externalId: metadata.externalId || undefined,
     };
 
     // --- Create booking in Firestore ---
     try {
-      const bookingId = await createBooking(bookingData as any); // Use 'as any' temporarily if types mismatch, refine later
+      // Cast to 'any' temporarily if CreateBookingData type has strict omissions
+      // that are handled internally by createBooking (like createdAt, updatedAt)
+      const bookingId = await createBooking(bookingDataForDb as any);
       console.log(`✅ Booking ${bookingId} created successfully for session ${session.id}`);
 
       // TODO:
       // 1. Update property availability in Firestore for the booked dates.
-      //    - You'll need a function `updatePropertyAvailability(propertyId, startDate, endDate, isAvailable)`
+      //    - Call a function like: await updatePropertyAvailability(propertyId, new Date(checkInDate), new Date(checkOutDate), false);
       // 2. Send confirmation email to the guest.
       // 3. Send notification email/SMS to the property owner.
 
     } catch (error) {
       console.error(`❌ Error saving booking for session ${session.id}:`, error);
-      // Return 500 status to indicate failure to Stripe, prompting retries
       return NextResponse.json({ error: 'Failed to save booking' }, { status: 500 });
     }
   } else {
