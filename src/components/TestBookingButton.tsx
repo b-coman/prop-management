@@ -46,23 +46,20 @@ export function TestBookingButton() {
 
   const handleClick = async () => {
     setLoading(true);
-    console.log("[TestBookingButton] Clicked! Attempting to create booking with mock data:", JSON.stringify(mockBookingData, null, 2));
+    console.log("[TestBookingButton] Attempting to create booking with mock data...");
     try {
       // Call the server action (createBooking)
-      console.log("[TestBookingButton] Calling createBooking server action...");
       const bookingId = await createBooking(mockBookingData);
-      console.log(`[TestBookingButton] createBooking action finished. Result Booking ID: ${bookingId}`);
 
       // Check if bookingId is actually returned
       if (bookingId) {
-          console.log(`[TestBookingButton] Booking apparently created successfully! Booking ID: ${bookingId}`);
+          console.log(`[TestBookingButton] Booking created successfully! Booking ID: ${bookingId}`);
           toast({
             title: "Test Booking Successful",
             description: `Booking created in Firestore with ID: ${bookingId}`,
           });
       } else {
-         // This case might happen if createBooking returns undefined/null on error, although it should throw
-         console.error("[TestBookingButton] createBooking returned a falsy value, indicating a possible failure.", bookingId);
+         console.error("[TestBookingButton] createBooking returned a falsy value, indicating a possible failure.");
          toast({
             title: "Test Booking Possibly Failed",
             description: "The booking creation process completed but did not return a valid ID. Check server logs.",
@@ -79,14 +76,14 @@ export function TestBookingButton() {
         variant: "destructive",
       });
     } finally {
-      console.log("[TestBookingButton] Finished handleClick execution.");
+      // console.log("[TestBookingButton] Finished handleClick execution."); // Reduced logging
       setLoading(false);
     }
   };
 
   // Only render in development environment
   if (process.env.NODE_ENV !== 'development') {
-    console.log("[TestBookingButton] Not rendering in non-development environment.");
+    // console.log("[TestBookingButton] Not rendering in non-development environment."); // Reduced logging
     return null;
   }
   console.log("[TestBookingButton] Rendering button in development environment.");

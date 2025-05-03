@@ -25,17 +25,7 @@ import { getUnavailableDatesForProperty } from '@/services/bookingService'; // I
 
 interface BookingFormProps {
   property: Property;
-  // unavailableDates?: Date[]; // Consider fetching/passing this from Firestore - REMOVED, WILL FETCH INTERNALLY
 }
-
-// Mock unavailable dates for demonstration - REMOVED, WILL FETCH FROM FIRESTORE
-// const mockUnavailableDates = [
-//   addDays(new Date(), 5),
-//   addDays(new Date(), 6),
-//   addDays(new Date(), 10),
-//   addDays(new Date(), 11),
-//   addDays(new Date(), 12),
-// ];
 
 // Load Stripe outside component to avoid recreating on every render
 // Ensure your Stripe publishable key is in an environment variable
@@ -46,8 +36,8 @@ if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
 
 
 export function BookingForm({ property }: BookingFormProps) {
-  console.log("--- [BookingForm] Component Rendered ---");
-  console.log("[BookingForm] Property ID:", property.id);
+  // console.log("--- [BookingForm] Component Rendered ---"); // Reduced logging
+  // console.log("[BookingForm] Property ID:", property.id); // Reduced logging
   const [date, setDate] = useState<DateRange | undefined>(undefined);
   const [numberOfGuests, setNumberOfGuests] = useState(1);
   const [totalPrice, setTotalPrice] = useState<number | null>(null);
@@ -59,15 +49,14 @@ export function BookingForm({ property }: BookingFormProps) {
 
   // Fetch unavailable dates when the component mounts or property changes
   useEffect(() => {
-    console.log("[BookingForm Effect] Starting to fetch availability for property:", property.id);
+    // console.log("[BookingForm Effect] Starting to fetch availability for property:", property.id); // Reduced logging
     async function fetchAvailability() {
       setIsLoadingAvailability(true);
-      console.log("[BookingForm fetchAvailability] Set loading state to true.");
+      // console.log("[BookingForm fetchAvailability] Set loading state to true."); // Reduced logging
       try {
-        console.log(`[BookingForm fetchAvailability] Calling getUnavailableDatesForProperty for property ${property.id}...`);
+        // console.log(`[BookingForm fetchAvailability] Calling getUnavailableDatesForProperty for property ${property.id}...`); // Reduced logging
         const unavailable = await getUnavailableDatesForProperty(property.id);
-        console.log(`[BookingForm fetchAvailability] Received ${unavailable.length} unavailable dates for property ${property.id}.`);
-        // console.log("[BookingForm fetchAvailability] Unavailable Dates:", unavailable.map(d => format(d, 'yyyy-MM-dd'))); // Log formatted dates
+        // console.log(`[BookingForm fetchAvailability] Received ${unavailable.length} unavailable dates for property ${property.id}.`); // Reduced logging
         setUnavailableDates(unavailable);
       } catch (error) {
         console.error(`❌ [BookingForm fetchAvailability] Error fetching property availability for ${property.id}:`, error);
@@ -76,10 +65,9 @@ export function BookingForm({ property }: BookingFormProps) {
           description: "Could not load property availability. Please try refreshing the page.",
           variant: "destructive",
         });
-        // Set empty array or handle error state appropriately
         setUnavailableDates([]);
       } finally {
-        console.log("[BookingForm fetchAvailability] Setting loading state to false.");
+        // console.log("[BookingForm fetchAvailability] Setting loading state to false."); // Reduced logging
         setIsLoadingAvailability(false);
       }
     }
@@ -89,24 +77,22 @@ export function BookingForm({ property }: BookingFormProps) {
 
 
   useEffect(() => {
-    console.log("[BookingForm Effect] Date range changed:", date);
+    // console.log("[BookingForm Effect] Date range changed:", date); // Reduced logging
     if (date?.from && date?.to) {
-      // Ensure 'to' is strictly after 'from'
       if (date.to > date.from) {
         const nights = differenceInDays(date.to, date.from);
-        console.log(`[BookingForm Effect] Calculated nights: ${nights}`);
+        // console.log(`[BookingForm Effect] Calculated nights: ${nights}`); // Reduced logging
         setNumberOfNights(nights);
         const calculatedPrice = nights * property.pricePerNight + property.cleaningFee;
-        console.log(`[BookingForm Effect] Calculated price: ${calculatedPrice}`);
+        // console.log(`[BookingForm Effect] Calculated price: ${calculatedPrice}`); // Reduced logging
         setTotalPrice(calculatedPrice);
       } else {
-         // Reset if 'to' is not after 'from'
-         console.log("[BookingForm Effect] Check-out date not after check-in. Resetting price/nights.");
+        // console.log("[BookingForm Effect] Check-out date not after check-in. Resetting price/nights."); // Reduced logging
         setNumberOfNights(0);
         setTotalPrice(null);
       }
     } else {
-       console.log("[BookingForm Effect] Date range incomplete. Resetting price/nights.");
+       // console.log("[BookingForm Effect] Date range incomplete. Resetting price/nights."); // Reduced logging
       setNumberOfNights(0);
       setTotalPrice(null);
     }
@@ -116,59 +102,59 @@ export function BookingForm({ property }: BookingFormProps) {
   const handleGuestChange = (change: number) => {
     setNumberOfGuests((prev) => {
       const newCount = prev + change;
-       console.log(`[BookingForm handleGuestChange] Attempting to change guests from ${prev} by ${change} to ${newCount}`);
+       // console.log(`[BookingForm handleGuestChange] Attempting to change guests from ${prev} by ${change} to ${newCount}`); // Reduced logging
       if (newCount < 1) {
-        console.log("[BookingForm handleGuestChange] Guest count cannot be less than 1.");
+        // console.log("[BookingForm handleGuestChange] Guest count cannot be less than 1."); // Reduced logging
         return 1;
       }
       if (newCount > property.maxGuests) {
-        console.log(`[BookingForm handleGuestChange] Guest count cannot exceed max guests (${property.maxGuests}).`);
+        // console.log(`[BookingForm handleGuestChange] Guest count cannot exceed max guests (${property.maxGuests}).`); // Reduced logging
         return property.maxGuests;
       }
-       console.log(`[BookingForm handleGuestChange] Setting guest count to ${newCount}.`);
+       // console.log(`[BookingForm handleGuestChange] Setting guest count to ${newCount}.`); // Reduced logging
       return newCount;
     });
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    console.log("--- [BookingForm handleSubmit] Form submitted ---");
+    // console.log("--- [BookingForm handleSubmit] Form submitted ---"); // Reduced logging
     setIsSubmitting(true); // Start loading
-    console.log("[BookingForm handleSubmit] Set submitting state to true.");
+    // console.log("[BookingForm handleSubmit] Set submitting state to true."); // Reduced logging
 
     if (!date?.from || !date?.to) {
-       console.log("[BookingForm handleSubmit] Validation failed: Date range incomplete.");
+       // console.log("[BookingForm handleSubmit] Validation failed: Date range incomplete."); // Reduced logging
        toast({
         title: "Error",
         description: "Please select check-in and check-out dates.",
         variant: "destructive",
       });
        setIsSubmitting(false);
-       console.log("--- [BookingForm handleSubmit] Finished (validation error) ---");
+       // console.log("--- [BookingForm handleSubmit] Finished (validation error) ---"); // Reduced logging
       return;
     }
 
     if (numberOfNights <= 0) {
-       console.log("[BookingForm handleSubmit] Validation failed: Check-out date not after check-in.");
+       // console.log("[BookingForm handleSubmit] Validation failed: Check-out date not after check-in."); // Reduced logging
        toast({
         title: "Error",
         description: "Check-out date must be after check-in date.",
         variant: "destructive",
       });
       setIsSubmitting(false);
-       console.log("--- [BookingForm handleSubmit] Finished (validation error) ---");
+       // console.log("--- [BookingForm handleSubmit] Finished (validation error) ---"); // Reduced logging
       return;
     }
 
      if (!totalPrice) {
-        console.log("[BookingForm handleSubmit] Validation failed: Total price not calculated.");
+        // console.log("[BookingForm handleSubmit] Validation failed: Total price not calculated."); // Reduced logging
        toast({
         title: "Error",
         description: "Could not calculate total price.",
         variant: "destructive",
       });
        setIsSubmitting(false);
-        console.log("--- [BookingForm handleSubmit] Finished (validation error) ---");
+        // console.log("--- [BookingForm handleSubmit] Finished (validation error) ---"); // Reduced logging
        return;
     }
 
@@ -180,13 +166,13 @@ export function BookingForm({ property }: BookingFormProps) {
         variant: "destructive",
       });
        setIsSubmitting(false);
-        console.log("--- [BookingForm handleSubmit] Finished (config error) ---");
+        // console.log("--- [BookingForm handleSubmit] Finished (config error) ---"); // Reduced logging
        return;
     }
 
 
     try {
-      console.log("[BookingForm handleSubmit] Calling createCheckoutSession server action...");
+      // console.log("[BookingForm handleSubmit] Calling createCheckoutSession server action..."); // Reduced logging
       // 1. Call the server action to create a checkout session
       const checkoutInput = {
         property: property,
@@ -196,9 +182,9 @@ export function BookingForm({ property }: BookingFormProps) {
         totalPrice: totalPrice,
         numberOfNights: numberOfNights,
       };
-      console.log("[BookingForm handleSubmit] Checkout Session Input:", JSON.stringify(checkoutInput, null, 2));
+      // console.log("[BookingForm handleSubmit] Checkout Session Input:", JSON.stringify(checkoutInput, null, 2)); // Reduced logging
       const result = await createCheckoutSession(checkoutInput);
-      console.log("[BookingForm handleSubmit] createCheckoutSession Result:", result);
+      // console.log("[BookingForm handleSubmit] createCheckoutSession Result:", result); // Reduced logging
 
 
        if (result.error || !result.sessionId) {
@@ -207,17 +193,17 @@ export function BookingForm({ property }: BookingFormProps) {
       }
 
       const { sessionId } = result;
-      console.log(`[BookingForm handleSubmit] Received Stripe Session ID: ${sessionId}`);
+      // console.log(`[BookingForm handleSubmit] Received Stripe Session ID: ${sessionId}`); // Reduced logging
 
 
       // 2. Redirect to Stripe Checkout
-      console.log("[BookingForm handleSubmit] Attempting to load Stripe.js...");
+      // console.log("[BookingForm handleSubmit] Attempting to load Stripe.js..."); // Reduced logging
       const stripe = await stripePromise;
       if (!stripe) {
          console.error("❌ [BookingForm handleSubmit] Stripe.js failed to load.");
          throw new Error('Stripe.js has not loaded yet.');
       }
-      console.log("[BookingForm handleSubmit] Stripe.js loaded. Redirecting to checkout...");
+      // console.log("[BookingForm handleSubmit] Stripe.js loaded. Redirecting to checkout..."); // Reduced logging
 
       const { error } = await stripe.redirectToCheckout({ sessionId });
 
@@ -231,7 +217,7 @@ export function BookingForm({ property }: BookingFormProps) {
         });
          setIsSubmitting(false); // Stop loading on redirect error
       } else {
-          console.log("[BookingForm handleSubmit] Redirecting to Stripe...");
+          // console.log("[BookingForm handleSubmit] Redirecting to Stripe..."); // Reduced logging
           // User is redirected, no need to set submitting false here.
       }
 
@@ -245,12 +231,11 @@ export function BookingForm({ property }: BookingFormProps) {
       });
        setIsSubmitting(false); // Stop loading on error
     }
-     console.log("--- [BookingForm handleSubmit] Finished execution (unless redirected) ---");
+     // console.log("--- [BookingForm handleSubmit] Finished execution (unless redirected) ---"); // Reduced logging
      // Don't set submitting false here if redirect is successful
-     // setIsSubmitting(false);
   };
 
-  console.log("[BookingForm Render] Current state: isLoadingAvailability=", isLoadingAvailability, "isSubmitting=", isSubmitting, "date=", date);
+  // console.log("[BookingForm Render] Current state: isLoadingAvailability=", isLoadingAvailability, "isSubmitting=", isSubmitting, "date=", date); // Reduced logging
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
