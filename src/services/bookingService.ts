@@ -35,8 +35,15 @@ type CreateBookingData = Omit<Booking,
  * @throws Throws an error if the booking cannot be created.
  */
 export async function createBooking(bookingData: CreateBookingData): Promise<string> {
+   console.log('[createBooking Data] Received:', JSON.stringify(bookingData, null, 2));
+
   try {
     const bookingsCollection = collection(db, 'bookings');
+
+    // Validate date strings before conversion
+    if (!bookingData.checkInDate || !bookingData.checkOutDate || isNaN(new Date(bookingData.checkInDate).getTime()) || isNaN(new Date(bookingData.checkOutDate).getTime())) {
+        throw new Error('Invalid check-in or check-out date format received.');
+    }
 
     // Convert date strings to Firestore Timestamps
     const checkInTimestamp = Timestamp.fromDate(new Date(bookingData.checkInDate));
@@ -48,36 +55,41 @@ export async function createBooking(bookingData: CreateBookingData): Promise<str
       amount: bookingData.paymentInput.amount,
       status: bookingData.paymentInput.status,
       // Set paidAt timestamp only if payment status indicates success
+      // Use Timestamp.now() because serverTimestamp() can only be used in set/update/add directly
       paidAt: bookingData.paymentInput.status === 'succeeded' || bookingData.paymentInput.status === 'paid'
-        ? Timestamp.now() // Use Timestamp.now() as serverTimestamp cannot be conditionally set easily here
+        ? Timestamp.now()
         : null,
     };
 
     // Prepare the document data for Firestore, aligning with Booking type
+    // Omit 'paymentInput' from the top level as it's now part of 'paymentInfo'
+    const { paymentInput, ...restOfBookingData } = bookingData;
+
     const docData: Omit<Booking, 'id'> = {
-      propertyId: bookingData.propertyId,
-      guestInfo: bookingData.guestInfo,
-      checkInDate: checkInTimestamp,
-      checkOutDate: checkOutTimestamp,
-      numberOfGuests: bookingData.numberOfGuests,
-      pricing: bookingData.pricing,
-      status: bookingData.status, // Should be 'confirmed' if payment succeeded
-      paymentInfo: paymentInfo,
-      notes: bookingData.notes,
-      source: bookingData.source,
-      externalId: bookingData.externalId,
-      createdAt: serverTimestamp(), // Firestore generates timestamp on the server
-      updatedAt: serverTimestamp(), // Firestore generates timestamp on the server
+        ...restOfBookingData, // Spread the rest of the data
+        checkInDate: checkInTimestamp,
+        checkOutDate: checkOutTimestamp,
+        paymentInfo: paymentInfo,
+        createdAt: serverTimestamp(), // Firestore generates timestamp on the server
+        updatedAt: serverTimestamp(), // Firestore generates timestamp on the server
     };
+
+    console.log('[Firestore Doc Data] Saving:', JSON.stringify(docData, (key, value) =>
+        // Custom replacer to handle Timestamp objects for logging, as they don't stringify well
+        value instanceof Timestamp ? value.toDate().toISOString() : value,
+    2));
+
 
     // Add the document to the 'bookings' collection
     const docRef = await addDoc(bookingsCollection, docData);
 
-    console.log('Booking created successfully with ID:', docRef.id);
+    console.log(`✅ Booking created successfully with ID: ${docRef.id}`);
     return docRef.id;
 
   } catch (error) {
-    console.error('Error creating booking in Firestore:', error);
+    console.error('❌ Error creating booking in Firestore:', error);
+    // Log the data that caused the error
+    console.error('[createBooking Error Data] Data causing error:', JSON.stringify(bookingData, null, 2));
     // Re-throw the error to be handled by the caller (e.g., the webhook handler)
     throw new Error(`Failed to create booking: ${error instanceof Error ? error.message : String(error)}`);
   }
