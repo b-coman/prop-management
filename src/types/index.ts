@@ -42,10 +42,13 @@ export interface Property {
     average: number;
     count: number;
   };
-  createdAt: Timestamp; // Use Timestamp in Firestore
-  updatedAt: Timestamp; // Use Timestamp in Firestore
-  ownerId: string; // Reference to the property owner (User ID)
-  isActive: boolean;
+  createdAt?: Timestamp; // Use Timestamp in Firestore - Made optional as example lacks it
+  updatedAt?: Timestamp; // Use Timestamp in Firestore - Made optional as example lacks it
+  ownerId?: string; // Reference to the property owner (User ID) - Made optional as example lacks it
+  isActive?: boolean; // Made optional as example lacks it
+  // Fields for external platform synchronization
+  airbnbListingId?: string;
+  bookingComListingId?: string;
 }
 
 // Aligned with bookingExample structure

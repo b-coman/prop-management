@@ -34,6 +34,9 @@ export const placeholderProperties: Property[] = [
     checkOutTime: '11:00 AM',
     houseRules: ['No smoking', 'No parties or events', 'Pets allowed upon request'],
     cancellationPolicy: 'Full refund for cancellations made within 48 hours of booking, if the check-in date is at least 14 days away. 50% refund for cancellations made at least 7 days before check-in. No refunds for cancellations made within 7 days of check-in.',
+    // Placeholder IDs for sync
+    airbnbListingId: 'airbnb123',
+    bookingComListingId: undefined, // Not listed on Booking.com
   },
   {
     id: 'prop2',
@@ -68,5 +71,45 @@ export const placeholderProperties: Property[] = [
     checkOutTime: '10:00 AM',
     houseRules: ['No smoking', 'No large gatherings', 'Quiet hours after 10 PM'],
     cancellationPolicy: 'Strict: 50% refund up until 1 week prior to arrival, except fees.',
+    // Placeholder IDs for sync
+    airbnbListingId: 'airbnb456',
+    bookingComListingId: 'booking789',
+  },
+  {
+    id: 'prop3',
+    name: 'Downtown Urban Loft',
+    slug: 'downtown-urban-loft',
+    description:
+      'Stylish loft in the heart of the city. Features high ceilings, large windows, modern furnishings, and proximity to restaurants, nightlife, and attractions. Ideal for urban explorers and business travelers.',
+    shortDescription: 'Stylish loft in the heart of the city.',
+    location: {
+      address: '789 City Center Blvd',
+      city: 'Metropolis',
+      state: 'NY',
+      country: 'USA',
+      zipCode: '10001',
+      coordinates: { latitude: 40.7128, longitude: -74.0060 },
+    },
+    images: [
+      { url: 'https://picsum.photos/seed/prop3_1/800/600', alt: 'Living area of the loft', isFeatured: true },
+      { url: 'https://picsum.photos/seed/prop3_2/800/600', alt: 'Bedroom area', isFeatured: false },
+      { url: 'https://picsum.photos/seed/prop3_3/800/600', alt: 'Kitchenette', isFeatured: false },
+      { url: 'https://picsum.photos/seed/prop3_4/800/600', alt: 'View from window', isFeatured: false },
+    ],
+    amenities: ['WiFi', 'Kitchen', 'TV', 'Washer/Dryer'], // No parking usually downtown
+    pricePerNight: 300,
+    cleaningFee: 60,
+    maxGuests: 2,
+    bedrooms: 1, // Studio/Loft often count as 1 bedroom
+    beds: 1,
+    bathrooms: 1,
+    squareFeet: 700,
+    checkInTime: '3:00 PM',
+    checkOutTime: '12:00 PM',
+    houseRules: ['No smoking', 'No pets', 'Keep noise levels down'],
+    cancellationPolicy: 'Flexible: Full refund 1 day prior to arrival.',
+    // Placeholder IDs for sync
+    airbnbListingId: 'airbnb789',
+    bookingComListingId: 'booking101',
   },
 ];
