@@ -184,5 +184,3 @@ export interface SyncCalendar {
   lastSyncedAt?: Timestamp;
   isActive: boolean;
 }
-
-    
