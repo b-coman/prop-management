@@ -102,6 +102,7 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
       cancel_url: `${origin}/booking/cancel?property_slug=${property.slug}`,
        // Include customer email if available, helps Stripe populate customer info
       customer_email: guestEmail, // Pass guest email to Stripe
+      phone_number_collection: { enabled: true,},
       // Pass necessary booking details in metadata for the webhook
       metadata: metadata, // Pass the prepared metadata
        // payment_intent_data: {
