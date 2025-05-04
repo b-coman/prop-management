@@ -46,7 +46,7 @@ export async function simulateWebhookSuccess(
     checkOutDate,
     numberOfGuests,
     numberOfNights,
-    totalPrice,
+    totalPrice, // This is the final price received from the URL
     appliedCouponCode,
     discountPercentage,
   } = validationResult.data;
@@ -54,27 +54,42 @@ export async function simulateWebhookSuccess(
   console.log(`[Simulate Webhook] Processing simulation for Session ID: ${sessionId}, Property ID: ${propertyId}`);
 
   try {
-    // 1. Fetch Property Details (needed for pricing calculation) - Optional but good practice
-    //    In a real webhook, you'd get this from metadata, but here we fetch for accuracy
+    // 1. Fetch Property Details (needed for pricing calculation)
+    console.log(`[Simulate Webhook] Fetching property details for ID: ${propertyId}`);
     const propertyRef = doc(db, 'properties', propertyId);
     const propertySnap = await getDoc(propertyRef);
     if (!propertySnap.exists()) {
       throw new Error(`Property with ID ${propertyId} not found for simulation.`);
     }
     const propertyData = propertySnap.data();
-    const baseRate = propertyData.pricePerNight || 0;
-    const cleaningFee = propertyData.cleaningFee || 0;
-    const extraGuestFee = propertyData.extraGuestFee || 0;
-    const baseOccupancy = propertyData.baseOccupancy || 1;
+    console.log('[Simulate Webhook] Property data fetched:', propertyData);
 
-    // 2. Reconstruct Pricing Details (as webhook would)
+    const baseRate = propertyData.pricePerNight ?? 0;
+    const cleaningFee = propertyData.cleaningFee ?? 0;
+    const extraGuestFee = propertyData.extraGuestFee ?? 0;
+    const baseOccupancy = propertyData.baseOccupancy ?? 1;
+
+    // 2. Reconstruct Pricing Details (crucial step, must match createBooking expectations)
+    console.log('[Simulate Webhook] Reconstructing pricing details...');
     const numberOfExtraGuests = Math.max(0, numberOfGuests - baseOccupancy);
     const accommodationTotal = (baseRate * numberOfNights) + (extraGuestFee * numberOfExtraGuests * numberOfNights);
     const subtotal = accommodationTotal + cleaningFee;
     const discountAmount = discountPercentage ? subtotal * (discountPercentage / 100) : 0;
-    const taxes = Math.max(0, totalPrice - (subtotal - discountAmount)); // Calculate taxes based on final price
+
+    // VERY IMPORTANT: Ensure the totalPrice used in the mock matches the one from the URL params
+    // Calculate taxes based on the difference, but ensure the total matches.
+    const calculatedTotalBeforeTax = subtotal - discountAmount;
+    const taxes = Math.max(0, totalPrice - calculatedTotalBeforeTax); // Derive taxes
+
+    console.log(`[Simulate Webhook Pricing] BaseRate: ${baseRate}, Nights: ${numberOfNights}, ExtraGuests: ${numberOfExtraGuests}, ExtraFee: ${extraGuestFee}`);
+    console.log(`[Simulate Webhook Pricing] AccommodationTotal: ${accommodationTotal}, CleaningFee: ${cleaningFee}, Subtotal: ${subtotal}`);
+    console.log(`[Simulate Webhook Pricing] Discount: ${discountAmount} (${discountPercentage}%), Taxes (derived): ${taxes}`);
+    console.log(`[Simulate Webhook Pricing] Final Calculated Total (for validation): ${calculatedTotalBeforeTax + taxes}`);
+    console.log(`[Simulate Webhook Pricing] Final Total from URL (used): ${totalPrice}`);
+
 
     // 3. Construct Mock Booking Data
+    console.log('[Simulate Webhook] Constructing mock booking data...');
     const mockBookingData: CreateBookingData = {
       propertyId: propertyId,
       guestInfo: { // Using generic mock data for guest info
@@ -87,7 +102,7 @@ export async function simulateWebhookSuccess(
       checkInDate: checkInDate,
       checkOutDate: checkOutDate,
       numberOfGuests: numberOfGuests,
-      pricing: {
+      pricing: { // Ensure this matches the structure expected by createBooking
         baseRate: baseRate,
         numberOfNights: numberOfNights,
         cleaningFee: cleaningFee,
@@ -95,14 +110,14 @@ export async function simulateWebhookSuccess(
         numberOfExtraGuests: numberOfExtraGuests,
         accommodationTotal: accommodationTotal,
         subtotal: subtotal,
-        taxes: taxes,
-        discountAmount: discountAmount,
-        total: totalPrice, // Use the final total price from params
+        taxes: taxes, // Use derived taxes
+        discountAmount: discountAmount, // Use calculated discount
+        total: totalPrice, // *** USE THE TOTAL PRICE FROM URL PARAMS ***
       },
       appliedCouponCode: appliedCouponCode,
       paymentInput: {
         stripePaymentIntentId: `sim_${sessionId}`, // Indicate simulation
-        amount: totalPrice,
+        amount: totalPrice, // Use the final total price from params
         status: "succeeded", // Simulate success
       },
       status: 'confirmed' as Booking['status'], // Directly set status
@@ -121,6 +136,8 @@ export async function simulateWebhookSuccess(
 
   } catch (error) {
     console.error(`❌ [Simulate Webhook] Error during simulation for session ${sessionId}:`, error);
-    return { success: false, error: `Simulation failed: ${error instanceof Error ? error.message : String(error)}` };
+    // Provide a more specific error message from the caught error
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, error: `Simulation failed: ${errorMessage}` };
   }
 }
