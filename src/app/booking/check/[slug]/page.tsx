@@ -5,7 +5,8 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Header } from '@/components/header'; // Assuming a generic header
 import { AvailabilityCheck } from '@/components/booking/availability-check'; // Import the new component
-import { getPropertyBySlug } from '@/app/properties/[slug]/page'; // Re-use the fetch function
+// Correct import path: Import directly from the file where it's defined
+import { getPropertyBySlug } from '@/app/properties/[slug]/page';
 
 interface AvailabilityCheckPageProps {
   params: { slug: string };

@@ -13,7 +13,8 @@ import { db } from '@/lib/firebase';
 // import { InitialBookingForm } from '@/components/booking/initial-booking-form'; // Assuming this new component exists
 
 // Function to get property data by slug (from Firestore)
-async function getPropertyBySlug(slug: string): Promise<Property | undefined> {
+// **** EXPORT the function ****
+export async function getPropertyBySlug(slug: string): Promise<Property | undefined> {
     try {
         const propertiesCollection = collection(db, 'properties');
         const q = query(propertiesCollection, where('slug', '==', slug));
@@ -40,10 +41,11 @@ async function getPropertyBySlug(slug: string): Promise<Property | undefined> {
                  createdAt: convertToDate(data.createdAt),
                  updatedAt: convertToDate(data.updatedAt),
                  // Handle nested timestamps if necessary
+                 // Ensure houseRules is always an array
+                 houseRules: Array.isArray(data.houseRules) ? data.houseRules : [],
             } as Property;
 
             // Ensure arrays are always present
-             propertyData.houseRules = Array.isArray(propertyData.houseRules) ? propertyData.houseRules : [];
              propertyData.amenities = Array.isArray(propertyData.amenities) ? propertyData.amenities : [];
              propertyData.images = Array.isArray(propertyData.images) ? propertyData.images : [];
 
