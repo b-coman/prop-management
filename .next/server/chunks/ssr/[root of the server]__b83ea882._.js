@@ -1125,7 +1125,8 @@ async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ createPendingBookingAct
             numberOfGuests,
             pricing,
             status: 'pending',
-            appliedCouponCode: appliedCouponCode ?? undefined,
+            // Ensure appliedCouponCode is stored as null if not provided, not undefined
+            appliedCouponCode: appliedCouponCode ?? null,
             createdAt: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["serverTimestamp"])(),
             updatedAt: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["serverTimestamp"])(),
             // Payment info will be added/updated by the webhook
@@ -1156,9 +1157,10 @@ async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ createPendingBookingAct
         // Check for specific Firestore invalid data error
         if (errorMessage.includes('invalid data') || errorMessage.includes('Unsupported field value')) {
             console.error("[Action createPendingBookingAction] Firestore data error details:", errorMessage);
+            // Provide cleaner error message
             return {
                 error: `Failed to create pending booking due to invalid data. Please check input values. Details: ${errorMessage.split(' (')[0]}`
-            }; // Provide cleaner error message
+            };
         }
         return {
             error: `Failed to create pending booking: ${errorMessage}`
