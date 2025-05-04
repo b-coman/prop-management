@@ -91,6 +91,7 @@ export async function generateStaticParams() {
 
 export default async function PropertyDetailsPage({ params }: PropertyDetailsPageProps) {
   // Fetch property data using the slug from params
+  // This line should be correct within an async component
   const property = await getPropertyBySlug(params.slug);
 
   if (!property) {

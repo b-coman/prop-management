@@ -3169,7 +3169,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$propert
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$header$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/header.tsx [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$firestore$2f$dist$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/firestore/dist/index.mjs [app-rsc] (ecmascript) <module evaluation>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@firebase/firestore/dist/index.node.mjs [app-rsc] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/firebase.ts [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/firebase.ts [app-rsc] (ecmascript)"); // Import db for data fetching
 ;
 ;
 ;
@@ -3179,6 +3179,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts
 ;
 async function getPropertyBySlug(slug) {
     try {
+        // **** Use Client SDK ****
         const propertiesCollection = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'properties');
         const q = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(propertiesCollection, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["where"])('slug', '==', slug));
         const querySnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(q);
@@ -3195,18 +3196,24 @@ async function getPropertyBySlug(slug) {
                 }
                 return undefined;
             };
+            // Convert relevant fields
             const propertyData = {
                 id: doc.id,
                 ...data,
                 createdAt: convertToDate(data.createdAt),
                 updatedAt: convertToDate(data.updatedAt),
-                // Handle nested timestamps if necessary
-                // Ensure houseRules is always an array
+                // Ensure arrays are always present even if missing in Firestore
+                images: Array.isArray(data.images) ? data.images : [],
+                amenities: Array.isArray(data.amenities) ? data.amenities : [],
                 houseRules: Array.isArray(data.houseRules) ? data.houseRules : []
             };
-            // Ensure arrays are always present
-            propertyData.amenities = Array.isArray(propertyData.amenities) ? propertyData.amenities : [];
-            propertyData.images = Array.isArray(propertyData.images) ? propertyData.images : [];
+            // Ensure nested arrays/objects exist if needed, e.g., ratings
+            if (!propertyData.ratings) {
+                propertyData.ratings = {
+                    average: 0,
+                    count: 0
+                }; // Default ratings if missing
+            }
             return propertyData;
         } else {
             console.warn(`[getPropertyBySlug] Property with slug '${slug}' not found.`);
@@ -3219,6 +3226,7 @@ async function getPropertyBySlug(slug) {
 }
 async function generateStaticParams() {
     try {
+        // **** Use Client SDK ****
         const propertiesCollection = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'properties');
         const snapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(propertiesCollection);
         if (snapshot.empty) {
@@ -3227,7 +3235,7 @@ async function generateStaticParams() {
         }
         const params = snapshot.docs.map((doc)=>({
                 slug: doc.data().slug
-            })).filter((param)=>!!param.slug);
+            })).filter((param)=>!!param.slug); // Ensure slug is not null/undefined
         return params;
     } catch (error) {
         console.error("❌ Error fetching properties for generateStaticParams:", error);
@@ -3235,7 +3243,7 @@ async function generateStaticParams() {
     }
 }
 async function PropertyDetailsPage({ params }) {
-    // Fetch property data
+    // Fetch property data using the slug from params
     const property = await getPropertyBySlug(params.slug);
     if (!property) {
         (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$components$2f$navigation$2e$react$2d$server$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["notFound"])();
@@ -3250,12 +3258,12 @@ async function PropertyDetailsPage({ params }) {
                 property: property
             }, void 0, false, {
                 fileName: "[project]/src/app/properties/[slug]/page.tsx",
-                lineNumber: 111,
+                lineNumber: 112,
                 columnNumber: 10
             }, this)
         }, void 0, false, {
             fileName: "[project]/src/app/properties/[slug]/page.tsx",
-            lineNumber: 110,
+            lineNumber: 111,
             columnNumber: 8
         }, this);
     }
@@ -3266,7 +3274,7 @@ async function PropertyDetailsPage({ params }) {
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$header$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Header"], {}, void 0, false, {
                 fileName: "[project]/src/app/properties/[slug]/page.tsx",
-                lineNumber: 120,
+                lineNumber: 121,
                 columnNumber: 8
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("main", {
@@ -3276,33 +3284,33 @@ async function PropertyDetailsPage({ params }) {
                         children: property.name
                     }, void 0, false, {
                         fileName: "[project]/src/app/properties/[slug]/page.tsx",
-                        lineNumber: 122,
+                        lineNumber: 123,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                         children: "Generic property page - Layout not defined."
                     }, void 0, false, {
                         fileName: "[project]/src/app/properties/[slug]/page.tsx",
-                        lineNumber: 123,
+                        lineNumber: 124,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("pre", {
                         children: JSON.stringify(property, null, 2)
                     }, void 0, false, {
                         fileName: "[project]/src/app/properties/[slug]/page.tsx",
-                        lineNumber: 125,
+                        lineNumber: 126,
                         columnNumber: 10
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/app/properties/[slug]/page.tsx",
-                lineNumber: 121,
+                lineNumber: 122,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/app/properties/[slug]/page.tsx",
-        lineNumber: 119,
+        lineNumber: 120,
         columnNumber: 5
     }, this);
 }
