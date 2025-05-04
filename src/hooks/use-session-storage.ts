@@ -12,11 +12,14 @@ function safeJsonParse<T>(value: string | null): T | string | boolean | number |
   } catch (e) {
     // If JSON parsing fails, check if it might be a primitive stored as a string
     const trimmedValue = value.trim();
-    if (trimmedValue === 'true') return true;
-    if (trimmedValue === 'false') return false;
+    if (trimmedValue.toLowerCase() === 'true') return true;
+    if (trimmedValue.toLowerCase() === 'false') return false;
+    if (trimmedValue === 'null') return null;
+    if (trimmedValue === 'undefined') return undefined; // Handle stored 'undefined' string
 
     // Check if it's a number string (handle potential leading/trailing spaces)
-    if (!isNaN(Number(trimmedValue)) && trimmedValue !== '') {
+    // Ensure it's not an empty string before converting to number
+    if (trimmedValue !== '' && !isNaN(Number(trimmedValue))) {
         // It looks like a number, return it as a number
         return Number(trimmedValue);
     }
@@ -29,8 +32,8 @@ function safeJsonParse<T>(value: string | null): T | string | boolean | number |
 }
 
 // Helper function to potentially parse stored date strings or return other parsed types/strings
-function parseStoredValue<T>(storedValue: string | null): T | string | boolean | number | null { // Return type updated
-    const parsed = safeJsonParse<T>(storedValue); // This now returns T | string | boolean | number | null
+function parseStoredValue<T>(storedValue: string | null): T | string | boolean | number | null | undefined { // Return type updated
+    const parsed = safeJsonParse<T>(storedValue); // This now returns T | string | boolean | number | null | undefined
 
     // If parsed is a string, try parsing as ISO date
     if (typeof parsed === 'string') {
@@ -49,7 +52,7 @@ function parseStoredValue<T>(storedValue: string | null): T | string | boolean |
             }
         }
     }
-    // Return the parsed value (could be T, string, boolean, number) or null
+    // Return the parsed value (could be T, string, boolean, number, undefined) or null
     return parsed;
 }
 
@@ -67,7 +70,10 @@ export function useSessionStorage<T>(key: string, initialValue: T): [T, (value: 
       if (parsedItem !== null && parsedItem !== undefined) {
           // Now we check the type of parsedItem against initialValue more carefully
           if (typeof parsedItem === typeof initialValue ||
-              (parsedItem instanceof Date && initialValue instanceof Date)) {
+              (parsedItem instanceof Date && initialValue instanceof Date) ||
+              (initialValue === null && parsedItem === null) || // Allow null match
+              (initialValue === undefined && parsedItem === undefined) // Allow undefined match
+             ) {
              return parsedItem as T;
           } else {
               // Attempt type coercion if reasonable (e.g., string '1' to number 1)
@@ -100,12 +106,16 @@ export function useSessionStorage<T>(key: string, initialValue: T): [T, (value: 
       if (typeof window !== 'undefined') {
          // Convert value to string for storage
           let stringifiedValue;
-          if (valueToStore instanceof Date) {
+          if (valueToStore === null) {
+              stringifiedValue = 'null';
+          } else if (valueToStore === undefined) {
+              stringifiedValue = 'undefined';
+          } else if (valueToStore instanceof Date) {
               stringifiedValue = valueToStore.toISOString(); // Store dates as ISO strings
-          } else if (typeof valueToStore === 'object' && valueToStore !== null) {
+          } else if (typeof valueToStore === 'object') { // Handle arrays and objects
               stringifiedValue = JSON.stringify(valueToStore); // Stringify objects/arrays
           } else {
-              stringifiedValue = String(valueToStore); // Convert primitives to string
+              stringifiedValue = String(valueToStore); // Convert other primitives to string
           }
           window.sessionStorage.setItem(key, stringifiedValue);
       }
@@ -123,7 +133,9 @@ export function useSessionStorage<T>(key: string, initialValue: T): [T, (value: 
           // Similar type check as initial load
            if (newValue !== null && newValue !== undefined) {
                if (typeof newValue === typeof initialValue ||
-                   (newValue instanceof Date && initialValue instanceof Date)) {
+                   (newValue instanceof Date && initialValue instanceof Date) ||
+                   (initialValue === null && newValue === null) ||
+                   (initialValue === undefined && newValue === undefined)) {
                  setStoredValue(newValue as T);
                } else {
                    // Handle potential type mismatch on update, maybe fallback or log
@@ -131,7 +143,15 @@ export function useSessionStorage<T>(key: string, initialValue: T): [T, (value: 
                     // Or fallback: setStoredValue(initialValue);
                }
             } else {
-                setStoredValue(initialValue); // Fallback if value is removed or parsing fails
+                 // Handle case where value is removed or becomes null/undefined
+                 if (initialValue === null || initialValue === undefined) {
+                    setStoredValue(initialValue);
+                 } else {
+                     // If initial value wasn't null/undefined, but storage becomes so,
+                     // decide if you should revert to initial or accept null/undefined
+                     setStoredValue(newValue as T); // Accept null/undefined if parsed as such
+                 }
+
             }
         } catch (error) {
           console.error(`Error handling storage change for key “${key}”:`, error);
@@ -143,7 +163,7 @@ export function useSessionStorage<T>(key: string, initialValue: T): [T, (value: 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [key, initialValue]);
+  }, [key, initialValue]); // Added initialValue to dependency array
 
   return [storedValue, setValue];
 }
