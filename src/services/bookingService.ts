@@ -20,7 +20,7 @@ import {
 } from 'firebase/firestore';
 import { z } from 'zod';
 import { db } from '@/lib/firebase'; // **** Use Client SDK Firestore instance ****
-// import { dbAdmin } from '@/lib/firebaseAdmin'; // No longer needed
+// Removed admin SDK import: import { dbAdmin } from '@/lib/firebaseAdmin';
 import type { Booking, Availability, Property, SerializableTimestamp } from '@/types'; // Import SerializableTimestamp
 import { differenceInCalendarDays, eachDayOfInterval, format, parse, subDays, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { updateAirbnbListingAvailability, updateBookingComListingAvailability, getPropertyForSync } from './booking-sync';
@@ -120,8 +120,8 @@ const CreateBookingDataSchema = z.object({
  */
 export async function createBooking(rawBookingData: CreateBookingData): Promise<string> {
    const paymentIntentId = rawBookingData?.paymentInput?.stripePaymentIntentId || 'N/A';
-   console.log(`--- [createBooking] Function called ---`);
-   console.log(`[createBooking] Received raw data for Payment Intent [${paymentIntentId}]`);
+   console.log(`--- [createBooking] Function called for Payment Intent [${paymentIntentId}] ---`);
+   console.log(`[createBooking] Received raw data:`, JSON.stringify(rawBookingData, null, 2)); // Log the raw data received
 
    let bookingData: z.infer<typeof CreateBookingDataSchema>;
 
@@ -562,7 +562,7 @@ export async function getUnavailableDatesForProperty(propertyId: string, monthsT
   const today = new Date();
   // Use UTC for consistency when dealing with dates across potential timezones
   const currentMonthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
-  console.log(`[getUnavailableDatesForProperty] Today (UTC): ${today.toISOString()}, Current Month Start (UTC): ${currentMonthStart.toISOString()}`);
+  // console.log(`[getUnavailableDatesForProperty] Today (UTC): ${today.toISOString()}, Current Month Start (UTC): ${currentMonthStart.toISOString()}`);
 
 
   try {
@@ -573,14 +573,14 @@ export async function getUnavailableDatesForProperty(propertyId: string, monthsT
       const monthStr = format(targetMonth, 'yyyy-MM');
       monthDocIds.push(`${propertyId}_${monthStr}`);
     }
-    console.log(`[getUnavailableDatesForProperty] Querying for document IDs: ${monthDocIds.join(', ')}`);
+    // console.log(`[getUnavailableDatesForProperty] Querying for document IDs: ${monthDocIds.join(', ')}`);
 
 
     const queryBatches: string[][] = [];
     for (let i = 0; i < monthDocIds.length; i += 30) { // Firestore 'in' query supports up to 30 elements
         queryBatches.push(monthDocIds.slice(i, i + 30));
     }
-    console.log(`[getUnavailableDatesForProperty] Split into ${queryBatches.length} query batches due to 'in' operator limit.`);
+    // console.log(`[getUnavailableDatesForProperty] Split into ${queryBatches.length} query batches due to 'in' operator limit.`);
 
      if (monthDocIds.length === 0) {
         console.log("[getUnavailableDatesForProperty] No month document IDs to query. Returning empty array.");
@@ -590,20 +590,20 @@ export async function getUnavailableDatesForProperty(propertyId: string, monthsT
     // Execute queries using Client SDK
     const allQuerySnapshots = await Promise.all(
       queryBatches.map(async (batchIds, index) => {
-          console.log(`[getUnavailableDatesForProperty] Executing query for batch ${index + 1}: ${batchIds.join(', ')}`);
+          // console.log(`[getUnavailableDatesForProperty] Executing query for batch ${index + 1}: ${batchIds.join(', ')}`);
           const q = query(availabilityCollection, where(documentId(), 'in', batchIds)); // Use documentId() for client query
           return getDocs(q);
       })
     );
-    console.log(`[getUnavailableDatesForProperty] Fetched results from ${allQuerySnapshots.length} batches.`);
+    // console.log(`[getUnavailableDatesForProperty] Fetched results from ${allQuerySnapshots.length} batches.`);
 
 
     allQuerySnapshots.forEach((querySnapshot, batchIndex) => {
-         console.log(`[getUnavailableDatesForProperty] Processing batch ${batchIndex + 1}: Found ${querySnapshot.docs.length} documents.`);
+         // console.log(`[getUnavailableDatesForProperty] Processing batch ${batchIndex + 1}: Found ${querySnapshot.docs.length} documents.`);
          querySnapshot.forEach((doc) => {
             const data = doc.data() as Partial<Availability>;
             const docId = doc.id;
-            console.log(`[getUnavailableDatesForProperty] Processing doc: ${docId}`);
+            // console.log(`[getUnavailableDatesForProperty] Processing doc: ${docId}`);
             const monthStrFromId = docId.split('_')[1];
             const monthStrFromData = data.month;
             // Prefer month from data if available, fallback to parsing from ID
@@ -617,7 +617,7 @@ export async function getUnavailableDatesForProperty(propertyId: string, monthsT
             if (data.available && typeof data.available === 'object') {
                 const [year, monthIndex] = monthStr.split('-').map(num => parseInt(num, 10));
                 const month = monthIndex - 1; // JS months are 0-indexed
-                 console.log(`[getUnavailableDatesForProperty] Doc ${docId} (Month: ${monthStr}): Processing availability map...`);
+                 // console.log(`[getUnavailableDatesForProperty] Doc ${docId} (Month: ${monthStr}): Processing availability map...`);
 
                 for (const dayStr in data.available) {
                     const day = parseInt(dayStr, 10);
@@ -628,10 +628,10 @@ export async function getUnavailableDatesForProperty(propertyId: string, monthsT
                                  if (date.getUTCFullYear() === year && date.getUTCMonth() === month && date.getUTCDate() === day) {
                                     const todayUtcStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
                                     if (date >= todayUtcStart) {
-                                        console.log(`   - Found unavailable date: ${format(date, 'yyyy-MM-dd')}`);
+                                        // console.log(`   - Found unavailable date: ${format(date, 'yyyy-MM-dd')}`);
                                         unavailableDates.push(date);
                                     } else {
-                                        console.log(`   - Found past unavailable date: ${format(date, 'yyyy-MM-dd')}. Ignoring.`);
+                                        // console.log(`   - Found past unavailable date: ${format(date, 'yyyy-MM-dd')}. Ignoring.`);
                                     }
                                  } else {
                                      console.warn(`[getUnavailableDatesForProperty] Invalid date created for ${year}-${monthStr}-${dayStr} in doc ${docId}. Skipping.`);
@@ -651,14 +651,14 @@ export async function getUnavailableDatesForProperty(propertyId: string, monthsT
     });
 
     unavailableDates.sort((a, b) => a.getTime() - b.getTime());
-    console.log(`[getUnavailableDatesForProperty] Total unavailable dates found for property ${propertyId}: ${unavailableDates.length}`);
-    console.log(`[getUnavailableDatesForProperty] Returning sorted unavailable dates: ${unavailableDates.map(d => format(d, 'yyyy-MM-dd')).join(', ')}`);
-    console.log(`--- [getUnavailableDatesForProperty] Function finished successfully ---`);
+    // console.log(`[getUnavailableDatesForProperty] Total unavailable dates found for property ${propertyId}: ${unavailableDates.length}`);
+    // console.log(`[getUnavailableDatesForProperty] Returning sorted unavailable dates: ${unavailableDates.map(d => format(d, 'yyyy-MM-dd')).join(', ')}`);
+    // console.log(`--- [getUnavailableDatesForProperty] Function finished successfully ---`);
     return unavailableDates;
 
   } catch (error) {
     console.error(`❌ Error fetching unavailable dates for property ${propertyId}:`, error);
-    console.log(`--- [getUnavailableDatesForProperty] Function finished with error ---`);
+    // console.log(`--- [getUnavailableDatesForProperty] Function finished with error ---`);
     return []; // Return empty array on error
   }
 }

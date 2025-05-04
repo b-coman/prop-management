@@ -59,10 +59,11 @@ export async function simulateWebhookSuccess(
     const propertyRef = doc(db, 'properties', propertyId);
     const propertySnap = await getDoc(propertyRef);
     if (!propertySnap.exists()) {
+      console.error(`[Simulate Webhook] Property with ID ${propertyId} not found in Firestore.`);
       throw new Error(`Property with ID ${propertyId} not found for simulation.`);
     }
     const propertyData = propertySnap.data();
-    console.log('[Simulate Webhook] Property data fetched:', propertyData);
+    console.log('[Simulate Webhook] Property data fetched successfully.');
 
     const baseRate = propertyData.pricePerNight ?? 0;
     const cleaningFee = propertyData.cleaningFee ?? 0;
@@ -83,7 +84,7 @@ export async function simulateWebhookSuccess(
 
     console.log(`[Simulate Webhook Pricing] BaseRate: ${baseRate}, Nights: ${numberOfNights}, ExtraGuests: ${numberOfExtraGuests}, ExtraFee: ${extraGuestFee}`);
     console.log(`[Simulate Webhook Pricing] AccommodationTotal: ${accommodationTotal}, CleaningFee: ${cleaningFee}, Subtotal: ${subtotal}`);
-    console.log(`[Simulate Webhook Pricing] Discount: ${discountAmount} (${discountPercentage}%), Taxes (derived): ${taxes}`);
+    console.log(`[Simulate Webhook Pricing] Discount: ${discountAmount} (${discountPercentage ?? 0}%), Taxes (derived): ${taxes}`);
     console.log(`[Simulate Webhook Pricing] Final Calculated Total (for validation): ${calculatedTotalBeforeTax + taxes}`);
     console.log(`[Simulate Webhook Pricing] Final Total from URL (used): ${totalPrice}`);
 
@@ -130,14 +131,21 @@ export async function simulateWebhookSuccess(
     // 4. Call createBooking
     console.log('[Simulate Webhook] Calling createBooking...');
     const bookingId = await createBooking(mockBookingData);
-    console.log(`[Simulate Webhook] createBooking finished. Booking ID: ${bookingId}`);
+    console.log(`[Simulate Webhook] createBooking call finished. Booking ID: ${bookingId}`);
 
     return { success: true, bookingId: bookingId };
 
   } catch (error) {
-    console.error(`❌ [Simulate Webhook] Error during simulation for session ${sessionId}:`, error);
+    console.error(`❌ [Simulate Webhook] Error during simulation process for session ${sessionId}:`, error);
     // Provide a more specific error message from the caught error
     const errorMessage = error instanceof Error ? error.message : String(error);
+    // Check if the error message indicates a booking creation failure specifically
+    if (errorMessage.includes("Failed to create booking")) {
+        return { success: false, error: errorMessage }; // Return the specific error from createBooking
+    }
+    // Otherwise, return a generic simulation failure message
     return { success: false, error: `Simulation failed: ${errorMessage}` };
   }
 }
+
+    

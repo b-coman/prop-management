@@ -945,25 +945,36 @@ async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ simulateWebhookSuccess(
     const { sessionId, propertyId, checkInDate, checkOutDate, numberOfGuests, numberOfNights, totalPrice, appliedCouponCode, discountPercentage } = validationResult.data;
     console.log(`[Simulate Webhook] Processing simulation for Session ID: ${sessionId}, Property ID: ${propertyId}`);
     try {
-        // 1. Fetch Property Details (needed for pricing calculation) - Optional but good practice
-        //    In a real webhook, you'd get this from metadata, but here we fetch for accuracy
+        // 1. Fetch Property Details (needed for pricing calculation)
+        console.log(`[Simulate Webhook] Fetching property details for ID: ${propertyId}`);
         const propertyRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'properties', propertyId);
         const propertySnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDoc"])(propertyRef);
         if (!propertySnap.exists()) {
             throw new Error(`Property with ID ${propertyId} not found for simulation.`);
         }
         const propertyData = propertySnap.data();
-        const baseRate = propertyData.pricePerNight || 0;
-        const cleaningFee = propertyData.cleaningFee || 0;
-        const extraGuestFee = propertyData.extraGuestFee || 0;
-        const baseOccupancy = propertyData.baseOccupancy || 1;
-        // 2. Reconstruct Pricing Details (as webhook would)
+        console.log('[Simulate Webhook] Property data fetched:', propertyData);
+        const baseRate = propertyData.pricePerNight ?? 0;
+        const cleaningFee = propertyData.cleaningFee ?? 0;
+        const extraGuestFee = propertyData.extraGuestFee ?? 0;
+        const baseOccupancy = propertyData.baseOccupancy ?? 1;
+        // 2. Reconstruct Pricing Details (crucial step, must match createBooking expectations)
+        console.log('[Simulate Webhook] Reconstructing pricing details...');
         const numberOfExtraGuests = Math.max(0, numberOfGuests - baseOccupancy);
         const accommodationTotal = baseRate * numberOfNights + extraGuestFee * numberOfExtraGuests * numberOfNights;
         const subtotal = accommodationTotal + cleaningFee;
         const discountAmount = discountPercentage ? subtotal * (discountPercentage / 100) : 0;
-        const taxes = Math.max(0, totalPrice - (subtotal - discountAmount)); // Calculate taxes based on final price
+        // VERY IMPORTANT: Ensure the totalPrice used in the mock matches the one from the URL params
+        // Calculate taxes based on the difference, but ensure the total matches.
+        const calculatedTotalBeforeTax = subtotal - discountAmount;
+        const taxes = Math.max(0, totalPrice - calculatedTotalBeforeTax); // Derive taxes
+        console.log(`[Simulate Webhook Pricing] BaseRate: ${baseRate}, Nights: ${numberOfNights}, ExtraGuests: ${numberOfExtraGuests}, ExtraFee: ${extraGuestFee}`);
+        console.log(`[Simulate Webhook Pricing] AccommodationTotal: ${accommodationTotal}, CleaningFee: ${cleaningFee}, Subtotal: ${subtotal}`);
+        console.log(`[Simulate Webhook Pricing] Discount: ${discountAmount} (${discountPercentage}%), Taxes (derived): ${taxes}`);
+        console.log(`[Simulate Webhook Pricing] Final Calculated Total (for validation): ${calculatedTotalBeforeTax + taxes}`);
+        console.log(`[Simulate Webhook Pricing] Final Total from URL (used): ${totalPrice}`);
         // 3. Construct Mock Booking Data
+        console.log('[Simulate Webhook] Constructing mock booking data...');
         const mockBookingData = {
             propertyId: propertyId,
             guestInfo: {
@@ -1009,9 +1020,11 @@ async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ simulateWebhookSuccess(
         };
     } catch (error) {
         console.error(`❌ [Simulate Webhook] Error during simulation for session ${sessionId}:`, error);
+        // Provide a more specific error message from the caught error
+        const errorMessage = error instanceof Error ? error.message : String(error);
         return {
             success: false,
-            error: `Simulation failed: ${error instanceof Error ? error.message : String(error)}`
+            error: `Simulation failed: ${errorMessage}`
         };
     }
 }
