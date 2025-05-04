@@ -1,17 +1,16 @@
-
 "use client";
 
 import * as React from 'react';
 import { Calendar } from "@/components/ui/calendar";
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
-import { format, startOfDay } from 'date-fns';
+import { format, startOfDay, subMonths } from 'date-fns'; // Import subMonths
 
 interface AvailabilityCalendarProps {
-  currentMonth: Date; // The month to initially display or center around
+  currentMonth: Date; // The month to center around (usually based on check-in date)
   unavailableDates: Date[];
   selectedRange?: DateRange;
-  numberOfMonths?: number;
+  // numberOfMonths removed, always 3 now
   onDateClick?: (date: Date) => void; // Optional callback for clicking a date
 }
 
@@ -19,7 +18,6 @@ export function AvailabilityCalendar({
   currentMonth,
   unavailableDates,
   selectedRange,
-  numberOfMonths = 3, // Default to showing 3 months
   onDateClick,
 }: AvailabilityCalendarProps) {
 
@@ -40,8 +38,6 @@ export function AvailabilityCalendar({
         textDecoration: 'line-through',
         color: 'hsl(var(--muted-foreground))',
         opacity: 0.6,
-        // Optionally add a background color
-        // backgroundColor: 'hsl(var(--muted) / 0.5)',
         pointerEvents: 'none' as const, // Make unavailable dates unclickable
     },
     selected: {
@@ -57,12 +53,15 @@ export function AvailabilityCalendar({
     }
   };
 
+  // Calculate the month to start the display from (one month before the target month)
+  const displayStartMonth = subMonths(currentMonth, 1);
+
   return (
     <div className="flex justify-center">
        <Calendar
-        mode="range" // Keep range mode for consistency, even if selection is just visual here
-        month={currentMonth} // Control the displayed month
-        numberOfMonths={numberOfMonths}
+        mode="range" // Keep range mode for consistency
+        month={displayStartMonth} // Start display from the previous month
+        numberOfMonths={3} // Always display 3 months
         disabled={disabledDays}
         modifiers={modifiers}
         modifierStyles={modifierStyles}

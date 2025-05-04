@@ -1,11 +1,10 @@
-
 "use client";
 
 import * as React from 'react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation'; // Removed useSearchParams
 import Image from 'next/image';
-import { format, differenceInDays, addDays, parseISO, isValid, isBefore, startOfDay, isAfter, startOfMonth } from 'date-fns';
+import { format, differenceInDays, addDays, parseISO, isValid, isBefore, startOfDay, isAfter, startOfMonth, subMonths } from 'date-fns';
 import {
   Loader2,
   Calendar as CalendarIcon,
@@ -47,6 +46,7 @@ import { AvailabilityCalendar } from './availability-calendar';
 import { calculatePrice } from '@/lib/price-utils';
 import { useSessionStorage } from '@/hooks/use-session-storage';
 import { Badge } from '@/components/ui/badge';
+import { TestBookingButton } from '@/components/test-booking-button'; // Import the button
 
 interface AvailabilityCheckProps {
   property: Property;
@@ -480,18 +480,17 @@ export function AvailabilityCheck({
     );
   };
 
-  const renderAvailabilityCalendar = () => {
-      // ... (keep existing logic)
+   const renderAvailabilityCalendar = () => {
       if (isLoadingAvailability && unavailableDates.length === 0) return null;
-      const displayMonth = checkInDate || new Date();
+      // Determine the central month for the calendar display
+      const calendarCenterMonth = checkInDate ? startOfMonth(checkInDate) : startOfMonth(new Date());
       return (
           <div className="mt-6">
               <h3 className="text-lg font-semibold mb-3">Availability Calendar</h3>
               <AvailabilityCalendar
-                  currentMonth={displayMonth}
+                  currentMonth={calendarCenterMonth} // Center calendar around check-in or current month
                   unavailableDates={unavailableDates}
                   selectedRange={datesSelected ? { from: checkInDate!, to: checkOutDate! } : undefined}
-                  numberOfMonths={3}
               />
           </div>
       );
@@ -633,7 +632,7 @@ export function AvailabilityCheck({
             ) : !isAvailable ? (
                   <>
                     <p className="text-center text-destructive py-4 font-semibold">Selected dates are unavailable.</p>
-                    {renderNotificationForm()}
+                    {/* Availability Alert rendered on the left now */}
                  </>
             ) : (
               // Only show the full form if dates are available
@@ -671,6 +670,7 @@ export function AvailabilityCheck({
                    </div>
                    <p className="text-xs text-muted-foreground mt-1">
                      Max {property.maxGuests} guests. Base price for {property.baseOccupancy}.
+                     {property.extraGuestFee > 0 && ` Extra guest fee: $${property.extraGuestFee}/night.`}
                    </p>
                  </div>
 
@@ -746,6 +746,17 @@ export function AvailabilityCheck({
                   {isProcessingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
                   {isProcessingBooking ? 'Processing...' : 'Continue to Payment'}
                 </Button>
+
+                 {/* Test Booking Button (Development Only) */}
+                 <TestBookingButton
+                    property={property}
+                    checkInDate={checkInDate}
+                    checkOutDate={checkOutDate}
+                    numberOfGuests={numberOfGuests} // Pass current guest state
+                    pricingDetails={pricingDetails} // Pass calculated pricing
+                    guestInfo={{ firstName, lastName, email, phone }} // Pass guest info
+                    isDisabled={!datesSelected || !isAvailable || isProcessingBooking} // Disable based on availability/processing
+                />
               </form>
             )}
           </CardContent>
@@ -754,5 +765,3 @@ export function AvailabilityCheck({
     </div>
   );
 }
-
-    
