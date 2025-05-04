@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'RentalSpot', // Updated title
-  description: 'Book your next vacation rental.', // Updated description
+  title: 'RentalSpot - Your Vacation Getaway', // More specific title
+  description: 'Book unique vacation rentals like the Prahova Mountain Chalet and Coltei Apartment Bucharest.', // Updated description
 };
 
 export default function RootLayout({
@@ -26,6 +26,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        {/* Header is removed, will be added in page layouts */}
         {children}
         <Toaster /> {/* Add Toaster here */}
       </body>

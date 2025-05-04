@@ -1215,7 +1215,7 @@ const stripe = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$
 async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ createCheckoutSession(input) {
     const { property, checkInDate, checkOutDate, numberOfGuests, totalPrice, numberOfNights, guestEmail, guestFirstName, guestLastName, appliedCouponCode, discountPercentage, pendingBookingId } = input;
     // Await the headers call
-    const headersList = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$headers$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["headers"])();
+    const headersList = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$headers$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["headers"])(); // Await headers() call
     const origin = headersList.get('origin') || 'http://localhost:9002';
     const numberOfExtraGuests = Math.max(0, numberOfGuests - property.baseOccupancy);
     // --- Prepare metadata ---
@@ -1275,8 +1275,8 @@ async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ createCheckoutSession(i
             },
             metadata: metadata
         });
-        if (!session.id) {
-            throw new Error('Failed to create Stripe session.');
+        if (!session.id || !session.url) {
+            throw new Error('Failed to create Stripe session or missing session URL.');
         }
         // Link session to pending booking if ID provided
         if (pendingBookingId && session.payment_intent) {
@@ -1286,8 +1286,10 @@ async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ createCheckoutSession(i
             // await updatePendingBookingWithPaymentIntent(pendingBookingId, session.payment_intent as string);
             console.log(`[createCheckoutSession] Stripe session ${session.id} created, linked to pending booking ${pendingBookingId} via metadata. Payment Intent: ${session.payment_intent}`);
         }
+        // Return both sessionId and sessionUrl
         return {
-            sessionId: session.id
+            sessionId: session.id,
+            sessionUrl: session.url
         };
     } catch (error) {
         console.error('Error creating Stripe Checkout session:', error);

@@ -1,16 +1,4 @@
 {
-  "node": {
-    "4074b4e8542bd2e2abcdaa0017eebc387b19e6e5cd": {
-      "workers": {
-        "app/booking/success/page": {
-          "moduleId": "[project]/.next-internal/server/app/booking/success/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/app/actions/simulate-webhook-success.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
-          "async": false
-        }
-      },
-      "layer": {
-        "app/booking/success/page": "action-browser"
-      }
-    }
-  },
+  "node": {},
   "edge": {}
 }

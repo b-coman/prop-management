@@ -4,11 +4,11 @@
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import type { Property, SerializableTimestamp } from '@/types';
-// Removed Prahova and Coltei specific layouts
-import { PropertyPageLayout } from '@/components/property/property-page-layout'; // Import the new generic layout
-import { Header } from '@/components/header'; // Keep generic header if needed by the layout
+import { PropertyPageLayout } from '@/components/property/property-page-layout'; // Import the generic layout
+// Removed Header import: import { Header } from '@/components/header';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase'; // Import db for data fetching
+import { addDays, format } from 'date-fns'; // Example import, adjust as needed
 
 // **** EXPORT the function ****
 export async function getPropertyBySlug(slug: string): Promise<Property | undefined> {
@@ -95,7 +95,7 @@ export async function generateStaticParams() {
         }))
         .filter(param => typeof param.slug === 'string' && param.slug.length > 0); // Ensure slug is a non-empty string
 
-      console.log(`[generateStaticParams] Generated ${params.length} params:`, params);
+      // console.log(`[generateStaticParams] Generated ${params.length} params:`, params);
       return params;
   } catch (error) {
        console.error("❌ Error fetching properties for generateStaticParams:", error);
@@ -105,15 +105,15 @@ export async function generateStaticParams() {
 
 
 export default async function PropertyDetailsPage({ params }: PropertyDetailsPageProps) {
-  // Await the params before accessing slug
-  const awaitedParams = params;
+  // Await the params before using its properties
+  const awaitedParams = await params;
   const slug = awaitedParams.slug;
 
   if (!slug) {
     console.error("[PropertyDetailsPage] Slug is missing from params.");
     notFound();
   }
-  console.log(`[PropertyDetailsPage] Rendering page for slug: ${slug}`);
+  // console.log(`[PropertyDetailsPage] Rendering page for slug: ${slug}`);
 
   // Fetch property data using the slug
   const property = await getPropertyBySlug(slug);
@@ -122,11 +122,10 @@ export default async function PropertyDetailsPage({ params }: PropertyDetailsPag
      console.warn(`[PropertyDetailsPage] Property not found for slug: ${slug}`);
     notFound();
   }
-  console.log(`[PropertyDetailsPage] Property loaded from Firestore: ${property.name} (ID: ${property.id})`);
+  // console.log(`[PropertyDetailsPage] Property loaded from Firestore: ${property.name} (ID: ${property.id})`);
 
 
   // Use the generic PropertyPageLayout for all properties
   return <PropertyPageLayout property={property} />;
 
 }
-

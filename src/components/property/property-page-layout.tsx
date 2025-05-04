@@ -2,7 +2,7 @@
 // src/components/property/property-page-layout.tsx
 import Image from 'next/image';
 import type { Property } from '@/types';
-import { Header } from '@/components/header'; // Use the generic header
+import { Header } from '@/components/generic-header'; // Use the generic header component (assuming it exists)
 import { Footer } from '@/components/footer'; // Use the generic footer
 import { InitialBookingForm } from '@/components/booking/initial-booking-form';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import {
-  BedDouble, Bath, Users, Wifi, ParkingCircle, Tv, Utensils, Clock, CheckCircle, MapPin, Home, MountainSnow, Trees, ListChecks, Wind, Building
+  BedDouble, Bath, Users, Wifi, ParkingCircle, Tv, Utensils, Clock, CheckCircle, MapPin, Home, MountainSnow, Trees, ListChecks, Wind, Building, Star // Added Star
 } from 'lucide-react';
 
 interface PropertyPageLayoutProps {
@@ -33,6 +33,7 @@ export function PropertyPageLayout({ property }: PropertyPageLayoutProps) {
     'air conditioning': <Wind className="h-4 w-4 mr-1" />,
     'washer/dryer': <CheckCircle className="h-4 w-4 mr-1 text-primary" />, // Use primary color
     elevator: <Building className="h-4 w-4 mr-1" />,
+    // Add more mappings as needed based on your actual amenities data
   };
 
   const houseRules = property.houseRules || []; // Ensure houseRules is an array
@@ -40,7 +41,7 @@ export function PropertyPageLayout({ property }: PropertyPageLayoutProps) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* Use Generic Header */}
-      <Header />
+      <Header propertyName={property.name} propertySlug={property.slug} />
 
       {/* Hero Section with Overlay Booking Form */}
       <section className="relative h-[60vh] md:h-[70vh] w-full">
@@ -61,15 +62,20 @@ export function PropertyPageLayout({ property }: PropertyPageLayoutProps) {
         )}
         <div className="absolute inset-0 flex items-center justify-center">
           <Card className="w-full max-w-md bg-background/90 backdrop-blur-sm shadow-xl border-border p-4 md:p-6 mx-4">
-            <CardHeader className="p-0 mb-4">
-              <CardTitle className="text-xl text-center mb-1">
-                <span className="text-2xl font-bold text-foreground">${property.pricePerNight}</span> / night
-              </CardTitle>
-              {property.ratings && property.ratings.count > 0 && (
-                 <div className="text-sm text-muted-foreground text-center">
-                    ⭐ {property.ratings.average.toFixed(1)} ({property.ratings.count} reviews)
-                 </div>
-              )}
+             <CardHeader className="p-0 mb-4 text-center">
+                 {/* Price and Rating */}
+                <div className="flex items-center justify-center gap-4 mb-2">
+                     <Badge variant="secondary" className="text-lg px-3 py-1">
+                        ${property.pricePerNight}<span className="text-xs font-normal ml-1">/night</span>
+                     </Badge>
+                     {property.ratings && property.ratings.count > 0 && (
+                        <Badge variant="secondary" className="text-lg px-3 py-1 flex items-center">
+                             <Star className="h-4 w-4 mr-1 text-amber-500 fill-amber-500" />
+                            {property.ratings.average.toFixed(1)}
+                            <span className="text-xs font-normal ml-1">({property.ratings.count} reviews)</span>
+                        </Badge>
+                     )}
+                </div>
             </CardHeader>
             <CardContent className="p-0">
               <InitialBookingForm property={property} />
@@ -246,4 +252,3 @@ export function PropertyPageLayout({ property }: PropertyPageLayoutProps) {
     </div>
   );
 }
-

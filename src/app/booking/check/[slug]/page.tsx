@@ -3,7 +3,7 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { Header } from '@/components/header'; // Assuming a generic header
+import { Header } from '@/components/generic-header'; // Assuming a generic header
 import { AvailabilityCheck } from '@/components/booking/availability-check'; // Import the new component
 // Correct import path: Import directly from the file where it's defined
 import { getPropertyBySlug } from '@/app/properties/[slug]/page';
@@ -33,7 +33,16 @@ export async function generateMetadata({ params }: AvailabilityCheckPageProps): 
 
 // Main Page Component
 export default async function AvailabilityCheckPage({ params, searchParams }: AvailabilityCheckPageProps) {
-  const property = await getPropertyBySlug(params.slug);
+  // Await the params before using its properties
+  const awaitedParams = await params;
+  const slug = awaitedParams.slug;
+
+  if (!slug) {
+    console.error("[AvailabilityCheckPage] Slug is missing from params.");
+    notFound();
+  }
+
+  const property = await getPropertyBySlug(slug);
 
   if (!property) {
     notFound(); // Property slug is invalid
@@ -54,7 +63,8 @@ export default async function AvailabilityCheckPage({ params, searchParams }: Av
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      {/* Use Generic Header for this page */}
+      <Header propertyName={property.name} propertySlug={property.slug}/>
       <main className="flex-grow container py-12 md:py-16">
         {/* Wrap AvailabilityCheck in Suspense if it uses useSearchParams directly,
             but passing props is generally preferred for Server Components */}
@@ -76,4 +86,5 @@ export default async function AvailabilityCheckPage({ params, searchParams }: Av
     </div>
   );
 }
+
 
