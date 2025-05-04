@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from 'react';
@@ -47,6 +46,7 @@ import { AvailabilityCalendar } from './availability-calendar';
 import { calculatePrice } from '@/lib/price-utils';
 import { useSessionStorage } from '@/hooks/use-session-storage';
 import { Badge } from '@/components/ui/badge';
+// Removed TestBookingButton import
 
 interface AvailabilityCheckProps {
   property: Property;
@@ -630,7 +630,6 @@ export function AvailabilityCheck({
                 <CardDescription>Confirm details and proceed to payment.</CardDescription>
               </CardHeader>
               <CardContent>
-                {/* Loading state within the card if needed, though main loading is handled above */}
                  {isLoadingAvailability ? (
                     <div className="flex justify-center items-center p-8">
                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -639,54 +638,78 @@ export function AvailabilityCheck({
                    // Only show the full booking form if dates are available
                    <form onSubmit={handleContinueToPayment} className="space-y-6">
 
-                     {/* Selected Dates Display */}
-                     {datesSelected && (
-                         <div className="space-y-1 border-b pb-4">
-                             <Label>Selected Dates</Label>
-                             <div className="flex items-center justify-between rounded-md border p-2 mt-1 bg-muted/50">
-                                 <span className="font-medium text-sm">
-                                     {format(checkInDate!, 'MMM dd, yyyy')} - {format(checkOutDate!, 'MMM dd, yyyy')}
-                                 </span>
-                                 <span className="text-sm text-muted-foreground">({numberOfNights} nights)</span>
+                     {/* Selected Dates & Guests on one line (Desktop) */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-b pb-4">
+                         {/* Selected Dates Display */}
+                         {datesSelected && (
+                             <div className="space-y-1">
+                                 <Label>Selected Dates</Label>
+                                 <div className="flex items-center justify-between rounded-md border p-2 mt-1 bg-muted/50">
+                                     <span className="font-medium text-sm">
+                                         {format(checkInDate!, 'MMM dd, yyyy')} - {format(checkOutDate!, 'MMM dd, yyyy')}
+                                     </span>
+                                     <span className="text-sm text-muted-foreground">({numberOfNights} nights)</span>
+                                 </div>
                              </div>
-                         </div>
-                     )}
+                         )}
 
-                     {/* Guest Selector */}
-                     <div className="space-y-1 border-b pb-4">
-                       <Label htmlFor="guests">Number of Guests</Label>
-                       <div className="flex items-center justify-between rounded-md border p-2 mt-1">
-                         <Button
-                           type="button"
-                           variant="outline"
-                           size="icon"
-                           className="h-7 w-7"
-                           onClick={() => handleGuestChange(-1)}
-                           disabled={numberOfGuests <= 1 || isProcessingBooking}
-                           aria-label="Decrease guests"
-                         >
-                           <Minus className="h-4 w-4" />
-                         </Button>
-                         <span className="mx-4 font-medium w-8 text-center" id="guests">
-                           {numberOfGuests}
-                         </span>
-                         <Button
-                           type="button"
-                           variant="outline"
-                           size="icon"
-                           className="h-7 w-7"
-                           onClick={() => handleGuestChange(1)}
-                           disabled={numberOfGuests >= property.maxGuests || isProcessingBooking}
-                           aria-label="Increase guests"
-                         >
-                           <Plus className="h-4 w-4" />
-                         </Button>
+                         {/* Guest Selector */}
+                         <div className="space-y-1">
+                           <Label htmlFor="guests">Number of Guests</Label>
+                           <div className="flex items-center justify-between rounded-md border p-2 mt-1">
+                             <Button
+                               type="button"
+                               variant="outline"
+                               size="icon"
+                               className="h-7 w-7"
+                               onClick={() => handleGuestChange(-1)}
+                               disabled={numberOfGuests <= 1 || isProcessingBooking}
+                               aria-label="Decrease guests"
+                             >
+                               <Minus className="h-4 w-4" />
+                             </Button>
+                             <span className="mx-4 font-medium w-8 text-center" id="guests">
+                               {numberOfGuests}
+                             </span>
+                             <Button
+                               type="button"
+                               variant="outline"
+                               size="icon"
+                               className="h-7 w-7"
+                               onClick={() => handleGuestChange(1)}
+                               disabled={numberOfGuests >= property.maxGuests || isProcessingBooking}
+                               aria-label="Increase guests"
+                             >
+                               <Plus className="h-4 w-4" />
+                             </Button>
+                           </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                             Max {property.maxGuests}. Base for {property.baseOccupancy}.
+                             {property.extraGuestFee > 0 && ` Extra: $${property.extraGuestFee.toFixed(2)}/guest/night.`}
+                           </p>
+                         </div>
+                      </div>
+
+
+                     {/* Coupon Code */}
+                      <div className="space-y-1 border-b pb-4">
+                           <Label htmlFor="coupon">Discount Coupon (Optional)</Label>
+                           <div className="flex gap-2">
+                             <Input id="coupon" placeholder="Enter code" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} disabled={isApplyingCoupon || !!appliedCoupon || isProcessingBooking} />
+                             {!appliedCoupon ? (
+                               <Button type="button" variant="outline" onClick={handleApplyCoupon} disabled={isApplyingCoupon || !couponCode.trim() || isProcessingBooking}>
+                                 {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <TicketPercent className="h-4 w-4" />}
+                               </Button>
+                             ) : (
+                               <Button type="button" variant="ghost" size="icon" onClick={handleRemoveCoupon} disabled={isProcessingBooking}><X className="h-4 w-4 text-destructive" /></Button>
+                             )}
+                           </div>
+                           <div className="h-4 text-xs mt-1">
+                             {couponError && <p className="text-destructive">{couponError}</p>}
+                             {appliedCoupon && <p className="text-green-600">Applied: {appliedCoupon.code} ({appliedCoupon.discountPercentage}%)</p>}
+                           </div>
                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                         Max {property.maxGuests} guests. Base price for {property.baseOccupancy}.
-                         {property.extraGuestFee > 0 && ` Extra guest fee: $${property.extraGuestFee.toFixed(2)}/night.`}
-                       </p>
-                     </div>
+
 
                      {/* Price Breakdown */}
                      {pricingDetails && (
@@ -707,7 +730,7 @@ export function AvailabilityCheck({
                      {/* Guest Information */}
                      <div className="space-y-4">
                        <h3 className="font-semibold">Your Information</h3>
-                       <div className="grid grid-cols-2 gap-4">
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                          <div className="space-y-1">
                            <Label htmlFor="firstName">First Name</Label>
                            <Input id="firstName" name="firstName" value={firstName} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
@@ -717,34 +740,19 @@ export function AvailabilityCheck({
                            <Input id="lastName" name="lastName" value={lastName} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
                          </div>
                        </div>
-                       <div className="space-y-1">
-                         <Label htmlFor="email">Email</Label>
-                         <Input id="email" name="email" type="email" value={email} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
-                       </div>
-                       <div className="space-y-1">
-                         <Label htmlFor="phone">Phone Number</Label>
-                         <Input id="phone" name="phone" type="tel" value={phone} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
-                       </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <div className="space-y-1">
+                                 <Label htmlFor="email">Email</Label>
+                                 <Input id="email" name="email" type="email" value={email} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
+                             </div>
+                             <div className="space-y-1">
+                                 <Label htmlFor="phone">Phone Number</Label>
+                                 <Input id="phone" name="phone" type="tel" value={phone} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
+                             </div>
+                         </div>
                      </div>
 
-                     {/* Coupon Code */}
-                     <div className="space-y-1 pt-4 border-t">
-                       <Label htmlFor="coupon">Discount Coupon (Optional)</Label>
-                       <div className="flex gap-2">
-                         <Input id="coupon" placeholder="Enter code" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} disabled={isApplyingCoupon || !!appliedCoupon || isProcessingBooking} />
-                         {!appliedCoupon ? (
-                           <Button type="button" variant="outline" onClick={handleApplyCoupon} disabled={isApplyingCoupon || !couponCode.trim() || isProcessingBooking}>
-                             {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <TicketPercent className="h-4 w-4" />}
-                           </Button>
-                         ) : (
-                           <Button type="button" variant="ghost" size="icon" onClick={handleRemoveCoupon} disabled={isProcessingBooking}><X className="h-4 w-4 text-destructive" /></Button>
-                         )}
-                       </div>
-                       <div className="h-4 text-xs mt-1">
-                         {couponError && <p className="text-destructive">{couponError}</p>}
-                         {appliedCoupon && <p className="text-green-600">Applied: {appliedCoupon.code} ({appliedCoupon.discountPercentage}%)</p>}
-                       </div>
-                     </div>
+
 
                      {/* Error Message */}
                      {formError && (
@@ -770,3 +778,4 @@ export function AvailabilityCheck({
     </div>
   );
 }
+
