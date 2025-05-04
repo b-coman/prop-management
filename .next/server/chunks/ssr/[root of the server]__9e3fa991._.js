@@ -860,33 +860,141 @@ function PrahovaPageLayout({ property }) {
                 lineNumber: 33,
                 columnNumber: 7
             }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
+                className: "relative h-[60vh] md:h-[70vh] w-full",
+                children: [
+                    featuredImage && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$image$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["default"], {
+                        src: featuredImage.url,
+                        alt: featuredImage.alt || `Featured image of ${property.name}`,
+                        fill: true,
+                        style: {
+                            objectFit: "cover"
+                        },
+                        priority: true,
+                        className: "brightness-75" // Add slight dimming
+                        ,
+                        "data-ai-hint": featuredImage['data-ai-hint']
+                    }, void 0, false, {
+                        fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
+                        lineNumber: 38,
+                        columnNumber: 11
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "absolute inset-0 flex items-center justify-center",
+                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Card"], {
+                            className: "w-full max-w-md bg-white/90 backdrop-blur-sm shadow-xl border-gray-200 p-4 md:p-6 mx-4",
+                            children: [
+                                " ",
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["CardHeader"], {
+                                    className: "p-0 mb-4",
+                                    children: [
+                                        " ",
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["CardTitle"], {
+                                            className: "text-xl text-center mb-1",
+                                            children: [
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                    className: "text-2xl font-bold text-green-800",
+                                                    children: [
+                                                        "$",
+                                                        property.pricePerNight
+                                                    ]
+                                                }, void 0, true, {
+                                                    fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
+                                                    lineNumber: 52,
+                                                    columnNumber: 19
+                                                }, this),
+                                                " / night"
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
+                                            lineNumber: 51,
+                                            columnNumber: 17
+                                        }, this),
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                            className: "text-sm text-gray-500 text-center",
+                                            children: [
+                                                "⭐ ",
+                                                property.ratings?.average || 'N/A',
+                                                " (",
+                                                property.ratings?.count || 0,
+                                                " reviews)"
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
+                                            lineNumber: 54,
+                                            columnNumber: 18
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
+                                    lineNumber: 50,
+                                    columnNumber: 15
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["CardContent"], {
+                                    className: "p-0",
+                                    children: [
+                                        " ",
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$booking$2f$initial$2d$booking$2d$form$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["InitialBookingForm"], {
+                                            property: property
+                                        }, void 0, false, {
+                                            fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
+                                            lineNumber: 59,
+                                            columnNumber: 18
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
+                                    lineNumber: 58,
+                                    columnNumber: 15
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
+                            lineNumber: 49,
+                            columnNumber: 11
+                        }, this)
+                    }, void 0, false, {
+                        fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
+                        lineNumber: 48,
+                        columnNumber: 10
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
+                lineNumber: 36,
+                columnNumber: 7
+            }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("main", {
                 className: "flex-grow container py-12 md:py-16",
                 children: [
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
-                        className: "mb-12 text-center",
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "mb-6 flex items-center text-muted-foreground",
                         children: [
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("h1", {
-                                className: "text-4xl font-bold tracking-tight text-gray-800 md:text-5xl lg:text-6xl mb-4",
-                                children: property.name
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$map$2d$pin$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__default__as__MapPin$3e$__["MapPin"], {
+                                className: "h-4 w-4 mr-1 text-green-700"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                lineNumber: 37,
+                                lineNumber: 78,
                                 columnNumber: 13
                             }, this),
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                className: "text-lg text-gray-600",
-                                children: "Your tranquil escape in the heart of the mountains."
-                            }, void 0, false, {
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                children: [
+                                    property.location.city,
+                                    ", ",
+                                    property.location.state,
+                                    ", ",
+                                    property.location.country
+                                ]
+                            }, void 0, true, {
                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                lineNumber: 40,
+                                lineNumber: 79,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                        lineNumber: 36,
-                        columnNumber: 10
+                        lineNumber: 77,
+                        columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                         className: "grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-12",
@@ -895,109 +1003,6 @@ function PrahovaPageLayout({ property }) {
                                 className: "lg:col-span-2",
                                 children: [
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        className: "mb-6 flex items-center text-muted-foreground",
-                                        children: [
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$map$2d$pin$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__default__as__MapPin$3e$__["MapPin"], {
-                                                className: "h-4 w-4 mr-1 text-green-700"
-                                            }, void 0, false, {
-                                                fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 49,
-                                                columnNumber: 15
-                                            }, this),
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                children: [
-                                                    property.location.city,
-                                                    ", ",
-                                                    property.location.state,
-                                                    ", ",
-                                                    property.location.country
-                                                ]
-                                            }, void 0, true, {
-                                                fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 50,
-                                                columnNumber: 15
-                                            }, this)
-                                        ]
-                                    }, void 0, true, {
-                                        fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                        lineNumber: 48,
-                                        columnNumber: 14
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        id: "gallery",
-                                        className: "mb-8 grid grid-cols-1 gap-4 md:grid-cols-2",
-                                        children: [
-                                            featuredImage && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                className: "relative aspect-video w-full overflow-hidden rounded-lg shadow-md md:col-span-2",
-                                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$image$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["default"], {
-                                                    src: featuredImage.url,
-                                                    alt: featuredImage.alt || `Featured image of ${property.name}`,
-                                                    fill: true,
-                                                    style: {
-                                                        objectFit: "cover"
-                                                    },
-                                                    priority: true,
-                                                    "data-ai-hint": featuredImage['data-ai-hint']
-                                                }, void 0, false, {
-                                                    fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                    lineNumber: 57,
-                                                    columnNumber: 19
-                                                }, this)
-                                            }, void 0, false, {
-                                                fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 56,
-                                                columnNumber: 18
-                                            }, this),
-                                            galleryImages.map((image, index)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                    className: "relative aspect-video w-full overflow-hidden rounded-lg shadow-md",
-                                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$image$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["default"], {
-                                                        src: image.url,
-                                                        alt: image.alt || `Gallery image ${index + 1} of ${property.name}`,
-                                                        fill: true,
-                                                        style: {
-                                                            objectFit: "cover"
-                                                        },
-                                                        "data-ai-hint": image['data-ai-hint']
-                                                    }, void 0, false, {
-                                                        fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                        lineNumber: 69,
-                                                        columnNumber: 19
-                                                    }, this)
-                                                }, index, false, {
-                                                    fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                    lineNumber: 68,
-                                                    columnNumber: 17
-                                                }, this)),
-                                            Array.from({
-                                                length: Math.max(0, 2 - galleryImages.length)
-                                            }).map((_, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                    className: "relative aspect-video w-full overflow-hidden rounded-lg shadow-md bg-muted flex items-center justify-center",
-                                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$house$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__default__as__Home$3e$__["Home"], {
-                                                        className: "h-12 w-12 text-muted-foreground/50"
-                                                    }, void 0, false, {
-                                                        fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                        lineNumber: 81,
-                                                        columnNumber: 20
-                                                    }, this)
-                                                }, `placeholder-${i}`, false, {
-                                                    fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                    lineNumber: 80,
-                                                    columnNumber: 17
-                                                }, this))
-                                        ]
-                                    }, void 0, true, {
-                                        fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                        lineNumber: 54,
-                                        columnNumber: 13
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Separator"], {
-                                        className: "my-8 border-gray-300"
-                                    }, void 0, false, {
-                                        fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                        lineNumber: 86,
-                                        columnNumber: 13
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                         className: "prose max-w-none dark:prose-invert text-gray-700",
                                         children: [
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
@@ -1005,24 +1010,24 @@ function PrahovaPageLayout({ property }) {
                                                 children: "About this Chalet"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 90,
-                                                columnNumber: 15
+                                                lineNumber: 89,
+                                                columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                                 className: "mb-6",
                                                 children: property.description
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 91,
-                                                columnNumber: 15
+                                                lineNumber: 90,
+                                                columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("h3", {
                                                 className: "text-xl font-semibold mb-3 text-gray-800",
                                                 children: "Key Features"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 93,
-                                                columnNumber: 15
+                                                lineNumber: 92,
+                                                columnNumber: 20
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 className: "grid grid-cols-2 gap-4 mb-6 text-sm md:grid-cols-3",
@@ -1034,8 +1039,8 @@ function PrahovaPageLayout({ property }) {
                                                                 className: "h-4 w-4 mr-2 text-green-700"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                                lineNumber: 95,
-                                                                columnNumber: 52
+                                                                lineNumber: 94,
+                                                                columnNumber: 56
                                                             }, this),
                                                             " Max ",
                                                             property.maxGuests,
@@ -1043,8 +1048,27 @@ function PrahovaPageLayout({ property }) {
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
+                                                        lineNumber: 94,
+                                                        columnNumber: 21
+                                                    }, this),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                        className: "flex items-center",
+                                                        children: [
+                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$bed$2d$double$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__default__as__BedDouble$3e$__["BedDouble"], {
+                                                                className: "h-4 w-4 mr-2 text-green-700"
+                                                            }, void 0, false, {
+                                                                fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
+                                                                lineNumber: 95,
+                                                                columnNumber: 56
+                                                            }, this),
+                                                            " ",
+                                                            property.bedrooms,
+                                                            " Bedrooms"
+                                                        ]
+                                                    }, void 0, true, {
+                                                        fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
                                                         lineNumber: 95,
-                                                        columnNumber: 17
+                                                        columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                         className: "flex items-center",
@@ -1054,26 +1078,7 @@ function PrahovaPageLayout({ property }) {
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
                                                                 lineNumber: 96,
-                                                                columnNumber: 52
-                                                            }, this),
-                                                            " ",
-                                                            property.bedrooms,
-                                                            " Bedrooms"
-                                                        ]
-                                                    }, void 0, true, {
-                                                        fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                        lineNumber: 96,
-                                                        columnNumber: 17
-                                                    }, this),
-                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                        className: "flex items-center",
-                                                        children: [
-                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$bed$2d$double$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__default__as__BedDouble$3e$__["BedDouble"], {
-                                                                className: "h-4 w-4 mr-2 text-green-700"
-                                                            }, void 0, false, {
-                                                                fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                                lineNumber: 97,
-                                                                columnNumber: 52
+                                                                columnNumber: 56
                                                             }, this),
                                                             " ",
                                                             property.beds,
@@ -1081,8 +1086,8 @@ function PrahovaPageLayout({ property }) {
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                        lineNumber: 97,
-                                                        columnNumber: 17
+                                                        lineNumber: 96,
+                                                        columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                         className: "flex items-center",
@@ -1091,8 +1096,8 @@ function PrahovaPageLayout({ property }) {
                                                                 className: "h-4 w-4 mr-2 text-green-700"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                                lineNumber: 98,
-                                                                columnNumber: 52
+                                                                lineNumber: 97,
+                                                                columnNumber: 56
                                                             }, this),
                                                             " ",
                                                             property.bathrooms,
@@ -1100,8 +1105,8 @@ function PrahovaPageLayout({ property }) {
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                        lineNumber: 98,
-                                                        columnNumber: 17
+                                                        lineNumber: 97,
+                                                        columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                         className: "flex items-center",
@@ -1110,8 +1115,8 @@ function PrahovaPageLayout({ property }) {
                                                                 className: "h-4 w-4 mr-2 text-green-700"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                                lineNumber: 99,
-                                                                columnNumber: 52
+                                                                lineNumber: 98,
+                                                                columnNumber: 56
                                                             }, this),
                                                             " ",
                                                             property.squareFeet,
@@ -1119,22 +1124,22 @@ function PrahovaPageLayout({ property }) {
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                        lineNumber: 99,
-                                                        columnNumber: 17
+                                                        lineNumber: 98,
+                                                        columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 94,
-                                                columnNumber: 15
+                                                lineNumber: 93,
+                                                columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("h3", {
                                                 className: "text-xl font-semibold mb-3 text-gray-800",
                                                 children: "Amenities"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 102,
-                                                columnNumber: 15
+                                                lineNumber: 101,
+                                                columnNumber: 20
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("ul", {
                                                 className: "grid grid-cols-2 gap-2 mb-6 text-sm list-none pl-0 md:grid-cols-3",
@@ -1145,27 +1150,27 @@ function PrahovaPageLayout({ property }) {
                                                                 className: "h-4 w-4 mr-1 text-green-600"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                                lineNumber: 106,
-                                                                columnNumber: 62
+                                                                lineNumber: 105,
+                                                                columnNumber: 66
                                                             }, this),
                                                             amenity
                                                         ]
                                                     }, amenity, true, {
                                                         fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                        lineNumber: 105,
-                                                        columnNumber: 19
+                                                        lineNumber: 104,
+                                                        columnNumber: 23
                                                     }, this))
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 103,
-                                                columnNumber: 15
+                                                lineNumber: 102,
+                                                columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Separator"], {
                                                 className: "my-6 border-gray-300"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 112,
-                                                columnNumber: 15
+                                                lineNumber: 111,
+                                                columnNumber: 20
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 id: "house-rules",
@@ -1178,15 +1183,15 @@ function PrahovaPageLayout({ property }) {
                                                                 className: "h-5 w-5 mr-2 text-green-700"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                                lineNumber: 117,
-                                                                columnNumber: 19
+                                                                lineNumber: 116,
+                                                                columnNumber: 23
                                                             }, this),
                                                             " House Rules"
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                        lineNumber: 116,
-                                                        columnNumber: 17
+                                                        lineNumber: 115,
+                                                        columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("ul", {
                                                         className: "list-none pl-0 space-y-2 text-sm",
@@ -1197,41 +1202,41 @@ function PrahovaPageLayout({ property }) {
                                                                         className: "h-4 w-4 mr-2 text-green-700 shrink-0"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                                        lineNumber: 122,
-                                                                        columnNumber: 23
+                                                                        lineNumber: 121,
+                                                                        columnNumber: 27
                                                                     }, this),
                                                                     rule
                                                                 ]
                                                             }, index, true, {
                                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                                lineNumber: 121,
-                                                                columnNumber: 21
+                                                                lineNumber: 120,
+                                                                columnNumber: 25
                                                             }, this))
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                        lineNumber: 119,
-                                                        columnNumber: 17
+                                                        lineNumber: 118,
+                                                        columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 115,
-                                                columnNumber: 15
+                                                lineNumber: 114,
+                                                columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Separator"], {
                                                 className: "my-6 border-gray-300"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 129,
-                                                columnNumber: 15
+                                                lineNumber: 128,
+                                                columnNumber: 20
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("h3", {
                                                 className: "text-xl font-semibold mb-3 text-gray-800",
                                                 children: "Check-in / Check-out"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 131,
-                                                columnNumber: 16
+                                                lineNumber: 130,
+                                                columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 className: "flex gap-4 mb-6 text-sm",
@@ -1244,16 +1249,16 @@ function PrahovaPageLayout({ property }) {
                                                                 className: "h-4 w-4 mr-1 text-green-700"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                                lineNumber: 133,
-                                                                columnNumber: 55
+                                                                lineNumber: 132,
+                                                                columnNumber: 59
                                                             }, this),
                                                             "Check-in: ",
                                                             property.checkInTime
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                        lineNumber: 133,
-                                                        columnNumber: 19
+                                                        lineNumber: 132,
+                                                        columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                         className: "flex items-center",
@@ -1263,51 +1268,51 @@ function PrahovaPageLayout({ property }) {
                                                                 className: "h-4 w-4 mr-1 text-green-700"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                                lineNumber: 134,
-                                                                columnNumber: 55
+                                                                lineNumber: 133,
+                                                                columnNumber: 59
                                                             }, this),
                                                             "Check-out: ",
                                                             property.checkOutTime
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                        lineNumber: 134,
-                                                        columnNumber: 19
+                                                        lineNumber: 133,
+                                                        columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 132,
-                                                columnNumber: 16
+                                                lineNumber: 131,
+                                                columnNumber: 20
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("h3", {
                                                 className: "text-xl font-semibold mb-3 text-gray-800",
                                                 children: "Cancellation Policy"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 138,
-                                                columnNumber: 15
+                                                lineNumber: 137,
+                                                columnNumber: 20
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                                 className: "text-sm text-muted-foreground",
                                                 children: property.cancellationPolicy
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 139,
-                                                columnNumber: 15
+                                                lineNumber: 138,
+                                                columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                        lineNumber: 89,
-                                        columnNumber: 13
+                                        lineNumber: 88,
+                                        columnNumber: 18
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Separator"], {
                                         className: "my-8 border-gray-300"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                        lineNumber: 143,
-                                        columnNumber: 13
+                                        lineNumber: 142,
+                                        columnNumber: 17
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                         id: "location",
@@ -1318,8 +1323,8 @@ function PrahovaPageLayout({ property }) {
                                                 children: "Location"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 145,
-                                                columnNumber: 17
+                                                lineNumber: 144,
+                                                columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                                 className: "text-muted-foreground mb-4",
@@ -1332,8 +1337,8 @@ function PrahovaPageLayout({ property }) {
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 146,
-                                                columnNumber: 18
+                                                lineNumber: 145,
+                                                columnNumber: 22
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 className: "aspect-video bg-muted rounded-lg flex items-center justify-center",
@@ -1341,26 +1346,26 @@ function PrahovaPageLayout({ property }) {
                                                     className: "h-12 w-12 text-muted-foreground/50"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                    lineNumber: 151,
-                                                    columnNumber: 21
+                                                    lineNumber: 150,
+                                                    columnNumber: 25
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 150,
-                                                columnNumber: 17
+                                                lineNumber: 149,
+                                                columnNumber: 21
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                        lineNumber: 144,
-                                        columnNumber: 13
+                                        lineNumber: 143,
+                                        columnNumber: 17
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Separator"], {
                                         className: "my-8 border-gray-300"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                        lineNumber: 156,
-                                        columnNumber: 13
+                                        lineNumber: 155,
+                                        columnNumber: 17
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                         id: "contact",
@@ -1371,125 +1376,109 @@ function PrahovaPageLayout({ property }) {
                                                 children: "Contact Host"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 158,
-                                                columnNumber: 17
+                                                lineNumber: 157,
+                                                columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                                 className: "text-muted-foreground mb-4",
                                                 children: "Have questions? Reach out to the property owner."
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 159,
-                                                columnNumber: 18
+                                                lineNumber: 158,
+                                                columnNumber: 22
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Button"], {
                                                 variant: "outline",
                                                 children: "Contact Owner"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 162,
-                                                columnNumber: 18
+                                                lineNumber: 161,
+                                                columnNumber: 22
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                        lineNumber: 157,
-                                        columnNumber: 13
+                                        lineNumber: 156,
+                                        columnNumber: 17
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                lineNumber: 47,
-                                columnNumber: 11
+                                lineNumber: 86,
+                                columnNumber: 14
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                className: "lg:col-span-1",
-                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Card"], {
-                                    id: "booking-form",
-                                    className: "sticky top-24 shadow-lg bg-white border-gray-200",
-                                    children: [
-                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["CardHeader"], {
+                                className: "lg:col-span-1 space-y-4",
+                                id: "gallery",
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
+                                        className: "text-2xl font-semibold text-gray-800 mb-0",
+                                        children: "Gallery"
+                                    }, void 0, false, {
+                                        fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
+                                        lineNumber: 168,
+                                        columnNumber: 18
+                                    }, this),
+                                    galleryImages.map((image, index)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                            className: "relative aspect-[4/3] w-full overflow-hidden rounded-lg shadow-md",
                                             children: [
-                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["CardTitle"], {
-                                                    className: "text-xl",
-                                                    children: [
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                            className: "text-2xl font-bold text-green-800",
-                                                            children: [
-                                                                "$",
-                                                                property.pricePerNight
-                                                            ]
-                                                        }, void 0, true, {
-                                                            fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                            lineNumber: 172,
-                                                            columnNumber: 20
-                                                        }, this),
-                                                        " / night"
-                                                    ]
-                                                }, void 0, true, {
+                                                " ",
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$image$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["default"], {
+                                                    src: image.url,
+                                                    alt: image.alt || `Gallery image ${index + 1} of ${property.name}`,
+                                                    fill: true,
+                                                    style: {
+                                                        objectFit: "cover"
+                                                    },
+                                                    "data-ai-hint": image['data-ai-hint']
+                                                }, void 0, false, {
                                                     fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
                                                     lineNumber: 171,
-                                                    columnNumber: 17
-                                                }, this),
-                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                    className: "text-sm text-gray-500 mt-1",
-                                                    children: [
-                                                        "⭐ ",
-                                                        property.ratings?.average || 'N/A',
-                                                        " (",
-                                                        property.ratings?.count || 0,
-                                                        " reviews)"
-                                                    ]
-                                                }, void 0, true, {
-                                                    fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                    lineNumber: 174,
-                                                    columnNumber: 18
+                                                    columnNumber: 21
                                                 }, this)
                                             ]
-                                        }, void 0, true, {
+                                        }, index, true, {
                                             fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
                                             lineNumber: 170,
-                                            columnNumber: 15
-                                        }, this),
-                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["CardContent"], {
-                                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$booking$2f$initial$2d$booking$2d$form$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["InitialBookingForm"], {
-                                                property: property
+                                            columnNumber: 19
+                                        }, this)),
+                                    Array.from({
+                                        length: Math.max(0, 3 - galleryImages.length)
+                                    }).map((_, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                            className: "relative aspect-[4/3] w-full overflow-hidden rounded-lg shadow-md bg-muted flex items-center justify-center",
+                                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$house$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__default__as__Home$3e$__["Home"], {
+                                                className: "h-12 w-12 text-muted-foreground/50"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                                lineNumber: 179,
-                                                columnNumber: 18
+                                                lineNumber: 183,
+                                                columnNumber: 22
                                             }, this)
-                                        }, void 0, false, {
+                                        }, `placeholder-${i}`, false, {
                                             fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                            lineNumber: 178,
-                                            columnNumber: 15
-                                        }, this)
-                                    ]
-                                }, void 0, true, {
-                                    fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                    lineNumber: 169,
-                                    columnNumber: 13
-                                }, this)
-                            }, void 0, false, {
+                                            lineNumber: 182,
+                                            columnNumber: 19
+                                        }, this))
+                                ]
+                            }, void 0, true, {
                                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                                lineNumber: 168,
-                                columnNumber: 12
+                                lineNumber: 167,
+                                columnNumber: 14
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                        lineNumber: 45,
-                        columnNumber: 9
+                        lineNumber: 83,
+                        columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                lineNumber: 34,
+                lineNumber: 66,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$prahova$2f$prahova$2d$footer$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["PrahovaFooter"], {}, void 0, false, {
                 fileName: "[project]/src/components/property/prahova/prahova-page-layout.tsx",
-                lineNumber: 185,
+                lineNumber: 190,
                 columnNumber: 7
             }, this)
         ]

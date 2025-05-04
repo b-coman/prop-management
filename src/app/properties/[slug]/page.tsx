@@ -1,11 +1,12 @@
+
 // src/app/properties/[slug]/page.tsx
 
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import type { Property } from '@/types';
-import { PrahovaPageLayout } from '@/components/property/prahova/prahova-page-layout';
-import { ColteiPageLayout } from '@/components/property/coltei/coltei-page-layout';
-import { Header } from '@/components/header';
+import type { Property, SerializableTimestamp } from '@/types';
+// Removed Prahova and Coltei specific layouts
+import { PropertyPageLayout } from '@/components/property/property-page-layout'; // Import the new generic layout
+import { Header } from '@/components/header'; // Keep generic header if needed by the layout
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase'; // Import db for data fetching
 
@@ -27,7 +28,14 @@ export async function getPropertyBySlug(slug: string): Promise<Property | undefi
                 if (timestamp instanceof Timestamp) {
                     return timestamp.toDate();
                 } else if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
+                    // Handle Firestore Timestamp-like objects from JSON/serialization
                     return new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
+                } else if (typeof timestamp === 'string') {
+                    // Handle ISO strings
+                     try { return new Date(timestamp); } catch { return undefined; }
+                } else if (typeof timestamp === 'number') {
+                     // Assuming milliseconds since epoch
+                     try { return new Date(timestamp); } catch { return undefined; }
                 }
                 return undefined;
             };
@@ -36,18 +44,22 @@ export async function getPropertyBySlug(slug: string): Promise<Property | undefi
              const propertyData = {
                 id: doc.id,
                 ...data,
+                // Ensure timestamps are converted to Dates or stay as undefined/null
                 createdAt: convertToDate(data.createdAt),
                 updatedAt: convertToDate(data.updatedAt),
                  // Ensure arrays are always present even if missing in Firestore
                 images: Array.isArray(data.images) ? data.images : [],
                 amenities: Array.isArray(data.amenities) ? data.amenities : [],
                 houseRules: Array.isArray(data.houseRules) ? data.houseRules : [],
+                 // Explicitly cast potentially missing nested objects to ensure type safety
+                location: data.location || {},
+                ratings: data.ratings || { average: 0, count: 0 },
             } as Property;
 
-            // Ensure nested arrays/objects exist if needed, e.g., ratings
-             if (!propertyData.ratings) {
-                propertyData.ratings = { average: 0, count: 0 }; // Default ratings if missing
-            }
+             // Ensure nested location coordinates exist
+             if (propertyData.location && !propertyData.location.coordinates) {
+                 propertyData.location.coordinates = { latitude: 0, longitude: 0 }; // Default coordinates if missing
+             }
 
             return propertyData;
         } else {
@@ -77,10 +89,13 @@ export async function generateStaticParams() {
         return [];
       }
 
-      const params = snapshot.docs.map(doc => ({
-          slug: doc.data().slug as string,
-      })).filter(param => !!param.slug); // Ensure slug is not null/undefined
+      const params = snapshot.docs
+        .map(doc => ({
+            slug: doc.data().slug as string,
+        }))
+        .filter(param => typeof param.slug === 'string' && param.slug.length > 0); // Ensure slug is a non-empty string
 
+      console.log(`[generateStaticParams] Generated ${params.length} params:`, params);
       return params;
   } catch (error) {
        console.error("❌ Error fetching properties for generateStaticParams:", error);
@@ -90,48 +105,28 @@ export async function generateStaticParams() {
 
 
 export default async function PropertyDetailsPage({ params }: PropertyDetailsPageProps) {
-  // Fetch property data using the slug from params
-  // This line should be correct within an async component
-  const property = await getPropertyBySlug(params.slug);
+  // Await the params before accessing slug
+  const awaitedParams = params;
+  const slug = awaitedParams.slug;
 
-  if (!property) {
+  if (!slug) {
+    console.error("[PropertyDetailsPage] Slug is missing from params.");
     notFound();
   }
+  console.log(`[PropertyDetailsPage] Rendering page for slug: ${slug}`);
 
-  // Conditionally render the layout based on the property slug
-  const LayoutComponent = property.slug === 'prahova-mountain-chalet'
-    ? PrahovaPageLayout
-    : property.slug === 'coltei-apartment-bucharest'
-      ? ColteiPageLayout
-      : null; // Fallback or default layout if needed
+  // Fetch property data using the slug
+  const property = await getPropertyBySlug(slug);
 
-  if (LayoutComponent) {
-    // Pass the property data to the specific layout component
-    // The layout component will be responsible for rendering the InitialBookingForm
-    return (
-       <div>
-         <LayoutComponent property={property} />
-       </div>
-    );
+  if (!property) {
+     console.warn(`[PropertyDetailsPage] Property not found for slug: ${slug}`);
+    notFound();
   }
+  console.log(`[PropertyDetailsPage] Property loaded from Firestore: ${property.name} (ID: ${property.id})`);
 
-  // Fallback for properties without a specific layout
-  console.warn(`[PropertyDetailsPage] No specific layout found for slug: ${params.slug}. Rendering generic fallback.`);
-  return (
-    <div className="flex min-h-screen flex-col">
-       <Header />
-      <main className="flex-grow container py-12 md:py-16">
-        <h1>{property.name}</h1>
-        <p>Generic property page - Layout not defined.</p>
-         {/* Basic rendering of property details */}
-         <pre>{JSON.stringify(property, null, 2)}</pre>
-          {/* You might render a generic InitialBookingForm here if needed */}
-          {/* <Card id="booking-form" className="sticky top-24 shadow-lg">
-            <CardHeader><CardTitle>Check Availability</CardTitle></CardHeader>
-            <CardContent><InitialBookingForm property={property} /></CardContent>
-          </Card> */}
-      </main>
-      {/* Add a generic footer if needed */}
-    </div>
-  );
+
+  // Use the generic PropertyPageLayout for all properties
+  return <PropertyPageLayout property={property} />;
+
 }
+
