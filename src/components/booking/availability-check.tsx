@@ -21,25 +21,26 @@ import {
   ArrowRight,
   MapPin,
   BedDouble,
+  Minus,
   Bath,
   Home,
   Building,
   Wind,
-  Minus,
-  Plus,
+  Plus, // Added Plus icon
 } from 'lucide-react';
 
 import type { Property, Coupon, Availability } from '@/types';
+import type { Stripe } from '@stripe/stripe-js'; // Import Stripe type
 import { getUnavailableDatesForProperty } from '@/services/bookingService';
 import { validateAndApplyCoupon } from '@/services/couponService';
 import { createPendingBookingAction } from '@/app/actions/booking-actions';
 
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -88,6 +89,7 @@ export function AvailabilityCheck({
   const [lastName, setLastName] = useSessionStorage<string>(`booking_${property.id}_lastName`, '');
   const [email, setEmail] = useSessionStorage<string>(`booking_${property.id}_email`, '');
   const [phone, setPhone] = useSessionStorage<string>(`booking_${property.id}_phone`, '');
+  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null); // State for Stripe instance
 
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountPercentage: number } | null>(null);
@@ -104,10 +106,22 @@ export function AvailabilityCheck({
   const datesSelected = checkInDate && checkOutDate && isValid(checkInDate) && isValid(checkOutDate) && isAfter(checkOutDate, checkInDate);
   const numberOfNights = useMemo(() => {
     if (datesSelected && checkInDate && checkOutDate) { // Added null checks
-      return differenceInDays(checkOutDate, checkInDate);
+      // Ensure dates are treated as start of day for accurate diff
+      return differenceInDays(startOfDay(checkOutDate), startOfDay(checkInDate));
     }
     return 0;
   }, [checkInDate, checkOutDate, datesSelected]);
+
+   // Initialize Stripe.js when the component mounts
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+      setStripePromise(import('@stripe/stripe-js').then(m => m.loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)));
+    } else {
+        console.error("Stripe Publishable Key not found in environment variables.");
+        // Optionally, set an error state or show a message to the user
+    }
+  }, []);
+
 
   const pricingDetails = useMemo(() => {
     if (datesSelected && numberOfGuests > 0) {
@@ -318,7 +332,7 @@ export function AvailabilityCheck({
              total: pricingDetails.total,
         },
         status: 'pending' as const,
-        // Ensure appliedCouponCode is null if no coupon is applied, not undefined
+        // Ensure appliedCouponCode is stored as null if not provided, not undefined
         appliedCouponCode: appliedCoupon?.code ?? null,
       };
       const pendingBookingResult = await createPendingBookingAction(bookingInput);
@@ -352,7 +366,9 @@ export function AvailabilityCheck({
 
       // console.log(`[handleContinueToPayment] Stripe session created: ${stripeResult.sessionId}. Redirecting...`);
 
-      const stripe = await import('@stripe/stripe-js').then(m => m.loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!));
+      // Await the Stripe promise to get the Stripe instance
+       const stripe = await stripePromise;
+
       // Add a log to check if stripe object is loaded correctly
       console.log("Stripe object loaded:", stripe);
 
@@ -644,7 +660,7 @@ export function AvailabilityCheck({
                         <form onSubmit={handleContinueToPayment} className="space-y-6">
 
                             {/* Selected Dates & Guests on grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-b pb-4">
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end border-b pb-4"> {/* Use items-end for vertical alignment */}
                                 {/* Selected Dates Display */}
                                 {datesSelected && checkInDate && checkOutDate && (
                                     <div className="space-y-1">
@@ -688,31 +704,33 @@ export function AvailabilityCheck({
                                             <Plus className="h-4 w-4" />
                                         </Button>
                                     </div>
-                                     <p className="text-xs text-muted-foreground mt-1">
-                                         Max {property.maxGuests}. Base for {property.baseOccupancy}.
-                                         {property.extraGuestFee > 0 && ` Extra: $${property.extraGuestFee.toFixed(2)}/guest/night.`}
-                                     </p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Max {property.maxGuests}. Base for {property.baseOccupancy}.
+                                        {property.extraGuestFee > 0 && ` Extra: $${property.extraGuestFee.toFixed(2)}/guest/night.`}
+                                    </p>
                                 </div>
+                             </div> {/* End of first grid row */}
 
-                                 {/* Coupon Code */}
-                                <div className="space-y-1 md:col-span-2"> {/* Span 2 columns on medium screens */}
-                                     <Label htmlFor="coupon">Discount Coupon (Optional)</Label>
-                                     <div className="flex gap-2">
-                                         <Input id="coupon" placeholder="Enter code" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} disabled={isApplyingCoupon || !!appliedCoupon || isProcessingBooking} />
-                                         {!appliedCoupon ? (
-                                         <Button type="button" variant="outline" onClick={handleApplyCoupon} disabled={isApplyingCoupon || !couponCode.trim() || isProcessingBooking}>
-                                             {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <TicketPercent className="h-4 w-4" />}
-                                         </Button>
-                                         ) : (
-                                         <Button type="button" variant="ghost" size="icon" onClick={handleRemoveCoupon} disabled={isProcessingBooking}><X className="h-4 w-4 text-destructive" /></Button>
-                                         )}
-                                     </div>
-                                     <div className="h-4 text-xs mt-1">
-                                         {couponError && <p className="text-destructive">{couponError}</p>}
-                                         {appliedCoupon && <p className="text-green-600">Applied: {appliedCoupon.code} ({appliedCoupon.discountPercentage}%)</p>}
-                                     </div>
-                                 </div>
-                            </div>
+                            {/* Coupon Code - moved below dates/guests */}
+                             <div className="grid grid-cols-1 gap-4 border-b pb-4">
+                                <div className="space-y-1">
+                                    <Label htmlFor="coupon">Discount Coupon (Optional)</Label>
+                                    <div className="flex gap-2">
+                                        <Input id="coupon" placeholder="Enter code" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} disabled={isApplyingCoupon || !!appliedCoupon || isProcessingBooking} />
+                                        {!appliedCoupon ? (
+                                            <Button type="button" variant="outline" onClick={handleApplyCoupon} disabled={isApplyingCoupon || !couponCode.trim() || isProcessingBooking}>
+                                                {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <TicketPercent className="h-4 w-4" />}
+                                            </Button>
+                                        ) : (
+                                            <Button type="button" variant="ghost" size="icon" onClick={handleRemoveCoupon} disabled={isProcessingBooking}><X className="h-4 w-4 text-destructive" /></Button>
+                                        )}
+                                    </div>
+                                    <div className="h-4 text-xs mt-1">
+                                        {couponError && <p className="text-destructive">{couponError}</p>}
+                                        {appliedCoupon && <p className="text-green-600">Applied: {appliedCoupon.code} ({appliedCoupon.discountPercentage}%)</p>}
+                                    </div>
+                                </div>
+                             </div>
 
 
                             {/* Price Breakdown */}
@@ -744,6 +762,7 @@ export function AvailabilityCheck({
                                         <Input id="lastName" name="lastName" value={lastName} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
                                     </div>
                                 </div>
+                                 {/* New grid row for email/phone */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-1">
                                         <Label htmlFor="email">Email</Label>
@@ -782,3 +801,4 @@ export function AvailabilityCheck({
   );
 }
 
+    

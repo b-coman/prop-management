@@ -1214,7 +1214,9 @@ if (!stripeSecretKey) {
 const stripe = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$stripe$2f$esm$2f$stripe$2e$esm$2e$node$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["default"](stripeSecretKey);
 async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ createCheckoutSession(input) {
     const { property, checkInDate, checkOutDate, numberOfGuests, totalPrice, numberOfNights, guestEmail, guestFirstName, guestLastName, appliedCouponCode, discountPercentage, pendingBookingId } = input;
-    const origin = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$headers$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["headers"])().get('origin') || 'http://localhost:9002';
+    // Await the headers call
+    const headersList = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$headers$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["headers"])();
+    const origin = headersList.get('origin') || 'http://localhost:9002';
     const numberOfExtraGuests = Math.max(0, numberOfGuests - property.baseOccupancy);
     // --- Prepare metadata ---
     const metadata = {
