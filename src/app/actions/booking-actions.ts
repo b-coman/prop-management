@@ -1,4 +1,3 @@
-
 "use server";
 
 import { z } from 'zod';
@@ -32,7 +31,7 @@ const CreatePendingBookingSchema = z.object({
     total: z.number().nonnegative(),
   }).passthrough(),
   status: z.literal('pending'), // Explicitly set status
-  appliedCouponCode: z.string().optional(),
+  appliedCouponCode: z.string().nullable().optional(), // Allow string or null
 });
 
 type CreatePendingBookingInput = z.infer<typeof CreatePendingBookingSchema>;
@@ -80,7 +79,7 @@ export async function createPendingBookingAction(
       numberOfGuests,
       pricing,
       status: 'pending', // Ensure status is pending
-      appliedCouponCode: appliedCouponCode,
+      appliedCouponCode: appliedCouponCode ?? undefined, // Pass null as null, or undefined if not present
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       // Payment info will be added/updated by the webhook
@@ -109,6 +108,11 @@ export async function createPendingBookingAction(
      if (errorMessage.includes('PERMISSION_DENIED')) {
       return { error: 'Permission denied. Could not create pending booking.' };
     }
+     // Check for specific Firestore invalid data error
+     if (errorMessage.includes('invalid data') || errorMessage.includes('Unsupported field value')) {
+         console.error("[Action createPendingBookingAction] Firestore data error details:", errorMessage);
+         return { error: `Failed to create pending booking due to invalid data. Please check input values. Details: ${errorMessage.split(' (')[0]}` }; // Provide cleaner error message
+     }
     return { error: `Failed to create pending booking: ${errorMessage}` };
   }
 }

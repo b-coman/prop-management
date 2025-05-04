@@ -46,7 +46,7 @@ import { AvailabilityCalendar } from './availability-calendar';
 import { calculatePrice } from '@/lib/price-utils';
 import { useSessionStorage } from '@/hooks/use-session-storage';
 import { Badge } from '@/components/ui/badge';
-// Removed TestBookingButton import
+
 
 interface AvailabilityCheckProps {
   property: Property;
@@ -102,7 +102,7 @@ export function AvailabilityCheck({
   // --- Derived State ---
   const datesSelected = checkInDate && checkOutDate && isValid(checkInDate) && isValid(checkOutDate) && isAfter(checkOutDate, checkInDate);
   const numberOfNights = useMemo(() => {
-    if (datesSelected) {
+    if (datesSelected && checkInDate && checkOutDate) { // Added null checks
       return differenceInDays(checkOutDate, checkInDate);
     }
     return 0;
@@ -223,7 +223,7 @@ export function AvailabilityCheck({
       setCouponError('Please enter a coupon code.');
       return;
     }
-    if (!datesSelected) {
+    if (!datesSelected || !checkInDate || !checkOutDate) { // Added null checks
       setCouponError('Please select valid booking dates first.');
       return;
     }
@@ -317,7 +317,8 @@ export function AvailabilityCheck({
              total: pricingDetails.total,
         },
         status: 'pending' as const,
-        appliedCouponCode: appliedCoupon?.code,
+        // Ensure appliedCouponCode is null if no coupon is applied, not undefined
+        appliedCouponCode: appliedCoupon?.code ?? null,
       };
       const pendingBookingResult = await createPendingBookingAction(bookingInput);
 
@@ -504,28 +505,28 @@ export function AvailabilityCheck({
   };
 
    const renderAvailabilityCalendar = () => {
-    // Only render calendar if dates are unavailable
-    if (isAvailable !== false) {
-      return null;
-    }
-    console.log("[renderAvailabilityCalendar] Rendering calendar. Loading:", isLoadingAvailability, "Unavailable Dates:", unavailableDates.length);
-    if (isLoadingAvailability && unavailableDates.length === 0) {
-      console.log("[renderAvailabilityCalendar] Still loading initial data, skipping render.");
-      return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
-    }
-    const calendarCenterMonth = checkInDate ? startOfMonth(checkInDate) : startOfMonth(new Date());
-    console.log("[renderAvailabilityCalendar] Center month:", format(calendarCenterMonth, 'yyyy-MM'));
-    return (
-      <div className="mt-6">
-        <h3 className="text-lg font-semibold mb-3">Availability Calendar</h3>
-        <AvailabilityCalendar
-          currentMonth={calendarCenterMonth}
-          unavailableDates={unavailableDates}
-          selectedRange={datesSelected ? { from: checkInDate!, to: checkOutDate! } : undefined}
-        />
-      </div>
-    );
-  }
+     // Only render calendar if dates are unavailable
+     if (isAvailable !== false) {
+       return null;
+     }
+     console.log("[renderAvailabilityCalendar] Rendering calendar. Loading:", isLoadingAvailability, "Unavailable Dates:", unavailableDates.length);
+     if (isLoadingAvailability && unavailableDates.length === 0) {
+       console.log("[renderAvailabilityCalendar] Still loading initial data, skipping render.");
+       return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+     }
+     const calendarCenterMonth = checkInDate ? startOfMonth(checkInDate) : startOfMonth(new Date());
+     console.log("[renderAvailabilityCalendar] Center month:", format(calendarCenterMonth, 'yyyy-MM'));
+     return (
+       <div className="mt-6">
+         <h3 className="text-lg font-semibold mb-3">Availability Calendar</h3>
+         <AvailabilityCalendar
+           currentMonth={calendarCenterMonth}
+           unavailableDates={unavailableDates}
+           selectedRange={datesSelected ? { from: checkInDate!, to: checkOutDate! } : undefined}
+         />
+       </div>
+     );
+   }
 
   const renderNotificationForm = () => {
     if (isLoadingAvailability || isAvailable !== false || !datesSelected || !checkInDate || !checkOutDate) return null; // Added null checks
