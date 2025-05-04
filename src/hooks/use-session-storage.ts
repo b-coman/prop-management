@@ -3,95 +3,136 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-// Helper function to safely parse JSON
-function safeJsonParse<T>(value: string | null): T | null {
-  if (value === null) return null;
+// Helper function to safely parse JSON or return primitive if possible
+function safeJsonParse<T>(value: string | null): T | string | boolean | number | null { // Return type allows primitives or original string
+  if (value === null || value === undefined) return null;
   try {
+    // Try parsing as JSON first
     return JSON.parse(value);
   } catch (e) {
-    console.error("Error parsing session storage value:", e);
-    return null;
+    // If JSON parsing fails, check if it might be a primitive stored as a string
+    const trimmedValue = value.trim();
+    if (trimmedValue === 'true') return true;
+    if (trimmedValue === 'false') return false;
+
+    // Check if it's a number string (handle potential leading/trailing spaces)
+    if (!isNaN(Number(trimmedValue)) && trimmedValue !== '') {
+        // It looks like a number, return it as a number
+        return Number(trimmedValue);
+    }
+
+    // If it's neither valid JSON nor a recognizable primitive string,
+    // return the original string for the caller to potentially handle.
+    // console.warn(`Session storage value for key wasn't JSON, returning raw string: "${value}"`);
+    return value;
   }
 }
 
-// Helper function to safely stringify JSON
-function safeJsonStringify(value: unknown): string | null {
-    try {
-        // Handle Date objects specifically
-        if (value instanceof Date) {
-            return value.toISOString(); // Store dates as ISO strings
-        }
-        return JSON.stringify(value);
-    } catch (e) {
-        console.error("Error stringifying value for session storage:", e);
-        return null;
-    }
-}
+// Helper function to potentially parse stored date strings or return other parsed types/strings
+function parseStoredValue<T>(storedValue: string | null): T | string | boolean | number | null { // Return type updated
+    const parsed = safeJsonParse<T>(storedValue); // This now returns T | string | boolean | number | null
 
-// Helper function to parse potentially stored date strings
-function parseStoredValue<T>(storedValue: string | null): T | null {
-    const parsed = safeJsonParse<T | string>(storedValue); // It might be a string (like ISO date) or other JSON
+    // If parsed is a string, try parsing as ISO date
     if (typeof parsed === 'string') {
-        // Attempt to parse as ISO date string
-        const date = new Date(parsed);
-        if (!isNaN(date.getTime())) {
-            return date as T; // Return Date object if valid
+        // Basic ISO date check (YYYY-MM-DDTHH:mm:ss.sssZ or YYYY-MM-DD)
+        const isoDateRegex = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|([+-]\d{2}:\d{2}))?)?$/;
+        if (isoDateRegex.test(parsed)) {
+            const date = new Date(parsed);
+            // Check if the date is valid (Date object handles invalid dates gracefully sometimes)
+            // A more robust check might be needed depending on expected date formats
+            if (!isNaN(date.getTime())) {
+                // Ensure the parsed date string wasn't just YYYY-MM-DD which Date might interpret wrongly depending on timezone
+                // If the original string contains 'T', it's likely a full ISO string
+                if (parsed.includes('T') || parsed.length === 10) { // Accept YYYY-MM-DD too
+                     return date as T; // Return Date object if valid
+                }
+            }
         }
     }
-    return parsed as T | null; // Return parsed value or null
+    // Return the parsed value (could be T, string, boolean, number) or null
+    return parsed;
 }
 
 
+// Hook definition
 export function useSessionStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
-  // Get initial value from session storage or use the provided initialValue
   const [storedValue, setStoredValue] = useState<T>(() => {
     if (typeof window === 'undefined') {
-      return initialValue; // Server-side rendering fallback
+      return initialValue;
     }
     try {
       const item = window.sessionStorage.getItem(key);
-       // Parse stored item, handling potential JSON errors and date strings
       const parsedItem = item ? parseStoredValue<T>(item) : null;
-      return parsedItem !== null ? parsedItem : initialValue;
+
+      if (parsedItem !== null && parsedItem !== undefined) {
+          // Now we check the type of parsedItem against initialValue more carefully
+          if (typeof parsedItem === typeof initialValue ||
+              (parsedItem instanceof Date && initialValue instanceof Date)) {
+             return parsedItem as T;
+          } else {
+              // Attempt type coercion if reasonable (e.g., string '1' to number 1)
+               if (typeof initialValue === 'number' && typeof parsedItem === 'number') {
+                  return parsedItem as T;
+              }
+              if (typeof initialValue === 'boolean' && typeof parsedItem === 'boolean') {
+                  return parsedItem as T;
+              }
+               if (typeof initialValue === 'string' && typeof parsedItem === 'string') {
+                  return parsedItem as T;
+              }
+              // If coercion isn't straightforward or types mismatch significantly, warn and fallback
+             console.warn(`Session storage type mismatch for key "${key}". Expected ${typeof initialValue}, found ${typeof parsedItem}. Using initial value.`);
+             return initialValue;
+          }
+
+      }
+      return initialValue; // Fallback if item is null or undefined after parsing
     } catch (error) {
       console.error(`Error reading sessionStorage key “${key}”:`, error);
       return initialValue;
     }
   });
 
-  // Return a wrapped version of useState's setter function that persists the new value to sessionStorage
   const setValue = useCallback((value: T | ((val: T) => T)) => {
     try {
-      // Allow value to be a function so we have the same API as useState
       const valueToStore = value instanceof Function ? value(storedValue) : value;
-      // Save state
       setStoredValue(valueToStore);
-      // Save to session storage
       if (typeof window !== 'undefined') {
-          const stringifiedValue = safeJsonStringify(valueToStore);
-          if (stringifiedValue !== null) {
-             window.sessionStorage.setItem(key, stringifiedValue);
+         // Convert value to string for storage
+          let stringifiedValue;
+          if (valueToStore instanceof Date) {
+              stringifiedValue = valueToStore.toISOString(); // Store dates as ISO strings
+          } else if (typeof valueToStore === 'object' && valueToStore !== null) {
+              stringifiedValue = JSON.stringify(valueToStore); // Stringify objects/arrays
           } else {
-             // Handle stringification error, maybe remove the item?
-             window.sessionStorage.removeItem(key);
+              stringifiedValue = String(valueToStore); // Convert primitives to string
           }
+          window.sessionStorage.setItem(key, stringifiedValue);
       }
     } catch (error) {
       console.error(`Error setting sessionStorage key “${key}”:`, error);
     }
-  }, [key, storedValue]); // Include storedValue in dependencies for the function update case
+  }, [key, storedValue]);
 
-  // Listen for changes to the same key from other tabs/windows (optional)
+  // Optional: Listen for storage changes (consider impact on complex state)
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
       if (event.storageArea === window.sessionStorage && event.key === key) {
         try {
           const newValue = event.newValue ? parseStoredValue<T>(event.newValue) : null;
-           if (newValue !== null) {
-             setStoredValue(newValue);
-           } else {
-              setStoredValue(initialValue); // Fallback if parsing fails or value is removed
-           }
+          // Similar type check as initial load
+           if (newValue !== null && newValue !== undefined) {
+               if (typeof newValue === typeof initialValue ||
+                   (newValue instanceof Date && initialValue instanceof Date)) {
+                 setStoredValue(newValue as T);
+               } else {
+                   // Handle potential type mismatch on update, maybe fallback or log
+                    console.warn(`Session storage update type mismatch for key "${key}". Ignoring update.`);
+                    // Or fallback: setStoredValue(initialValue);
+               }
+            } else {
+                setStoredValue(initialValue); // Fallback if value is removed or parsing fails
+            }
         } catch (error) {
           console.error(`Error handling storage change for key “${key}”:`, error);
         }
@@ -102,8 +143,7 @@ export function useSessionStorage<T>(key: string, initialValue: T): [T, (value: 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [key, initialValue]); // Add initialValue dependency
-
+  }, [key, initialValue]);
 
   return [storedValue, setValue];
 }
