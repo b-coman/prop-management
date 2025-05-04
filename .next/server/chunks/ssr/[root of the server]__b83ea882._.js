@@ -1099,7 +1099,7 @@ const CreatePendingBookingSchema = __TURBOPACK__imported__module__$5b$project$5d
         total: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$lib$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].number().nonnegative()
     }).passthrough(),
     status: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$lib$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].literal('pending'),
-    appliedCouponCode: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$lib$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].string().optional()
+    appliedCouponCode: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$lib$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].string().nullable().optional()
 });
 async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ createPendingBookingAction(input) {
     console.log("[Action createPendingBookingAction] Called with input:", input);
@@ -1125,7 +1125,7 @@ async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ createPendingBookingAct
             numberOfGuests,
             pricing,
             status: 'pending',
-            appliedCouponCode: appliedCouponCode,
+            appliedCouponCode: appliedCouponCode ?? undefined,
             createdAt: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["serverTimestamp"])(),
             updatedAt: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["serverTimestamp"])(),
             // Payment info will be added/updated by the webhook
@@ -1152,6 +1152,13 @@ async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ createPendingBookingAct
             return {
                 error: 'Permission denied. Could not create pending booking.'
             };
+        }
+        // Check for specific Firestore invalid data error
+        if (errorMessage.includes('invalid data') || errorMessage.includes('Unsupported field value')) {
+            console.error("[Action createPendingBookingAction] Firestore data error details:", errorMessage);
+            return {
+                error: `Failed to create pending booking due to invalid data. Please check input values. Details: ${errorMessage.split(' (')[0]}`
+            }; // Provide cleaner error message
         }
         return {
             error: `Failed to create pending booking: ${errorMessage}`

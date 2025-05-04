@@ -79,7 +79,8 @@ export async function createPendingBookingAction(
       numberOfGuests,
       pricing,
       status: 'pending', // Ensure status is pending
-      appliedCouponCode: appliedCouponCode ?? undefined, // Pass null as null, or undefined if not present
+      // Ensure appliedCouponCode is stored as null if not provided, not undefined
+      appliedCouponCode: appliedCouponCode ?? null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       // Payment info will be added/updated by the webhook
@@ -111,7 +112,8 @@ export async function createPendingBookingAction(
      // Check for specific Firestore invalid data error
      if (errorMessage.includes('invalid data') || errorMessage.includes('Unsupported field value')) {
          console.error("[Action createPendingBookingAction] Firestore data error details:", errorMessage);
-         return { error: `Failed to create pending booking due to invalid data. Please check input values. Details: ${errorMessage.split(' (')[0]}` }; // Provide cleaner error message
+         // Provide cleaner error message
+         return { error: `Failed to create pending booking due to invalid data. Please check input values. Details: ${errorMessage.split(' (')[0]}` };
      }
     return { error: `Failed to create pending booking: ${errorMessage}` };
   }
@@ -119,3 +121,4 @@ export async function createPendingBookingAction(
 
 // TODO: Add action `createAvailabilityAlertAction` later
 // export async function createAvailabilityAlertAction(input: { propertyId: string, checkInDate: string, checkOutDate: string, contactMethod: 'email' | 'sms', contactInfo: string }) { ... }
+

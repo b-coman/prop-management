@@ -1104,7 +1104,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
     // --- Derived State ---
     const datesSelected = checkInDate && checkOutDate && (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$isValid$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["isValid"])(checkInDate) && (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$isValid$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["isValid"])(checkOutDate) && (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$isAfter$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["isAfter"])(checkOutDate, checkInDate);
     const numberOfNights = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useMemo"])(()=>{
-        if (datesSelected) {
+        if (datesSelected && checkInDate && checkOutDate) {
             return (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$differenceInDays$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["differenceInDays"])(checkOutDate, checkInDate);
         }
         return 0;
@@ -1230,7 +1230,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
             setCouponError('Please enter a coupon code.');
             return;
         }
-        if (!datesSelected) {
+        if (!datesSelected || !checkInDate || !checkOutDate) {
             setCouponError('Please select valid booking dates first.');
             return;
         }
@@ -1329,7 +1329,8 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                     total: pricingDetails.total
                 },
                 status: 'pending',
-                appliedCouponCode: appliedCoupon?.code
+                // Ensure appliedCouponCode is null if no coupon is applied, not undefined
+                appliedCouponCode: appliedCoupon?.code ?? null
             };
             const pendingBookingResult = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$app$2f$actions$2f$booking$2d$actions$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["createPendingBookingAction"])(bookingInput);
             if (pendingBookingResult.error || !pendingBookingResult.bookingId) {
@@ -1443,27 +1444,27 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                         className: "h-4 w-4 animate-spin"
                     }, void 0, false, {
                         fileName: "[project]/src/components/booking/availability-check.tsx",
-                        lineNumber: 435,
+                        lineNumber: 436,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertTitle"], {
                         children: "Checking Availability..."
                     }, void 0, false, {
                         fileName: "[project]/src/components/booking/availability-check.tsx",
-                        lineNumber: 436,
+                        lineNumber: 437,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDescription"], {
                         children: "Please wait while we check the dates."
                     }, void 0, false, {
                         fileName: "[project]/src/components/booking/availability-check.tsx",
-                        lineNumber: 437,
+                        lineNumber: 438,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/booking/availability-check.tsx",
-                lineNumber: 434,
+                lineNumber: 435,
                 columnNumber: 9
             }, this);
         }
@@ -1476,14 +1477,14 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                         className: "h-4 w-4 text-green-600"
                     }, void 0, false, {
                         fileName: "[project]/src/components/booking/availability-check.tsx",
-                        lineNumber: 444,
+                        lineNumber: 445,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertTitle"], {
                         children: "Dates Available!"
                     }, void 0, false, {
                         fileName: "[project]/src/components/booking/availability-check.tsx",
-                        lineNumber: 445,
+                        lineNumber: 446,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDescription"], {
@@ -1494,13 +1495,13 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/booking/availability-check.tsx",
-                        lineNumber: 446,
+                        lineNumber: 447,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/booking/availability-check.tsx",
-                lineNumber: 443,
+                lineNumber: 444,
                 columnNumber: 9
             }, this);
         }
@@ -1512,14 +1513,14 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                         className: "h-4 w-4"
                     }, void 0, false, {
                         fileName: "[project]/src/components/booking/availability-check.tsx",
-                        lineNumber: 455,
+                        lineNumber: 456,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertTitle"], {
                         children: "Dates Unavailable"
                     }, void 0, false, {
                         fileName: "[project]/src/components/booking/availability-check.tsx",
-                        lineNumber: 456,
+                        lineNumber: 457,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDescription"], {
@@ -1530,13 +1531,13 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/booking/availability-check.tsx",
-                        lineNumber: 457,
+                        lineNumber: 458,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/booking/availability-check.tsx",
-                lineNumber: 454,
+                lineNumber: 455,
                 columnNumber: 9
             }, this);
         }
@@ -1549,27 +1550,27 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                         className: "h-4 w-4 text-yellow-600"
                     }, void 0, false, {
                         fileName: "[project]/src/components/booking/availability-check.tsx",
-                        lineNumber: 466,
+                        lineNumber: 467,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertTitle"], {
                         children: "Select Dates"
                     }, void 0, false, {
                         fileName: "[project]/src/components/booking/availability-check.tsx",
-                        lineNumber: 467,
+                        lineNumber: 468,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDescription"], {
                         children: "Please select your check-in and check-out dates using the initial form or by selecting alternative dates below."
                     }, void 0, false, {
                         fileName: "[project]/src/components/booking/availability-check.tsx",
-                        lineNumber: 468,
+                        lineNumber: 469,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/booking/availability-check.tsx",
-                lineNumber: 465,
+                lineNumber: 466,
                 columnNumber: 9
             }, this);
         }
@@ -1589,7 +1590,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                             children: "Alternative Dates"
                         }, void 0, false, {
                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                            lineNumber: 482,
+                            lineNumber: 483,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardDescription"], {
@@ -1597,13 +1598,13 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                             children: "The dates you selected are unavailable. Here are some alternatives:"
                         }, void 0, false, {
                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                            lineNumber: 483,
+                            lineNumber: 484,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                    lineNumber: 481,
+                    lineNumber: 482,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -1624,7 +1625,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                    lineNumber: 495,
+                                    lineNumber: 496,
                                     columnNumber: 15
                                 }, this),
                                 range.recommendation && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Badge"], {
@@ -1632,24 +1633,24 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                     children: range.recommendation
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                    lineNumber: 498,
+                                    lineNumber: 499,
                                     columnNumber: 40
                                 }, this)
                             ]
                         }, index, true, {
                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                            lineNumber: 489,
+                            lineNumber: 490,
                             columnNumber: 13
                         }, this))
                 }, void 0, false, {
                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                    lineNumber: 487,
+                    lineNumber: 488,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/src/components/booking/availability-check.tsx",
-            lineNumber: 480,
+            lineNumber: 481,
             columnNumber: 7
         }, this);
     };
@@ -1667,13 +1668,13 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                     className: "h-8 w-8 animate-spin text-muted-foreground"
                 }, void 0, false, {
                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                    lineNumber: 514,
-                    columnNumber: 69
+                    lineNumber: 515,
+                    columnNumber: 70
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/booking/availability-check.tsx",
-                lineNumber: 514,
-                columnNumber: 14
+                lineNumber: 515,
+                columnNumber: 15
             }, this);
         }
         const calendarCenterMonth = checkInDate ? (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfMonth$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["startOfMonth"])(checkInDate) : (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfMonth$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["startOfMonth"])(new Date());
@@ -1686,8 +1687,8 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                     children: "Availability Calendar"
                 }, void 0, false, {
                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                    lineNumber: 520,
-                    columnNumber: 9
+                    lineNumber: 521,
+                    columnNumber: 10
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$booking$2f$availability$2d$calendar$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AvailabilityCalendar"], {
                     currentMonth: calendarCenterMonth,
@@ -1698,14 +1699,14 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                     } : undefined
                 }, void 0, false, {
                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                    lineNumber: 521,
-                    columnNumber: 9
+                    lineNumber: 522,
+                    columnNumber: 10
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/src/components/booking/availability-check.tsx",
-            lineNumber: 519,
-            columnNumber: 7
+            lineNumber: 520,
+            columnNumber: 8
         }, this);
     };
     const renderNotificationForm = ()=>{
@@ -1720,7 +1721,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                             children: "Get Notified"
                         }, void 0, false, {
                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                            lineNumber: 535,
+                            lineNumber: 536,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardDescription"], {
@@ -1732,13 +1733,13 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                            lineNumber: 536,
+                            lineNumber: 537,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                    lineNumber: 534,
+                    lineNumber: 535,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -1753,7 +1754,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                     onCheckedChange: (checked)=>setNotifyAvailability(checked)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                    lineNumber: 542,
+                                    lineNumber: 543,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$label$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Label"], {
@@ -1762,20 +1763,20 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                     children: "Yes, notify me if these dates become available."
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                    lineNumber: 547,
+                                    lineNumber: 548,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                            lineNumber: 541,
+                            lineNumber: 542,
                             columnNumber: 11
                         }, this),
                         notifyAvailability && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
                             children: [
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Separator"], {}, void 0, false, {
                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                    lineNumber: 554,
+                                    lineNumber: 555,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1783,7 +1784,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                     children: "How should we notify you?"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                    lineNumber: 555,
+                                    lineNumber: 556,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$radio$2d$group$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["RadioGroup"], {
@@ -1799,7 +1800,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                     id: "notify-email"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 562,
+                                                    lineNumber: 563,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$label$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Label"], {
@@ -1810,20 +1811,20 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                             className: "h-4 w-4"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                            lineNumber: 563,
+                                                            lineNumber: 564,
                                                             columnNumber: 85
                                                         }, this),
                                                         " Email"
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 563,
+                                                    lineNumber: 564,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 561,
+                                            lineNumber: 562,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1834,7 +1835,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                     id: "notify-sms"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 566,
+                                                    lineNumber: 567,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$label$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Label"], {
@@ -1845,26 +1846,26 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                             className: "h-4 w-4"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                            lineNumber: 567,
+                                                            lineNumber: 568,
                                                             columnNumber: 83
                                                         }, this),
                                                         " SMS"
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 567,
+                                                    lineNumber: 568,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 565,
+                                            lineNumber: 566,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                    lineNumber: 556,
+                                    lineNumber: 557,
                                     columnNumber: 15
                                 }, this),
                                 notificationMethod === 'email' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -1876,7 +1877,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                     className: "bg-white"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                    lineNumber: 571,
+                                    lineNumber: 572,
                                     columnNumber: 17
                                 }, this),
                                 notificationMethod === 'sms' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -1888,7 +1889,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                     className: "bg-white"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                    lineNumber: 581,
+                                    lineNumber: 582,
                                     columnNumber: 17
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -1900,14 +1901,14 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                             className: "h-4 w-4 mr-2 animate-spin"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 595,
+                                            lineNumber: 596,
                                             columnNumber: 40
                                         }, this) : null,
                                         "Request Notification"
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                    lineNumber: 590,
+                                    lineNumber: 591,
                                     columnNumber: 15
                                 }, this)
                             ]
@@ -1915,13 +1916,13 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                    lineNumber: 540,
+                    lineNumber: 541,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/src/components/booking/availability-check.tsx",
-            lineNumber: 533,
+            lineNumber: 534,
             columnNumber: 7
         }, this);
     };
@@ -1940,7 +1941,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/booking/availability-check.tsx",
-                lineNumber: 610,
+                lineNumber: 611,
                 columnNumber: 9
             }, this),
             isAvailable === true && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -1953,20 +1954,20 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                 children: "Booking Summary & Details"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/booking/availability-check.tsx",
-                                lineNumber: 629,
+                                lineNumber: 630,
                                 columnNumber: 21
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardDescription"], {
                                 children: "Confirm details and proceed to payment."
                             }, void 0, false, {
                                 fileName: "[project]/src/components/booking/availability-check.tsx",
-                                lineNumber: 630,
+                                lineNumber: 631,
                                 columnNumber: 21
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/booking/availability-check.tsx",
-                        lineNumber: 628,
+                        lineNumber: 629,
                         columnNumber: 17
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -1976,12 +1977,12 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                 className: "h-8 w-8 animate-spin text-muted-foreground"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/booking/availability-check.tsx",
-                                lineNumber: 635,
+                                lineNumber: 636,
                                 columnNumber: 29
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                            lineNumber: 634,
+                            lineNumber: 635,
                             columnNumber: 25
                         }, this) : // Only show the full booking form if dates are available
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("form", {
@@ -1998,7 +1999,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                     children: "Selected Dates"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 646,
+                                                    lineNumber: 647,
                                                     columnNumber: 41
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2013,7 +2014,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                            lineNumber: 648,
+                                                            lineNumber: 649,
                                                             columnNumber: 45
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2025,19 +2026,19 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                            lineNumber: 651,
+                                                            lineNumber: 652,
                                                             columnNumber: 45
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 647,
+                                                    lineNumber: 648,
                                                     columnNumber: 41
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 645,
+                                            lineNumber: 646,
                                             columnNumber: 37
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2048,7 +2049,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                     children: "Number of Guests"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 658,
+                                                    lineNumber: 659,
                                                     columnNumber: 37
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2066,12 +2067,12 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                                 className: "h-4 w-4"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                                lineNumber: 669,
+                                                                lineNumber: 670,
                                                                 columnNumber: 45
                                                             }, this)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                            lineNumber: 660,
+                                                            lineNumber: 661,
                                                             columnNumber: 41
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2080,7 +2081,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                             children: numberOfGuests
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                            lineNumber: 671,
+                                                            lineNumber: 672,
                                                             columnNumber: 41
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -2095,18 +2096,18 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                                 className: "h-4 w-4"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                                lineNumber: 683,
+                                                                lineNumber: 684,
                                                                 columnNumber: 45
                                                             }, this)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                            lineNumber: 674,
+                                                            lineNumber: 675,
                                                             columnNumber: 41
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 659,
+                                                    lineNumber: 660,
                                                     columnNumber: 37
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2121,19 +2122,19 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 686,
+                                                    lineNumber: 687,
                                                     columnNumber: 37
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 657,
+                                            lineNumber: 658,
                                             columnNumber: 33
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                    lineNumber: 642,
+                                    lineNumber: 643,
                                     columnNumber: 29
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2144,7 +2145,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                             children: "Discount Coupon (Optional)"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 695,
+                                            lineNumber: 696,
                                             columnNumber: 33
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2158,7 +2159,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                     disabled: isApplyingCoupon || !!appliedCoupon || isProcessingBooking
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 697,
+                                                    lineNumber: 698,
                                                     columnNumber: 37
                                                 }, this),
                                                 !appliedCoupon ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -2170,18 +2171,18 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                         className: "h-4 w-4 animate-spin"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                        lineNumber: 700,
+                                                        lineNumber: 701,
                                                         columnNumber: 61
                                                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$ticket$2d$percent$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__TicketPercent$3e$__["TicketPercent"], {
                                                         className: "h-4 w-4"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                        lineNumber: 700,
+                                                        lineNumber: 701,
                                                         columnNumber: 108
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 699,
+                                                    lineNumber: 700,
                                                     columnNumber: 37
                                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
                                                     type: "button",
@@ -2193,18 +2194,18 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                         className: "h-4 w-4 text-destructive"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                        lineNumber: 703,
+                                                        lineNumber: 704,
                                                         columnNumber: 147
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 703,
+                                                    lineNumber: 704,
                                                     columnNumber: 37
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 696,
+                                            lineNumber: 697,
                                             columnNumber: 33
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2215,7 +2216,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                     children: couponError
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 707,
+                                                    lineNumber: 708,
                                                     columnNumber: 53
                                                 }, this),
                                                 appliedCoupon && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2229,19 +2230,19 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 708,
+                                                    lineNumber: 709,
                                                     columnNumber: 55
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 706,
+                                            lineNumber: 707,
                                             columnNumber: 33
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                    lineNumber: 694,
+                                    lineNumber: 695,
                                     columnNumber: 29
                                 }, this),
                                 pricingDetails && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2252,7 +2253,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                             children: "Price Details"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 716,
+                                            lineNumber: 717,
                                             columnNumber: 33
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2266,7 +2267,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 717,
+                                                    lineNumber: 718,
                                                     columnNumber: 71
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2276,13 +2277,13 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 717,
+                                                    lineNumber: 718,
                                                     columnNumber: 120
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 717,
+                                            lineNumber: 718,
                                             columnNumber: 33
                                         }, this),
                                         pricingDetails.extraGuestFee > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2292,7 +2293,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                     children: "Extra guest fee"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 718,
+                                                    lineNumber: 719,
                                                     columnNumber: 130
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2302,13 +2303,13 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 718,
+                                                    lineNumber: 719,
                                                     columnNumber: 158
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 718,
+                                            lineNumber: 719,
                                             columnNumber: 70
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2318,7 +2319,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                     children: "Cleaning fee"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 719,
+                                                    lineNumber: 720,
                                                     columnNumber: 71
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2328,20 +2329,20 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 719,
+                                                    lineNumber: 720,
                                                     columnNumber: 96
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 719,
+                                            lineNumber: 720,
                                             columnNumber: 33
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Separator"], {
                                             className: "my-1"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 720,
+                                            lineNumber: 721,
                                             columnNumber: 33
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2351,7 +2352,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                     children: "Subtotal"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 721,
+                                                    lineNumber: 722,
                                                     columnNumber: 83
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2361,13 +2362,13 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 721,
+                                                    lineNumber: 722,
                                                     columnNumber: 104
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 721,
+                                            lineNumber: 722,
                                             columnNumber: 33
                                         }, this),
                                         appliedCoupon && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2381,7 +2382,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 722,
+                                                    lineNumber: 723,
                                                     columnNumber: 104
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2391,20 +2392,20 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 722,
+                                                    lineNumber: 723,
                                                     columnNumber: 148
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 722,
+                                            lineNumber: 723,
                                             columnNumber: 51
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Separator"], {
                                             className: "my-2 font-bold"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 724,
+                                            lineNumber: 725,
                                             columnNumber: 33
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2414,7 +2415,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                     children: "Total"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 725,
+                                                    lineNumber: 726,
                                                     columnNumber: 91
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2424,19 +2425,19 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 725,
+                                                    lineNumber: 726,
                                                     columnNumber: 109
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 725,
+                                            lineNumber: 726,
                                             columnNumber: 33
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                    lineNumber: 715,
+                                    lineNumber: 716,
                                     columnNumber: 29
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2447,7 +2448,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                             children: "Your Information"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 731,
+                                            lineNumber: 732,
                                             columnNumber: 33
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2461,7 +2462,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                             children: "First Name"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                            lineNumber: 734,
+                                                            lineNumber: 735,
                                                             columnNumber: 41
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -2473,13 +2474,13 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                             disabled: isProcessingBooking
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                            lineNumber: 735,
+                                                            lineNumber: 736,
                                                             columnNumber: 41
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 733,
+                                                    lineNumber: 734,
                                                     columnNumber: 37
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2490,7 +2491,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                             children: "Last Name"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                            lineNumber: 738,
+                                                            lineNumber: 739,
                                                             columnNumber: 41
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -2502,19 +2503,19 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                             disabled: isProcessingBooking
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                            lineNumber: 739,
+                                                            lineNumber: 740,
                                                             columnNumber: 41
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 737,
+                                                    lineNumber: 738,
                                                     columnNumber: 37
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 732,
+                                            lineNumber: 733,
                                             columnNumber: 33
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2528,7 +2529,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                             children: "Email"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                            lineNumber: 744,
+                                                            lineNumber: 745,
                                                             columnNumber: 41
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -2541,13 +2542,13 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                             disabled: isProcessingBooking
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                            lineNumber: 745,
+                                                            lineNumber: 746,
                                                             columnNumber: 41
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 743,
+                                                    lineNumber: 744,
                                                     columnNumber: 37
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2558,7 +2559,7 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                             children: "Phone Number"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                            lineNumber: 748,
+                                                            lineNumber: 749,
                                                             columnNumber: 41
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -2571,25 +2572,25 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                                             disabled: isProcessingBooking
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                            lineNumber: 749,
+                                                            lineNumber: 750,
                                                             columnNumber: 41
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                                    lineNumber: 747,
+                                                    lineNumber: 748,
                                                     columnNumber: 37
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 742,
+                                            lineNumber: 743,
                                             columnNumber: 33
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                    lineNumber: 730,
+                                    lineNumber: 731,
                                     columnNumber: 29
                                 }, this),
                                 formError && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Alert"], {
@@ -2599,27 +2600,27 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                             className: "h-4 w-4"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 759,
+                                            lineNumber: 760,
                                             columnNumber: 33
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertTitle"], {
                                             children: "Error"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 760,
+                                            lineNumber: 761,
                                             columnNumber: 33
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDescription"], {
                                             children: formError
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 761,
+                                            lineNumber: 762,
                                             columnNumber: 33
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                    lineNumber: 758,
+                                    lineNumber: 759,
                                     columnNumber: 29
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -2631,43 +2632,43 @@ function AvailabilityCheck({ property, initialCheckIn, initialCheckOut }) {
                                             className: "mr-2 h-4 w-4 animate-spin"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 767,
+                                            lineNumber: 768,
                                             columnNumber: 52
                                         }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$arrow$2d$right$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__ArrowRight$3e$__["ArrowRight"], {
                                             className: "mr-2 h-4 w-4"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                                            lineNumber: 767,
+                                            lineNumber: 768,
                                             columnNumber: 104
                                         }, this),
                                         isProcessingBooking ? 'Processing...' : 'Continue to Payment'
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/booking/availability-check.tsx",
-                                    lineNumber: 766,
+                                    lineNumber: 767,
                                     columnNumber: 29
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/booking/availability-check.tsx",
-                            lineNumber: 639,
+                            lineNumber: 640,
                             columnNumber: 25
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/src/components/booking/availability-check.tsx",
-                        lineNumber: 632,
+                        lineNumber: 633,
                         columnNumber: 17
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/booking/availability-check.tsx",
-                lineNumber: 627,
+                lineNumber: 628,
                 columnNumber: 13
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/booking/availability-check.tsx",
-        lineNumber: 608,
+        lineNumber: 609,
         columnNumber: 5
     }, this));
 }
