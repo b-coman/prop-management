@@ -1,4 +1,3 @@
-
 // src/app/properties/[slug]/page.tsx
 
 import Image from 'next/image';
@@ -8,14 +7,12 @@ import { PrahovaPageLayout } from '@/components/property/prahova/prahova-page-la
 import { ColteiPageLayout } from '@/components/property/coltei/coltei-page-layout';
 import { Header } from '@/components/header';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-// Remove InitialBookingForm import from here, it will be used within the layout components
-// import { InitialBookingForm } from '@/components/booking/initial-booking-form'; // Assuming this new component exists
+import { db } from '@/lib/firebase'; // Import db for data fetching
 
-// Function to get property data by slug (from Firestore)
 // **** EXPORT the function ****
 export async function getPropertyBySlug(slug: string): Promise<Property | undefined> {
     try {
+        // **** Use Client SDK ****
         const propertiesCollection = collection(db, 'properties');
         const q = query(propertiesCollection, where('slug', '==', slug));
         const querySnapshot = await getDocs(q);
@@ -35,19 +32,22 @@ export async function getPropertyBySlug(slug: string): Promise<Property | undefi
                 return undefined;
             };
 
-            const propertyData = {
-                 id: doc.id,
+             // Convert relevant fields
+             const propertyData = {
+                id: doc.id,
                 ...data,
-                 createdAt: convertToDate(data.createdAt),
-                 updatedAt: convertToDate(data.updatedAt),
-                 // Handle nested timestamps if necessary
-                 // Ensure houseRules is always an array
-                 houseRules: Array.isArray(data.houseRules) ? data.houseRules : [],
+                createdAt: convertToDate(data.createdAt),
+                updatedAt: convertToDate(data.updatedAt),
+                 // Ensure arrays are always present even if missing in Firestore
+                images: Array.isArray(data.images) ? data.images : [],
+                amenities: Array.isArray(data.amenities) ? data.amenities : [],
+                houseRules: Array.isArray(data.houseRules) ? data.houseRules : [],
             } as Property;
 
-            // Ensure arrays are always present
-             propertyData.amenities = Array.isArray(propertyData.amenities) ? propertyData.amenities : [];
-             propertyData.images = Array.isArray(propertyData.images) ? propertyData.images : [];
+            // Ensure nested arrays/objects exist if needed, e.g., ratings
+             if (!propertyData.ratings) {
+                propertyData.ratings = { average: 0, count: 0 }; // Default ratings if missing
+            }
 
             return propertyData;
         } else {
@@ -68,6 +68,7 @@ interface PropertyDetailsPageProps {
 // Generate static paths using Firestore data
 export async function generateStaticParams() {
   try {
+      // **** Use Client SDK ****
       const propertiesCollection = collection(db, 'properties');
       const snapshot = await getDocs(propertiesCollection);
 
@@ -78,7 +79,7 @@ export async function generateStaticParams() {
 
       const params = snapshot.docs.map(doc => ({
           slug: doc.data().slug as string,
-      })).filter(param => !!param.slug);
+      })).filter(param => !!param.slug); // Ensure slug is not null/undefined
 
       return params;
   } catch (error) {
@@ -89,7 +90,7 @@ export async function generateStaticParams() {
 
 
 export default async function PropertyDetailsPage({ params }: PropertyDetailsPageProps) {
-  // Fetch property data
+  // Fetch property data using the slug from params
   const property = await getPropertyBySlug(params.slug);
 
   if (!property) {
