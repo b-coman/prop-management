@@ -1,4 +1,3 @@
-
 "use server";
 
 import type { Property } from '@/types';
@@ -79,6 +78,23 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
     // metadata.discountAmount = String(discountAmount);
   }
 
+  // --- Construct Success URL with parameters for simulation ---
+  const successUrlParams = new URLSearchParams({
+    session_id: '{CHECKOUT_SESSION_ID}', // Stripe replaces this token
+    // Add params needed for simulation (encode dates)
+    propId: property.id,
+    checkIn: checkInDate,
+    checkOut: checkOutDate,
+    guests: String(numberOfGuests),
+    nights: String(numberOfNights),
+    total: String(totalPrice), // Final price
+    // Include coupon info if applied
+    ...(appliedCouponCode && { coupon: appliedCouponCode }),
+    ...(discountPercentage !== undefined && { discount: String(discountPercentage) }),
+  });
+  const success_url = `${origin}/booking/success?${successUrlParams.toString()}`;
+  const cancel_url = `${origin}/booking/cancel?property_slug=${property.slug}`;
+
   try {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -98,8 +114,8 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
         },
       ],
       mode: 'payment',
-      success_url: `${origin}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/booking/cancel?property_slug=${property.slug}`,
+      success_url: success_url, // Use the constructed URL
+      cancel_url: cancel_url,
        // Include customer email if available, helps Stripe populate customer info
       customer_email: guestEmail, // Pass guest email to Stripe
       phone_number_collection: { enabled: true,},

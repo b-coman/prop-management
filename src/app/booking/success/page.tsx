@@ -1,29 +1,91 @@
+'use client'; // Needed for searchParams and useEffect
 
-'use client'; // Needed for searchParams
-
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react'; // Added useEffect, useState
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { CheckCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, Loader2, AlertTriangle } from 'lucide-react'; // Added AlertTriangle
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Header } from '@/components/header';
-// Removed Footer import: import { Footer } from '@/components/footer';
-
-// No need to fetch session details client-side anymore.
-// The booking creation logic is handled securely by the webhook.
+import { simulateWebhookSuccess } from '@/app/actions/simulate-webhook-success'; // Import the simulation action
+import { useToast } from '@/hooks/use-toast';
 
 function BookingSuccessContent() {
   const searchParams = useSearchParams();
-  const sessionId = searchParams.get('session_id'); // Can still get session ID for reference if needed
+  const sessionId = searchParams.get('session_id');
+  const { toast } = useToast();
 
-  // No loading/error state needed for session fetching
-  // const [loading, setLoading] = useState(true);
-  // const [error, setError] = useState<string | null>(null);
+  // State for simulation status
+  const [simulationStatus, setSimulationStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
+  const [simulationError, setSimulationError] = useState<string | null>(null);
 
-  // useEffect(() => {
-     // Remove the effect fetching session details
-  // }, [sessionId]);
+  // Run simulation only once on mount in development
+  useEffect(() => {
+    // Check if running in development and simulation hasn't run yet
+    if (process.env.NODE_ENV === 'development' && simulationStatus === 'idle' && sessionId) {
+      console.log('[Booking Success Page] Development mode detected. Attempting booking simulation...');
+      setSimulationStatus('pending');
+
+      // Extract necessary params from URL
+      const params = {
+        sessionId: sessionId,
+        propertyId: searchParams.get('propId'),
+        checkInDate: searchParams.get('checkIn'),
+        checkOutDate: searchParams.get('checkOut'),
+        numberOfGuests: searchParams.get('guests'),
+        numberOfNights: searchParams.get('nights'),
+        totalPrice: searchParams.get('total'),
+        appliedCouponCode: searchParams.get('coupon') || undefined,
+        discountPercentage: searchParams.get('discount') || undefined,
+      };
+
+      // Basic check for essential params
+      if (!params.propertyId || !params.checkInDate || !params.checkOutDate || !params.numberOfGuests || !params.numberOfNights || !params.totalPrice) {
+         console.error('[Booking Success Page] Missing required parameters in URL for simulation.');
+         setSimulationError('Missing required parameters for simulation.');
+         setSimulationStatus('error');
+         toast({ title: "Simulation Error", description: "Missing required parameters in URL.", variant: "destructive" });
+         return;
+      }
+
+
+      const simulate = async () => {
+        try {
+          const result = await simulateWebhookSuccess(params); // Call the server action
+
+          if (result.success) {
+            console.log('[Booking Success Page] Simulation successful. Booking ID:', result.bookingId);
+            setSimulationStatus('success');
+            toast({ title: "Booking Simulated", description: `(Dev Only) Booking ${result.bookingId} created in Firestore.` });
+          } else {
+            console.error('[Booking Success Page] Simulation failed:', result.error);
+            setSimulationError(result.error || 'Unknown simulation error.');
+            setSimulationStatus('error');
+            toast({ title: "Simulation Failed", description: result.error || 'Could not simulate booking.', variant: "destructive" });
+          }
+        } catch (err) {
+          console.error('[Booking Success Page] Error calling simulation action:', err);
+          const message = err instanceof Error ? err.message : String(err);
+          setSimulationError(`Action error: ${message}`);
+          setSimulationStatus('error');
+           toast({ title: "Simulation Action Error", description: message, variant: "destructive" });
+        }
+      };
+
+      simulate();
+    } else if (simulationStatus === 'idle' && !sessionId) {
+        // Handle case where session ID is missing even outside dev
+        setSimulationStatus('error');
+        setSimulationError('Missing session ID.');
+    } else if (simulationStatus === 'idle') {
+        // In production or if simulation already attempted, just mark as idle (or maybe success if session ID exists?)
+        // For now, let's assume webhook handles it in prod.
+        setSimulationStatus('idle'); // Or 'success' if we assume webhook worked
+    }
+
+    // Disable exhaustive deps because we only want this to run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]); // Dependency on sessionId ensures it runs when sessionId is available
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -40,10 +102,21 @@ function BookingSuccessContent() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-             {/* Simple success message */}
+             {/* Standard Success Message */}
              <p className="text-muted-foreground">
-               Your booking has been successfully processed and saved. You should receive a confirmation email shortly (if email sending is implemented).
+               Your booking has been processed. You should receive a confirmation email shortly (if email sending is implemented).
              </p>
+             {/* Development Simulation Status */}
+             {process.env.NODE_ENV === 'development' && (
+                <div className="p-3 border rounded-md text-xs bg-muted/50">
+                    <p className="font-semibold mb-1">Development Simulation Status:</p>
+                    {simulationStatus === 'pending' && <div className="flex items-center text-muted-foreground"><Loader2 className="mr-1 h-3 w-3 animate-spin" /> Simulating booking creation...</div>}
+                    {simulationStatus === 'success' && <div className="text-green-600">Booking successfully simulated in Firestore.</div>}
+                    {simulationStatus === 'error' && <div className="text-destructive flex items-center"><AlertTriangle className="mr-1 h-3 w-3" /> Error simulating booking: {simulationError || 'Unknown error'}</div>}
+                    {simulationStatus === 'idle' && <div className="text-muted-foreground">Webhook simulation did not run (not in dev mode or already attempted).</div>}
+                </div>
+             )}
+
              {sessionId && (
                  <p className="text-xs text-muted-foreground mt-2">
                     (Ref: {sessionId.substring(0, 15)}...) {/* Optionally display part of the session ID */}
@@ -53,17 +126,9 @@ function BookingSuccessContent() {
              <Link href="/properties">
                <Button className="w-full mt-6">Explore More Properties</Button>
              </Link>
-             {/* Optionally, add a link to a "My Bookings" page if implemented */}
-             {/* <Link href="/my-bookings">
-                 <Button variant="outline" className="w-full">
-                   View My Bookings
-                 </Button>
-              </Link> */}
           </CardContent>
         </Card>
       </main>
-      {/* Removed Footer usage */}
-      {/* <Footer /> */}
        {/* Optional simple footer */}
         <footer className="border-t bg-muted/50">
             <div className="container py-4 text-center text-xs text-muted-foreground">
