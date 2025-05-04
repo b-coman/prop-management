@@ -3244,6 +3244,7 @@ async function generateStaticParams() {
 }
 async function PropertyDetailsPage({ params }) {
     // Fetch property data using the slug from params
+    // This line should be correct within an async component
     const property = await getPropertyBySlug(params.slug);
     if (!property) {
         (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$components$2f$navigation$2e$react$2d$server$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["notFound"])();
@@ -3258,12 +3259,12 @@ async function PropertyDetailsPage({ params }) {
                 property: property
             }, void 0, false, {
                 fileName: "[project]/src/app/properties/[slug]/page.tsx",
-                lineNumber: 112,
+                lineNumber: 113,
                 columnNumber: 10
             }, this)
         }, void 0, false, {
             fileName: "[project]/src/app/properties/[slug]/page.tsx",
-            lineNumber: 111,
+            lineNumber: 112,
             columnNumber: 8
         }, this);
     }
@@ -3274,7 +3275,7 @@ async function PropertyDetailsPage({ params }) {
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$header$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Header"], {}, void 0, false, {
                 fileName: "[project]/src/app/properties/[slug]/page.tsx",
-                lineNumber: 121,
+                lineNumber: 122,
                 columnNumber: 8
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("main", {
@@ -3284,33 +3285,33 @@ async function PropertyDetailsPage({ params }) {
                         children: property.name
                     }, void 0, false, {
                         fileName: "[project]/src/app/properties/[slug]/page.tsx",
-                        lineNumber: 123,
+                        lineNumber: 124,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                         children: "Generic property page - Layout not defined."
                     }, void 0, false, {
                         fileName: "[project]/src/app/properties/[slug]/page.tsx",
-                        lineNumber: 124,
+                        lineNumber: 125,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("pre", {
                         children: JSON.stringify(property, null, 2)
                     }, void 0, false, {
                         fileName: "[project]/src/app/properties/[slug]/page.tsx",
-                        lineNumber: 126,
+                        lineNumber: 127,
                         columnNumber: 10
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/app/properties/[slug]/page.tsx",
-                lineNumber: 122,
+                lineNumber: 123,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/app/properties/[slug]/page.tsx",
-        lineNumber: 120,
+        lineNumber: 121,
         columnNumber: 5
     }, this);
 }

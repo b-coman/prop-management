@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from 'react';
@@ -72,16 +73,19 @@ export function InitialBookingForm({ property }: InitialBookingFormProps) {
   const isButtonDisabled = !isDateRangeValid() || isLoading;
 
   return (
-    <div className="space-y-6">
+    // Reduced vertical spacing for overlay context
+    <div className="space-y-4">
       {/* Date Range Picker */}
       <div className={cn('grid gap-2')}>
-         <Label htmlFor="date">Check-in / Check-out Dates</Label>
+         {/* Use text-sm for label in overlay */}
+         <Label htmlFor="date" className="text-sm font-medium text-gray-700">Check-in / Check-out Dates</Label>
          <Popover>
           <PopoverTrigger asChild>
             <Button
               id="date"
               variant={'outline'}
               className={cn(
+                // Adjusted width for overlay form
                 'w-full justify-start text-left font-normal',
                 !date && 'text-muted-foreground'
               )}
@@ -117,24 +121,12 @@ export function InitialBookingForm({ property }: InitialBookingFormProps) {
       </div>
 
       {/* Guest Selector Removed */}
-      {/*
-       <div>
-        <Label htmlFor="guests">Number of Guests</Label>
-        <div className="flex items-center justify-between rounded-md border p-2 mt-1">
-           <Button ... />
-           <span ... />
-           <Button ... />
-        </div>
-         <p className="text-xs text-muted-foreground mt-1">
-            Max {property.maxGuests} guests.
-          </p>
-      </div>
-      */}
 
       {/* Check Availability Button */}
       <Button
         type="button"
         onClick={handleCheckAvailability}
+        // Use primary color defined in globals.css
         className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
         disabled={isButtonDisabled}
       >
