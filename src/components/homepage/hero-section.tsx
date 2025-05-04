@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Star } from 'lucide-react';
 
 interface HeroSectionProps {
+  // Accept the full Property object, even if only parts are used here
   property: Property;
 }
 
@@ -55,6 +56,7 @@ export function HeroSection({ property }: HeroSectionProps) {
             {/* <CardTitle className="text-xl">Book Your Stay</CardTitle> */}
           </CardHeader>
           <CardContent className="p-0">
+             {/* Pass the full property object to InitialBookingForm */}
             <InitialBookingForm property={property} />
           </CardContent>
         </Card>
