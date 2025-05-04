@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { CheckCircle, Loader2 } from 'lucide-react'; // Removed AlertTriangle
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Header } from '@/components/header';
+import { Header } from '@/components/generic-header'; // Corrected import path
 // Removed simulation action import: import { simulateWebhookSuccess } from '@/app/actions/simulate-webhook-success';
 // Removed useToast import: import { useToast } from '@/hooks/use-toast';
 
@@ -20,7 +20,10 @@ function BookingSuccessContent() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      {/* Use Generic Header - Note: generic header requires propertyName and propertySlug,
+          which are not available on this page. Consider creating a simpler header or fetching data.
+          For now, providing placeholder values, but this should be reviewed. */}
+      <Header propertyName="Booking Confirmation" propertySlug="" />
       <main className="flex-grow container py-12 md:py-16 lg:py-20 flex items-center justify-center">
         <Card className="w-full max-w-lg text-center shadow-xl">
           <CardHeader>
