@@ -48,7 +48,6 @@ import { calculatePrice } from '@/lib/price-utils';
 import { useSessionStorage } from '@/hooks/use-session-storage';
 import { Badge } from '@/components/ui/badge';
 
-
 interface AvailabilityCheckProps {
   property: Property;
   initialCheckIn?: string; // YYYY-MM-DD
@@ -138,9 +137,7 @@ export function AvailabilityCheck({
     setSuggestedDates([]);
 
     try {
-      console.log(`[AvailabilityCheck] Fetching unavailable dates for property: ${property.id}`);
       const fetchedUnavailableDates = await getUnavailableDatesForProperty(property.id);
-      console.log(`[AvailabilityCheck] Fetched ${fetchedUnavailableDates.length} unavailable dates.`);
       setUnavailableDates(fetchedUnavailableDates);
 
       let conflict = false;
@@ -149,17 +146,14 @@ export function AvailabilityCheck({
         const dateString = format(startOfDay(current), 'yyyy-MM-dd');
         if (fetchedUnavailableDates.some(d => format(startOfDay(d), 'yyyy-MM-dd') === dateString)) {
           conflict = true;
-          console.log(`[AvailabilityCheck] Conflict found on date: ${dateString}`);
           break;
         }
         current = addDays(current, 1);
       }
 
       setIsAvailable(!conflict);
-      console.log(`[AvailabilityCheck] Availability set to: ${!conflict}`);
 
       if (conflict) {
-        console.log(`[AvailabilityCheck] Dates are unavailable. Generating suggestions...`);
         // Placeholder for suggesting alternative dates
         const suggested = [
           { from: addDays(checkOutDate!, 1), to: addDays(checkOutDate!, 1 + numberOfNights), recommendation: "Next Available" },
@@ -180,7 +174,6 @@ export function AvailabilityCheck({
         });
 
         setSuggestedDates(validSuggestions.slice(0, 3));
-        console.log(`[AvailabilityCheck] Generated ${validSuggestions.slice(0, 3).length} valid suggestions.`);
       }
 
     } catch (error) {
@@ -234,14 +227,11 @@ export function AvailabilityCheck({
     setAppliedCoupon(null);
 
     try {
-      console.log(`[AvailabilityCheck] Applying coupon: ${couponCode.trim().toUpperCase()}`);
       const result = await validateAndApplyCoupon(couponCode.trim(), checkInDate, checkOutDate);
       if (result.error) {
         setCouponError(result.error);
-        console.warn(`[AvailabilityCheck] Coupon validation failed: ${result.error}`);
       } else if (result.discountPercentage) {
         setAppliedCoupon({ code: couponCode.trim().toUpperCase(), discountPercentage: result.discountPercentage });
-        console.log(`[AvailabilityCheck] Coupon applied successfully: ${result.discountPercentage}%`);
         toast({
           title: "Coupon Applied!",
           description: `Successfully applied ${result.discountPercentage}% discount.`,
@@ -259,12 +249,10 @@ export function AvailabilityCheck({
     setAppliedCoupon(null);
     setCouponCode('');
     setCouponError(null);
-    console.log(`[AvailabilityCheck] Coupon removed.`);
     toast({ title: "Coupon Removed" });
   };
 
   const handleSelectAlternativeDate = (range: { from: Date; to: Date }) => {
-    console.log(`[AvailabilityCheck] User selected alternative date range: ${format(range.from, 'yyyy-MM-dd')} to ${format(range.to, 'yyyy-MM-dd')}`);
     setCheckInDate(range.from);
     setCheckOutDate(range.to);
   };
@@ -272,36 +260,29 @@ export function AvailabilityCheck({
   const handleContinueToPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    console.log(`[AvailabilityCheck] Initiating "Continue to Payment"...`);
 
     if (!datesSelected || isAvailable !== true) {
       setFormError("Selected dates are not available or invalid.");
-      console.warn(`[AvailabilityCheck] Payment attempt blocked: Dates not selected or unavailable. Availability: ${isAvailable}`);
       return;
     }
     if (!firstName || !lastName || !email) {
       setFormError("Please fill in your first name, last name, and email.");
-      console.warn(`[AvailabilityCheck] Payment attempt blocked: Missing name or email.`);
       return;
     }
     if (!/\S+@\S+\.\S+/.test(email)) {
       setFormError("Please enter a valid email address.");
-      console.warn(`[AvailabilityCheck] Payment attempt blocked: Invalid email.`);
       return;
     }
     if (!phone) {
       setFormError("Please enter your phone number.");
-      console.warn(`[AvailabilityCheck] Payment attempt blocked: Missing phone number.`);
       return;
     }
     if (numberOfGuests < 1 || numberOfGuests > property.maxGuests) {
       setFormError(`Number of guests must be between 1 and ${property.maxGuests}.`);
-      console.warn(`[AvailabilityCheck] Payment attempt blocked: Invalid guest count (${numberOfGuests}).`);
       return;
     }
     if (!pricingDetails) {
       setFormError("Could not calculate pricing. Please try again.");
-      console.error(`[AvailabilityCheck] Payment attempt blocked: pricingDetails is null.`);
       return;
     }
 
@@ -314,11 +295,21 @@ export function AvailabilityCheck({
         checkInDate: checkInDate!.toISOString(),
         checkOutDate: checkOutDate!.toISOString(),
         numberOfGuests: numberOfGuests,
-        pricing: pricingDetails!,
+        pricing: {
+             baseRate: pricingDetails.basePrice / numberOfNights, // Calculate base rate from total base price
+             numberOfNights: numberOfNights,
+             cleaningFee: pricingDetails.cleaningFee,
+             extraGuestFee: property.extraGuestFee, // Use property's fee definition
+             numberOfExtraGuests: Math.max(0, numberOfGuests - property.baseOccupancy),
+             accommodationTotal: pricingDetails.basePrice + pricingDetails.extraGuestFee, // Recalculate accommodation total
+             subtotal: pricingDetails.subtotal,
+             taxes: 0, // Assuming no taxes for now
+             discountAmount: pricingDetails.discountAmount,
+             total: pricingDetails.total,
+        },
         status: 'pending' as const,
         appliedCouponCode: appliedCoupon?.code,
       };
-      console.log(`[AvailabilityCheck] Calling createPendingBookingAction with:`, bookingInput);
       const pendingBookingResult = await createPendingBookingAction(bookingInput);
 
       if (pendingBookingResult.error || !pendingBookingResult.bookingId) {
@@ -326,7 +317,6 @@ export function AvailabilityCheck({
       }
 
       const { bookingId } = pendingBookingResult;
-      console.log(`[AvailabilityCheck] Pending booking created successfully: ${bookingId}`);
 
       const checkoutInput = {
         property: property,
@@ -342,13 +332,11 @@ export function AvailabilityCheck({
         guestEmail: email,
         pendingBookingId: bookingId,
       };
-      console.log(`[AvailabilityCheck] Calling createCheckoutSession with:`, checkoutInput);
       const stripeResult = await import('@/app/actions/create-checkout-session').then(m => m.createCheckoutSession(checkoutInput));
 
       if (stripeResult.error || !stripeResult.sessionId) {
         throw new Error(stripeResult.error || 'Failed to create Stripe session.');
       }
-      console.log(`[AvailabilityCheck] Stripe session created: ${stripeResult.sessionId}. Redirecting...`);
 
       const stripe = await import('@stripe/stripe-js').then(m => m.loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!));
       if (!stripe) throw new Error('Stripe.js failed to load.');
@@ -388,13 +376,13 @@ export function AvailabilityCheck({
     setIsProcessingBooking(true);
     try {
       // TODO: Implement server action `createAvailabilityAlertAction`
-      console.log("Simulating availability alert request:", {
-        propertyId: property.id,
-        checkInDate: format(checkInDate!, 'yyyy-MM-dd'),
-        checkOutDate: format(checkOutDate!, 'yyyy-MM-dd'),
-        method: notificationMethod,
-        contact: notificationMethod === 'email' ? email : phone,
-      });
+      // console.log("Simulating availability alert request:", {
+      //   propertyId: property.id,
+      //   checkInDate: format(checkInDate!, 'yyyy-MM-dd'),
+      //   checkOutDate: format(checkOutDate!, 'yyyy-MM-dd'),
+      //   method: notificationMethod,
+      //   contact: notificationMethod === 'email' ? email : phone,
+      // });
 
       await new Promise(res => setTimeout(res, 500));
 
@@ -434,7 +422,7 @@ export function AvailabilityCheck({
           <CheckCircle className="h-4 w-4 text-green-600" />
           <AlertTitle>Dates Available!</AlertTitle>
           <AlertDescription>
-            Good news! The dates {format(checkInDate!, 'MMM d')} - {format(checkOutDate!, 'MMM d')} ({numberOfNights} nights) are available. Please fill in your details below to proceed.
+            Good news! The dates {datesSelected ? `${format(checkInDate!, 'MMM d')} - ${format(checkOutDate!, 'MMM d')} (${numberOfNights} nights)` : 'you selected'} are available. Please fill in your details below to proceed.
           </AlertDescription>
         </Alert>
       );
@@ -445,7 +433,7 @@ export function AvailabilityCheck({
           <XCircle className="h-4 w-4" />
           <AlertTitle>Dates Unavailable</AlertTitle>
           <AlertDescription>
-            Unfortunately, the selected dates ({format(checkInDate!, 'MMM d')} - {format(checkOutDate!, 'MMM d')}) are not available.
+            Unfortunately, the selected dates {datesSelected ? `(${format(checkInDate!, 'MMM d')} - ${format(checkOutDate!, 'MMM d')})` : ''} are not available.
           </AlertDescription>
         </Alert>
       );
@@ -493,18 +481,18 @@ export function AvailabilityCheck({
     );
   };
 
-  const renderAvailabilityCalendar = () => {
+   const renderAvailabilityCalendar = () => {
     // Only render calendar if dates are unavailable
     if (isAvailable !== false) {
       return null;
     }
-    console.log("[renderAvailabilityCalendar] Rendering calendar. Loading:", isLoadingAvailability, "Unavailable Dates:", unavailableDates.length);
+    // console.log("[renderAvailabilityCalendar] Rendering calendar. Loading:", isLoadingAvailability, "Unavailable Dates:", unavailableDates.length);
     if (isLoadingAvailability && unavailableDates.length === 0) {
-      console.log("[renderAvailabilityCalendar] Still loading initial data, skipping render.");
+      // console.log("[renderAvailabilityCalendar] Still loading initial data, skipping render.");
       return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
     }
     const calendarCenterMonth = checkInDate ? startOfMonth(checkInDate) : startOfMonth(new Date());
-    console.log("[renderAvailabilityCalendar] Center month:", format(calendarCenterMonth, 'yyyy-MM'));
+    // console.log("[renderAvailabilityCalendar] Center month:", format(calendarCenterMonth, 'yyyy-MM'));
     return (
       <div className="mt-6">
         <h3 className="text-lg font-semibold mb-3">Availability Calendar</h3>
@@ -592,35 +580,8 @@ export function AvailabilityCheck({
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
 
-      {/* Left Column: Property Info & Calendar/Alternatives */}
+      {/* Left Column: Availability Info & Calendar/Alternatives */}
       <div className="md:col-span-2 space-y-6">
-        {/* Property Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{property.name}</CardTitle>
-            <CardDescription>{property.shortDescription}</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col sm:flex-row gap-4 items-start">
-            {property.images[0] && (
-              <div className="relative w-full sm:w-1/3 aspect-video rounded-md overflow-hidden flex-shrink-0">
-                <Image
-                  src={property.images[0].url}
-                  alt={property.images[0].alt || property.name}
-                  fill
-                  style={{ objectFit: 'cover' }}
-                  data-ai-hint={property.images[0]['data-ai-hint']}
-                />
-              </div>
-            )}
-            <div className="text-sm">
-              <p className="font-medium">Selected Dates:</p>
-              <p className="text-muted-foreground mb-2">
-                {datesSelected ? `${format(checkInDate!, 'MMM d, yyyy')} - ${format(checkOutDate!, 'MMM d, yyyy')} (${numberOfNights} nights)` : 'Please select dates'}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Availability Status */}
         {renderAvailabilityStatus()}
 
@@ -650,13 +611,14 @@ export function AvailabilityCheck({
               <p className="text-center text-muted-foreground py-4">Select dates to see pricing.</p>
             ) : isAvailable !== true ? (
               <>
-                {/* Already handled showing alternatives/calendar/notification */}
+                 {/* Message already shown in left column */}
                  <p className="text-center text-destructive py-4 font-semibold">Selected dates are unavailable.</p>
-                 {/* Optionally keep notification form here if preferred */}
+                 <p className="text-center text-sm text-muted-foreground">Please choose alternative dates or sign up for notifications.</p>
+                 {/* Optionally repeat notification form here if desired */}
                  {/* {renderNotificationForm()} */}
               </>
             ) : (
-              // Only show the full form if dates are available
+              // Only show the full booking form if dates are available
               <form onSubmit={handleContinueToPayment} className="space-y-6">
 
                 {/* Guest Selector */}
@@ -689,10 +651,10 @@ export function AvailabilityCheck({
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Max {property.maxGuests} guests. Base price for {property.baseOccupancy}.
-                    {property.extraGuestFee > 0 && ` Extra guest fee: $${property.extraGuestFee}/night.`}
-                  </p>
+                   <p className="text-xs text-muted-foreground mt-1">
+                     Max {property.maxGuests} guests. Base price for {property.baseOccupancy}.
+                     {property.extraGuestFee > 0 && ` Extra guest fee: $${property.extraGuestFee.toFixed(2)}/night.`}
+                   </p>
                 </div>
 
                 {/* Price Breakdown */}
@@ -776,3 +738,5 @@ export function AvailabilityCheck({
     </div>
   );
 }
+
+    
