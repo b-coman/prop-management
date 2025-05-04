@@ -59,7 +59,7 @@ const parseDateSafe = (dateStr: string | undefined | null): Date | null => {
   if (!dateStr) return null;
   try {
     const parsed = parseISO(dateStr);
-    return isValid(parsed) ? parsed : null;
+    return isValid(parsed) ? startOfDay(parsed) : null; // Use startOfDay for consistency
   } catch {
     return null;
   }
@@ -76,7 +76,7 @@ export function AvailabilityCheck({
   // --- State Management ---
   const [checkInDate, setCheckInDate] = useState<Date | null>(parseDateSafe(initialCheckIn));
   const [checkOutDate, setCheckOutDate] = useState<Date | null>(parseDateSafe(initialCheckOut));
-  const [numberOfGuests, setNumberOfGuests] = useSessionStorage<number>(`booking_${property.id}_guests`, 1);
+  const [numberOfGuests, setNumberOfGuests] = useSessionStorage<number>(`booking_${property.id}_guests`, property.baseOccupancy || 1); // Default to base occupancy or 1
 
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
@@ -125,7 +125,7 @@ export function AvailabilityCheck({
 
   // --- Availability Check Logic ---
   const checkPropertyAvailability = useCallback(async () => {
-    if (!datesSelected) {
+    if (!datesSelected || !checkInDate || !checkOutDate) { // Added null checks for dates
       setIsAvailable(null);
       setIsLoadingAvailability(false);
       setSuggestedDates([]);
@@ -143,8 +143,8 @@ export function AvailabilityCheck({
       setUnavailableDates(fetchedUnavailableDates);
 
       let conflict = false;
-      let current = new Date(checkInDate!.getTime());
-      while (isBefore(current, checkOutDate!)) {
+      let current = new Date(checkInDate.getTime()); // Use guaranteed checkInDate
+      while (isBefore(current, checkOutDate)) { // Use guaranteed checkOutDate
         const dateString = format(startOfDay(current), 'yyyy-MM-dd');
         if (fetchedUnavailableDates.some(d => format(startOfDay(d), 'yyyy-MM-dd') === dateString)) {
           console.log(`[AvailabilityCheck] Conflict found for date: ${dateString}`);
@@ -175,7 +175,8 @@ export function AvailabilityCheck({
             }
             checkCurrent = addDays(checkCurrent, 1);
           }
-          return isValidSuggestion;
+          // Ensure suggestion start date is not in the past
+          return isValidSuggestion && !isBefore(startOfDay(range.from), startOfDay(new Date()));
         });
         console.log(`[AvailabilityCheck] Generated ${validSuggestions.length} valid suggested date ranges`);
         setSuggestedDates(validSuggestions.slice(0, 3));
@@ -268,7 +269,7 @@ export function AvailabilityCheck({
     e.preventDefault();
     setFormError(null);
 
-    if (!datesSelected || isAvailable !== true) {
+    if (!datesSelected || isAvailable !== true || !checkInDate || !checkOutDate) { // Added null checks
       setFormError("Selected dates are not available or invalid.");
       return;
     }
@@ -300,8 +301,8 @@ export function AvailabilityCheck({
       const bookingInput = {
         propertyId: property.id,
         guestInfo: { firstName, lastName, email, phone },
-        checkInDate: checkInDate!.toISOString(),
-        checkOutDate: checkOutDate!.toISOString(),
+        checkInDate: checkInDate.toISOString(), // Use guaranteed dates
+        checkOutDate: checkOutDate.toISOString(), // Use guaranteed dates
         numberOfGuests: numberOfGuests,
         pricing: {
              baseRate: property.pricePerNight, // Store base rate per night
@@ -329,8 +330,8 @@ export function AvailabilityCheck({
 
       const checkoutInput = {
         property: property,
-        checkInDate: checkInDate!.toISOString(),
-        checkOutDate: checkOutDate!.toISOString(),
+        checkInDate: checkInDate.toISOString(),
+        checkOutDate: checkOutDate.toISOString(),
         numberOfGuests: numberOfGuests,
         totalPrice: pricingDetails!.total,
         numberOfNights: numberOfNights,
@@ -375,7 +376,7 @@ export function AvailabilityCheck({
 
   // --- Availability Alert Logic ---
   const handleNotifyAvailability = async () => {
-    if (!datesSelected) return;
+    if (!datesSelected || !checkInDate || !checkOutDate) return; // Added null checks
 
     if (notificationMethod === 'email' && !email) {
       toast({ title: "Missing Information", description: "Please enter your email address.", variant: "destructive" });
@@ -391,8 +392,8 @@ export function AvailabilityCheck({
       // TODO: Implement server action `createAvailabilityAlertAction`
       // const result = await createAvailabilityAlertAction({
       //   propertyId: property.id,
-      //   checkInDate: format(checkInDate!, 'yyyy-MM-dd'),
-      //   checkOutDate: format(checkOutDate!, 'yyyy-MM-dd'),
+      //   checkInDate: format(checkInDate, 'yyyy-MM-dd'),
+      //   checkOutDate: format(checkOutDate, 'yyyy-MM-dd'),
       //   contactMethod: notificationMethod,
       //   contactInfo: notificationMethod === 'email' ? email : phone,
       // });
@@ -400,8 +401,8 @@ export function AvailabilityCheck({
 
       console.log("[handleNotifyAvailability] Simulating availability alert request:", {
         propertyId: property.id,
-        checkInDate: format(checkInDate!, 'yyyy-MM-dd'),
-        checkOutDate: format(checkOutDate!, 'yyyy-MM-dd'),
+        checkInDate: format(checkInDate, 'yyyy-MM-dd'), // Use guaranteed date
+        checkOutDate: format(checkOutDate, 'yyyy-MM-dd'), // Use guaranteed date
         method: notificationMethod,
         contact: notificationMethod === 'email' ? email : phone,
       });
@@ -409,7 +410,7 @@ export function AvailabilityCheck({
 
       toast({
         title: "Alert Request Saved",
-        description: `We'll notify you via ${notificationMethod} if ${format(checkInDate!, 'MMM d')} - ${format(checkOutDate!, 'MMM d')} becomes available.`,
+        description: `We'll notify you via ${notificationMethod} if ${format(checkInDate, 'MMM d')} - ${format(checkOutDate, 'MMM d')} becomes available.`,
       });
       setNotifyAvailability(false);
 
@@ -437,24 +438,24 @@ export function AvailabilityCheck({
         </Alert>
       );
     }
-    if (isAvailable === true) {
+    if (isAvailable === true && datesSelected && checkInDate && checkOutDate) { // Added null checks
       return (
         <Alert variant="default" className="bg-green-50 border-green-200 text-green-800">
           <CheckCircle className="h-4 w-4 text-green-600" />
           <AlertTitle>Dates Available!</AlertTitle>
           <AlertDescription>
-            Good news! The dates {datesSelected ? `${format(checkInDate!, 'MMM d')} - ${format(checkOutDate!, 'MMM d')} (${numberOfNights} nights)` : 'you selected'} are available. Please fill in your details below to proceed.
+            Good news! The dates {`${format(checkInDate, 'MMM d')} - ${format(checkOutDate, 'MMM d')} (${numberOfNights} nights)`} are available. Please fill in your details below to proceed.
           </AlertDescription>
         </Alert>
       );
     }
-    if (isAvailable === false) {
+    if (isAvailable === false && datesSelected && checkInDate && checkOutDate) { // Added null checks
       return (
         <Alert variant="destructive">
           <XCircle className="h-4 w-4" />
           <AlertTitle>Dates Unavailable</AlertTitle>
           <AlertDescription>
-            Unfortunately, the selected dates {datesSelected ? `(${format(checkInDate!, 'MMM d')} - ${format(checkOutDate!, 'MMM d')})` : ''} are not available.
+            Unfortunately, the selected dates ({`${format(checkInDate, 'MMM d')} - ${format(checkOutDate, 'MMM d')}`}) are not available.
           </AlertDescription>
         </Alert>
       );
@@ -527,13 +528,13 @@ export function AvailabilityCheck({
   }
 
   const renderNotificationForm = () => {
-    if (isLoadingAvailability || isAvailable !== false) return null;
+    if (isLoadingAvailability || isAvailable !== false || !datesSelected || !checkInDate || !checkOutDate) return null; // Added null checks
     return (
       <Card className="mt-6 bg-blue-50 border-blue-200">
         <CardHeader>
           <CardTitle className="text-lg text-blue-900">Get Notified</CardTitle>
           <CardDescription className="text-blue-800">
-            Want to know if {datesSelected ? `${format(checkInDate!, 'MMM d')} - ${format(checkOutDate!, 'MMM d')}` : 'your selected dates'} become available?
+            Want to know if {`${format(checkInDate, 'MMM d')} - ${format(checkOutDate, 'MMM d')}`} become available?
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -603,179 +604,175 @@ export function AvailabilityCheck({
 
 
   return (
-    // Use a single-column layout
-    <div className="flex flex-col gap-8 lg:gap-12">
+    // Apply responsive width constraints
+    <div className="max-w-3xl mx-auto w-full px-4 md:px-0"> {/* Max width on larger screens, centered, full width on mobile */}
+        {/* Top Section: Availability Info & Alternatives/Calendar */}
+        <div className="space-y-6 mb-8">
+            {/* Availability Status */}
+            {renderAvailabilityStatus()}
 
-      {/* Top Section: Availability Info & Alternatives/Calendar */}
-      <div className="space-y-6">
-        {/* Availability Status */}
-        {renderAvailabilityStatus()}
+            {/* Suggested Dates */}
+            {renderSuggestedDates()}
 
-        {/* Suggested Dates */}
-        {renderSuggestedDates()}
+            {/* Availability Calendar - Conditionally Rendered */}
+            {renderAvailabilityCalendar()}
 
-        {/* Availability Calendar - Conditionally Rendered */}
-        {renderAvailabilityCalendar()}
+            {/* Notification Form */}
+            {renderNotificationForm()}
+        </div>
 
-        {/* Notification Form */}
-        {renderNotificationForm()}
-      </div>
-
-      {/* Bottom Section: Booking Summary & Guest Info Form */}
-       {/* Conditionally render the booking form only if dates are available */}
+        {/* Bottom Section: Booking Summary & Guest Info Form */}
+        {/* Conditionally render the booking form only if dates are available */}
         {isAvailable === true && (
-           <Card className="w-full"> {/* Removed sticky positioning and col-span */}
-              <CardHeader>
-                <CardTitle>Booking Summary</CardTitle>
-                <CardDescription>Confirm details and proceed to payment.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                 {isLoadingAvailability ? (
-                    <div className="flex justify-center items-center p-8">
-                       <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    </div>
-                 ) : (
-                   // Only show the full booking form if dates are available
-                   <form onSubmit={handleContinueToPayment} className="space-y-6">
+            <Card className="w-full"> {/* Form now takes the constrained width */}
+                <CardHeader>
+                    <CardTitle>Booking Summary & Details</CardTitle>
+                    <CardDescription>Confirm details and proceed to payment.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {isLoadingAvailability ? (
+                        <div className="flex justify-center items-center p-8">
+                            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                        </div>
+                    ) : (
+                        // Only show the full booking form if dates are available
+                        <form onSubmit={handleContinueToPayment} className="space-y-6">
 
-                     {/* Selected Dates & Guests on one line (Desktop) */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-b pb-4">
-                         {/* Selected Dates Display */}
-                         {datesSelected && (
-                             <div className="space-y-1">
-                                 <Label>Selected Dates</Label>
-                                 <div className="flex items-center justify-between rounded-md border p-2 mt-1 bg-muted/50">
-                                     <span className="font-medium text-sm">
-                                         {format(checkInDate!, 'MMM dd, yyyy')} - {format(checkOutDate!, 'MMM dd, yyyy')}
-                                     </span>
-                                     <span className="text-sm text-muted-foreground">({numberOfNights} nights)</span>
-                                 </div>
-                             </div>
-                         )}
+                            {/* Selected Dates & Guests on one line (Desktop) */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-b pb-4">
+                                {/* Selected Dates Display */}
+                                {datesSelected && checkInDate && checkOutDate && ( // Added null checks
+                                    <div className="space-y-1">
+                                        <Label>Selected Dates</Label>
+                                        <div className="flex items-center justify-between rounded-md border p-2 mt-1 bg-muted/50">
+                                            <span className="font-medium text-sm">
+                                                {format(checkInDate, 'MMM dd, yyyy')} - {format(checkOutDate, 'MMM dd, yyyy')}
+                                            </span>
+                                            <span className="text-sm text-muted-foreground">({numberOfNights} nights)</span>
+                                        </div>
+                                    </div>
+                                )}
 
-                         {/* Guest Selector */}
-                         <div className="space-y-1">
-                           <Label htmlFor="guests">Number of Guests</Label>
-                           <div className="flex items-center justify-between rounded-md border p-2 mt-1">
-                             <Button
-                               type="button"
-                               variant="outline"
-                               size="icon"
-                               className="h-7 w-7"
-                               onClick={() => handleGuestChange(-1)}
-                               disabled={numberOfGuests <= 1 || isProcessingBooking}
-                               aria-label="Decrease guests"
-                             >
-                               <Minus className="h-4 w-4" />
-                             </Button>
-                             <span className="mx-4 font-medium w-8 text-center" id="guests">
-                               {numberOfGuests}
-                             </span>
-                             <Button
-                               type="button"
-                               variant="outline"
-                               size="icon"
-                               className="h-7 w-7"
-                               onClick={() => handleGuestChange(1)}
-                               disabled={numberOfGuests >= property.maxGuests || isProcessingBooking}
-                               aria-label="Increase guests"
-                             >
-                               <Plus className="h-4 w-4" />
-                             </Button>
-                           </div>
-                            <p className="text-xs text-muted-foreground mt-1">
-                             Max {property.maxGuests}. Base for {property.baseOccupancy}.
-                             {property.extraGuestFee > 0 && ` Extra: $${property.extraGuestFee.toFixed(2)}/guest/night.`}
-                           </p>
-                         </div>
-                      </div>
+                                {/* Guest Selector */}
+                                <div className="space-y-1">
+                                    <Label htmlFor="guests">Number of Guests</Label>
+                                    <div className="flex items-center justify-between rounded-md border p-2 mt-1">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-7 w-7"
+                                            onClick={() => handleGuestChange(-1)}
+                                            disabled={numberOfGuests <= 1 || isProcessingBooking}
+                                            aria-label="Decrease guests"
+                                        >
+                                            <Minus className="h-4 w-4" />
+                                        </Button>
+                                        <span className="mx-4 font-medium w-8 text-center" id="guests">
+                                            {numberOfGuests}
+                                        </span>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-7 w-7"
+                                            onClick={() => handleGuestChange(1)}
+                                            disabled={numberOfGuests >= property.maxGuests || isProcessingBooking}
+                                            aria-label="Increase guests"
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Max {property.maxGuests}. Base for {property.baseOccupancy}.
+                                        {property.extraGuestFee > 0 && ` Extra: $${property.extraGuestFee.toFixed(2)}/guest/night.`}
+                                    </p>
+                                </div>
+                            </div>
 
-
-                     {/* Coupon Code */}
-                      <div className="space-y-1 border-b pb-4">
-                           <Label htmlFor="coupon">Discount Coupon (Optional)</Label>
-                           <div className="flex gap-2">
-                             <Input id="coupon" placeholder="Enter code" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} disabled={isApplyingCoupon || !!appliedCoupon || isProcessingBooking} />
-                             {!appliedCoupon ? (
-                               <Button type="button" variant="outline" onClick={handleApplyCoupon} disabled={isApplyingCoupon || !couponCode.trim() || isProcessingBooking}>
-                                 {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <TicketPercent className="h-4 w-4" />}
-                               </Button>
-                             ) : (
-                               <Button type="button" variant="ghost" size="icon" onClick={handleRemoveCoupon} disabled={isProcessingBooking}><X className="h-4 w-4 text-destructive" /></Button>
-                             )}
-                           </div>
-                           <div className="h-4 text-xs mt-1">
-                             {couponError && <p className="text-destructive">{couponError}</p>}
-                             {appliedCoupon && <p className="text-green-600">Applied: {appliedCoupon.code} ({appliedCoupon.discountPercentage}%)</p>}
-                           </div>
-                       </div>
-
-
-                     {/* Price Breakdown */}
-                     {pricingDetails && (
-                       <div className="space-y-2 text-sm border-b pb-4">
-                         <h3 className="font-semibold mb-2">Price Details</h3>
-                         <div className="flex justify-between"><span>Base price ({numberOfNights} nights)</span><span>${pricingDetails.basePrice.toFixed(2)}</span></div>
-                         {pricingDetails.extraGuestFee > 0 && <div className="flex justify-between text-muted-foreground"><span>Extra guest fee</span><span>+${pricingDetails.extraGuestFee.toFixed(2)}</span></div>}
-                         <div className="flex justify-between"><span>Cleaning fee</span><span>+${pricingDetails.cleaningFee.toFixed(2)}</span></div>
-                         <Separator className="my-1" />
-                         <div className="flex justify-between font-medium"><span>Subtotal</span><span>${pricingDetails.subtotal.toFixed(2)}</span></div>
-                         {appliedCoupon && <div className="flex justify-between text-green-600"><span>Discount ({appliedCoupon.code})</span><span>-${pricingDetails.discountAmount.toFixed(2)}</span></div>}
-                         {/* Add taxes if applicable */}
-                         <Separator className="my-2 font-bold" />
-                         <div className="flex justify-between font-bold text-base"><span>Total</span><span>${pricingDetails.total.toFixed(2)}</span></div>
-                       </div>
-                     )}
-
-                     {/* Guest Information */}
-                     <div className="space-y-4">
-                       <h3 className="font-semibold">Your Information</h3>
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                         <div className="space-y-1">
-                           <Label htmlFor="firstName">First Name</Label>
-                           <Input id="firstName" name="firstName" value={firstName} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
-                         </div>
-                         <div className="space-y-1">
-                           <Label htmlFor="lastName">Last Name</Label>
-                           <Input id="lastName" name="lastName" value={lastName} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
-                         </div>
-                       </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                             <div className="space-y-1">
-                                 <Label htmlFor="email">Email</Label>
-                                 <Input id="email" name="email" type="email" value={email} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
-                             </div>
-                             <div className="space-y-1">
-                                 <Label htmlFor="phone">Phone Number</Label>
-                                 <Input id="phone" name="phone" type="tel" value={phone} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
-                             </div>
-                         </div>
-                     </div>
+                             {/* Coupon Code moved here */}
+                            <div className="space-y-1 border-b pb-4">
+                                <Label htmlFor="coupon">Discount Coupon (Optional)</Label>
+                                <div className="flex gap-2">
+                                    <Input id="coupon" placeholder="Enter code" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} disabled={isApplyingCoupon || !!appliedCoupon || isProcessingBooking} />
+                                    {!appliedCoupon ? (
+                                    <Button type="button" variant="outline" onClick={handleApplyCoupon} disabled={isApplyingCoupon || !couponCode.trim() || isProcessingBooking}>
+                                        {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <TicketPercent className="h-4 w-4" />}
+                                    </Button>
+                                    ) : (
+                                    <Button type="button" variant="ghost" size="icon" onClick={handleRemoveCoupon} disabled={isProcessingBooking}><X className="h-4 w-4 text-destructive" /></Button>
+                                    )}
+                                </div>
+                                <div className="h-4 text-xs mt-1">
+                                    {couponError && <p className="text-destructive">{couponError}</p>}
+                                    {appliedCoupon && <p className="text-green-600">Applied: {appliedCoupon.code} ({appliedCoupon.discountPercentage}%)</p>}
+                                </div>
+                            </div>
 
 
+                            {/* Price Breakdown */}
+                            {pricingDetails && (
+                            <div className="space-y-2 text-sm border-b pb-4">
+                                <h3 className="font-semibold mb-2">Price Details</h3>
+                                <div className="flex justify-between"><span>Base price ({numberOfNights} nights)</span><span>${pricingDetails.basePrice.toFixed(2)}</span></div>
+                                {pricingDetails.extraGuestFee > 0 && <div className="flex justify-between text-muted-foreground"><span>Extra guest fee</span><span>+${pricingDetails.extraGuestFee.toFixed(2)}</span></div>}
+                                <div className="flex justify-between"><span>Cleaning fee</span><span>+${pricingDetails.cleaningFee.toFixed(2)}</span></div>
+                                <Separator className="my-1" />
+                                <div className="flex justify-between font-medium"><span>Subtotal</span><span>${pricingDetails.subtotal.toFixed(2)}</span></div>
+                                {appliedCoupon && <div className="flex justify-between text-green-600"><span>Discount ({appliedCoupon.code})</span><span>-${pricingDetails.discountAmount.toFixed(2)}</span></div>}
+                                {/* Add taxes if applicable */}
+                                <Separator className="my-2 font-bold" />
+                                <div className="flex justify-between font-bold text-base"><span>Total</span><span>${pricingDetails.total.toFixed(2)}</span></div>
+                            </div>
+                            )}
 
-                     {/* Error Message */}
-                     {formError && (
-                       <Alert variant="destructive">
-                         <AlertTriangle className="h-4 w-4" />
-                         <AlertTitle>Error</AlertTitle>
-                         <AlertDescription>{formError}</AlertDescription>
-                       </Alert>
-                     )}
+                            {/* Guest Information */}
+                            <div className="space-y-4">
+                                <h3 className="font-semibold">Your Information</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <Label htmlFor="firstName">First Name</Label>
+                                        <Input id="firstName" name="firstName" value={firstName} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="lastName">Last Name</Label>
+                                        <Input id="lastName" name="lastName" value={lastName} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <Label htmlFor="email">Email</Label>
+                                        <Input id="email" name="email" type="email" value={email} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="phone">Phone Number</Label>
+                                        <Input id="phone" name="phone" type="tel" value={phone} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
+                                    </div>
+                                </div>
+                            </div>
 
-                     {/* Submit Button */}
-                     <Button type="submit" className="w-full" disabled={isProcessingBooking}>
-                       {isProcessingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
-                       {isProcessingBooking ? 'Processing...' : 'Continue to Payment'}
-                     </Button>
 
-                   </form>
-                 )}
-              </CardContent>
+
+                            {/* Error Message */}
+                            {formError && (
+                            <Alert variant="destructive">
+                                <AlertTriangle className="h-4 w-4" />
+                                <AlertTitle>Error</AlertTitle>
+                                <AlertDescription>{formError}</AlertDescription>
+                            </Alert>
+                            )}
+
+                            {/* Submit Button */}
+                            <Button type="submit" className="w-full" disabled={isProcessingBooking}>
+                            {isProcessingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
+                            {isProcessingBooking ? 'Processing...' : 'Continue to Payment'}
+                            </Button>
+
+                        </form>
+                    )}
+                </CardContent>
             </Card>
         )}
-
     </div>
   );
 }
-
