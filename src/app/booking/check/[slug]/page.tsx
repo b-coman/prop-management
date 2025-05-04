@@ -1,4 +1,3 @@
-
 // src/app/booking/check/[slug]/page.tsx
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
@@ -13,7 +12,7 @@ interface AvailabilityCheckPageProps {
   searchParams: {
     checkIn?: string;
     checkOut?: string;
-    guests?: string;
+    // guests?: string; // guests is no longer passed via search params
   };
 }
 
@@ -37,12 +36,12 @@ export default async function AvailabilityCheckPage({ params, searchParams }: Av
     notFound(); // Property slug is invalid
   }
 
-  // Basic validation for search params
+  // Basic validation for search params (only dates now)
   const checkIn = searchParams.checkIn;
   const checkOut = searchParams.checkOut;
-  const guests = searchParams.guests ? parseInt(searchParams.guests, 10) : 1;
+  // const guests = searchParams.guests ? parseInt(searchParams.guests, 10) : 1; // guests removed
 
-  if (!checkIn || !checkOut || isNaN(guests) || guests < 1) {
+  if (!checkIn || !checkOut /* || isNaN(guests) || guests < 1 */ ) { // guests check removed
     // Handle invalid search params, maybe redirect back or show an error
     // For now, we can let the AvailabilityCheck component handle it,
     // or redirect: redirect(`/properties/${params.slug}`);
@@ -61,7 +60,7 @@ export default async function AvailabilityCheckPage({ params, searchParams }: Av
             property={property}
             initialCheckIn={checkIn}
             initialCheckOut={checkOut}
-            initialGuests={guests}
+            // initialGuests={guests} // guests prop removed
           />
         </Suspense>
       </main>

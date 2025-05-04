@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from 'react';
@@ -6,7 +5,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, isAfter } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
-import { Calendar as CalendarIcon, Users, Minus, Plus, Loader2, SearchCheck } from 'lucide-react';
+import { Calendar as CalendarIcon, SearchCheck, Loader2 } from 'lucide-react'; // Removed Users, Minus, Plus
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -26,17 +25,12 @@ interface InitialBookingFormProps {
 
 export function InitialBookingForm({ property }: InitialBookingFormProps) {
   const [date, setDate] = useState<DateRange | undefined>(undefined);
-  const [numberOfGuests, setNumberOfGuests] = useState(1);
+  // Removed guest state: const [numberOfGuests, setNumberOfGuests] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
-  const handleGuestChange = (change: number) => {
-    setNumberOfGuests((prev) => {
-      const newCount = prev + change;
-      return Math.max(1, Math.min(newCount, property.maxGuests));
-    });
-  };
+  // Removed handleGuestChange function
 
   // Check if date range is valid (end date is after start date)
   const isDateRangeValid = (): boolean => {
@@ -59,17 +53,16 @@ export function InitialBookingForm({ property }: InitialBookingFormProps) {
 
     setIsLoading(true);
 
-    // Construct the URL for the availability check page
+    // Construct the URL for the availability check page (only dates)
     const checkIn = format(date!.from!, 'yyyy-MM-dd');
     const checkOut = format(date!.to!, 'yyyy-MM-dd');
     const params = new URLSearchParams({
       checkIn,
       checkOut,
-      guests: String(numberOfGuests),
+      // Removed guests parameter: guests: String(numberOfGuests),
     });
 
     // Navigate to the new availability check page
-    // Example path: /booking/check/[slug]?checkIn=...&checkOut=...&guests=...
     router.push(`/booking/check/${property.slug}?${params.toString()}`);
 
     // Optionally reset loading state if navigation fails, though usually it won't
@@ -123,40 +116,20 @@ export function InitialBookingForm({ property }: InitialBookingFormProps) {
         </Popover>
       </div>
 
-      {/* Guest Selector */}
+      {/* Guest Selector Removed */}
+      {/*
        <div>
         <Label htmlFor="guests">Number of Guests</Label>
         <div className="flex items-center justify-between rounded-md border p-2 mt-1">
-           <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => handleGuestChange(-1)}
-              disabled={numberOfGuests <= 1 || isLoading}
-              aria-label="Decrease guests"
-            >
-              <Minus className="h-4 w-4" />
-            </Button>
-            <span className="mx-4 font-medium w-8 text-center" id="guests">
-             {numberOfGuests}
-             </span>
-           <Button
-              type="button"
-              variant="outline"
-              size="icon"
-               className="h-7 w-7"
-              onClick={() => handleGuestChange(1)}
-              disabled={numberOfGuests >= property.maxGuests || isLoading}
-              aria-label="Increase guests"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
+           <Button ... />
+           <span ... />
+           <Button ... />
         </div>
          <p className="text-xs text-muted-foreground mt-1">
             Max {property.maxGuests} guests.
           </p>
       </div>
+      */}
 
       {/* Check Availability Button */}
       <Button

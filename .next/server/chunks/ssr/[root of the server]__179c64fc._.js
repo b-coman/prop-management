@@ -851,10 +851,13 @@ function safeJsonParse(value) {
     } catch (e) {
         // If JSON parsing fails, check if it might be a primitive stored as a string
         const trimmedValue = value.trim();
-        if (trimmedValue === 'true') return true;
-        if (trimmedValue === 'false') return false;
+        if (trimmedValue.toLowerCase() === 'true') return true;
+        if (trimmedValue.toLowerCase() === 'false') return false;
+        if (trimmedValue === 'null') return null;
+        if (trimmedValue === 'undefined') return undefined; // Handle stored 'undefined' string
         // Check if it's a number string (handle potential leading/trailing spaces)
-        if (!isNaN(Number(trimmedValue)) && trimmedValue !== '') {
+        // Ensure it's not an empty string before converting to number
+        if (trimmedValue !== '' && !isNaN(Number(trimmedValue))) {
             // It looks like a number, return it as a number
             return Number(trimmedValue);
         }
@@ -866,7 +869,7 @@ function safeJsonParse(value) {
 }
 // Helper function to potentially parse stored date strings or return other parsed types/strings
 function parseStoredValue(storedValue) {
-    const parsed = safeJsonParse(storedValue); // This now returns T | string | boolean | number | null
+    const parsed = safeJsonParse(storedValue); // This now returns T | string | boolean | number | null | undefined
     // If parsed is a string, try parsing as ISO date
     if (typeof parsed === 'string') {
         // Basic ISO date check (YYYY-MM-DDTHH:mm:ss.sssZ or YYYY-MM-DD)
@@ -884,7 +887,7 @@ function parseStoredValue(storedValue) {
             }
         }
     }
-    // Return the parsed value (could be T, string, boolean, number) or null
+    // Return the parsed value (could be T, string, boolean, number, undefined) or null
     return parsed;
 }
 function useSessionStorage(key, initialValue) {
@@ -916,7 +919,7 @@ function useSessionStorage(key, initialValue) {
                     const newValue = event.newValue ? parseStoredValue(event.newValue) : null;
                     // Similar type check as initial load
                     if (newValue !== null && newValue !== undefined) {
-                        if (typeof newValue === typeof initialValue || newValue instanceof Date && initialValue instanceof Date) {
+                        if (typeof newValue === typeof initialValue || newValue instanceof Date && initialValue instanceof Date || initialValue === null && newValue === null || initialValue === undefined && newValue === undefined) {
                             setStoredValue(newValue);
                         } else {
                             // Handle potential type mismatch on update, maybe fallback or log
@@ -924,7 +927,14 @@ function useSessionStorage(key, initialValue) {
                         // Or fallback: setStoredValue(initialValue);
                         }
                     } else {
-                        setStoredValue(initialValue); // Fallback if value is removed or parsing fails
+                        // Handle case where value is removed or becomes null/undefined
+                        if (initialValue === null || initialValue === undefined) {
+                            setStoredValue(initialValue);
+                        } else {
+                            // If initial value wasn't null/undefined, but storage becomes so,
+                            // decide if you should revert to initial or accept null/undefined
+                            setStoredValue(newValue); // Accept null/undefined if parsed as such
+                        }
                     }
                 } catch (error) {
                     console.error(`Error handling storage change for key “${key}”:`, error);
@@ -938,7 +948,7 @@ function useSessionStorage(key, initialValue) {
     }, [
         key,
         initialValue
-    ]);
+    ]); // Added initialValue to dependency array
     return [
         storedValue,
         setValue
