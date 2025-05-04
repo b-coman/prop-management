@@ -5,7 +5,7 @@ import * as React from 'react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation'; // Use useSearchParams client-side
 import Image from 'next/image';
-import { format, differenceInDays, addDays, parseISO, isValid, isBefore, startOfDay } from 'date-fns';
+import { format, differenceInDays, addDays, parseISO, isValid, isBefore, startOfDay, isAfter, startOfMonth } from 'date-fns'; // Added isAfter, startOfMonth
 import {
   Loader2,
   Calendar as CalendarIcon,
@@ -19,10 +19,15 @@ import {
   X,
   AlertTriangle,
   ArrowRight,
-} from 'lucide-react';
+  MapPin,
+  BedDouble,
+  Bath,
+  Home,
+  Building,
+} from 'lucide-react'; // Added MapPin, BedDouble, Bath, Home, Building
 
-import type { Property, Coupon } from '@/types';
-import { getUnavailableDatesForProperty } from '@/services/bookingService';
+import type { Property, Coupon, Availability } from '@/types'; // Added Availability type
+import { getUnavailableDatesForProperty, updatePropertyAvailability } from '@/services/bookingService'; // Added updatePropertyAvailability
 import { validateAndApplyCoupon } from '@/services/couponService';
 import { createPendingBookingAction } from '@/app/actions/booking-actions'; // New server action
 
@@ -38,6 +43,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AvailabilityCalendar } from './availability-calendar'; // Assuming this component exists
 import { calculatePrice } from '@/lib/price-utils'; // Centralized price calculation logic
 import { useSessionStorage } from '@/hooks/use-session-storage'; // Hook for session storage
+import { Badge } from '@/components/ui/badge'; // Import Badge
 
 interface AvailabilityCheckProps {
   property: Property;
@@ -476,8 +482,7 @@ export function AvailabilityCheck({
 
       // Determine months to show: current month, previous, next
       const displayMonth = checkInDate || new Date();
-      const previousMonth = addDays(startOfMonth(displayMonth), -15); // Go back roughly a month
-      const nextMonth = addDays(startOfMonth(displayMonth), 45); // Go forward roughly a month
+
 
       return (
           <div className="mt-6">
@@ -500,7 +505,7 @@ export function AvailabilityCheck({
             <CardHeader>
                 <CardTitle className="text-lg text-blue-900">Get Notified</CardTitle>
                  <CardDescription className="text-blue-800">
-                     Want to know if {format(checkInDate!, 'MMM d')} - {format(checkOutDate!, 'MMM d')} becomes available?
+                     Want to know if {datesSelected ? `${format(checkInDate!, 'MMM d')} - ${format(checkOutDate!, 'MMM d')}` : 'your selected dates'} become available?
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -629,7 +634,13 @@ export function AvailabilityCheck({
             ) : !datesSelected ? (
                  <p className="text-center text-muted-foreground py-4">Select dates to see pricing.</p>
             ) : !isAvailable ? (
-                 <p className="text-center text-destructive py-4">Selected dates are unavailable.</p>
+                 // Keep showing form fields even if unavailable, but disable payment button
+                 // and rely on the alert status + notification form
+                  <>
+                    <p className="text-center text-destructive py-4 font-semibold">Selected dates are unavailable.</p>
+                    {/* Optionally render a simplified price estimate even if unavailable? */}
+                    {/* Or just disable the form */}
+                 </>
             ) : (
               <form onSubmit={handleContinueToPayment} className="space-y-6">
                 {/* Price Breakdown */}
@@ -654,20 +665,20 @@ export function AvailabilityCheck({
                    <div className="grid grid-cols-2 gap-4">
                      <div className="space-y-1">
                        <Label htmlFor="firstName">First Name</Label>
-                       <Input id="firstName" name="firstName" value={firstName} onChange={handleGuestInfoChange} required />
+                       <Input id="firstName" name="firstName" value={firstName} onChange={handleGuestInfoChange} required disabled={!isAvailable} />
                      </div>
                      <div className="space-y-1">
                        <Label htmlFor="lastName">Last Name</Label>
-                       <Input id="lastName" name="lastName" value={lastName} onChange={handleGuestInfoChange} required />
+                       <Input id="lastName" name="lastName" value={lastName} onChange={handleGuestInfoChange} required disabled={!isAvailable}/>
                      </div>
                    </div>
                    <div className="space-y-1">
                      <Label htmlFor="email">Email</Label>
-                     <Input id="email" name="email" type="email" value={email} onChange={handleGuestInfoChange} required />
+                     <Input id="email" name="email" type="email" value={email} onChange={handleGuestInfoChange} required disabled={!isAvailable}/>
                    </div>
                    <div className="space-y-1">
                      <Label htmlFor="phone">Phone Number</Label>
-                     <Input id="phone" name="phone" type="tel" value={phone} onChange={handleGuestInfoChange} required />
+                     <Input id="phone" name="phone" type="tel" value={phone} onChange={handleGuestInfoChange} required disabled={!isAvailable}/>
                    </div>
                  </div>
 
@@ -675,13 +686,13 @@ export function AvailabilityCheck({
                  <div className="space-y-1 pt-4 border-t">
                    <Label htmlFor="coupon">Discount Coupon (Optional)</Label>
                    <div className="flex gap-2">
-                     <Input id="coupon" placeholder="Enter code" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} disabled={isApplyingCoupon || !!appliedCoupon} />
+                     <Input id="coupon" placeholder="Enter code" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} disabled={isApplyingCoupon || !!appliedCoupon || !isAvailable} />
                      {!appliedCoupon ? (
-                       <Button type="button" variant="outline" onClick={handleApplyCoupon} disabled={isApplyingCoupon || !couponCode.trim()}>
+                       <Button type="button" variant="outline" onClick={handleApplyCoupon} disabled={isApplyingCoupon || !couponCode.trim() || !isAvailable}>
                          {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <TicketPercent className="h-4 w-4" />}
                        </Button>
                      ) : (
-                       <Button type="button" variant="ghost" size="icon" onClick={handleRemoveCoupon}><X className="h-4 w-4 text-destructive" /></Button>
+                       <Button type="button" variant="ghost" size="icon" onClick={handleRemoveCoupon} disabled={!isAvailable}><X className="h-4 w-4 text-destructive" /></Button>
                      )}
                    </div>
                    <div className="h-4 text-xs mt-1">
@@ -699,13 +710,15 @@ export function AvailabilityCheck({
                   </Alert>
                 )}
 
-                {/* Submit Button */}
+                {/* Submit Button - Enabled only if dates are available */}
                 <Button type="submit" className="w-full" disabled={isProcessingBooking || !isAvailable}>
                   {isProcessingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
                   {isProcessingBooking ? 'Processing...' : 'Continue to Payment'}
                 </Button>
               </form>
             )}
+             {/* Show notification form toggle if dates are unavailable */}
+              {!isLoadingAvailability && !isAvailable && renderNotificationForm()}
           </CardContent>
         </Card>
       </div>

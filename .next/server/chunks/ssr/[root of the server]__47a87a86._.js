@@ -4387,7 +4387,8 @@ var { g: global, __dirname } = __turbopack_context__;
 // src/app/properties/[slug]/page.tsx
 __turbopack_context__.s({
     "default": (()=>PropertyDetailsPage),
-    "generateStaticParams": (()=>generateStaticParams)
+    "generateStaticParams": (()=>generateStaticParams),
+    "getPropertyBySlug": (()=>getPropertyBySlug)
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime.js [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$api$2f$navigation$2e$react$2d$server$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/next/dist/api/navigation.react-server.js [app-rsc] (ecmascript) <module evaluation>");
@@ -4405,9 +4406,6 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts
 ;
 ;
 ;
-// Remove InitialBookingForm import from here, it will be used within the layout components
-// import { InitialBookingForm } from '@/components/booking/initial-booking-form'; // Assuming this new component exists
-// Function to get property data by slug (from Firestore)
 async function getPropertyBySlug(slug) {
     try {
         const propertiesCollection = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'properties');
@@ -4430,10 +4428,12 @@ async function getPropertyBySlug(slug) {
                 id: doc.id,
                 ...data,
                 createdAt: convertToDate(data.createdAt),
-                updatedAt: convertToDate(data.updatedAt)
+                updatedAt: convertToDate(data.updatedAt),
+                // Handle nested timestamps if necessary
+                // Ensure houseRules is always an array
+                houseRules: Array.isArray(data.houseRules) ? data.houseRules : []
             };
             // Ensure arrays are always present
-            propertyData.houseRules = Array.isArray(propertyData.houseRules) ? propertyData.houseRules : [];
             propertyData.amenities = Array.isArray(propertyData.amenities) ? propertyData.amenities : [];
             propertyData.images = Array.isArray(propertyData.images) ? propertyData.images : [];
             return propertyData;
@@ -4479,12 +4479,12 @@ async function PropertyDetailsPage({ params }) {
                 property: property
             }, void 0, false, {
                 fileName: "[project]/src/app/properties/[slug]/page.tsx",
-                lineNumber: 109,
+                lineNumber: 111,
                 columnNumber: 10
             }, this)
         }, void 0, false, {
             fileName: "[project]/src/app/properties/[slug]/page.tsx",
-            lineNumber: 108,
+            lineNumber: 110,
             columnNumber: 8
         }, this);
     }
@@ -4495,7 +4495,7 @@ async function PropertyDetailsPage({ params }) {
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$header$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Header"], {}, void 0, false, {
                 fileName: "[project]/src/app/properties/[slug]/page.tsx",
-                lineNumber: 118,
+                lineNumber: 120,
                 columnNumber: 8
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("main", {
@@ -4505,33 +4505,33 @@ async function PropertyDetailsPage({ params }) {
                         children: property.name
                     }, void 0, false, {
                         fileName: "[project]/src/app/properties/[slug]/page.tsx",
-                        lineNumber: 120,
+                        lineNumber: 122,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                         children: "Generic property page - Layout not defined."
                     }, void 0, false, {
                         fileName: "[project]/src/app/properties/[slug]/page.tsx",
-                        lineNumber: 121,
+                        lineNumber: 123,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("pre", {
                         children: JSON.stringify(property, null, 2)
                     }, void 0, false, {
                         fileName: "[project]/src/app/properties/[slug]/page.tsx",
-                        lineNumber: 123,
+                        lineNumber: 125,
                         columnNumber: 10
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/app/properties/[slug]/page.tsx",
-                lineNumber: 119,
+                lineNumber: 121,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/app/properties/[slug]/page.tsx",
-        lineNumber: 117,
+        lineNumber: 119,
         columnNumber: 5
     }, this);
 }
@@ -4552,7 +4552,8 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$components$2f$navigation$2e$react$2d$server$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/client/components/navigation.react-server.js [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$header$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/header.tsx [app-rsc] (ecmascript)"); // Assuming a generic header
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$booking$2f$availability$2d$check$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/booking/availability-check.tsx [app-rsc] (ecmascript)"); // Import the new component
-var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$app$2f$properties$2f5b$slug$5d2f$page$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/app/properties/[slug]/page.tsx [app-rsc] (ecmascript)"); // Re-use the fetch function
+// Correct import path: Import directly from the file where it's defined
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$app$2f$properties$2f5b$slug$5d2f$page$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/app/properties/[slug]/page.tsx [app-rsc] (ecmascript)");
 ;
 ;
 ;
@@ -4592,7 +4593,7 @@ async function AvailabilityCheckPage({ params, searchParams }) {
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$header$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Header"], {}, void 0, false, {
                 fileName: "[project]/src/app/booking/check/[slug]/page.tsx",
-                lineNumber: 54,
+                lineNumber: 55,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("main", {
@@ -4602,7 +4603,7 @@ async function AvailabilityCheckPage({ params, searchParams }) {
                         children: "Loading availability..."
                     }, void 0, false, {
                         fileName: "[project]/src/app/booking/check/[slug]/page.tsx",
-                        lineNumber: 58,
+                        lineNumber: 59,
                         columnNumber: 29
                     }, void 0),
                     children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$booking$2f$availability$2d$check$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["AvailabilityCheck"], {
@@ -4612,17 +4613,17 @@ async function AvailabilityCheckPage({ params, searchParams }) {
                         initialGuests: guests
                     }, void 0, false, {
                         fileName: "[project]/src/app/booking/check/[slug]/page.tsx",
-                        lineNumber: 59,
+                        lineNumber: 60,
                         columnNumber: 11
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/src/app/booking/check/[slug]/page.tsx",
-                    lineNumber: 58,
+                    lineNumber: 59,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/app/booking/check/[slug]/page.tsx",
-                lineNumber: 55,
+                lineNumber: 56,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("footer", {
@@ -4635,18 +4636,18 @@ async function AvailabilityCheckPage({ params, searchParams }) {
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/app/booking/check/[slug]/page.tsx",
-                    lineNumber: 70,
+                    lineNumber: 71,
                     columnNumber: 10
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/app/booking/check/[slug]/page.tsx",
-                lineNumber: 69,
+                lineNumber: 70,
                 columnNumber: 8
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/app/booking/check/[slug]/page.tsx",
-        lineNumber: 53,
+        lineNumber: 54,
         columnNumber: 5
     }, this);
 }
