@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from 'react';
@@ -323,7 +322,7 @@ export function AvailabilityCheck({
              baseRate: property.pricePerNight, // Store base rate per night
              numberOfNights: numberOfNights,
              cleaningFee: pricingDetails.cleaningFee,
-             extraGuestFee: property.extraGuestFee, // Use property's fee definition
+             extraGuestFee: property.extraGuestFee || 0, // Use property's fee definition, default to 0 if undefined
              numberOfExtraGuests: Math.max(0, numberOfGuests - property.baseOccupancy),
              accommodationTotal: pricingDetails.basePrice + pricingDetails.extraGuestFee, // Base + extra guest total
              subtotal: pricingDetails.subtotal,
@@ -360,26 +359,28 @@ export function AvailabilityCheck({
       };
       const stripeResult = await import('@/app/actions/create-checkout-session').then(m => m.createCheckoutSession(checkoutInput));
 
-      if (stripeResult.error || !stripeResult.sessionId) {
-        throw new Error(stripeResult.error || 'Failed to create Stripe session.');
+      if (stripeResult.error || !stripeResult.sessionId || !stripeResult.sessionUrl) {
+        throw new Error(stripeResult.error || 'Failed to create Stripe session or missing session URL.');
       }
 
-      // console.log(`[handleContinueToPayment] Stripe session created: ${stripeResult.sessionId}. Redirecting...`);
+      // console.log(`[handleContinueToPayment] Stripe session created: ${stripeResult.sessionId}. Redirecting to URL: ${stripeResult.sessionUrl}`);
 
-      // Await the Stripe promise to get the Stripe instance
-       const stripe = await stripePromise;
-
-      // Add a log to check if stripe object is loaded correctly
-      console.log("Stripe object loaded:", stripe);
-
-      if (!stripe) throw new Error('Stripe.js failed to load.');
-
-      const { error } = await stripe.redirectToCheckout({ sessionId: stripeResult.sessionId });
-
-      if (error) {
-        throw new Error(error.message || 'Could not redirect to Stripe.');
-      }
-      // Redirect happens here, code below won't execute on success
+      // --- Attempt redirection using window.location.assign ---
+       try {
+            console.log(`[handleContinueToPayment] Attempting redirect via window.location.assign to ${stripeResult.sessionUrl}...`);
+            window.location.assign(stripeResult.sessionUrl);
+            // Code below might not execute if redirect is successful immediately
+       } catch (redirectError) {
+            console.error("[handleContinueToPayment] Error during window.location.assign redirect:", redirectError);
+            // Fallback or alternative redirect attempt (though stripe.redirectToCheckout might have the same issue)
+            const stripe = await stripePromise;
+            if (!stripe) throw new Error('Stripe.js failed to load.');
+            console.warn("[handleContinueToPayment] window.location.assign failed, attempting fallback with stripe.redirectToCheckout...");
+             const { error } = await stripe.redirectToCheckout({ sessionId: stripeResult.sessionId });
+             if (error) {
+                 throw new Error(error.message || 'Could not redirect to Stripe (fallback attempt).');
+             }
+       }
 
     } catch (error) {
       console.error("Error processing booking:", error);
@@ -542,7 +543,7 @@ export function AvailabilityCheck({
          <AvailabilityCalendar
            currentMonth={calendarCenterMonth}
            unavailableDates={unavailableDates}
-           selectedRange={datesSelected ? { from: checkInDate!, to: checkOutDate! } : undefined}
+           selectedRange={datesSelected && checkInDate && checkOutDate ? { from: checkInDate, to: checkOutDate } : undefined} // Pass dates only if valid
          />
        </div>
      );
@@ -706,7 +707,7 @@ export function AvailabilityCheck({
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-1">
                                         Max {property.maxGuests}. Base for {property.baseOccupancy}.
-                                        {property.extraGuestFee > 0 && ` Extra: $${property.extraGuestFee.toFixed(2)}/guest/night.`}
+                                        {(property.extraGuestFee ?? 0) > 0 && ` Extra: $${(property.extraGuestFee ?? 0).toFixed(2)}/guest/night.`}
                                     </p>
                                 </div>
                              </div> {/* End of first grid row */}

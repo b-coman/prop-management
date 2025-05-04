@@ -29,7 +29,7 @@ interface CreateCheckoutSessionInput {
   pendingBookingId?: string; // Added to link Stripe session to pending booking
 }
 
-export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
+export async function createCheckoutSession(input: CreateCheckoutSessionInput): Promise<{ sessionId?: string; sessionUrl?: string | null; error?: string }> {
   const {
     property,
     checkInDate,
@@ -46,7 +46,7 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
   } = input;
 
   // Await the headers call
-  const headersList = headers();
+  const headersList = await headers(); // Await headers() call
   const origin = headersList.get('origin') || 'http://localhost:9002';
 
   const numberOfExtraGuests = Math.max(0, numberOfGuests - property.baseOccupancy);
@@ -107,8 +107,8 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
       metadata: metadata, // Pass the prepared metadata including pendingBookingId
     });
 
-    if (!session.id) {
-        throw new Error('Failed to create Stripe session.');
+    if (!session.id || !session.url) { // Check for session URL as well
+        throw new Error('Failed to create Stripe session or missing session URL.');
     }
 
     // Link session to pending booking if ID provided
@@ -120,7 +120,8 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
         console.log(`[createCheckoutSession] Stripe session ${session.id} created, linked to pending booking ${pendingBookingId} via metadata. Payment Intent: ${session.payment_intent}`);
     }
 
-    return { sessionId: session.id };
+    // Return both sessionId and sessionUrl
+    return { sessionId: session.id, sessionUrl: session.url };
   } catch (error) {
     console.error('Error creating Stripe Checkout session:', error);
     return { error: `Failed to create checkout session: ${error instanceof Error ? error.message : String(error)}` };
