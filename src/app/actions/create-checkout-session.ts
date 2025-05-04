@@ -1,10 +1,10 @@
+
 "use server";
 
 import type { Property } from '@/types';
 import { headers } from 'next/headers';
 import Stripe from 'stripe';
 
-// Ensure Stripe secret key is set in environment variables
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 if (!stripeSecretKey) {
   throw new Error('STRIPE_SECRET_KEY is not set in environment variables.');
@@ -19,13 +19,15 @@ interface CreateCheckoutSessionInput {
   numberOfGuests: number;
   totalPrice: number; // FINAL price in dollars (after discount)
   numberOfNights: number;
-  // Optional guest info if available upfront
+  // Optional guest info now expected
   guestFirstName?: string;
   guestLastName?: string;
   guestEmail?: string; // Pass guest email if available
   // Optional coupon info
   appliedCouponCode?: string;
   discountPercentage?: number;
+  // Optional pending booking ID
+  pendingBookingId?: string; // Added to link Stripe session to pending booking
 }
 
 export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
@@ -34,18 +36,18 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
     checkInDate,
     checkOutDate,
     numberOfGuests,
-    totalPrice, // This is the final price AFTER discount
+    totalPrice,
     numberOfNights,
-    guestEmail, // Capture guest email if provided
+    guestEmail,
     guestFirstName,
     guestLastName,
-    appliedCouponCode, // Get coupon code
-    discountPercentage, // Get discount percentage
+    appliedCouponCode,
+    discountPercentage,
+    pendingBookingId, // Get the pending booking ID
   } = input;
 
-  const origin = headers().get('origin') || 'http://localhost:9002'; // Default for local dev
+  const origin = headers().get('origin') || 'http://localhost:9002';
 
-  // Calculate number of extra guests
   const numberOfExtraGuests = Math.max(0, numberOfGuests - property.baseOccupancy);
 
   // --- Prepare metadata ---
@@ -56,7 +58,7 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
     checkOutDate: checkOutDate,
     numberOfGuests: String(numberOfGuests),
     numberOfNights: String(numberOfNights),
-    totalPrice: String(totalPrice), // Final price paid
+    totalPrice: String(totalPrice),
     cleaningFee: String(property.cleaningFee),
     pricePerNight: String(property.pricePerNight),
     baseOccupancy: String(property.baseOccupancy),
@@ -64,36 +66,20 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
     numberOfExtraGuests: String(numberOfExtraGuests),
     guestFirstName: guestFirstName || '',
     guestLastName: guestLastName || '',
+    // Add pendingBookingId to metadata
+    pendingBookingId: pendingBookingId || '', // Include if available
     // userId: loggedInUserId || '', // Add user ID if available
   };
 
-  // Add coupon info to metadata if applied
   if (appliedCouponCode && discountPercentage !== undefined) {
     metadata.appliedCouponCode = appliedCouponCode;
     metadata.discountPercentage = String(discountPercentage);
-    // Optionally, calculate and add original subtotal and discount amount
-    // const subtotalBeforeDiscount = (property.pricePerNight * numberOfNights) + (property.extraGuestFee * numberOfExtraGuests * numberOfNights) + property.cleaningFee;
-    // const discountAmount = subtotalBeforeDiscount * (discountPercentage / 100);
-    // metadata.subtotalBeforeDiscount = String(subtotalBeforeDiscount);
-    // metadata.discountAmount = String(discountAmount);
   }
 
-  // --- Construct Success URL with parameters for simulation ---
-  const successUrlParams = new URLSearchParams({
-    session_id: '{CHECKOUT_SESSION_ID}', // Stripe replaces this token
-    // Add params needed for simulation (encode dates)
-    propId: property.id,
-    checkIn: checkInDate,
-    checkOut: checkOutDate,
-    guests: String(numberOfGuests),
-    nights: String(numberOfNights),
-    total: String(totalPrice), // Final price
-    // Include coupon info if applied
-    ...(appliedCouponCode && { coupon: appliedCouponCode }),
-    ...(discountPercentage !== undefined && { discount: String(discountPercentage) }),
-  });
-  const success_url = `${origin}/booking/success?${successUrlParams.toString()}`;
-  const cancel_url = `${origin}/booking/cancel?property_slug=${property.slug}`;
+  // --- Construct Success URL ---
+  // Keep success URL simple, rely on webhook and booking ID for confirmation logic
+  const success_url = `${origin}/booking/success?session_id={CHECKOUT_SESSION_ID}${pendingBookingId ? `&booking_id=${pendingBookingId}` : ''}`; // Optionally pass booking ID
+  const cancel_url = `${origin}/booking/cancel?property_slug=${property.slug}${pendingBookingId ? `&booking_id=${pendingBookingId}` : ''}`; // Pass booking ID to cancel if needed
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -103,37 +89,54 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: `${property.name} (${numberOfNights} nights, ${numberOfGuests} guests)${appliedCouponCode ? ` - Coupon: ${appliedCouponCode}` : ''}`, // Add coupon info to name
-              description: `Booking from ${new Date(checkInDate).toLocaleDateString()} to ${new Date(checkOutDate).toLocaleDateString()}.`,
-              images: [property.images.find(img => img.isFeatured)?.url || property.images[0]?.url || ''], // Use featured or first image
+              name: `${property.name} (${numberOfNights} nights, ${numberOfGuests} guests)${appliedCouponCode ? ` - Coupon: ${appliedCouponCode}` : ''}`,
+              description: `Booking from ${new Date(checkInDate).toLocaleDateString()} to ${new Date(checkOutDate).toLocaleDateString()}. Ref: ${pendingBookingId || 'N/A'}`, // Add ref
+              images: [property.images.find(img => img.isFeatured)?.url || property.images[0]?.url || ''],
             },
-            // Ensure totalPrice is converted to cents correctly
-            unit_amount: Math.round(totalPrice * 100), // Use final price
+            unit_amount: Math.round(totalPrice * 100),
           },
           quantity: 1,
         },
       ],
       mode: 'payment',
-      success_url: success_url, // Use the constructed URL
+      success_url: success_url,
       cancel_url: cancel_url,
-       // Include customer email if available, helps Stripe populate customer info
-      customer_email: guestEmail, // Pass guest email to Stripe
-      phone_number_collection: { enabled: true,},
-      // Pass necessary booking details in metadata for the webhook
-      metadata: metadata, // Pass the prepared metadata
-       // payment_intent_data: {
-      //   capture_method: 'automatic', // Or 'manual' if you capture later
-      // },
+      customer_email: guestEmail,
+      phone_number_collection: { enabled: true,}, // Keep phone collection
+      metadata: metadata, // Pass the prepared metadata including pendingBookingId
     });
 
     if (!session.id) {
         throw new Error('Failed to create Stripe session.');
     }
 
+    // Link session to pending booking if ID provided
+    if (pendingBookingId && session.payment_intent) {
+        // You might want to update the pending booking with the payment_intent ID here
+        // This provides another link between the booking and the payment attempt.
+        // Example (requires an update action):
+        // await updatePendingBookingWithPaymentIntent(pendingBookingId, session.payment_intent as string);
+        console.log(`[createCheckoutSession] Stripe session ${session.id} created, linked to pending booking ${pendingBookingId} via metadata. Payment Intent: ${session.payment_intent}`);
+    }
+
     return { sessionId: session.id };
   } catch (error) {
     console.error('Error creating Stripe Checkout session:', error);
-    // Return a structured error
     return { error: `Failed to create checkout session: ${error instanceof Error ? error.message : String(error)}` };
   }
 }
+
+// Optional helper action (if needed)
+// async function updatePendingBookingWithPaymentIntent(bookingId: string, paymentIntentId: string) {
+//   try {
+//     const bookingRef = doc(db, 'bookings', bookingId);
+//     await updateDoc(bookingRef, {
+//       'paymentInfo.stripePaymentIntentId': paymentIntentId,
+//       updatedAt: serverTimestamp(),
+//     });
+//     console.log(`[updatePendingBooking] Updated booking ${bookingId} with Payment Intent ID: ${paymentIntentId}`);
+//   } catch (error) {
+//     console.error(`[updatePendingBooking] Error updating booking ${bookingId} with Payment Intent ID:`, error);
+//     // Handle error appropriately, maybe log it or notify admin
+//   }
+// }

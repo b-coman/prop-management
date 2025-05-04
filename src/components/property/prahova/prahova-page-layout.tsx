@@ -1,14 +1,14 @@
 
 import Image from 'next/image';
 import type { Property } from '@/types';
-import { PrahovaHeader } from './prahova-header'; // Specific header for Prahova
-import { PrahovaFooter } from './prahova-footer'; // Specific footer for Prahova
-import { BookingForm } from '@/components/booking-form'; // Reusable booking form
+import { PrahovaHeader } from './prahova-header';
+import { PrahovaFooter } from './prahova-footer';
+import { InitialBookingForm } from '@/components/booking/initial-booking-form'; // Import the new initial form
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { BedDouble, Bath, Users, Wifi, ParkingCircle, Tv, Utensils, Clock, CheckCircle, MapPin, Home, MountainSnow, Trees, ListChecks } from 'lucide-react'; // Added ListChecks icon
+import { BedDouble, Bath, Users, Wifi, ParkingCircle, Tv, Utensils, Clock, CheckCircle, MapPin, Home, MountainSnow, Trees, ListChecks } from 'lucide-react';
 
 interface PrahovaPageLayoutProps {
   property: Property;
@@ -29,8 +29,8 @@ export function PrahovaPageLayout({ property }: PrahovaPageLayoutProps) {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#f8f5f2]"> {/* Specific background color */}
-      <PrahovaHeader /> {/* Use Prahova specific header */}
+    <div className="flex min-h-screen flex-col bg-[#f8f5f2]">
+      <PrahovaHeader />
       <main className="flex-grow container py-12 md:py-16">
          {/* Optional Hero Section specific to Prahova */}
          <section className="mb-12 text-center">
@@ -149,7 +149,6 @@ export function PrahovaPageLayout({ property }: PrahovaPageLayoutProps) {
                  {/* Placeholder for map */}
                 <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
                     <MapPin className="h-12 w-12 text-muted-foreground/50" />
-                    {/* In a real app, embed Google Maps here */}
                 </div>
             </div>
 
@@ -160,33 +159,30 @@ export function PrahovaPageLayout({ property }: PrahovaPageLayoutProps) {
                  <p className="text-muted-foreground mb-4">
                     Have questions? Reach out to the property owner.
                  </p>
-                 {/* Placeholder for contact form or details */}
                  <Button variant="outline">Contact Owner</Button>
             </div>
 
           </div>
 
-          {/* Right Column: Booking Card */}
+          {/* Right Column: Booking Card - Now uses InitialBookingForm */}
            <div className="lg:col-span-1">
             <Card id="booking-form" className="sticky top-24 shadow-lg bg-white border-gray-200">
               <CardHeader>
                 <CardTitle className="text-xl">
                    <span className="text-2xl font-bold text-green-800">${property.pricePerNight}</span> / night
                 </CardTitle>
-                 {/* Basic review placeholder */}
                  <div className="text-sm text-gray-500 mt-1">
-                    ⭐ 4.9 (15 reviews) {/* Replace with actual review data */}
+                    ⭐ {property.ratings?.average || 'N/A'} ({property.ratings?.count || 0} reviews)
                  </div>
               </CardHeader>
               <CardContent>
-                 {/* Pass specific styling or props if needed */}
-                 <BookingForm property={property} />
+                 <InitialBookingForm property={property} />
               </CardContent>
             </Card>
           </div>
         </div>
       </main>
-      <PrahovaFooter /> {/* Use Prahova specific footer */}
+      <PrahovaFooter />
     </div>
   );
 }

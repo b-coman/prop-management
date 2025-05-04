@@ -1,14 +1,14 @@
 
 import Image from 'next/image';
 import type { Property } from '@/types';
-import { ColteiHeader } from './coltei-header'; // Specific header for Coltei
-import { ColteiFooter } from './coltei-footer'; // Specific footer for Coltei
-import { BookingForm } from '@/components/booking-form'; // Reusable booking form
+import { ColteiHeader } from './coltei-header';
+import { ColteiFooter } from './coltei-footer';
+import { InitialBookingForm } from '@/components/booking/initial-booking-form'; // Import the new initial form
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { BedDouble, Bath, Users, Wifi, ParkingCircle, Tv, Utensils, Clock, CheckCircle, MapPin, Home, Building, Wind, ListChecks } from 'lucide-react'; // Added specific icons and ListChecks
+import { BedDouble, Bath, Users, Wifi, ParkingCircle, Tv, Utensils, Clock, CheckCircle, MapPin, Home, Building, Wind, ListChecks } from 'lucide-react';
 
 interface ColteiPageLayoutProps {
   property: Property;
@@ -23,13 +23,13 @@ export function ColteiPageLayout({ property }: ColteiPageLayoutProps) {
     kitchen: <Utensils className="h-4 w-4 mr-1" />,
     tv: <Tv className="h-4 w-4 mr-1" />,
     'air conditioning': <Wind className="h-4 w-4 mr-1" />,
-    'washer/dryer': <CheckCircle className="h-4 w-4 mr-1 text-blue-600" />, // Example specific icon
+    'washer/dryer': <CheckCircle className="h-4 w-4 mr-1 text-blue-600" />,
     elevator: <Building className="h-4 w-4 mr-1" />,
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-blue-50"> {/* Specific background */}
-      <ColteiHeader /> {/* Use Coltei specific header */}
+    <div className="flex min-h-screen flex-col bg-blue-50">
+      <ColteiHeader />
       <main className="flex-grow container py-12 md:py-16">
         {/* Optional Hero Section specific to Coltei */}
          <section className="mb-12 text-center">
@@ -145,10 +145,8 @@ export function ColteiPageLayout({ property }: ColteiPageLayoutProps) {
                  <p className="text-muted-foreground mb-4">
                     Located in {property.location.city}, {property.location.state}. Exact address provided after booking.
                  </p>
-                 {/* Placeholder for map */}
-                <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
+                 <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
                     <MapPin className="h-12 w-12 text-muted-foreground/50" />
-                    {/* In a real app, embed Google Maps here */}
                 </div>
             </div>
 
@@ -159,32 +157,29 @@ export function ColteiPageLayout({ property }: ColteiPageLayoutProps) {
                  <p className="text-muted-foreground mb-4">
                     Have questions? Reach out to the property owner.
                  </p>
-                 {/* Placeholder for contact form or details */}
                  <Button variant="outline">Contact Owner</Button>
             </div>
           </div>
 
-          {/* Right Column: Booking Card */}
+          {/* Right Column: Booking Card - Now uses InitialBookingForm */}
            <div className="lg:col-span-1">
             <Card id="booking-form" className="sticky top-24 shadow-lg bg-white border-blue-100">
               <CardHeader>
                 <CardTitle className="text-xl">
                    <span className="text-2xl font-bold text-blue-800">${property.pricePerNight}</span> / night
                 </CardTitle>
-                 {/* Basic review placeholder */}
                  <div className="text-sm text-gray-500 mt-1">
-                    ⭐ 4.7 (21 reviews) {/* Replace with actual review data */}
+                    ⭐ {property.ratings?.average || 'N/A'} ({property.ratings?.count || 0} reviews)
                  </div>
               </CardHeader>
               <CardContent>
-                 {/* Pass specific styling or props if needed */}
-                 <BookingForm property={property} />
+                 <InitialBookingForm property={property} />
               </CardContent>
             </Card>
           </div>
         </div>
       </main>
-      <ColteiFooter /> {/* Use Coltei specific footer */}
+      <ColteiFooter />
     </div>
   );
 }

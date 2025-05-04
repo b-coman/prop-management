@@ -1,20 +1,20 @@
 
-// Removed 'use client' directive
+// src/app/properties/[slug]/page.tsx
 
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import type { Property } from '@/types';
 import { PrahovaPageLayout } from '@/components/property/prahova/prahova-page-layout';
 import { ColteiPageLayout } from '@/components/property/coltei/coltei-page-layout';
-import { Header } from '@/components/header'; // Assuming a generic header might still be needed, adjust if not
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore'; // Added Timestamp
-import { db } from '@/lib/firebase'; // Import Firestore instance
+import { Header } from '@/components/header';
+import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+// Remove InitialBookingForm import from here, it will be used within the layout components
+// import { InitialBookingForm } from '@/components/booking/initial-booking-form'; // Assuming this new component exists
 
-
-// Function to get property data by slug (replace with actual data fetching)
+// Function to get property data by slug (from Firestore)
 async function getPropertyBySlug(slug: string): Promise<Property | undefined> {
     try {
-        // **** Use Client SDK ****
         const propertiesCollection = collection(db, 'properties');
         const q = query(propertiesCollection, where('slug', '==', slug));
         const querySnapshot = await getDocs(q);
@@ -25,39 +25,27 @@ async function getPropertyBySlug(slug: string): Promise<Property | undefined> {
 
             // Function to safely convert Firestore Timestamps or objects to Dates
             const convertToDate = (timestamp: any): Date | undefined => {
+                if (!timestamp) return undefined;
                 if (timestamp instanceof Timestamp) {
                     return timestamp.toDate();
-                } else if (timestamp && typeof timestamp._seconds === 'number' && typeof timestamp._nanoseconds === 'number') {
-                    // Handle object format if needed (e.g., from JSON import)
-                    return new Timestamp(timestamp._seconds, timestamp._nanoseconds).toDate();
+                } else if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
+                    return new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
                 }
-                 return undefined; // Return undefined if it's not a recognizable timestamp format
+                return undefined;
             };
 
-            // Ensure Timestamps are converted if they exist and are in Firestore Timestamp format or object format
             const propertyData = {
                  id: doc.id,
                 ...data,
                  createdAt: convertToDate(data.createdAt),
                  updatedAt: convertToDate(data.updatedAt),
-                 // Handle nested timestamps if necessary, e.g., ratings.lastUpdated
+                 // Handle nested timestamps if necessary
             } as Property;
 
-            // Ensure houseRules is always an array
-             if (!Array.isArray(propertyData.houseRules)) {
-               propertyData.houseRules = [];
-             }
-
-             // Ensure amenities is always an array
-             if (!Array.isArray(propertyData.amenities)) {
-                propertyData.amenities = [];
-             }
-
-              // Ensure images is always an array
-             if (!Array.isArray(propertyData.images)) {
-                propertyData.images = [];
-             }
-
+            // Ensure arrays are always present
+             propertyData.houseRules = Array.isArray(propertyData.houseRules) ? propertyData.houseRules : [];
+             propertyData.amenities = Array.isArray(propertyData.amenities) ? propertyData.amenities : [];
+             propertyData.images = Array.isArray(propertyData.images) ? propertyData.images : [];
 
             return propertyData;
         } else {
@@ -75,9 +63,7 @@ interface PropertyDetailsPageProps {
   params: { slug: string };
 }
 
-
-// Optional: Generate static paths if using SSG
-// Consider if this is still needed or if ISR/SSR is better with dynamic data
+// Generate static paths using Firestore data
 export async function generateStaticParams() {
   try {
       const propertiesCollection = collection(db, 'properties');
@@ -89,29 +75,24 @@ export async function generateStaticParams() {
       }
 
       const params = snapshot.docs.map(doc => ({
-          slug: doc.data().slug as string, // Assuming slug exists and is a string
-      })).filter(param => !!param.slug); // Filter out entries without a slug
+          slug: doc.data().slug as string,
+      })).filter(param => !!param.slug);
 
-      // console.log("[generateStaticParams] Generated slugs:", params.map(p => p.slug));
       return params;
   } catch (error) {
        console.error("❌ Error fetching properties for generateStaticParams:", error);
-       return []; // Return empty array on error
+       return [];
   }
 }
 
 
 export default async function PropertyDetailsPage({ params }: PropertyDetailsPageProps) {
-  // console.log(`[PropertyDetailsPage] Fetching property for slug: ${params.slug}`);
+  // Fetch property data
   const property = await getPropertyBySlug(params.slug);
 
   if (!property) {
-    console.warn(`[PropertyDetailsPage] Property not found for slug: ${params.slug}. Rendering 404.`);
     notFound();
   }
-
-  // console.log(`[PropertyDetailsPage] Property loaded from Firestore: ${property.name} (ID: ${property.id})`);
-
 
   // Conditionally render the layout based on the property slug
   const LayoutComponent = property.slug === 'prahova-mountain-chalet'
@@ -121,6 +102,8 @@ export default async function PropertyDetailsPage({ params }: PropertyDetailsPag
       : null; // Fallback or default layout if needed
 
   if (LayoutComponent) {
+    // Pass the property data to the specific layout component
+    // The layout component will be responsible for rendering the InitialBookingForm
     return (
        <div>
          <LayoutComponent property={property} />
@@ -128,9 +111,8 @@ export default async function PropertyDetailsPage({ params }: PropertyDetailsPag
     );
   }
 
-
-  // Fallback for properties without a specific layout (or could redirect/show error)
-   console.warn(`[PropertyDetailsPage] No specific layout found for slug: ${params.slug}. Rendering generic fallback.`);
+  // Fallback for properties without a specific layout
+  console.warn(`[PropertyDetailsPage] No specific layout found for slug: ${params.slug}. Rendering generic fallback.`);
   return (
     <div className="flex min-h-screen flex-col">
        <Header />
@@ -139,8 +121,13 @@ export default async function PropertyDetailsPage({ params }: PropertyDetailsPag
         <p>Generic property page - Layout not defined.</p>
          {/* Basic rendering of property details */}
          <pre>{JSON.stringify(property, null, 2)}</pre>
+          {/* You might render a generic InitialBookingForm here if needed */}
+          {/* <Card id="booking-form" className="sticky top-24 shadow-lg">
+            <CardHeader><CardTitle>Check Availability</CardTitle></CardHeader>
+            <CardContent><InitialBookingForm property={property} /></CardContent>
+          </Card> */}
       </main>
+      {/* Add a generic footer if needed */}
     </div>
   );
 }
-
