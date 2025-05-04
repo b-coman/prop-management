@@ -1,4 +1,3 @@
-
 "use server";
 
 import type { Property } from '@/types';
@@ -46,7 +45,9 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput) {
     pendingBookingId, // Get the pending booking ID
   } = input;
 
-  const origin = headers().get('origin') || 'http://localhost:9002';
+  // Await the headers call
+  const headersList = headers();
+  const origin = headersList.get('origin') || 'http://localhost:9002';
 
   const numberOfExtraGuests = Math.max(0, numberOfGuests - property.baseOccupancy);
 
