@@ -10,6 +10,8 @@ import type { Booking } from '@/types'; // Import Booking type
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
+console.log('--- [Webhook /api/webhooks/stripe] Received POST request ---');
+
 if (!stripeSecretKey) {
   console.error('❌ FATAL: STRIPE_SECRET_KEY is not set in environment variables.');
   // In a real app, you might want to prevent startup or return an error immediately

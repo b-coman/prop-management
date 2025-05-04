@@ -3,10 +3,8 @@ serviceId: "studio"
 location: "us-central1"
 schema:
   source: "./schema"
-  datasource:
-    postgresql:
-      database: "fdcdb"
-      cloudSql:
-        instanceId: "studio-fdc"
+  datasource:    
+    inmemory: {}
+  #   postgresql:
+  #     database: "fdcdb"
       # schemaValidation: "COMPATIBLE"
-connectorDirs: ["./connector"]
