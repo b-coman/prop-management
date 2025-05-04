@@ -4577,11 +4577,11 @@ async function AvailabilityCheckPage({ params, searchParams }) {
     if (!property) {
         (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$components$2f$navigation$2e$react$2d$server$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["notFound"])(); // Property slug is invalid
     }
-    // Basic validation for search params
+    // Basic validation for search params (only dates now)
     const checkIn = searchParams.checkIn;
     const checkOut = searchParams.checkOut;
-    const guests = searchParams.guests ? parseInt(searchParams.guests, 10) : 1;
-    if (!checkIn || !checkOut || isNaN(guests) || guests < 1) {
+    // const guests = searchParams.guests ? parseInt(searchParams.guests, 10) : 1; // guests removed
+    if (!checkIn || !checkOut /* || isNaN(guests) || guests < 1 */ ) {
         // Handle invalid search params, maybe redirect back or show an error
         // For now, we can let the AvailabilityCheck component handle it,
         // or redirect: redirect(`/properties/${params.slug}`);
@@ -4593,7 +4593,7 @@ async function AvailabilityCheckPage({ params, searchParams }) {
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$header$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Header"], {}, void 0, false, {
                 fileName: "[project]/src/app/booking/check/[slug]/page.tsx",
-                lineNumber: 55,
+                lineNumber: 54,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("main", {
@@ -4603,27 +4603,26 @@ async function AvailabilityCheckPage({ params, searchParams }) {
                         children: "Loading availability..."
                     }, void 0, false, {
                         fileName: "[project]/src/app/booking/check/[slug]/page.tsx",
-                        lineNumber: 59,
+                        lineNumber: 58,
                         columnNumber: 29
                     }, void 0),
                     children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$booking$2f$availability$2d$check$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["AvailabilityCheck"], {
                         property: property,
                         initialCheckIn: checkIn,
-                        initialCheckOut: checkOut,
-                        initialGuests: guests
+                        initialCheckOut: checkOut
                     }, void 0, false, {
                         fileName: "[project]/src/app/booking/check/[slug]/page.tsx",
-                        lineNumber: 60,
+                        lineNumber: 59,
                         columnNumber: 11
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/src/app/booking/check/[slug]/page.tsx",
-                    lineNumber: 59,
+                    lineNumber: 58,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/app/booking/check/[slug]/page.tsx",
-                lineNumber: 56,
+                lineNumber: 55,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("footer", {
@@ -4636,18 +4635,18 @@ async function AvailabilityCheckPage({ params, searchParams }) {
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/app/booking/check/[slug]/page.tsx",
-                    lineNumber: 71,
+                    lineNumber: 70,
                     columnNumber: 10
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/app/booking/check/[slug]/page.tsx",
-                lineNumber: 70,
+                lineNumber: 69,
                 columnNumber: 8
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/app/booking/check/[slug]/page.tsx",
-        lineNumber: 54,
+        lineNumber: 53,
         columnNumber: 5
     }, this);
 }

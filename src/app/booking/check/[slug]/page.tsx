@@ -1,3 +1,4 @@
+
 // src/app/booking/check/[slug]/page.tsx
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
@@ -6,6 +7,8 @@ import { Header } from '@/components/header'; // Assuming a generic header
 import { AvailabilityCheck } from '@/components/booking/availability-check'; // Import the new component
 // Correct import path: Import directly from the file where it's defined
 import { getPropertyBySlug } from '@/app/properties/[slug]/page';
+import { db } from '@/lib/firebase'; // Import db for data fetching
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 interface AvailabilityCheckPageProps {
   params: { slug: string };
@@ -37,11 +40,11 @@ export default async function AvailabilityCheckPage({ params, searchParams }: Av
   }
 
   // Basic validation for search params (only dates now)
+  // Accessing searchParams directly is the standard pattern in page components
   const checkIn = searchParams.checkIn;
   const checkOut = searchParams.checkOut;
-  // const guests = searchParams.guests ? parseInt(searchParams.guests, 10) : 1; // guests removed
 
-  if (!checkIn || !checkOut /* || isNaN(guests) || guests < 1 */ ) { // guests check removed
+  if (!checkIn || !checkOut) {
     // Handle invalid search params, maybe redirect back or show an error
     // For now, we can let the AvailabilityCheck component handle it,
     // or redirect: redirect(`/properties/${params.slug}`);
@@ -60,7 +63,6 @@ export default async function AvailabilityCheckPage({ params, searchParams }: Av
             property={property}
             initialCheckIn={checkIn}
             initialCheckOut={checkOut}
-            // initialGuests={guests} // guests prop removed
           />
         </Suspense>
       </main>
@@ -74,3 +76,4 @@ export default async function AvailabilityCheckPage({ params, searchParams }: Av
     </div>
   );
 }
+
