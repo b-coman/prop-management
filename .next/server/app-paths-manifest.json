@@ -1,0 +1,12 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/test-booking/route": "app/api/test-booking/route.js",
+  "/api/webhooks/stripe/route": "app/api/webhooks/stripe/route.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/booking/cancel/page": "app/booking/cancel/page.js",
+  "/booking/success/page": "app/booking/success/page.js",
+  "/page": "app/page.js",
+  "/properties/[slug]/page": "app/properties/[slug]/page.js",
+  "/admin/coupons/new/page": "app/admin/coupons/new/page.js",
+  "/admin/coupons/page": "app/admin/coupons/page.js"
+}

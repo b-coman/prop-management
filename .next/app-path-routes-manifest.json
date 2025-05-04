@@ -1,0 +1,12 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/api/test-booking/route": "/api/test-booking",
+  "/api/webhooks/stripe/route": "/api/webhooks/stripe",
+  "/favicon.ico/route": "/favicon.ico",
+  "/booking/cancel/page": "/booking/cancel",
+  "/booking/success/page": "/booking/success",
+  "/page": "/",
+  "/properties/[slug]/page": "/properties/[slug]",
+  "/admin/coupons/new/page": "/admin/coupons/new",
+  "/admin/coupons/page": "/admin/coupons"
+}

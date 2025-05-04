@@ -1,0 +1,107 @@
+{
+  "pages": {
+    "/_not-found/page": [
+      "static/chunks/webpack-b770a35d6f00da1e.js",
+      "static/chunks/4bd1b696-02069022f4de1347.js",
+      "static/chunks/684-8a022c17c85dc903.js",
+      "static/chunks/main-app-88a0a9742c364011.js",
+      "static/chunks/app/_not-found/page-60b2bb35634dcd1e.js"
+    ],
+    "/layout": [
+      "static/chunks/webpack-b770a35d6f00da1e.js",
+      "static/chunks/4bd1b696-02069022f4de1347.js",
+      "static/chunks/684-8a022c17c85dc903.js",
+      "static/chunks/main-app-88a0a9742c364011.js",
+      "static/css/6562f760f1e94db0.css",
+      "static/chunks/198-3e0aa12e0d9d28f8.js",
+      "static/chunks/226-b0bd5a3d2bdb4858.js",
+      "static/chunks/app/layout-3e6434af1b560f47.js"
+    ],
+    "/api/test-booking/route": [
+      "static/chunks/webpack-b770a35d6f00da1e.js",
+      "static/chunks/4bd1b696-02069022f4de1347.js",
+      "static/chunks/684-8a022c17c85dc903.js",
+      "static/chunks/main-app-88a0a9742c364011.js",
+      "static/chunks/app/api/test-booking/route-ef851591fcd3d02b.js"
+    ],
+    "/api/webhooks/stripe/route": [
+      "static/chunks/webpack-b770a35d6f00da1e.js",
+      "static/chunks/4bd1b696-02069022f4de1347.js",
+      "static/chunks/684-8a022c17c85dc903.js",
+      "static/chunks/main-app-88a0a9742c364011.js",
+      "static/chunks/app/api/webhooks/stripe/route-a2e8ca299b4a32ca.js"
+    ],
+    "/booking/cancel/page": [
+      "static/chunks/webpack-b770a35d6f00da1e.js",
+      "static/chunks/4bd1b696-02069022f4de1347.js",
+      "static/chunks/684-8a022c17c85dc903.js",
+      "static/chunks/main-app-88a0a9742c364011.js",
+      "static/chunks/198-3e0aa12e0d9d28f8.js",
+      "static/chunks/756-15d47df110e34048.js",
+      "static/chunks/874-7774da3f2b4ff826.js",
+      "static/chunks/388-24ba9f4123056835.js",
+      "static/chunks/app/booking/cancel/page-dae0f18a05f57e87.js"
+    ],
+    "/booking/success/page": [
+      "static/chunks/webpack-b770a35d6f00da1e.js",
+      "static/chunks/4bd1b696-02069022f4de1347.js",
+      "static/chunks/684-8a022c17c85dc903.js",
+      "static/chunks/main-app-88a0a9742c364011.js",
+      "static/chunks/198-3e0aa12e0d9d28f8.js",
+      "static/chunks/756-15d47df110e34048.js",
+      "static/chunks/874-7774da3f2b4ff826.js",
+      "static/chunks/388-24ba9f4123056835.js",
+      "static/chunks/app/booking/success/page-7177cbea45361253.js"
+    ],
+    "/page": [
+      "static/chunks/webpack-b770a35d6f00da1e.js",
+      "static/chunks/4bd1b696-02069022f4de1347.js",
+      "static/chunks/684-8a022c17c85dc903.js",
+      "static/chunks/main-app-88a0a9742c364011.js",
+      "static/chunks/874-7774da3f2b4ff826.js",
+      "static/chunks/app/page-5ac32c1d366092f9.js"
+    ],
+    "/properties/[slug]/page": [
+      "static/chunks/webpack-b770a35d6f00da1e.js",
+      "static/chunks/4bd1b696-02069022f4de1347.js",
+      "static/chunks/684-8a022c17c85dc903.js",
+      "static/chunks/main-app-88a0a9742c364011.js",
+      "static/chunks/198-3e0aa12e0d9d28f8.js",
+      "static/chunks/756-15d47df110e34048.js",
+      "static/chunks/874-7774da3f2b4ff826.js",
+      "static/chunks/885-4926756851335351.js",
+      "static/chunks/687-52e979df155619e2.js",
+      "static/chunks/app/properties/[slug]/page-439661adbe88a5c6.js"
+    ],
+    "/admin/layout": [
+      "static/chunks/webpack-b770a35d6f00da1e.js",
+      "static/chunks/4bd1b696-02069022f4de1347.js",
+      "static/chunks/684-8a022c17c85dc903.js",
+      "static/chunks/main-app-88a0a9742c364011.js",
+      "static/chunks/874-7774da3f2b4ff826.js",
+      "static/chunks/app/admin/layout-9f683a49fe4aa428.js"
+    ],
+    "/admin/coupons/new/page": [
+      "static/chunks/webpack-b770a35d6f00da1e.js",
+      "static/chunks/4bd1b696-02069022f4de1347.js",
+      "static/chunks/684-8a022c17c85dc903.js",
+      "static/chunks/main-app-88a0a9742c364011.js",
+      "static/chunks/198-3e0aa12e0d9d28f8.js",
+      "static/chunks/756-15d47df110e34048.js",
+      "static/chunks/885-4926756851335351.js",
+      "static/chunks/181-265ea57670662a0d.js",
+      "static/chunks/app/admin/coupons/new/page-231b7131d85ee684.js"
+    ],
+    "/admin/coupons/page": [
+      "static/chunks/webpack-b770a35d6f00da1e.js",
+      "static/chunks/4bd1b696-02069022f4de1347.js",
+      "static/chunks/684-8a022c17c85dc903.js",
+      "static/chunks/main-app-88a0a9742c364011.js",
+      "static/chunks/198-3e0aa12e0d9d28f8.js",
+      "static/chunks/756-15d47df110e34048.js",
+      "static/chunks/885-4926756851335351.js",
+      "static/chunks/789-075fa91e6b827080.js",
+      "static/chunks/app/admin/coupons/page-b661064b1eb9c7c0.js"
+    ]
+  }
+}
