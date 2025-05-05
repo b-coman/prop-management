@@ -50,7 +50,7 @@ export function Header({ propertyName, propertySlug }: HeaderProps) {
     // Apply background only after mount and based on scroll
     hasMounted && (isScrolled
       ? "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b" // Style when scrolled
-      : "bg-black/50 border-transparent") // Initial style (transparent)
+      : "bg-black/50 border-transparent") // Initial style (transparent black)
   );
 
   const textAndIconColorClasses = cn(
@@ -85,7 +85,7 @@ export function Header({ propertyName, propertySlug }: HeaderProps) {
   return (
     <header className={headerClasses}>
       {/* Restore container class for consistent padding */}
-      <div className="container flex h-16 items-center justify-between">
+      <div className="container flex h-16 items-center justify-between"> {/* Re-added container class */}
          {/* Link back to the specific property page */}
         <Link href={basePath} className="flex items-center gap-2">
            {/* Placeholder SVG for logo or property-specific logo */}
