@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from 'react';
@@ -6,7 +5,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, isAfter } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
-import { Calendar as CalendarIcon, SearchCheck, Loader2 } from 'lucide-react'; // Removed Users, Minus, Plus
+import { Calendar as CalendarIcon, SearchCheck, Loader2 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -22,16 +21,14 @@ import type { Property } from '@/types';
 
 interface InitialBookingFormProps {
   property: Property;
+  size?: 'compressed' | 'large'; // Add optional size prop
 }
 
-export function InitialBookingForm({ property }: InitialBookingFormProps) {
+export function InitialBookingForm({ property, size = 'compressed' }: InitialBookingFormProps) {
   const [date, setDate] = useState<DateRange | undefined>(undefined);
-  // Removed guest state: const [numberOfGuests, setNumberOfGuests] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
-
-  // Removed handleGuestChange function
 
   // Check if date range is valid (end date is after start date)
   const isDateRangeValid = (): boolean => {
@@ -60,24 +57,34 @@ export function InitialBookingForm({ property }: InitialBookingFormProps) {
     const params = new URLSearchParams({
       checkIn,
       checkOut,
-      // Removed guests parameter: guests: String(numberOfGuests),
     });
 
     // Navigate to the new availability check page
     router.push(`/booking/check/${property.slug}?${params.toString()}`);
-
-    // Optionally reset loading state if navigation fails, though usually it won't
-    // setTimeout(() => setIsLoading(false), 2000); // Reset after a delay just in case
   };
 
   const isButtonDisabled = !isDateRangeValid() || isLoading;
 
+  // Conditionally apply classes based on the size prop
+  const formContainerClasses = cn(
+    'space-y-4', // Default vertical spacing
+    size === 'large' && 'flex flex-col md:flex-row md:items-end md:space-y-0 md:space-x-4 w-full' // Flex layout for large size on medium screens and up
+  );
+
+  const datePickerContainerClasses = cn(
+    'grid gap-2',
+    size === 'large' && 'flex-grow' // Allow date picker to take up space in large layout
+  );
+
+  const buttonContainerClasses = cn(
+    'w-full',
+    size === 'large' && 'md:w-auto md:shrink-0' // Adjust button width for large layout
+  );
+
   return (
-    // Reduced vertical spacing for overlay context
-    <div className="space-y-4">
+    <div className={formContainerClasses}>
       {/* Date Range Picker */}
-      <div className={cn('grid gap-2')}>
-         {/* Use text-sm for label in overlay */}
+      <div className={datePickerContainerClasses}>
          <Label htmlFor="date" className="text-sm font-medium text-gray-700">Check-in / Check-out Dates</Label>
          <Popover>
           <PopoverTrigger asChild>
@@ -85,7 +92,6 @@ export function InitialBookingForm({ property }: InitialBookingFormProps) {
               id="date"
               variant={'outline'}
               className={cn(
-                // Adjusted width for overlay form
                 'w-full justify-start text-left font-normal',
                 !date && 'text-muted-foreground'
               )}
@@ -102,7 +108,7 @@ export function InitialBookingForm({ property }: InitialBookingFormProps) {
                   format(date.from, 'LLL dd, y')
                 )
               ) : (
-                <span>Pick a date range now</span>
+                <span>Pick a date range</span>
               )}
             </Button>
           </PopoverTrigger>
@@ -120,28 +126,30 @@ export function InitialBookingForm({ property }: InitialBookingFormProps) {
         </Popover>
       </div>
 
-      {/* Guest Selector Removed */}
-
       {/* Check Availability Button */}
-      <Button
-        type="button"
-        onClick={handleCheckAvailability}
-        // Use primary color defined in globals.css
-        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-        disabled={isButtonDisabled}
-      >
-        {isLoading ? (
-           <>
-             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-             Checking...
-           </>
-         ) : (
-           <>
-             <SearchCheck className="mr-2 h-4 w-4" />
-             Check Availability
-           </>
-         )}
-      </Button>
+      <div className={buttonContainerClasses}>
+          {/* Add an invisible label for large layout alignment if needed, or adjust flex alignment */}
+          {size === 'large' && <Label htmlFor="check-availability-btn" className="text-sm font-medium text-transparent md:block hidden">Submit</Label> }
+          <Button
+            id="check-availability-btn"
+            type="button"
+            onClick={handleCheckAvailability}
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+            disabled={isButtonDisabled}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Checking...
+              </>
+            ) : (
+              <>
+                <SearchCheck className="mr-2 h-4 w-4" />
+                Check Availability
+              </>
+            )}
+          </Button>
+       </div>
     </div>
   );
 }

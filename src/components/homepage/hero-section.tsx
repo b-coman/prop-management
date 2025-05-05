@@ -34,7 +34,7 @@ export function HeroSection({ heroData }: HeroSectionProps) {
 
   // Default values for position and size
   const position = bookingForm?.position || 'center';
-  const size = bookingForm?.size || 'large';
+  const size = bookingForm?.size || 'large'; // Default to 'large' if not specified
 
   // Map position strings to flexbox classes
   const positionClasses: { [key: string]: string } = {
@@ -47,11 +47,11 @@ export function HeroSection({ heroData }: HeroSectionProps) {
     'bottom-right': 'justify-end items-end',
   };
 
-  // Map size strings to card classes
-  const sizeClasses: { [key: string]: string } = {
-    large: 'max-w-md p-4 md:p-6', // Default size
-    compressed: 'max-w-sm p-3 md:p-4', // Smaller size
-  };
+  // Map size strings to card classes - remove sizeClasses as layout is now handled in InitialBookingForm
+  // const sizeClasses: { [key: string]: string } = {
+  //   large: 'max-w-md p-4 md:p-6', // Default size
+  //   compressed: 'max-w-sm p-3 md:p-4', // Smaller size
+  // };
 
   return (
     <section className="relative h-[60vh] md:h-[75vh] w-full" id="hero">
@@ -75,17 +75,24 @@ export function HeroSection({ heroData }: HeroSectionProps) {
       {/* Overlay Content - Apply positioning classes */}
       {showBookingForm && (
           <div className={cn("absolute inset-0 flex p-4 md:p-8", positionClasses[position])}>
-            {/* Booking Form Card - Apply sizing classes */}
+            {/* Booking Form Card - Remove sizing classes, pass size prop to InitialBookingForm */}
             <Card
                 className={cn(
                     "w-full bg-background/90 backdrop-blur-sm shadow-xl border-border",
-                    sizeClasses[size]
+                     // Apply different padding based on size directly here, or let InitialBookingForm handle internal padding
+                    size === 'large' ? 'max-w-4xl p-4 md:p-6' : 'max-w-sm p-3 md:p-4' // Example: adjust max-width for large
                 )}
                 id="booking"
                 >
-                <CardHeader className="p-0 mb-4 text-center">
+                 <CardHeader className={cn(
+                      "p-0 mb-4",
+                       size === 'large' ? 'text-left md:text-center' : 'text-center' // Adjust alignment for large
+                 )}>
                     {/* Price and Rating */}
-                    <div className="flex items-center justify-center gap-4 mb-2 flex-wrap">
+                    <div className={cn(
+                         "flex items-center gap-4 mb-2 flex-wrap",
+                          size === 'large' ? 'justify-start md:justify-center' : 'justify-center' // Adjust justify for large
+                    )}>
                     {pricePerNight !== undefined && pricePerNight > 0 && ( // Check if price is defined and positive
                         <Badge variant="secondary" className="text-lg px-3 py-1">
                         ${pricePerNight}<span className="text-xs font-normal ml-1">/night</span>
@@ -101,7 +108,8 @@ export function HeroSection({ heroData }: HeroSectionProps) {
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <InitialBookingForm property={bookingFormProperty} />
+                    {/* Pass the size prop down to the form */}
+                    <InitialBookingForm property={bookingFormProperty} size={size} />
                 </CardContent>
             </Card>
           </div>

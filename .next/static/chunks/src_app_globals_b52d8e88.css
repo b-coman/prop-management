@@ -2048,6 +2048,10 @@ body {
   color: rgb(133 77 14 / var(--tw-text-opacity, 1));
 }
 
+.text-transparent {
+  color: #0000;
+}
+
 .line-through {
   text-decoration-line: line-through;
 }
@@ -3205,8 +3209,16 @@ body {
     width: 200px;
   }
 
+  .md\:w-auto {
+    width: auto;
+  }
+
   .md\:max-w-\[420px\] {
     max-width: 420px;
+  }
+
+  .md\:shrink-0 {
+    flex-shrink: 0;
   }
 
   .md\:grid-cols-2 {
@@ -3233,12 +3245,28 @@ body {
     align-items: center;
   }
 
+  .md\:justify-center {
+    justify-content: center;
+  }
+
   .md\:justify-between {
     justify-content: space-between;
   }
 
   .md\:gap-12 {
     gap: 3rem;
+  }
+
+  .md\:space-x-4 > :not([hidden]) ~ :not([hidden]) {
+    --tw-space-x-reverse: 0;
+    margin-right: calc(1rem * var(--tw-space-x-reverse));
+    margin-left: calc(1rem * calc(1 - var(--tw-space-x-reverse)));
+  }
+
+  .md\:space-y-0 > :not([hidden]) ~ :not([hidden]) {
+    --tw-space-y-reverse: 0;
+    margin-top: calc(0px * calc(1 - var(--tw-space-y-reverse)));
+    margin-bottom: calc(0px * var(--tw-space-y-reverse));
   }
 
   .md\:p-6 {
@@ -3275,6 +3303,10 @@ body {
 
   .md\:text-left {
     text-align: left;
+  }
+
+  .md\:text-center {
+    text-align: center;
   }
 
   .md\:text-3xl {
