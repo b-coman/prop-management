@@ -1,3 +1,4 @@
+
 "use client"; // Add 'use client' because we need hooks (useState, useEffect)
 
 import { useState, useEffect } from 'react'; // Import hooks
@@ -15,7 +16,7 @@ interface HeaderProps {
 export function Header({ propertyName, propertySlug }: HeaderProps) {
   const basePath = `/properties/${propertySlug}`;
   const [isScrolled, setIsScrolled] = useState(false);
-  const [hasMounted, setHasMounted] = useState(false); // New state to track client mount
+  const [hasMounted, setHasMounted] = useState(false); // State to track client mount
 
   // Define menu items specific to the property page layout
   const menuItems = [
@@ -43,54 +44,38 @@ export function Header({ propertyName, propertySlug }: HeaderProps) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []); // Empty dependency array ensures this runs once on mount
 
-  // Determine classes based on mounted state to prevent hydration mismatch
-  const headerClasses = cn(
-    "fixed top-0 left-0 z-50 w-full",
-    "transition-all duration-300 ease-in-out",
-    // Only apply dynamic background/border classes after mount
-    hasMounted && (isScrolled
-      ? "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b" // Style when scrolled
-      : "bg-black/50 border-transparent") // Initial style (transparent)
-  );
+  // Base classes applied on both server and initial client render
+  const baseHeaderClasses = "fixed top-0 left-0 z-50 w-full transition-all duration-300 ease-in-out";
+  const baseTextAndIconColor = "transition-colors";
+  const baseSpanColor = "text-lg font-semibold transition-colors";
+  const baseNavLink = "text-sm font-medium transition-colors";
+  const baseMobileTrigger = "transition-colors";
 
-  const textAndIconColorClasses = cn(
-    "transition-colors",
-     hasMounted && (isScrolled ? "text-primary" : "text-white")
-  );
-   const spanColorClasses = cn(
-     "text-lg font-semibold transition-colors",
-      hasMounted && (isScrolled ? "text-foreground" : "text-white")
-   );
+  // Determine dynamic classes only after mount
+  const dynamicHeaderClasses = hasMounted && (isScrolled
+    ? "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b" // Style when scrolled
+    : "bg-black/50 border-transparent"); // Initial style (transparent)
 
-   const navLinkClasses = cn(
-     "text-sm font-medium transition-colors",
-     hasMounted && (isScrolled ? "text-muted-foreground hover:text-foreground" : "text-white/80 hover:text-white")
-   );
-
-   const bookNowButtonVariant = hasMounted && isScrolled ? "default" : "secondary";
-   const bookNowButtonClasses = cn(
-     hasMounted && !isScrolled ? "text-primary bg-white hover:bg-gray-100" : ""
-   );
-
-   const mobileTriggerClasses = cn(
-     "transition-colors",
-      hasMounted && (isScrolled ? "text-foreground hover:bg-accent" : "text-white hover:bg-white/10")
-   );
-
+  const dynamicTextAndIconColor = hasMounted && (isScrolled ? "text-primary" : "text-white");
+  const dynamicSpanColor = hasMounted && (isScrolled ? "text-foreground" : "text-white");
+  const dynamicNavLink = hasMounted && (isScrolled ? "text-muted-foreground hover:text-foreground" : "text-white/80 hover:text-white");
+  const dynamicBookNowButtonVariant = hasMounted && isScrolled ? "default" : "secondary";
+  const dynamicBookNowButtonClasses = hasMounted && !isScrolled ? "text-primary bg-white hover:bg-gray-100" : "";
+  const dynamicMobileTrigger = hasMounted && (isScrolled ? "text-foreground hover:bg-accent" : "text-white hover:bg-white/10");
 
   return (
-    <header className={headerClasses}>
+    <header className={cn(baseHeaderClasses, dynamicHeaderClasses)}>
       {/* Restore container class for consistent padding */}
       <div className="container flex h-16 items-center justify-between">
          {/* Link back to the specific property page */}
         <Link href={basePath} className="flex items-center gap-2">
            {/* Placeholder SVG for logo or property-specific logo */}
            {/* Change text color based on scroll state */}
-           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("h-6 w-6", textAndIconColorClasses)}>
+           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("h-6 w-6", baseTextAndIconColor, dynamicTextAndIconColor)}>
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
             <polyline points="9 22 9 12 15 12 15 22"></polyline>
           </svg>
-          <span className={spanColorClasses}>{propertyName}</span>
+          <span className={cn(baseSpanColor, dynamicSpanColor)}>{propertyName}</span>
         </Link>
 
         {/* Desktop Navigation */}
@@ -99,7 +84,7 @@ export function Header({ propertyName, propertySlug }: HeaderProps) {
              <Link
                key={item.label}
                href={item.href} // Use section IDs directly
-               className={navLinkClasses}
+               className={cn(baseNavLink, dynamicNavLink)}
              >
                {item.label}
              </Link>
@@ -109,8 +94,8 @@ export function Header({ propertyName, propertySlug }: HeaderProps) {
              {/* Use a variant suitable for overlay/scrolled state */}
              <Button
                 size="sm"
-                variant={bookNowButtonVariant} // Change variant based on scroll
-                className={bookNowButtonClasses}
+                variant={dynamicBookNowButtonVariant} // Change variant based on scroll
+                className={dynamicBookNowButtonClasses}
             >
                 Book Now
              </Button>
@@ -124,7 +109,7 @@ export function Header({ propertyName, propertySlug }: HeaderProps) {
             <Button
                  variant="ghost" // Use ghost for less visual impact
                  size="icon"
-                 className={mobileTriggerClasses}
+                 className={cn(baseMobileTrigger, dynamicMobileTrigger)}
              >
               <Menu className="h-5 w-5" />
               <span className="sr-only">Toggle Menu</span>
