@@ -76,11 +76,9 @@ const config: Config = {
   			sm: 'calc(var(--radius) - 4px)'
   		},
        fontFamily: {
-        // Airbnb uses Circular font, ensure you load it via @font-face or a provider
-        // sans: ['var(--font-circular)', 'sans-serif'],
-        // Keeping Geist Sans as defined in layout for now unless Circular is explicitly loaded
-        sans: ['var(--font-geist-sans)', 'sans-serif'],
-        mono: ['var(--font-geist-mono)', 'monospace'],
+        // Update to use Inter font variable
+        sans: ['var(--font-inter)', 'sans-serif'],
+        mono: ['var(--font-geist-mono)', 'monospace'], // Keep Geist Mono or replace if needed
       },
   		keyframes: {
   			'accordion-down': {

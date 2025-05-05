@@ -3,8 +3,7 @@
 @tailwind utilities;
 
 body {
-  /* Default sans font, replace with Circular if loaded */
-  font-family: var(--font-geist-sans), sans-serif;
+  /* Removed font-family definition here, now handled in layout.tsx */
 }
 
 @layer base {
