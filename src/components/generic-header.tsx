@@ -1,4 +1,6 @@
+"use client"; // Add 'use client' because we need hooks (useState, useEffect)
 
+import { useState, useEffect } from 'react'; // Import hooks
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -12,34 +14,50 @@ interface HeaderProps {
 
 export function Header({ propertyName, propertySlug }: HeaderProps) {
   const basePath = `/properties/${propertySlug}`;
+  const [isScrolled, setIsScrolled] = useState(false);
 
   // Define menu items specific to the property page layout
   const menuItems = [
     { href: '#experience', label: 'Experience', icon: Home }, // Assuming section IDs exist
     { href: '#features', label: 'Features', icon: ImageIcon },
     { href: '#location', label: 'Location', icon: MapPin },
-    { href: '#house-rules', label: 'Rules', icon: ListChecks },
+    { href: '#rules', label: 'Rules', icon: ListChecks }, // Updated ID from house-rules
     // Add more relevant links for the property page
   ];
 
+  useEffect(() => {
+    const handleScroll = () => {
+      // Set state based on scroll position (e.g., scrolled more than 50px)
+      setIsScrolled(window.scrollY > 50);
+    };
+
+    // Add event listener
+    window.addEventListener('scroll', handleScroll);
+
+    // Clean up event listener
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []); // Empty dependency array ensures this runs once on mount
 
   return (
-    // Make header absolute, position at top, give it a z-index, and transparent background
+    // Make header sticky, position at top, give it a z-index
     <header className={cn(
-        "absolute top-0 left-0 z-50 w-full", // Absolute positioning and z-index
-        "bg-gradient-to-b from-black/60 to-transparent", // Transparent background gradient
-        "transition-all duration-300 ease-in-out" // Optional: add transition for potential future scroll effects
-        // Consider adding "hover:bg-background/90" or similar for hover effect if desired
+        "sticky top-0 left-0 z-50 w-full", // Sticky positioning and z-index
+        "transition-all duration-300 ease-in-out", // Smooth transition for background
+        // Conditional background: Gradient when not scrolled, solid/blurred when scrolled
+        isScrolled
+            ? "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b" // Solid background with blur on scroll
+            : "bg-gradient-to-b from-black/60 to-transparent border-transparent" // Transparent gradient initially
     )}>
-      <div className="container flex h-16 items-center justify-between text-primary-foreground"> {/* Adjusted text color for better contrast */}
-         {/* Link back to the specific property page (or homepage?) */}
+      <div className="container flex h-16 items-center justify-between">
+         {/* Link back to the specific property page */}
         <Link href={basePath} className="flex items-center gap-2">
            {/* Placeholder SVG for logo or property-specific logo */}
-           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-white"> {/* Changed color to white */}
+           {/* Change text color based on scroll state */}
+           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("h-6 w-6 transition-colors", isScrolled ? "text-primary" : "text-white")}>
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
             <polyline points="9 22 9 12 15 12 15 22"></polyline>
           </svg>
-          <span className="text-lg font-semibold text-white">{propertyName}</span> {/* Changed color to white */}
+          <span className={cn("text-lg font-semibold transition-colors", isScrolled ? "text-foreground" : "text-white")}>{propertyName}</span>
         </Link>
 
         {/* Desktop Navigation */}
@@ -48,23 +66,41 @@ export function Header({ propertyName, propertySlug }: HeaderProps) {
              <Link
                key={item.label}
                href={item.href} // Use section IDs directly
-               className="text-sm font-medium text-white/80 transition-colors hover:text-white" // Changed color to white/80
+               className={cn(
+                 "text-sm font-medium transition-colors",
+                 isScrolled ? "text-muted-foreground hover:text-foreground" : "text-white/80 hover:text-white" // Adjust text color based on scroll
+               )}
              >
                {item.label}
              </Link>
            ))}
            {/* Add other relevant actions like "Book Now" */}
-            <Link href={`${basePath}#booking-form`} passHref> {/* Adjust target ID if needed */}
-             {/* Use a variant suitable for overlay */}
-             <Button size="sm" variant="secondary" className="text-primary bg-white hover:bg-gray-100">Book Now</Button>
+            <Link href={`${basePath}#booking`} passHref> {/* Link to hero section with booking form */}
+             {/* Use a variant suitable for overlay/scrolled state */}
+             <Button
+                size="sm"
+                variant={isScrolled ? "default" : "secondary"} // Change variant based on scroll
+                className={cn(
+                    isScrolled ? "" : "text-primary bg-white hover:bg-gray-100" // Style for initial state
+                )}
+            >
+                Book Now
+             </Button>
            </Link>
         </nav>
 
         {/* Mobile Navigation */}
         <Sheet>
           <SheetTrigger asChild className="md:hidden">
-             {/* Ensure trigger button is visible on transparent background */}
-            <Button variant="outline" size="icon" className="border-white/50 text-white hover:bg-white/10 hover:text-white">
+             {/* Ensure trigger button is visible */}
+            <Button
+                 variant="ghost" // Use ghost for less visual impact
+                 size="icon"
+                 className={cn(
+                     "transition-colors",
+                     isScrolled ? "text-foreground hover:bg-accent" : "text-white hover:bg-white/10"
+                 )}
+             >
               <Menu className="h-5 w-5" />
               <span className="sr-only">Toggle Menu</span>
             </Button>
@@ -96,7 +132,7 @@ export function Header({ propertyName, propertySlug }: HeaderProps) {
             </nav>
              {/* Add Book Now button to mobile menu */}
               <div className="mt-8">
-                 <Link href={`${basePath}#booking-form`} passHref>
+                 <Link href={`${basePath}#booking`} passHref>
                     <Button className="w-full">Book Now</Button>
                  </Link>
               </div>
