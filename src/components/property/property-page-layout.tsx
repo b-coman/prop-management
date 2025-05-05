@@ -72,17 +72,17 @@ export function PropertyPageLayout({ property, template, overrides }: PropertyPa
     const mergedExperienceData = getMergedBlockData('experience', 'experience');
     const experienceData = {
         title: mergedExperienceData?.title || "Experience Our Property",
-        welcomeText: mergedExperienceData?.welcomeText || "Discover the unique charm and comfort of your stay.", // Use welcomeText key
+        welcomeText: mergedExperienceData?.description || "Discover the unique charm and comfort of your stay.", // Use description key from overrides/defaults
         highlights: mergedExperienceData?.highlights || [],
     };
 
     const mergedHostData = getMergedBlockData('host', 'host');
     const hostData = {
         name: mergedHostData?.name || "Your Host",
-        imageUrl: mergedHostData?.imageUrl || null,
-        welcomeMessage: mergedHostData?.welcomeMessage || "We're delighted to welcome you!",
-        backstory: mergedHostData?.backstory || "We strive to make your stay exceptional.",
-        'data-ai-hint': mergedHostData?.['data-ai-hint'],
+        imageUrl: mergedHostData?.image || null, // Use image key
+        welcomeMessage: mergedHostData?.description || "We're delighted to welcome you!", // Use description key for welcome message
+        backstory: mergedHostData?.backstory || "We strive to make your stay exceptional.", // Add backstory if needed in overrides/defaults
+        'data-ai-hint': mergedHostData?.['data-ai-hint'] || 'host portrait friendly',
     };
 
     const featuresData = getMergedBlockData('features', 'features'); // Now gets array directly
@@ -177,15 +177,16 @@ export function PropertyPageLayout({ property, template, overrides }: PropertyPa
 
   return (
     <div className="flex min-h-screen flex-col">
-       {/* Render header - potentially pass overrides if needed */}
+       {/* Render header - now overlays */}
        <Header propertyName={name} propertySlug={slug} />
 
+      {/* Remove padding-top from main as header is absolute */}
       <main className="flex-grow">
          {/* Render homepage blocks based on template and visibility overrides */}
          {homepage.map(block => renderBlock(block))}
       </main>
 
-       {/* Render footer - potentially pass overrides if needed */}
+       {/* Render footer */}
        <Footer />
     </div>
   );
