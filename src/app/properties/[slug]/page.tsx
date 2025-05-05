@@ -102,7 +102,7 @@ export default async function PropertyDetailsPage({ params }: PropertyDetailsPag
 
     console.log(`[PropertyDetailsPage] Rendering property: ${slug}`);
 
-    // Fetch all necessary data for the property
+    // Fetch all necessary data for the property using the reusable functions
     const [property, overrides] = await Promise.all([
         getPropertyBySlug(slug),
         getPropertyOverrides(slug),
@@ -127,6 +127,7 @@ export default async function PropertyDetailsPage({ params }: PropertyDetailsPag
     // console.log("[PropertyDetailsPage] Overrides Data:", JSON.stringify(overrides, null, 2));
 
     // Render the property page layout with the fetched data
+    // Ensure overrides are passed correctly, fallback to empty object if undefined/null
     return (
         <Suspense fallback={<div>Loading property details...</div>}>
             <PropertyPageLayout

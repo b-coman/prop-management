@@ -1,1 +1,0 @@
-If you have an admin interface specifically for editing the `propertyOverrides` data (which doesn't seem to be fully implemented yet), that interface's actions *should* import and use the schemas from `src/lib/overridesSchemas.ts` to validate the data before saving it to Firestore.

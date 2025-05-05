@@ -1,3 +1,4 @@
+
 // src/components/property/gallery-section.tsx
 import Image from 'next/image';
 import { Home } from 'lucide-react'; // Fallback icon
@@ -9,11 +10,12 @@ interface ImageType {
 }
 
 interface GallerySectionProps {
+  title: string; // Add title prop
   images?: ImageType[]; // Pass the filtered gallery images
   propertyName: string; // For alt text
 }
 
-export function GallerySection({ images, propertyName }: GallerySectionProps) {
+export function GallerySection({ title, images, propertyName }: GallerySectionProps) {
   if (!images || images.length === 0) {
     return null; // Don't render if no images
   }
@@ -21,7 +23,7 @@ export function GallerySection({ images, propertyName }: GallerySectionProps) {
   return (
     <section className="py-8 md:py-12" id="gallery">
       <div className="container mx-auto px-4">
-        <h2 className="text-2xl font-semibold text-foreground mb-6">Gallery</h2>
+        <h2 className="text-2xl font-semibold text-foreground mb-6">{title || "Gallery"}</h2> {/* Use title prop */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {images.map((image, index) => (
             <div key={index} className="relative aspect-[4/3] w-full overflow-hidden rounded-lg shadow-md bg-muted">

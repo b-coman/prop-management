@@ -1,3 +1,4 @@
+
 import Image from 'next/image';
 import { Star, StarHalf, UserCircle } from 'lucide-react'; // Added UserCircle
 import { Badge } from '@/components/ui/badge';
@@ -16,8 +17,9 @@ interface Review {
 }
 
 interface TestimonialsData {
-  overallRating: number;
-  reviews: Review[];
+  title: string; // Title for the section
+  overallRating: number; // Overall rating for the property
+  reviews: Review[]; // Array of review objects
 }
 
 interface TestimonialsSectionProps {
@@ -54,7 +56,7 @@ export function TestimonialsSection({ testimonials }: TestimonialsSectionProps) 
       <div className="container mx-auto px-4">
         <div className="max-w-3xl mx-auto text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
-            What Our Guests Say
+             {testimonials.title || "What Our Guests Say"} {/* Use title from props */}
           </h2>
           {testimonials.overallRating > 0 && (
              <div className="flex items-center justify-center gap-2">

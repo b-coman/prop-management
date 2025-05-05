@@ -32,6 +32,10 @@ export interface WebsiteTemplate {
         newsletterTitle?: string;
         newsletterDescription?: string;
     };
+    // Add defaults object to hold default content for each block
+    defaults?: {
+        [blockId: string]: any; // Keyed by block ID, value is the default content object for that block
+    };
     // Add other template-specific fields if needed
 }
 
@@ -100,11 +104,13 @@ export interface PropertyOverrides {
     hero?: { // Override content specifically for the hero section
         backgroundImage?: string | null;
          'data-ai-hint'?: string;
+         title?: string; // Allow overriding title
+         subtitle?: string; // Allow overriding subtitle
         // Add other hero-specific overrides if needed (e.g., title, subtitle)
     };
     experience?: { // Override content for the experience section
         title?: string;
-        welcomeText?: string;
+        welcomeText?: string; // Renamed from description for clarity
         highlights?: Array<{ icon: string; title: string; description: string }>;
     };
      host?: { // Override content for the host section
@@ -122,6 +128,7 @@ export interface PropertyOverrides {
         'data-ai-hint'?: string;
     }>;
     location?: { // Overrides specific to location block (attractions primarily)
+        title?: string; // Allow overriding title
         // Map settings could go here if they vary per property
     };
     attractions?: Array<{ // Array of nearby attractions
@@ -131,17 +138,20 @@ export interface PropertyOverrides {
         image?: string | null;
         'data-ai-hint'?: string;
     }>;
-    testimonials?: Array<{ // Array of selected testimonials
-        id?: string;
-        name: string;
-        date?: string; // e.g., "May 2025" or "2025-05-15"
-        rating: number;
-        text: string;
-        imageUrl?: string | null;
-        'data-ai-hint'?: string;
-    }>;
-     gallery?: {
-         // Gallery specific settings if needed, images are in the top-level 'images' array
+    testimonials?: { // Now an object containing the reviews array
+        title?: string; // Allow overriding title
+        reviews: Array<{ // Array of selected testimonials
+            id?: string;
+            name: string;
+            date?: string; // e.g., "May 2025" or "2025-05-15"
+            rating: number;
+            text: string;
+            imageUrl?: string | null;
+            'data-ai-hint'?: string;
+        }>
+    };
+     gallery?: { // Gallery section might have its own title override
+         title?: string;
      };
     images?: Array<{ // Gallery images (separate from hero/feature images)
         url: string;

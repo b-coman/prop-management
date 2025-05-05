@@ -42,6 +42,68 @@
       "showNewsletter": true,
       "newsletterTitle": "Subscribe to our newsletter",
       "newsletterDescription": "Get updates and offers."
+    },
+    "defaults": {
+      "hero": {
+        "backgroundImage": "/default-hero.jpg",
+        "title": "Welcome to Your Holiday House",
+        "price": 150,
+        "showRating": true,
+        "showBookingForm": true
+      },
+      "experience": {
+        "title": "Experience Relaxation",
+        "description": "A cozy holiday house perfect for family getaways.",
+        "highlights": [
+          { "icon": "nature", "title": "Nature", "description": "Surrounded by beautiful nature." },
+          { "icon": "family", "title": "Family Friendly", "description": "Ideal for family vacations." },
+          { "icon": "explore", "title": "Explore", "description": "Close to hiking trails and attractions." }
+        ]
+      },
+      "host": {
+        "title": "Meet Your Host",
+        "name": "Bogdan",
+        "image": "/default-host.jpg",
+        "description": "I'm delighted to welcome you to our holiday house. Feel at home and enjoy your stay!",
+        "contact": {
+          "phone": "+40 723-200868",
+          "email": "COMAN2904@GMAIL.COM"
+        },
+        "ctaText": "Learn More About Your Host",
+        "ctaUrl": "/about"
+      },
+      "features": [
+        { "icon": "firepit", "title": "Fire Pit", "description": "Enjoy evenings by the fire pit.", "image": "/default-firepit.jpg" },
+        { "icon": "bbq", "title": "BBQ Area", "description": "Cook delicious meals outdoors.", "image": "/default-bbq.jpg" },
+        { "icon": "hammock", "title": "Hammocks", "description": "Relax in our garden hammocks.", "image": "/default-hammock.jpg" }
+      ],
+      "location": {
+        "title": "Discover Nearby Attractions",
+        "mapCenter": { "lat": 45.2530, "lng": 25.6346 },
+        "attractions": [
+          { "name": "Dracula Castle", "distance": "2.5 hours by car", "description": "Visit the legendary Bran Castle.", "image": "/default-dracula.jpg" },
+          { "name": "Ialomita Cave", "distance": "1.5 hours by car", "description": "Explore the famous Ialomita Cave.", "image": "/default-cave.jpg" }
+        ],
+        "ctaText": "Explore All Attractions",
+        "ctaUrl": "/location"
+      },
+      "testimonials": {
+        "title": "What Our Guests Say",
+        "showRating": true,
+        "featuredReviews": [
+          { "name": "Maria D.", "date": "2025-04", "rating": 5, "text": "We loved our stay! The house was perfect." },
+          { "name": "James T.", "date": "2025-03", "rating": 5, "text": "Great experience. Highly recommend!" }
+        ],
+        "ctaText": "Read More Reviews",
+        "ctaUrl": "/reviews"
+      },
+      "cta": {
+        "title": "Book Your Stay Now",
+        "description": "Escape to tranquility and comfort.",
+        "buttonText": "Book Now",
+        "buttonUrl": "/book",
+        "backgroundImage": "/default-cta.jpg"
+      }
     }
   }
   

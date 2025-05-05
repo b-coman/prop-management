@@ -1,3 +1,4 @@
+
 import { MapPin, Map as MapIcon } from 'lucide-react'; // Added MapIcon
 import Image from 'next/image';
 
@@ -17,13 +18,14 @@ interface Attraction {
 }
 
 interface LocationHighlightsProps {
+    title: string; // Add title prop
     propertyLocation: Location; // Base location info
     attractions: Attraction[]; // Attractions from overrides
 }
 
-export function LocationHighlights({ propertyLocation, attractions }: LocationHighlightsProps) {
+export function LocationHighlights({ title, propertyLocation, attractions }: LocationHighlightsProps) {
     // Don't render if required info is missing
-    if (!propertyLocation || !attractions || attractions.length === 0) {
+    if (!title || !propertyLocation || !attractions || attractions.length === 0) {
         return null;
     }
 
@@ -32,7 +34,7 @@ export function LocationHighlights({ propertyLocation, attractions }: LocationHi
             <div className="container mx-auto px-4">
                  <div className="max-w-3xl mx-auto text-center mb-12">
                     <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
-                        Explore the Surroundings
+                        {title} {/* Use title prop */}
                     </h2>
                     {propertyLocation.city && propertyLocation.state && (
                         <p className="text-lg text-muted-foreground mb-4">
