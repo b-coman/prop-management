@@ -47,45 +47,41 @@ export function Header({ propertyName, propertySlug }: HeaderProps) {
   const headerClasses = cn(
     "fixed top-0 left-0 z-50 w-full",
     "transition-all duration-300 ease-in-out",
-    // Apply background only after mount and based on scroll
+    // Only apply dynamic background/border classes after mount
     hasMounted && (isScrolled
       ? "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b" // Style when scrolled
-      : "bg-black/50 border-transparent") // Initial style (transparent black)
+      : "bg-black/50 border-transparent") // Initial style (transparent)
   );
 
   const textAndIconColorClasses = cn(
     "transition-colors",
-    // Apply color only after mount and based on scroll
-    hasMounted && (isScrolled ? "text-primary" : "text-white")
+     hasMounted && (isScrolled ? "text-primary" : "text-white")
   );
-  const spanColorClasses = cn(
-    "text-lg font-semibold transition-colors",
-    // Apply color only after mount and based on scroll
-    hasMounted && (isScrolled ? "text-foreground" : "text-white")
-  );
+   const spanColorClasses = cn(
+     "text-lg font-semibold transition-colors",
+      hasMounted && (isScrolled ? "text-foreground" : "text-white")
+   );
 
-  const navLinkClasses = cn(
-    "text-sm font-medium transition-colors",
-    // Apply color only after mount and based on scroll
-    hasMounted && (isScrolled ? "text-muted-foreground hover:text-foreground" : "text-white/80 hover:text-white")
-  );
+   const navLinkClasses = cn(
+     "text-sm font-medium transition-colors",
+     hasMounted && (isScrolled ? "text-muted-foreground hover:text-foreground" : "text-white/80 hover:text-white")
+   );
 
-  const bookNowButtonVariant = hasMounted && isScrolled ? "default" : "secondary";
-  const bookNowButtonClasses = cn(
-    // Apply color only after mount and based on scroll
-    hasMounted && !isScrolled ? "text-primary bg-white hover:bg-gray-100" : ""
-  );
+   const bookNowButtonVariant = hasMounted && isScrolled ? "default" : "secondary";
+   const bookNowButtonClasses = cn(
+     hasMounted && !isScrolled ? "text-primary bg-white hover:bg-gray-100" : ""
+   );
 
-  const mobileTriggerClasses = cn(
-    "transition-colors",
-    // Apply color only after mount and based on scroll
-    hasMounted && (isScrolled ? "text-foreground hover:bg-accent" : "text-white hover:bg-white/10")
-  );
+   const mobileTriggerClasses = cn(
+     "transition-colors",
+      hasMounted && (isScrolled ? "text-foreground hover:bg-accent" : "text-white hover:bg-white/10")
+   );
+
 
   return (
     <header className={headerClasses}>
       {/* Restore container class for consistent padding */}
-      <div className="container flex h-16 items-center justify-between"> {/* Re-added container class */}
+      <div className="container flex h-16 items-center justify-between">
          {/* Link back to the specific property page */}
         <Link href={basePath} className="flex items-center gap-2">
            {/* Placeholder SVG for logo or property-specific logo */}

@@ -311,27 +311,21 @@ function Header({ propertyName, propertySlug }) {
         }
     }["Header.useEffect"], []); // Empty dependency array ensures this runs once on mount
     // Determine classes based on mounted state to prevent hydration mismatch
-    const headerClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])("fixed top-0 left-0 z-50 w-full", "transition-all duration-300 ease-in-out", // Apply background only after mount and based on scroll
+    const headerClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])("fixed top-0 left-0 z-50 w-full", "transition-all duration-300 ease-in-out", // Only apply dynamic background/border classes after mount
     hasMounted && (isScrolled ? "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b" // Style when scrolled
-     : "bg-black/50 border-transparent") // Initial style (transparent black)
+     : "bg-black/50 border-transparent") // Initial style (transparent)
     );
-    const textAndIconColorClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])("transition-colors", // Apply color only after mount and based on scroll
-    hasMounted && (isScrolled ? "text-primary" : "text-white"));
-    const spanColorClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])("text-lg font-semibold transition-colors", // Apply color only after mount and based on scroll
-    hasMounted && (isScrolled ? "text-foreground" : "text-white"));
-    const navLinkClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])("text-sm font-medium transition-colors", // Apply color only after mount and based on scroll
-    hasMounted && (isScrolled ? "text-muted-foreground hover:text-foreground" : "text-white/80 hover:text-white"));
+    const textAndIconColorClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])("transition-colors", hasMounted && (isScrolled ? "text-primary" : "text-white"));
+    const spanColorClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])("text-lg font-semibold transition-colors", hasMounted && (isScrolled ? "text-foreground" : "text-white"));
+    const navLinkClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])("text-sm font-medium transition-colors", hasMounted && (isScrolled ? "text-muted-foreground hover:text-foreground" : "text-white/80 hover:text-white"));
     const bookNowButtonVariant = hasMounted && isScrolled ? "default" : "secondary";
-    const bookNowButtonClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])(// Apply color only after mount and based on scroll
-    hasMounted && !isScrolled ? "text-primary bg-white hover:bg-gray-100" : "");
-    const mobileTriggerClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])("transition-colors", // Apply color only after mount and based on scroll
-    hasMounted && (isScrolled ? "text-foreground hover:bg-accent" : "text-white hover:bg-white/10"));
+    const bookNowButtonClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])(hasMounted && !isScrolled ? "text-primary bg-white hover:bg-gray-100" : "");
+    const mobileTriggerClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])("transition-colors", hasMounted && (isScrolled ? "text-foreground hover:bg-accent" : "text-white hover:bg-white/10"));
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("header", {
         className: headerClasses,
         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
             className: "container flex h-16 items-center justify-between",
             children: [
-                " ",
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
                     href: basePath,
                     className: "flex items-center gap-2",
@@ -350,20 +344,20 @@ function Header({ propertyName, propertySlug }) {
                                     d: "M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/generic-header.tsx",
-                                    lineNumber: 94,
+                                    lineNumber: 90,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("polyline", {
                                     points: "9 22 9 12 15 12 15 22"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/generic-header.tsx",
-                                    lineNumber: 95,
+                                    lineNumber: 91,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/generic-header.tsx",
-                            lineNumber: 93,
+                            lineNumber: 89,
                             columnNumber: 12
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -371,13 +365,13 @@ function Header({ propertyName, propertySlug }) {
                             children: propertyName
                         }, void 0, false, {
                             fileName: "[project]/src/components/generic-header.tsx",
-                            lineNumber: 97,
+                            lineNumber: 93,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/generic-header.tsx",
-                    lineNumber: 90,
+                    lineNumber: 86,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("nav", {
@@ -389,7 +383,7 @@ function Header({ propertyName, propertySlug }) {
                                 children: item.label
                             }, item.label, false, {
                                 fileName: "[project]/src/components/generic-header.tsx",
-                                lineNumber: 103,
+                                lineNumber: 99,
                                 columnNumber: 14
                             }, this)),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -404,19 +398,19 @@ function Header({ propertyName, propertySlug }) {
                                     children: "Book Now"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/generic-header.tsx",
-                                    lineNumber: 114,
+                                    lineNumber: 110,
                                     columnNumber: 14
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/generic-header.tsx",
-                            lineNumber: 112,
+                            lineNumber: 108,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/generic-header.tsx",
-                    lineNumber: 101,
+                    lineNumber: 97,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$sheet$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Sheet"], {
@@ -434,7 +428,7 @@ function Header({ propertyName, propertySlug }) {
                                         className: "h-5 w-5"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/generic-header.tsx",
-                                        lineNumber: 133,
+                                        lineNumber: 129,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -442,18 +436,18 @@ function Header({ propertyName, propertySlug }) {
                                         children: "Toggle Menu"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/generic-header.tsx",
-                                        lineNumber: 134,
+                                        lineNumber: 130,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/generic-header.tsx",
-                                lineNumber: 128,
+                                lineNumber: 124,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/src/components/generic-header.tsx",
-                            lineNumber: 126,
+                            lineNumber: 122,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$sheet$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SheetContent"], {
@@ -478,20 +472,20 @@ function Header({ propertyName, propertySlug }) {
                                                     d: "M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/generic-header.tsx",
-                                                    lineNumber: 142,
+                                                    lineNumber: 138,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("polyline", {
                                                     points: "9 22 9 12 15 12 15 22"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/generic-header.tsx",
-                                                    lineNumber: 143,
+                                                    lineNumber: 139,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/generic-header.tsx",
-                                            lineNumber: 141,
+                                            lineNumber: 137,
                                             columnNumber: 16
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -499,13 +493,13 @@ function Header({ propertyName, propertySlug }) {
                                             children: propertyName
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/generic-header.tsx",
-                                            lineNumber: 145,
+                                            lineNumber: 141,
                                             columnNumber: 16
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/generic-header.tsx",
-                                    lineNumber: 140,
+                                    lineNumber: 136,
                                     columnNumber: 14
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("nav", {
@@ -520,20 +514,20 @@ function Header({ propertyName, propertySlug }) {
                                                     className: "h-5 w-5"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/generic-header.tsx",
-                                                    lineNumber: 156,
+                                                    lineNumber: 152,
                                                     columnNumber: 22
                                                 }, this),
                                                 item.label
                                             ]
                                         }, item.label, true, {
                                             fileName: "[project]/src/components/generic-header.tsx",
-                                            lineNumber: 151,
+                                            lineNumber: 147,
                                             columnNumber: 20
                                         }, this);
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/generic-header.tsx",
-                                    lineNumber: 147,
+                                    lineNumber: 143,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -546,40 +540,40 @@ function Header({ propertyName, propertySlug }) {
                                             children: "Book Now"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/generic-header.tsx",
-                                            lineNumber: 165,
+                                            lineNumber: 161,
                                             columnNumber: 21
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/generic-header.tsx",
-                                        lineNumber: 164,
+                                        lineNumber: 160,
                                         columnNumber: 18
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/generic-header.tsx",
-                                    lineNumber: 163,
+                                    lineNumber: 159,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/generic-header.tsx",
-                            lineNumber: 138,
+                            lineNumber: 134,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/generic-header.tsx",
-                    lineNumber: 125,
+                    lineNumber: 121,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/src/components/generic-header.tsx",
-            lineNumber: 88,
+            lineNumber: 84,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/src/components/generic-header.tsx",
-        lineNumber: 86,
+        lineNumber: 82,
         columnNumber: 5
     }, this);
 }
