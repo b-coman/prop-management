@@ -1,3 +1,4 @@
+
 "use client"; // Add 'use client' because we need hooks (useState, useEffect)
 
 import { useState, useEffect } from 'react'; // Import hooks
@@ -15,6 +16,7 @@ interface HeaderProps {
 export function Header({ propertyName, propertySlug }: HeaderProps) {
   const basePath = `/properties/${propertySlug}`;
   const [isScrolled, setIsScrolled] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false); // New state to track client mount
 
   // Define menu items specific to the property page layout
   const menuItems = [
@@ -26,6 +28,8 @@ export function Header({ propertyName, propertySlug }: HeaderProps) {
   ];
 
   useEffect(() => {
+    setHasMounted(true); // Indicate client has mounted
+
     const handleScroll = () => {
       // Set state based on scroll position (e.g., scrolled more than 50px)
       setIsScrolled(window.scrollY > 50);
@@ -33,31 +37,61 @@ export function Header({ propertyName, propertySlug }: HeaderProps) {
 
     // Add event listener
     window.addEventListener('scroll', handleScroll);
+    // Call handler once initially after mount to set correct state
+    handleScroll();
 
     // Clean up event listener
     return () => window.removeEventListener('scroll', handleScroll);
   }, []); // Empty dependency array ensures this runs once on mount
 
+  // Determine classes based on mounted state to prevent hydration mismatch
+  const headerClasses = cn(
+    "fixed top-0 left-0 z-50 w-full",
+    "transition-all duration-300 ease-in-out",
+    // Only apply dynamic background/border classes after mount
+    hasMounted && (isScrolled
+      ? "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b" // Style when scrolled
+      : "bg-black/50 border-transparent") // Initial style (transparent)
+  );
+
+  const textAndIconColorClasses = cn(
+    "transition-colors",
+     hasMounted && (isScrolled ? "text-primary" : "text-white")
+  );
+   const spanColorClasses = cn(
+     "text-lg font-semibold transition-colors",
+      hasMounted && (isScrolled ? "text-foreground" : "text-white")
+   );
+
+   const navLinkClasses = cn(
+     "text-sm font-medium transition-colors",
+     hasMounted && (isScrolled ? "text-muted-foreground hover:text-foreground" : "text-white/80 hover:text-white")
+   );
+
+   const bookNowButtonVariant = hasMounted && isScrolled ? "default" : "secondary";
+   const bookNowButtonClasses = cn(
+     hasMounted && !isScrolled ? "text-primary bg-white hover:bg-gray-100" : ""
+   );
+
+   const mobileTriggerClasses = cn(
+     "transition-colors",
+      hasMounted && (isScrolled ? "text-foreground hover:bg-accent" : "text-white hover:bg-white/10")
+   );
+
+
   return (
-    // Make header sticky, position at top, give it a z-index
-    <header className={cn(
-        "fixed top-0 left-0 z-50 w-full", // Use fixed for sticky behavior
-        "transition-all duration-300 ease-in-out", // Smooth transition for background
-        // Conditional background: Semi-transparent black when not scrolled, solid/blurred when scrolled
-        isScrolled
-            ? "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b" // Solid background with blur on scroll
-            : "bg-black/50 border-transparent" // Semi-transparent black initially, no border
-    )}>
-      <div className="flex h-16 items-center justify-between px-4 md:px-6"> {/* Removed 'container', added padding */}
+    <header className={headerClasses}>
+      {/* Use px-4 md:px-6 for consistent padding */}
+      <div className="flex h-16 items-center justify-between px-4 md:px-6">
          {/* Link back to the specific property page */}
         <Link href={basePath} className="flex items-center gap-2">
            {/* Placeholder SVG for logo or property-specific logo */}
            {/* Change text color based on scroll state */}
-           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("h-6 w-6 transition-colors", isScrolled ? "text-primary" : "text-white")}>
+           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("h-6 w-6", textAndIconColorClasses)}>
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
             <polyline points="9 22 9 12 15 12 15 22"></polyline>
           </svg>
-          <span className={cn("text-lg font-semibold transition-colors", isScrolled ? "text-foreground" : "text-white")}>{propertyName}</span>
+          <span className={spanColorClasses}>{propertyName}</span>
         </Link>
 
         {/* Desktop Navigation */}
@@ -66,10 +100,7 @@ export function Header({ propertyName, propertySlug }: HeaderProps) {
              <Link
                key={item.label}
                href={item.href} // Use section IDs directly
-               className={cn(
-                 "text-sm font-medium transition-colors",
-                 isScrolled ? "text-muted-foreground hover:text-foreground" : "text-white/80 hover:text-white" // Adjust text color based on scroll
-               )}
+               className={navLinkClasses}
              >
                {item.label}
              </Link>
@@ -79,10 +110,8 @@ export function Header({ propertyName, propertySlug }: HeaderProps) {
              {/* Use a variant suitable for overlay/scrolled state */}
              <Button
                 size="sm"
-                variant={isScrolled ? "default" : "secondary"} // Change variant based on scroll
-                className={cn(
-                    isScrolled ? "" : "text-primary bg-white hover:bg-gray-100" // Style for initial state
-                )}
+                variant={bookNowButtonVariant} // Change variant based on scroll
+                className={bookNowButtonClasses}
             >
                 Book Now
              </Button>
@@ -96,10 +125,7 @@ export function Header({ propertyName, propertySlug }: HeaderProps) {
             <Button
                  variant="ghost" // Use ghost for less visual impact
                  size="icon"
-                 className={cn(
-                     "transition-colors",
-                     isScrolled ? "text-foreground hover:bg-accent" : "text-white hover:bg-white/10"
-                 )}
+                 className={mobileTriggerClasses}
              >
               <Menu className="h-5 w-5" />
               <span className="sr-only">Toggle Menu</span>
