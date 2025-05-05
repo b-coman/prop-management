@@ -2068,6 +2068,82 @@ function CallToActionSection({ propertySlug, title, description, buttonText, but
     }, this);
 }
 }}),
+"[project]/src/components/property/gallery-section.tsx [app-rsc] (ecmascript)": ((__turbopack_context__) => {
+"use strict";
+
+var { g: global, __dirname } = __turbopack_context__;
+{
+// src/components/property/gallery-section.tsx
+__turbopack_context__.s({
+    "GallerySection": (()=>GallerySection)
+});
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime.js [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$image$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/image.js [app-rsc] (ecmascript)");
+;
+;
+function GallerySection({ images, propertyName }) {
+    if (!images || images.length === 0) {
+        return null; // Don't render if no images
+    }
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
+        className: "py-8 md:py-12",
+        id: "gallery",
+        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+            className: "container mx-auto px-4",
+            children: [
+                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
+                    className: "text-2xl font-semibold text-foreground mb-6",
+                    children: "Gallery"
+                }, void 0, false, {
+                    fileName: "[project]/src/components/property/gallery-section.tsx",
+                    lineNumber: 24,
+                    columnNumber: 9
+                }, this),
+                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                    className: "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4",
+                    children: images.map((image, index)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                            className: "relative aspect-[4/3] w-full overflow-hidden rounded-lg shadow-md bg-muted",
+                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$image$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["default"], {
+                                src: image.url,
+                                alt: image.alt || `Gallery image ${index + 1} of ${propertyName}`,
+                                fill: true,
+                                style: {
+                                    objectFit: "cover"
+                                },
+                                sizes: "(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw" // Basic responsive sizes
+                                ,
+                                loading: "lazy" // Lazy load gallery images
+                                ,
+                                className: "transition-transform duration-300 hover:scale-105",
+                                "data-ai-hint": image['data-ai-hint']
+                            }, void 0, false, {
+                                fileName: "[project]/src/components/property/gallery-section.tsx",
+                                lineNumber: 28,
+                                columnNumber: 15
+                            }, this)
+                        }, index, false, {
+                            fileName: "[project]/src/components/property/gallery-section.tsx",
+                            lineNumber: 27,
+                            columnNumber: 13
+                        }, this))
+                }, void 0, false, {
+                    fileName: "[project]/src/components/property/gallery-section.tsx",
+                    lineNumber: 25,
+                    columnNumber: 9
+                }, this)
+            ]
+        }, void 0, true, {
+            fileName: "[project]/src/components/property/gallery-section.tsx",
+            lineNumber: 23,
+            columnNumber: 7
+        }, this)
+    }, void 0, false, {
+        fileName: "[project]/src/components/property/gallery-section.tsx",
+        lineNumber: 22,
+        columnNumber: 5
+    }, this);
+}
+}}),
 "[project]/src/components/property/property-details-section.tsx [app-rsc] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
 
@@ -2536,82 +2612,6 @@ function RulesSection({ houseRules, checkInTime, checkOutTime }) {
     }, this);
 }
 }}),
-"[project]/src/components/property/gallery-section.tsx [app-rsc] (ecmascript)": ((__turbopack_context__) => {
-"use strict";
-
-var { g: global, __dirname } = __turbopack_context__;
-{
-// src/components/property/gallery-section.tsx
-__turbopack_context__.s({
-    "GallerySection": (()=>GallerySection)
-});
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime.js [app-rsc] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$image$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/image.js [app-rsc] (ecmascript)");
-;
-;
-function GallerySection({ images, propertyName }) {
-    if (!images || images.length === 0) {
-        return null; // Don't render if no images
-    }
-    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
-        className: "py-8 md:py-12",
-        id: "gallery",
-        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-            className: "container mx-auto px-4",
-            children: [
-                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
-                    className: "text-2xl font-semibold text-foreground mb-6",
-                    children: "Gallery"
-                }, void 0, false, {
-                    fileName: "[project]/src/components/property/gallery-section.tsx",
-                    lineNumber: 24,
-                    columnNumber: 9
-                }, this),
-                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                    className: "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4",
-                    children: images.map((image, index)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                            className: "relative aspect-[4/3] w-full overflow-hidden rounded-lg shadow-md bg-muted",
-                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$image$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["default"], {
-                                src: image.url,
-                                alt: image.alt || `Gallery image ${index + 1} of ${propertyName}`,
-                                fill: true,
-                                style: {
-                                    objectFit: "cover"
-                                },
-                                sizes: "(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw" // Basic responsive sizes
-                                ,
-                                loading: "lazy" // Lazy load gallery images
-                                ,
-                                className: "transition-transform duration-300 hover:scale-105",
-                                "data-ai-hint": image['data-ai-hint']
-                            }, void 0, false, {
-                                fileName: "[project]/src/components/property/gallery-section.tsx",
-                                lineNumber: 28,
-                                columnNumber: 15
-                            }, this)
-                        }, index, false, {
-                            fileName: "[project]/src/components/property/gallery-section.tsx",
-                            lineNumber: 27,
-                            columnNumber: 13
-                        }, this))
-                }, void 0, false, {
-                    fileName: "[project]/src/components/property/gallery-section.tsx",
-                    lineNumber: 25,
-                    columnNumber: 9
-                }, this)
-            ]
-        }, void 0, true, {
-            fileName: "[project]/src/components/property/gallery-section.tsx",
-            lineNumber: 23,
-            columnNumber: 7
-        }, this)
-    }, void 0, false, {
-        fileName: "[project]/src/components/property/gallery-section.tsx",
-        lineNumber: 22,
-        columnNumber: 5
-    }, this);
-}
-}}),
 "[project]/src/components/property/map-section.tsx [app-rsc] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
 
@@ -2741,15 +2741,302 @@ function ContactSection({}) {
     }, this);
 }
 }}),
-"[project]/src/components/property/property-page-layout.tsx [app-rsc] (ecmascript)": (function(__turbopack_context__) {
+"[project]/src/components/ui/separator.tsx (client reference/proxy) <module evaluation>": ((__turbopack_context__) => {
+"use strict";
 
-var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
+var { g: global, __dirname } = __turbopack_context__;
 {
-const e = new Error(`Could not parse module '[project]/src/components/property/property-page-layout.tsx'
+__turbopack_context__.s({
+    "Separator": (()=>Separator)
+});
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$server$2d$dom$2d$turbopack$2d$server$2d$edge$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge.js [app-rsc] (ecmascript)");
+;
+const Separator = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$server$2d$dom$2d$turbopack$2d$server$2d$edge$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["registerClientReference"])(function() {
+    throw new Error("Attempted to call Separator() from the server but Separator is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.");
+}, "[project]/src/components/ui/separator.tsx <module evaluation>", "Separator");
+}}),
+"[project]/src/components/ui/separator.tsx (client reference/proxy)": ((__turbopack_context__) => {
+"use strict";
 
-Expected ';', '}' or <eof>`);
-e.code = 'MODULE_UNPARSEABLE';
-throw e;}}),
+var { g: global, __dirname } = __turbopack_context__;
+{
+__turbopack_context__.s({
+    "Separator": (()=>Separator)
+});
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$server$2d$dom$2d$turbopack$2d$server$2d$edge$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge.js [app-rsc] (ecmascript)");
+;
+const Separator = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$server$2d$dom$2d$turbopack$2d$server$2d$edge$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["registerClientReference"])(function() {
+    throw new Error("Attempted to call Separator() from the server but Separator is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.");
+}, "[project]/src/components/ui/separator.tsx", "Separator");
+}}),
+"[project]/src/components/ui/separator.tsx [app-rsc] (ecmascript)": ((__turbopack_context__) => {
+"use strict";
+
+var { g: global, __dirname } = __turbopack_context__;
+{
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$28$client__reference$2f$proxy$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/src/components/ui/separator.tsx (client reference/proxy) <module evaluation>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$28$client__reference$2f$proxy$29$__ = __turbopack_context__.i("[project]/src/components/ui/separator.tsx (client reference/proxy)");
+;
+__turbopack_context__.n(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$28$client__reference$2f$proxy$29$__);
+}}),
+"[project]/src/components/property/property-page-layout.tsx [app-rsc] (ecmascript)": ((__turbopack_context__) => {
+"use strict";
+
+var { g: global, __dirname } = __turbopack_context__;
+{
+// src/components/property/property-page-layout.tsx
+__turbopack_context__.s({
+    "PropertyPageLayout": (()=>PropertyPageLayout)
+});
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime.js [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$generic$2d$header$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/generic-header.tsx [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$footer$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/footer.tsx [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$hero$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/homepage/hero-section.tsx [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$experience$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/homepage/experience-section.tsx [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$host$2d$introduction$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/homepage/host-introduction.tsx [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$unique$2d$features$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/homepage/unique-features.tsx [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$location$2d$highlights$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/homepage/location-highlights.tsx [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$testimonials$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/homepage/testimonials-section.tsx [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$call$2d$to$2d$action$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/homepage/call-to-action.tsx [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$gallery$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/property/gallery-section.tsx [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$property$2d$details$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/property/property-details-section.tsx [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$amenities$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/property/amenities-section.tsx [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$rules$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/property/rules-section.tsx [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$map$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/property/map-section.tsx [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$contact$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/property/contact-section.tsx [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/ui/separator.tsx [app-rsc] (ecmascript)");
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+function PropertyPageLayout({ property, template, overrides }) {
+    const { slug, name, location, pricePerNight, ratings, amenities, checkInTime, checkOutTime, houseRules } = property;
+    const { homepage = [], header: templateHeader, footer: templateFooter } = template;
+    const { visibleBlocks = homepage.map((b)=>b.id), hero: heroOverrides = {}, experience: experienceOverrides = {}, host: hostOverrides = {}, features: featuresOverrides = [], location: locationOverrides = {}, attractions: attractionsOverrides = [], testimonials: testimonialsOverrides = [], images: galleryImagesOverrides = [], cta: ctaOverrides = {} } = overrides;
+    // Helper function to get override data for a block or default/empty
+    const getBlockData = (blockId, defaultData = {})=>{
+        return overrides[blockId] || defaultData;
+    };
+    // Prepare data for each section, merging overrides with property data where necessary
+    const heroData = {
+        backgroundImageUrl: heroOverrides?.backgroundImage || property.images?.find((img)=>img.isFeatured)?.url || property.images?.[0]?.url || null,
+        'data-ai-hint': heroOverrides?.backgroundImage ? 'hero background' : property.images?.find((img)=>img.isFeatured)?.['data-ai-hint'] || property.images?.[0]?.['data-ai-hint'],
+        pricePerNight: property.pricePerNight,
+        ratings: property.ratings,
+        bookingFormProperty: property
+    };
+    const experienceData = {
+        title: experienceOverrides?.title || "Experience Our Property",
+        welcomeText: experienceOverrides?.welcomeText || "Discover the unique charm and comfort of your stay.",
+        highlights: experienceOverrides?.highlights || []
+    };
+    // Ensure hostOverrides has the required structure even if partial
+    const hostData = {
+        name: hostOverrides?.name || "Your Host",
+        imageUrl: hostOverrides?.imageUrl || null,
+        welcomeMessage: hostOverrides?.welcomeMessage || "We're delighted to welcome you!",
+        backstory: hostOverrides?.backstory || "We strive to make your stay exceptional.",
+        'data-ai-hint': hostOverrides?.['data-ai-hint']
+    };
+    const testimonialsData = {
+        overallRating: property.ratings?.average || 0,
+        reviews: testimonialsOverrides || []
+    };
+    const ctaData = {
+        title: ctaOverrides?.title || "Ready for Your Getaway?",
+        description: ctaOverrides?.description || "Book your stay today and create unforgettable memories.",
+        buttonText: ctaOverrides?.buttonText || "Book Now",
+        buttonUrl: ctaOverrides?.buttonUrl,
+        propertySlug: slug
+    };
+    // Filter gallery images - exclude hero image if it's explicitly tagged
+    const galleryImages = galleryImagesOverrides.filter((img)=>!img.tags?.includes('hero'));
+    // Render logic: Iterate through template blocks and render if visible
+    const renderBlock = (block)=>{
+        if (!visibleBlocks.includes(block.id)) {
+            // console.log(`Block ${block.id} is not visible.`);
+            return null;
+        }
+        // console.log(`Rendering block: ${block.id} (Type: ${block.type})`);
+        switch(block.type){
+            case 'hero':
+                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$hero$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["HeroSection"], {
+                    ...heroData
+                }, block.id, false, {
+                    fileName: "[project]/src/components/property/property-page-layout.tsx",
+                    lineNumber: 103,
+                    columnNumber: 24
+                }, this);
+            case 'experience':
+                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$experience$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ExperienceSection"], {
+                    ...experienceData
+                }, block.id, false, {
+                    fileName: "[project]/src/components/property/property-page-layout.tsx",
+                    lineNumber: 105,
+                    columnNumber: 24
+                }, this);
+            case 'host':
+                // Only render host section if essential data exists
+                if ("TURBOPACK compile-time truthy", 1) {
+                    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$host$2d$introduction$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["HostIntroduction"], {
+                        host: hostData
+                    }, block.id, false, {
+                        fileName: "[project]/src/components/property/property-page-layout.tsx",
+                        lineNumber: 109,
+                        columnNumber: 29
+                    }, this);
+                }
+                "TURBOPACK unreachable";
+            case 'features':
+                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$unique$2d$features$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["UniqueFeatures"], {
+                    features: featuresOverrides
+                }, block.id, false, {
+                    fileName: "[project]/src/components/property/property-page-layout.tsx",
+                    lineNumber: 113,
+                    columnNumber: 24
+                }, this);
+            case 'location':
+                // Pass property location and attraction overrides
+                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$location$2d$highlights$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["LocationHighlights"], {
+                    propertyLocation: location,
+                    attractions: attractionsOverrides
+                }, block.id, false, {
+                    fileName: "[project]/src/components/property/property-page-layout.tsx",
+                    lineNumber: 116,
+                    columnNumber: 25
+                }, this);
+            case 'testimonials':
+                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$testimonials$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["TestimonialsSection"], {
+                    testimonials: testimonialsData
+                }, block.id, false, {
+                    fileName: "[project]/src/components/property/property-page-layout.tsx",
+                    lineNumber: 118,
+                    columnNumber: 26
+                }, this);
+            case 'gallery':
+                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$gallery$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["GallerySection"], {
+                    images: galleryImages,
+                    propertyName: name
+                }, block.id, false, {
+                    fileName: "[project]/src/components/property/property-page-layout.tsx",
+                    lineNumber: 120,
+                    columnNumber: 25
+                }, this);
+            case 'details':
+                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$property$2d$details$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["PropertyDetailsSection"], {
+                    property: property
+                }, block.id, false, {
+                    fileName: "[project]/src/components/property/property-page-layout.tsx",
+                    lineNumber: 122,
+                    columnNumber: 24
+                }, this);
+            case 'amenities':
+                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$amenities$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["AmenitiesSection"], {
+                    amenities: amenities
+                }, block.id, false, {
+                    fileName: "[project]/src/components/property/property-page-layout.tsx",
+                    lineNumber: 124,
+                    columnNumber: 25
+                }, this);
+            case 'rules':
+                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$rules$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["RulesSection"], {
+                    houseRules: houseRules,
+                    checkInTime: checkInTime,
+                    checkOutTime: checkOutTime
+                }, block.id, false, {
+                    fileName: "[project]/src/components/property/property-page-layout.tsx",
+                    lineNumber: 126,
+                    columnNumber: 25
+                }, this);
+            case 'map':
+                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$map$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["MapSection"], {
+                    location: location
+                }, block.id, false, {
+                    fileName: "[project]/src/components/property/property-page-layout.tsx",
+                    lineNumber: 128,
+                    columnNumber: 25
+                }, this);
+            case 'contact':
+                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$contact$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ContactSection"], {}, block.id, false, {
+                    fileName: "[project]/src/components/property/property-page-layout.tsx",
+                    lineNumber: 130,
+                    columnNumber: 25
+                }, this);
+            case 'cta':
+                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$call$2d$to$2d$action$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["CallToActionSection"], {
+                    ...ctaData
+                }, block.id, false, {
+                    fileName: "[project]/src/components/property/property-page-layout.tsx",
+                    lineNumber: 132,
+                    columnNumber: 25
+                }, this);
+            case 'separator':
+                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Separator"], {
+                    className: "my-8 md:my-12"
+                }, block.id, false, {
+                    fileName: "[project]/src/components/property/property-page-layout.tsx",
+                    lineNumber: 134,
+                    columnNumber: 25
+                }, this); // Add spacing around separator
+            default:
+                console.warn(`Unknown block type "${block.type}" for block ID "${block.id}".`);
+                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                    children: [
+                        "Unsupported block type: ",
+                        block.type
+                    ]
+                }, block.id, true, {
+                    fileName: "[project]/src/components/property/property-page-layout.tsx",
+                    lineNumber: 137,
+                    columnNumber: 24
+                }, this);
+        }
+    };
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+        className: "flex min-h-screen flex-col",
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$generic$2d$header$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Header"], {
+                propertyName: name,
+                propertySlug: slug
+            }, void 0, false, {
+                fileName: "[project]/src/components/property/property-page-layout.tsx",
+                lineNumber: 144,
+                columnNumber: 8
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("main", {
+                className: "flex-grow",
+                children: homepage.map((block)=>renderBlock(block))
+            }, void 0, false, {
+                fileName: "[project]/src/components/property/property-page-layout.tsx",
+                lineNumber: 146,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$footer$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Footer"], {}, void 0, false, {
+                fileName: "[project]/src/components/property/property-page-layout.tsx",
+                lineNumber: 152,
+                columnNumber: 8
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/src/components/property/property-page-layout.tsx",
+        lineNumber: 142,
+        columnNumber: 5
+    }, this);
+}
+}}),
 "[externals]/util [external] (util, cjs)": (function(__turbopack_context__) {
 
 var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
@@ -3073,4 +3360,4 @@ __turbopack_context__.n(__turbopack_context__.i("[project]/src/app/page.tsx [app
 
 };
 
-//# sourceMappingURL=%5Broot%20of%20the%20server%5D__ff4ec930._.js.map
+//# sourceMappingURL=%5Broot%20of%20the%20server%5D__e0f51f91._.js.map

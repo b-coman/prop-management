@@ -1,0 +1,1 @@
+The schemas defined in `src/lib/overridesSchemas.ts` are **not currently being used** to validate the `propertyOverrides` data fetched from Firestore before it's used to render the property pages.

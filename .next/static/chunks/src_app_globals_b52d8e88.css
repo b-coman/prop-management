@@ -3159,6 +3159,11 @@ body {
 }
 
 @media (width >= 768px) {
+  .md\:my-12 {
+    margin-top: 3rem;
+    margin-bottom: 3rem;
+  }
+
   .md\:mt-0 {
     margin-top: 0;
   }
