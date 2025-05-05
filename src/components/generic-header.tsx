@@ -48,7 +48,7 @@ export function Header({ propertyName, propertySlug }: HeaderProps) {
             ? "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b" // Solid background with blur on scroll
             : "bg-black/50 border-transparent" // Semi-transparent black initially, no border
     )}>
-      <div className="container flex h-16 items-center justify-between">
+      <div className="flex h-16 items-center justify-between px-4 md:px-6"> {/* Removed 'container', added padding */}
          {/* Link back to the specific property page */}
         <Link href={basePath} className="flex items-center gap-2">
            {/* Placeholder SVG for logo or property-specific logo */}
