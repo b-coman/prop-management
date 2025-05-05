@@ -1,3 +1,4 @@
+
 {
     "templateId": "holiday-house",
     "name": "Holiday House Template",
@@ -8,6 +9,7 @@
       { "id": "features", "type": "features" },
       { "id": "location", "type": "location" },
       { "id": "testimonials", "type": "testimonials" },
+      { "id": "gallery", "type": "gallery" },
       { "id": "cta", "type": "cta" }
     ],
     "header": {
@@ -59,9 +61,9 @@
         "title": "Experience Relaxation",
         "description": "A cozy holiday house perfect for family getaways.",
         "highlights": [
-          { "icon": "nature", "title": "Nature", "description": "Surrounded by beautiful nature." },
-          { "icon": "family", "title": "Family Friendly", "description": "Ideal for family vacations." },
-          { "icon": "explore", "title": "Explore", "description": "Close to hiking trails and attractions." }
+          { "icon": "Leaf", "title": "Nature", "description": "Surrounded by beautiful nature." },
+          { "icon": "Users", "title": "Family Friendly", "description": "Ideal for family vacations." },
+          { "icon": "Map", "title": "Explore", "description": "Close to hiking trails and attractions." }
         ]
       },
       "host": {
@@ -77,16 +79,16 @@
         "ctaUrl": "/about"
       },
       "features": [
-        { "icon": "firepit", "title": "Fire Pit", "description": "Enjoy evenings by the fire pit.", "image": "/default-firepit.jpg" },
-        { "icon": "bbq", "title": "BBQ Area", "description": "Cook delicious meals outdoors.", "image": "/default-bbq.jpg" },
-        { "icon": "hammock", "title": "Hammocks", "description": "Relax in our garden hammocks.", "image": "/default-hammock.jpg" }
+        { "icon": "firepit", "title": "Fire Pit", "description": "Enjoy evenings by the fire pit.", "image": "/default-firepit.jpg", "data-ai-hint": "fire pit cozy night" },
+        { "icon": "bbq", "title": "BBQ Area", "description": "Cook delicious meals outdoors.", "image": "/default-bbq.jpg", "data-ai-hint": "outdoor bbq grill summer" },
+        { "icon": "hammock", "title": "Hammocks", "description": "Relax in our garden hammocks.", "image": "/default-hammock.jpg", "data-ai-hint": "garden hammock relax" }
       ],
       "location": {
         "title": "Discover Nearby Attractions",
         "mapCenter": { "lat": 45.2530, "lng": 25.6346 },
         "attractions": [
-          { "name": "Dracula Castle", "distance": "2.5 hours by car", "description": "Visit the legendary Bran Castle.", "image": "/default-dracula.jpg" },
-          { "name": "Ialomita Cave", "distance": "1.5 hours by car", "description": "Explore the famous Ialomita Cave.", "image": "/default-cave.jpg" }
+          { "name": "Dracula Castle", "distance": "2.5 hours by car", "description": "Visit the legendary Bran Castle.", "image": "/default-dracula.jpg", "data-ai-hint": "Dracula Castle Bran Romania" },
+          { "name": "Ialomita Cave", "distance": "1.5 hours by car", "description": "Explore the famous Ialomita Cave.", "image": "/default-cave.jpg", "data-ai-hint": "Ialomita Cave Romania Bucegi" }
         ],
         "ctaText": "Explore All Attractions",
         "ctaUrl": "/location"
@@ -95,19 +97,27 @@
         "title": "What Our Guests Say",
         "showRating": true,
         "featuredReviews": [
-          { "name": "Maria D.", "date": "2025-04", "rating": 5, "text": "We loved our stay! The house was perfect." },
-          { "name": "James T.", "date": "2025-03", "rating": 5, "text": "Great experience. Highly recommend!" }
-        ],
-        "ctaText": "Read More Reviews",
-        "ctaUrl": "/reviews"
+          { "name": "Maria D.", "date": "2025-04", "rating": 5, "text": "We loved our stay! The house was perfect.", "imageUrl": "/default-guest1.jpg", "data-ai-hint": "happy female guest portrait" },
+          { "name": "James T.", "date": "2025-03", "rating": 5, "text": "Great experience. Highly recommend!", "imageUrl": "/default-guest2.jpg", "data-ai-hint": "happy male guest portrait" }
+        ]
       },
       "cta": {
         "title": "Book Your Stay Now",
         "description": "Escape to tranquility and comfort.",
         "buttonText": "Book Now",
         "buttonUrl": "/book",
-        "backgroundImage": "/default-cta.jpg"
-      }
+        "backgroundImage": "/default-cta.jpg",
+         "data-ai-hint": "mountain landscape sunset scenic"
+      },
+       "gallery": {
+         "title": "Property Gallery",
+         "images": [
+           { "url": "/default-gallery-1.jpg", "alt": "Living Room", "data-ai-hint": "cozy living room interior" },
+           { "url": "/default-gallery-2.jpg", "alt": "Bedroom 1", "data-ai-hint": "bedroom interior comfortable" },
+           { "url": "/default-gallery-3.jpg", "alt": "Kitchen", "data-ai-hint": "modern kitchen interior" },
+           { "url": "/default-gallery-4.jpg", "alt": "Exterior View", "data-ai-hint": "house exterior summer day" }
+         ]
+       }
     }
   }
   

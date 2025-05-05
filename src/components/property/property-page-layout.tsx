@@ -45,10 +45,23 @@ export function PropertyPageLayout({ property, template, overrides }: PropertyPa
              // Testimonials override is an object { reviews: [...] }, default might be too
              const overrideReviews = (overrideData as PropertyOverrides['testimonials'])?.reviews;
              const defaultReviews = (defaultData as any)?.reviews; // Assuming default has same structure
+             // Merge top-level fields like title, then handle reviews array
              return {
-                 title: (overrideData as any)?.title || defaultData?.title,
-                 reviews: overrideReviews !== undefined ? overrideReviews : (defaultReviews || [])
+                 ...defaultData, // Start with defaults
+                 ...overrideData, // Overwrite with overrides if they exist
+                 reviews: overrideReviews !== undefined ? overrideReviews : (defaultReviews || []) // Handle reviews array separately
              };
+        }
+        if (blockId === 'hero') {
+             // Specifically merge the bookingForm object if it exists in overrides or defaults
+             const mergedHero = { ...defaultData, ...overrideData };
+             if (overrideData?.bookingForm || defaultData?.bookingForm) {
+                 mergedHero.bookingForm = {
+                     ...defaultData?.bookingForm,
+                     ...overrideData?.bookingForm,
+                 };
+             }
+             return mergedHero;
         }
 
         // For other block types (objects), merge overrides onto defaults
@@ -60,13 +73,16 @@ export function PropertyPageLayout({ property, template, overrides }: PropertyPa
     const mergedHeroData = getMergedBlockData('hero', 'hero');
     const heroData = {
         // Use override image if available, else default, else property featured, else first image
-        backgroundImageUrl: mergedHeroData?.backgroundImage || property.images?.find(img => img.isFeatured)?.url || property.images?.[0]?.url || null,
+        backgroundImage: mergedHeroData?.backgroundImage || property.images?.find(img => img.isFeatured)?.url || property.images?.[0]?.url || null,
         'data-ai-hint': mergedHeroData?.backgroundImage ? 'hero background' : property.images?.find(img => img.isFeatured)?.['data-ai-hint'] || property.images?.[0]?.['data-ai-hint'],
-        pricePerNight: property.pricePerNight, // From property
+        price: property.pricePerNight, // From property, renamed to match schema
         ratings: property.ratings, // From property
         bookingFormProperty: property, // Pass the whole property object to the form
-         // title: mergedHeroData?.title, // Optionally use title/subtitle from merged data
-         // subtitle: mergedHeroData?.subtitle,
+        showRating: mergedHeroData?.showRating, // Get from merged data
+        showBookingForm: mergedHeroData?.showBookingForm, // Get from merged data
+        title: mergedHeroData?.title, // Get from merged data
+        subtitle: mergedHeroData?.subtitle, // Get from merged data
+        bookingForm: mergedHeroData?.bookingForm, // Pass the merged bookingForm config
     };
 
     const mergedExperienceData = getMergedBlockData('experience', 'experience');
@@ -131,7 +147,7 @@ export function PropertyPageLayout({ property, template, overrides }: PropertyPa
 
         switch (block.type) {
             case 'hero':
-                return <HeroSection key={block.id} {...heroData} />;
+                return <HeroSection key={block.id} heroData={heroData} />; // Pass the full heroData object
             case 'experience':
                  // Ensure required fields exist before rendering
                  if (experienceData.title && experienceData.welcomeText && experienceData.highlights.length > 0) {
@@ -191,3 +207,4 @@ export function PropertyPageLayout({ property, template, overrides }: PropertyPa
     </div>
   );
 }
+

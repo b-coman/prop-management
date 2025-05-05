@@ -681,18 +681,38 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$b
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/ui/card.tsx [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$star$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__default__as__Star$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/star.js [app-rsc] (ecmascript) <export default as Star>"); // Added Home icon for placeholder
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$house$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__default__as__Home$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/house.js [app-rsc] (ecmascript) <export default as Home>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/utils.ts [app-rsc] (ecmascript)"); // Import cn for conditional classes
 ;
 ;
 ;
 ;
 ;
 ;
-function HeroSection({ backgroundImageUrl, pricePerNight, ratings, bookingFormProperty, 'data-ai-hint': dataAiHint }) {
+;
+function HeroSection({ heroData }) {
+    const { backgroundImage: backgroundImageUrl, price: pricePerNight, showRating, showBookingForm = true, bookingForm, ratings, bookingFormProperty, 'data-ai-hint': dataAiHint } = heroData;
+    // Default values for position and size
+    const position = bookingForm?.position || 'center';
+    const size = bookingForm?.size || 'large';
+    // Map position strings to flexbox classes
+    const positionClasses = {
+        center: 'justify-center items-center',
+        top: 'justify-center items-start',
+        bottom: 'justify-center items-end',
+        'top-left': 'justify-start items-start',
+        'top-right': 'justify-end items-start',
+        'bottom-left': 'justify-start items-end',
+        'bottom-right': 'justify-end items-end'
+    };
+    // Map size strings to card classes
+    const sizeClasses = {
+        large: 'max-w-md p-4 md:p-6',
+        compressed: 'max-w-sm p-3 md:p-4'
+    };
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
         className: "relative h-[60vh] md:h-[75vh] w-full",
         id: "hero",
         children: [
-            " ",
             backgroundImageUrl ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$image$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["default"], {
                 src: backgroundImageUrl,
                 alt: `Featured image of ${bookingFormProperty.name}`,
@@ -701,12 +721,11 @@ function HeroSection({ backgroundImageUrl, pricePerNight, ratings, bookingFormPr
                     objectFit: 'cover'
                 },
                 priority: true,
-                className: "brightness-75" // Add slight dimming for text contrast
-                ,
+                className: "brightness-75",
                 "data-ai-hint": dataAiHint || 'property hero image'
             }, void 0, false, {
                 fileName: "[project]/src/components/homepage/hero-section.tsx",
-                lineNumber: 28,
+                lineNumber: 60,
                 columnNumber: 9
             }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                 className: "absolute inset-0 bg-muted flex items-center justify-center",
@@ -714,27 +733,26 @@ function HeroSection({ backgroundImageUrl, pricePerNight, ratings, bookingFormPr
                     className: "h-24 w-24 text-muted-foreground/30"
                 }, void 0, false, {
                     fileName: "[project]/src/components/homepage/hero-section.tsx",
-                    lineNumber: 40,
-                    columnNumber: 12
+                    lineNumber: 71,
+                    columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/homepage/hero-section.tsx",
-                lineNumber: 38,
+                lineNumber: 70,
                 columnNumber: 9
             }, this),
-            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                className: "absolute inset-0 flex flex-col items-center justify-center p-4",
+            showBookingForm && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cn"])("absolute inset-0 flex p-4 md:p-8", positionClasses[position]),
                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Card"], {
-                    className: "w-full max-w-md bg-background/90 backdrop-blur-sm shadow-xl border-border p-4 md:p-6",
+                    className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cn"])("w-full bg-background/90 backdrop-blur-sm shadow-xl border-border", sizeClasses[size]),
                     id: "booking",
                     children: [
-                        " ",
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["CardHeader"], {
                             className: "p-0 mb-4 text-center",
                             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                className: "flex items-center justify-center gap-4 mb-2",
+                                className: "flex items-center justify-center gap-4 mb-2 flex-wrap",
                                 children: [
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Badge"], {
+                                    pricePerNight !== undefined && pricePerNight > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Badge"], {
                                         variant: "secondary",
                                         className: "text-lg px-3 py-1",
                                         children: [
@@ -745,16 +763,16 @@ function HeroSection({ backgroundImageUrl, pricePerNight, ratings, bookingFormPr
                                                 children: "/night"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/homepage/hero-section.tsx",
-                                                lineNumber: 52,
-                                                columnNumber: 37
+                                                lineNumber: 91,
+                                                columnNumber: 41
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/homepage/hero-section.tsx",
-                                        lineNumber: 51,
-                                        columnNumber: 18
+                                        lineNumber: 90,
+                                        columnNumber: 25
                                     }, this),
-                                    ratings && ratings.count > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Badge"], {
+                                    showRating && ratings && ratings.count > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Badge"], {
                                         variant: "secondary",
                                         className: "text-lg px-3 py-1 flex items-center",
                                         children: [
@@ -762,8 +780,8 @@ function HeroSection({ backgroundImageUrl, pricePerNight, ratings, bookingFormPr
                                                 className: "h-4 w-4 mr-1 text-amber-500 fill-amber-500"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/homepage/hero-section.tsx",
-                                                lineNumber: 56,
-                                                columnNumber: 26
+                                                lineNumber: 96,
+                                                columnNumber: 25
                                             }, this),
                                             ratings.average.toFixed(1),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -775,25 +793,25 @@ function HeroSection({ backgroundImageUrl, pricePerNight, ratings, bookingFormPr
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/homepage/hero-section.tsx",
-                                                lineNumber: 58,
+                                                lineNumber: 98,
                                                 columnNumber: 25
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/homepage/hero-section.tsx",
-                                        lineNumber: 55,
-                                        columnNumber: 21
+                                        lineNumber: 95,
+                                        columnNumber: 25
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/homepage/hero-section.tsx",
-                                lineNumber: 50,
-                                columnNumber: 13
+                                lineNumber: 88,
+                                columnNumber: 21
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/src/components/homepage/hero-section.tsx",
-                            lineNumber: 48,
-                            columnNumber: 11
+                            lineNumber: 86,
+                            columnNumber: 17
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["CardContent"], {
                             className: "p-0",
@@ -801,29 +819,29 @@ function HeroSection({ backgroundImageUrl, pricePerNight, ratings, bookingFormPr
                                 property: bookingFormProperty
                             }, void 0, false, {
                                 fileName: "[project]/src/components/homepage/hero-section.tsx",
-                                lineNumber: 67,
-                                columnNumber: 13
+                                lineNumber: 104,
+                                columnNumber: 21
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/src/components/homepage/hero-section.tsx",
-                            lineNumber: 65,
-                            columnNumber: 11
+                            lineNumber: 103,
+                            columnNumber: 17
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/homepage/hero-section.tsx",
-                    lineNumber: 47,
-                    columnNumber: 9
+                    lineNumber: 79,
+                    columnNumber: 13
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/homepage/hero-section.tsx",
-                lineNumber: 45,
-                columnNumber: 7
+                lineNumber: 77,
+                columnNumber: 11
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/homepage/hero-section.tsx",
-        lineNumber: 25,
+        lineNumber: 57,
         columnNumber: 5
     }, this);
 }
@@ -1150,7 +1168,10 @@ function UniqueFeatures({ features }) {
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                        className: "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8",
+                        className: "grid gap-8",
+                        style: {
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))'
+                        },
                         children: features.map((feature, index)=>// Apply text-center to the card container
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                 className: "flex flex-col items-center text-center p-6 bg-card rounded-lg shadow-md border border-border",
@@ -2504,10 +2525,26 @@ function PropertyPageLayout({ property, template, overrides }) {
             // Testimonials override is an object { reviews: [...] }, default might be too
             const overrideReviews = overrideData?.reviews;
             const defaultReviews = defaultData?.reviews; // Assuming default has same structure
+            // Merge top-level fields like title, then handle reviews array
             return {
-                title: overrideData?.title || defaultData?.title,
-                reviews: overrideReviews !== undefined ? overrideReviews : defaultReviews || []
+                ...defaultData,
+                ...overrideData,
+                reviews: overrideReviews !== undefined ? overrideReviews : defaultReviews || [] // Handle reviews array separately
             };
+        }
+        if (blockId === 'hero') {
+            // Specifically merge the bookingForm object if it exists in overrides or defaults
+            const mergedHero = {
+                ...defaultData,
+                ...overrideData
+            };
+            if (overrideData?.bookingForm || defaultData?.bookingForm) {
+                mergedHero.bookingForm = {
+                    ...defaultData?.bookingForm,
+                    ...overrideData?.bookingForm
+                };
+            }
+            return mergedHero;
         }
         // For other block types (objects), merge overrides onto defaults
         return {
@@ -2519,11 +2556,16 @@ function PropertyPageLayout({ property, template, overrides }) {
     const mergedHeroData = getMergedBlockData('hero', 'hero');
     const heroData = {
         // Use override image if available, else default, else property featured, else first image
-        backgroundImageUrl: mergedHeroData?.backgroundImage || property.images?.find((img)=>img.isFeatured)?.url || property.images?.[0]?.url || null,
+        backgroundImage: mergedHeroData?.backgroundImage || property.images?.find((img)=>img.isFeatured)?.url || property.images?.[0]?.url || null,
         'data-ai-hint': mergedHeroData?.backgroundImage ? 'hero background' : property.images?.find((img)=>img.isFeatured)?.['data-ai-hint'] || property.images?.[0]?.['data-ai-hint'],
-        pricePerNight: property.pricePerNight,
+        price: property.pricePerNight,
         ratings: property.ratings,
-        bookingFormProperty: property
+        bookingFormProperty: property,
+        showRating: mergedHeroData?.showRating,
+        showBookingForm: mergedHeroData?.showBookingForm,
+        title: mergedHeroData?.title,
+        subtitle: mergedHeroData?.subtitle,
+        bookingForm: mergedHeroData?.bookingForm
     };
     const mergedExperienceData = getMergedBlockData('experience', 'experience');
     const experienceData = {
@@ -2578,12 +2620,12 @@ function PropertyPageLayout({ property, template, overrides }) {
         switch(block.type){
             case 'hero':
                 return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$hero$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["HeroSection"], {
-                    ...heroData
+                    heroData: heroData
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 134,
+                    lineNumber: 150,
                     columnNumber: 24
-                }, this);
+                }, this); // Pass the full heroData object
             case 'experience':
                 // Ensure required fields exist before rendering
                 if (experienceData.title && experienceData.welcomeText && experienceData.highlights.length > 0) {
@@ -2591,7 +2633,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                         ...experienceData
                     }, block.id, false, {
                         fileName: "[project]/src/components/property/property-page-layout.tsx",
-                        lineNumber: 138,
+                        lineNumber: 154,
                         columnNumber: 28
                     }, this);
                 }
@@ -2603,7 +2645,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                         host: hostData
                     }, block.id, false, {
                         fileName: "[project]/src/components/property/property-page-layout.tsx",
-                        lineNumber: 144,
+                        lineNumber: 160,
                         columnNumber: 29
                     }, this);
                 }
@@ -2613,7 +2655,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                     features: featuresData
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 148,
+                    lineNumber: 164,
                     columnNumber: 50
                 }, this) : null;
             case 'location':
@@ -2622,7 +2664,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                     ...locationHighlightsData
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 152,
+                    lineNumber: 168,
                     columnNumber: 23
                 }, this) : null;
             case 'testimonials':
@@ -2630,7 +2672,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                     testimonials: testimonialsData
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 155,
+                    lineNumber: 171,
                     columnNumber: 64
                 }, this) : null;
             case 'gallery':
@@ -2638,7 +2680,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                     ...galleryData
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 157,
+                    lineNumber: 173,
                     columnNumber: 57
                 }, this) : null;
             case 'details':
@@ -2646,7 +2688,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                     property: property
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 159,
+                    lineNumber: 175,
                     columnNumber: 24
                 }, this);
             case 'amenities':
@@ -2654,7 +2696,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                     amenities: amenities
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 161,
+                    lineNumber: 177,
                     columnNumber: 61
                 }, this) : null;
             case 'rules':
@@ -2664,7 +2706,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                     checkOutTime: checkOutTime
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 163,
+                    lineNumber: 179,
                     columnNumber: 69
                 }, this) : null;
             case 'map':
@@ -2672,13 +2714,13 @@ function PropertyPageLayout({ property, template, overrides }) {
                     location: location
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 165,
+                    lineNumber: 181,
                     columnNumber: 36
                 }, this) : null;
             case 'contact':
                 return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$contact$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ContactSection"], {}, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 167,
+                    lineNumber: 183,
                     columnNumber: 25
                 }, this); // Assuming contact doesn't need much dynamic data here
             case 'cta':
@@ -2686,7 +2728,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                     ...ctaData
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 169,
+                    lineNumber: 185,
                     columnNumber: 25
                 }, this);
             case 'separator':
@@ -2694,7 +2736,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                     className: "my-8 md:my-12"
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 171,
+                    lineNumber: 187,
                     columnNumber: 25
                 }, this); // Add spacing around separator
             default:
@@ -2706,7 +2748,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                     ]
                 }, block.id, true, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 174,
+                    lineNumber: 190,
                     columnNumber: 24
                 }, this);
         }
@@ -2719,7 +2761,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                 propertySlug: slug
             }, void 0, false, {
                 fileName: "[project]/src/components/property/property-page-layout.tsx",
-                lineNumber: 181,
+                lineNumber: 197,
                 columnNumber: 8
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("main", {
@@ -2727,18 +2769,18 @@ function PropertyPageLayout({ property, template, overrides }) {
                 children: homepage.map((block)=>renderBlock(block))
             }, void 0, false, {
                 fileName: "[project]/src/components/property/property-page-layout.tsx",
-                lineNumber: 184,
+                lineNumber: 200,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$footer$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Footer"], {}, void 0, false, {
                 fileName: "[project]/src/components/property/property-page-layout.tsx",
-                lineNumber: 190,
+                lineNumber: 206,
                 columnNumber: 8
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/property/property-page-layout.tsx",
-        lineNumber: 179,
+        lineNumber: 195,
         columnNumber: 5
     }, this);
 }
