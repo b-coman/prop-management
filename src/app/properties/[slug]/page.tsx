@@ -1,69 +1,22 @@
-
 // src/app/properties/[slug]/page.tsx
-
-import Image from 'next/image';
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import type { Property, SerializableTimestamp } from '@/types';
-import { PropertyPageLayout } from '@/components/property/property-page-layout'; // Import the generic layout
-// Removed Header import: import { Header } from '@/components/header';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase'; // Import db for data fetching
-import { addDays, format } from 'date-fns'; // Example import, adjust as needed
+import type { Property, WebsiteTemplate, PropertyOverrides } from '@/types';
+import { PropertyPageLayout } from '@/components/property/property-page-layout';
+import { collection, doc, getDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
-// **** EXPORT the function ****
+// Function to get core property data by slug
 export async function getPropertyBySlug(slug: string): Promise<Property | undefined> {
+    const propertyRef = doc(db, 'properties', slug); // Use slug as document ID
     try {
-        // **** Use Client SDK ****
-        const propertiesCollection = collection(db, 'properties');
-        const q = query(propertiesCollection, where('slug', '==', slug));
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-            const doc = querySnapshot.docs[0];
-            const data = doc.data();
-
-            // Function to safely convert Firestore Timestamps or objects to Dates
-            const convertToDate = (timestamp: any): Date | undefined => {
-                if (!timestamp) return undefined;
-                if (timestamp instanceof Timestamp) {
-                    return timestamp.toDate();
-                } else if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
-                    // Handle Firestore Timestamp-like objects from JSON/serialization
-                    return new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
-                } else if (typeof timestamp === 'string') {
-                    // Handle ISO strings
-                     try { return new Date(timestamp); } catch { return undefined; }
-                } else if (typeof timestamp === 'number') {
-                     // Assuming milliseconds since epoch
-                     try { return new Date(timestamp); } catch { return undefined; }
-                }
-                return undefined;
-            };
-
-             // Convert relevant fields
-             const propertyData = {
-                id: doc.id,
-                ...data,
-                // Ensure timestamps are converted to Dates or stay as undefined/null
-                createdAt: convertToDate(data.createdAt),
-                updatedAt: convertToDate(data.updatedAt),
-                 // Ensure arrays are always present even if missing in Firestore
-                images: Array.isArray(data.images) ? data.images : [],
-                amenities: Array.isArray(data.amenities) ? data.amenities : [],
-                houseRules: Array.isArray(data.houseRules) ? data.houseRules : [],
-                 // Explicitly cast potentially missing nested objects to ensure type safety
-                location: data.location || {},
-                ratings: data.ratings || { average: 0, count: 0 },
-            } as Property;
-
-             // Ensure nested location coordinates exist
-             if (propertyData.location && !propertyData.location.coordinates) {
-                 propertyData.location.coordinates = { latitude: 0, longitude: 0 }; // Default coordinates if missing
-             }
-
-            return propertyData;
+        const docSnap = await getDoc(propertyRef);
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            // Basic type assertion, ideally use Zod validation
+            return { id: docSnap.id, ...data } as Property;
         } else {
-            console.warn(`[getPropertyBySlug] Property with slug '${slug}' not found.`);
+            console.warn(`[getPropertyBySlug] Property document not found: properties/${slug}`);
             return undefined;
         }
     } catch (error) {
@@ -72,15 +25,50 @@ export async function getPropertyBySlug(slug: string): Promise<Property | undefi
     }
 }
 
+// Function to get website template data
+async function getWebsiteTemplate(templateId: string): Promise<WebsiteTemplate | undefined> {
+    if (!templateId) return undefined;
+    const templateRef = doc(db, 'websiteTemplates', templateId);
+    try {
+        const docSnap = await getDoc(templateRef);
+        if (docSnap.exists()) {
+            return { id: docSnap.id, ...docSnap.data() } as WebsiteTemplate;
+        } else {
+            console.warn(`[getWebsiteTemplate] Template document not found: websiteTemplates/${templateId}`);
+            return undefined;
+        }
+    } catch (error) {
+        console.error(`❌ Error fetching website template ${templateId}:`, error);
+        return undefined;
+    }
+}
+
+// Function to get property overrides data
+async function getPropertyOverrides(slug: string): Promise<PropertyOverrides | undefined> {
+    const overridesRef = doc(db, 'propertyOverrides', slug); // Use slug as document ID
+    try {
+        const docSnap = await getDoc(overridesRef);
+        if (docSnap.exists()) {
+            return { id: docSnap.id, ...docSnap.data() } as PropertyOverrides;
+        } else {
+            console.log(`[getPropertyOverrides] No overrides document found for: propertyOverrides/${slug}. Using defaults.`);
+            // Return an empty object or specific default structure if needed
+            return undefined; // Indicate no overrides found
+        }
+    } catch (error) {
+        console.error(`❌ Error fetching property overrides for ${slug}:`, error);
+        return undefined; // Return undefined on error
+    }
+}
+
 
 interface PropertyDetailsPageProps {
   params: { slug: string };
 }
 
-// Generate static paths using Firestore data
+// Generate static paths using slugs from the 'properties' collection
 export async function generateStaticParams() {
   try {
-      // **** Use Client SDK ****
       const propertiesCollection = collection(db, 'properties');
       const snapshot = await getDocs(propertiesCollection);
 
@@ -89,17 +77,15 @@ export async function generateStaticParams() {
         return [];
       }
 
-      const params = snapshot.docs
-        .map(doc => ({
-            slug: doc.data().slug as string,
-        }))
-        .filter(param => typeof param.slug === 'string' && param.slug.length > 0); // Ensure slug is a non-empty string
+      const params = snapshot.docs.map(doc => ({
+            slug: doc.id, // Document ID is the slug
+        }));
 
-      // console.log(`[generateStaticParams] Generated ${params.length} params:`, params);
+      console.log(`[generateStaticParams] Generated ${params.length} params:`, params);
       return params;
   } catch (error) {
        console.error("❌ Error fetching properties for generateStaticParams:", error);
-       return [];
+       return []; // Return empty array on error
   }
 }
 
@@ -113,19 +99,40 @@ export default async function PropertyDetailsPage({ params }: PropertyDetailsPag
     console.error("[PropertyDetailsPage] Slug is missing from params.");
     notFound();
   }
-  // console.log(`[PropertyDetailsPage] Rendering page for slug: ${slug}`);
+  console.log(`[PropertyDetailsPage] Rendering page for slug: ${slug}`);
 
-  // Fetch property data using the slug
-  const property = await getPropertyBySlug(slug);
+  // Fetch all necessary data in parallel
+  const [property, overrides] = await Promise.all([
+      getPropertyBySlug(slug),
+      getPropertyOverrides(slug),
+  ]);
+
 
   if (!property) {
      console.warn(`[PropertyDetailsPage] Property not found for slug: ${slug}`);
     notFound();
   }
-  // console.log(`[PropertyDetailsPage] Property loaded from Firestore: ${property.name} (ID: ${property.id})`);
 
+  // Fetch template based on property.templateId
+  const template = await getWebsiteTemplate(property.templateId);
+
+   if (!template) {
+      console.error(`[PropertyDetailsPage] Website template "${property.templateId}" not found for property "${slug}". Cannot render page.`);
+      // Decide how to handle missing template: show error, use default, or 404
+      notFound(); // Or render a specific error component
+   }
+
+  console.log(`[PropertyDetailsPage] Data fetched successfully for ${slug}.`);
 
   // Use the generic PropertyPageLayout for all properties
-  return <PropertyPageLayout property={property} />;
-
+  // Pass all fetched data to the layout component
+  return (
+      <Suspense fallback={<div>Loading property details...</div>}>
+         <PropertyPageLayout
+            property={property}
+            template={template}
+            overrides={overrides || {}} // Pass overrides or empty object if none found
+         />
+      </Suspense>
+  );
 }

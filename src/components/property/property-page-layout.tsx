@@ -1,253 +1,193 @@
-
 // src/components/property/property-page-layout.tsx
-import Image from 'next/image';
-import type { Property } from '@/types';
-import { Header } from '@/components/generic-header'; // Use the generic header component (assuming it exists)
-import { Footer } from '@/components/footer'; // Use the generic footer
+import type { Property, WebsiteTemplate, PropertyOverrides, WebsiteBlock } from '@/types';
+import { Header } from '@/components/generic-header';
+import { Footer } from '@/components/footer';
 import { InitialBookingForm } from '@/components/booking/initial-booking-form';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { Button } from '@/components/ui/button';
-import {
-  BedDouble, Bath, Users, Wifi, ParkingCircle, Tv, Utensils, Clock, CheckCircle, MapPin, Home, MountainSnow, Trees, ListChecks, Wind, Building, Star // Added Star
-} from 'lucide-react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Star } from 'lucide-react';
+import Image from 'next/image';
+
+// Import all potential block components
+import { HeroSection } from '@/components/homepage/hero-section';
+import { ExperienceSection } from '@/components/homepage/experience-section';
+import { HostIntroduction } from '@/components/homepage/host-introduction';
+import { UniqueFeatures } from '@/components/homepage/unique-features';
+import { LocationHighlights } from '@/components/homepage/location-highlights';
+import { TestimonialsSection } from '@/components/homepage/testimonials-section';
+import { CallToActionSection } from '@/components/homepage/call-to-action';
+import { PropertyDetailsSection } from './property-details-section'; // Assuming this exists or will be created
+import { AmenitiesSection } from './amenities-section'; // Assuming this exists or will be created
+import { RulesSection } from './rules-section'; // Assuming this exists or will be created
+import { GallerySection } from './gallery-section'; // Assuming this exists or will be created
+import { MapSection } from './map-section'; // Assuming this exists or will be created
+import { ContactSection } from './contact-section'; // Assuming this exists or will be created
+
 
 interface PropertyPageLayoutProps {
   property: Property;
+  template: WebsiteTemplate;
+  overrides: PropertyOverrides; // Can be partial or empty object
 }
 
-export function PropertyPageLayout({ property }: PropertyPageLayoutProps) {
-  const featuredImage = property.images?.find(img => img.isFeatured) || property.images?.[0];
-  const galleryImages = property.images?.filter(img => !img.isFeatured) || [];
+// Map block types to React components
+const blockComponentMap: { [key: string]: React.ComponentType<any> } = {
+  hero: HeroSection,
+  experience: ExperienceSection,
+  host: HostIntroduction,
+  features: UniqueFeatures,
+  location: LocationHighlights,
+  testimonials: TestimonialsSection,
+  cta: CallToActionSection,
+  details: PropertyDetailsSection, // Add mappings for other block types
+  amenities: AmenitiesSection,
+  rules: RulesSection,
+  gallery: GallerySection,
+  map: MapSection,
+  contact: ContactSection,
+};
 
-  // Generic mapping for common amenities
-  const amenityIcons: { [key: string]: React.ReactNode } = {
-    wifi: <Wifi className="h-4 w-4 mr-1" />,
-    kitchen: <Utensils className="h-4 w-4 mr-1" />,
-    parking: <ParkingCircle className="h-4 w-4 mr-1" />,
-    tv: <Tv className="h-4 w-4 mr-1" />,
-    fireplace: <Home className="h-4 w-4 mr-1" />, // Generic home icon
-    'mountain view': <MountainSnow className="h-4 w-4 mr-1" />,
-    garden: <Trees className="h-4 w-4 mr-1" />,
-    'air conditioning': <Wind className="h-4 w-4 mr-1" />,
-    'washer/dryer': <CheckCircle className="h-4 w-4 mr-1 text-primary" />, // Use primary color
-    elevator: <Building className="h-4 w-4 mr-1" />,
-    // Add more mappings as needed based on your actual amenities data
-  };
+export function PropertyPageLayout({ property, template, overrides }: PropertyPageLayoutProps) {
+  // Determine which blocks to render based on overrides or template defaults
+  const visibleBlockIds = overrides.visibleBlocks || template.homepage?.map(b => b.id) || [];
 
-  const houseRules = property.houseRules || []; // Ensure houseRules is an array
+  // Prepare combined data for rendering, merging overrides with base property/template data
+  // This merge logic might become more complex depending on how defaults work
+
+   // Find the featured image from overrides or property data
+    const findFeaturedImage = () => {
+        const overrideFeatured = overrides.images?.find(img => img.isFeatured && img.tags?.includes('hero'));
+        if (overrideFeatured) return overrideFeatured;
+        const propertyFeatured = property.images?.find(img => img.isFeatured);
+        if (propertyFeatured) return propertyFeatured;
+        // Fallback logic if needed (e.g., first image)
+         const firstOverrideImage = overrides.images?.[0];
+         if(firstOverrideImage) return firstOverrideImage;
+         const firstPropertyImage = property.images?.[0];
+         if(firstPropertyImage) return firstPropertyImage;
+         return null; // No image found
+    };
+
+    const featuredImage = findFeaturedImage();
+
+    // --- Prepare props for each block type ---
+    // This involves extracting the relevant data from `property` and `overrides`
+    // based on what each block component expects.
+
+    const getBlockProps = (block: WebsiteBlock) => {
+        const commonProps = { property, overrides }; // Pass base data
+
+        switch (block.type) {
+            case 'hero':
+                return {
+                    ...commonProps,
+                     // Hero specifically needs property details for rating/price, and image from overrides
+                    backgroundImageUrl: overrides.hero?.backgroundImage || featuredImage?.url,
+                    'data-ai-hint': overrides.hero?.['data-ai-hint'] || featuredImage?.['data-ai-hint'],
+                    // Pass necessary property fields if HeroSection needs them
+                    pricePerNight: property.pricePerNight,
+                    ratings: property.ratings,
+                     // Pass the property object itself if the form needs it
+                     bookingFormProperty: property,
+                };
+            case 'experience':
+                return {
+                    ...commonProps,
+                    // Default content can come from template if defined there, or hardcoded
+                    title: overrides.experience?.title || "Experience Nature's Embrace",
+                    welcomeText: overrides.experience?.welcomeText || "Default welcome text...",
+                    highlights: overrides.experience?.highlights || [],
+                };
+            case 'host':
+                 // Ensure host data exists before passing
+                 if (!overrides.host) return null; // Don't render if no host override data
+                 return { ...commonProps, host: overrides.host };
+            case 'features':
+                 // Ensure features data exists before passing
+                 if (!overrides.features) return null;
+                 return { ...commonProps, features: overrides.features };
+            case 'location':
+                 // Location needs property's location and override attractions
+                 return {
+                     ...commonProps,
+                     propertyLocation: property.location,
+                     attractions: overrides.attractions || [],
+                 };
+            case 'testimonials':
+                 // Ensure testimonials data exists before passing
+                 if (!overrides.testimonials) return null;
+                 return {
+                    ...commonProps,
+                    testimonials: { // Structure expected by TestimonialsSection
+                        overallRating: property.ratings?.average || 0, // Use property rating
+                        reviews: overrides.testimonials || [] // Use override reviews
+                    }
+                };
+             case 'gallery':
+                 return {
+                     ...commonProps,
+                     images: overrides.images?.filter(img => !img.tags?.includes('hero')) || [], // Filter out hero image
+                 };
+             case 'cta':
+                 return {
+                     ...commonProps,
+                     propertySlug: property.slug, // CTA needs slug for linking
+                      title: overrides.cta?.title || "Ready for Your Getaway?",
+                      description: overrides.cta?.description || "Book your unforgettable stay today!",
+                      buttonText: overrides.cta?.buttonText || "Book Your Stay Now",
+                      buttonUrl: overrides.cta?.buttonUrl || `#booking`, // Link to booking section on the same page
+                 };
+            case 'details': // Example for a new block type
+                 return { ...commonProps, /* pass details specific props */ };
+            case 'amenities': // Example
+                 return { ...commonProps, amenities: property.amenities };
+             case 'rules': // Example
+                 return { ...commonProps, houseRules: property.houseRules };
+             case 'map': // Example
+                 return { ...commonProps, location: property.location };
+             case 'contact': // Example
+                 return { ...commonProps, /* contact details */ };
+
+            default:
+                console.warn(`No specific props defined for block type: ${block.type}`);
+                return commonProps; // Pass base data as fallback
+        }
+    };
+
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* Use Generic Header */}
       <Header propertyName={property.name} propertySlug={property.slug} />
 
-      {/* Hero Section with Overlay Booking Form */}
-      <section className="relative h-[60vh] md:h-[70vh] w-full">
-        {featuredImage ? (
-          <Image
-            src={featuredImage.url}
-            alt={featuredImage.alt || `Featured image of ${property.name}`}
-            fill
-            style={{ objectFit: "cover" }}
-            priority
-            className="brightness-75" // Add slight dimming
-            data-ai-hint={featuredImage['data-ai-hint']}
-          />
-        ) : (
-          <div className="absolute inset-0 bg-muted flex items-center justify-center">
-            <Home className="h-24 w-24 text-muted-foreground/30" />
-          </div>
-        )}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Card className="w-full max-w-md bg-background/90 backdrop-blur-sm shadow-xl border-border p-4 md:p-6 mx-4">
-             <CardHeader className="p-0 mb-4 text-center">
-                 {/* Price and Rating */}
-                <div className="flex items-center justify-center gap-4 mb-2">
-                     <Badge variant="secondary" className="text-lg px-3 py-1">
-                        ${property.pricePerNight}<span className="text-xs font-normal ml-1">/night</span>
-                     </Badge>
-                     {property.ratings && property.ratings.count > 0 && (
-                        <Badge variant="secondary" className="text-lg px-3 py-1 flex items-center">
-                             <Star className="h-4 w-4 mr-1 text-amber-500 fill-amber-500" />
-                            {property.ratings.average.toFixed(1)}
-                            <span className="text-xs font-normal ml-1">({property.ratings.count} reviews)</span>
-                        </Badge>
-                     )}
-                </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <InitialBookingForm property={property} />
-            </CardContent>
-          </Card>
-        </div>
-      </section>
+        <main className="flex-grow">
+            {/* Iterate through template blocks and render if visible */}
+            {template.homepage?.map((block) => {
+                if (!visibleBlockIds.includes(block.id)) {
+                    // console.log(`Block ${block.id} is not visible, skipping.`);
+                    return null; // Skip rendering if not in visibleBlocks
+                }
 
-      {/* Main Content - Below the Hero */}
-      <main className="flex-grow container py-12 md:py-16">
-        <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+                const BlockComponent = blockComponentMap[block.type];
+                if (!BlockComponent) {
+                    console.warn(`No component found for block type: ${block.type}`);
+                    return <div key={block.id}>Missing component for {block.type}</div>;
+                }
 
-          {/* Left/Main Column: Property Details */}
-          <div className="lg:w-2/3 space-y-8">
-            {/* Title and Location */}
-            <div>
-                <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-2">
-                 {property.name}
-                </h1>
-                {property.location && (
-                  <div className="flex items-center text-muted-foreground mb-6">
-                    <MapPin className="h-4 w-4 mr-1 text-primary" />
-                    <span>{property.location.city}, {property.location.state}, {property.location.country}</span>
-                  </div>
-                )}
-            </div>
+                 const blockProps = getBlockProps(block);
+                 // Don't render if props couldn't be determined (e.g., missing required override data)
+                 if (blockProps === null && ['host', 'features', 'testimonials'].includes(block.type)) {
+                     console.log(`Skipping block ${block.id} due to missing override data.`);
+                    return null;
+                 }
 
-            {/* Description */}
-            <div className="prose max-w-none dark:prose-invert text-foreground/90">
-              <h2 className="text-2xl font-semibold mb-3 text-foreground">About this property</h2>
-              <p>{property.description}</p>
-            </div>
+                console.log(`Rendering block: ${block.id} (${block.type})`);
+                return <BlockComponent key={block.id} {...blockProps} />;
+            })}
+        </main>
 
-            <Separator />
 
-            {/* Key Features */}
-            <div>
-              <h3 className="text-xl font-semibold mb-4 text-foreground">Key Features</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-                <div className="flex items-center"><Users className="h-4 w-4 mr-2 text-primary" /> Max {property.maxGuests} Guests</div>
-                <div className="flex items-center"><BedDouble className="h-4 w-4 mr-2 text-primary" /> {property.bedrooms} Bedrooms</div>
-                <div className="flex items-center"><BedDouble className="h-4 w-4 mr-2 text-primary" /> {property.beds} Beds</div>
-                <div className="flex items-center"><Bath className="h-4 w-4 mr-2 text-primary" /> {property.bathrooms} Bathrooms</div>
-                 {property.squareFeet && <div className="flex items-center"><Home className="h-4 w-4 mr-2 text-primary" /> {property.squareFeet} sqm</div>}
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Amenities */}
-            {property.amenities && property.amenities.length > 0 && (
-              <div>
-                <h3 className="text-xl font-semibold mb-4 text-foreground">Amenities</h3>
-                <ul className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm list-none pl-0">
-                  {property.amenities.map((amenity) => (
-                    <li key={amenity} className="flex items-center">
-                      {amenityIcons[amenity.toLowerCase()] || <CheckCircle className="h-4 w-4 mr-1 text-primary" />}
-                      {amenity}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <Separator />
-
-            {/* House Rules */}
-            {houseRules.length > 0 && (
-              <div id="house-rules">
-                <h3 className="text-xl font-semibold mb-4 text-foreground flex items-center">
-                  <ListChecks className="h-5 w-5 mr-2 text-primary" /> House Rules
-                </h3>
-                <ul className="list-none pl-0 space-y-2 text-sm">
-                  {houseRules.map((rule, index) => (
-                    <li key={index} className="flex items-center">
-                      <CheckCircle className="h-4 w-4 mr-2 text-primary shrink-0" />
-                      {rule}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-             <Separator />
-
-            {/* Check-in / Check-out */}
-            <div>
-              <h3 className="text-xl font-semibold mb-3 text-foreground">Check-in / Check-out</h3>
-              <div className="flex gap-4 text-sm">
-                 {property.checkInTime && <div className="flex items-center"> <Clock className="h-4 w-4 mr-1 text-primary"/>Check-in: {property.checkInTime}</div>}
-                 {property.checkOutTime && <div className="flex items-center"> <Clock className="h-4 w-4 mr-1 text-primary"/>Check-out: {property.checkOutTime}</div>}
-              </div>
-            </div>
-
-            {/* Cancellation Policy */}
-             {property.cancellationPolicy && (
-                 <>
-                   <Separator />
-                   <div>
-                     <h3 className="text-xl font-semibold mb-3 text-foreground">Cancellation Policy</h3>
-                     <p className="text-sm text-muted-foreground">{property.cancellationPolicy}</p>
-                   </div>
-                 </>
-             )}
-
-             {/* Location Section Placeholder */}
-             <Separator />
-             <div id="location">
-                 <h2 className="text-xl font-semibold mb-4 text-foreground">Location</h2>
-                  {property.location && (
-                     <p className="text-muted-foreground mb-4">
-                        Located in {property.location.city}, {property.location.state}. Exact address provided after booking.
-                     </p>
-                  )}
-                  {/* Placeholder for map */}
-                 <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-                     <MapPin className="h-12 w-12 text-muted-foreground/50" />
-                 </div>
-             </div>
-
-              {/* Contact Section Placeholder */}
-             <Separator />
-             <div id="contact">
-                 <h2 className="text-xl font-semibold mb-4 text-foreground">Contact Host</h2>
-                  <p className="text-muted-foreground mb-4">
-                     Have questions? Reach out to the property owner.
-                  </p>
-                  {/* TODO: Implement contact functionality or link */}
-                  <Button variant="outline">Contact Owner</Button>
-             </div>
-          </div>
-
-          {/* Right/Sidebar Column: Image Gallery */}
-          <div className="lg:w-1/3 space-y-4 lg:sticky lg:top-24 lg:self-start" id="gallery">
-            <h2 className="text-2xl font-semibold text-foreground mb-4">Gallery</h2>
-            {galleryImages.length > 0 ? (
-                 galleryImages.map((image, index) => (
-                 <div key={index} className="relative aspect-[4/3] w-full overflow-hidden rounded-lg shadow-md">
-                    <Image
-                     src={image.url}
-                     alt={image.alt || `Gallery image ${index + 1} of ${property.name}`}
-                     fill
-                     style={{objectFit: "cover"}}
-                      data-ai-hint={image['data-ai-hint']}
-                    />
-                 </div>
-                 ))
-             ) : (
-                // Show featured image if no other gallery images exist
-                featuredImage && (
-                    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg shadow-md">
-                         <Image
-                             src={featuredImage.url}
-                             alt={featuredImage.alt || `Featured image of ${property.name}`}
-                             fill
-                             style={{objectFit: "cover"}}
-                              data-ai-hint={featuredImage['data-ai-hint']}
-                         />
-                     </div>
-                 )
-             )}
-             {/* Placeholder if no images at all */}
-             {!featuredImage && galleryImages.length === 0 && (
-                 <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg shadow-md bg-muted flex items-center justify-center">
-                     <Home className="h-12 w-12 text-muted-foreground/50" />
-                 </div>
-             )}
-
-          </div>
-        </div>
-      </main>
-      {/* Use Generic Footer */}
+      {/* Use Generic Footer - TODO: Make footer content dynamic based on template/overrides */}
       <Footer />
     </div>
   );

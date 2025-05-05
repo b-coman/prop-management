@@ -1,54 +1,61 @@
-
 import Image from 'next/image';
-import type { Property } from '@/types';
 import { InitialBookingForm } from '@/components/booking/initial-booking-form';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Star } from 'lucide-react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Star, Home } from 'lucide-react'; // Added Home icon for placeholder
+import type { Property } from '@/types'; // Still needed for the form prop
 
 interface HeroSectionProps {
-  // Accept the full Property object, even if only parts are used here
-  property: Property;
+  backgroundImageUrl?: string | null;
+  pricePerNight: number;
+  ratings?: { average: number; count: number };
+  bookingFormProperty: Property; // Pass the full property object needed by InitialBookingForm
+  'data-ai-hint'?: string;
 }
 
-export function HeroSection({ property }: HeroSectionProps) {
-  const featuredImage = property.images?.find(img => img.isFeatured) || property.images?.[0];
+export function HeroSection({
+    backgroundImageUrl,
+    pricePerNight,
+    ratings,
+    bookingFormProperty, // Renamed for clarity
+    'data-ai-hint': dataAiHint
+}: HeroSectionProps) {
 
   return (
-    <section className="relative h-[60vh] md:h-[75vh] w-full">
+    <section className="relative h-[60vh] md:h-[75vh] w-full" id="hero"> {/* Added ID */}
       {/* Background Image */}
-      {featuredImage ? (
+      {backgroundImageUrl ? (
         <Image
-          src={featuredImage.url}
-          alt={featuredImage.alt || `Featured image of ${property.name}`}
+          src={backgroundImageUrl}
+          alt={`Featured image of ${bookingFormProperty.name}`} // Use name from passed property
           fill
           style={{ objectFit: 'cover' }}
           priority
           className="brightness-75" // Add slight dimming for text contrast
-          data-ai-hint={featuredImage['data-ai-hint'] || 'mountain view sunset chalet'}
+          data-ai-hint={dataAiHint || 'property hero image'}
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-900 to-slate-700 flex items-center justify-center">
+        <div className="absolute inset-0 bg-muted flex items-center justify-center">
            {/* Fallback background */}
-           <span className="text-white/50 text-lg">Image coming soon</span>
+           <Home className="h-24 w-24 text-muted-foreground/30" />
         </div>
       )}
 
        {/* Overlay Content */}
       <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
         {/* Booking Form Card */}
-        <Card className="w-full max-w-md bg-background/90 backdrop-blur-sm shadow-xl border-border p-4 md:p-6">
+        <Card className="w-full max-w-md bg-background/90 backdrop-blur-sm shadow-xl border-border p-4 md:p-6" id="booking"> {/* Added ID for linking */}
           <CardHeader className="p-0 mb-4 text-center">
              {/* Price and Rating */}
             <div className="flex items-center justify-center gap-4 mb-2">
                  <Badge variant="secondary" className="text-lg px-3 py-1">
-                    ${property.pricePerNight}<span className="text-xs font-normal ml-1">/night</span>
+                    ${pricePerNight}<span className="text-xs font-normal ml-1">/night</span>
                  </Badge>
-                 {property.ratings && property.ratings.count > 0 && (
+                 {ratings && ratings.count > 0 && (
                     <Badge variant="secondary" className="text-lg px-3 py-1 flex items-center">
                          <Star className="h-4 w-4 mr-1 text-amber-500 fill-amber-500" />
-                        {property.ratings.average.toFixed(1)}
-                        <span className="text-xs font-normal ml-1">({property.ratings.count} reviews)</span>
+                        {ratings.average.toFixed(1)}
+                        <span className="text-xs font-normal ml-1">({ratings.count} reviews)</span>
                     </Badge>
                  )}
             </div>
@@ -56,8 +63,8 @@ export function HeroSection({ property }: HeroSectionProps) {
             {/* <CardTitle className="text-xl">Book Your Stay</CardTitle> */}
           </CardHeader>
           <CardContent className="p-0">
-             {/* Pass the full property object to InitialBookingForm */}
-            <InitialBookingForm property={property} />
+             {/* Pass the necessary property object to InitialBookingForm */}
+            <InitialBookingForm property={bookingFormProperty} />
           </CardContent>
         </Card>
       </div>

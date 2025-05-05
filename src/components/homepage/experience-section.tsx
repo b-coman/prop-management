@@ -1,4 +1,3 @@
-
 import { Mountain, Users, Leaf, Map } from 'lucide-react'; // Import appropriate icons
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -28,8 +27,13 @@ const iconMap: { [key in IconName]: React.ElementType } = {
 };
 
 export function ExperienceSection({ title, welcomeText, highlights }: ExperienceSectionProps) {
+  // Don't render if required props are missing
+  if (!title || !welcomeText || !highlights || highlights.length === 0) {
+    return null;
+  }
+
   return (
-    <section className="py-16 md:py-24 bg-secondary/50">
+    <section className="py-16 md:py-24 bg-secondary/50" id="experience"> {/* Added ID */}
       <div className="container mx-auto px-4">
         <div className="max-w-3xl mx-auto text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">

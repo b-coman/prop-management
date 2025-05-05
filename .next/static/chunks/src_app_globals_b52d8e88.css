@@ -706,6 +706,10 @@ body {
   margin-top: 1.5rem;
 }
 
+.mt-0\.5 {
+  margin-top: .125rem;
+}
+
 .block {
   display: block;
 }
@@ -841,6 +845,10 @@ body {
 
 .h-svh {
   height: 100svh;
+}
+
+.h-20 {
+  height: 5rem;
 }
 
 .max-h-96 {
@@ -985,6 +993,10 @@ body {
 
 .w-full {
   width: 100%;
+}
+
+.w-20 {
+  width: 5rem;
 }
 
 .min-w-0 {
@@ -1726,6 +1738,11 @@ body {
   padding-bottom: 1.5rem;
 }
 
+.py-8 {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
 .pb-3 {
   padding-bottom: .75rem;
 }
@@ -1867,6 +1884,10 @@ body {
 
 .uppercase {
   text-transform: uppercase;
+}
+
+.lowercase {
+  text-transform: lowercase;
 }
 
 .italic {
@@ -2334,6 +2355,12 @@ body {
 
 .focus-within\:z-20:focus-within {
   z-index: 20;
+}
+
+.hover\:scale-105:hover {
+  --tw-scale-x: 1.05;
+  --tw-scale-y: 1.05;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
 .hover\:bg-accent:hover {
@@ -3096,6 +3123,10 @@ body {
     justify-content: flex-end;
   }
 
+  .sm\:gap-4 {
+    gap: 1rem;
+  }
+
   .sm\:space-x-2 > :not([hidden]) ~ :not([hidden]) {
     --tw-space-x-reverse: 0;
     margin-right: calc(.5rem * var(--tw-space-x-reverse));
@@ -3176,6 +3207,10 @@ body {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
+  .md\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .md\:flex-row {
     flex-direction: row;
   }
@@ -3213,6 +3248,11 @@ body {
   .md\:py-24 {
     padding-top: 6rem;
     padding-bottom: 6rem;
+  }
+
+  .md\:py-12 {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
   }
 
   .md\:text-left {

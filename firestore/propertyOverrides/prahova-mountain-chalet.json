@@ -1,0 +1,108 @@
+{
+    "visibleBlocks": [
+      "hero",
+      "experience",
+      "host",
+      "features",
+      "location",
+      "testimonials",
+      "cta"
+    ],
+    "features": [
+      {
+        "icon": "firepit",
+        "title": "Fire Pit",
+        "description": "Perfect for cozy nights, our fire pit includes a 15-liter cauldron for outdoor cooking.",
+        "image": "/firepit.jpg"
+      },
+      {
+        "icon": "hammock",
+        "title": "Hammocks",
+        "description": "Relax among the trees with several hammocks set up for reading or napping.",
+        "image": "/hammock.jpg"
+      },
+      {
+        "icon": "zipline",
+        "title": "30m Zip Line",
+        "description": "The zip line is the children's favorite feature, stretching 30 meters for safe fun.",
+        "image": "/zipline.jpg"
+      }
+    ],
+    "attractions": [
+      {
+        "name": "Dracula Castle",
+        "distance": "2.5 hours by car",
+        "image": "/dracula-castle.jpg",
+        "description": "Located in Transylvania, Bran Castle is steeped in myth as the reputed home of Dracula."
+      },
+      {
+        "name": "Ialomita Cave",
+        "distance": "1.5 hours by car",
+        "image": "/ialomita-cave.jpg",
+        "description": "Explore the historic Ialomita Cave, a 480-meter-long geological marvel in Bucegi National Park."
+      },
+      {
+        "name": "7 Ladders Canyon",
+        "distance": "2.5 hours by car",
+        "image": "/7-ladders.jpg",
+        "description": "An exhilarating climb through gorges and waterfalls, with one of Europe's longest zip-lines."
+      },
+      {
+        "name": "The Sphinx",
+        "distance": "Cable car from Busteni",
+        "image": "/sphinx.jpg",
+        "description": "The mysterious Sphinx rock formation at 2,216 meters, a natural wonder of the Bucegi Mountains."
+      }
+    ],
+    "testimonials": [
+      {
+        "name": "Maria D.",
+        "date": "2025-05",
+        "rating": 5,
+        "text": "We had an amazing stay at the Mountain Retreat! The cabin is beautiful and the surroundings breathtaking."
+      },
+      {
+        "name": "James T.",
+        "date": "2025-04",
+        "rating": 5,
+        "text": "Perfect mountain getaway with all the amenities you could need. The sunset view is spectacular."
+      },
+      {
+        "name": "Sofia C.",
+        "date": "2025-03",
+        "rating": 5,
+        "text": "This was our second stay and it was just as wonderful as the first. Great kitchen and lovely terrace BBQ."
+      }
+    ],
+    "images": [
+      {
+        "url": "https://picsum.photos/seed/chalet1/800/600",
+        "alt": "Chalet exterior view",
+        "isFeatured": true,
+        "tags": ["exterior", "hero"],
+        "sortOrder": 1
+      },
+      {
+        "url": "https://picsum.photos/seed/chalet2/800/600",
+        "alt": "Cozy living room with fireplace",
+        "isFeatured": false,
+        "tags": ["interior", "livingroom"],
+        "sortOrder": 2
+      },
+      {
+        "url": "https://picsum.photos/seed/chalet3/800/600",
+        "alt": "Mountain view from balcony",
+        "isFeatured": false,
+        "tags": ["view", "balcony"],
+        "sortOrder": 3
+      },
+      {
+        "url": "https://picsum.photos/seed/chalet4/800/600",
+        "alt": "Kitchen area",
+        "isFeatured": false,
+        "tags": ["interior", "kitchen"],
+        "sortOrder": 4
+      }
+    ]
+  }
+  

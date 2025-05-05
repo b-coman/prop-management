@@ -4,222 +4,298 @@ import type { Timestamp as FirestoreTimestamp } from 'firebase/firestore'; // Us
 // Allow null for optional dates
 export type SerializableTimestamp = FirestoreTimestamp | string | number | Date | null; // Added Date
 
+// Interface for a single block definition within a template or override
+export interface WebsiteBlock {
+    id: string; // e.g., "hero", "features", "location"
+    type: string; // e.g., "hero", "experience", "features"
+    // Optional default settings or content structures can be added here
+    title?: string; // Example default title
+    description?: string; // Example default description
+}
 
-// Aligned with propertyExample structure
+// Represents the structure of a document in the 'websiteTemplates' collection
+export interface WebsiteTemplate {
+    id: string; // Document ID (e.g., "holiday-house")
+    templateId: string; // Matches the document ID
+    name: string; // e.g., "Holiday House Template"
+    homepage?: WebsiteBlock[]; // Defines the blocks and their order for the homepage
+    header?: { // Defines default header structure
+        menuItems?: Array<{ label: string; url: string }>;
+        logo?: { src: string; alt: string };
+    };
+    footer?: { // Defines default footer structure
+        quickLinks?: Array<{ label: string; url: string }>;
+        contactInfo?: { email?: string; phone?: string; address?: string };
+        socialLinks?: Array<{ platform: string; url: string }>;
+        showNewsletter?: boolean;
+        newsletterTitle?: string;
+        newsletterDescription?: string;
+    };
+    // Add other template-specific fields if needed
+}
+
+// Represents the structure of a document in the 'properties' collection
+// This stores the core, non-website-specific metadata
 export interface Property {
-  id: string; // Corresponds to Document ID
+  id: string; // Document ID, which is the property slug (e.g., "prahova-mountain-chalet")
+  templateId: string; // ID of the WebsiteTemplate this property uses
   name: string;
-  slug: string;
-  description: string;
-  shortDescription: string;
+  slug: string; // Should match the document ID
+  description?: string; // Moved to overrides? Or keep core desc here? Decide consistency.
+  shortDescription?: string; // Moved to overrides?
   location: {
-    address: string;
-    city: string;
-    state: string;
-    country: string;
-    zipCode: string;
-    coordinates: { // Using GeoPoint structure is better in Firestore, but keeping as object for simplicity here
+    address?: string; // Optional here if mainly in overrides
+    city?: string;
+    state?: string;
+    country?: string;
+    zipCode?: string;
+    coordinates?: {
       latitude: number;
       longitude: number;
     };
   };
-  images: Array<{
+  images?: Array<{ // Base images if needed, gallery primarily in overrides
     url: string;
     alt: string;
-    isFeatured: boolean;
-    'data-ai-hint'?: string; // Allow the data-ai-hint attribute
+    isFeatured?: boolean; // Base featured image
+    'data-ai-hint'?: string;
   }>;
-  amenities: string[];
-  // Details moved to top-level
+  amenities?: string[];
   pricePerNight: number;
-  cleaningFee: number;
-  maxGuests: number; // Absolute maximum guests allowed
-  baseOccupancy: number; // Number of guests included in the base price
-  extraGuestFee: number; // Fee per additional guest per night
-  bedrooms: number;
-  beds: number; // Added from usage, assumed present in details
-  bathrooms: number;
-  squareFeet: number;
-  // Rules moved to top-level
-  checkInTime: string;
-  checkOutTime: string;
-  houseRules: string[];
-  cancellationPolicy: string;
-  // Added from propertyExample
+  cleaningFee?: number;
+  maxGuests: number;
+  baseOccupancy: number;
+  extraGuestFee?: number;
+  bedrooms?: number;
+  beds?: number;
+  bathrooms?: number;
+  squareFeet?: number;
+  checkInTime?: string;
+  checkOutTime?: string;
+  houseRules?: string[];
+  cancellationPolicy?: string;
   ratings?: {
     average: number;
     count: number;
   };
-  createdAt?: SerializableTimestamp; // Use serializable type
-  updatedAt?: SerializableTimestamp; // Use serializable type
+  status?: 'active' | 'inactive' | 'draft'; // Added status
+  schemaVersion?: number; // For future data migrations
   ownerId?: string; // Reference to the property owner (User ID)
-  isActive?: boolean;
-  // Fields for external platform synchronization
-  airbnbListingId?: string;
-  bookingComListingId?: string;
+  channelIds?: { // IDs for syncing with external platforms
+      airbnb?: string | null;
+      booking_com?: string | null;
+      // Add other channels as needed
+  };
+  createdAt?: SerializableTimestamp;
+  updatedAt?: SerializableTimestamp;
 }
 
-// Aligned with bookingExample structure
+
+// Represents the structure of a document in the 'propertyOverrides' collection
+// This stores per-property content and visibility settings
+export interface PropertyOverrides {
+    id?: string; // Document ID (property slug) - Optional as it matches the doc ID itself
+    visibleBlocks?: string[]; // Array of block IDs to display from the template
+    hero?: { // Override content specifically for the hero section
+        backgroundImage?: string | null;
+         'data-ai-hint'?: string;
+        // Add other hero-specific overrides if needed (e.g., title, subtitle)
+    };
+    experience?: { // Override content for the experience section
+        title?: string;
+        welcomeText?: string;
+        highlights?: Array<{ icon: string; title: string; description: string }>;
+    };
+     host?: { // Override content for the host section
+         name: string;
+         imageUrl?: string | null;
+         welcomeMessage: string;
+         backstory: string;
+         'data-ai-hint'?: string;
+     };
+    features?: Array<{ // Array of features to display
+        icon?: string; // Icon name (map to component later)
+        title: string;
+        description: string;
+        image?: string | null;
+        'data-ai-hint'?: string;
+    }>;
+    location?: { // Overrides specific to location block (attractions primarily)
+        // Map settings could go here if they vary per property
+    };
+    attractions?: Array<{ // Array of nearby attractions
+        name: string;
+        distance?: string;
+        description: string;
+        image?: string | null;
+        'data-ai-hint'?: string;
+    }>;
+    testimonials?: Array<{ // Array of selected testimonials
+        id?: string;
+        name: string;
+        date?: string; // e.g., "May 2025" or "2025-05-15"
+        rating: number;
+        text: string;
+        imageUrl?: string | null;
+        'data-ai-hint'?: string;
+    }>;
+     gallery?: {
+         // Gallery specific settings if needed, images are in the top-level 'images' array
+     };
+    images?: Array<{ // Gallery images (separate from hero/feature images)
+        url: string;
+        alt: string;
+        isFeatured?: boolean; // Should generally be false if 'hero' has its own background logic
+        tags?: string[]; // e.g., ["exterior", "living room", "view", "hero"]
+        sortOrder?: number;
+         'data-ai-hint'?: string;
+    }>;
+    cta?: { // Override content for the Call To Action section
+        title?: string;
+        description?: string;
+        buttonText?: string;
+        buttonUrl?: string; // Optional specific URL or anchor link
+        backgroundImage?: string | null;
+         'data-ai-hint'?: string;
+    };
+    // Add override fields for header/footer if needed
+    // header?: { ... };
+    // footer?: { ... };
+    updatedAt?: SerializableTimestamp; // Track when overrides were last updated
+}
+
+
+// --- Other existing types ---
+
 export interface Booking {
-  id: string; // Corresponds to Document ID
-  propertyId: string; // Reference to the property document
+  id: string;
+  propertyId: string; // Should now be the property slug
   guestInfo: {
     firstName: string;
-    lastName?: string; // Made optional based on usage
+    lastName?: string;
     email: string;
-    phone?: string; // Optional
-    address?: string; // Optional
-    city?: string; // Optional
-    state?: string; // Optional
-    country?: string; // Optional
-    zipCode?: string; // Optional
-    userId?: string; // Optional: Link to User document if guest is a registered user
+    phone?: string;
+    userId?: string;
   };
-  checkInDate: SerializableTimestamp; // Use serializable type
-  checkOutDate: SerializableTimestamp; // Use serializable type
+  checkInDate: SerializableTimestamp;
+  checkOutDate: SerializableTimestamp;
   numberOfGuests: number;
   pricing: {
-    baseRate: number; // Price per night at time of booking (for base occupancy)
+    baseRate: number;
     numberOfNights: number;
     cleaningFee: number;
-    extraGuestFee?: number; // Store the fee applied at the time of booking
-    numberOfExtraGuests?: number; // Number of guests exceeding base occupancy
-    accommodationTotal: number; // (baseRate + extraGuestFee * numberOfExtraGuests) * numberOfNights
-    subtotal: number; // accommodationTotal + cleaningFee
-    taxes?: number; // Optional, can be calculated or stored
-    discountAmount?: number; // Optional: Amount discounted via coupon
-    total: number; // Final amount paid (subtotal + taxes - discountAmount)
+    extraGuestFee?: number;
+    numberOfExtraGuests?: number;
+    accommodationTotal: number;
+    subtotal: number;
+    taxes?: number;
+    discountAmount?: number;
+    total: number;
   };
-  appliedCouponCode?: string; // Store the code that was applied
+  appliedCouponCode?: string | null; // Allow null
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   paymentInfo: {
-    stripePaymentIntentId: string; // Store Payment Intent ID
-    amount: number; // Should match pricing.total (in dollars)
-    status: string; // e.g., 'succeeded', 'paid', 'requires_payment_method' from Stripe
-    paidAt: SerializableTimestamp | null; // Use serializable type
+    stripePaymentIntentId: string;
+    amount: number;
+    status: string;
+    paidAt: SerializableTimestamp | null;
   };
-  notes?: string; // Optional notes from the guest
-  source?: string; // Optional: e.g., 'website', 'airbnb', 'booking.com'
-  externalId?: string; // Optional: Booking ID from an external platform
-  createdAt: SerializableTimestamp; // Use serializable type
-  updatedAt: SerializableTimestamp; // Use serializable type
+  notes?: string;
+  source?: string;
+  externalId?: string;
+  createdAt: SerializableTimestamp;
+  updatedAt: SerializableTimestamp;
 }
 
-// Aligned with userExample structure
 export interface User {
-  id: string; // Corresponds to Auth User ID
-  email: string; // From Auth
+  id: string;
+  email: string;
   firstName?: string;
   lastName?: string;
   phone?: string;
-  role: 'guest' | 'owner' | 'admin'; // Role determines permissions
-  properties?: string[]; // Array of property IDs owned/managed by 'owner' or 'admin'
+  role: 'guest' | 'owner' | 'admin';
+  properties?: string[]; // Array of property slugs owned/managed
   settings?: {
     emailNotifications?: boolean;
     smsNotifications?: boolean;
   };
-  createdAt: SerializableTimestamp; // Use serializable type
-  updatedAt: SerializableTimestamp; // Use serializable type
-  lastLogin?: SerializableTimestamp; // Use serializable type
+  createdAt: SerializableTimestamp;
+  updatedAt: SerializableTimestamp;
+  lastLogin?: SerializableTimestamp;
 }
 
-// Aligned with reviewExample structure
 export interface Review {
-  id: string; // Corresponds to Document ID
-  propertyId: string;
-  bookingId: string; // Link review to a specific booking
-  guestId?: string; // Optional: Link to User document if guest is registered
-  guestName: string; // Display name (can be anonymized if needed)
-  rating: number; // e.g., 1-5 stars
+  id: string;
+  propertyId: string; // property slug
+  bookingId: string;
+  guestId?: string;
+  guestName: string;
+  rating: number;
   comment: string;
-  photos?: string[]; // URLs of photos uploaded with the review
-  date: SerializableTimestamp; // Use serializable type
-  ownerResponse?: { // Optional response from the property owner
+  photos?: string[];
+  date: SerializableTimestamp;
+  ownerResponse?: {
     comment: string;
-    date: SerializableTimestamp; // Use serializable type
+    date: SerializableTimestamp;
   };
-  isPublished: boolean; // Whether the review is visible on the site
+  isPublished: boolean;
 }
 
-// Aligned with availabilityExample structure
-// Represents the document structure in Firestore `availability` collection.
 export interface Availability {
-  id: string; // Document ID: propertyId_YYYY-MM
-  propertyId: string;
+  id: string; // Document ID: propertySlug_YYYY-MM
+  propertyId: string; // property slug
   month: string; // Format: YYYY-MM
-  available: { [day: number]: boolean }; // Map of day number (1-31) to availability status
-  pricingModifiers?: { [day: number]: number }; // Optional: Map of day number to price multiplier (e.g., 1.2 for 20% increase)
-  minimumStay?: { [day: number]: number }; // Optional: Map of day number to minimum stay requirement
-  updatedAt: SerializableTimestamp; // Use serializable type
+  available: { [day: number]: boolean };
+  pricingModifiers?: { [day: number]: number };
+  minimumStay?: { [day: number]: number };
+  updatedAt: SerializableTimestamp;
 }
 
-
-// Aligned with settingsExample structure
 export interface GlobalSettings {
-  // Document ID should be 'global' or similar singleton ID
   siteInfo?: {
     name?: string;
-    contact?: {
-      email?: string;
-      phone?: string;
-    };
-    socialMedia?: {
-      facebook?: string;
-      instagram?: string;
-      // Add others as needed
-    };
+    contact?: { email?: string; phone?: string; };
+    socialMedia?: { facebook?: string; instagram?: string; };
   };
   booking?: {
     defaultMinimumStay?: number;
     maxAdvanceBookingDays?: number;
-    taxRate?: number; // e.g., 0.08 for 8%
+    taxRate?: number;
   };
   maintenance?: {
     isMaintenanceMode?: boolean;
     maintenanceMessage?: string;
   };
-  updatedAt: SerializableTimestamp; // Use serializable type
+  updatedAt: SerializableTimestamp;
 }
 
-// Aligned with syncCalendarExample structure
 export interface SyncCalendar {
-  id: string; // Corresponds to Document ID
-  propertyId: string;
-  platform: string; // e.g., 'airbnb', 'booking.com', 'vrbo'
-  calendarId?: string; // Optional ID from the platform
-  importUrl?: string; // URL to import external calendar data
-  exportUrl?: string; // URL for external platforms to fetch this property's calendar
-  lastSyncedAt?: SerializableTimestamp; // Use serializable type
+  id: string;
+  propertyId: string; // property slug
+  platform: string;
+  calendarId?: string;
+  importUrl?: string;
+  exportUrl?: string;
+  lastSyncedAt?: SerializableTimestamp;
   isActive: boolean;
 }
 
-// Firestore 'coupons' collection structure
-// Adjusted date fields to use SerializableTimestamp for client components
 export interface Coupon {
-    id: string; // Document ID
-    code: string; // The actual coupon code string
-    discount: number; // Percentage discount (e.g., 10 for 10%)
-    validUntil: SerializableTimestamp | null; // Coupon expiry date (use null if no expiry)
-    description?: string; // Optional description of the coupon
-    isActive: boolean; // Whether the coupon can currently be used
-    createdAt: SerializableTimestamp; // Firestore server timestamp for when it was created
-    updatedAt?: SerializableTimestamp; // Firestore server timestamp for last update
-
-    // Fields for booking timeframe validity and exclusions
-    // Use null when not set, consistent with Firestore potential values
+    id: string;
+    code: string;
+    discount: number;
+    validUntil: SerializableTimestamp | null;
+    description?: string;
+    isActive: boolean;
+    createdAt: SerializableTimestamp;
+    updatedAt?: SerializableTimestamp;
     bookingValidFrom?: SerializableTimestamp | null;
     bookingValidUntil?: SerializableTimestamp | null;
     exclusionPeriods?: Array<{ start: SerializableTimestamp; end: SerializableTimestamp }> | null;
-
-    // Optional: Add usage limits if needed in the future
-    // maxUses?: number | null;
-    // currentUses?: number;
 }
 
-// Added type definition for the server action result
 export type CreateCouponResult = {
   id?: string;
   code?: string;
   error?: string;
 };
-

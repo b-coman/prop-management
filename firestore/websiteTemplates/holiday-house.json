@@ -1,0 +1,47 @@
+{
+    "templateId": "holiday-house",
+    "name": "Holiday House Template",
+    "homepage": [
+      { "id": "hero", "type": "hero" },
+      { "id": "experience", "type": "experience" },
+      { "id": "host", "type": "host" },
+      { "id": "features", "type": "features" },
+      { "id": "location", "type": "location" },
+      { "id": "testimonials", "type": "testimonials" },
+      { "id": "cta", "type": "cta" }
+    ],
+    "header": {
+      "menuItems": [
+        { "label": "Home", "url": "/" },
+        { "label": "Property Details", "url": "/property" },
+        { "label": "Location", "url": "/location" },
+        { "label": "Gallery", "url": "/gallery" },
+        { "label": "About", "url": "/about" },
+        { "label": "Contact", "url": "/contact" }
+      ],
+      "logo": {
+        "src": "/logo.svg",
+        "alt": "RentalSpot"
+      }
+    },
+    "footer": {
+      "quickLinks": [
+        { "label": "Home", "url": "/" },
+        { "label": "Booking Policy", "url": "/policy" },
+        { "label": "House Rules", "url": "/rules" }
+      ],
+      "contactInfo": {
+        "email": "COMAN2904@GMAIL.COM",
+        "phone": "+40 723-200868",
+        "address": "Comarnic, Prahova, Romania"
+      },
+      "socialLinks": [
+        { "platform": "facebook", "url": "https://facebook.com/yourpage" },
+        { "platform": "instagram", "url": "https://instagram.com/yourpage" }
+      ],
+      "showNewsletter": true,
+      "newsletterTitle": "Subscribe to our newsletter",
+      "newsletterDescription": "Get updates and offers."
+    }
+  }
+  

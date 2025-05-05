@@ -1,0 +1,42 @@
+{
+    "templateId": "holiday-house",
+    "name": "Prahova Mountain Chalet",
+    "slug": "prahova-mountain-chalet",
+    "shortDescription": "Charming chalet with stunning mountain views in Comarnic.",
+    "description": "Escape to our charming chalet in the Prahova Valley...",
+    "location": {
+      "address": "Strada Principala 10",
+      "city": "Comarnic",
+      "state": "Prahova",
+      "country": "Romania",
+      "zipCode": "105700",
+      "coordinates": {
+        "latitude": 45.2530,
+        "longitude": 25.6346
+      }
+    },
+    "pricePerNight": 180,
+    "baseOccupancy": 4,
+    "extraGuestFee": 25,
+    "cleaningFee": 40,
+    "bedrooms": 3,
+    "beds": 4,
+    "bathrooms": 2,
+    "squareFeet": 1500,
+    "checkInTime": "3:00 PM",
+    "checkOutTime": "11:00 AM",
+    "channelIds": {
+      "airbnb": null,
+      "booking_com": null
+    },
+    "ratings": {
+      "average": 4.9,
+      "count": 15
+    },
+    "status": "active",
+    "schemaVersion": 1,
+    "ownerId": "YOUR_USER_ID",
+    "createdAt": { "_seconds": 1746200000, "_nanoseconds": 0 },
+    "updatedAt": { "_seconds": 1746200000, "_nanoseconds": 0 }
+  }
+  
