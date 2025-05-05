@@ -3,102 +3,113 @@
 @tailwind utilities;
 
 body {
-  font-family: Arial, Helvetica, sans-serif;
+  /* Default sans font, replace with Circular if loaded */
+  font-family: var(--font-geist-sans), sans-serif;
 }
 
 @layer base {
   :root {
-    --background: 210 40% 98%; /* Slightly off-white */
-    --foreground: 210 10% 23%; /* Dark grayish blue */
+    /* Base colors - using neutral gray tones similar to Airbnb */
+    --background: 0 0% 100%; /* White */
+    --foreground: 240 10% 3.9%; /* Almost black */
 
-    --card: 210 40% 98%;
-    --card-foreground: 210 10% 23%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
 
-    --popover: 210 40% 98%;
-    --popover-foreground: 210 10% 23%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
 
-    --primary: 207 70% 53%; /* Calming Blue #3498db */
+    /* Primary color - Airbnb Pink */
+    --primary: 358 100% 62%; /* #FF385C */
     --primary-foreground: 0 0% 100%; /* White */
 
-    --secondary: 192 15% 94%; /* Neutral Gray #ecf0f1 */
-    --secondary-foreground: 210 10% 23%; /* Dark grayish blue */
+    /* Secondary color - Light Gray */
+    --secondary: 240 4.8% 95.9%; /* Light gray */
+    --secondary-foreground: 240 5.9% 10%; /* Dark gray */
 
-    --muted: 192 15% 94%; /* Neutral Gray #ecf0f1 */
-    --muted-foreground: 210 7% 45%; /* Muted grayish blue */
+    /* Muted color - Lighter Gray */
+    --muted: 240 4.8% 95.9%; /* Same as secondary for simplicity */
+    --muted-foreground: 240 3.8% 46.1%; /* Medium gray */
 
-    --accent: 28 80% 52%; /* Warm Orange #e67e22 */
+    /* Accent color - Can be Airbnb Red or another highlight */
+    --accent: 358 100% 67%; /* Slightly lighter pink/red #FF5A5F */
     --accent-foreground: 0 0% 100%; /* White */
 
+    /* Destructive color */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 210 10% 85%; /* Lighter border */
-    --input: 210 10% 85%; /* Lighter input border */
-    --ring: 207 70% 53%; /* Primary blue for rings */
+    /* Border and Input colors */
+    --border: 240 5.9% 90%; /* Light gray border */
+    --input: 240 5.9% 90%; /* Light gray input border */
+    --ring: 358 100% 62%; /* Primary pink for rings */
 
-    --chart-1: 207 70% 53%; /* Primary */
-    --chart-2: 28 80% 52%; /* Accent */
-    --chart-3: 192 15% 60%; /* Darker Gray */
-    --chart-4: 207 50% 70%; /* Lighter Primary */
-    --chart-5: 28 60% 70%; /* Lighter Accent */
+    /* Chart colors (can be customized) */
+    --chart-1: 358 100% 62%; /* Primary */
+    --chart-2: 358 100% 67%; /* Accent */
+    --chart-3: 240 3.8% 46.1%; /* Muted foreground */
+    --chart-4: 358 80% 75%;   /* Lighter Primary */
+    --chart-5: 358 80% 80%;   /* Lighter Accent */
 
-    --radius: 0.5rem;
+    /* Radius */
+    --radius: 0.5rem; /* Default radius */
 
-    /* Sidebar specific colors if needed, can inherit or be customized */
-    --sidebar-background: 210 10% 90%; /* Slightly darker gray for sidebar */
-    --sidebar-foreground: 210 10% 23%;
-    --sidebar-primary: 207 70% 53%;
+    /* Sidebar specific colors (adjust if needed) */
+    --sidebar-background: 240 4.8% 95.9%; /* Light gray sidebar */
+    --sidebar-foreground: 240 10% 3.9%;
+    --sidebar-primary: 358 100% 62%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 28 80% 52%;
+    --sidebar-accent: 358 100% 67%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 210 10% 80%;
-    --sidebar-ring: 207 70% 53%;
+    --sidebar-border: 240 5.9% 90%;
+    --sidebar-ring: 358 100% 62%;
   }
 
   .dark {
-    --background: 210 10% 15%; /* Dark background */
-    --foreground: 210 40% 95%; /* Light foreground */
+    /* Dark theme colors - Adjust for Airbnb dark aesthetic if needed */
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
 
-    --card: 210 10% 20%; /* Darker card */
-    --card-foreground: 210 40% 95%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 210 10% 15%;
-    --popover-foreground: 210 40% 95%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 207 70% 53%; /* Calming Blue */
+    --primary: 358 100% 62%; /* Keep Airbnb Pink */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 10% 25%; /* Darker secondary */
-    --secondary-foreground: 210 40% 95%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 210 10% 25%;
-    --muted-foreground: 210 10% 60%; /* Muted light gray */
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
 
-    --accent: 28 80% 52%; /* Warm Orange */
+    --accent: 358 100% 67%; /* Keep Airbnb Red/Accent */
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 210 10% 30%; /* Darker border */
-    --input: 210 10% 30%;
-    --ring: 207 70% 53%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 358 100% 67%; /* Accent color for rings in dark */
 
-    --chart-1: 207 70% 53%;
-    --chart-2: 28 80% 52%;
-    --chart-3: 210 10% 50%;
-    --chart-4: 207 50% 70%;
-    --chart-5: 28 60% 70%;
+    --chart-1: 358 100% 62%;
+    --chart-2: 358 100% 67%;
+    --chart-3: 240 5% 64.9%;
+    --chart-4: 358 80% 75%;
+    --chart-5: 358 80% 80%;
 
-     /* Sidebar specific dark colors */
-    --sidebar-background: 210 10% 12%; /* Even darker sidebar */
-    --sidebar-foreground: 210 40% 95%;
-    --sidebar-primary: 207 70% 53%;
+    /* Sidebar specific dark colors */
+    --sidebar-background: 240 10% 3.9%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 358 100% 62%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 28 80% 52%;
+    --sidebar-accent: 358 100% 67%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 210 10% 25%;
-    --sidebar-ring: 207 70% 53%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 358 100% 67%;
   }
 }
 

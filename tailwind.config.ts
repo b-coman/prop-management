@@ -1,15 +1,23 @@
 import type { Config } from "tailwindcss";
 
-export default {
+const config: Config = {
     darkMode: ["class"],
     content: [
-    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    './pages/**/*.{ts,tsx,js,jsx}',
+    './components/**/*.{ts,tsx,js,jsx}',
+    './app/**/*.{ts,tsx,js,jsx}',
+    './@/**/*.{ts,tsx,js,jsx}',
+    './src/**/*.{ts,tsx,js,jsx}', // Ensure src directory is included
   ],
   theme: {
   	extend: {
   		colors: {
+        // Airbnb specific colors
+        'airbnb-red': '#FF5A5F',
+        'airbnb-pink': '#FF385C',
+        'airbnb-dark-gray': '#222222',
+        'airbnb-light-gray': '#717171',
+        // Shadcn/ui theme colors (using CSS variables)
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {
@@ -21,8 +29,8 @@ export default {
   				foreground: 'hsl(var(--popover-foreground))'
   			},
   			primary: {
-  				DEFAULT: 'hsl(var(--primary))',
-  				foreground: 'hsl(var(--primary-foreground))'
+          DEFAULT: "#FF385C", // Airbnb pink as primary
+          foreground: "#FFFFFF", // White foreground for pink
   			},
   			secondary: {
   				DEFAULT: 'hsl(var(--secondary))',
@@ -62,10 +70,18 @@ export default {
   			}
   		},
   		borderRadius: {
+        'airbnb': '32px', // Airbnb border radius
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
   		},
+       fontFamily: {
+        // Airbnb uses Circular font, ensure you load it via @font-face or a provider
+        // sans: ['var(--font-circular)', 'sans-serif'],
+        // Keeping Geist Sans as defined in layout for now unless Circular is explicitly loaded
+        sans: ['var(--font-geist-sans)', 'sans-serif'],
+        mono: ['var(--font-geist-mono)', 'monospace'],
+      },
   		keyframes: {
   			'accordion-down': {
   				from: {
@@ -92,3 +108,5 @@ export default {
   },
   plugins: [require("tailwindcss-animate")],
 } satisfies Config;
+
+export default config;
