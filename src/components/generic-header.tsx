@@ -41,12 +41,12 @@ export function Header({ propertyName, propertySlug }: HeaderProps) {
   return (
     // Make header sticky, position at top, give it a z-index
     <header className={cn(
-        "sticky top-0 left-0 z-50 w-full", // Sticky positioning and z-index
+        "fixed top-0 left-0 z-50 w-full", // Use fixed for sticky behavior
         "transition-all duration-300 ease-in-out", // Smooth transition for background
-        // Conditional background: Gradient when not scrolled, solid/blurred when scrolled
+        // Conditional background: Semi-transparent black when not scrolled, solid/blurred when scrolled
         isScrolled
             ? "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b" // Solid background with blur on scroll
-            : "bg-gradient-to-b from-black/60 to-transparent border-transparent" // Transparent gradient initially
+            : "bg-black/50 border-transparent" // Semi-transparent black initially, no border
     )}>
       <div className="container flex h-16 items-center justify-between">
          {/* Link back to the specific property page */}
