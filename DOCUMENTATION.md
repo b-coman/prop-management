@@ -27,7 +27,63 @@ Designed for scalability.
 
 ---
 
-## 🗂️ 2. **Firestore Collections**
+## 📁 2. **Project File Structure**
+
+This section outlines the key directories and their purposes within the project.
+
+```
+rentalspot/
+├── .env.local           # Local environment variables (API keys, secrets) - DO NOT COMMIT
+├── .next/               # Next.js build output (generated)
+├── components/          # Reusable React components
+│   ├── booking/         # Booking flow components (forms, calendar, etc.)
+│   ├── homepage/        # Components for specific homepage sections (Hero, Experience, etc.)
+│   ├── property/        # Components related to displaying property details
+│   └── ui/              # Shadcn UI components (Button, Card, Input, etc.)
+├── dataconnect/         # Firebase Data Connect configuration
+├── dataconnect-generated/ # Generated Data Connect SDK
+├── firestore/           # JSON files for seeding Firestore data
+│   ├── properties/      # Property metadata JSON files (e.g., prahova-mountain-chalet.json)
+│   └── propertyOverrides/ # Property content override JSON files
+│   └── websiteTemplates/  # Website template definition JSON files
+├── hooks/               # Custom React hooks (e.g., useSessionStorage, useToast)
+├── lib/                 # Utility functions, libraries, configurations
+│   ├── firebase.ts      # Firebase Client SDK initialization
+│   ├── firebaseAdmin.ts # Firebase Admin SDK initialization (for server-side tasks)
+│   ├── overridesSchemas.ts # Zod schemas for template/override content validation
+│   ├── price-utils.ts   # Pricing calculation logic
+│   └── utils.ts         # General utility functions (e.g., cn for Tailwind)
+├── node_modules/        # Project dependencies (managed by npm/yarn)
+├── public/              # Static assets (images, fonts, favicon)
+├── scripts/             # Utility scripts (e.g., load-properties.ts)
+├── src/                 # Main application source code (using src directory convention)
+│   ├── ai/              # Genkit AI related code (flows, prompts)
+│   ├── app/             # Next.js App Router directory
+│   │   ├── (app)/       # Main application routes and layouts
+│   │   │   ├── admin/     # Admin panel routes and components
+│   │   │   ├── api/       # API routes (e.g., webhooks)
+│   │   │   ├── booking/   # Booking flow pages (check, success, cancel)
+│   │   │   ├── properties/ # Dynamic property detail pages ([slug])
+│   │   │   ├── globals.css # Global CSS styles and Tailwind base layers
+│   │   │   ├── layout.tsx  # Root application layout
+│   │   │   └── page.tsx    # Homepage component (renders default property)
+│   │   └── actions/       # Server Actions (e.g., booking, checkout)
+│   └── services/        # Backend services (booking, coupon, sync)
+├── .gitignore           # Files and directories ignored by Git
+├── components.json      # Shadcn UI configuration
+├── DOCUMENTATION.md     # This file
+├── firebase.json        # Firebase project configuration (Hosting, Emulators, Firestore rules path)
+├── firestore.indexes.json # Firestore index definitions
+├── firestore.rules      # Firestore security rules
+├── next.config.ts       # Next.js configuration
+├── package.json         # Project dependencies and scripts
+├── README.md            # Project README
+└── tsconfig.json        # TypeScript configuration
+```
+
+---
+
+## 🗂️ 3. **Firestore Collections**
 
 | Collection                   | Description                                                                 | Document ID Format        |
 | :--------------------------- | :-------------------------------------------------------------------------- | :------------------------ |
@@ -46,7 +102,7 @@ Designed for scalability.
 
 ---
 
-## 📝 3. **Template Structure (`/websiteTemplates/{templateId}`)**
+## 📝 4. **Template Structure (`/websiteTemplates/{templateId}`)**
 
 Each template document defines the available blocks and their default content.
 
@@ -125,7 +181,7 @@ Each template document defines the available blocks and their default content.
 
 ---
 
-## 📝 4. **Property Overrides (`/propertyOverrides/{propertySlug}`)**
+## 📝 5. **Property Overrides (`/propertyOverrides/{propertySlug}`)**
 
 Stores **property-specific content overrides** and **visibility settings**. Contains *only* what differs from the template defaults or controls visibility.
 
@@ -203,7 +259,7 @@ Stores **property-specific content overrides** and **visibility settings**. Cont
 
 ---
 
-## 📝 5. **Schema Definitions (`src/lib/overridesSchemas.ts`)**
+## 📝 6. **Schema Definitions (`src/lib/overridesSchemas.ts`)**
 
 All block content (in `template.defaults` and `propertyOverrides`) must follow their corresponding schema defined centrally.
 
@@ -214,7 +270,7 @@ All block content (in `template.defaults` and `propertyOverrides`) must follow t
 
 ---
 
-## 🚀 6. **Frontend Rendering Logic (Updated)**
+## 🚀 7. **Frontend Rendering Logic (Updated)**
 
 For each block defined in `template.homepage`:
 
@@ -232,7 +288,7 @@ For each block defined in `template.homepage`:
 
 ---
 
-## ⚙️ 7. **Booking Flow (Multi-Step)**
+## ⚙️ 8. **Booking Flow (Multi-Step)**
 
 1.  **Initial Form (`InitialBookingForm`):** User selects dates on the property page (Hero section or elsewhere). "Check Availability" button is clicked.
 2.  **Navigation:** User is navigated to `/booking/check/{propertySlug}?checkIn=...&checkOut=...`.
@@ -268,7 +324,7 @@ For each block defined in `template.homepage`:
 
 ---
 
-## 🏷️ 8. **Coupon System**
+## 🏷️ 9. **Coupon System**
 
 - Coupons stored in `/coupons/{couponId}` collection.
 - Schema includes code, discount %, validity dates, activity status, optional booking timeframe, optional exclusion periods, optional property restriction.
@@ -277,7 +333,7 @@ For each block defined in `template.homepage`:
 
 ---
 
-## 🖼️ 9. **Image Storage & Referencing**
+## 🖼️ 10. **Image Storage & Referencing**
 
 ✅ **Static Template Images:** Default images used in `template.defaults` (e.g., `/default-hero.jpg`) MUST be stored in `/public/images/templates/{templateId}/...` or a similar structure within `/public`. Reference using relative paths from the root (e.g., `/images/templates/holiday-house/default-hero.jpg`).
 ✅ **Property Override Images:** Images specific to a property (hero background override, feature images, attraction images, gallery images) are referenced by their **full URLs** (e.g., from Firebase Storage, Cloudinary, Picsum) directly within the `/propertyOverrides/{slug}` document.
@@ -286,11 +342,11 @@ For each block defined in `template.homepage`:
 
 ---
 
-## 🔒 10. **Firestore Security Rules**
+## 🔒 11. **Firestore Security Rules**
 
 Rules are defined in `firestore.rules` and should be deployed to Firebase. Key rules:
 
-*   `/properties`: Read: `true`, Write: `if isOwner() || isAdmin()`
+*   `/properties`: Read: `true`, Write: `if isOwner(propertySlug) || isAdmin()`
 *   `/websiteTemplates`: Read: `true`, Write: `if isAdmin()`
 *   `/propertyOverrides`: Read: `true`, Write: `if isOwner(propertySlug) || isAdmin()`
 *   `/availability`: Read: `true`, Write: `if true` (Client SDK handles writes based on user actions, rules might need refinement if direct user modification is needed).
@@ -301,7 +357,7 @@ Rules are defined in `firestore.rules` and should be deployed to Firebase. Key r
 
 ---
 
-## 💻 11. **Admin Panel Behavior (Coupons)**
+## 💻 12. **Admin Panel Behavior (Coupons)**
 
 ✅ `/admin/coupons`: Lists all coupons, shows status, allows editing expiry, toggling status, expanding to edit booking validity and exclusion periods.
 ✅ `/admin/coupons/new`: Form to create new coupons with all fields (code, discount, expiry, validity, exclusions, description, etc.).
