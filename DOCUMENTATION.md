@@ -49,7 +49,7 @@ rentalspot/
 ├── hooks/               # Custom React hooks (e.g., useSessionStorage, useToast)
 ├── lib/                 # Utility functions, libraries, configurations
 │   ├── firebase.ts      # Firebase Client SDK initialization
-│   ├── firebaseAdmin.ts # Firebase Admin SDK initialization (for server-side tasks)
+│   ├── firebaseAdmin.ts # Firebase Admin SDK initialization (for server-side tasks) - Currently commented out
 │   ├── overridesSchemas.ts # Zod schemas for template/override content validation
 │   ├── price-utils.ts   # Pricing calculation logic
 │   └── utils.ts         # General utility functions (e.g., cn for Tailwind)
@@ -365,6 +365,33 @@ Rules are defined in `firestore.rules` and should be deployed to Firebase. Key r
 
 ---
 
+## ⚙️ 13. **Environment Variables**
+
+This section lists the environment variables required or used by the application. Store sensitive keys in `.env.local` (which should be in `.gitignore`).
+
+| Variable                                 | Purpose                                                                  | Scope         | Required | Example Value                     |
+| :--------------------------------------- | :----------------------------------------------------------------------- | :------------ | :------- | :-------------------------------- |
+| `NEXT_PUBLIC_FIREBASE_API_KEY`           | Firebase API key for Client SDK                                          | Client/Server | Yes      | `AIzaSy...`                       |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`       | Firebase Auth domain                                                     | Client/Server | Yes      | `your-project-id.firebaseapp.com` |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`        | Firebase Project ID                                                      | Client/Server | Yes      | `your-project-id`                 |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`    | Firebase Storage bucket URL                                              | Client/Server | Yes      | `your-project-id.appspot.com`     |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Firebase Cloud Messaging Sender ID                                     | Client/Server | Yes      | `123456789012`                    |
+| `NEXT_PUBLIC_FIREBASE_APP_ID`            | Firebase App ID                                                          | Client/Server | Yes      | `1:123...:web:...`                 |
+| `STRIPE_SECRET_KEY`                      | Stripe Secret Key for server-side API calls (e.g., creating sessions)    | Server        | Yes      | `sk_test_...` or `sk_live_...`      |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`     | Stripe Publishable Key for client-side (e.g., initializing Stripe.js)    | Client        | Yes      | `pk_test_...` or `pk_live_...`      |
+| `STRIPE_WEBHOOK_SECRET`                  | Stripe Webhook Signing Secret for verifying webhook events               | Server        | Yes      | `whsec_...`                       |
+| `GOOGLE_GENAI_API_KEY`                   | API Key for Google AI (Genkit/Gemini)                                    | Server        | Optional | `AIzaSy...`                       |
+| `TWILIO_ACCOUNT_SID`                     | Twilio Account SID (if using Twilio for SMS)                             | Server        | Optional | `ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` |
+| `TWILIO_AUTH_TOKEN`                      | Twilio Auth Token (if using Twilio for SMS)                              | Server        | Optional | `your_auth_token`                 |
+| `TWILIO_PHONE_NUMBER`                    | Twilio phone number used for sending SMS                                 | Server        | Optional | `+15551234567`                    |
+| `FIREBASE_ADMIN_SERVICE_ACCOUNT_PATH`    | Path to Firebase Admin SDK service account key file (for scripts/admin) | Server        | Optional | `./serviceAccountKey.json`        |
+
+✅ **Note:** `NEXT_PUBLIC_` prefix exposes the variable to the client-side browser bundle. Variables without the prefix are only available server-side.
+
+---
+
 ## 🏁 **End of Current Documentation**
 
 All future changes should be appended below as updates or clarifications.
+
+```
