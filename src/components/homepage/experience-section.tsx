@@ -44,7 +44,7 @@ export function ExperienceSection({ title, welcomeText, highlights }: Experience
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid gap-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))' }}>
           {highlights.map((highlight, index) => {
             const IconComponent = iconMap[highlight.icon] || Leaf; // Default to Leaf icon if not found
             return (

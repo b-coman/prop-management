@@ -35,9 +35,10 @@ export function UniqueFeatures({ features }: UniqueFeaturesProps) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {features.map((feature, index) => (
+            // Apply text-center to the card container
             <div key={index} className="flex flex-col items-center text-center p-6 bg-card rounded-lg shadow-md border border-border">
-              {/* Feature Image or Icon */}
-              <div className="mb-4 h-40 w-full relative rounded-lg overflow-hidden bg-muted">
+              {/* Feature Image or Icon - Use mx-auto to center block elements */}
+              <div className="mb-4 h-40 w-full relative rounded-lg overflow-hidden bg-muted mx-auto">
                  {feature.image ? (
                      <Image
                          src={feature.image}
