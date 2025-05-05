@@ -1,4 +1,3 @@
-
 "use client"; // Add 'use client' because we need hooks (useState, useEffect)
 
 import { useState, useEffect } from 'react'; // Import hooks
@@ -81,8 +80,8 @@ export function Header({ propertyName, propertySlug }: HeaderProps) {
 
   return (
     <header className={headerClasses}>
-      {/* Use px-4 md:px-6 for consistent padding */}
-      <div className="flex h-16 items-center justify-between px-4 md:px-6">
+      {/* Revert back to using container class for consistent padding */}
+      <div className="container flex h-16 items-center justify-between">
          {/* Link back to the specific property page */}
         <Link href={basePath} className="flex items-center gap-2">
            {/* Placeholder SVG for logo or property-specific logo */}
