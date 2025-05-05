@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from 'react';
@@ -50,7 +51,7 @@ import { Badge } from '@/components/ui/badge';
 
 
 interface AvailabilityCheckProps {
-  property: Property;
+  property: Property; // Expects the full property object with slug
   initialCheckIn?: string; // YYYY-MM-DD
   initialCheckOut?: string; // YYYY-MM-DD
 }
@@ -67,27 +68,30 @@ const parseDateSafe = (dateStr: string | undefined | null): Date | null => {
 };
 
 export function AvailabilityCheck({
-  property,
+  property, // Contains the slug
   initialCheckIn,
   initialCheckOut,
 }: AvailabilityCheckProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const propertySlug = property.slug; // Use the slug from the property object
 
   // --- State Management ---
   const [checkInDate, setCheckInDate] = useState<Date | null>(parseDateSafe(initialCheckIn));
   const [checkOutDate, setCheckOutDate] = useState<Date | null>(parseDateSafe(initialCheckOut));
-  const [numberOfGuests, setNumberOfGuests] = useSessionStorage<number>(`booking_${property.id}_guests`, property.baseOccupancy || 1); // Default to base occupancy or 1
+  // Use propertySlug in session storage key for uniqueness per property
+  const [numberOfGuests, setNumberOfGuests] = useSessionStorage<number>(`booking_${propertySlug}_guests`, property.baseOccupancy || 1);
 
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
   const [unavailableDates, setUnavailableDates] = useState<Date[]>([]);
   const [suggestedDates, setSuggestedDates] = useState<Array<{ from: Date; to: Date; recommendation?: string }>>([]);
 
-  const [firstName, setFirstName] = useSessionStorage<string>(`booking_${property.id}_firstName`, '');
-  const [lastName, setLastName] = useSessionStorage<string>(`booking_${property.id}_lastName`, '');
-  const [email, setEmail] = useSessionStorage<string>(`booking_${property.id}_email`, '');
-  const [phone, setPhone] = useSessionStorage<string>(`booking_${property.id}_phone`, '');
+  // Use propertySlug in session storage keys
+  const [firstName, setFirstName] = useSessionStorage<string>(`booking_${propertySlug}_firstName`, '');
+  const [lastName, setLastName] = useSessionStorage<string>(`booking_${propertySlug}_lastName`, '');
+  const [email, setEmail] = useSessionStorage<string>(`booking_${propertySlug}_email`, '');
+  const [phone, setPhone] = useSessionStorage<string>(`booking_${propertySlug}_phone`, '');
   const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null); // State for Stripe instance
 
   const [couponCode, setCouponCode] = useState('');
@@ -127,10 +131,10 @@ export function AvailabilityCheck({
       return calculatePrice(
         property.pricePerNight,
         numberOfNights,
-        property.cleaningFee,
+        property.cleaningFee ?? 0, // Handle optional cleaningFee
         numberOfGuests,
         property.baseOccupancy,
-        property.extraGuestFee,
+        property.extraGuestFee ?? 0, // Handle optional extraGuestFee
         appliedCoupon?.discountPercentage
       );
     }
@@ -151,8 +155,9 @@ export function AvailabilityCheck({
     setSuggestedDates([]);
 
     try {
-      // console.log(`[AvailabilityCheck] Fetching unavailable dates for property ${property.id}`);
-      const fetchedUnavailableDates = await getUnavailableDatesForProperty(property.id);
+      // console.log(`[AvailabilityCheck] Fetching unavailable dates for property ${propertySlug}`);
+      // Fetch using the property slug
+      const fetchedUnavailableDates = await getUnavailableDatesForProperty(propertySlug);
       // console.log(`[AvailabilityCheck] Fetched ${fetchedUnavailableDates.length} unavailable dates`);
       setUnavailableDates(fetchedUnavailableDates);
 
@@ -207,7 +212,7 @@ export function AvailabilityCheck({
     } finally {
       setIsLoadingAvailability(false);
     }
-  }, [checkInDate, checkOutDate, datesSelected, property.id, numberOfNights, toast]);
+  }, [checkInDate, checkOutDate, datesSelected, propertySlug, numberOfNights, toast]); // Use propertySlug
 
   // Re-check availability when dates change
   useEffect(() => {
@@ -247,7 +252,8 @@ export function AvailabilityCheck({
     setAppliedCoupon(null);
 
     try {
-      const result = await validateAndApplyCoupon(couponCode.trim(), checkInDate, checkOutDate);
+       // Pass propertySlug if coupon validation depends on it
+      const result = await validateAndApplyCoupon(couponCode.trim(), checkInDate, checkOutDate, propertySlug);
       if (result.error) {
         setCouponError(result.error);
       } else if (result.discountPercentage) {
@@ -313,7 +319,7 @@ export function AvailabilityCheck({
     try {
       // console.log("[handleContinueToPayment] Creating pending booking...");
       const bookingInput = {
-        propertyId: property.id,
+        propertyId: propertySlug, // Pass the SLUG here
         guestInfo: { firstName, lastName, email, phone },
         checkInDate: checkInDate.toISOString(), // Use guaranteed dates
         checkOutDate: checkOutDate.toISOString(), // Use guaranteed dates
@@ -344,7 +350,7 @@ export function AvailabilityCheck({
       // console.log(`[handleContinueToPayment] Pending booking created: ${bookingId}. Creating Stripe session...`);
 
       const checkoutInput = {
-        property: property,
+        property: property, // Pass the full property object (contains slug)
         checkInDate: checkInDate.toISOString(),
         checkOutDate: checkOutDate.toISOString(),
         numberOfGuests: numberOfGuests,
@@ -372,13 +378,19 @@ export function AvailabilityCheck({
             // Code below might not execute if redirect is successful immediately
        } catch (redirectError) {
             console.error("[handleContinueToPayment] Error during window.location.assign redirect:", redirectError);
-            // Fallback or alternative redirect attempt (though stripe.redirectToCheckout might have the same issue)
+            // Fallback or alternative redirect attempt
             const stripe = await stripePromise;
             if (!stripe) throw new Error('Stripe.js failed to load.');
             console.warn("[handleContinueToPayment] window.location.assign failed, attempting fallback with stripe.redirectToCheckout...");
              const { error } = await stripe.redirectToCheckout({ sessionId: stripeResult.sessionId });
              if (error) {
-                 throw new Error(error.message || 'Could not redirect to Stripe (fallback attempt).');
+                 // Check if the error is the specific SecurityError and provide a hint
+                 if (error.name === 'SecurityError' && error.message.includes('permission to navigate the target frame')) {
+                     console.error("[Stripe Redirect Error] SecurityError: Likely due to cross-origin restrictions in the iframe environment (like Firebase Studio). Redirection might be blocked.");
+                     setFormError("Could not redirect to Stripe due to security restrictions in this environment. Please try booking from the deployed site.");
+                 } else {
+                    throw new Error(error.message || 'Could not redirect to Stripe (fallback attempt).');
+                 }
              }
        }
 
@@ -413,7 +425,7 @@ export function AvailabilityCheck({
     try {
       // TODO: Implement server action `createAvailabilityAlertAction`
       // const result = await createAvailabilityAlertAction({
-      //   propertyId: property.id,
+      //   propertyId: propertySlug, // Pass the slug
       //   checkInDate: format(checkInDate, 'yyyy-MM-dd'),
       //   checkOutDate: format(checkOutDate, 'yyyy-MM-dd'),
       //   contactMethod: notificationMethod,
@@ -421,13 +433,13 @@ export function AvailabilityCheck({
       // });
       // if (result.error) throw new Error(result.error);
 
-      // console.log("[handleNotifyAvailability] Simulating availability alert request:", {
-      //   propertyId: property.id,
-      //   checkInDate: format(checkInDate, 'yyyy-MM-dd'), // Use guaranteed date
-      //   checkOutDate: format(checkOutDate, 'yyyy-MM-dd'), // Use guaranteed date
-      //   method: notificationMethod,
-      //   contact: notificationMethod === 'email' ? email : phone,
-      // });
+      console.log("[handleNotifyAvailability] Simulating availability alert request:", {
+        propertyId: propertySlug, // Use slug
+        checkInDate: format(checkInDate, 'yyyy-MM-dd'), // Use guaranteed date
+        checkOutDate: format(checkOutDate, 'yyyy-MM-dd'), // Use guaranteed date
+        method: notificationMethod,
+        contact: notificationMethod === 'email' ? email : phone,
+      });
       await new Promise(res => setTimeout(res, 500)); // Simulate API call
 
       toast({
@@ -535,7 +547,9 @@ export function AvailabilityCheck({
        // console.log("[renderAvailabilityCalendar] Still loading initial data, skipping render.");
        return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
      }
-     const calendarCenterMonth = checkInDate ? startOfMonth(checkInDate) : startOfMonth(new Date());
+      // Use checkInDate if available and valid, otherwise default to current date
+     const validCheckIn = checkInDate && isValid(checkInDate) ? checkInDate : new Date();
+     const calendarCenterMonth = startOfMonth(validCheckIn);
      // console.log("[renderAvailabilityCalendar] Center month:", format(calendarCenterMonth, 'yyyy-MM'));
      return (
        <div className="mt-6">

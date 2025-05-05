@@ -3197,14 +3197,20 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts
 ;
 // Function to get core property data by slug (can be reused)
 async function getPropertyBySlug(slug) {
-    const propertyRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'properties', slug);
+    const propertyRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'properties', slug); // Use slug as document ID
     try {
         const docSnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDoc"])(propertyRef);
         if (docSnap.exists()) {
-            return {
+            const data = docSnap.data();
+            // Ensure slug is part of the returned object, using the doc ID
+            const propertyData = {
                 id: docSnap.id,
-                ...docSnap.data()
+                slug: docSnap.id,
+                ...data
             };
+            // Ensure houseRules is always an array
+            propertyData.houseRules = propertyData.houseRules || [];
+            return propertyData;
         } else {
             console.warn(`[getPropertyBySlug] Property document not found: properties/${slug}`);
             return undefined;
@@ -3236,7 +3242,7 @@ async function getWebsiteTemplate(templateId) {
 }
 // Function to get property overrides data (can be reused)
 async function getPropertyOverrides(slug) {
-    const overridesRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'propertyOverrides', slug);
+    const overridesRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'propertyOverrides', slug); // Use slug as document ID
     try {
         const docSnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDoc"])(overridesRef);
         if (docSnap.exists()) {
@@ -3278,7 +3284,7 @@ async function HomePage() {
             children: "Loading homepage..."
         }, void 0, false, {
             fileName: "[project]/src/app/page.tsx",
-            lineNumber: 89,
+            lineNumber: 94,
             columnNumber: 25
         }, void 0),
         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$property$2d$page$2d$layout$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["PropertyPageLayout"], {
@@ -3287,12 +3293,12 @@ async function HomePage() {
             overrides: overrides || {}
         }, void 0, false, {
             fileName: "[project]/src/app/page.tsx",
-            lineNumber: 90,
+            lineNumber: 95,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/src/app/page.tsx",
-        lineNumber: 89,
+        lineNumber: 94,
         columnNumber: 5
     }, this);
 }

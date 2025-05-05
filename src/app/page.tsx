@@ -8,11 +8,16 @@ import { db } from '@/lib/firebase'; // Assuming db is correctly initialized
 
 // Function to get core property data by slug (can be reused)
 async function getPropertyBySlug(slug: string): Promise<Property | undefined> {
-    const propertyRef = doc(db, 'properties', slug);
+    const propertyRef = doc(db, 'properties', slug); // Use slug as document ID
     try {
         const docSnap = await getDoc(propertyRef);
         if (docSnap.exists()) {
-            return { id: docSnap.id, ...docSnap.data() } as Property;
+            const data = docSnap.data();
+             // Ensure slug is part of the returned object, using the doc ID
+             const propertyData = { id: docSnap.id, slug: docSnap.id, ...data } as Property;
+             // Ensure houseRules is always an array
+             propertyData.houseRules = propertyData.houseRules || [];
+             return propertyData;
         } else {
             console.warn(`[getPropertyBySlug] Property document not found: properties/${slug}`);
             return undefined;
@@ -43,7 +48,7 @@ async function getWebsiteTemplate(templateId: string): Promise<WebsiteTemplate |
 
 // Function to get property overrides data (can be reused)
 async function getPropertyOverrides(slug: string): Promise<PropertyOverrides | undefined> {
-     const overridesRef = doc(db, 'propertyOverrides', slug);
+     const overridesRef = doc(db, 'propertyOverrides', slug); // Use slug as document ID
      try {
          const docSnap = await getDoc(overridesRef);
          if (docSnap.exists()) {

@@ -1,3 +1,4 @@
+
 "use server";
 
 import { z } from "zod";
@@ -80,7 +81,8 @@ export async function createCouponAction(
 
     // Prepare data for Firestore, converting Dates to Timestamps or null
     // Explicitly type the data being sent to Firestore for clarity
-    const couponDataForDb: { [key: string]: any } = {
+    // Note: We let Firestore auto-generate the ID here
+    const couponDataForDb: Omit<Coupon, 'id'> = {
       code: code,
       discount: discount,
       validUntil: Timestamp.fromDate(validUntil), // Convert Date to Firestore Timestamp
@@ -94,9 +96,11 @@ export async function createCouponAction(
         start: Timestamp.fromDate(period.start),
         end: Timestamp.fromDate(period.end),
       })) : [], // Store as empty array if not provided or empty
+      // Explicitly set propertyId to null or handle if coupons are property-specific
+      propertyId: null, // Assuming general coupons, adjust if needed
     };
 
-    // Add the document to Firestore
+    // Add the document to Firestore (auto-generated ID)
     const docRef = await addDoc(couponsCollection, couponDataForDb);
 
     console.log(`[Create Coupon Action] Coupon "${code}" created successfully with ID: ${docRef.id}`);
@@ -116,7 +120,7 @@ export async function createCouponAction(
 
 // --- Server action to update coupon status ---
 const updateCouponStatusSchema = z.object({
-  couponId: z.string().min(1, "Coupon ID is required."),
+  couponId: z.string().min(1, "Coupon ID is required."), // Use Firestore document ID
   isActive: z.boolean(),
 });
 
@@ -133,7 +137,7 @@ export async function updateCouponStatusAction(
     const { couponId, isActive } = validatedFields.data;
 
     try {
-        const couponRef = doc(db, 'coupons', couponId);
+        const couponRef = doc(db, 'coupons', couponId); // Use couponId (doc ID)
         await updateDoc(couponRef, {
             isActive: isActive,
             updatedAt: serverTimestamp() // Update timestamp
@@ -154,7 +158,7 @@ export async function updateCouponStatusAction(
 
 // --- Server action to update coupon expiry date ---
 const updateCouponExpirySchema = z.object({
-  couponId: z.string().min(1, "Coupon ID is required."),
+  couponId: z.string().min(1, "Coupon ID is required."), // Use Firestore document ID
   validUntil: z.date(),
 });
 
@@ -170,7 +174,7 @@ export async function updateCouponExpiryAction(
     const { couponId, validUntil } = validatedFields.data;
 
     try {
-        const couponRef = doc(db, 'coupons', couponId);
+        const couponRef = doc(db, 'coupons', couponId); // Use couponId (doc ID)
         await updateDoc(couponRef, {
             validUntil: Timestamp.fromDate(validUntil), // Convert Date to Firestore Timestamp
             updatedAt: serverTimestamp() // Update timestamp
@@ -190,7 +194,7 @@ export async function updateCouponExpiryAction(
 
 // --- Server action to update booking validity dates ---
 const updateCouponBookingValiditySchema = z.object({
-    couponId: z.string().min(1, "Coupon ID is required."),
+    couponId: z.string().min(1, "Coupon ID is required."), // Use Firestore document ID
     bookingValidFrom: z.date().nullable(),
     bookingValidUntil: z.date().nullable(),
 }).refine(data => {
@@ -215,7 +219,7 @@ export async function updateCouponBookingValidityAction(
     const { couponId, bookingValidFrom, bookingValidUntil } = validatedFields.data;
 
     try {
-        const couponRef = doc(db, 'coupons', couponId);
+        const couponRef = doc(db, 'coupons', couponId); // Use couponId (doc ID)
         await updateDoc(couponRef, {
             bookingValidFrom: bookingValidFrom ? Timestamp.fromDate(bookingValidFrom) : null,
             bookingValidUntil: bookingValidUntil ? Timestamp.fromDate(bookingValidUntil) : null,
@@ -236,7 +240,7 @@ export async function updateCouponBookingValidityAction(
 
 // --- Server action to update coupon exclusion periods ---
 const updateCouponExclusionsSchema = z.object({
-    couponId: z.string().min(1, "Coupon ID is required."),
+    couponId: z.string().min(1, "Coupon ID is required."), // Use Firestore document ID
     exclusionPeriods: z.array(exclusionPeriodSchema).optional(), // Allow empty array
 });
 
@@ -252,7 +256,7 @@ export async function updateCouponExclusionsAction(
     const { couponId, exclusionPeriods } = validatedFields.data;
 
     try {
-        const couponRef = doc(db, 'coupons', couponId);
+        const couponRef = doc(db, 'coupons', couponId); // Use couponId (doc ID)
         const formattedExclusions = exclusionPeriods ? exclusionPeriods.map(p => ({
             start: Timestamp.fromDate(p.start),
             end: Timestamp.fromDate(p.end)
@@ -319,11 +323,12 @@ export async function fetchCoupons(): Promise<Coupon[]> {
 
 
         return {
-          id: doc.id,
+          id: doc.id, // Use Firestore document ID
           code: data.code,
           discount: data.discount,
           isActive: data.isActive,
           description: data.description,
+          propertyId: data.propertyId ?? null, // Handle optional propertyId (slug)
           // Convert Timestamps to ISO strings for serialization
           validUntil: toSerializableDate(data.validUntil),
           createdAt: toSerializableDate(data.createdAt),

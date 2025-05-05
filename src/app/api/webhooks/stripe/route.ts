@@ -91,13 +91,20 @@ export async function POST(req: NextRequest) {
 
     // --- Extract pendingBookingId from metadata ---
     const pendingBookingId = metadata.pendingBookingId;
+    const propertyId = metadata.propertyId; // This is the SLUG now
+
     if (!pendingBookingId) {
         console.error(`❌ [Webhook Error - Session ${sessionId}] Missing 'pendingBookingId' in metadata. Cannot link payment to booking.`);
         // Decide how to handle this: maybe create a new booking based on metadata anyway?
         // For now, return an error as we expect the pending booking flow.
         return NextResponse.json({ error: "Missing pending booking reference" }, { status: 400 });
     }
-    console.log(`[Webhook] Found pendingBookingId: ${pendingBookingId} in metadata for session ${sessionId}`);
+    if (!propertyId) {
+         console.error(`❌ [Webhook Error - Session ${sessionId}] Missing 'propertyId' (slug) in metadata.`);
+         return NextResponse.json({ error: "Missing property reference in metadata" }, { status: 400 });
+    }
+
+    console.log(`[Webhook] Found pendingBookingId: ${pendingBookingId} and propertyId (slug): ${propertyId} in metadata for session ${sessionId}`);
 
     // --- Prepare Payment Info ---
     const paymentInfo: Booking['paymentInfo'] = {
@@ -112,7 +119,9 @@ export async function POST(req: NextRequest) {
     // --- Update Booking Status and Payment Info ---
     try {
       console.log(`[Webhook] Calling updateBookingPaymentInfo for booking ${pendingBookingId}...`);
-      await updateBookingPaymentInfo(pendingBookingId, paymentInfo);
+       // Pass propertyId (slug) to the update function if it needs it
+       // (Current implementation of updateBookingPaymentInfo uses bookingId only, but good practice to have it)
+      await updateBookingPaymentInfo(pendingBookingId, paymentInfo, propertyId);
       console.log(`✅✅ [Webhook] Booking ${pendingBookingId} successfully updated to 'confirmed' with payment details for session ${sessionId}.`);
 
       // TODO: Trigger post-confirmation actions (emails, SMS, external sync) HERE
@@ -132,11 +141,17 @@ export async function POST(req: NextRequest) {
      console.log(`✅ [Webhook] Handling payment_intent.succeeded: ${paymentIntent.id}`);
      const checkoutSessionId = paymentIntent.metadata?.checkout_session_id; // If you pass session_id in PI metadata
      const pendingBookingId = paymentIntent.metadata?.pendingBookingId; // If you pass booking_id in PI metadata
+     const propertyId = paymentIntent.metadata?.propertyId; // Get property slug
 
      if (!pendingBookingId) {
           console.warn(`[Webhook payment_intent.succeeded] Missing 'pendingBookingId' in Payment Intent ${paymentIntent.id} metadata. Cannot link payment.`);
           // Maybe query bookings by paymentIntentId if needed as a fallback?
           return NextResponse.json({ received: true, message: 'Missing booking reference in payment intent' });
+     }
+      if (!propertyId) {
+         console.warn(`[Webhook payment_intent.succeeded] Missing 'propertyId' (slug) in Payment Intent ${paymentIntent.id} metadata.`);
+         // Need propertyId to update availability
+         return NextResponse.json({ received: true, message: 'Missing property reference in payment intent' });
      }
 
       const paymentInfo: Booking['paymentInfo'] = {
@@ -148,7 +163,7 @@ export async function POST(req: NextRequest) {
 
      try {
        console.log(`[Webhook payment_intent.succeeded] Calling updateBookingPaymentInfo for booking ${pendingBookingId}...`);
-       await updateBookingPaymentInfo(pendingBookingId, paymentInfo);
+       await updateBookingPaymentInfo(pendingBookingId, paymentInfo, propertyId); // Pass slug
        console.log(`✅✅ [Webhook payment_intent.succeeded] Booking ${pendingBookingId} successfully updated/confirmed for PI ${paymentIntent.id}.`);
        // Trigger post-confirmation actions here too if necessary
      } catch (error) {

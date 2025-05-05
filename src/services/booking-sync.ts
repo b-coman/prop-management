@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Service functions for synchronizing booking availability with external platforms like Airbnb and Booking.com.
  * IMPORTANT: These functions currently contain placeholder logic and require actual API integration.
@@ -27,23 +28,28 @@ export interface BookingComListing {
 }
 
 /**
- * Fetches property details including external listing IDs.
+ * Fetches property details including external listing IDs using the property slug.
  *
- * @param propertyId The ID of the property to fetch.
+ * @param propertySlug The slug (which is the document ID) of the property to fetch.
  * @returns The Property object or null if not found.
  */
-export async function getPropertyForSync(propertyId: string): Promise<Property | null> {
-    const propertyRef = doc(db, 'properties', propertyId);
+export async function getPropertyForSync(propertySlug: string): Promise<Property | null> {
+    console.log(`[getPropertyForSync] Attempting to fetch property with slug: ${propertySlug}`);
+    const propertyRef = doc(db, 'properties', propertySlug); // Use slug as document ID
     try {
         const docSnap = await getDoc(propertyRef);
         if (docSnap.exists()) {
-            return { id: docSnap.id, ...docSnap.data() } as Property;
+             const data = docSnap.data();
+              // Ensure slug is part of the returned object
+             const propertyData = { id: docSnap.id, slug: docSnap.id, ...data } as Property;
+             console.log(`[getPropertyForSync] Found property: ${propertySlug}`);
+             return propertyData;
         } else {
-            console.warn(`[getPropertyForSync] Property document not found in Firestore: properties/${propertyId}`);
+            console.warn(`[getPropertyForSync] Property document not found in Firestore: properties/${propertySlug}`);
             return null;
         }
     } catch (error) {
-         console.error(`❌ [getPropertyForSync] Error fetching property ${propertyId}:`, error);
+         console.error(`❌ [getPropertyForSync] Error fetching property ${propertySlug}:`, error);
          return null;
     }
 }

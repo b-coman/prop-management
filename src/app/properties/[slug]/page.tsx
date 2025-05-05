@@ -14,7 +14,11 @@ export async function getPropertyBySlug(slug: string): Promise<Property | undefi
         if (docSnap.exists()) {
             const data = docSnap.data();
             // Basic type assertion, ideally use Zod validation
-            return { id: docSnap.id, ...data } as Property;
+             // Ensure slug is part of the returned object, using the doc ID
+             const propertyData = { id: docSnap.id, slug: docSnap.id, ...data } as Property;
+             // Ensure houseRules is always an array
+             propertyData.houseRules = propertyData.houseRules || [];
+             return propertyData;
         } else {
             console.warn(`[getPropertyBySlug] Property document not found: properties/${slug}`);
             return undefined;
@@ -49,6 +53,7 @@ async function getPropertyOverrides(slug: string): Promise<PropertyOverrides | u
     try {
         const docSnap = await getDoc(overridesRef);
         if (docSnap.exists()) {
+            // Use slug as the ID for overrides as well
             return { id: docSnap.id, ...docSnap.data() } as PropertyOverrides;
         } else {
             console.log(`[getPropertyOverrides] No overrides document found for: propertyOverrides/${slug}. Using defaults.`);

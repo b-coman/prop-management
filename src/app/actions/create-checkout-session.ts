@@ -1,3 +1,4 @@
+
 "use server";
 
 import type { Property } from '@/types';
@@ -12,7 +13,7 @@ if (!stripeSecretKey) {
 const stripe = new Stripe(stripeSecretKey);
 
 interface CreateCheckoutSessionInput {
-  property: Property;
+  property: Property; // Property object still needed for other details
   checkInDate: string; // ISO string format
   checkOutDate: string; // ISO string format
   numberOfGuests: number;
@@ -31,7 +32,7 @@ interface CreateCheckoutSessionInput {
 
 export async function createCheckoutSession(input: CreateCheckoutSessionInput): Promise<{ sessionId?: string; sessionUrl?: string | null; error?: string }> {
   const {
-    property,
+    property, // Contains slug and other details
     checkInDate,
     checkOutDate,
     numberOfGuests,
@@ -46,14 +47,14 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput): 
   } = input;
 
   // Await the headers call
-  const headersList = await headers(); // Await headers() call
+  const headersList = headers(); // Await headers() call
   const origin = headersList.get('origin') || 'http://localhost:9002';
 
   const numberOfExtraGuests = Math.max(0, numberOfGuests - property.baseOccupancy);
 
   // --- Prepare metadata ---
   const metadata: Stripe.MetadataParam = {
-    propertyId: property.id,
+    propertyId: property.slug, // Use SLUG as the identifier in metadata
     propertyName: property.name,
     checkInDate: checkInDate,
     checkOutDate: checkOutDate,
@@ -92,7 +93,7 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput): 
             product_data: {
               name: `${property.name} (${numberOfNights} nights, ${numberOfGuests} guests)${appliedCouponCode ? ` - Coupon: ${appliedCouponCode}` : ''}`,
               description: `Booking from ${new Date(checkInDate).toLocaleDateString()} to ${new Date(checkOutDate).toLocaleDateString()}. Ref: ${pendingBookingId || 'N/A'}`, // Add ref
-              images: [property.images.find(img => img.isFeatured)?.url || property.images[0]?.url || ''],
+              images: [property.images?.find(img => img.isFeatured)?.url || property.images?.[0]?.url || ''], // Use optional chaining
             },
             unit_amount: Math.round(totalPrice * 100),
           },
@@ -104,7 +105,7 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput): 
       cancel_url: cancel_url,
       customer_email: guestEmail,
       phone_number_collection: { enabled: true,}, // Keep phone collection
-      metadata: metadata, // Pass the prepared metadata including pendingBookingId
+      metadata: metadata, // Pass the prepared metadata including propertyId (slug) and pendingBookingId
     });
 
     if (!session.id || !session.url) { // Check for session URL as well

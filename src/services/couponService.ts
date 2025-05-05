@@ -28,17 +28,20 @@ const toDate = (timestamp: SerializableTimestamp | undefined | null): Date | nul
 
 /**
  * Validates a coupon code against the Firestore 'coupons' collection.
- * Checks existence, activity status, expiry, booking validity timeframe, and exclusion periods.
+ * Checks existence, activity status, expiry, booking validity timeframe, exclusion periods,
+ * and optionally if the coupon is restricted to a specific property.
  *
  * @param couponCode - The coupon code string entered by the user.
  * @param bookingCheckInDate - The check-in date of the booking.
  * @param bookingCheckOutDate - The check-out date of the booking.
+ * @param propertyId - Optional. The slug of the property the booking is for. If provided, checks property restriction.
  * @returns A promise resolving to an object with discount percentage or an error message.
  */
 export async function validateAndApplyCoupon(
   couponCode: string,
   bookingCheckInDate: Date | null,
-  bookingCheckOutDate: Date | null
+  bookingCheckOutDate: Date | null,
+  propertyId?: string | null // Optional property slug
 ): Promise<{ discountPercentage?: number; error?: string }> {
   if (!couponCode) {
     return { error: 'Coupon code cannot be empty.' };
@@ -51,6 +54,7 @@ export async function validateAndApplyCoupon(
 
   try {
     const couponsCollection = collection(db, 'coupons');
+    // Query by code first
     const q = query(couponsCollection, where('code', '==', couponCodeUpper), limit(1));
     const querySnapshot = await getDocs(q);
 
@@ -61,15 +65,7 @@ export async function validateAndApplyCoupon(
 
     const couponDoc = querySnapshot.docs[0];
     // Cast data to include new fields, ensuring they can be null/undefined
-    const couponData = couponDoc.data() as Omit<Coupon, 'id' | 'createdAt' | 'updatedAt' | 'validUntil' | 'bookingValidFrom' | 'bookingValidUntil' | 'exclusionPeriods'> & {
-        createdAt: any;
-        updatedAt?: any;
-        validUntil: any;
-        bookingValidFrom?: any | null;
-        bookingValidUntil?: any | null;
-        exclusionPeriods?: Array<{ start: any; end: any }> | null;
-    };
-
+    const couponData = couponDoc.data() as Coupon; // Use Coupon type directly now
 
     // --- Basic Validations ---
     if (!couponData.isActive) {
@@ -91,6 +87,19 @@ export async function validateAndApplyCoupon(
       console.error(`[Coupon Service] Invalid discount percentage (${couponData.discount}) for coupon "${couponCodeUpper}".`);
       return { error: 'Invalid coupon configuration.' };
     }
+
+    // --- Property Restriction Validation ---
+    // Check if the coupon has a propertyId and if it matches the booking's propertyId
+    if (couponData.propertyId && propertyId && couponData.propertyId !== propertyId) {
+        console.warn(`[Coupon Service] Coupon "${couponCodeUpper}" is only valid for property ${couponData.propertyId}, but booking is for ${propertyId}.`);
+        return { error: 'Coupon is not valid for this property.' };
+    }
+    // If coupon has propertyId but booking doesn't, it's also an error (though unlikely in current flow)
+    if (couponData.propertyId && !propertyId) {
+        console.warn(`[Coupon Service] Coupon "${couponCodeUpper}" requires a specific property, but none was provided for the booking.`);
+        return { error: 'Coupon requires a specific property.' };
+    }
+
 
     // --- Booking Timeframe Validations ---
     const bookingValidFrom = toDate(couponData.bookingValidFrom);

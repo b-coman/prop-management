@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button"; // Import Button
-import { format, parseISO } from "date-fns";
+import { format, parseISO, startOfDay } from "date-fns"; // Added startOfDay
 import { CouponStatusToggle } from "./coupon-status-toggle";
 import { CouponExpiryEdit } from "./coupon-expiry-edit";
 import { CouponBookingValidityEdit } from "./coupon-booking-validity-edit"; // Import new component
@@ -74,49 +74,52 @@ export function CouponTable({ coupons }: CouponTableProps) {
       <TableBody>
         {coupons.map((coupon) => {
           const validUntilDate = deserializeTimestamp(coupon.validUntil);
-          const isExpired = validUntilDate ? validUntilDate < new Date(new Date().setHours(0,0,0,0)) : false; // Check against start of today
+          // Check against start of today for expiration
+          const isExpired = validUntilDate ? validUntilDate < startOfDay(new Date()) : false;
           const effectiveStatus = isExpired ? "Expired" : coupon.isActive ? "Active" : "Inactive";
-          const isExpanded = expandedRowId === coupon.id;
+          const isExpanded = expandedRowId === coupon.id; // Use coupon.id which is the document ID (can be slug or auto-gen)
 
           // Deserialize dates for editing components
           const bookingValidFromDate = deserializeTimestamp(coupon.bookingValidFrom);
           const bookingValidUntilDate = deserializeTimestamp(coupon.bookingValidUntil);
           const exclusionPeriodsDates = deserializeExclusionPeriods(coupon.exclusionPeriods);
 
-          // Removed whitespace between fragment and TableRow
           return (
-            <React.Fragment key={coupon.id}><TableRow>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => toggleRowExpansion(coupon.id)}
-                      aria-expanded={isExpanded}
-                      aria-controls={`details-${coupon.id}`}
-                    >
-                      {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                      <span className="sr-only">{isExpanded ? 'Collapse' : 'Expand'} details</span>
-                    </Button>
-                  </TableCell>
-                  <TableCell className="font-medium">{coupon.code}</TableCell>
-                  <TableCell>{coupon.discount}%</TableCell>
-                  <TableCell>{coupon.description || "-"}</TableCell>
-                  <TableCell>
-                    {validUntilDate ? (
-                      <CouponExpiryEdit couponId={coupon.id} currentExpiryDate={validUntilDate} />
-                    ) : (
-                      "No Expiry"
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={ effectiveStatus === "Active" ? "default" : effectiveStatus === "Inactive" ? "secondary" : "destructive" }>
-                      {effectiveStatus}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <CouponStatusToggle couponId={coupon.id} isActive={coupon.isActive} isDisabled={isExpired} />
-                  </TableCell>
-                </TableRow>{/* Expanded Row for Additional Details */}{isExpanded && (
+            <React.Fragment key={coupon.id}>
+                <TableRow>
+                    <TableCell>
+                        <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => toggleRowExpansion(coupon.id)}
+                        aria-expanded={isExpanded}
+                        aria-controls={`details-${coupon.id}`}
+                        >
+                        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        <span className="sr-only">{isExpanded ? 'Collapse' : 'Expand'} details</span>
+                        </Button>
+                    </TableCell>
+                    <TableCell className="font-medium">{coupon.code}</TableCell>
+                    <TableCell>{coupon.discount}%</TableCell>
+                    <TableCell>{coupon.description || "-"}</TableCell>
+                    <TableCell>
+                        {validUntilDate ? (
+                        <CouponExpiryEdit couponId={coupon.id} currentExpiryDate={validUntilDate} />
+                        ) : (
+                        "No Expiry"
+                        )}
+                    </TableCell>
+                    <TableCell>
+                        <Badge variant={ effectiveStatus === "Active" ? "default" : effectiveStatus === "Inactive" ? "secondary" : "destructive" }>
+                        {effectiveStatus}
+                        </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                        <CouponStatusToggle couponId={coupon.id} isActive={coupon.isActive} isDisabled={isExpired} />
+                    </TableCell>
+                </TableRow>
+                {/* Expanded Row for Additional Details */}
+                {isExpanded && (
                   <TableRow id={`details-${coupon.id}`} className="bg-muted/50 hover:bg-muted/50">
                     <TableCell colSpan={7} className="p-4"> {/* Use colSpan to span all columns */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -138,7 +141,8 @@ export function CouponTable({ coupons }: CouponTableProps) {
                       </div>
                     </TableCell>
                   </TableRow>
-                )}</React.Fragment>
+                )}
+            </React.Fragment>
           );
         })}
       </TableBody>

@@ -1,3 +1,4 @@
+
 "use server";
 
 import { z } from 'zod';
@@ -8,7 +9,7 @@ import { revalidatePath } from 'next/cache'; // May not be needed immediately fo
 
 // Schema for creating a PENDING booking
 const CreatePendingBookingSchema = z.object({
-  propertyId: z.string().min(1),
+  propertyId: z.string().min(1), // This is the property SLUG now
   guestInfo: z.object({
     firstName: z.string().min(1),
     lastName: z.string().min(1),
@@ -54,7 +55,7 @@ export async function createPendingBookingAction(
   }
 
   const {
-    propertyId,
+    propertyId, // This is the SLUG
     guestInfo,
     checkInDate: checkInStr,
     checkOutDate: checkOutStr,
@@ -71,8 +72,9 @@ export async function createPendingBookingAction(
     const checkOut = new Date(checkOutStr);
 
     // Prepare data for Firestore
+    // propertyId field now correctly stores the slug
     const bookingData: Omit<Booking, 'id' | 'paymentInfo'> = { // Exclude paymentInfo for pending
-      propertyId,
+      propertyId: propertyId, // Store the slug here
       guestInfo,
       checkInDate: Timestamp.fromDate(checkIn),
       checkOutDate: Timestamp.fromDate(checkOut),
@@ -93,7 +95,7 @@ export async function createPendingBookingAction(
       source: 'website-pending', // Indicate source
     };
 
-     console.log("[Action createPendingBookingAction] Prepared Firestore Data:", bookingData);
+     console.log("[Action createPendingBookingAction] Prepared Firestore Data (using slug as propertyId):", bookingData);
 
     // Add the document
     const docRef = await addDoc(bookingsCollection, bookingData);
