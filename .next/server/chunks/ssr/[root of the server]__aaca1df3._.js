@@ -694,21 +694,29 @@ function HeroSection({ heroData }) {
     // Default values for position and size
     const position = bookingForm?.position || 'center';
     const size = bookingForm?.size || 'large'; // Default to 'large' if not specified
-    // Map position strings to flexbox classes
+    // Map position strings to flexbox classes for the overlay container
     const positionClasses = {
         center: 'justify-center items-center',
-        top: 'justify-center items-start',
-        bottom: 'justify-center items-end',
-        'top-left': 'justify-start items-start',
-        'top-right': 'justify-end items-start',
-        'bottom-left': 'justify-start items-end',
-        'bottom-right': 'justify-end items-end'
+        top: 'justify-center items-start pt-20',
+        bottom: 'justify-center items-end pb-10',
+        'top-left': 'justify-start items-start pt-20',
+        'top-right': 'justify-end items-start pt-20',
+        'bottom-left': 'justify-start items-end pb-10',
+        'bottom-right': 'justify-end items-end pb-10'
     };
-    // Map size strings to card classes - remove sizeClasses as layout is now handled in InitialBookingForm
-    // const sizeClasses: { [key: string]: string } = {
-    //   large: 'max-w-md p-4 md:p-6', // Default size
-    //   compressed: 'max-w-sm p-3 md:p-4', // Smaller size
-    // };
+    // Classes for the Card based on size
+    const cardSizeClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cn"])("w-full bg-background/90 backdrop-blur-sm shadow-xl border-border", size === 'large' ? 'max-w-4xl p-3 md:p-4' : 'max-w-sm p-3 md:p-4');
+    // Container classes for CardHeader and CardContent based on size
+    const innerContainerClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cn"])(size === 'large' ? 'flex flex-col md:flex-row md:items-end md:gap-4' : 'space-y-4');
+    // Header classes based on size
+    const headerClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cn"])("p-0", size === 'large' ? 'mb-0 md:flex-grow-0 md:shrink-0' : 'mb-4 text-center' // Adjust flex properties and margin for large
+    );
+    // Price/Rating container classes based on size
+    const priceRatingContainerClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cn"])("flex items-center gap-2 mb-2 flex-wrap", size === 'large' ? 'justify-start' : 'justify-center' // Adjust justification for large
+    );
+    // Content classes based on size
+    const contentClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cn"])("p-0", size === 'large' ? 'md:flex-grow' : '' // Allow form to grow in large layout
+    );
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
         className: "relative h-[60vh] md:h-[75vh] w-full",
         id: "hero",
@@ -725,7 +733,7 @@ function HeroSection({ heroData }) {
                 "data-ai-hint": dataAiHint || 'property hero image'
             }, void 0, false, {
                 fileName: "[project]/src/components/homepage/hero-section.tsx",
-                lineNumber: 60,
+                lineNumber: 84,
                 columnNumber: 9
             }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                 className: "absolute inset-0 bg-muted flex items-center justify-center",
@@ -733,120 +741,123 @@ function HeroSection({ heroData }) {
                     className: "h-24 w-24 text-muted-foreground/30"
                 }, void 0, false, {
                     fileName: "[project]/src/components/homepage/hero-section.tsx",
-                    lineNumber: 71,
+                    lineNumber: 95,
                     columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/homepage/hero-section.tsx",
-                lineNumber: 70,
+                lineNumber: 94,
                 columnNumber: 9
             }, this),
             showBookingForm && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                 className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cn"])("absolute inset-0 flex p-4 md:p-8", positionClasses[position]),
                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Card"], {
-                    className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cn"])("w-full bg-background/90 backdrop-blur-sm shadow-xl border-border", // Apply different padding based on size directly here, or let InitialBookingForm handle internal padding
-                    size === 'large' ? 'max-w-4xl p-4 md:p-6' : 'max-w-sm p-3 md:p-4' // Example: adjust max-width for large
-                    ),
+                    className: cardSizeClasses,
                     id: "booking",
-                    children: [
-                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["CardHeader"], {
-                            className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cn"])("p-0 mb-4", size === 'large' ? 'text-left md:text-center' : 'text-center' // Adjust alignment for large
-                            ),
-                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cn"])("flex items-center gap-4 mb-2 flex-wrap", size === 'large' ? 'justify-start md:justify-center' : 'justify-center' // Adjust justify for large
-                                ),
-                                children: [
-                                    pricePerNight !== undefined && pricePerNight > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Badge"], {
-                                        variant: "secondary",
-                                        className: "text-lg px-3 py-1",
-                                        children: [
-                                            "$",
-                                            pricePerNight,
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                className: "text-xs font-normal ml-1",
-                                                children: "/night"
-                                            }, void 0, false, {
-                                                fileName: "[project]/src/components/homepage/hero-section.tsx",
-                                                lineNumber: 98,
-                                                columnNumber: 41
-                                            }, this)
-                                        ]
-                                    }, void 0, true, {
-                                        fileName: "[project]/src/components/homepage/hero-section.tsx",
-                                        lineNumber: 97,
-                                        columnNumber: 25
-                                    }, this),
-                                    showRating && ratings && ratings.count > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Badge"], {
-                                        variant: "secondary",
-                                        className: "text-lg px-3 py-1 flex items-center",
-                                        children: [
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$star$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__default__as__Star$3e$__["Star"], {
-                                                className: "h-4 w-4 mr-1 text-amber-500 fill-amber-500"
-                                            }, void 0, false, {
-                                                fileName: "[project]/src/components/homepage/hero-section.tsx",
-                                                lineNumber: 103,
-                                                columnNumber: 25
-                                            }, this),
-                                            ratings.average.toFixed(1),
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                className: "text-xs font-normal ml-1",
-                                                children: [
-                                                    "(",
-                                                    ratings.count,
-                                                    " reviews)"
-                                                ]
-                                            }, void 0, true, {
-                                                fileName: "[project]/src/components/homepage/hero-section.tsx",
-                                                lineNumber: 105,
-                                                columnNumber: 25
-                                            }, this)
-                                        ]
-                                    }, void 0, true, {
-                                        fileName: "[project]/src/components/homepage/hero-section.tsx",
-                                        lineNumber: 102,
-                                        columnNumber: 25
-                                    }, this)
-                                ]
-                            }, void 0, true, {
-                                fileName: "[project]/src/components/homepage/hero-section.tsx",
-                                lineNumber: 92,
-                                columnNumber: 21
-                            }, this)
-                        }, void 0, false, {
-                            fileName: "[project]/src/components/homepage/hero-section.tsx",
-                            lineNumber: 87,
-                            columnNumber: 18
-                        }, this),
-                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["CardContent"], {
-                            className: "p-0",
-                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$booking$2f$initial$2d$booking$2d$form$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["InitialBookingForm"], {
-                                property: bookingFormProperty,
-                                size: size
+                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: innerContainerClasses,
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["CardHeader"], {
+                                className: headerClasses,
+                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                    className: priceRatingContainerClasses,
+                                    children: [
+                                        pricePerNight !== undefined && pricePerNight > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Badge"], {
+                                            variant: "secondary",
+                                            className: "text-base md:text-lg px-3 py-1",
+                                            children: [
+                                                "$",
+                                                pricePerNight,
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                    className: "text-xs font-normal ml-1",
+                                                    children: "/night"
+                                                }, void 0, false, {
+                                                    fileName: "[project]/src/components/homepage/hero-section.tsx",
+                                                    lineNumber: 111,
+                                                    columnNumber: 49
+                                                }, this)
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "[project]/src/components/homepage/hero-section.tsx",
+                                            lineNumber: 110,
+                                            columnNumber: 33
+                                        }, this),
+                                        showRating && ratings && ratings.count > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Badge"], {
+                                            variant: "secondary",
+                                            className: "text-base md:text-lg px-3 py-1 flex items-center",
+                                            children: [
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$star$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__default__as__Star$3e$__["Star"], {
+                                                    className: "h-4 w-4 mr-1 text-amber-500 fill-amber-500"
+                                                }, void 0, false, {
+                                                    fileName: "[project]/src/components/homepage/hero-section.tsx",
+                                                    lineNumber: 116,
+                                                    columnNumber: 33
+                                                }, this),
+                                                ratings.average.toFixed(1),
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                    className: "text-xs font-normal ml-1",
+                                                    children: [
+                                                        "(",
+                                                        ratings.count,
+                                                        " reviews)"
+                                                    ]
+                                                }, void 0, true, {
+                                                    fileName: "[project]/src/components/homepage/hero-section.tsx",
+                                                    lineNumber: 118,
+                                                    columnNumber: 33
+                                                }, this)
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "[project]/src/components/homepage/hero-section.tsx",
+                                            lineNumber: 115,
+                                            columnNumber: 33
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "[project]/src/components/homepage/hero-section.tsx",
+                                    lineNumber: 108,
+                                    columnNumber: 25
+                                }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/homepage/hero-section.tsx",
-                                lineNumber: 112,
+                                lineNumber: 107,
+                                columnNumber: 21
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["CardContent"], {
+                                className: contentClasses,
+                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$booking$2f$initial$2d$booking$2d$form$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["InitialBookingForm"], {
+                                    property: bookingFormProperty,
+                                    size: size
+                                }, void 0, false, {
+                                    fileName: "[project]/src/components/homepage/hero-section.tsx",
+                                    lineNumber: 127,
+                                    columnNumber: 25
+                                }, this)
+                            }, void 0, false, {
+                                fileName: "[project]/src/components/homepage/hero-section.tsx",
+                                lineNumber: 125,
                                 columnNumber: 21
                             }, this)
-                        }, void 0, false, {
-                            fileName: "[project]/src/components/homepage/hero-section.tsx",
-                            lineNumber: 110,
-                            columnNumber: 17
-                        }, this)
-                    ]
-                }, void 0, true, {
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/src/components/homepage/hero-section.tsx",
+                        lineNumber: 105,
+                        columnNumber: 18
+                    }, this)
+                }, void 0, false, {
                     fileName: "[project]/src/components/homepage/hero-section.tsx",
-                    lineNumber: 79,
+                    lineNumber: 103,
                     columnNumber: 13
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/homepage/hero-section.tsx",
-                lineNumber: 77,
+                lineNumber: 101,
                 columnNumber: 11
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/homepage/hero-section.tsx",
-        lineNumber: 57,
+        lineNumber: 81,
         columnNumber: 5
     }, this);
 }

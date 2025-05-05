@@ -763,6 +763,7 @@ if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelper
 
 var { g: global, __dirname, k: __turbopack_refresh__, m: module } = __turbopack_context__;
 {
+// src/components/booking/initial-booking-form.tsx
 __turbopack_context__.s({
     "InitialBookingForm": (()=>InitialBookingForm)
 });
@@ -829,7 +830,7 @@ function InitialBookingForm({ property, size = 'compressed' }) {
     };
     const isButtonDisabled = !isDateRangeValid() || isLoading;
     // Conditionally apply classes based on the size prop
-    const formContainerClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])('space-y-4', size === 'large' && 'flex flex-col md:flex-row md:items-end md:space-y-0 md:space-x-4 w-full' // Flex layout for large size on medium screens and up
+    const formContainerClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])('space-y-4', size === 'large' && 'flex flex-col md:flex-row md:items-end md:space-y-0 md:space-x-2 w-full' // Flex layout for large size on medium screens and up
     );
     const datePickerContainerClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])('grid gap-2', size === 'large' && 'flex-grow' // Allow date picker to take up space in large layout
     );
@@ -843,11 +844,11 @@ function InitialBookingForm({ property, size = 'compressed' }) {
                 children: [
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$label$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Label"], {
                         htmlFor: "date",
-                        className: "text-sm font-medium text-gray-700",
+                        className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])(size === 'large' ? "sr-only" : "text-sm font-medium text-foreground"),
                         children: "Check-in / Check-out Dates"
                     }, void 0, false, {
                         fileName: "[project]/src/components/booking/initial-booking-form.tsx",
-                        lineNumber: 88,
+                        lineNumber: 90,
                         columnNumber: 10
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$popover$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Popover"], {
@@ -864,7 +865,7 @@ function InitialBookingForm({ property, size = 'compressed' }) {
                                             className: "mr-2 h-4 w-4"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/booking/initial-booking-form.tsx",
-                                            lineNumber: 100,
+                                            lineNumber: 104,
                                             columnNumber: 15
                                         }, this),
                                         date?.from ? date.to ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
@@ -878,18 +879,18 @@ function InitialBookingForm({ property, size = 'compressed' }) {
                                             children: "Pick a date range"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/booking/initial-booking-form.tsx",
-                                            lineNumber: 111,
+                                            lineNumber: 115,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/booking/initial-booking-form.tsx",
-                                    lineNumber: 91,
+                                    lineNumber: 95,
                                     columnNumber: 13
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/booking/initial-booking-form.tsx",
-                                lineNumber: 90,
+                                lineNumber: 94,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$popover$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["PopoverContent"], {
@@ -907,24 +908,24 @@ function InitialBookingForm({ property, size = 'compressed' }) {
                                     }
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/booking/initial-booking-form.tsx",
-                                    lineNumber: 116,
+                                    lineNumber: 120,
                                     columnNumber: 15
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/booking/initial-booking-form.tsx",
-                                lineNumber: 115,
+                                lineNumber: 119,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/booking/initial-booking-form.tsx",
-                        lineNumber: 89,
+                        lineNumber: 93,
                         columnNumber: 10
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/booking/initial-booking-form.tsx",
-                lineNumber: 87,
+                lineNumber: 88,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -936,14 +937,15 @@ function InitialBookingForm({ property, size = 'compressed' }) {
                         children: "Submit"
                     }, void 0, false, {
                         fileName: "[project]/src/components/booking/initial-booking-form.tsx",
-                        lineNumber: 132,
+                        lineNumber: 136,
                         columnNumber: 32
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
                         id: "check-availability-btn",
                         type: "button",
                         onClick: handleCheckAvailability,
-                        className: "w-full bg-primary hover:bg-primary/90 text-primary-foreground",
+                        className: "w-full bg-primary hover:bg-primary/90 text-primary-foreground" // Ensure full width by default
+                        ,
                         disabled: isButtonDisabled,
                         children: isLoading ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
                             children: [
@@ -951,7 +953,7 @@ function InitialBookingForm({ property, size = 'compressed' }) {
                                     className: "mr-2 h-4 w-4 animate-spin"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/booking/initial-booking-form.tsx",
-                                    lineNumber: 142,
+                                    lineNumber: 146,
                                     columnNumber: 17
                                 }, this),
                                 "Checking..."
@@ -962,7 +964,7 @@ function InitialBookingForm({ property, size = 'compressed' }) {
                                     className: "mr-2 h-4 w-4"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/booking/initial-booking-form.tsx",
-                                    lineNumber: 147,
+                                    lineNumber: 151,
                                     columnNumber: 17
                                 }, this),
                                 "Check Availability"
@@ -970,19 +972,19 @@ function InitialBookingForm({ property, size = 'compressed' }) {
                         }, void 0, true)
                     }, void 0, false, {
                         fileName: "[project]/src/components/booking/initial-booking-form.tsx",
-                        lineNumber: 133,
+                        lineNumber: 137,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/booking/initial-booking-form.tsx",
-                lineNumber: 130,
+                lineNumber: 134,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/booking/initial-booking-form.tsx",
-        lineNumber: 85,
+        lineNumber: 86,
         columnNumber: 5
     }, this);
 }

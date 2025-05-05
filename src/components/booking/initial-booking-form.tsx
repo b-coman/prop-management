@@ -1,3 +1,4 @@
+// src/components/booking/initial-booking-form.tsx
 "use client";
 
 import * as React from 'react';
@@ -68,7 +69,7 @@ export function InitialBookingForm({ property, size = 'compressed' }: InitialBoo
   // Conditionally apply classes based on the size prop
   const formContainerClasses = cn(
     'space-y-4', // Default vertical spacing
-    size === 'large' && 'flex flex-col md:flex-row md:items-end md:space-y-0 md:space-x-4 w-full' // Flex layout for large size on medium screens and up
+    size === 'large' && 'flex flex-col md:flex-row md:items-end md:space-y-0 md:space-x-2 w-full' // Flex layout for large size on medium screens and up
   );
 
   const datePickerContainerClasses = cn(
@@ -85,14 +86,17 @@ export function InitialBookingForm({ property, size = 'compressed' }: InitialBoo
     <div className={formContainerClasses}>
       {/* Date Range Picker */}
       <div className={datePickerContainerClasses}>
-         <Label htmlFor="date" className="text-sm font-medium text-gray-700">Check-in / Check-out Dates</Label>
+         {/* Hide label visually but keep for accessibility if needed, or remove if context is clear */}
+         <Label htmlFor="date" className={cn(size === 'large' ? "sr-only" : "text-sm font-medium text-foreground")}>
+             Check-in / Check-out Dates
+         </Label>
          <Popover>
           <PopoverTrigger asChild>
             <Button
               id="date"
               variant={'outline'}
               className={cn(
-                'w-full justify-start text-left font-normal',
+                'w-full justify-start text-left font-normal', // Ensure full width by default
                 !date && 'text-muted-foreground'
               )}
               disabled={isLoading}
@@ -134,7 +138,7 @@ export function InitialBookingForm({ property, size = 'compressed' }: InitialBoo
             id="check-availability-btn"
             type="button"
             onClick={handleCheckAvailability}
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" // Ensure full width by default
             disabled={isButtonDisabled}
           >
             {isLoading ? (

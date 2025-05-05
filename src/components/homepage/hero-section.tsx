@@ -36,22 +36,46 @@ export function HeroSection({ heroData }: HeroSectionProps) {
   const position = bookingForm?.position || 'center';
   const size = bookingForm?.size || 'large'; // Default to 'large' if not specified
 
-  // Map position strings to flexbox classes
+  // Map position strings to flexbox classes for the overlay container
   const positionClasses: { [key: string]: string } = {
     center: 'justify-center items-center',
-    top: 'justify-center items-start',
-    bottom: 'justify-center items-end',
-    'top-left': 'justify-start items-start',
-    'top-right': 'justify-end items-start',
-    'bottom-left': 'justify-start items-end',
-    'bottom-right': 'justify-end items-end',
+    top: 'justify-center items-start pt-20', // Add padding-top for top position
+    bottom: 'justify-center items-end pb-10', // Add padding-bottom for bottom position
+    'top-left': 'justify-start items-start pt-20',
+    'top-right': 'justify-end items-start pt-20',
+    'bottom-left': 'justify-start items-end pb-10',
+    'bottom-right': 'justify-end items-end pb-10',
   };
 
-  // Map size strings to card classes - remove sizeClasses as layout is now handled in InitialBookingForm
-  // const sizeClasses: { [key: string]: string } = {
-  //   large: 'max-w-md p-4 md:p-6', // Default size
-  //   compressed: 'max-w-sm p-3 md:p-4', // Smaller size
-  // };
+  // Classes for the Card based on size
+  const cardSizeClasses = cn(
+    "w-full bg-background/90 backdrop-blur-sm shadow-xl border-border",
+    size === 'large' ? 'max-w-4xl p-3 md:p-4' : 'max-w-sm p-3 md:p-4'
+  );
+
+  // Container classes for CardHeader and CardContent based on size
+  const innerContainerClasses = cn(
+    size === 'large' ? 'flex flex-col md:flex-row md:items-end md:gap-4' : 'space-y-4'
+  );
+
+  // Header classes based on size
+  const headerClasses = cn(
+    "p-0", // Remove default padding
+    size === 'large' ? 'mb-0 md:flex-grow-0 md:shrink-0' : 'mb-4 text-center' // Adjust flex properties and margin for large
+  );
+
+  // Price/Rating container classes based on size
+  const priceRatingContainerClasses = cn(
+    "flex items-center gap-2 mb-2 flex-wrap", // Common classes
+    size === 'large' ? 'justify-start' : 'justify-center' // Adjust justification for large
+  );
+
+  // Content classes based on size
+  const contentClasses = cn(
+     "p-0", // Remove default padding
+     size === 'large' ? 'md:flex-grow' : '' // Allow form to grow in large layout
+  );
+
 
   return (
     <section className="relative h-[60vh] md:h-[75vh] w-full" id="hero">
@@ -75,42 +99,34 @@ export function HeroSection({ heroData }: HeroSectionProps) {
       {/* Overlay Content - Apply positioning classes */}
       {showBookingForm && (
           <div className={cn("absolute inset-0 flex p-4 md:p-8", positionClasses[position])}>
-            {/* Booking Form Card - Remove sizing classes, pass size prop to InitialBookingForm */}
-            <Card
-                className={cn(
-                    "w-full bg-background/90 backdrop-blur-sm shadow-xl border-border",
-                     // Apply different padding based on size directly here, or let InitialBookingForm handle internal padding
-                    size === 'large' ? 'max-w-4xl p-4 md:p-6' : 'max-w-sm p-3 md:p-4' // Example: adjust max-width for large
-                )}
-                id="booking"
-                >
-                 <CardHeader className={cn(
-                      "p-0 mb-4",
-                       size === 'large' ? 'text-left md:text-center' : 'text-center' // Adjust alignment for large
-                 )}>
-                    {/* Price and Rating */}
-                    <div className={cn(
-                         "flex items-center gap-4 mb-2 flex-wrap",
-                          size === 'large' ? 'justify-start md:justify-center' : 'justify-center' // Adjust justify for large
-                    )}>
-                    {pricePerNight !== undefined && pricePerNight > 0 && ( // Check if price is defined and positive
-                        <Badge variant="secondary" className="text-lg px-3 py-1">
-                        ${pricePerNight}<span className="text-xs font-normal ml-1">/night</span>
-                        </Badge>
-                    )}
-                    {showRating && ratings && ratings.count > 0 && (
-                        <Badge variant="secondary" className="text-lg px-3 py-1 flex items-center">
-                        <Star className="h-4 w-4 mr-1 text-amber-500 fill-amber-500" />
-                        {ratings.average.toFixed(1)}
-                        <span className="text-xs font-normal ml-1">({ratings.count} reviews)</span>
-                        </Badge>
-                    )}
-                    </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                    {/* Pass the size prop down to the form */}
-                    <InitialBookingForm property={bookingFormProperty} size={size} />
-                </CardContent>
+            {/* Booking Form Card - Apply size-specific classes */}
+            <Card className={cardSizeClasses} id="booking">
+                {/* Inner container for header and content, layout changes based on size */}
+                 <div className={innerContainerClasses}>
+                    {/* Card Header for Price and Rating */}
+                    <CardHeader className={headerClasses}>
+                        <div className={priceRatingContainerClasses}>
+                            {pricePerNight !== undefined && pricePerNight > 0 && (
+                                <Badge variant="secondary" className="text-base md:text-lg px-3 py-1">
+                                ${pricePerNight}<span className="text-xs font-normal ml-1">/night</span>
+                                </Badge>
+                            )}
+                            {showRating && ratings && ratings.count > 0 && (
+                                <Badge variant="secondary" className="text-base md:text-lg px-3 py-1 flex items-center">
+                                <Star className="h-4 w-4 mr-1 text-amber-500 fill-amber-500" />
+                                {ratings.average.toFixed(1)}
+                                <span className="text-xs font-normal ml-1">({ratings.count} reviews)</span>
+                                </Badge>
+                            )}
+                        </div>
+                    </CardHeader>
+
+                    {/* Card Content for the Booking Form */}
+                    <CardContent className={contentClasses}>
+                        {/* Pass the size prop down to the form */}
+                        <InitialBookingForm property={bookingFormProperty} size={size} />
+                    </CardContent>
+                </div>
             </Card>
           </div>
       )}
