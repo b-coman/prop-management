@@ -1,3 +1,4 @@
+
 "use client"; // Add 'use client' because we need hooks (useState, useEffect)
 
 import { useState, useEffect } from 'react'; // Import hooks
@@ -44,14 +45,13 @@ export function Header({ propertyName, propertySlug }: HeaderProps) {
   }, []); // Empty dependency array ensures this runs once on mount
 
   // Determine classes based on mounted state to prevent hydration mismatch
-  const headerClasses = cn(
-    "fixed top-0 left-0 z-50 w-full",
-    "transition-all duration-300 ease-in-out",
-    // Only apply dynamic background/border classes after mount
-    hasMounted && (isScrolled
-      ? "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b" // Style when scrolled
-      : "bg-black/50 border-transparent") // Initial style (transparent)
-  );
+   const headerClasses = cn(
+     "fixed top-0 left-0 z-50 w-full",
+     "transition-all duration-300 ease-in-out",
+     hasMounted && (isScrolled
+       ? "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b" // Style when scrolled
+       : "bg-black/50 border-transparent") // Initial style (transparent)
+   );
 
   const textAndIconColorClasses = cn(
     "transition-colors",
@@ -80,7 +80,7 @@ export function Header({ propertyName, propertySlug }: HeaderProps) {
 
   return (
     <header className={headerClasses}>
-      {/* Revert back to using container class for consistent padding */}
+      {/* Use container class again for consistent padding */}
       <div className="container flex h-16 items-center justify-between">
          {/* Link back to the specific property page */}
         <Link href={basePath} className="flex items-center gap-2">

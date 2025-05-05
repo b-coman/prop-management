@@ -311,8 +311,7 @@ function Header({ propertyName, propertySlug }) {
         }
     }["Header.useEffect"], []); // Empty dependency array ensures this runs once on mount
     // Determine classes based on mounted state to prevent hydration mismatch
-    const headerClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])("fixed top-0 left-0 z-50 w-full", "transition-all duration-300 ease-in-out", // Only apply dynamic background/border classes after mount
-    hasMounted && (isScrolled ? "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b" // Style when scrolled
+    const headerClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])("fixed top-0 left-0 z-50 w-full", "transition-all duration-300 ease-in-out", hasMounted && (isScrolled ? "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b" // Style when scrolled
      : "bg-black/50 border-transparent") // Initial style (transparent)
     );
     const textAndIconColorClasses = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])("transition-colors", hasMounted && (isScrolled ? "text-primary" : "text-white"));
