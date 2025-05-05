@@ -1,4 +1,3 @@
-
 "use client"; // Add 'use client' because we need hooks (useState, useEffect)
 
 import { useState, useEffect } from 'react'; // Import hooks
@@ -65,87 +64,75 @@ export function Header({ propertyName, propertySlug }: HeaderProps) {
 
   return (
     <header className={cn(baseHeaderClasses, dynamicHeaderClasses)}>
-      {/* Restore container class for consistent padding */}
-      <div className="container flex h-16 items-center justify-between">
-         {/* Link back to the specific property page */}
+      <div className="w-full px-4 flex h-16 items-center">
         <Link href={basePath} className="flex items-center gap-2">
-           {/* Placeholder SVG for logo or property-specific logo */}
-           {/* Change text color based on scroll state */}
-           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("h-6 w-6", baseTextAndIconColor, dynamicTextAndIconColor)}>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("h-6 w-6", baseTextAndIconColor, dynamicTextAndIconColor)}>
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
             <polyline points="9 22 9 12 15 12 15 22"></polyline>
           </svg>
           <span className={cn(baseSpanColor, dynamicSpanColor)}>{propertyName}</span>
         </Link>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden items-center gap-6 md:flex">
-           {menuItems.map(item => (
-             <Link
-               key={item.label}
-               href={item.href} // Use section IDs directly
-               className={cn(baseNavLink, dynamicNavLink)}
-             >
-               {item.label}
-             </Link>
-           ))}
-           {/* Add other relevant actions like "Book Now" */}
-            <Link href={`${basePath}#booking`} passHref> {/* Link to hero section with booking form */}
-             {/* Use a variant suitable for overlay/scrolled state */}
-             <Button
-                size="sm"
-                variant={dynamicBookNowButtonVariant} // Change variant based on scroll
-                className={dynamicBookNowButtonClasses}
+        <nav className="ml-auto hidden items-center gap-6 md:flex">
+          {menuItems.map(item => (
+            <Link
+              key={item.label}
+              href={item.href}
+              className={cn(baseNavLink, dynamicNavLink)}
             >
-                Book Now
-             </Button>
-           </Link>
+              {item.label}
+            </Link>
+          ))}
+          <Link href={`${basePath}#booking`} passHref>
+            <Button
+              size="sm"
+              variant={dynamicBookNowButtonVariant}
+              className={dynamicBookNowButtonClasses}
+            >
+              Book Now
+            </Button>
+          </Link>
         </nav>
 
-        {/* Mobile Navigation */}
         <Sheet>
           <SheetTrigger asChild className="md:hidden">
-             {/* Ensure trigger button is visible */}
             <Button
-                 variant="ghost" // Use ghost for less visual impact
-                 size="icon"
-                 className={cn(baseMobileTrigger, dynamicMobileTrigger)}
-             >
+              variant="ghost"
+              size="icon"
+              className={cn(baseMobileTrigger, dynamicMobileTrigger)}
+            >
               <Menu className="h-5 w-5" />
               <span className="sr-only">Toggle Menu</span>
             </Button>
           </SheetTrigger>
-          {/* Keep SheetContent background standard */}
           <SheetContent side="right" className="bg-background text-foreground">
-             {/* Property Name in mobile menu */}
-             <Link href={basePath} className="flex items-center gap-2 mb-8">
-               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-primary">
-                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                  <polyline points="9 22 9 12 15 12 15 22"></polyline>
-               </svg>
-               <span className="text-xl font-bold text-primary">{propertyName}</span>
+            <Link href={basePath} className="flex items-center gap-2 mb-8">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-primary">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+              </svg>
+              <span className="text-xl font-bold text-primary">{propertyName}</span>
             </Link>
             <nav className="grid gap-6 text-lg font-medium">
-               {menuItems.map(item => {
-                 const Icon = item.icon;
-                 return (
-                   <Link
-                     key={item.label}
-                     href={item.href}
-                     className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
-                   >
-                     <Icon className="h-5 w-5" />
-                     {item.label}
-                   </Link>
-                 );
-               })}
+              {menuItems.map(item => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <Icon className="h-5 w-5" />
+                    {item.label}
+                  </Link>
+                );
+              })}
             </nav>
-             {/* Add Book Now button to mobile menu */}
-              <div className="mt-8">
-                 <Link href={`${basePath}#booking`} passHref>
-                    <Button className="w-full">Book Now</Button>
-                 </Link>
-              </div>
+            <div className="mt-8">
+              <Link href={`${basePath}#booking`} passHref>
+                <Button className="w-full">Book Now</Button>
+              </Link>
+            </div>
           </SheetContent>
         </Sheet>
       </div>

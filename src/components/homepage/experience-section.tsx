@@ -48,7 +48,9 @@ export function ExperienceSection({ title, welcomeText, highlights }: Experience
           {highlights.map((highlight, index) => {
             const IconComponent = iconMap[highlight.icon] || Leaf; // Default to Leaf icon if not found
             return (
+              // Apply text-center to the Card itself
               <Card key={index} className="text-center border-border hover:shadow-lg transition-shadow duration-300">
+                 {/* Ensure CardHeader centers its items (icon and title) */}
                 <CardHeader className="items-center">
                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                         <IconComponent className="h-6 w-6" />
@@ -58,6 +60,7 @@ export function ExperienceSection({ title, welcomeText, highlights }: Experience
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
+                  {/* Ensure CardContent text is centered (already achieved by parent text-center) */}
                   <p className="text-muted-foreground text-sm">
                     {highlight.description}
                   </p>
