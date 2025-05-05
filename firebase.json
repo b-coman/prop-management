@@ -1,27 +1,21 @@
+
 {
   "hosting": {
-    "public": ".next",
+    "public": "public",
     "cleanUrls": true,
-    "rewrites": [
-      {
-        "source": "*",
-        "has": [
-          {
-            "type": "header",
-            "key": "Origin",
-            "value": "(?<origin>.*)"
-          }
-        ],
-        "destination": "/.next/server/edge-chunks/prerender-manifest.js"
-      }
-    ],
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
     ]
-
-  },"emulators": {
+  },
+  "emulators": {
     "dataconnect": {
       "dataDir": "dataconnect/.dataconnect/pgliteData"
     }
@@ -32,5 +26,5 @@
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
-  } 
+  }
 }

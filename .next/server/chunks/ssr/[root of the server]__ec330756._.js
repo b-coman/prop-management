@@ -1588,9 +1588,9 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$imag
 ;
 ;
 ;
-function LocationHighlights({ propertyLocation, attractions }) {
+function LocationHighlights({ title, propertyLocation, attractions }) {
     // Don't render if required info is missing
-    if (!propertyLocation || !attractions || attractions.length === 0) {
+    if (!title || !propertyLocation || !attractions || attractions.length === 0) {
         return null;
     }
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
@@ -1606,10 +1606,13 @@ function LocationHighlights({ propertyLocation, attractions }) {
                         children: [
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
                                 className: "text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4",
-                                children: "Explore the Surroundings"
-                            }, void 0, false, {
+                                children: [
+                                    title,
+                                    " "
+                                ]
+                            }, void 0, true, {
                                 fileName: "[project]/src/components/homepage/location-highlights.tsx",
-                                lineNumber: 34,
+                                lineNumber: 36,
                                 columnNumber: 21
                             }, this),
                             propertyLocation.city && propertyLocation.state && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1623,7 +1626,7 @@ function LocationHighlights({ propertyLocation, attractions }) {
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/homepage/location-highlights.tsx",
-                                lineNumber: 38,
+                                lineNumber: 40,
                                 columnNumber: 25
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1632,12 +1635,12 @@ function LocationHighlights({ propertyLocation, attractions }) {
                                     className: "h-12 w-12 text-muted-foreground/50"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/homepage/location-highlights.tsx",
-                                    lineNumber: 44,
+                                    lineNumber: 46,
                                     columnNumber: 25
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/homepage/location-highlights.tsx",
-                                lineNumber: 43,
+                                lineNumber: 45,
                                 columnNumber: 21
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1645,13 +1648,13 @@ function LocationHighlights({ propertyLocation, attractions }) {
                                 children: "Discover these nearby attractions:"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/homepage/location-highlights.tsx",
-                                lineNumber: 47,
+                                lineNumber: 49,
                                 columnNumber: 21
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/homepage/location-highlights.tsx",
-                        lineNumber: 33,
+                        lineNumber: 35,
                         columnNumber: 18
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1672,7 +1675,7 @@ function LocationHighlights({ propertyLocation, attractions }) {
                                             "data-ai-hint": attraction['data-ai-hint'] || 'landmark nature attraction'
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/homepage/location-highlights.tsx",
-                                            lineNumber: 59,
+                                            lineNumber: 61,
                                             columnNumber: 37
                                         }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                             className: "flex items-center justify-center h-full w-full",
@@ -1680,17 +1683,17 @@ function LocationHighlights({ propertyLocation, attractions }) {
                                                 className: "h-12 w-12 text-muted-foreground/50"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/homepage/location-highlights.tsx",
-                                                lineNumber: 69,
+                                                lineNumber: 71,
                                                 columnNumber: 42
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/homepage/location-highlights.tsx",
-                                            lineNumber: 68,
+                                            lineNumber: 70,
                                             columnNumber: 38
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/homepage/location-highlights.tsx",
-                                        lineNumber: 57,
+                                        lineNumber: 59,
                                         columnNumber: 29
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("h3", {
@@ -1698,7 +1701,7 @@ function LocationHighlights({ propertyLocation, attractions }) {
                                         children: attraction.name
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/homepage/location-highlights.tsx",
-                                        lineNumber: 73,
+                                        lineNumber: 75,
                                         columnNumber: 29
                                     }, this),
                                     attraction.distance && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1706,7 +1709,7 @@ function LocationHighlights({ propertyLocation, attractions }) {
                                         children: attraction.distance
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/homepage/location-highlights.tsx",
-                                        lineNumber: 75,
+                                        lineNumber: 77,
                                         columnNumber: 34
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1717,30 +1720,30 @@ function LocationHighlights({ propertyLocation, attractions }) {
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/homepage/location-highlights.tsx",
-                                        lineNumber: 77,
+                                        lineNumber: 79,
                                         columnNumber: 29
                                     }, this)
                                 ]
                             }, index, true, {
                                 fileName: "[project]/src/components/homepage/location-highlights.tsx",
-                                lineNumber: 55,
+                                lineNumber: 57,
                                 columnNumber: 25
                             }, this))
                     }, void 0, false, {
                         fileName: "[project]/src/components/homepage/location-highlights.tsx",
-                        lineNumber: 53,
+                        lineNumber: 55,
                         columnNumber: 17
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/homepage/location-highlights.tsx",
-                lineNumber: 32,
+                lineNumber: 34,
                 columnNumber: 13
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/homepage/location-highlights.tsx",
-        lineNumber: 31,
+        lineNumber: 33,
         columnNumber: 9
     }, this);
 }
@@ -1776,7 +1779,7 @@ const renderStars = (rating)=>{
             className: "h-5 w-5 text-amber-400 fill-amber-400"
         }, `full-${i}`, false, {
             fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-            lineNumber: 35,
+            lineNumber: 37,
             columnNumber: 16
         }, this));
     }
@@ -1785,7 +1788,7 @@ const renderStars = (rating)=>{
             className: "h-5 w-5 text-amber-400 fill-amber-400"
         }, "half", false, {
             fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-            lineNumber: 38,
+            lineNumber: 40,
             columnNumber: 16
         }, this));
     }
@@ -1794,7 +1797,7 @@ const renderStars = (rating)=>{
             className: "h-5 w-5 text-amber-200 fill-amber-200"
         }, `empty-${i}`, false, {
             fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-            lineNumber: 41,
+            lineNumber: 43,
             columnNumber: 16
         }, this));
     }
@@ -1818,10 +1821,13 @@ function TestimonialsSection({ testimonials }) {
                         children: [
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
                                 className: "text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4",
-                                children: "What Our Guests Say"
-                            }, void 0, false, {
+                                children: [
+                                    testimonials.title || "What Our Guests Say",
+                                    " "
+                                ]
+                            }, void 0, true, {
                                 fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-                                lineNumber: 56,
+                                lineNumber: 58,
                                 columnNumber: 11
                             }, this),
                             testimonials.overallRating > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1837,7 +1843,7 @@ function TestimonialsSection({ testimonials }) {
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-                                        lineNumber: 61,
+                                        lineNumber: 63,
                                         columnNumber: 17
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1845,19 +1851,19 @@ function TestimonialsSection({ testimonials }) {
                                         children: renderStars(testimonials.overallRating)
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-                                        lineNumber: 64,
+                                        lineNumber: 66,
                                         columnNumber: 17
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-                                lineNumber: 60,
+                                lineNumber: 62,
                                 columnNumber: 14
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-                        lineNumber: 55,
+                        lineNumber: 57,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1885,7 +1891,7 @@ function TestimonialsSection({ testimonials }) {
                                                             "data-ai-hint": review['data-ai-hint'] || 'guest portrait'
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-                                                            lineNumber: 79,
+                                                            lineNumber: 81,
                                                             columnNumber: 25
                                                         }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                             className: "flex items-center justify-center h-full w-full",
@@ -1894,19 +1900,19 @@ function TestimonialsSection({ testimonials }) {
                                                                     className: "h-8 w-8 text-muted-foreground/50"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-                                                                    lineNumber: 89,
+                                                                    lineNumber: 91,
                                                                     columnNumber: 30
                                                                 }, this),
                                                                 " "
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-                                                            lineNumber: 88,
+                                                            lineNumber: 90,
                                                             columnNumber: 26
                                                         }, this)
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-                                                        lineNumber: 77,
+                                                        lineNumber: 79,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1916,7 +1922,7 @@ function TestimonialsSection({ testimonials }) {
                                                                 children: review.name
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-                                                                lineNumber: 94,
+                                                                lineNumber: 96,
                                                                 columnNumber: 21
                                                             }, this),
                                                             review.date && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1924,7 +1930,7 @@ function TestimonialsSection({ testimonials }) {
                                                                 children: review.date
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-                                                                lineNumber: 95,
+                                                                lineNumber: 97,
                                                                 columnNumber: 38
                                                             }, this),
                                                             " ",
@@ -1933,19 +1939,19 @@ function TestimonialsSection({ testimonials }) {
                                                                 children: renderStars(review.rating)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-                                                                lineNumber: 96,
+                                                                lineNumber: 98,
                                                                 columnNumber: 21
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-                                                        lineNumber: 93,
+                                                        lineNumber: 95,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-                                                lineNumber: 76,
+                                                lineNumber: 78,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1957,36 +1963,36 @@ function TestimonialsSection({ testimonials }) {
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-                                                lineNumber: 101,
+                                                lineNumber: 103,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-                                        lineNumber: 75,
+                                        lineNumber: 77,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, review.id || index, true, {
                                 fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-                                lineNumber: 74,
+                                lineNumber: 76,
                                 columnNumber: 13
                             }, this))
                     }, void 0, false, {
                         fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-                        lineNumber: 72,
+                        lineNumber: 74,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-                lineNumber: 54,
+                lineNumber: 56,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/homepage/testimonials-section.tsx",
-        lineNumber: 53,
+        lineNumber: 55,
         columnNumber: 5
     }, this);
 }
@@ -2081,7 +2087,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$image$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/image.js [app-rsc] (ecmascript)");
 ;
 ;
-function GallerySection({ images, propertyName }) {
+function GallerySection({ title, images, propertyName }) {
     if (!images || images.length === 0) {
         return null; // Don't render if no images
     }
@@ -2093,12 +2099,13 @@ function GallerySection({ images, propertyName }) {
             children: [
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
                     className: "text-2xl font-semibold text-foreground mb-6",
-                    children: "Gallery"
+                    children: title || "Gallery"
                 }, void 0, false, {
                     fileName: "[project]/src/components/property/gallery-section.tsx",
-                    lineNumber: 24,
+                    lineNumber: 26,
                     columnNumber: 9
                 }, this),
+                " ",
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                     className: "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4",
                     children: images.map((image, index)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2118,28 +2125,28 @@ function GallerySection({ images, propertyName }) {
                                 "data-ai-hint": image['data-ai-hint']
                             }, void 0, false, {
                                 fileName: "[project]/src/components/property/gallery-section.tsx",
-                                lineNumber: 28,
+                                lineNumber: 30,
                                 columnNumber: 15
                             }, this)
                         }, index, false, {
                             fileName: "[project]/src/components/property/gallery-section.tsx",
-                            lineNumber: 27,
+                            lineNumber: 29,
                             columnNumber: 13
                         }, this))
                 }, void 0, false, {
                     fileName: "[project]/src/components/property/gallery-section.tsx",
-                    lineNumber: 25,
+                    lineNumber: 27,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/src/components/property/gallery-section.tsx",
-            lineNumber: 23,
+            lineNumber: 25,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/src/components/property/gallery-section.tsx",
-        lineNumber: 22,
+        lineNumber: 24,
         columnNumber: 5
     }, this);
 }
@@ -2824,70 +2831,114 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$s
 ;
 function PropertyPageLayout({ property, template, overrides }) {
     const { slug, name, location, pricePerNight, ratings, amenities, checkInTime, checkOutTime, houseRules } = property;
-    const { homepage = [], header: templateHeader, footer: templateFooter } = template;
-    const { visibleBlocks = homepage.map((b)=>b.id), hero: heroOverrides = {}, experience: experienceOverrides = {}, host: hostOverrides = {}, features: featuresOverrides = [], location: locationOverrides = {}, attractions: attractionsOverrides = [], testimonials: testimonialsOverrides = [], images: galleryImagesOverrides = [], cta: ctaOverrides = {} } = overrides;
-    // Helper function to get override data for a block or default/empty
-    const getBlockData = (blockId, defaultData = {})=>{
-        return overrides[blockId] || defaultData;
+    const { homepage = [], defaults = {} } = template; // Destructure defaults, provide empty object as fallback
+    // Use overrides.visibleBlocks if present, otherwise default to all blocks from template
+    const visibleBlocks = overrides?.visibleBlocks || homepage.map((b)=>b.id);
+    // Helper function to get merged block data (override > default > empty)
+    const getMergedBlockData = (blockId, blockType)=>{
+        const overrideData = overrides?.[blockId];
+        const defaultData = defaults?.[blockId];
+        // Special handling for arrays like features, attractions, testimonials.reviews, images
+        if (blockId === 'features' || blockId === 'attractions' || blockId === 'images') {
+            // If overrides exist (even if empty array), use them. Otherwise, use defaults.
+            return overrideData !== undefined ? overrideData : defaultData || [];
+        }
+        if (blockId === 'testimonials') {
+            // Testimonials override is an object { reviews: [...] }, default might be too
+            const overrideReviews = overrideData?.reviews;
+            const defaultReviews = defaultData?.reviews; // Assuming default has same structure
+            return {
+                title: overrideData?.title || defaultData?.title,
+                reviews: overrideReviews !== undefined ? overrideReviews : defaultReviews || []
+            };
+        }
+        // For other block types (objects), merge overrides onto defaults
+        return {
+            ...defaultData,
+            ...overrideData
+        }; // Overrides take precedence
     };
-    // Prepare data for each section, merging overrides with property data where necessary
+    // Prepare data for each section, merging overrides with defaults and property data
+    const mergedHeroData = getMergedBlockData('hero', 'hero');
     const heroData = {
-        backgroundImageUrl: heroOverrides?.backgroundImage || property.images?.find((img)=>img.isFeatured)?.url || property.images?.[0]?.url || null,
-        'data-ai-hint': heroOverrides?.backgroundImage ? 'hero background' : property.images?.find((img)=>img.isFeatured)?.['data-ai-hint'] || property.images?.[0]?.['data-ai-hint'],
+        // Use override image if available, else default, else property featured, else first image
+        backgroundImageUrl: mergedHeroData?.backgroundImage || property.images?.find((img)=>img.isFeatured)?.url || property.images?.[0]?.url || null,
+        'data-ai-hint': mergedHeroData?.backgroundImage ? 'hero background' : property.images?.find((img)=>img.isFeatured)?.['data-ai-hint'] || property.images?.[0]?.['data-ai-hint'],
         pricePerNight: property.pricePerNight,
         ratings: property.ratings,
         bookingFormProperty: property
     };
+    const mergedExperienceData = getMergedBlockData('experience', 'experience');
     const experienceData = {
-        title: experienceOverrides?.title || "Experience Our Property",
-        welcomeText: experienceOverrides?.welcomeText || "Discover the unique charm and comfort of your stay.",
-        highlights: experienceOverrides?.highlights || []
+        title: mergedExperienceData?.title || "Experience Our Property",
+        welcomeText: mergedExperienceData?.welcomeText || "Discover the unique charm and comfort of your stay.",
+        highlights: mergedExperienceData?.highlights || []
     };
-    // Ensure hostOverrides has the required structure even if partial
+    const mergedHostData = getMergedBlockData('host', 'host');
     const hostData = {
-        name: hostOverrides?.name || "Your Host",
-        imageUrl: hostOverrides?.imageUrl || null,
-        welcomeMessage: hostOverrides?.welcomeMessage || "We're delighted to welcome you!",
-        backstory: hostOverrides?.backstory || "We strive to make your stay exceptional.",
-        'data-ai-hint': hostOverrides?.['data-ai-hint']
+        name: mergedHostData?.name || "Your Host",
+        imageUrl: mergedHostData?.imageUrl || null,
+        welcomeMessage: mergedHostData?.welcomeMessage || "We're delighted to welcome you!",
+        backstory: mergedHostData?.backstory || "We strive to make your stay exceptional.",
+        'data-ai-hint': mergedHostData?.['data-ai-hint']
     };
+    const featuresData = getMergedBlockData('features', 'features'); // Now gets array directly
+    const mergedLocationData = getMergedBlockData('location', 'location');
+    const attractionsData = getMergedBlockData('attractions', 'attractions'); // Now gets array directly
+    const locationHighlightsData = {
+        title: mergedLocationData?.title || "Explore the Surroundings",
+        propertyLocation: location,
+        attractions: attractionsData
+    };
+    const mergedTestimonialsData = getMergedBlockData('testimonials', 'testimonials');
     const testimonialsData = {
+        title: mergedTestimonialsData?.title || "What Our Guests Say",
         overallRating: property.ratings?.average || 0,
-        reviews: testimonialsOverrides || []
+        reviews: mergedTestimonialsData?.reviews || []
     };
+    const mergedCtaData = getMergedBlockData('cta', 'cta');
     const ctaData = {
-        title: ctaOverrides?.title || "Ready for Your Getaway?",
-        description: ctaOverrides?.description || "Book your stay today and create unforgettable memories.",
-        buttonText: ctaOverrides?.buttonText || "Book Now",
-        buttonUrl: ctaOverrides?.buttonUrl,
+        title: mergedCtaData?.title || "Ready for Your Getaway?",
+        description: mergedCtaData?.description || "Book your stay today and create unforgettable memories.",
+        buttonText: mergedCtaData?.buttonText || "Book Now",
+        buttonUrl: mergedCtaData?.buttonUrl,
         propertySlug: slug
     };
     // Filter gallery images - exclude hero image if it's explicitly tagged
-    const galleryImages = galleryImagesOverrides.filter((img)=>!img.tags?.includes('hero'));
+    const galleryImagesData = getMergedBlockData('images', 'gallery'); // Get gallery images array
+    const galleryImages = galleryImagesData.filter((img)=>!img.tags?.includes('hero'));
+    const mergedGalleryData = getMergedBlockData('gallery', 'gallery');
+    const galleryData = {
+        title: mergedGalleryData?.title || "Gallery",
+        images: galleryImages,
+        propertyName: name
+    };
     // Render logic: Iterate through template blocks and render if visible
     const renderBlock = (block)=>{
         if (!visibleBlocks.includes(block.id)) {
-            // console.log(`Block ${block.id} is not visible.`);
             return null;
         }
-        // console.log(`Rendering block: ${block.id} (Type: ${block.type})`);
         switch(block.type){
             case 'hero':
                 return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$hero$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["HeroSection"], {
                     ...heroData
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 103,
+                    lineNumber: 134,
                     columnNumber: 24
                 }, this);
             case 'experience':
-                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$experience$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ExperienceSection"], {
-                    ...experienceData
-                }, block.id, false, {
-                    fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 105,
-                    columnNumber: 24
-                }, this);
+                // Ensure required fields exist before rendering
+                if (experienceData.title && experienceData.welcomeText && experienceData.highlights.length > 0) {
+                    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$experience$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ExperienceSection"], {
+                        ...experienceData
+                    }, block.id, false, {
+                        fileName: "[project]/src/components/property/property-page-layout.tsx",
+                        lineNumber: 138,
+                        columnNumber: 28
+                    }, this);
+                }
+                return null;
             case 'host':
                 // Only render host section if essential data exists
                 if ("TURBOPACK compile-time truthy", 1) {
@@ -2895,92 +2946,90 @@ function PropertyPageLayout({ property, template, overrides }) {
                         host: hostData
                     }, block.id, false, {
                         fileName: "[project]/src/components/property/property-page-layout.tsx",
-                        lineNumber: 109,
+                        lineNumber: 144,
                         columnNumber: 29
                     }, this);
                 }
                 "TURBOPACK unreachable";
             case 'features':
-                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$unique$2d$features$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["UniqueFeatures"], {
-                    features: featuresOverrides
+                return featuresData.length > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$unique$2d$features$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["UniqueFeatures"], {
+                    features: featuresData
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 113,
-                    columnNumber: 24
-                }, this);
+                    lineNumber: 148,
+                    columnNumber: 50
+                }, this) : null;
             case 'location':
-                // Pass property location and attraction overrides
-                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$location$2d$highlights$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["LocationHighlights"], {
-                    propertyLocation: location,
-                    attractions: attractionsOverrides
+                // Render if propertyLocation and attractions exist
+                return locationHighlightsData.propertyLocation && locationHighlightsData.attractions.length > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$location$2d$highlights$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["LocationHighlights"], {
+                    ...locationHighlightsData
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 116,
-                    columnNumber: 25
-                }, this);
+                    lineNumber: 152,
+                    columnNumber: 23
+                }, this) : null;
             case 'testimonials':
-                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$testimonials$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["TestimonialsSection"], {
+                return testimonialsData.reviews.length > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$testimonials$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["TestimonialsSection"], {
                     testimonials: testimonialsData
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 118,
-                    columnNumber: 26
-                }, this);
+                    lineNumber: 155,
+                    columnNumber: 64
+                }, this) : null;
             case 'gallery':
-                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$gallery$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["GallerySection"], {
-                    images: galleryImages,
-                    propertyName: name
+                return galleryData.images.length > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$gallery$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["GallerySection"], {
+                    ...galleryData
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 120,
-                    columnNumber: 25
-                }, this);
+                    lineNumber: 157,
+                    columnNumber: 57
+                }, this) : null;
             case 'details':
                 return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$property$2d$details$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["PropertyDetailsSection"], {
                     property: property
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 122,
+                    lineNumber: 159,
                     columnNumber: 24
                 }, this);
             case 'amenities':
-                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$amenities$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["AmenitiesSection"], {
+                return amenities && amenities.length > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$amenities$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["AmenitiesSection"], {
                     amenities: amenities
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 124,
-                    columnNumber: 25
-                }, this);
+                    lineNumber: 161,
+                    columnNumber: 61
+                }, this) : null;
             case 'rules':
-                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$rules$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["RulesSection"], {
+                return houseRules || checkInTime || checkOutTime ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$rules$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["RulesSection"], {
                     houseRules: houseRules,
                     checkInTime: checkInTime,
                     checkOutTime: checkOutTime
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 126,
-                    columnNumber: 25
-                }, this);
+                    lineNumber: 163,
+                    columnNumber: 69
+                }, this) : null;
             case 'map':
-                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$map$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["MapSection"], {
+                return location ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$map$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["MapSection"], {
                     location: location
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 128,
-                    columnNumber: 25
-                }, this);
+                    lineNumber: 165,
+                    columnNumber: 36
+                }, this) : null;
             case 'contact':
                 return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$contact$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ContactSection"], {}, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 130,
+                    lineNumber: 167,
                     columnNumber: 25
-                }, this);
+                }, this); // Assuming contact doesn't need much dynamic data here
             case 'cta':
                 return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$call$2d$to$2d$action$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["CallToActionSection"], {
                     ...ctaData
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 132,
+                    lineNumber: 169,
                     columnNumber: 25
                 }, this);
             case 'separator':
@@ -2988,7 +3037,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                     className: "my-8 md:my-12"
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 134,
+                    lineNumber: 171,
                     columnNumber: 25
                 }, this); // Add spacing around separator
             default:
@@ -3000,7 +3049,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                     ]
                 }, block.id, true, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 137,
+                    lineNumber: 174,
                     columnNumber: 24
                 }, this);
         }
@@ -3013,7 +3062,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                 propertySlug: slug
             }, void 0, false, {
                 fileName: "[project]/src/components/property/property-page-layout.tsx",
-                lineNumber: 144,
+                lineNumber: 181,
                 columnNumber: 8
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("main", {
@@ -3021,18 +3070,18 @@ function PropertyPageLayout({ property, template, overrides }) {
                 children: homepage.map((block)=>renderBlock(block))
             }, void 0, false, {
                 fileName: "[project]/src/components/property/property-page-layout.tsx",
-                lineNumber: 146,
+                lineNumber: 183,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$footer$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Footer"], {}, void 0, false, {
                 fileName: "[project]/src/components/property/property-page-layout.tsx",
-                lineNumber: 152,
+                lineNumber: 189,
                 columnNumber: 8
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/property/property-page-layout.tsx",
-        lineNumber: 142,
+        lineNumber: 179,
         columnNumber: 5
     }, this);
 }
@@ -3325,7 +3374,7 @@ async function PropertyDetailsPage({ params }) {
         (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$components$2f$navigation$2e$react$2d$server$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["notFound"])();
     }
     console.log(`[PropertyDetailsPage] Rendering property: ${slug}`);
-    // Fetch all necessary data for the property
+    // Fetch all necessary data for the property using the reusable functions
     const [property, overrides] = await Promise.all([
         getPropertyBySlug(slug),
         getPropertyOverrides(slug)
@@ -3345,12 +3394,13 @@ async function PropertyDetailsPage({ params }) {
     // console.log("[PropertyDetailsPage] Template Data:", JSON.stringify(template, null, 2));
     // console.log("[PropertyDetailsPage] Overrides Data:", JSON.stringify(overrides, null, 2));
     // Render the property page layout with the fetched data
+    // Ensure overrides are passed correctly, fallback to empty object if undefined/null
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Suspense"], {
         fallback: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
             children: "Loading property details..."
         }, void 0, false, {
             fileName: "[project]/src/app/properties/[slug]/page.tsx",
-            lineNumber: 131,
+            lineNumber: 132,
             columnNumber: 29
         }, void 0),
         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$property$2d$page$2d$layout$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["PropertyPageLayout"], {
@@ -3359,12 +3409,12 @@ async function PropertyDetailsPage({ params }) {
             overrides: overrides || {}
         }, void 0, false, {
             fileName: "[project]/src/app/properties/[slug]/page.tsx",
-            lineNumber: 132,
+            lineNumber: 133,
             columnNumber: 13
         }, this)
     }, void 0, false, {
         fileName: "[project]/src/app/properties/[slug]/page.tsx",
-        lineNumber: 131,
+        lineNumber: 132,
         columnNumber: 9
     }, this);
 }
