@@ -49,8 +49,12 @@
         "title": "Welcome to Your Holiday House",
         "price": 150,
         "showRating": true,
-        "showBookingForm": true
-      },
+        "showBookingForm": true,
+        "bookingForm": {
+            "position": "bottom",
+            "size": "large"
+        }
+        },
       "experience": {
         "title": "Experience Relaxation",
         "description": "A cozy holiday house perfect for family getaways.",

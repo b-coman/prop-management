@@ -102,7 +102,7 @@ export function InitialBookingForm({ property }: InitialBookingFormProps) {
                   format(date.from, 'LLL dd, y')
                 )
               ) : (
-                <span>Pick a date range</span>
+                <span>Pick a date range now</span>
               )}
             </Button>
           </PopoverTrigger>

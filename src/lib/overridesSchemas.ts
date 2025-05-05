@@ -7,8 +7,14 @@ export const heroSchema = z.object({
   showRating: z.boolean().optional(),
   showBookingForm: z.boolean().optional(),
   title: z.string().optional(),
-  subtitle: z.string().optional()
-});
+  subtitle: z.string().optional(),
+  bookingForm: z
+      .object({
+        position: z.enum(['center', 'top', 'bottom', 'top-left', 'top-right', 'bottom-left', 'bottom-right']).optional(),
+        size: z.enum(['compressed', 'large']).optional()
+      })
+      .optional()
+});  
 
 // --- Experience block
 export const experienceSchema = z.object({
