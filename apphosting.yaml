@@ -29,53 +29,53 @@ env:
       - BUILD
       - RUNTIME  
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
-    secret: PUBLIC_FIREBASE_PROJECT_ID
+    secret: projects/1061532538391/secrets/PUBLIC_FIREBASE_PROJECT_ID/versions/1
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-    secret: PUBLIC_FIREBASE_STORAGE_BUCKET
+    secret: projects/1061532538391/secrets/PUBLIC_FIREBASE_STORAGE_BUCKET/versions/1
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-    secret: PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    secret: projects/1061532538391/secrets/PUBLIC_FIREBASE_MESSAGING_SENDER_ID/versions/1
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
-    secret: PUBLIC_FIREBASE_APP_ID
+    secret: projects/1061532538391/secrets/PUBLIC_FIREBASE_APP_ID/versions/1
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_FIREBASE_CLIENT_EMAIL
-    secret: FIREBASE_CLIENT_EMAIL
+    secret: projects/1061532538391/secrets/FIREBASE_CLIENT_EMAIL/versions/1
     availability:
       - BUILD
       - RUNTIME      
 
   # Stripe (server-side)
   - variable: STRIPE_SECRET_KEY
-    secret: STRIPE_SECRET_KEY
+    secret: projects/1061532538391/secrets/STRIPE_SECRET_KEY/versions/1
     availability:
         - BUILD
         - RUNTIME
   #Stripe publishable key (client side)
   - variable: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-    secret: STRIPE_PUBLISHABLE_KEY
+    secret: projects/1061532538391/secrets/STRIPE_PUBLISHABLE_KEY/versions/1
     availability:
         - BUILD
         - RUNTIME
   #Stripe webhook secret
   - variable: STRIPE_WEBHOOK_SECRET
-    secret: STRIPE_WEBHOOK_SECRET
+    secret: projects/1061532538391/secrets/STRIPE_WEBHOOK_SECRET/versions/1
     availability:
         - BUILD
         - RUNTIME
 
 # Multi-domain configuration (client side)
   - variable: NEXT_PUBLIC_MAIN_APP_HOST
-    secret: PUBLIC_MAIN_APP_HOST
+    secret: projects/1061532538391/secrets/PUBLIC_MAIN_APP_HOST/versions/1
     availability:
         - BUILD
         - RUNTIME
