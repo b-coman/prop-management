@@ -1,4 +1,3 @@
-
 import type { Timestamp as FirestoreTimestamp } from 'firebase/firestore'; // Use FirestoreTimestamp alias
 
 // Type alias for values that might be Timestamps server-side but serialized for the client
@@ -48,6 +47,8 @@ export interface Property {
   slug: string; // Should match the document ID
   description?: string; // Core description
   shortDescription?: string; // Core short description
+  customDomain?: string | null; // Custom domain for the property
+  useCustomDomain?: boolean; // Flag to use custom domain
   location: {
     address?: string;
     city?: string;
@@ -91,6 +92,10 @@ export interface Property {
       booking_com?: string | null;
       // Add other channels as needed
   };
+  analytics?: { // Google Analytics configuration
+    enabled?: boolean;
+    googleAnalyticsId?: string | null;
+  };
   createdAt?: SerializableTimestamp;
   updatedAt?: SerializableTimestamp;
 }
@@ -107,17 +112,21 @@ export interface PropertyOverrides {
          title?: string; // Allow overriding title
          subtitle?: string; // Allow overriding subtitle
         // Add other hero-specific overrides if needed (e.g., title, subtitle)
+         bookingForm?: {
+            position?: 'center' | 'top' | 'bottom' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+            size?: 'compressed' | 'large';
+        }
     };
     experience?: { // Override content for the experience section
         title?: string;
-        welcomeText?: string; // Renamed from description for clarity
+        description?: string; // Maps to welcomeText
         highlights?: Array<{ icon: string; title: string; description: string }>;
     };
      host?: { // Override content for the host section
-         name: string;
+         name?: string; // Optional name
          imageUrl?: string | null;
-         welcomeMessage: string;
-         backstory: string;
+         description?: string; // Optional welcomeMessage
+         backstory?: string; // Optional backstory
          'data-ai-hint'?: string;
      };
     features?: Array<{ // Array of features to display

@@ -1,5 +1,5 @@
-
 // src/components/property/property-page-layout.tsx
+import Script from 'next/script'; // Import next/script
 import type { Property, WebsiteTemplate, PropertyOverrides } from '@/types';
 import { Header } from '@/components/generic-header';
 import { Footer } from '@/components/footer';
@@ -17,6 +17,7 @@ import { RulesSection } from './rules-section';
 import { MapSection } from './map-section';
 import { ContactSection } from './contact-section';
 import { Separator } from '@/components/ui/separator';
+import { heroSchema } from '@/lib/overridesSchemas'; // For HeroData type inference
 
 interface PropertyPageLayoutProps {
   property: Property;
@@ -25,36 +26,29 @@ interface PropertyPageLayoutProps {
 }
 
 export function PropertyPageLayout({ property, template, overrides }: PropertyPageLayoutProps) {
-    const { slug, name, location, pricePerNight, ratings, amenities, checkInTime, checkOutTime, houseRules } = property;
-    const { homepage = [], defaults = {} } = template; // Destructure defaults, provide empty object as fallback
+    const { slug, name, location, pricePerNight, ratings, amenities, checkInTime, checkOutTime, houseRules, analytics } = property;
+    const { homepage = [], defaults = {} } = template;
 
-    // Use overrides.visibleBlocks if present, otherwise default to all blocks from template
     const visibleBlocks = overrides?.visibleBlocks || homepage.map(b => b.id);
 
-    // Helper function to get merged block data (override > default > empty)
     const getMergedBlockData = (blockId: string, blockType: string): any => {
         const overrideData = overrides?.[blockId as keyof PropertyOverrides];
         const defaultData = defaults?.[blockId];
 
-        // Special handling for arrays like features, attractions, testimonials.reviews, images
         if (blockId === 'features' || blockId === 'attractions' || blockId === 'images') {
-            // If overrides exist (even if empty array), use them. Otherwise, use defaults.
              return overrideData !== undefined ? overrideData : (defaultData || []);
         }
         if (blockId === 'testimonials') {
-             // Testimonials override is an object { reviews: [...] }, default might be too
              const overrideReviews = (overrideData as PropertyOverrides['testimonials'])?.reviews;
-             const defaultReviews = (defaultData as any)?.reviews; // Assuming default has same structure
-             // Merge top-level fields like title, then handle reviews array
+             const defaultReviews = (defaultData as any)?.reviews;
              return {
-                 ...defaultData, // Start with defaults
-                 ...overrideData, // Overwrite with overrides if they exist
-                 reviews: overrideReviews !== undefined ? overrideReviews : (defaultReviews || []) // Handle reviews array separately
+                 ...defaultData,
+                 ...overrideData,
+                 reviews: overrideReviews !== undefined ? overrideReviews : (defaultReviews || [])
              };
         }
-        if (blockId === 'hero') {
-             // Specifically merge the bookingForm object if it exists in overrides or defaults
-             const mergedHero = { ...defaultData, ...overrideData };
+         if (blockId === 'hero') {
+            const mergedHero = { ...defaultData, ...overrideData } as z.infer<typeof heroSchema>;
              if (overrideData?.bookingForm || defaultData?.bookingForm) {
                  mergedHero.bookingForm = {
                      ...defaultData?.bookingForm,
@@ -63,60 +57,54 @@ export function PropertyPageLayout({ property, template, overrides }: PropertyPa
              }
              return mergedHero;
         }
-
-        // For other block types (objects), merge overrides onto defaults
-        return { ...defaultData, ...overrideData }; // Overrides take precedence
+        return { ...defaultData, ...overrideData };
     };
 
-
-    // Prepare data for each section, merging overrides with defaults and property data
     const mergedHeroData = getMergedBlockData('hero', 'hero');
     const heroData = {
-        // Use override image if available, else default, else property featured, else first image
         backgroundImage: mergedHeroData?.backgroundImage || property.images?.find(img => img.isFeatured)?.url || property.images?.[0]?.url || null,
-        'data-ai-hint': mergedHeroData?.backgroundImage ? 'hero background' : property.images?.find(img => img.isFeatured)?.['data-ai-hint'] || property.images?.[0]?.['data-ai-hint'],
-        price: property.pricePerNight, // From property, renamed to match schema
-        ratings: property.ratings, // From property
-        bookingFormProperty: property, // Pass the whole property object to the form
-        showRating: mergedHeroData?.showRating, // Get from merged data
-        showBookingForm: mergedHeroData?.showBookingForm, // Get from merged data
-        title: mergedHeroData?.title, // Get from merged data
-        subtitle: mergedHeroData?.subtitle, // Get from merged data
-        bookingForm: mergedHeroData?.bookingForm, // Pass the merged bookingForm config
+        'data-ai-hint': mergedHeroData?.['data-ai-hint'] || property.images?.find(img => img.isFeatured)?.['data-ai-hint'] || property.images?.[0]?.['data-ai-hint'],
+        price: property.pricePerNight,
+        ratings: property.ratings,
+        bookingFormProperty: property,
+        showRating: mergedHeroData?.showRating,
+        showBookingForm: mergedHeroData?.showBookingForm,
+        title: mergedHeroData?.title,
+        subtitle: mergedHeroData?.subtitle,
+        bookingForm: mergedHeroData?.bookingForm,
     };
 
     const mergedExperienceData = getMergedBlockData('experience', 'experience');
     const experienceData = {
         title: mergedExperienceData?.title || "Experience Our Property",
-        welcomeText: mergedExperienceData?.description || "Discover the unique charm and comfort of your stay.", // Use description key from overrides/defaults
+        description: mergedExperienceData?.description || "Discover the unique charm and comfort of your stay.",
         highlights: mergedExperienceData?.highlights || [],
     };
 
     const mergedHostData = getMergedBlockData('host', 'host');
     const hostData = {
         name: mergedHostData?.name || "Your Host",
-        imageUrl: mergedHostData?.image || null, // Use image key
-        welcomeMessage: mergedHostData?.description || "We're delighted to welcome you!", // Use description key for welcome message
-        backstory: mergedHostData?.backstory || "We strive to make your stay exceptional.", // Add backstory if needed in overrides/defaults
+        imageUrl: mergedHostData?.image || null,
+        description: mergedHostData?.description || "We're delighted to welcome you!",
+        backstory: mergedHostData?.backstory || "We strive to make your stay exceptional.",
         'data-ai-hint': mergedHostData?.['data-ai-hint'] || 'host portrait friendly',
     };
 
-    const featuresData = getMergedBlockData('features', 'features'); // Now gets array directly
+    const featuresData = getMergedBlockData('features', 'features');
 
     const mergedLocationData = getMergedBlockData('location', 'location');
-    const attractionsData = getMergedBlockData('attractions', 'attractions'); // Now gets array directly
+    const attractionsData = getMergedBlockData('attractions', 'attractions');
     const locationHighlightsData = {
-         title: mergedLocationData?.title || "Explore the Surroundings", // Location block title
-         propertyLocation: location, // From property
-         attractions: attractionsData, // Use merged attractions
+         title: mergedLocationData?.title || "Explore the Surroundings",
+         propertyLocation: location,
+         attractions: attractionsData,
     }
-
 
     const mergedTestimonialsData = getMergedBlockData('testimonials', 'testimonials');
     const testimonialsData = {
         title: mergedTestimonialsData?.title || "What Our Guests Say",
-        overallRating: property.ratings?.average || 0, // From property
-        reviews: mergedTestimonialsData?.reviews || [], // Use merged reviews array
+        overallRating: property.ratings?.average || 0,
+        reviews: mergedTestimonialsData?.reviews || [],
     };
 
     const mergedCtaData = getMergedBlockData('cta', 'cta');
@@ -124,22 +112,21 @@ export function PropertyPageLayout({ property, template, overrides }: PropertyPa
         title: mergedCtaData?.title || "Ready for Your Getaway?",
         description: mergedCtaData?.description || "Book your stay today and create unforgettable memories.",
         buttonText: mergedCtaData?.buttonText || "Book Now",
-        buttonUrl: mergedCtaData?.buttonUrl, // Let the component handle default linking
+        buttonUrl: mergedCtaData?.buttonUrl,
         propertySlug: slug,
+        backgroundImage: mergedCtaData?.backgroundImage,
+        'data-ai-hint': mergedCtaData?.['data-ai-hint'],
      };
 
-    // Filter gallery images - exclude hero image if it's explicitly tagged
-    const galleryImagesData = getMergedBlockData('images', 'gallery'); // Get gallery images array
+    const galleryImagesData = getMergedBlockData('images', 'gallery');
     const galleryImages = galleryImagesData.filter((img: any) => !img.tags?.includes('hero'));
     const mergedGalleryData = getMergedBlockData('gallery', 'gallery');
     const galleryData = {
-         title: mergedGalleryData?.title || "Gallery", // Get title from merged gallery data
+         title: mergedGalleryData?.title || "Gallery",
          images: galleryImages,
          propertyName: name,
     }
 
-
-    // Render logic: Iterate through template blocks and render if visible
     const renderBlock = (block: { id: string; type: string }) => {
         if (!visibleBlocks.includes(block.id)) {
             return null;
@@ -147,23 +134,20 @@ export function PropertyPageLayout({ property, template, overrides }: PropertyPa
 
         switch (block.type) {
             case 'hero':
-                return <HeroSection key={block.id} heroData={heroData} />; // Pass the full heroData object
+                return <HeroSection key={block.id} heroData={heroData} />;
             case 'experience':
-                 // Ensure required fields exist before rendering
-                 if (experienceData.title && experienceData.welcomeText && experienceData.highlights.length > 0) {
-                    return <ExperienceSection key={block.id} {...experienceData} />;
+                 if (experienceData.title && experienceData.description && experienceData.highlights.length > 0) {
+                    return <ExperienceSection key={block.id} title={experienceData.title} welcomeText={experienceData.description} highlights={experienceData.highlights} />;
                  }
                  return null;
             case 'host':
-                 // Only render host section if essential data exists
-                 if (hostData.name && hostData.welcomeMessage && hostData.backstory) {
-                     return <HostIntroduction key={block.id} host={hostData} />;
+                 if (hostData.name && hostData.description) { // Removed backstory from required check for now
+                     return <HostIntroduction key={block.id} host={{name: hostData.name, welcomeMessage: hostData.description, backstory: hostData.backstory || "", imageUrl: hostData.imageUrl, 'data-ai-hint': hostData['data-ai-hint']}} />;
                  }
-                 return null; // Don't render if host data is incomplete
+                 return null;
             case 'features':
                 return featuresData.length > 0 ? <UniqueFeatures key={block.id} features={featuresData} /> : null;
              case 'location':
-                 // Render if propertyLocation and attractions exist
                  return locationHighlightsData.propertyLocation && locationHighlightsData.attractions.length > 0
                     ? <LocationHighlights key={block.id} {...locationHighlightsData} />
                     : null;
@@ -171,7 +155,7 @@ export function PropertyPageLayout({ property, template, overrides }: PropertyPa
                   return testimonialsData.reviews.length > 0 ? <TestimonialsSection key={block.id} testimonials={testimonialsData} /> : null;
             case 'gallery':
                  return galleryData.images.length > 0 ? <GallerySection key={block.id} {...galleryData} /> : null;
-            case 'details': // Assuming 'details' is a type defined in your template
+            case 'details':
                 return <PropertyDetailsSection key={block.id} property={property} />;
             case 'amenities':
                  return amenities && amenities.length > 0 ? <AmenitiesSection key={block.id} amenities={amenities} /> : null;
@@ -180,11 +164,11 @@ export function PropertyPageLayout({ property, template, overrides }: PropertyPa
              case 'map':
                  return location ? <MapSection key={block.id} location={location} /> : null;
             case 'contact':
-                 return <ContactSection key={block.id} />; // Assuming contact doesn't need much dynamic data here
+                 return <ContactSection key={block.id} />;
             case 'cta':
                  return <CallToActionSection key={block.id} {...ctaData} />;
-            case 'separator': // Handle separator block type
-                 return <Separator key={block.id} className="my-8 md:my-12" />; // Add spacing around separator
+            case 'separator':
+                 return <Separator key={block.id} className="my-8 md:my-12" />;
             default:
                  console.warn(`Unknown block type "${block.type}" for block ID "${block.id}".`);
                 return <div key={block.id}>Unsupported block type: {block.type}</div>;
@@ -193,18 +177,33 @@ export function PropertyPageLayout({ property, template, overrides }: PropertyPa
 
   return (
     <div className="flex min-h-screen flex-col">
-       {/* Render header - now overlays */}
+       {analytics?.enabled && analytics.googleAnalyticsId && (
+        <>
+          <Script
+            strategy="afterInteractive"
+            src={`https://www.googletagmanager.com/gtag/js?id=${analytics.googleAnalyticsId}`}
+          />
+          <Script
+            id={`ga-config-${property.slug}`} // Unique ID per property
+            strategy="afterInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${analytics.googleAnalyticsId}', {
+                  page_path: window.location.pathname,
+                });
+              `,
+            }}
+          />
+        </>
+      )}
        <Header propertyName={name} propertySlug={slug} />
-
-      {/* Remove padding-top from main as header is absolute */}
       <main className="flex-grow">
-         {/* Render homepage blocks based on template and visibility overrides */}
          {homepage.map(block => renderBlock(block))}
       </main>
-
-       {/* Render footer */}
        <Footer />
     </div>
   );
 }
-

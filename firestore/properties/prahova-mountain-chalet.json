@@ -1,42 +1,62 @@
+
 {
-    "templateId": "holiday-house",
-    "name": "Prahova Mountain Chalet",
-    "slug": "prahova-mountain-chalet",
-    "shortDescription": "Charming chalet with stunning mountain views in Comarnic.",
-    "description": "Escape to our charming chalet in the Prahova Valley...",
-    "location": {
-      "address": "Strada Principala 10",
-      "city": "Comarnic",
-      "state": "Prahova",
-      "country": "Romania",
-      "zipCode": "105700",
-      "coordinates": {
-        "latitude": 45.2530,
-        "longitude": 25.6346
-      }
+  "templateId": "holiday-house",
+  "name": "Prahova Mountain Chalet",
+  "slug": "prahova-mountain-chalet",
+  "shortDescription": "Charming chalet with stunning mountain views in Comarnic.",
+  "description": "Escape to our charming chalet in the Prahova Valley. Enjoy stunning mountain views, fresh air, and a peaceful atmosphere. Perfect for families or groups seeking a relaxing getaway near hiking trails and nature. Fully equipped kitchen, cozy fireplace, and a spacious garden await.",
+  "customDomain": "chaletprahova.com",
+  "useCustomDomain": true,
+  "location": {
+    "address": "Strada Principala 10",
+    "city": "Comarnic",
+    "state": "Prahova",
+    "country": "Romania",
+    "zipCode": "105700",
+    "coordinates": {
+      "latitude": 45.2530,
+      "longitude": 25.6346
+    }
+  },
+  "images": [
+    {
+      "url": "https://picsum.photos/seed/chalet1/800/600",
+      "alt": "Chalet exterior view",
+      "isFeatured": true,
+      "data-ai-hint": "mountain chalet exterior Romania"
     },
-    "pricePerNight": 180,
-    "baseOccupancy": 4,
-    "extraGuestFee": 25,
-    "cleaningFee": 40,
-    "bedrooms": 3,
-    "beds": 4,
-    "bathrooms": 2,
-    "squareFeet": 1500,
-    "checkInTime": "3:00 PM",
-    "checkOutTime": "11:00 AM",
-    "channelIds": {
-      "airbnb": null,
-      "booking_com": null
-    },
-    "ratings": {
-      "average": 4.9,
-      "count": 15
-    },
-    "status": "active",
-    "schemaVersion": 1,
-    "ownerId": "YOUR_USER_ID",
-    "createdAt": { "_seconds": 1746200000, "_nanoseconds": 0 },
-    "updatedAt": { "_seconds": 1746200000, "_nanoseconds": 0 }
-  }
-  
+    {
+      "url": "https://picsum.photos/seed/chalet2/800/600",
+      "alt": "Cozy living room with fireplace",
+      "isFeatured": false,
+      "data-ai-hint": "chalet living room fireplace"
+    }
+  ],
+  "amenities": ["WiFi", "Kitchen", "Parking", "Fireplace", "TV", "Garden", "Mountain View"],
+  "pricePerNight": 180,
+  "cleaningFee": 40,
+  "maxGuests": 7,
+  "baseOccupancy": 4,
+  "extraGuestFee": 25,
+  "bedrooms": 3,
+  "beds": 4,
+  "bathrooms": 2,
+  "squareFeet": 1500,
+  "checkInTime": "3:00 PM",
+  "checkOutTime": "11:00 AM",
+  "houseRules": ["No smoking indoors", "No loud parties after 10 PM", "Pets considered upon request"],
+  "cancellationPolicy": "Flexible: Full refund 1 day prior to arrival.",
+  "ratings": {
+    "average": 4.9,
+    "count": 15
+  },
+  "status": "active",
+  "schemaVersion": 1,
+  "ownerId": "YOUR_USER_ID",
+  "analytics": {
+    "enabled": true,
+    "googleAnalyticsId": "G-XXXXXXXXXX"
+  },
+  "createdAt": { "_seconds": 1746200000, "_nanoseconds": 0 },
+  "updatedAt": { "_seconds": 1746200000, "_nanoseconds": 0 }
+}
