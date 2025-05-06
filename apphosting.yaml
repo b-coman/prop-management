@@ -18,17 +18,16 @@ runConfig:
 # - RUNTIME
 
 env:
-  # Firebase configuration (public variables)
-  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-    secret: PUBLIC_FIREBASE_API_KEY #Use secrets.
-    availability:
-      - BUILD
-      - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
     secret: PUBLIC_FIREBASE_AUTH_DOMAIN #Use secrets.
     availability:
       - BUILD
       - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    secret: PUBLIC_FIREBASE_API_KEY #Use secrets.
+    availability:
+      - BUILD
+      - RUNTIME    
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
     secret: PUBLIC_FIREBASE_PROJECT_ID #Use secrets.
     availability:
