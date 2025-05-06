@@ -18,43 +18,38 @@ runConfig:
 # - RUNTIME
 
 env:
-  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-    secret: PUBLIC_FIREBASE_AUTH_DOMAIN #Use secrets.
-    availability:
-      - BUILD
-      - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-    secret: PUBLIC_FIREBASE_API_KEY #Use secrets.
+    secret: projects/1061532538391/secrets/PUBLIC_FIREBASE_API_KEY/versions/1
     availability:
       - BUILD
-      - RUNTIME    
+      - RUNTIME  
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    secret: PUBLIC_FIREBASE_AUTH_DOMAIN
+    availability:
+      - BUILD
+      - RUNTIME  
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
-    secret: PUBLIC_FIREBASE_PROJECT_ID #Use secrets.
+    secret: PUBLIC_FIREBASE_PROJECT_ID
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-    secret: rentalspot-fzwom.firebasestorage.app #Use secrets.
+    secret: PUBLIC_FIREBASE_STORAGE_BUCKET
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-    secret: PUBLIC_FIREBASE_MESSAGING_SENDER_ID #Use secrets.
+    secret: PUBLIC_FIREBASE_MESSAGING_SENDER_ID
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
-    secret: PUBLIC_FIREBASE_APP_ID #Use secrets.
+    secret: PUBLIC_FIREBASE_APP_ID
     availability:
       - BUILD
       - RUNTIME
-#  - variable: NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
-#    secret: FIREBASE_MEASUREMENT_ID #Use secrets.
-#    availability:
-#      - BUILD
-#      - RUNTIME
   - variable: NEXT_FIREBASE_CLIENT_EMAIL
-    secret: FIREBASE_CLIENT_EMAIL #Use secrets.
+    secret: FIREBASE_CLIENT_EMAIL
     availability:
       - BUILD
       - RUNTIME      
