@@ -5,7 +5,7 @@
   "slug": "prahova-mountain-chalet",
   "shortDescription": "Charming chalet with stunning mountain views in Comarnic.",
   "description": "Escape to our charming chalet in the Prahova Valley. Enjoy stunning mountain views, fresh air, and a peaceful atmosphere. Perfect for families or groups seeking a relaxing getaway near hiking trails and nature. Fully equipped kitchen, cozy fireplace, and a spacious garden await.",
-  "customDomain": "chaletprahova.com",
+  "customDomain": "prahova-chalet.ro",
   "useCustomDomain": true,
   "location": {
     "address": "Strada Principala 10",
@@ -55,7 +55,7 @@
   "ownerId": "YOUR_USER_ID",
   "analytics": {
     "enabled": true,
-    "googleAnalyticsId": "G-XXXXXXXXXX"
+    "googleAnalyticsId": "G-3D08B7JSEZ"
   },
   "createdAt": { "_seconds": 1746200000, "_nanoseconds": 0 },
   "updatedAt": { "_seconds": 1746200000, "_nanoseconds": 0 }
