@@ -1,1 +1,1 @@
-The coupon actions use their own specific Zod schemas defined within that file (e.g., `createCouponSchema`, `updateCouponStatusSchema`), which is correct. They **do not** (and should not) use the schemas from `src/lib/overridesSchemas.ts`, as those are for website block content.
+//The coupon actions use their own specific Zod schemas defined within that file (e.g., `createCouponSchema`, `updateCouponStatusSchema`), which is correct. They **do not** (and should not) use the schemas from `src/lib/overridesSchemas.ts`, as those are for website block content.
