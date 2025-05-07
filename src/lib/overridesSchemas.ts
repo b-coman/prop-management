@@ -2,8 +2,8 @@ import { z } from "zod";
 
 // --- Hero block
 export const heroSchema = z.object({
-  backgroundImage: z.string().url().optional(), // Make optional, can fallback to property images
-  price: z.number().optional(), // Already optional
+  backgroundImage: z.string().url().optional().nullable(), // Allow null for fallback
+  price: z.number().optional(),
   showRating: z.boolean().optional(),
   showBookingForm: z.boolean().optional(),
   title: z.string().optional(),
@@ -13,167 +13,177 @@ export const heroSchema = z.object({
         position: z.enum(['center', 'top', 'bottom', 'top-left', 'top-right', 'bottom-left', 'bottom-right']).optional(),
         size: z.enum(['compressed', 'large']).optional()
       })
-      .optional()
-});
+      .passthrough() // Allow extra fields if needed in future
+      .optional(),
+  'data-ai-hint': z.string().optional(),
+}).passthrough(); // Allow extra fields
 
 // --- Experience block
-export const experienceSchema = z.object({
-  title: z.string(),
-  description: z.string(), // This maps to welcomeText in the component
-  highlights: z.array(
-    z.object({
+export const experienceHighlightSchema = z.object({
       icon: z.string(),
       title: z.string(),
       description: z.string()
-    })
-  )
-});
+}).passthrough(); // Allow extra fields
+
+export const experienceSchema = z.object({
+  title: z.string(),
+  description: z.string(), // This maps to welcomeText in the component
+  highlights: z.array(experienceHighlightSchema)
+}).passthrough(); // Allow extra fields
 
 // --- Host block
 export const hostSchema = z.object({
-  title: z.string().optional(), // Title is often static like "Meet your host"
+  title: z.string().optional(),
   name: z.string(),
-  image: z.string().url().optional().nullable(), // Image is optional
+  image: z.string().url().optional().nullable(), // Image is optional and can be null
+  'data-ai-hint': z.string().optional(),
   description: z.string(), // This maps to welcomeMessage in the component
-  backstory: z.string().optional(), // Added optional backstory
-  contact: z.object({ // Contact info is optional within the block
+  backstory: z.string().optional(),
+  contact: z.object({
     phone: z.string().optional(),
     email: z.string().optional()
-  }).optional(),
+  }).passthrough().optional(),
   ctaText: z.string().optional(),
   ctaUrl: z.string().optional()
-});
+}).passthrough(); // Allow extra fields
 
-// --- Features block
-export const featuresSchema = z.array(
-  z.object({
-    icon: z.string().optional(), // Icon name is optional
+// --- Feature block item
+export const featureItemSchema = z.object({
+    icon: z.string().optional(),
     title: z.string(),
     description: z.string(),
-    image: z.string().url().optional().nullable() // Image is optional
-  })
-);
+    image: z.string().url().optional().nullable(),
+    'data-ai-hint': z.string().optional(),
+}).passthrough(); // Allow extra fields
+
+// --- Features block (array of items)
+export const featuresSchema = z.array(featureItemSchema);
 
 // --- Location block
 export const locationSchema = z.object({
   title: z.string(),
-  mapCenter: z.object({ // Default map center
+  mapCenter: z.object({
     lat: z.number(),
     lng: z.number()
-  }).optional(), // Make optional as property location is main source
-  // Attractions are now in a separate array in overrides/defaults
+  }).passthrough().optional(),
   ctaText: z.string().optional(),
   ctaUrl: z.string().optional()
-});
+}).passthrough(); // Allow extra fields
+
+// --- Attraction block item
+export const attractionItemSchema = z.object({
+     name: z.string(),
+     distance: z.string().optional(),
+     image: z.string().url().optional().nullable(),
+     'data-ai-hint': z.string().optional(),
+     description: z.string()
+}).passthrough(); // Allow extra fields
 
 // Separate schema for attractions array
-export const attractionsSchema = z.array(
-   z.object({
-     name: z.string(),
-     distance: z.string().optional(), // Distance is optional
-     image: z.string().url().optional().nullable(), // Image is optional
-     description: z.string()
-   })
-);
+export const attractionsSchema = z.array(attractionItemSchema);
 
-// --- Testimonials block
-export const testimonialsSchema = z.object({
-  title: z.string(),
-  showRating: z.boolean().optional(), // Whether to show overall rating (not individual review rating)
-  // featuredReviews are now in a separate array in overrides/defaults
-  ctaText: z.string().optional(),
-  ctaUrl: z.string().optional()
-});
-
-// Separate schema for reviews array
-export const reviewsSchema = z.array(
-   z.object({
+// --- Review block item
+export const reviewItemSchema = z.object({
      name: z.string(),
      date: z.string().optional(), // Date is optional
      rating: z.number().min(1).max(5),
      text: z.string(),
-     imageUrl: z.string().url().optional().nullable() // Optional guest image
-   })
-);
+     imageUrl: z.string().url().optional().nullable(),
+     'data-ai-hint': z.string().optional(),
+}).passthrough(); // Allow extra fields
 
+// --- Testimonials block structure (containing reviews)
+export const testimonialsSchema = z.object({
+  title: z.string(),
+  showRating: z.boolean().optional(), // Overall rating display toggle
+  // Note: The actual overallRating value comes from the Property object
+  reviews: z.array(reviewItemSchema).optional(), // The array of reviews is OPTIONAL here
+  ctaText: z.string().optional(),
+  ctaUrl: z.string().optional()
+}).passthrough(); // Allow extra fields
 
 // --- CTA block
 export const ctaSchema = z.object({
   title: z.string(),
   description: z.string(),
   buttonText: z.string(),
-  buttonUrl: z.string().optional(), // Make optional, component can default to #booking
-  backgroundImage: z.string().url().optional().nullable() // Image is optional
-});
+  buttonUrl: z.string().optional(),
+  backgroundImage: z.string().url().optional().nullable(),
+  'data-ai-hint': z.string().optional(),
+}).passthrough(); // Allow extra fields
 
-// --- Text block (new)
+// --- Text block (example)
 export const textSchema = z.object({
   title: z.string(),
   description: z.string()
-});
+}).passthrough(); // Allow extra fields
 
-// --- Gallery block (new) - Defines the top-level gallery config
+// --- Gallery block config
 export const gallerySchema = z.object({
-  title: z.string().optional() // Optional title for the gallery section
-  // Images are now in a separate array in overrides/defaults
-});
+  title: z.string().optional()
+}).passthrough(); // Allow extra fields
 
-// Separate schema for images array
-export const imagesSchema = z.array(
-  z.object({
+// --- Image block item (for gallery)
+export const imageItemSchema = z.object({
     url: z.string().url(),
     alt: z.string(),
-    isFeatured: z.boolean().optional(), // Still useful for property's base images
+    isFeatured: z.boolean().optional(), // May not be needed for overrides gallery
     tags: z.array(z.string()).optional(),
-    sortOrder: z.number().optional()
-  })
-);
+    sortOrder: z.number().optional(),
+    'data-ai-hint': z.string().optional(),
+}).passthrough(); // Allow extra fields
 
-// --- FAQ block (new)
-export const faqSchema = z.array(
-  z.object({
+// Separate schema for images array (used in gallery)
+export const imagesSchema = z.array(imageItemSchema);
+
+// --- FAQ block item
+export const faqItemSchema = z.object({
     question: z.string(),
     answer: z.string()
-  })
-);
+}).passthrough(); // Allow extra fields
+
+// --- FAQ block (array of items)
+export const faqSchema = z.array(faqItemSchema);
+
 
 // --- Export map of all schemas used for **block definitions**
-// Note: Arrays like features, attractions, reviews, images are now handled
-// directly from the top-level overrides/defaults, not nested within block schemas here.
+// This map helps validate default content in templates if needed.
 export const blockSchemas: Record<string, z.ZodTypeAny> = {
   hero: heroSchema,
   experience: experienceSchema,
   host: hostSchema,
-  // features: featuresSchema, // No longer needed here, it's an array at the top level
+  features: featuresSchema, // Validates an array of features
   location: locationSchema,
-  // attractions: attractionsSchema, // No longer needed here
-  testimonials: testimonialsSchema,
-  // reviews: reviewsSchema, // No longer needed here
+  attractions: attractionsSchema, // Validates an array of attractions
+  testimonials: testimonialsSchema, // Validates the container object
+  reviews: z.array(reviewItemSchema), // Separate validation for review array if needed standalone
   cta: ctaSchema,
   text: textSchema,
-  gallery: gallerySchema,
-  // images: imagesSchema, // No longer needed here
-  faq: faqSchema
+  gallery: gallerySchema, // Validates the container object
+  images: imagesSchema, // Validates an array of images
+  faq: faqSchema // Validates an array of FAQs
 };
 
-// You might also want a schema for the entire PropertyOverrides structure for validation
+// --- Schema for the entire PropertyOverrides structure ---
+// This is used to validate the data fetched from /propertyOverrides/{slug}
 export const propertyOverridesSchema = z.object({
     visibleBlocks: z.array(z.string()).optional(),
     hero: heroSchema.optional(),
     experience: experienceSchema.optional(),
     host: hostSchema.optional(),
-    features: featuresSchema.optional(), // Use array schema
+    features: featuresSchema.optional(), // Expects an array based on featureItemSchema
     location: locationSchema.optional(),
-    attractions: attractionsSchema.optional(), // Use array schema
-    testimonials: testimonialsSchema.merge(z.object({ reviews: reviewsSchema.optional() })).optional(), // Merge reviews into testimonials object
-    gallery: gallerySchema.optional(),
-    images: imagesSchema.optional(), // Use array schema
+    attractions: attractionsSchema.optional(), // Expects an array based on attractionItemSchema
+    testimonials: testimonialsSchema.optional(), // Expects the testimonials structure (which might contain reviews)
+    gallery: gallerySchema.optional(), // Expects the gallery config object
+    images: imagesSchema.optional(), // Expects an array based on imageItemSchema (for the gallery)
     cta: ctaSchema.optional(),
-    faq: faqSchema.optional(),
-    text: textSchema.optional(), // If you have a generic text block override
-    // Add other top-level overrides if necessary
-    updatedAt: z.any().optional(), // Allow Firestore Timestamp or serialized format
-}).passthrough(); // Allow other fields potentially stored
+    faq: faqSchema.optional(), // Expects an array based on faqItemSchema
+    text: textSchema.optional(),
+    // Add other top-level block overrides as needed
+    // Allow Firestore Timestamps or other non-Zod types for metadata fields
+    createdAt: z.any().optional(),
+    updatedAt: z.any().optional(),
+}).passthrough(); // Allow other fields potentially stored, like internal metadata
 
 export type PropertyOverridesData = z.infer<typeof propertyOverridesSchema>;
-
