@@ -3,12 +3,12 @@
 
 import { type ReactNode, Suspense } from 'react'; // Suspense for potential Next.js features
 import Link from 'next/link';
-import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext'; // AuthProvider is removed, useAuth consumes from root
 import { useRouter } from 'next/navigation'; 
 import { Button } from '@/components/ui/button';
 import { Loader2, LogOut } from 'lucide-react';
 
-// Inner component to handle auth logic, so AuthProvider wraps it
+// Inner component to handle auth logic
 function ProtectedAdminLayout({ children }: { children: ReactNode }) {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
@@ -72,13 +72,12 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
 }
 
 
-// Main AdminLayout component wraps ProtectedAdminLayout with AuthProvider
+// Main AdminLayout component now directly uses ProtectedAdminLayout
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
-    <AuthProvider>
-        <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /> <p className="ml-3 text-muted-foreground">Loading...</p></div>}>
-            <ProtectedAdminLayout>{children}</ProtectedAdminLayout>
-        </Suspense>
-    </AuthProvider>
+    // AuthProvider is no longer needed here, it's in the root layout
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /> <p className="ml-3 text-muted-foreground">Loading...</p></div>}>
+        <ProtectedAdminLayout>{children}</ProtectedAdminLayout>
+    </Suspense>
   );
 }

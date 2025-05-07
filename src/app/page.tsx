@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import type { Property, WebsiteTemplate, PropertyOverrides } from '@/types';
 import { PropertyPageLayout } from '@/components/property/property-page-layout';
 import { getPropertyBySlug, getWebsiteTemplate, getPropertyOverrides } from '@/app/properties/[slug]/page'; // Import shared functions
-import { AuthProvider } from '@/contexts/AuthContext'; // Import AuthProvider
+// AuthProvider removed, context will be consumed from root layout
 
 export default async function HomePage() {
   // Define the default property slug for the homepage
@@ -33,14 +33,13 @@ export default async function HomePage() {
   // console.log(`[HomePage] Data fetched successfully for ${defaultPropertySlug}.`);
 
   return (
-    <AuthProvider> {/* Wrap with AuthProvider */}
-      <Suspense fallback={<div>Loading homepage...</div>}>
-        <PropertyPageLayout
-          property={property}
-          template={template}
-          overrides={overrides || {}} // Pass overrides or empty object
-        />
-      </Suspense>
-    </AuthProvider>
+    // AuthProvider removed
+    <Suspense fallback={<div>Loading homepage...</div>}>
+      <PropertyPageLayout
+        property={property}
+        template={template}
+        overrides={overrides || {}} // Pass overrides or empty object
+      />
+    </Suspense>
   );
 }
