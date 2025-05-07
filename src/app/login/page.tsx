@@ -21,17 +21,20 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    console.log("[LoginPage] useEffect - Loading:", loading, "User:", user ? user.uid : null);
+    console.log(`[LoginPage] useEffect triggered. Loading: ${loading}, User: ${user ? user.uid : 'null'}`);
     if (!loading) {
       if (user) {
-        console.log("[LoginPage] User authenticated, redirecting to /admin");
+        console.log("[LoginPage] User authenticated, redirecting to /admin...");
         router.replace('/admin');
       } else {
-        console.log("[LoginPage] User not authenticated, showing login form.");
+        console.log("[LoginPage] User not authenticated after loading complete. Displaying login form.");
       }
+    } else {
+      console.log("[LoginPage] Still loading auth state...");
     }
   }, [user, loading, router]);
 
+  // This state is for the visual loading indicator on this page, separate from AuthContext's loading
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -41,37 +44,41 @@ export default function LoginPage() {
     );
   }
 
-  // If !loading and user is defined, useEffect will have initiated redirection.
-  // We can show a "Redirecting..." message or null while that happens.
-  if (user) {
-     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="ml-3 text-muted-foreground">Redirecting to admin panel...</p>
+  // If !loading and user is defined, useEffect should have redirected.
+  // This part is for when !loading and user is null.
+  if (!user) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
+        <Card className="w-full max-w-sm shadow-xl">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-bold">Admin Login</CardTitle>
+            <CardDescription>Sign in to access the admin panel.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              onClick={signInWithGoogle}
+              className="w-full"
+              disabled={loading} // Disable button while any auth operation is in progress
+              variant="outline"
+            >
+              {loading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <GoogleIcon />
+              )}
+              Sign in with Google
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  // If !loading and user is null, show the login form.
+  // Fallback for the brief moment user is set but redirect hasn't happened yet
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-sm shadow-xl">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Admin Login</CardTitle>
-          <CardDescription>Sign in to access the admin panel.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button
-            onClick={signInWithGoogle}
-            className="w-full"
-            // No need for disabled={loading} as this part only renders when !loading
-            variant="outline"
-          >
-            <GoogleIcon />
-            Sign in with Google
-          </Button>
-        </CardContent>
-      </Card>
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      <p className="ml-3 text-muted-foreground">Redirecting to admin panel...</p>
     </div>
   );
 }
