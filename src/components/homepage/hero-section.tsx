@@ -1,158 +1,126 @@
 // src/components/homepage/hero-section.tsx
-'use client';
+"use client";
 
 import Image from 'next/image';
+import { Star } from 'lucide-react';
 import { InitialBookingForm } from '@/components/booking/initial-booking-form';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Star, Home as HomeIcon } from 'lucide-react'; 
-import type { Property, CurrencyCode } from '@/types';
-import type { heroSchema } from '@/lib/overridesSchemas';
-import type { z } from 'zod';
-import { cn } from '@/lib/utils';
+import type { Property, CurrencyCode } from '@/types'; // Added CurrencyCode
 import { useCurrency } from '@/contexts/CurrencyContext'; // Import useCurrency
+import { cn } from '@/lib/utils';
 
-type HeroData = z.infer<typeof heroSchema> & {
-  ratings?: { average: number; count: number };
-  bookingFormProperty: Property; 
+
+export interface HeroData {
+  backgroundImage: string | null;
   'data-ai-hint'?: string;
-};
+  title?: string | null;
+  subtitle?: string | null;
+  price?: number | null; // Advertised rate from property's base currency
+  showRating?: boolean;
+  showBookingForm?: boolean;
+  bookingFormProperty: Property; // Pass the whole property for booking form logic
+   bookingForm?: { // Configuration for booking form display
+    position?: 'center' | 'top' | 'bottom' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+    size?: 'compressed' | 'large';
+  };
+}
 
 interface HeroSectionProps {
   heroData: HeroData;
 }
 
 export function HeroSection({ heroData }: HeroSectionProps) {
-  const { convertToSelectedCurrency, formatPrice, selectedCurrency, baseCurrencyForProperty } = useCurrency();
+  const { formatPrice, selectedCurrency, baseCurrencyForProperty } = useCurrency();
+
   const {
-    backgroundImage: backgroundImageUrl,
+    backgroundImage,
+    title,
+    subtitle,
+    price, // This is the advertisedRate in property's base currency
     showRating,
-    showBookingForm = true,
-    bookingForm,
+    showBookingForm,
     bookingFormProperty,
+    bookingForm,
     'data-ai-hint': dataAiHint,
   } = heroData;
 
-  const propertyBaseCurrency = baseCurrencyForProperty(bookingFormProperty.baseCurrency);
-  const { advertisedRate, advertisedRateType, pricePerNight, ratings } = bookingFormProperty;
-  const heroBlockSpecificPrice = heroData.price;
+  const propertyBaseCcy = baseCurrencyForProperty(bookingFormProperty.baseCurrency);
 
-  const position = bookingForm?.position || 'center';
-  const size = bookingForm?.size || 'large';
+  // Convert the advertised rate to the selected display currency
+  const displayPrice = price ? formatPrice(price, propertyBaseCcy) : null; // Format in base currency first for consistency
+  // The actual display in selected currency will happen in the component rendering the price if needed
+  // For now, HeroSection displays price as provided, assuming it's pre-formatted or to be formatted by a sub-component
 
-  const positionClasses: { [key: string]: string } = {
-    center: 'justify-center items-center',
-    top: 'justify-center items-start pt-20',
-    bottom: 'justify-center items-end pb-10',
-    'top-left': 'justify-start items-start pt-20',
-    'top-right': 'justify-end items-start pt-20',
-    'bottom-left': 'justify-start items-end pb-10',
-    'bottom-right': 'justify-end items-end pb-10',
+  const rating = bookingFormProperty.ratings?.average;
+  const reviewsCount = bookingFormProperty.ratings?.count;
+
+  // Determine classes for booking form positioning
+  const formPositionClasses = {
+    center: 'items-center justify-center',
+    top: 'items-start justify-center',
+    bottom: 'items-end justify-center',
+    'top-left': 'items-start justify-start',
+    'top-right': 'items-start justify-end',
+    'bottom-left': 'items-end justify-start',
+    'bottom-right': 'items-end justify-end',
   };
 
-  const cardSizeClasses = cn(
-    "w-full bg-background/90 backdrop-blur-sm shadow-xl border-border",
-    size === 'large' ? 'max-w-4xl p-3 md:p-4' : 'max-w-sm p-3 md:p-4'
+  const currentPositionClass = bookingForm?.position ? formPositionClasses[bookingForm.position] : formPositionClasses.bottom; // Default to bottom center
+
+  // Determine classes for booking form size
+  const formWrapperClasses = cn(
+    'bg-background/80 backdrop-blur-sm p-6 md:p-8 rounded-xl shadow-2xl w-full',
+     bookingForm?.size === 'large' ? 'max-w-3xl' : 'max-w-md' // Max width based on size
   );
-
-  const innerContainerClasses = cn(
-    size === 'large' ? 'flex flex-col md:flex-row md:items-end md:gap-4' : 'space-y-4'
-  );
-
-  const headerClasses = cn(
-    "p-0",
-    size === 'large' ? 'mb-0 md:flex-grow-0 md:shrink-0' : 'mb-4 text-center'
-  );
-
-  const priceRatingContainerClasses = cn(
-    "flex flex-col items-center gap-2 mb-2 flex-wrap",
-    size === 'large' ? 'md:flex-row md:items-baseline' : 'justify-center' // Align items baseline for large
-  );
-
-  const contentClasses = cn(
-     "p-0",
-     size === 'large' ? 'md:flex-grow' : ''
-  );
-
-  const displayPrice = (price: number, baseCcy: CurrencyCode) => {
-    const convertedPrice = convertToSelectedCurrency(price, baseCcy);
-    return formatPrice(convertedPrice, selectedCurrency);
-  };
-  
-  // Logic to determine which price to show
-  let finalPriceToShow: string | null = null;
-
-  if (advertisedRate) { 
-    finalPriceToShow = advertisedRate; // Show as is, assuming it's pre-formatted string like "$150" or "From €120"
-                                     // No conversion needed as it's already the desired display string.
-  } else if (heroBlockSpecificPrice !== undefined && heroBlockSpecificPrice > 0) {
-    finalPriceToShow = displayPrice(heroBlockSpecificPrice, propertyBaseCurrency);
-  } else if (pricePerNight > 0) {
-    finalPriceToShow = displayPrice(pricePerNight, propertyBaseCurrency);
-  }
 
 
   return (
-    <section className="relative h-[60vh] md:h-[75vh] w-full" id="hero">
-      {backgroundImageUrl ? (
+    <section className="relative h-[70vh] min-h-[500px] md:h-[80vh] md:min-h-[600px] w-full flex text-white" id="hero">
+      {backgroundImage && (
         <Image
-          src={backgroundImageUrl}
-          alt={`Featured image of ${bookingFormProperty.name}`}
+          src={backgroundImage}
+          alt={title || bookingFormProperty.name || 'Hero background image'}
           fill
           style={{ objectFit: 'cover' }}
-          priority
-          className="brightness-75"
-          data-ai-hint={dataAiHint || 'property hero image'}
+          priority // Hero image should be high priority
+          className="-z-10" // Ensure it's behind the content
+          data-ai-hint={dataAiHint || "mountain landscape"}
         />
-      ) : (
-        <div className="absolute inset-0 bg-muted flex items-center justify-center">
-          <HomeIcon className="h-24 w-24 text-muted-foreground/30" />
+      )}
+      {/* Overlay to darken the image for better text contrast */}
+      <div className="absolute inset-0 bg-black/40 -z-10"></div>
+
+      <div className={`container mx-auto px-4 flex flex-col h-full w-full ${currentPositionClass} py-8 md:py-12`}>
+        <div className="text-center mb-8 max-w-2xl mx-auto">
+          {title && <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 drop-shadow-md">{title}</h1>}
+          {subtitle && <p className="text-lg md:text-xl mb-6 drop-shadow-sm">{subtitle}</p>}
         </div>
-      )}
 
-      {showBookingForm && (
-          <div className={cn("absolute inset-0 flex p-4 md:p-8", positionClasses[position])}>
-            <Card className={cardSizeClasses} id="booking">
-                 <div className={innerContainerClasses}>
-                    <CardHeader className={headerClasses}>
-                        <div className={priceRatingContainerClasses}>
-                            {finalPriceToShow && (
-                              <div className="flex flex-col items-center md:items-start">
-                                <Badge variant="secondary" className="text-base md:text-lg px-3 py-1">
-                                  {finalPriceToShow}
-                                  { !(advertisedRate && (advertisedRateType === 'starting' || advertisedRateType === 'special')) && <span className="text-xs font-normal ml-1">/night</span> }
-                                </Badge>
-                                {(advertisedRateType === 'starting' || advertisedRateType === 'special') && advertisedRate && (
-                                    <div className="mt-[-2px] w-full text-center md:text-left">
-                                        {advertisedRateType === 'starting' && (
-                                        <span className="text-[10px] font-normal text-muted-foreground">starting from</span>
-                                        )}
-                                        {advertisedRateType === 'special' && (
-                                        <span className="text-[10px] font-normal text-muted-foreground">special deal</span>
-                                        )}
-                                    </div>
-                                )}
-                              </div>
-                            )}
-                            
-
-                            {showRating && ratings && ratings.count > 0 && (
-                              <Badge variant="secondary" className="text-base md:text-lg px-3 py-1 flex items-center">
-                                <Star className="h-4 w-4 mr-1 text-amber-500 fill-amber-500" />
-                                {ratings.average.toFixed(1)}
-                                <span className="text-xs font-normal ml-1">({ratings.count} reviews)</span>
-                              </Badge>
-                            )}
-                        </div>
-                    </CardHeader>
-
-                    <CardContent className={contentClasses}>
-                      <InitialBookingForm property={bookingFormProperty} size={size} />
-                    </CardContent>
-                </div>
-            </Card>
+        {showBookingForm && (
+           <div className={formWrapperClasses}>
+             <div className="flex flex-col md:flex-row items-center justify-between mb-4 gap-4">
+                {price !== null && price !== undefined && (
+                  <div className='text-center md:text-left'>
+                    <p className="text-2xl md:text-3xl font-bold text-foreground">
+                      {formatPrice(price, propertyBaseCcy)}
+                      <span className="text-base font-normal text-muted-foreground">/night</span>
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      special deal / starting with
+                    </p>
+                  </div>
+                )}
+                {showRating && rating && reviewsCount && (
+                  <div className="flex items-center gap-1 text-foreground">
+                    <Star className="h-5 w-5 text-primary fill-primary" />
+                    <span className="font-semibold">{rating.toFixed(1)}</span>
+                    <span className="text-sm text-muted-foreground">({reviewsCount} reviews)</span>
+                  </div>
+                )}
+             </div>
+            <InitialBookingForm property={bookingFormProperty} size={bookingForm?.size || 'compressed'} />
           </div>
-      )}
+        )}
+      </div>
     </section>
   );
 }
