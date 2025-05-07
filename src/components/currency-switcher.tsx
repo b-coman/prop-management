@@ -1,6 +1,7 @@
 // src/components/currency-switcher.tsx
 "use client";
 
+import { useState, useEffect } from 'react'; // Import useState and useEffect
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { SUPPORTED_CURRENCIES, type CurrencyCode } from '@/types';
 import {
@@ -26,6 +27,12 @@ interface CurrencySwitcherProps {
 
 export function CurrencySwitcher({ className }: CurrencySwitcherProps) {
   const { selectedCurrency, setSelectedCurrency } = useCurrency();
+  const [hasMounted, setHasMounted] = useState(false); // State to track client mount
+
+  // Set hasMounted to true after the component mounts on the client
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   const handleCurrencyChange = (value: string) => {
     if (SUPPORTED_CURRENCIES.includes(value as CurrencyCode)) {
@@ -43,10 +50,19 @@ export function CurrencySwitcher({ className }: CurrencySwitcherProps) {
         className // Merge dynamic class here
       )}>
         <SelectValue>
-          <div className="flex items-center gap-1.5">
-            <span className="text-lg mr-1 opacity-80">{SelectedFlag}</span> {/* Flag */}
-            {selectedCurrency} {/* Code */}
-          </div>
+           {/* Render placeholder or nothing until mounted */}
+          {hasMounted ? (
+            <div className="flex items-center gap-1.5">
+              <span className="text-lg mr-1 opacity-80">{SelectedFlag}</span> {/* Flag */}
+              {selectedCurrency} {/* Code */}
+            </div>
+          ) : (
+            // Render a placeholder or nothing during SSR/initial client render
+            <div className="flex items-center gap-1.5">
+              <span className="text-lg mr-1 opacity-80">🇺🇸</span> {/* Default/Placeholder flag */}
+              USD {/* Default/Placeholder currency */}
+            </div>
+          )}
         </SelectValue>
       </SelectTrigger>
       <SelectContent className="bg-background border-border">
