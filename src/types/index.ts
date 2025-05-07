@@ -68,6 +68,8 @@ export interface Property {
   }>;
   amenities?: string[];
   pricePerNight: number;
+  advertisedRate?: string; // e.g., "$150", "From $120", "Special $100"
+  advertisedRateType?: 'starting' | 'special' | 'exact' | null; // Type of advertised rate
   cleaningFee?: number;
   maxGuests: number;
   baseOccupancy: number;
@@ -240,7 +242,7 @@ export interface User {
     smsNotifications?: boolean;
   };
   createdAt: SerializableTimestamp;
-  updatedAt: SerializableTimestamp;
+  updatedAt?: SerializableTimestamp;
   lastLogin?: SerializableTimestamp;
 }
 

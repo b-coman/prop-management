@@ -34,6 +34,8 @@
   ],
   "amenities": ["WiFi", "Kitchen", "TV", "Air Conditioning", "Washer/Dryer", "Elevator"],
   "pricePerNight": 95,
+  "advertisedRate": "$90",
+  "advertisedRateType": "special",
   "cleaningFee": 25,
   "maxGuests": 3,
   "baseOccupancy": 2,

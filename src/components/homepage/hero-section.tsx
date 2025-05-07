@@ -11,8 +11,8 @@ import { cn } from '@/lib/utils'; // Import cn for conditional classes
 // Infer the type from the Zod schema
 type HeroData = z.infer<typeof heroSchema> & {
   // Add properties that are not in the schema but are passed to the component
-  ratings?: { average: number; count: number };
-  bookingFormProperty: Property;
+  ratings?: { average: number; count: number }; // This comes from Property, not heroSchema directly
+  bookingFormProperty: Property; // Pass the whole property object for form and advertised rate
   'data-ai-hint'?: string;
 };
 
@@ -22,64 +22,61 @@ interface HeroSectionProps {
 
 export function HeroSection({ heroData }: HeroSectionProps) {
   const {
-    backgroundImage: backgroundImageUrl, // Renamed from backgroundImage
-    price: pricePerNight, // Renamed from price
+    backgroundImage: backgroundImageUrl,
     showRating,
-    showBookingForm = true, // Default to true if not specified
+    showBookingForm = true,
     bookingForm,
-    ratings,
-    bookingFormProperty,
+    bookingFormProperty, // Property object contains advertisedRate, pricePerNight, ratings
     'data-ai-hint': dataAiHint,
   } = heroData;
 
+  // Extract rate info from the property object
+  const { advertisedRate, advertisedRateType, pricePerNight, ratings } = bookingFormProperty;
+  // Price from override or template default for the hero block itself
+  const heroBlockSpecificPrice = heroData.price;
+
+
   // Default values for position and size
   const position = bookingForm?.position || 'center';
-  const size = bookingForm?.size || 'large'; // Default to 'large' if not specified
+  const size = bookingForm?.size || 'large';
 
-  // Map position strings to flexbox classes for the overlay container
   const positionClasses: { [key: string]: string } = {
     center: 'justify-center items-center',
-    top: 'justify-center items-start pt-20', // Add padding-top for top position
-    bottom: 'justify-center items-end pb-10', // Add padding-bottom for bottom position
+    top: 'justify-center items-start pt-20',
+    bottom: 'justify-center items-end pb-10',
     'top-left': 'justify-start items-start pt-20',
     'top-right': 'justify-end items-start pt-20',
     'bottom-left': 'justify-start items-end pb-10',
     'bottom-right': 'justify-end items-end pb-10',
   };
 
-  // Classes for the Card based on size
   const cardSizeClasses = cn(
     "w-full bg-background/90 backdrop-blur-sm shadow-xl border-border",
     size === 'large' ? 'max-w-4xl p-3 md:p-4' : 'max-w-sm p-3 md:p-4'
   );
 
-  // Container classes for CardHeader and CardContent based on size
   const innerContainerClasses = cn(
     size === 'large' ? 'flex flex-col md:flex-row md:items-end md:gap-4' : 'space-y-4'
   );
 
-  // Header classes based on size
   const headerClasses = cn(
-    "p-0", // Remove default padding
-    size === 'large' ? 'mb-0 md:flex-grow-0 md:shrink-0' : 'mb-4 text-center' // Adjust flex properties and margin for large
+    "p-0",
+    size === 'large' ? 'mb-0 md:flex-grow-0 md:shrink-0' : 'mb-4 text-center'
   );
 
-  // Price/Rating container classes based on size
   const priceRatingContainerClasses = cn(
-    "flex items-center gap-2 mb-2 flex-wrap", // Common classes
-    size === 'large' ? 'justify-start' : 'justify-center' // Adjust justification for large
+    "flex items-center gap-2 mb-2 flex-wrap",
+    size === 'large' ? 'justify-start' : 'justify-center'
   );
 
-  // Content classes based on size
   const contentClasses = cn(
-     "p-0", // Remove default padding
-     size === 'large' ? 'md:flex-grow' : '' // Allow form to grow in large layout
+     "p-0",
+     size === 'large' ? 'md:flex-grow' : ''
   );
 
 
   return (
     <section className="relative h-[60vh] md:h-[75vh] w-full" id="hero">
-      {/* Background Image */}
       {backgroundImageUrl ? (
         <Image
           src={backgroundImageUrl}
@@ -96,21 +93,30 @@ export function HeroSection({ heroData }: HeroSectionProps) {
         </div>
       )}
 
-      {/* Overlay Content - Apply positioning classes */}
       {showBookingForm && (
           <div className={cn("absolute inset-0 flex p-4 md:p-8", positionClasses[position])}>
-            {/* Booking Form Card - Apply size-specific classes */}
             <Card className={cardSizeClasses} id="booking">
-                {/* Inner container for header and content, layout changes based on size */}
                  <div className={innerContainerClasses}>
-                    {/* Card Header for Price and Rating */}
                     <CardHeader className={headerClasses}>
                         <div className={priceRatingContainerClasses}>
-                            {pricePerNight !== undefined && pricePerNight > 0 && (
-                                <Badge variant="secondary" className="text-base md:text-lg px-3 py-1">
+                            {advertisedRate ? (
+                              <Badge variant="secondary" className="text-base md:text-lg px-3 py-1">
+                                {advertisedRate}
+                                {advertisedRateType === 'starting' && <span className="text-xs font-normal ml-1">starting from</span>}
+                                {advertisedRateType === 'special' && <span className="text-xs font-normal ml-1">special deal</span>}
+                                {advertisedRateType === 'exact' && <span className="text-xs font-normal ml-1">/night</span>}
+                                {!advertisedRateType && pricePerNight > 0 && <span className="text-xs font-normal ml-1">/night</span>} 
+                              </Badge>
+                            ) : heroBlockSpecificPrice !== undefined && heroBlockSpecificPrice > 0 ? (
+                              <Badge variant="secondary" className="text-base md:text-lg px-3 py-1">
+                                ${heroBlockSpecificPrice}<span className="text-xs font-normal ml-1">/night</span>
+                              </Badge>
+                            ) : pricePerNight > 0 ? (
+                               <Badge variant="secondary" className="text-base md:text-lg px-3 py-1">
                                 ${pricePerNight}<span className="text-xs font-normal ml-1">/night</span>
-                                </Badge>
-                            )}
+                              </Badge>
+                            ) : null}
+
                             {showRating && ratings && ratings.count > 0 && (
                                 <Badge variant="secondary" className="text-base md:text-lg px-3 py-1 flex items-center">
                                 <Star className="h-4 w-4 mr-1 text-amber-500 fill-amber-500" />
@@ -121,9 +127,7 @@ export function HeroSection({ heroData }: HeroSectionProps) {
                         </div>
                     </CardHeader>
 
-                    {/* Card Content for the Booking Form */}
                     <CardContent className={contentClasses}>
-                        {/* Pass the size prop down to the form */}
                         <InitialBookingForm property={bookingFormProperty} size={size} />
                     </CardContent>
                 </div>

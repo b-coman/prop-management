@@ -17,22 +17,28 @@ import { RulesSection } from './rules-section';
 import { MapSection } from './map-section';
 import { ContactSection } from './contact-section';
 import { Separator } from '@/components/ui/separator';
-import { heroSchema } from '@/lib/overridesSchemas'; // For HeroData type inference
+import { heroSchema, propertyOverridesSchema } from '@/lib/overridesSchemas'; 
+import { z } from 'zod';
+
 
 interface PropertyPageLayoutProps {
   property: Property;
   template: WebsiteTemplate;
-  overrides: PropertyOverrides; // Ensure overrides are always passed, even if empty
+  overrides: PropertyOverrides; 
 }
 
 export function PropertyPageLayout({ property, template, overrides }: PropertyPageLayoutProps) {
     const { slug, name, location, pricePerNight, ratings, amenities, checkInTime, checkOutTime, houseRules, analytics } = property;
     const { homepage = [], defaults = {} } = template;
 
-    const visibleBlocks = overrides?.visibleBlocks || homepage.map(b => b.id);
+    const validatedOverrides = propertyOverridesSchema.safeParse(overrides);
+    const currentOverrides = validatedOverrides.success ? validatedOverrides.data : {};
+
+
+    const visibleBlocks = currentOverrides?.visibleBlocks || homepage.map(b => b.id);
 
     const getMergedBlockData = (blockId: string, blockType: string): any => {
-        const overrideData = overrides?.[blockId as keyof PropertyOverrides];
+        const overrideData = currentOverrides?.[blockId as keyof PropertyOverrides];
         const defaultData = defaults?.[blockId];
 
         if (blockId === 'features' || blockId === 'attractions' || blockId === 'images') {
@@ -40,39 +46,43 @@ export function PropertyPageLayout({ property, template, overrides }: PropertyPa
         }
         if (blockId === 'testimonials') {
              const overrideReviews = (overrideData as PropertyOverrides['testimonials'])?.reviews;
-             const defaultReviews = (defaultData as any)?.reviews;
+             const defaultReviews = (defaultData as any)?.reviews; // defaultData can be complex
              return {
-                 ...defaultData,
-                 ...overrideData,
+                 ...defaultData, // spread default first
+                 ...overrideData, // then override
                  reviews: overrideReviews !== undefined ? overrideReviews : (defaultReviews || [])
              };
         }
          if (blockId === 'hero') {
             const mergedHero = { ...defaultData, ...overrideData } as z.infer<typeof heroSchema>;
-             if (overrideData?.bookingForm || defaultData?.bookingForm) {
+             if ((overrideData as any)?.bookingForm || (defaultData as any)?.bookingForm) { // Cast to any to check bookingForm
                  mergedHero.bookingForm = {
-                     ...defaultData?.bookingForm,
-                     ...overrideData?.bookingForm,
+                     ...(defaultData as any)?.bookingForm, // Cast to any
+                     ...(overrideData as any)?.bookingForm, // Cast to any
                  };
              }
              return mergedHero;
         }
+        // General case: override properties shadow default properties
         return { ...defaultData, ...overrideData };
     };
-
-    const mergedHeroData = getMergedBlockData('hero', 'hero');
+    
+    const mergedHeroBlockContent = getMergedBlockData('hero', 'hero');
     const heroData = {
-        backgroundImage: mergedHeroData?.backgroundImage || property.images?.find(img => img.isFeatured)?.url || property.images?.[0]?.url || null,
-        'data-ai-hint': mergedHeroData?.['data-ai-hint'] || property.images?.find(img => img.isFeatured)?.['data-ai-hint'] || property.images?.[0]?.['data-ai-hint'],
-        price: property.pricePerNight,
-        ratings: property.ratings,
-        bookingFormProperty: property,
-        showRating: mergedHeroData?.showRating,
-        showBookingForm: mergedHeroData?.showBookingForm,
-        title: mergedHeroData?.title,
-        subtitle: mergedHeroData?.subtitle,
-        bookingForm: mergedHeroData?.bookingForm,
+        // Content from hero block (override or default)
+        backgroundImage: mergedHeroBlockContent?.backgroundImage || property.images?.find(img => img.isFeatured)?.url || property.images?.[0]?.url || null,
+        'data-ai-hint': mergedHeroBlockContent?.['data-ai-hint'] || property.images?.find(img => img.isFeatured)?.['data-ai-hint'] || property.images?.[0]?.['data-ai-hint'],
+        price: mergedHeroBlockContent?.price, // This is the hero block's specific price override/default
+        showRating: mergedHeroBlockContent?.showRating,
+        showBookingForm: mergedHeroBlockContent?.showBookingForm,
+        title: mergedHeroBlockContent?.title,
+        subtitle: mergedHeroBlockContent?.subtitle,
+        bookingForm: mergedHeroBlockContent?.bookingForm,
+        // Pass the entire property object for advertisedRate and other details
+        bookingFormProperty: property, 
+        // ratings from property will be used directly by HeroSection via bookingFormProperty
     };
+
 
     const mergedExperienceData = getMergedBlockData('experience', 'experience');
     const experienceData = {
@@ -118,12 +128,14 @@ export function PropertyPageLayout({ property, template, overrides }: PropertyPa
         'data-ai-hint': mergedCtaData?.['data-ai-hint'],
      };
 
-    const galleryImagesData = getMergedBlockData('images', 'gallery');
-    const galleryImages = galleryImagesData.filter((img: any) => !img.tags?.includes('hero'));
-    const mergedGalleryData = getMergedBlockData('gallery', 'gallery');
+    const galleryImagesData = getMergedBlockData('images', 'gallery'); // This gets ALL images from overrides or defaults.images
+    // Filter out images tagged 'hero' if the hero section handles its own background
+    const galleryImages = Array.isArray(galleryImagesData) ? galleryImagesData.filter((img: any) => !img.tags?.includes('hero')) : [];
+
+    const mergedGalleryBlockContent = getMergedBlockData('gallery', 'gallery');
     const galleryData = {
-         title: mergedGalleryData?.title || "Gallery",
-         images: galleryImages,
+         title: mergedGalleryBlockContent?.title || "Gallery",
+         images: galleryImages, // Use the filtered list
          propertyName: name,
     }
 
@@ -141,7 +153,7 @@ export function PropertyPageLayout({ property, template, overrides }: PropertyPa
                  }
                  return null;
             case 'host':
-                 if (hostData.name && hostData.description) { // Removed backstory from required check for now
+                 if (hostData.name && hostData.description) { 
                      return <HostIntroduction key={block.id} host={{name: hostData.name, welcomeMessage: hostData.description, backstory: hostData.backstory || "", imageUrl: hostData.imageUrl, 'data-ai-hint': hostData['data-ai-hint']}} />;
                  }
                  return null;
