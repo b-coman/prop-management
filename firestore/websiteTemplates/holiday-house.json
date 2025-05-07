@@ -22,7 +22,7 @@
         { "label": "Contact", "url": "/contact" }
       ],
       "logo": {
-        "src": "/logo.svg",
+        "src": "/images/templates/holiday-house/logo.svg",
         "alt": "RentalSpot"
       }
     },
@@ -47,7 +47,7 @@
     },
     "defaults": {
       "hero": {
-        "backgroundImage": "/default-hero.jpg",
+        "backgroundImage": "/images/templates/holiday-house/default-hero.jpg",
         "title": "Welcome to Your Holiday House",
         "price": 150,
         "showRating": true,
@@ -69,7 +69,7 @@
       "host": {
         "title": "Meet Your Host",
         "name": "Bogdan",
-        "image": "/default-host.jpg",
+        "image": "/images/templates/holiday-house/default-host.jpg",
         "description": "I'm delighted to welcome you to our holiday house. Feel at home and enjoy your stay!",
         "contact": {
           "phone": "+40 723-200868",
@@ -79,16 +79,16 @@
         "ctaUrl": "/about"
       },
       "features": [
-        { "icon": "firepit", "title": "Fire Pit", "description": "Enjoy evenings by the fire pit.", "image": "/default-firepit.jpg", "data-ai-hint": "fire pit cozy night" },
-        { "icon": "bbq", "title": "BBQ Area", "description": "Cook delicious meals outdoors.", "image": "/default-bbq.jpg", "data-ai-hint": "outdoor bbq grill summer" },
-        { "icon": "hammock", "title": "Hammocks", "description": "Relax in our garden hammocks.", "image": "/default-hammock.jpg", "data-ai-hint": "garden hammock relax" }
+        { "icon": "firepit", "title": "Fire Pit", "description": "Enjoy evenings by the fire pit.", "image": "/images/templates/holiday-house/default-firepit.jpg", "data-ai-hint": "fire pit cozy night" },
+        { "icon": "bbq", "title": "BBQ Area", "description": "Cook delicious meals outdoors.", "image": "/images/templates/holiday-house/default-bbq.jpg", "data-ai-hint": "outdoor bbq grill summer" },
+        { "icon": "hammock", "title": "Hammocks", "description": "Relax in our garden hammocks.", "image": "/images/templates/holiday-house/default-hammock.jpg", "data-ai-hint": "garden hammock relax" }
       ],
       "location": {
         "title": "Discover Nearby Attractions",
         "mapCenter": { "lat": 45.2530, "lng": 25.6346 },
         "attractions": [
-          { "name": "Dracula Castle", "distance": "2.5 hours by car", "description": "Visit the legendary Bran Castle.", "image": "/default-dracula.jpg", "data-ai-hint": "Dracula Castle Bran Romania" },
-          { "name": "Ialomita Cave", "distance": "1.5 hours by car", "description": "Explore the famous Ialomita Cave.", "image": "/default-cave.jpg", "data-ai-hint": "Ialomita Cave Romania Bucegi" }
+          { "name": "Dracula Castle", "distance": "2.5 hours by car", "description": "Visit the legendary Bran Castle.", "image": "/images/templates/holiday-house/default-dracula.jpg", "data-ai-hint": "Dracula Castle Bran Romania" },
+          { "name": "Ialomita Cave", "distance": "1.5 hours by car", "description": "Explore the famous Ialomita Cave.", "image": "/images/templates/holiday-house/default-cave.jpg", "data-ai-hint": "Ialomita Cave Romania Bucegi" }
         ],
         "ctaText": "Explore All Attractions",
         "ctaUrl": "/location"
@@ -96,9 +96,9 @@
       "testimonials": {
         "title": "What Our Guests Say",
         "showRating": true,
-        "featuredReviews": [
-          { "name": "Maria D.", "date": "2025-04", "rating": 5, "text": "We loved our stay! The house was perfect.", "imageUrl": "/default-guest1.jpg", "data-ai-hint": "happy female guest portrait" },
-          { "name": "James T.", "date": "2025-03", "rating": 5, "text": "Great experience. Highly recommend!", "imageUrl": "/default-guest2.jpg", "data-ai-hint": "happy male guest portrait" }
+        "reviews": [ // Updated key from featuredReviews to reviews
+          { "name": "Maria D.", "date": "2025-04", "rating": 5, "text": "We loved our stay! The house was perfect.", "imageUrl": "/images/templates/holiday-house/default-guest1.jpg", "data-ai-hint": "happy female guest portrait" },
+          { "name": "James T.", "date": "2025-03", "rating": 5, "text": "Great experience. Highly recommend!", "imageUrl": "/images/templates/holiday-house/default-guest2.jpg", "data-ai-hint": "happy male guest portrait" }
         ]
       },
       "cta": {
@@ -106,16 +106,16 @@
         "description": "Escape to tranquility and comfort.",
         "buttonText": "Book Now",
         "buttonUrl": "/book",
-        "backgroundImage": "/default-cta.jpg",
+        "backgroundImage": "/images/templates/holiday-house/default-cta.jpg",
          "data-ai-hint": "mountain landscape sunset scenic"
       },
        "gallery": {
          "title": "Property Gallery",
          "images": [
-           { "url": "/default-gallery-1.jpg", "alt": "Living Room", "data-ai-hint": "cozy living room interior" },
-           { "url": "/default-gallery-2.jpg", "alt": "Bedroom 1", "data-ai-hint": "bedroom interior comfortable" },
-           { "url": "/default-gallery-3.jpg", "alt": "Kitchen", "data-ai-hint": "modern kitchen interior" },
-           { "url": "/default-gallery-4.jpg", "alt": "Exterior View", "data-ai-hint": "house exterior summer day" }
+           { "url": "/images/templates/holiday-house/default-gallery-1.jpg", "alt": "Living Room", "data-ai-hint": "cozy living room interior" },
+           { "url": "/images/templates/holiday-house/default-gallery-2.jpg", "alt": "Bedroom 1", "data-ai-hint": "bedroom interior comfortable" },
+           { "url": "/images/templates/holiday-house/default-gallery-3.jpg", "alt": "Kitchen", "data-ai-hint": "modern kitchen interior" },
+           { "url": "/images/templates/holiday-house/default-gallery-4.jpg", "alt": "Exterior View", "data-ai-hint": "house exterior summer day" }
          ]
        }
     }

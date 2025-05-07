@@ -2,91 +2,113 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
     // Helper functions
     function isSignedIn() {
       return request.auth != null;
     }
 
     function isOwner(propertyId) {
-      // Check if the user is signed in and if the property document exists and has an ownerId matching the user's UID
+      // Assumes propertyId passed is the slug (document ID)
       return isSignedIn() &&
              exists(/databases/$(database)/documents/properties/$(propertyId)) &&
              get(/databases/$(database)/documents/properties/$(propertyId)).data.ownerId == request.auth.uid;
     }
 
     function isAdmin() {
-      // Check if the user is signed in and if their user document exists and has the role 'admin'
+      // Assumes user document exists and has a 'role' field
       return isSignedIn() &&
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Properties collection
-    match /properties/{propertyId} {
-      allow read: if true; // Public read access
-      // Allow create only if signed in and the ownerId matches the user creating it
+    // Checks if a custom domain is already in use by another property
+    // function domainIsAvailable(domain) {
+    //   return !exists(/databases/$(database)/documents/properties/{otherPropertyId}) ||
+    //         query(/databases/$(database)/documents/properties).where('customDomain', '==', domain).where('useCustomDomain', '==', true).size() == 0;
+    // }
+
+    // Properties collection (using slug as document ID)
+    match /properties/{propertySlug} {
+      allow read: if true; // Publicly readable
+
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      // Allow update/delete only for the owner or an admin
-      allow update, delete: if isOwner(propertyId) || isAdmin();
+
+      // Allow update if owner or admin
+      // TODO: Add validation for customDomain uniqueness if needed (can be complex)
+      allow update: if isOwner(propertySlug) || isAdmin();
+                      // Example domain validation (needs refinement/testing):
+                      // && (request.resource.data.useCustomDomain == false ||
+                      //     (request.resource.data.useCustomDomain == true && request.resource.data.customDomain is string)) // Add length/format check?
+
+      allow delete: if isOwner(propertySlug) || isAdmin();
     }
 
-    // Availability collection
-    match /availability/{documentId} {
-      allow read: if true; // Public read access
-      // Allow write only for the property owner or an admin
-      // Extracts propertyId from documentId (e.g., "prop1_2025-05")
-      allow write: if isSignedIn() && (isOwner(documentId.split('_')[0]) || isAdmin());
+     // PropertyOverrides collection (using slug as document ID)
+    match /propertyOverrides/{propertySlug} {
+        allow read: if true; // Publicly readable for website rendering
+        allow write: if isOwner(propertySlug) || isAdmin(); // Only owner or admin can modify overrides
     }
 
-    // Bookings collection
+
+    // Availability collection (using {propertySlug}_{YYYY-MM} as document ID)
+    match /availability/{availabilityId} {
+      allow read: if true; // Publicly readable for calendar display
+
+      // Allow write if the booking creation logic runs with authenticated user context (owner/admin)
+      // Or allow if triggered by a secure server process (like a Cloud Function)
+      // For now, allowing signed-in users for simplicity during development. Refine this for production.
+      allow write: if isSignedIn(); // Simpler rule for now, refine later
+                      // More secure rule: if isOwner(availabilityId.split('_')[0]) || isAdmin();
+    }
+
+    // Bookings collection (using auto-generated ID)
     match /bookings/{bookingId} {
-      // Allow anyone to create a booking (handle validation server-side)
-      allow create: if true;
-      // Allow read/update only for the guest who made the booking, the property owner, or an admin
+      // Allow creation from the client (e.g., during checkout)
+      allow create: if true; // Allow any user to create a PENDING booking
+
+      // Allow read/update if the user is the guest associated with the booking,
+      // the property owner, or an admin.
+      // Note: Requires guestInfo.userId to be set correctly during booking creation if using isGuest check.
       allow read, update: if isSignedIn() &&
-                             (request.auth.uid == resource.data.guestInfo.userId ||
-                              isOwner(resource.data.propertyId) ||
-                              isAdmin());
-      // Allow delete only for admins (or adjust based on requirements)
+                            (request.auth.uid == resource.data.guestInfo.userId ||
+                             isOwner(resource.data.propertyId) ||
+                             isAdmin());
+
+      // Allow deletion only by admin (or potentially owner)
       allow delete: if isAdmin();
     }
 
-    // Users collection
+    // Users collection (using auth user ID as document ID)
     match /users/{userId} {
-      // Allow read/write only for the user themselves or an admin
+      // Allow users to read/write their own profile, admins can read/write any profile
       allow read, write: if request.auth.uid == userId || isAdmin();
     }
 
-    // Reviews collection
+    // Reviews collection (using auto-generated ID)
     match /reviews/{reviewId} {
-      allow read: if true; // Public read access
-      // Allow create only for signed-in users
-      allow create: if isSignedIn();
-      // Allow update/delete only for admins
-      allow update, delete: if isAdmin();
+      allow read: if true; // Publicly readable
+      allow create: if isSignedIn(); // Must be signed in to leave a review
+      allow update, delete: if isAdmin(); // Only admins can modify/delete reviews
     }
 
-    // Settings collection
-    match /settings/{document} {
-      allow read: if true; // Public read access
-      // Allow write only for admins
-      allow write: if isAdmin();
+    // App Config (e.g., currency rates)
+    match /appConfig/{configDocId} {
+        allow read: if true; // Allow public read for currency rates, etc.
+        allow write: if isAdmin(); // Only admins can update configuration
     }
 
-    // SyncCalendars collection
-    match /syncCalendars/{documentId} {
-      // Allow read/write only for the property owner or an admin
+    // SyncCalendars collection (using auto-generated ID)
+    match /syncCalendars/{syncDocId} {
       allow read, write: if isSignedIn() &&
-                           (isOwner(resource.data.propertyId) || isAdmin());
+                            (isOwner(resource.data.propertyId) || isAdmin());
     }
 
-    // Coupons collection
-    match /coupons/{couponId} {
-      // Allow read access for everyone (needed by booking form validation)
-      // Consider `if isSignedIn();` if coupons should only be visible/usable by logged-in users.
-      allow read: if true;
-      // Allow create/update/delete only for admins
-      allow write: if isAdmin();
+     // AvailabilityAlerts collection (using auto-generated ID)
+    match /availabilityAlerts/{alertId} {
+        allow create: if true; // Allow anyone to request an alert
+        allow read, update, delete: if isAdmin(); // Only admin can manage alerts
     }
+
   }
 }

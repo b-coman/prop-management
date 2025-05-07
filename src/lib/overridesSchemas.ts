@@ -35,7 +35,7 @@ export const experienceSchema = z.object({
 export const hostSchema = z.object({
   title: z.string().optional(),
   name: z.string(),
-  image: z.string().url().optional().nullable(), // Image is optional and can be null
+  image: z.string().url().optional().nullable(), // Made optional and nullable
   'data-ai-hint': z.string().optional(),
   description: z.string(), // This maps to welcomeMessage in the component
   backstory: z.string().optional(),
@@ -52,7 +52,7 @@ export const featureItemSchema = z.object({
     icon: z.string().optional(),
     title: z.string(),
     description: z.string(),
-    image: z.string().url().optional().nullable(),
+    image: z.string().url().optional().nullable(), // Made optional and nullable
     'data-ai-hint': z.string().optional(),
 }).passthrough(); // Allow extra fields
 
@@ -74,7 +74,7 @@ export const locationSchema = z.object({
 export const attractionItemSchema = z.object({
      name: z.string(),
      distance: z.string().optional(),
-     image: z.string().url().optional().nullable(),
+     image: z.string().url().optional().nullable(), // Made optional and nullable
      'data-ai-hint': z.string().optional(),
      description: z.string()
 }).passthrough(); // Allow extra fields
@@ -88,7 +88,7 @@ export const reviewItemSchema = z.object({
      date: z.string().optional(), // Date is optional
      rating: z.number().min(1).max(5),
      text: z.string(),
-     imageUrl: z.string().url().optional().nullable(),
+     imageUrl: z.string().url().optional().nullable(), // Made optional and nullable
      'data-ai-hint': z.string().optional(),
 }).passthrough(); // Allow extra fields
 
@@ -108,7 +108,7 @@ export const ctaSchema = z.object({
   description: z.string(),
   buttonText: z.string(),
   buttonUrl: z.string().optional(),
-  backgroundImage: z.string().url().optional().nullable(),
+  backgroundImage: z.string().url().optional().nullable(), // Made optional and nullable
   'data-ai-hint': z.string().optional(),
 }).passthrough(); // Allow extra fields
 
