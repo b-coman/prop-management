@@ -86,6 +86,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$esm2017$2f$index$2d$9ae71ce3$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__d__as__signInWithPopup$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/node_modules/@firebase/auth/dist/esm2017/index-9ae71ce3.js [app-client] (ecmascript) <export d as signInWithPopup>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$esm2017$2f$index$2d$9ae71ce3$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__Y__as__GoogleAuthProvider$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/node_modules/@firebase/auth/dist/esm2017/index-9ae71ce3.js [app-client] (ecmascript) <export Y as GoogleAuthProvider>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$esm2017$2f$index$2d$9ae71ce3$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__D__as__signOut$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/node_modules/@firebase/auth/dist/esm2017/index-9ae71ce3.js [app-client] (ecmascript) <export D as signOut>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$esm2017$2f$index$2d$9ae71ce3$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__J__as__AuthErrorCodes$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/node_modules/@firebase/auth/dist/esm2017/index-9ae71ce3.js [app-client] (ecmascript) <export J as AuthErrorCodes>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/firebase.ts [app-client] (ecmascript)"); // Assuming auth is exported from your firebase setup
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/navigation.js [app-client] (ecmascript)");
 ;
@@ -112,6 +113,8 @@ const AuthProvider = ({ children })=>{
                 "AuthProvider.useEffect.unsubscribe": (currentUser)=>{
                     setUser(currentUser);
                     setLoading(false);
+                // console.log("[AuthProvider] Auth state changed, current user:", currentUser ? currentUser.uid : null);
+                // console.log("[AuthProvider] Loading set to false");
                 }
             }["AuthProvider.useEffect.unsubscribe"]);
             return ({
@@ -129,8 +132,13 @@ const AuthProvider = ({ children })=>{
             const provider = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$esm2017$2f$index$2d$9ae71ce3$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__Y__as__GoogleAuthProvider$3e$__["GoogleAuthProvider"]();
             await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$esm2017$2f$index$2d$9ae71ce3$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__d__as__signInWithPopup$3e$__["signInWithPopup"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["auth"], provider);
         // onAuthStateChanged will handle setting the user and redirecting
+        // User will be redirected to /admin by the LoginPage's useEffect
         } catch (error) {
-            console.error('Error signing in with Google:', error);
+            if (error.code === __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$esm2017$2f$index$2d$9ae71ce3$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__J__as__AuthErrorCodes$3e$__["AuthErrorCodes"].UNAUTHORIZED_DOMAIN) {
+                console.error('❌ Error signing in with Google: Unauthorized domain. ' + 'Please ensure your current domain is added to the list of authorized domains ' + 'in your Firebase project settings (Authentication -> Sign-in method -> Authorized domains). ' + `Current domain is likely: ${window.location.hostname}`);
+            } else {
+                console.error('❌ Error signing in with Google:', error);
+            }
             setLoading(false);
         }
     };
@@ -145,7 +153,7 @@ const AuthProvider = ({ children })=>{
             setUser(null);
             router.push('/login'); // Redirect to login page after logout
         } catch (error) {
-            console.error('Error signing out:', error);
+            console.error('❌ Error signing out:', error);
         } finally{
             setLoading(false);
         }
@@ -158,12 +166,12 @@ const AuthProvider = ({ children })=>{
                 children: "Error: Firebase Authentication failed to initialize."
             }, void 0, false, {
                 fileName: "[project]/src/contexts/AuthContext.tsx",
-                lineNumber: 80,
+                lineNumber: 93,
                 columnNumber: 9
             }, this)
         }, void 0, false, {
             fileName: "[project]/src/contexts/AuthContext.tsx",
-            lineNumber: 79,
+            lineNumber: 92,
             columnNumber: 7
         }, this);
     }
@@ -177,7 +185,7 @@ const AuthProvider = ({ children })=>{
         children: children
     }, void 0, false, {
         fileName: "[project]/src/contexts/AuthContext.tsx",
-        lineNumber: 87,
+        lineNumber: 100,
         columnNumber: 5
     }, this);
 };
