@@ -81,6 +81,7 @@ export function AvailabilityCheck({
 
   const [checkInDate, setCheckInDate] = useState<Date | null>(parseDateSafe(initialCheckIn));
   const [checkOutDate, setCheckOutDate] = useState<Date | null>(parseDateSafe(initialCheckOut));
+  // Ensure a valid number is provided as the initial value for guests
   const [numberOfGuests, setNumberOfGuests] = useSessionStorage<number>(`booking_${propertySlug}_guests`, property.baseOccupancy || 1);
 
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
@@ -231,10 +232,13 @@ export function AvailabilityCheck({
 
   const handleGuestChange = (change: number) => {
     setNumberOfGuests((prev) => {
-      const newCount = prev + change;
+      // Ensure prev is a number before calculation
+      const currentGuests = typeof prev === 'number' && !isNaN(prev) ? prev : (property.baseOccupancy || 1);
+      const newCount = currentGuests + change;
       return Math.max(1, Math.min(newCount, property.maxGuests));
     });
   };
+
 
   const handleGuestInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -294,6 +298,12 @@ export function AvailabilityCheck({
     e.preventDefault();
     setFormError(null);
 
+    // Explicitly check if numberOfGuests is a valid number
+     if (typeof numberOfGuests !== 'number' || isNaN(numberOfGuests) || numberOfGuests < 1 || numberOfGuests > property.maxGuests) {
+       setFormError(`Number of guests must be between 1 and ${property.maxGuests}.`);
+       return;
+     }
+
     if (!datesSelected || isAvailable !== true || !checkInDate || !checkOutDate) {
       setFormError("Selected dates are not available or invalid.");
       return;
@@ -310,10 +320,7 @@ export function AvailabilityCheck({
       setFormError("Please enter your phone number.");
       return;
     }
-    if (numberOfGuests < 1 || numberOfGuests > property.maxGuests) {
-      setFormError(`Number of guests must be between 1 and ${property.maxGuests}.`);
-      return;
-    }
+
     if (!pricingDetailsInBaseCurrency) {
       setFormError("Could not calculate pricing. Please try again.");
       return;
@@ -365,23 +372,21 @@ export function AvailabilityCheck({
       if (stripeResult.error || !stripeResult.sessionId || !stripeResult.sessionUrl) {
         throw new Error(stripeResult.error || 'Failed to create Stripe session or missing session URL.');
       }
-      
-      try {
-        window.location.assign(stripeResult.sessionUrl);
-      } catch (assignError) {
-         console.warn("[handleContinueToPayment] window.location.assign failed, attempting fallback with stripe.redirectToCheckout...", assignError);
-         const stripe = await stripePromise;
-         if (!stripe) throw new Error('Stripe.js failed to load.');
-         const { error: stripeRedirectError } = await stripe.redirectToCheckout({ sessionId: stripeResult.sessionId });
-         if (stripeRedirectError) {
-           if (stripeRedirectError.name === 'SecurityError' && stripeRedirectError.message.includes('permission to navigate the target frame')) {
+
+      const stripe = await stripePromise;
+      if (!stripe) throw new Error('Stripe.js failed to load.');
+
+      const { error } = await stripe.redirectToCheckout({ sessionId: stripeResult.sessionId });
+
+      if (error) {
+        if (error.name === 'SecurityError' && error.message.includes('permission to navigate the target frame')) {
              console.error("[Stripe Redirect Error] SecurityError: Likely due to cross-origin restrictions in the iframe environment. Redirection might be blocked.");
              setFormError("Could not redirect to Stripe due to security restrictions in this environment. Please try booking from the deployed site.");
            } else {
-             throw new Error(stripeRedirectError.message || 'Could not redirect to Stripe (fallback attempt).');
+             throw new Error(error.message || 'Could not redirect to Stripe.');
            }
-         }
       }
+      // No need to redirect here, Stripe handles it
 
     } catch (error) {
       console.error("Error processing booking:", error);
@@ -513,22 +518,24 @@ export function AvailabilityCheck({
   };
 
   const renderAvailabilityCalendar = () => {
-    if (isAvailable === true || (isLoadingAvailability && unavailableDates.length === 0)) {
-      return null;
-    }
-    const validCheckIn = checkInDate && isValid(checkInDate) ? checkInDate : new Date();
-    const calendarCenterMonth = startOfMonth(validCheckIn);
-    return (
-      <div className="mt-6">
-        <h3 className="text-lg font-semibold mb-3">Availability Calendar</h3>
-        <AvailabilityCalendar
-          currentMonth={calendarCenterMonth}
-          unavailableDates={unavailableDates}
-          selectedRange={datesSelected && checkInDate && checkOutDate ? { from: checkInDate, to: checkOutDate } : undefined}
-        />
-      </div>
-    );
-  }
+      // Only render if dates are unavailable AND the component is not loading availability
+      if (isAvailable === true || isLoadingAvailability) {
+          return null;
+      }
+      const validCheckIn = checkInDate && isValid(checkInDate) ? checkInDate : new Date();
+      const calendarCenterMonth = startOfMonth(validCheckIn);
+      return (
+          <div className="mt-6">
+              <h3 className="text-lg font-semibold mb-3">Availability Calendar</h3>
+              <AvailabilityCalendar
+                  currentMonth={calendarCenterMonth}
+                  unavailableDates={unavailableDates}
+                  selectedRange={datesSelected && checkInDate && checkOutDate ? { from: checkInDate, to: checkOutDate } : undefined}
+              />
+          </div>
+      );
+  };
+
 
   const renderNotificationForm = () => {
     if (isLoadingAvailability || isAvailable !== false || !datesSelected || !checkInDate || !checkOutDate) return null;
@@ -604,8 +611,11 @@ export function AvailabilityCheck({
     )
   }
 
+  // Render guest count safely
+  const guestsDisplay = typeof numberOfGuests === 'number' && !isNaN(numberOfGuests) ? numberOfGuests : (property.baseOccupancy || 1);
+
   return (
-    <div className="max-w-3xl mx-auto w-full px-4 md:px-0">
+    <div className="max-w-xl mx-auto w-full px-4 md:px-0">
       <div className="space-y-6 mb-8">
         {renderAvailabilityStatus()}
         {renderSuggestedDates()}
@@ -626,72 +636,72 @@ export function AvailabilityCheck({
               </div>
             ) : (
               <form onSubmit={handleContinueToPayment} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end border-b pb-4">
-                  {datesSelected && checkInDate && checkOutDate && (
-                    <div className="space-y-1">
-                      <Label>Selected Dates</Label>
-                      <div className="flex items-center justify-between rounded-md border p-2 mt-1 bg-muted/50">
-                        <span className="font-medium text-sm">
-                          {format(checkInDate, 'MMM dd, yyyy')} - {format(checkOutDate, 'MMM dd, yyyy')}
-                        </span>
-                        <span className="text-sm text-muted-foreground">({numberOfNights} nights)</span>
-                      </div>
-                    </div>
-                  )}
-                  <div className="space-y-1">
-                    <Label htmlFor="guests">Number of Guests</Label>
-                    <div className="flex items-center justify-between rounded-md border p-2 mt-1">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => handleGuestChange(-1)}
-                        disabled={numberOfGuests <= 1 || isProcessingBooking}
-                        aria-label="Decrease guests"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                      <span className="mx-4 font-medium w-8 text-center" id="guests">
-                        {numberOfGuests}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => handleGuestChange(1)}
-                        disabled={numberOfGuests >= property.maxGuests || isProcessingBooking}
-                        aria-label="Increase guests"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Max {property.maxGuests}. Base for {property.baseOccupancy}.
-                      {(property.extraGuestFee ?? 0) > 0 && ` Extra: ${formatPrice(property.extraGuestFee, propertyBaseCcy)}/guest/night.`}
-                    </p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 gap-4 border-b pb-4">
-                  <div className="space-y-1">
-                    <Label htmlFor="coupon">Discount Coupon (Optional)</Label>
-                    <div className="flex gap-2">
-                      <Input id="coupon" placeholder="Enter code" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} disabled={isApplyingCoupon || !!appliedCoupon || isProcessingBooking} />
-                      {!appliedCoupon ? (
-                        <Button type="button" variant="outline" onClick={handleApplyCoupon} disabled={isApplyingCoupon || !couponCode.trim() || isProcessingBooking}>
-                          {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <TicketPercent className="h-4 w-4" />}
-                        </Button>
-                      ) : (
-                        <Button type="button" variant="ghost" size="icon" onClick={handleRemoveCoupon} disabled={isProcessingBooking}><X className="h-4 w-4 text-destructive" /></Button>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end border-b pb-4">
+                      {datesSelected && checkInDate && checkOutDate && (
+                          <div className="space-y-1">
+                          <Label>Selected Dates</Label>
+                          <div className="flex items-center justify-between rounded-md border p-2 mt-1 bg-muted/50">
+                              <span className="font-medium text-sm">
+                              {format(checkInDate, 'MMM dd, yyyy')} - {format(checkOutDate, 'MMM dd, yyyy')}
+                              </span>
+                              <span className="text-sm text-muted-foreground">({numberOfNights} nights)</span>
+                          </div>
+                          </div>
                       )}
-                    </div>
-                    <div className="h-4 text-xs mt-1">
-                      {couponError && <p className="text-destructive">{couponError}</p>}
-                      {appliedCoupon && <p className="text-green-600">Applied: {appliedCoupon.code} ({appliedCoupon.discountPercentage}%)</p>}
-                    </div>
+                      <div className="space-y-1">
+                          <Label htmlFor="guests">Number of Guests</Label>
+                          <div className="flex items-center justify-between rounded-md border p-2 mt-1">
+                              <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={() => handleGuestChange(-1)}
+                                  disabled={guestsDisplay <= 1 || isProcessingBooking}
+                                  aria-label="Decrease guests"
+                              >
+                                  <Minus className="h-4 w-4" />
+                              </Button>
+                              <span className="mx-4 font-medium w-8 text-center" id="guests">
+                                  {guestsDisplay} {/* Render safe value */}
+                              </span>
+                              <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={() => handleGuestChange(1)}
+                                  disabled={guestsDisplay >= property.maxGuests || isProcessingBooking}
+                                  aria-label="Increase guests"
+                              >
+                                  <Plus className="h-4 w-4" />
+                              </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                              Max {property.maxGuests}. Base for {property.baseOccupancy}.
+                              {(property.extraGuestFee ?? 0) > 0 && ` Extra: ${formatPrice(property.extraGuestFee, propertyBaseCcy)}/guest/night.`}
+                          </p>
+                      </div>
+                      {/* Coupon Code - Moved here */}
+                      <div className="space-y-1 md:col-span-2">
+                          <Label htmlFor="coupon">Discount Coupon (Optional)</Label>
+                          <div className="flex gap-2">
+                              <Input id="coupon" placeholder="Enter code" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} disabled={isApplyingCoupon || !!appliedCoupon || isProcessingBooking} />
+                              {!appliedCoupon ? (
+                                  <Button type="button" variant="outline" onClick={handleApplyCoupon} disabled={isApplyingCoupon || !couponCode.trim() || isProcessingBooking}>
+                                  {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <TicketPercent className="h-4 w-4" />}
+                                  </Button>
+                              ) : (
+                                  <Button type="button" variant="ghost" size="icon" onClick={handleRemoveCoupon} disabled={isProcessingBooking}><X className="h-4 w-4 text-destructive" /></Button>
+                              )}
+                          </div>
+                          <div className="h-4 text-xs mt-1">
+                              {couponError && <p className="text-destructive">{couponError}</p>}
+                              {appliedCoupon && <p className="text-green-600">Applied: {appliedCoupon.code} ({appliedCoupon.discountPercentage}%)</p>}
+                          </div>
+                      </div>
                   </div>
-                </div>
+
                 {pricingDetailsForDisplay && (
                   <div className="space-y-2 text-sm border-b pb-4">
                     <h3 className="font-semibold mb-2">Price Details ({selectedCurrency})</h3>
