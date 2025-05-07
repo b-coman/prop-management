@@ -4,6 +4,10 @@ import type { Timestamp as FirestoreTimestamp } from 'firebase/firestore'; // Us
 // Allow null for optional dates
 export type SerializableTimestamp = FirestoreTimestamp | string | number | Date | null; // Added Date
 
+export const SUPPORTED_CURRENCIES = ['USD', 'EUR', 'RON'] as const;
+export type CurrencyCode = typeof SUPPORTED_CURRENCIES[number];
+
+
 // Interface for a single block definition within a template or override
 export interface WebsiteBlock {
     id: string; // e.g., "hero", "features", "location"
@@ -68,6 +72,7 @@ export interface Property {
   }>;
   amenities?: string[];
   pricePerNight: number;
+  baseCurrency: CurrencyCode; // Currency for all prices defined in this property
   advertisedRate?: string; // e.g., "$150", "From $120", "Special $100"
   advertisedRateType?: 'starting' | 'special' | 'exact' | null; // Type of advertised rate
   cleaningFee?: number;
@@ -213,12 +218,13 @@ export interface Booking {
     taxes?: number;
     discountAmount?: number;
     total: number;
+    currency: CurrencyCode; // Currency of the pricing object (should be property's baseCurrency)
   };
   appliedCouponCode?: string | null; // Allow null
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   paymentInfo: {
     stripePaymentIntentId: string;
-    amount: number;
+    amount: number; // This amount should be in the currency specified in pricing.currency
     status: string; // e.g., 'pending', 'succeeded', 'failed'
     paidAt: SerializableTimestamp | null;
   };

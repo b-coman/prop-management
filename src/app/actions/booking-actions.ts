@@ -4,7 +4,8 @@
 import { z } from 'zod';
 import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase'; // Client SDK
-import type { Booking, Property } from '@/types';
+import type { Booking, Property, CurrencyCode } from '@/types'; // Added CurrencyCode
+import { SUPPORTED_CURRENCIES } from '@/types'; // Import supported currencies
 import { revalidatePath } from 'next/cache';
 import { sanitizeEmail, sanitizePhone, sanitizeText } from '@/lib/sanitize'; // Import sanitizers
 
@@ -31,6 +32,7 @@ const CreatePendingBookingSchema = z.object({
     taxes: z.number().nonnegative().optional(),
     discountAmount: z.number().nonnegative().optional(),
     total: z.number().nonnegative(),
+    currency: z.enum(SUPPORTED_CURRENCIES), // Add currency field
   }).passthrough(),
   status: z.literal('pending'),
   appliedCouponCode: z.string().trim().toUpperCase().nullable().optional().transform(val => val ? sanitizeText(val) : null),
@@ -41,6 +43,7 @@ type CreatePendingBookingInput = z.infer<typeof CreatePendingBookingSchema>;
 export async function createPendingBookingAction(
   input: CreatePendingBookingInput
 ): Promise<{ bookingId?: string; error?: string }> {
+  console.log("[Action createPendingBookingAction] Called with input:", JSON.stringify(input, null, 2));
   const validationResult = CreatePendingBookingSchema.safeParse(input);
 
   if (!validationResult.success) {
@@ -51,13 +54,13 @@ export async function createPendingBookingAction(
 
   const {
     propertyId,
-    guestInfo, // Already sanitized by Zod transform
+    guestInfo, 
     checkInDate: checkInStr,
     checkOutDate: checkOutStr,
     numberOfGuests,
-    pricing,
+    pricing, // Includes currency
     status,
-    appliedCouponCode, // Already sanitized by Zod transform
+    appliedCouponCode,
   } = validationResult.data;
 
   try {
@@ -67,25 +70,37 @@ export async function createPendingBookingAction(
 
     const bookingData: Omit<Booking, 'id' | 'paymentInfo'> = {
       propertyId: propertyId,
-      guestInfo, // Sanitized guestInfo
+      guestInfo, 
       checkInDate: Timestamp.fromDate(checkIn),
       checkOutDate: Timestamp.fromDate(checkOut),
       numberOfGuests,
-      pricing,
+      pricing: { // Pass the entire pricing object which now includes currency
+        ...pricing,
+      },
       status: 'pending',
-      appliedCouponCode: appliedCouponCode ?? null, // Sanitized appliedCouponCode
+      appliedCouponCode: appliedCouponCode ?? null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      paymentInfo: {
-        stripePaymentIntentId: '',
-        amount: pricing.total,
+      // paymentInfo will be updated by the webhook
+      // Ensure paymentInfo is initialized correctly if needed before webhook update
+      paymentInfo: { 
+        stripePaymentIntentId: '', // Default empty until payment
+        amount: pricing.total, // Amount in property's base currency
         status: 'pending',
         paidAt: null,
       },
       source: 'website-pending',
     };
+    console.log("[Action createPendingBookingAction] Prepared Firestore Data:", JSON.stringify({
+      ...bookingData,
+      checkInDate: `Timestamp { seconds: ${bookingData.checkInDate.seconds}, nanoseconds: ${bookingData.checkInDate.nanoseconds} }`,
+      checkOutDate: `Timestamp { seconds: ${bookingData.checkOutDate.seconds}, nanoseconds: ${bookingData.checkOutDate.nanoseconds} }`,
+      createdAt: 'ServerTimestampFieldValueImpl',
+      updatedAt: 'ServerTimestampFieldValueImpl',
+    }, null, 2));
 
     const docRef = await addDoc(bookingsCollection, bookingData);
+    console.log(`[Action createPendingBookingAction] Pending booking created successfully with ID: ${docRef.id}`);
     return { bookingId: docRef.id };
   } catch (error) {
     console.error(`❌ [Action createPendingBookingAction] Error creating pending booking:`, error);

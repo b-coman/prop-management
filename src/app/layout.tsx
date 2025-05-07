@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'; // Import Inter font
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster'; // Import Toaster
 import { AuthProvider } from '@/contexts/AuthContext'; // Import AuthProvider
+import { CurrencyProvider } from '@/contexts/CurrencyContext'; // Import CurrencyProvider
 
 // Instantiate the Inter font
 const inter = Inter({
@@ -25,8 +26,10 @@ export default function RootLayout({
       {/* Apply font variable to body */}
       <body className={`${inter.variable} font-sans antialiased`}>
         <AuthProvider> {/* Wrap children with AuthProvider */}
-          {children}
-          <Toaster /> {/* Add Toaster here */}
+          <CurrencyProvider> {/* Wrap with CurrencyProvider */}
+            {children}
+            <Toaster /> {/* Add Toaster here */}
+          </CurrencyProvider>
         </AuthProvider>
       </body>
     </html>

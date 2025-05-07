@@ -3,17 +3,16 @@ import Image from 'next/image';
 import { InitialBookingForm } from '@/components/booking/initial-booking-form';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Star, Home } from 'lucide-react'; // Added Home icon for placeholder
-import type { Property } from '@/types'; // Still needed for the form prop
-import type { heroSchema } from '@/lib/overridesSchemas'; // Import the schema
+import { Star, Home as HomeIcon } from 'lucide-react'; 
+import type { Property, CurrencyCode } from '@/types';
+import type { heroSchema } from '@/lib/overridesSchemas';
 import type { z } from 'zod';
-import { cn } from '@/lib/utils'; // Import cn for conditional classes
+import { cn } from '@/lib/utils';
+import { useCurrency } from '@/contexts/CurrencyContext'; // Import useCurrency
 
-// Infer the type from the Zod schema
 type HeroData = z.infer<typeof heroSchema> & {
-  // Add properties that are not in the schema but are passed to the component
-  ratings?: { average: number; count: number }; // This comes from Property, not heroSchema directly
-  bookingFormProperty: Property; // Pass the whole property object for form and advertised rate
+  ratings?: { average: number; count: number };
+  bookingFormProperty: Property; 
   'data-ai-hint'?: string;
 };
 
@@ -22,22 +21,20 @@ interface HeroSectionProps {
 }
 
 export function HeroSection({ heroData }: HeroSectionProps) {
+  const { convertToSelectedCurrency, formatPrice, selectedCurrency, baseCurrencyForProperty } = useCurrency();
   const {
     backgroundImage: backgroundImageUrl,
     showRating,
     showBookingForm = true,
     bookingForm,
-    bookingFormProperty, // Property object contains advertisedRate, pricePerNight, ratings
+    bookingFormProperty,
     'data-ai-hint': dataAiHint,
   } = heroData;
 
-  // Extract rate info from the property object
+  const propertyBaseCurrency = baseCurrencyForProperty(bookingFormProperty.baseCurrency);
   const { advertisedRate, advertisedRateType, pricePerNight, ratings } = bookingFormProperty;
-  // Price from override or template default for the hero block itself
   const heroBlockSpecificPrice = heroData.price;
 
-
-  // Default values for position and size
   const position = bookingForm?.position || 'center';
   const size = bookingForm?.size || 'large';
 
@@ -66,14 +63,40 @@ export function HeroSection({ heroData }: HeroSectionProps) {
   );
 
   const priceRatingContainerClasses = cn(
-    "flex items-center gap-2 mb-2 flex-wrap",
-    size === 'large' ? 'justify-start' : 'justify-center'
+    "flex flex-col items-center gap-2 mb-2 flex-wrap",
+    size === 'large' ? 'md:flex-row md:items-baseline' : 'justify-center' // Align items baseline for large
   );
 
   const contentClasses = cn(
      "p-0",
      size === 'large' ? 'md:flex-grow' : ''
   );
+
+  const displayPrice = (price: number, baseCcy: CurrencyCode) => {
+    const convertedPrice = convertToSelectedCurrency(price, baseCcy);
+    return formatPrice(convertedPrice, selectedCurrency);
+  };
+  
+  // Logic to determine which price to show
+  let finalPriceToShow: string | null = null;
+  let priceSourceCurrency: CurrencyCode = propertyBaseCurrency; // Assume property's base currency initially
+
+  if (advertisedRate) { // If advertisedRate exists, it takes precedence
+    // Attempt to parse numeric value from advertisedRate if it's like "$150" or "€160"
+    const numericPartMatch = advertisedRate.match(/[\d.,]+/);
+    const numericValue = numericPartMatch ? parseFloat(numericPartMatch[0].replace(',', '.')) : null;
+    
+    if (numericValue !== null) {
+      // Assuming advertisedRate currency matches propertyBaseCurrency
+      finalPriceToShow = displayPrice(numericValue, propertyBaseCurrency);
+    } else {
+      finalPriceToShow = advertisedRate; // Show as is if not parseable
+    }
+  } else if (heroBlockSpecificPrice !== undefined && heroBlockSpecificPrice > 0) {
+    finalPriceToShow = displayPrice(heroBlockSpecificPrice, propertyBaseCurrency); // Assuming heroBlockSpecificPrice is in propertyBaseCurrency
+  } else if (pricePerNight > 0) {
+    finalPriceToShow = displayPrice(pricePerNight, propertyBaseCurrency);
+  }
 
 
   return (
@@ -90,7 +113,7 @@ export function HeroSection({ heroData }: HeroSectionProps) {
         />
       ) : (
         <div className="absolute inset-0 bg-muted flex items-center justify-center">
-          <Home className="h-24 w-24 text-muted-foreground/30" />
+          <HomeIcon className="h-24 w-24 text-muted-foreground/30" />
         </div>
       )}
 
@@ -100,36 +123,38 @@ export function HeroSection({ heroData }: HeroSectionProps) {
                  <div className={innerContainerClasses}>
                     <CardHeader className={headerClasses}>
                         <div className={priceRatingContainerClasses}>
-                            {advertisedRate ? (
-                              <Badge variant="secondary" className="text-base md:text-lg px-3 py-1">
-                                {advertisedRate}
-                                {advertisedRateType === 'starting' && <span className="text-xs font-normal ml-1">starting from</span>}
-                                {advertisedRateType === 'special' && <span className="text-xs font-normal ml-1">special deal</span>}
-                                {advertisedRateType === 'exact' && <span className="text-xs font-normal ml-1">/night</span>}
-                                {!advertisedRateType && pricePerNight > 0 && <span className="text-xs font-normal ml-1">/night</span>}
-                              </Badge>
-                            ) : heroBlockSpecificPrice !== undefined && heroBlockSpecificPrice > 0 ? (
-                              <Badge variant="secondary" className="text-base md:text-lg px-3 py-1">
-                                ${heroBlockSpecificPrice}<span className="text-xs font-normal ml-1">/night</span>
-                              </Badge>
-                            ) : pricePerNight > 0 ? (
-                               <Badge variant="secondary" className="text-base md:text-lg px-3 py-1">
-                                ${pricePerNight}<span className="text-xs font-normal ml-1">/night</span>
-                              </Badge>
-                            ) : null}
+                            {finalPriceToShow && (
+                              <div>
+                                <Badge variant="secondary" className="text-base md:text-lg px-3 py-1">
+                                  {finalPriceToShow}<span className="text-xs font-normal ml-1">/night</span>
+                                </Badge>
+                                {(advertisedRateType === 'starting' || advertisedRateType === 'special') && advertisedRate && (
+                                    <div className="mt-[-4px] w-full text-center md:text-left md:pl-1"> 
+                                        {/* text-center for small, text-left for medium up */}
+                                        {advertisedRateType === 'starting' && (
+                                        <span className="text-[10px] font-normal text-muted-foreground">starting from</span>
+                                        )}
+                                        {advertisedRateType === 'special' && (
+                                        <span className="text-[10px] font-normal text-muted-foreground">special deal</span>
+                                        )}
+                                    </div>
+                                )}
+                              </div>
+                            )}
+                            
 
                             {showRating && ratings && ratings.count > 0 && (
-                                <Badge variant="secondary" className="text-base md:text-lg px-3 py-1 flex items-center">
+                              <Badge variant="secondary" className="text-base md:text-lg px-3 py-1 flex items-center">
                                 <Star className="h-4 w-4 mr-1 text-amber-500 fill-amber-500" />
                                 {ratings.average.toFixed(1)}
                                 <span className="text-xs font-normal ml-1">({ratings.count} reviews)</span>
-                                </Badge>
+                              </Badge>
                             )}
                         </div>
                     </CardHeader>
 
                     <CardContent className={contentClasses}>
-                        <InitialBookingForm property={bookingFormProperty} size={size} />
+                      <InitialBookingForm property={bookingFormProperty} size={size} />
                     </CardContent>
                 </div>
             </Card>

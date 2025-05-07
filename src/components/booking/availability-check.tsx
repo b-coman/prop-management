@@ -22,14 +22,14 @@ import {
   MapPin,
   BedDouble,
   Minus,
+  Plus,
   Bath,
   Home,
   Building,
   Wind,
-  Plus,
 } from 'lucide-react';
 
-import type { Property, Coupon, Availability } from '@/types';
+import type { Property, Coupon, Availability, CurrencyCode } from '@/types';
 import type { Stripe } from '@stripe/stripe-js';
 import { getUnavailableDatesForProperty } from '@/services/bookingService';
 import { validateAndApplyCoupon } from '@/services/couponService';
@@ -50,7 +50,7 @@ import { useSessionStorage } from '@/hooks/use-session-storage';
 import { Badge } from '@/components/ui/badge';
 import { useSanitizedState } from '@/hooks/useSanitizedState';
 import { sanitizeEmail, sanitizePhone, sanitizeText } from '@/lib/sanitize';
-
+import { useCurrency } from '@/contexts/CurrencyContext'; // Import useCurrency
 
 interface AvailabilityCheckProps {
   property: Property;
@@ -75,7 +75,9 @@ export function AvailabilityCheck({
 }: AvailabilityCheckProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const { selectedCurrency, convertToSelectedCurrency, formatPrice, baseCurrencyForProperty } = useCurrency();
   const propertySlug = property.slug;
+  const propertyBaseCcy = baseCurrencyForProperty(property.baseCurrency);
 
   const [checkInDate, setCheckInDate] = useState<Date | null>(parseDateSafe(initialCheckIn));
   const [checkOutDate, setCheckOutDate] = useState<Date | null>(parseDateSafe(initialCheckOut));
@@ -86,7 +88,6 @@ export function AvailabilityCheck({
   const [unavailableDates, setUnavailableDates] = useState<Date[]>([]);
   const [suggestedDates, setSuggestedDates] = useState<Array<{ from: Date; to: Date; recommendation?: string }>>([]);
 
-  // Guest Information State - Using useSanitizedState and syncing with useSessionStorage
   const [initialFirstNameFromSession, setInitialFirstNameInSession] = useSessionStorage<string>(`booking_${propertySlug}_firstName`, '');
   const [firstName, setFirstName] = useSanitizedState(initialFirstNameFromSession, sanitizeText);
   useEffect(() => { setInitialFirstNameInSession(firstName); }, [firstName, setInitialFirstNameInSession]);
@@ -132,7 +133,7 @@ export function AvailabilityCheck({
     }
   }, []);
 
-  const pricingDetails = useMemo(() => {
+  const pricingDetailsInBaseCurrency = useMemo(() => {
     if (datesSelected && numberOfGuests > 0) {
       return calculatePrice(
         property.pricePerNight,
@@ -141,11 +142,27 @@ export function AvailabilityCheck({
         numberOfGuests,
         property.baseOccupancy,
         property.extraGuestFee ?? 0,
+        property.baseCurrency,
         appliedCoupon?.discountPercentage
       );
     }
     return null;
   }, [datesSelected, property, numberOfNights, numberOfGuests, appliedCoupon]);
+
+  const pricingDetailsForDisplay = useMemo(() => {
+    if (pricingDetailsInBaseCurrency) {
+      return {
+        basePrice: convertToSelectedCurrency(pricingDetailsInBaseCurrency.basePrice, propertyBaseCcy),
+        extraGuestFee: convertToSelectedCurrency(pricingDetailsInBaseCurrency.extraGuestFeeTotal, propertyBaseCcy),
+        cleaningFee: convertToSelectedCurrency(pricingDetailsInBaseCurrency.cleaningFee, propertyBaseCcy),
+        subtotal: convertToSelectedCurrency(pricingDetailsInBaseCurrency.subtotal, propertyBaseCcy),
+        discountAmount: convertToSelectedCurrency(pricingDetailsInBaseCurrency.discountAmount, propertyBaseCcy),
+        total: convertToSelectedCurrency(pricingDetailsInBaseCurrency.total, propertyBaseCcy),
+      };
+    }
+    return null;
+  }, [pricingDetailsInBaseCurrency, convertToSelectedCurrency, propertyBaseCcy]);
+
 
   const checkPropertyAvailability = useCallback(async () => {
     if (!datesSelected || !checkInDate || !checkOutDate) {
@@ -221,7 +238,6 @@ export function AvailabilityCheck({
 
   const handleGuestInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    // The setters from useSanitizedState will automatically sanitize
     if (name === 'firstName') setFirstName(value);
     else if (name === 'lastName') setLastName(value);
     else if (name === 'email') setEmail(value);
@@ -286,7 +302,7 @@ export function AvailabilityCheck({
       setFormError("Please fill in your first name, last name, and email.");
       return;
     }
-    if (!/\S+@\S+\.\S+/.test(email)) { // Basic email format validation
+    if (!/\S+@\S+\.\S+/.test(email)) {
       setFormError("Please enter a valid email address.");
       return;
     }
@@ -298,7 +314,7 @@ export function AvailabilityCheck({
       setFormError(`Number of guests must be between 1 and ${property.maxGuests}.`);
       return;
     }
-    if (!pricingDetails) {
+    if (!pricingDetailsInBaseCurrency) {
       setFormError("Could not calculate pricing. Please try again.");
       return;
     }
@@ -306,6 +322,7 @@ export function AvailabilityCheck({
     setIsProcessingBooking(true);
 
     try {
+      // Send pricing in property's base currency to the backend
       const bookingInput = {
         propertyId: propertySlug,
         guestInfo: { firstName, lastName, email, phone },
@@ -313,16 +330,8 @@ export function AvailabilityCheck({
         checkOutDate: checkOutDate.toISOString(),
         numberOfGuests: numberOfGuests,
         pricing: {
-          baseRate: property.pricePerNight,
-          numberOfNights: numberOfNights,
-          cleaningFee: pricingDetails.cleaningFee,
-          extraGuestFee: property.extraGuestFee || 0,
-          numberOfExtraGuests: Math.max(0, numberOfGuests - property.baseOccupancy),
-          accommodationTotal: pricingDetails.basePrice + pricingDetails.extraGuestFee,
-          subtotal: pricingDetails.subtotal,
-          taxes: 0,
-          discountAmount: pricingDetails.discountAmount,
-          total: pricingDetails.total,
+          ...pricingDetailsInBaseCurrency, // Use base currency details
+          currency: propertyBaseCcy, // Explicitly state the currency
         },
         status: 'pending' as const,
         appliedCouponCode: appliedCoupon?.code ?? null,
@@ -335,12 +344,13 @@ export function AvailabilityCheck({
 
       const { bookingId } = pendingBookingResult;
 
+      // Stripe checkout session should receive total price in the property's base currency
       const checkoutInput = {
-        property: property,
+        property: property, // Property object contains baseCurrency
         checkInDate: checkInDate.toISOString(),
         checkOutDate: checkOutDate.toISOString(),
         numberOfGuests: numberOfGuests,
-        totalPrice: pricingDetails!.total,
+        totalPrice: pricingDetailsInBaseCurrency.total, // Total in base currency
         numberOfNights: numberOfNights,
         appliedCouponCode: appliedCoupon?.code,
         discountPercentage: appliedCoupon?.discountPercentage,
@@ -356,7 +366,6 @@ export function AvailabilityCheck({
         throw new Error(stripeResult.error || 'Failed to create Stripe session or missing session URL.');
       }
       
-      // Try direct assignment first
       try {
         window.location.assign(stripeResult.sessionUrl);
       } catch (assignError) {
@@ -402,7 +411,6 @@ export function AvailabilityCheck({
 
     setIsProcessingBooking(true);
     try {
-      // Placeholder for createAvailabilityAlertAction
       console.log("[handleNotifyAvailability] Simulating availability alert request:", {
         propertyId: propertySlug,
         checkInDate: format(checkInDate, 'yyyy-MM-dd'),
@@ -661,7 +669,7 @@ export function AvailabilityCheck({
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       Max {property.maxGuests}. Base for {property.baseOccupancy}.
-                      {(property.extraGuestFee ?? 0) > 0 && ` Extra: $${(property.extraGuestFee ?? 0).toFixed(2)}/guest/night.`}
+                      {(property.extraGuestFee ?? 0) > 0 && ` Extra: ${formatPrice(property.extraGuestFee, propertyBaseCcy)}/guest/night.`}
                     </p>
                   </div>
                 </div>
@@ -684,17 +692,17 @@ export function AvailabilityCheck({
                     </div>
                   </div>
                 </div>
-                {pricingDetails && (
+                {pricingDetailsForDisplay && (
                   <div className="space-y-2 text-sm border-b pb-4">
-                    <h3 className="font-semibold mb-2">Price Details</h3>
-                    <div className="flex justify-between"><span>Base price ({numberOfNights} nights)</span><span>${pricingDetails.basePrice.toFixed(2)}</span></div>
-                    {pricingDetails.extraGuestFee > 0 && <div className="flex justify-between text-muted-foreground"><span>Extra guest fee</span><span>+${pricingDetails.extraGuestFee.toFixed(2)}</span></div>}
-                    <div className="flex justify-between"><span>Cleaning fee</span><span>+${pricingDetails.cleaningFee.toFixed(2)}</span></div>
+                    <h3 className="font-semibold mb-2">Price Details ({selectedCurrency})</h3>
+                    <div className="flex justify-between"><span>Base price ({numberOfNights} nights)</span><span>{formatPrice(pricingDetailsForDisplay.basePrice, selectedCurrency)}</span></div>
+                    {pricingDetailsForDisplay.extraGuestFee > 0 && <div className="flex justify-between text-muted-foreground"><span>Extra guest fee</span><span>+{formatPrice(pricingDetailsForDisplay.extraGuestFee, selectedCurrency)}</span></div>}
+                    <div className="flex justify-between"><span>Cleaning fee</span><span>+{formatPrice(pricingDetailsForDisplay.cleaningFee, selectedCurrency)}</span></div>
                     <Separator className="my-1" />
-                    <div className="flex justify-between font-medium"><span>Subtotal</span><span>${pricingDetails.subtotal.toFixed(2)}</span></div>
-                    {appliedCoupon && <div className="flex justify-between text-green-600"><span>Discount ({appliedCoupon.code})</span><span>-${pricingDetails.discountAmount.toFixed(2)}</span></div>}
+                    <div className="flex justify-between font-medium"><span>Subtotal</span><span>{formatPrice(pricingDetailsForDisplay.subtotal, selectedCurrency)}</span></div>
+                    {appliedCoupon && <div className="flex justify-between text-green-600"><span>Discount ({appliedCoupon.code})</span><span>-{formatPrice(pricingDetailsForDisplay.discountAmount, selectedCurrency)}</span></div>}
                     <Separator className="my-2 font-bold" />
-                    <div className="flex justify-between font-bold text-base"><span>Total</span><span>${pricingDetails.total.toFixed(2)}</span></div>
+                    <div className="flex justify-between font-bold text-base"><span>Total</span><span>{formatPrice(pricingDetailsForDisplay.total, selectedCurrency)}</span></div>
                   </div>
                 )}
                 <div className="space-y-4">
