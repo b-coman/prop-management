@@ -26,6 +26,7 @@ The system manages short-term rental properties through:
 - **Multi-domain support** allowing properties to be accessed via custom domains or path-based URLs.
 - **Input sanitization** for user-provided data.
 - **Admin area protection** via Google Sign-In.
+- **Currency Conversion:** Uses exchange rates stored in Firestore (`appConfig/currencyRates`) to display prices in user-selected currencies (USD, EUR, RON).
 
 Initial support: 2 properties (Prahova Mountain Chalet, Coltei Apartment Bucharest)
 Designed for scalability.
@@ -54,7 +55,7 @@ rentalspot/
 ├── hooks/               # Custom React hooks (e.g., useSessionStorage, useToast, useSanitizedState)
 ├── lib/                 # Utility functions, libraries, configurations
 │   ├── firebase.ts      # Firebase Client SDK initialization
-│   ├── firebaseAdmin.ts # Firebase Admin SDK initialization (for server-side tasks) - Currently commented out
+│   ├── firebaseAdmin.ts # Firebase Admin SDK initialization (currently commented out)
 │   ├── overridesSchemas.ts # Zod schemas for template/override content validation
 │   ├── price-utils.ts   # Pricing calculation logic
 │   ├── sanitize.ts      # Input sanitization functions
@@ -81,8 +82,8 @@ rentalspot/
 │   │   │   ├── layout.tsx  # Root application layout
 │   │   │   └── page.tsx    # Homepage component (renders default property)
 │   │   └── actions/       # Server Actions (e.g., booking, checkout, coupon actions)
-│   ├── contexts/          # React Contexts (e.g., AuthContext)
-│   └── services/        # Backend services (booking, coupon, sync, sms)
+│   ├── contexts/          # React Contexts (e.g., AuthContext, CurrencyContext)
+│   └── services/        # Backend services (booking, coupon, sync, sms, config)
 ├── .firebaserc          # Firebase project configuration (linking to project ID)
 ├── .gitignore           # Files and directories ignored by Git
 ├── components.json      # Shadcn UI configuration
@@ -112,6 +113,7 @@ rentalspot/
 | `/reviews/{reviewId}`        | Guest reviews (schema defined, implementation pending)                    | Auto-generated ID         |
 | `/syncCalendars/{documentId}`| Calendar sync info (schema defined, implementation pending)               | Auto-generated ID         |
 | `/availabilityAlerts/{alertId}`| Requests for availability notifications (schema defined, backend pending) | Auto-generated ID         |
+| `/appConfig/currencyRates`   | Application-wide configuration, starting with currency rates              | `currencyRates`           |
 
 ✅ **`propertySlug` is the canonical identifier for properties.**
 
@@ -361,13 +363,14 @@ For each block defined in `template.homepage`:
 
 Rules are defined in `firestore.rules` and should be deployed to Firebase. Key rules:
 
-*   `/properties`: Read: `true`, Write: `if isOwner(propertySlug) || isAdmin()`
+*   `/properties`: Read: `true`, Write: `if isOwner(propertySlug) || isAdmin()` (validation on `customDomain` during update)
 *   `/websiteTemplates`: Read: `true`, Write: `if isAdmin()`
 *   `/propertyOverrides`: Read: `true`, Write: `if isOwner(propertySlug) || isAdmin()`
 *   `/availability`: Read: `true`, Write: `if true` (Client SDK handles writes for new bookings, or admin can write)
 *   `/bookings`: Create: `true`, Read/Update: `if isGuest() || isOwner() || isAdmin()`
 *   `/coupons`: Read: `true`, Write: `if isAdmin()`
 *   `/users`: Read/Write: `if isSelf() || isAdmin()`
+*   `/appConfig`: Read: `true`, Write: `if isAdmin()` (or a specific update function role)
 *   (Others as defined)
 
 ---
@@ -375,7 +378,7 @@ Rules are defined in `firestore.rules` and should be deployed to Firebase. Key r
 ## 🔐 12. **Authentication & Authorization**
 
 *   **Authentication:**
-    *   Method: Firebase Authentication with Google Sign-In.
+    *   Method: Firebase Authentication with Google Sign-In (currently using Popup).
     *   Process: Users sign in via a Google popup on the `/login` page.
     *   State Management: `AuthContext` (`src/contexts/AuthContext.tsx`) manages the user's authentication state.
 *   **Authorization:**
@@ -414,7 +417,7 @@ This section lists the environment variables required or used by the application
 | `TWILIO_ACCOUNT_SID`                     | Twilio Account SID (if using Twilio for SMS)                             | Server        | Optional | `ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` |
 | `TWILIO_AUTH_TOKEN`                      | Twilio Auth Token (if using Twilio for SMS)                              | Server        | Optional | `your_auth_token`                 |
 | `TWILIO_PHONE_NUMBER`                    | Twilio phone number used for sending SMS                                 | Server        | Optional | `+15551234567`                    |
-| `FIREBASE_ADMIN_SERVICE_ACCOUNT_PATH`    | Path to Firebase Admin SDK service account key file (for scripts/admin) | Server        | Optional | `./serviceAccountKey.json`        |
+| `FIREBASE_ADMIN_SERVICE_ACCOUNT_PATH`    | Path to Firebase Admin SDK service account key file (for scripts/admin) | Server        | No       | `./serviceAccountKey.json`        |
 | `NEXT_PUBLIC_MAIN_APP_HOST`              | The main hostname for the application (e.g., rentalspot.com)             | Client/Server | Yes      | `rentalspot.com`                  |
 
 ✅ **Note:** `NEXT_PUBLIC_` prefix exposes the variable to the client-side browser bundle. Variables without the prefix are only available server-side.
@@ -482,6 +485,7 @@ This section lists the environment variables required or used by the application
     *   Create a Firestore database in your Firebase project.
     *   Start in "Production mode" and apply security rules (see Section 11 and `firestore.rules`).
     *   Indexes can be configured via the Firebase Console ("Firestore Database" -> "Indexes") or `firestore.indexes.json`.
+    *   Create the `appConfig/currencyRates` document manually with initial rates.
 *   **Authentication:**
     *   Enable "Google" as a sign-in provider in "Authentication" -> "Sign-in method".
     *   **Important for Development (e.g., Firebase Studio):** Add your development domain (e.g., `your-studio-url.cloudworkstations.dev` or `localhost`) to the list of "Authorized domains" under the "Sign-in method" tab. If you encounter an `auth/unauthorized-domain` error, this is the most likely cause.
@@ -496,4 +500,3 @@ This section lists the environment variables required or used by the application
 
 All future changes should be appended below as updates or clarifications.
 
-```

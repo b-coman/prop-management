@@ -6,9 +6,11 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import type { CurrencyCode } from '@/types';
 import { SUPPORTED_CURRENCIES } from '@/types';
 import { useSessionStorage } from '@/hooks/use-session-storage'; // For persisting selection
+import { getCurrencyRates } from '@/services/configService'; // Import Firestore fetch function
+import { Loader2 } from 'lucide-react'; // Import Loader icon
 
 // Define a simple exchange rate structure
-interface ExchangeRates {
+export interface ExchangeRates {
   [key: string]: number; // Base is USD, so USD: 1
 }
 
@@ -16,6 +18,8 @@ interface CurrencyContextType {
   selectedCurrency: CurrencyCode;
   setSelectedCurrency: (currency: CurrencyCode) => void;
   exchangeRates: ExchangeRates;
+  ratesLoading: boolean; // Add loading state
+  ratesError: string | null; // Add error state
   convertToSelectedCurrency: (amount: number, fromCurrency: CurrencyCode) => number;
   formatPrice: (amount: number, currencyCode?: CurrencyCode, options?: Intl.NumberFormatOptions) => string;
   baseCurrencyForProperty: (propertyBaseCurrency: CurrencyCode) => CurrencyCode;
@@ -23,11 +27,11 @@ interface CurrencyContextType {
 
 const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined);
 
-// Mock exchange rates - In a real app, fetch these from an API
-const MOCK_EXCHANGE_RATES: ExchangeRates = {
+// Default rates in case Firestore fetch fails or is loading
+const DEFAULT_EXCHANGE_RATES: ExchangeRates = {
   USD: 1,
-  EUR: 0.92, // 1 USD = 0.92 EUR
-  RON: 4.58,  // 1 USD = 4.58 RON
+  EUR: 0.92,
+  RON: 4.58,
 };
 
 export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
@@ -36,14 +40,48 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     'USD' // Default to USD
   );
   const [selectedCurrency, setSelectedCurrencyState] = useState<CurrencyCode>(persistedCurrency);
-  const [exchangeRates, setExchangeRates] = useState<ExchangeRates>(MOCK_EXCHANGE_RATES);
+  const [exchangeRates, setExchangeRates] = useState<ExchangeRates>(DEFAULT_EXCHANGE_RATES); // Initialize with defaults
+  const [ratesLoading, setRatesLoading] = useState<boolean>(true);
+  const [ratesError, setRatesError] = useState<string | null>(null);
 
   useEffect(() => {
-    // In a real app, you might fetch exchange rates here
-    // For now, we use mock rates
-    // Example: fetch('/api/exchange-rates').then(res => res.json()).then(data => setExchangeRates(data.rates));
-    setSelectedCurrencyState(persistedCurrency); // Sync with session storage on mount
+    setSelectedCurrencyState(persistedCurrency); // Sync with session storage on mount/change
   }, [persistedCurrency]);
+
+  // Fetch rates from Firestore on mount
+  useEffect(() => {
+    const fetchRates = async () => {
+      setRatesLoading(true);
+      setRatesError(null);
+      try {
+        const rates = await getCurrencyRates();
+        if (rates) {
+          console.log("[CurrencyContext] Fetched rates from Firestore:", rates);
+          // Basic validation: ensure USD is present and is 1
+          if (rates.USD === 1) {
+             setExchangeRates(rates);
+          } else {
+             console.warn("[CurrencyContext] Firestore rates invalid (USD != 1), using default rates.");
+             setExchangeRates(DEFAULT_EXCHANGE_RATES);
+             setRatesError("Fetched currency rates were invalid.");
+          }
+        } else {
+          console.warn("[CurrencyContext] No rates found in Firestore, using default rates.");
+          setExchangeRates(DEFAULT_EXCHANGE_RATES); // Fallback to default if not found
+          // Optionally set an error if rates are critical
+          // setRatesError("Could not load currency rates.");
+        }
+      } catch (error) {
+        console.error("Error fetching currency rates from Firestore:", error);
+        setRatesError("Failed to load currency rates.");
+        setExchangeRates(DEFAULT_EXCHANGE_RATES); // Use default on error
+      } finally {
+        setRatesLoading(false);
+      }
+    };
+
+    fetchRates();
+  }, []); // Fetch only once on mount
 
   const setSelectedCurrency = useCallback((currency: CurrencyCode) => {
     setSelectedCurrencyState(currency);
@@ -51,12 +89,16 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
   }, [setPersistedCurrency]);
 
   const convertToSelectedCurrency = useCallback((amount: number, fromCurrency: CurrencyCode): number => {
-    if (fromCurrency === selectedCurrency) {
-      return amount;
-    }
-    const amountInUSD = amount / (exchangeRates[fromCurrency] || 1); // Convert 'fromCurrency' to USD
-    return amountInUSD * (exchangeRates[selectedCurrency] || 1); // Convert USD to 'selectedCurrency'
-  }, [selectedCurrency, exchangeRates]);
+     if (ratesLoading) return amount; // Return original amount if rates are loading
+     if (fromCurrency === selectedCurrency) {
+       return amount;
+     }
+    const baseRate = exchangeRates[fromCurrency] || 1;
+    const targetRate = exchangeRates[selectedCurrency] || 1;
+
+     const amountInUSD = amount / baseRate; // Convert 'fromCurrency' to USD
+     return amountInUSD * targetRate; // Convert USD to 'selectedCurrency'
+  }, [selectedCurrency, exchangeRates, ratesLoading]);
 
   const formatPrice = useCallback((
     amount: number,
@@ -70,18 +112,27 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
       maximumFractionDigits: 2,
     };
     try {
+       // If rates are still loading, maybe indicate that? Or just format with potentially default rates.
+       // For now, it will format using the current `exchangeRates` state.
       return new Intl.NumberFormat(undefined, { ...defaultOptions, ...options }).format(amount);
     } catch (e) {
-      // Fallback for unsupported currency codes or other errors
       console.warn(`Error formatting price for currency ${currencyCode}:`, e);
       return `${amount.toFixed(2)} ${currencyCode}`;
     }
   }, [selectedCurrency]);
 
-  // Helper to ensure we always use a valid base currency from the property
-  const baseCurrencyForProperty = (propertyBaseCurrency: CurrencyCode): CurrencyCode => {
-    return SUPPORTED_CURRENCIES.includes(propertyBaseCurrency) ? propertyBaseCurrency : 'USD'; // Default to USD if invalid
-  };
+  const baseCurrencyForProperty = useCallback((propertyBaseCurrency: CurrencyCode): CurrencyCode => {
+     // Ensure the base currency from the property data is valid
+     return SUPPORTED_CURRENCIES.includes(propertyBaseCurrency) ? propertyBaseCurrency : 'USD';
+  }, []);
+
+  // Optional: Display a loading indicator or error message while fetching rates
+  // if (ratesLoading) {
+  //   return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /> Loading currency data...</div>;
+  // }
+  // if (ratesError) {
+  //   return <div className="text-center text-red-500 p-4">Error loading currency rates: {ratesError}</div>;
+  // }
 
   return (
     <CurrencyContext.Provider
@@ -89,6 +140,8 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
         selectedCurrency,
         setSelectedCurrency,
         exchangeRates,
+        ratesLoading,
+        ratesError,
         convertToSelectedCurrency,
         formatPrice,
         baseCurrencyForProperty,
