@@ -52,6 +52,7 @@ rentalspot/
 │   ├── properties/      # Property metadata JSON files (e.g., prahova-mountain-chalet.json)
 │   └── propertyOverrides/ # Property content override JSON files
 │   └── websiteTemplates/  # Website template definition JSON files
+│   └── appConfig/       # Application configuration JSON files (e.g., currencyRates.json)
 ├── hooks/               # Custom React hooks (e.g., useSessionStorage, useToast, useSanitizedState)
 ├── lib/                 # Utility functions, libraries, configurations
 │   ├── firebase.ts      # Firebase Client SDK initialization

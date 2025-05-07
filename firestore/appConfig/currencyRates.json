@@ -1,0 +1,10 @@
+{
+  "rates": {
+    "USD": 1,
+    "EUR": 0.92,
+    "RON": 4.58
+  },
+  "lastUpdated": {
+    "_seconds": 1746200000, "_nanoseconds": 0
+  }
+}

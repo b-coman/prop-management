@@ -80,20 +80,17 @@ async function loadJsonIntoFirestore(collectionName: string, docId: string, file
 async function processDirectory(directoryPath: string) {
     try {
         const entries = await fs.readdir(directoryPath, { withFileTypes: true });
+        const collectionName = path.basename(directoryPath); // Use directory name as collection name
+        console.log(`\nProcessing collection '${collectionName}' from directory ${directoryPath}...`);
+
         for (const entry of entries) {
             const entryPath = path.join(directoryPath, entry.name);
-            if (entry.isDirectory() && entry.name !== '_oldFiles') {
-                const collectionName = entry.name;
-                console.log(`\nProcessing collection '${collectionName}' from directory ${entryPath}...`);
-                const jsonFiles = await fs.readdir(entryPath);
-                for (const fileName of jsonFiles) {
-                    if (fileName.endsWith('.json')) {
-                        const docId = fileName.replace(/\.json$/, '');
-                        const filePath = path.join(entryPath, fileName);
-                        await loadJsonIntoFirestore(collectionName, docId, filePath);
-                    }
-                }
+            if (entry.isFile() && entry.name.endsWith('.json')) {
+                const docId = entry.name.replace(/\.json$/, '');
+                const filePath = entryPath;
+                await loadJsonIntoFirestore(collectionName, docId, filePath);
             }
+            // Removed recursive directory processing to handle appConfig explicitly
         }
     } catch (error) {
         if (error instanceof Error && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -119,10 +116,13 @@ async function main() {
             console.log(`🔍 Single-file mode: Loading ${resolvedFile} into ${collectionName}/${docId}`);
             await loadJsonIntoFirestore(collectionName, docId, resolvedFile);
         } else {
-            // Process directories in a specific order if needed, e.g., templates first
-            await processDirectory(path.join('firestore', 'websiteTemplates'));
-            await processDirectory(path.join('firestore', 'properties'));
-            await processDirectory(path.join('firestore', 'propertyOverrides'));
+            const firestoreBaseFolder = 'firestore';
+            // Process standard directories
+            await processDirectory(path.join(firestoreBaseFolder, 'websiteTemplates'));
+            await processDirectory(path.join(firestoreBaseFolder, 'properties'));
+            await processDirectory(path.join(firestoreBaseFolder, 'propertyOverrides'));
+            // Process appConfig specifically
+            await processDirectory(path.join(firestoreBaseFolder, 'appConfig'));
             // Add other directories/collections as needed
         }
 
