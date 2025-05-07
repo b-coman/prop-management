@@ -1,5 +1,6 @@
 // src/app/login/layout.tsx
-import type { ReactNode, Suspense } from 'react';
+import type { ReactNode } from 'react';
+import { Suspense } from 'react'; // Import Suspense
 // AuthProvider removed, as it's now in the root layout
 import { Loader2 } from 'lucide-react';
 
