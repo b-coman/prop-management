@@ -1,3 +1,5 @@
+// src/components/homepage/hero-section.tsx
+'use client';
 
 import Image from 'next/image';
 import { InitialBookingForm } from '@/components/booking/initial-booking-form';
@@ -79,21 +81,12 @@ export function HeroSection({ heroData }: HeroSectionProps) {
   
   // Logic to determine which price to show
   let finalPriceToShow: string | null = null;
-  let priceSourceCurrency: CurrencyCode = propertyBaseCurrency; // Assume property's base currency initially
 
-  if (advertisedRate) { // If advertisedRate exists, it takes precedence
-    // Attempt to parse numeric value from advertisedRate if it's like "$150" or "€160"
-    const numericPartMatch = advertisedRate.match(/[\d.,]+/);
-    const numericValue = numericPartMatch ? parseFloat(numericPartMatch[0].replace(',', '.')) : null;
-    
-    if (numericValue !== null) {
-      // Assuming advertisedRate currency matches propertyBaseCurrency
-      finalPriceToShow = displayPrice(numericValue, propertyBaseCurrency);
-    } else {
-      finalPriceToShow = advertisedRate; // Show as is if not parseable
-    }
+  if (advertisedRate) { 
+    finalPriceToShow = advertisedRate; // Show as is, assuming it's pre-formatted string like "$150" or "From €120"
+                                     // No conversion needed as it's already the desired display string.
   } else if (heroBlockSpecificPrice !== undefined && heroBlockSpecificPrice > 0) {
-    finalPriceToShow = displayPrice(heroBlockSpecificPrice, propertyBaseCurrency); // Assuming heroBlockSpecificPrice is in propertyBaseCurrency
+    finalPriceToShow = displayPrice(heroBlockSpecificPrice, propertyBaseCurrency);
   } else if (pricePerNight > 0) {
     finalPriceToShow = displayPrice(pricePerNight, propertyBaseCurrency);
   }
@@ -124,13 +117,13 @@ export function HeroSection({ heroData }: HeroSectionProps) {
                     <CardHeader className={headerClasses}>
                         <div className={priceRatingContainerClasses}>
                             {finalPriceToShow && (
-                              <div>
+                              <div className="flex flex-col items-center md:items-start">
                                 <Badge variant="secondary" className="text-base md:text-lg px-3 py-1">
-                                  {finalPriceToShow}<span className="text-xs font-normal ml-1">/night</span>
+                                  {finalPriceToShow}
+                                  { !(advertisedRate && (advertisedRateType === 'starting' || advertisedRateType === 'special')) && <span className="text-xs font-normal ml-1">/night</span> }
                                 </Badge>
                                 {(advertisedRateType === 'starting' || advertisedRateType === 'special') && advertisedRate && (
-                                    <div className="mt-[-4px] w-full text-center md:text-left md:pl-1"> 
-                                        {/* text-center for small, text-left for medium up */}
+                                    <div className="mt-[-2px] w-full text-center md:text-left">
                                         {advertisedRateType === 'starting' && (
                                         <span className="text-[10px] font-normal text-muted-foreground">starting from</span>
                                         )}
