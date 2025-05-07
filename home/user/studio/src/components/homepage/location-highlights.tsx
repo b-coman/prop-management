@@ -4,6 +4,8 @@ import { MapPin } from 'lucide-react'; // Added MapPin for fallback
 import Image from 'next/image';
 import type { Property } from '@/types'; // Import Property type to get Location
 
+console.log("[LocationHighlights] Rendering component.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+
 interface Location {
     city?: string;
     state?: string;
@@ -74,12 +76,12 @@ export function LocationHighlights({ title, propertyLocation, attractions }: Loc
                       <div className="aspect-video bg-muted rounded-lg flex flex-col items-center justify-center my-8 max-w-2xl mx-auto border border-border">
                         <MapPin className="h-12 w-12 text-muted-foreground/50 mb-2" />
                          <p className="text-sm text-muted-foreground">
-                            { !apiKey ? "Map API key is missing." : !propertyLocation.coordinates ? "Coordinates unavailable." : "Map Unavailable"}
+                            { !apiKey ? "Map API key is missing.XXX" : !propertyLocation.coordinates ? "Coordinates unavailable." : "Map Unavailable"}
                          </p>
                       </div>
                     )}
                     <p className="text-lg text-muted-foreground">
-                       Discover these nearby attractions:
+                       Discover these nearby attractions:XXX
                     </p>
                 </div>
 
