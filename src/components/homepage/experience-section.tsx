@@ -44,6 +44,7 @@ export function ExperienceSection({ title, welcomeText, highlights }: Experience
           </p>
         </div>
 
+        {/* Use a fluid grid layout */}
         <div className="grid gap-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))' }}>
           {highlights.map((highlight, index) => {
             const IconComponent = iconMap[highlight.icon] || Leaf; // Default to Leaf icon if not found

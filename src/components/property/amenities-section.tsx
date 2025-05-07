@@ -34,7 +34,8 @@ export function AmenitiesSection({ amenities }: AmenitiesSectionProps) {
     <section className="py-8 md:py-12" id="amenities">
       <div className="container mx-auto px-4">
         <h3 className="text-xl font-semibold mb-4 text-foreground">Amenities</h3>
-        <ul className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm list-none pl-0 text-muted-foreground">
+         {/* Use a fluid grid layout */}
+        <ul className="grid gap-3 text-sm list-none pl-0 text-muted-foreground" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
           {amenities.map((amenity) => (
             <li key={amenity} className="flex items-center">
               {/* Find icon based on lowercase amenity name, fallback to CheckCircle */}

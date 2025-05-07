@@ -11,7 +11,8 @@ export function PropertyDetailsSection({ property }: PropertyDetailsSectionProps
     <section className="py-8 md:py-12" id="details">
       <div className="container mx-auto px-4">
         <h3 className="text-xl font-semibold mb-4 text-foreground">Key Features</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm text-muted-foreground">
+         {/* Use a fluid grid layout */}
+        <div className="grid gap-4 text-sm text-muted-foreground" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
           {property.maxGuests && (
              <div className="flex items-center">
                 <Users className="h-4 w-4 mr-2 text-primary" /> Max {property.maxGuests} Guests

@@ -24,7 +24,8 @@ export function GallerySection({ title, images, propertyName }: GallerySectionPr
     <section className="py-8 md:py-12" id="gallery">
       <div className="container mx-auto px-4">
         <h2 className="text-2xl font-semibold text-foreground mb-6">{title || "Gallery"}</h2> {/* Use title prop */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+         {/* Use a fluid grid layout */}
+        <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
           {images.map((image, index) => (
             <div key={index} className="relative aspect-[4/3] w-full overflow-hidden rounded-lg shadow-md bg-muted">
               <Image
@@ -32,7 +33,7 @@ export function GallerySection({ title, images, propertyName }: GallerySectionPr
                 alt={image.alt || `Gallery image ${index + 1} of ${propertyName}`}
                 fill
                 style={{ objectFit: "cover" }}
-                sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw" // Basic responsive sizes
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" // Adjust sizes for better fit
                 loading="lazy" // Lazy load gallery images
                 className="transition-transform duration-300 hover:scale-105"
                 data-ai-hint={image['data-ai-hint']}

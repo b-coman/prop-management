@@ -71,7 +71,8 @@ export function TestimonialsSection({ testimonials }: TestimonialsSectionProps) 
 
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+         {/* Use a fluid grid layout */}
+        <div className="grid gap-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
           {testimonials.reviews.slice(0, 3).map((review, index) => ( // Show first 3 reviews
             <Card key={review.id || index} className="flex flex-col border-border"> {/* Use index as fallback key */}
               <CardContent className="p-6 flex-grow flex flex-col">

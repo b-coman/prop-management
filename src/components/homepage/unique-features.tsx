@@ -33,6 +33,7 @@ export function UniqueFeatures({ features }: UniqueFeaturesProps) {
           </p>
         </div>
 
+         {/* Use a fluid grid layout */}
         <div className="grid gap-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))' }}>
           {features.map((feature, index) => (
             // Apply text-center to the card container

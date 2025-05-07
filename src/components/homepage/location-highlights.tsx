@@ -51,8 +51,8 @@ export function LocationHighlights({ title, propertyLocation, attractions }: Loc
                     </p>
                 </div>
 
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                 {/* Use a fluid grid layout */}
+                <div className="grid gap-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
                     {attractions.map((attraction, index) => (
                         <div key={index} className="flex flex-col items-center text-center p-4 bg-card rounded-lg shadow-md border border-border">
                              {/* Attraction Image */}
