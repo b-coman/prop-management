@@ -1,4 +1,3 @@
-
 // src/app/properties/[slug]/page.tsx
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
@@ -6,6 +5,9 @@ import type { Property, WebsiteTemplate, PropertyOverrides } from '@/types';
 import { PropertyPageLayout } from '@/components/property/property-page-layout';
 import { collection, doc, getDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase'; // Assuming db is correctly initialized
+import { propertyOverridesSchema } from '@/lib/overridesSchemas'; // Import Zod schema for overrides
+
+export const dynamic = 'force-dynamic'; // Ensures the page is always dynamically rendered
 
 // Function to get core property data by slug (can be reused)
 export async function getPropertyBySlug(slug: string): Promise<Property | undefined> {
@@ -52,7 +54,6 @@ export async function getWebsiteTemplate(templateId: string): Promise<WebsiteTem
 }
 
 // Function to get property overrides data (can be reused)
-// TODO: Add Zod validation here after fetching
 export async function getPropertyOverrides(slug: string): Promise<PropertyOverrides | undefined> {
      if (!slug) {
         console.warn("[getPropertyOverrides] Attempted to fetch overrides with empty slug.");
@@ -62,8 +63,16 @@ export async function getPropertyOverrides(slug: string): Promise<PropertyOverri
      try {
          const docSnap = await getDoc(overridesRef);
          if (docSnap.exists()) {
-             // TODO: Use zod.safeParse() here with a combined schema for PropertyOverrides
-             return { id: docSnap.id, ...docSnap.data() } as PropertyOverrides;
+             const data = docSnap.data();
+             const validationResult = propertyOverridesSchema.safeParse(data);
+             if (validationResult.success) {
+                return { id: docSnap.id, ...validationResult.data } as PropertyOverrides;
+             } else {
+                console.error(`❌ Validation failed for propertyOverrides/${slug}:`, validationResult.error.flatten());
+                // Decide how to handle: return undefined, return partial data, or throw error
+                // For now, returning undefined as if not found or invalid
+                return undefined;
+             }
          } else {
              console.log(`[getPropertyOverrides] No overrides document found for: propertyOverrides/${slug}.`);
              return undefined; // Return undefined if no overrides exist
@@ -78,18 +87,6 @@ interface PropertyDetailsPageProps {
   params: { slug: string };
 }
 
-// Optional: Generate static paths if using SSG
-// "use client" cannot be used with generateStaticParams
-/*
-export async function generateStaticParams() {
-    const propertiesCollection = collection(db, 'properties');
-    const snapshot = await getDocs(propertiesCollection);
-    const slugs = snapshot.docs.map(doc => ({ slug: doc.id }));
-    console.log("[generateStaticParams] Generating slugs:", slugs);
-    return slugs;
-}
-*/
-
 export default async function PropertyDetailsPage({ params }: PropertyDetailsPageProps) {
     // Await params before using
     const awaitedParams = await params;
@@ -100,7 +97,7 @@ export default async function PropertyDetailsPage({ params }: PropertyDetailsPag
         notFound();
     }
 
-    console.log(`[PropertyDetailsPage] Rendering property: ${slug}`);
+    // console.log(`[PropertyDetailsPage] Rendering property: ${slug}`);
 
     // Fetch all necessary data for the property using the reusable functions
     const [property, overrides] = await Promise.all([
@@ -117,17 +114,11 @@ export default async function PropertyDetailsPage({ params }: PropertyDetailsPag
 
     if (!template) {
         console.error(`[PropertyDetailsPage] Website template "${property.templateId}" not found for property "${slug}".`);
-        // Decide on fallback behavior - maybe a default template or notFound()
         notFound();
     }
 
-    console.log(`[PropertyDetailsPage] Data fetched successfully for ${slug}.`);
-    // console.log("[PropertyDetailsPage] Property Data:", JSON.stringify(property, null, 2));
-    // console.log("[PropertyDetailsPage] Template Data:", JSON.stringify(template, null, 2));
-    // console.log("[PropertyDetailsPage] Overrides Data:", JSON.stringify(overrides, null, 2));
+    // console.log(`[PropertyDetailsPage] Data fetched successfully for ${slug}.`);
 
-    // Render the property page layout with the fetched data
-    // Ensure overrides are passed correctly, fallback to empty object if undefined/null
     return (
         <Suspense fallback={<div>Loading property details...</div>}>
             <PropertyPageLayout
@@ -138,3 +129,4 @@ export default async function PropertyDetailsPage({ params }: PropertyDetailsPag
         </Suspense>
     );
 }
+

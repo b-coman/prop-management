@@ -6,6 +6,8 @@ import { PropertyPageLayout } from '@/components/property/property-page-layout';
 import { getPropertyBySlug, getWebsiteTemplate, getPropertyOverrides } from '@/app/properties/[slug]/page'; // Import shared functions
 // AuthProvider removed, context will be consumed from root layout
 
+export const dynamic = 'force-dynamic'; // Ensures the page is always dynamically rendered
+
 export default async function HomePage() {
   // Define the default property slug for the homepage
   const defaultPropertySlug = "prahova-mountain-chalet"; // Or dynamically determine this later
