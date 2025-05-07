@@ -1,3 +1,4 @@
+
 // src/components/property/map-section.tsx
 import type { Property } from '@/types';
 import { MapPin } from 'lucide-react';
@@ -49,3 +50,4 @@ export function MapSection({ location }: MapSectionProps) {
     </section>
   );
 }
+
