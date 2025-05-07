@@ -92,10 +92,10 @@ rentalspot/
 ├── firebase.json        # Firebase project configuration (Hosting, Emulators, Firestore rules path)
 ├── firestore.indexes.json # Firestore index definitions
 ├── firestore.rules      # Firestore security rules
-├── next.config.ts       # Next.js configuration
-├── package.json         # Project dependencies and scripts
-├── README.md            # Project README
-└── tsconfig.json        # TypeScript configuration
+├── next.config.ts        # Next.js configuration
+├── package.json          # Project dependencies and scripts
+├── README.md             # Project README
+└── tsconfig.json         # TypeScript configuration
 ```
 
 ---
@@ -251,7 +251,7 @@ Stores **property-specific content overrides** and **visibility settings**. Cont
   "testimonials": { // Override object for testimonials
       "title": "Guest Experiences",
       "reviews": [ // Override array for reviews
-          { "name": "Maria D.", "date": "2025-06", "rating": 5, "text": "Amazing!", "imageUrl": "https://picsum.photos/seed/guest-maria/100/100", "data-ai-hint": "happy female guest" }
+          { "name": "Maria D.", "date": "2025-06", "rating": 5, "text": "Amazing!", "imageUrl": "https://picsum.photos/seed/guest-maria/100/100", "data-ai-hint": "happy female female guest" }
       ]
   },
    "gallery": { "title": "Chalet Gallery" }, // Overrides the title for the gallery section
@@ -415,6 +415,7 @@ This section lists the environment variables required or used by the application
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`     | Stripe Publishable Key for client-side (e.g., initializing Stripe.js)    | Client        | Yes      | `pk_test_...` or `pk_live_...`      |
 | `STRIPE_WEBHOOK_SECRET`                  | Stripe Webhook Signing Secret for verifying webhook events               | Server        | Yes      | `whsec_...`                       |
 | `GOOGLE_GENAI_API_KEY`                   | API Key for Google AI (Genkit/Gemini)                                    | Server        | Optional | `AIzaSy...`                       |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`        | Google Maps API Key (for client-side map display)                        | Client        | Yes      | `AIzaSy...`                       |
 | `TWILIO_ACCOUNT_SID`                     | Twilio Account SID (if using Twilio for SMS)                             | Server        | Optional | `ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` |
 | `TWILIO_AUTH_TOKEN`                      | Twilio Auth Token (if using Twilio for SMS)                              | Server        | Optional | `your_auth_token`                 |
 | `TWILIO_PHONE_NUMBER`                    | Twilio phone number used for sending SMS                                 | Server        | Optional | `+15551234567`                    |
@@ -500,4 +501,3 @@ This section lists the environment variables required or used by the application
 ## 🏁 **End of Current Documentation**
 
 All future changes should be appended below as updates or clarifications.
-

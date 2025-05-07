@@ -1,4 +1,3 @@
-
 // src/components/property/map-section.tsx
 import type { Property } from '@/types';
 import { MapPin } from 'lucide-react';
@@ -11,7 +10,7 @@ export function MapSection({ location }: MapSectionProps) {
    if (!location) {
        return null; // Don't render if no location info
    }
-    // Retrieve API key from environment variable
+    // Retrieve API key from environment variable using the standard Next.js way
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
   return (
@@ -50,4 +49,3 @@ export function MapSection({ location }: MapSectionProps) {
     </section>
   );
 }
-

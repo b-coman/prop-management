@@ -1,4 +1,3 @@
-
 // src/components/homepage/location-highlights.tsx
 import { MapPin } from 'lucide-react'; // Added MapPin for fallback
 import Image from 'next/image';
@@ -31,11 +30,17 @@ interface LocationHighlightsProps {
 export function LocationHighlights({ title, propertyLocation, attractions }: LocationHighlightsProps) {
     // Don't render if required info is missing
     if (!title || !propertyLocation || !attractions || attractions.length === 0) {
+        console.warn("[LocationHighlights] Rendering skipped: Missing required props (title, propertyLocation, or attractions).");
         return null;
     }
 
-    // Retrieve API key from environment variable
+    // Retrieve API key from environment variable using the standard Next.js way
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+    // Add console logs to check values - keep for debugging if needed
+    // console.log("[LocationHighlights] Rendering component.");
+    // console.log("[LocationHighlights] Google Maps API Key:", apiKey ? "Found (value hidden)" : "MISSING"); // Log if key exists, hide the actual key
+    // console.log("[LocationHighlights] Property Coordinates:", propertyLocation.coordinates);
 
     return (
         <section className="py-16 md:py-24 bg-background" id="location">
