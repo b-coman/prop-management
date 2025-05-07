@@ -4,8 +4,8 @@
 import Image from 'next/image';
 import { Star } from 'lucide-react';
 import { InitialBookingForm } from '@/components/booking/initial-booking-form';
-import type { Property, CurrencyCode } from '@/types'; // Added CurrencyCode
-import { useCurrency } from '@/contexts/CurrencyContext'; // Import useCurrency
+import type { Property, CurrencyCode } from '@/types';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { cn } from '@/lib/utils';
 
 
@@ -17,8 +17,8 @@ export interface HeroData {
   price?: number | null; // Advertised rate from property's base currency
   showRating?: boolean;
   showBookingForm?: boolean;
-  bookingFormProperty: Property; // Pass the whole property for booking form logic
-   bookingForm?: { // Configuration for booking form display
+  bookingFormProperty: Property; 
+   bookingForm?: { 
     position?: 'center' | 'top' | 'bottom' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
     size?: 'compressed' | 'large';
   };
@@ -29,13 +29,13 @@ interface HeroSectionProps {
 }
 
 export function HeroSection({ heroData }: HeroSectionProps) {
-  const { formatPrice, selectedCurrency, baseCurrencyForProperty } = useCurrency();
+  const { formatPrice, selectedCurrency, baseCurrencyForProperty, convertToSelectedCurrency } = useCurrency();
 
   const {
     backgroundImage,
     title,
     subtitle,
-    price, // This is the advertisedRate in property's base currency
+    price, 
     showRating,
     showBookingForm,
     bookingFormProperty,
@@ -45,15 +45,18 @@ export function HeroSection({ heroData }: HeroSectionProps) {
 
   const propertyBaseCcy = baseCurrencyForProperty(bookingFormProperty.baseCurrency);
 
-  // Convert the advertised rate to the selected display currency
-  const displayPrice = price ? formatPrice(price, propertyBaseCcy) : null; // Format in base currency first for consistency
-  // The actual display in selected currency will happen in the component rendering the price if needed
-  // For now, HeroSection displays price as provided, assuming it's pre-formatted or to be formatted by a sub-component
+  // Convert the hero's advertised price to the selected display currency
+  const displayPriceAmount = price !== null && price !== undefined 
+    ? convertToSelectedCurrency(price, propertyBaseCcy) 
+    : null;
+  
+  const formattedDisplayPrice = displayPriceAmount !== null 
+    ? formatPrice(displayPriceAmount, selectedCurrency) 
+    : null;
 
   const rating = bookingFormProperty.ratings?.average;
   const reviewsCount = bookingFormProperty.ratings?.count;
 
-  // Determine classes for booking form positioning
   const formPositionClasses = {
     center: 'items-center justify-center',
     top: 'items-start justify-center',
@@ -64,12 +67,11 @@ export function HeroSection({ heroData }: HeroSectionProps) {
     'bottom-right': 'items-end justify-end',
   };
 
-  const currentPositionClass = bookingForm?.position ? formPositionClasses[bookingForm.position] : formPositionClasses.bottom; // Default to bottom center
+  const currentPositionClass = bookingForm?.position ? formPositionClasses[bookingForm.position] : formPositionClasses.bottom;
 
-  // Determine classes for booking form size
   const formWrapperClasses = cn(
     'bg-background/80 backdrop-blur-sm p-6 md:p-8 rounded-xl shadow-2xl w-full',
-     bookingForm?.size === 'large' ? 'max-w-3xl' : 'max-w-md' // Max width based on size
+     bookingForm?.size === 'large' ? 'max-w-3xl' : 'max-w-md'
   );
 
 
@@ -81,12 +83,11 @@ export function HeroSection({ heroData }: HeroSectionProps) {
           alt={title || bookingFormProperty.name || 'Hero background image'}
           fill
           style={{ objectFit: 'cover' }}
-          priority // Hero image should be high priority
-          className="-z-10" // Ensure it's behind the content
+          priority
+          className="-z-10"
           data-ai-hint={dataAiHint || "mountain landscape"}
         />
       )}
-      {/* Overlay to darken the image for better text contrast */}
       <div className="absolute inset-0 bg-black/40 -z-10"></div>
 
       <div className={`container mx-auto px-4 flex flex-col h-full w-full ${currentPositionClass} py-8 md:py-12`}>
@@ -98,10 +99,10 @@ export function HeroSection({ heroData }: HeroSectionProps) {
         {showBookingForm && (
            <div className={formWrapperClasses}>
              <div className="flex flex-col md:flex-row items-center justify-between mb-4 gap-4">
-                {price !== null && price !== undefined && (
+                {formattedDisplayPrice !== null && (
                   <div className='text-center md:text-left'>
                     <p className="text-2xl md:text-3xl font-bold text-foreground">
-                      {formatPrice(price, propertyBaseCcy)}
+                      {formattedDisplayPrice}
                       <span className="text-base font-normal text-muted-foreground">/night</span>
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
