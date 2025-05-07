@@ -2490,6 +2490,7 @@ __turbopack_context__.s({
     "PropertyPageLayout": (()=>PropertyPageLayout)
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime.js [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$script$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/script.js [app-rsc] (ecmascript)"); // Import next/script
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$generic$2d$header$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/generic-header.tsx [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$footer$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/footer.tsx [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$hero$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/homepage/hero-section.tsx [app-rsc] (ecmascript)");
@@ -2523,33 +2524,27 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$s
 ;
 ;
 ;
+;
 function PropertyPageLayout({ property, template, overrides }) {
-    const { slug, name, location, pricePerNight, ratings, amenities, checkInTime, checkOutTime, houseRules } = property;
-    const { homepage = [], defaults = {} } = template; // Destructure defaults, provide empty object as fallback
-    // Use overrides.visibleBlocks if present, otherwise default to all blocks from template
+    const { slug, name, location, pricePerNight, ratings, amenities, checkInTime, checkOutTime, houseRules, analytics } = property;
+    const { homepage = [], defaults = {} } = template;
     const visibleBlocks = overrides?.visibleBlocks || homepage.map((b)=>b.id);
-    // Helper function to get merged block data (override > default > empty)
     const getMergedBlockData = (blockId, blockType)=>{
         const overrideData = overrides?.[blockId];
         const defaultData = defaults?.[blockId];
-        // Special handling for arrays like features, attractions, testimonials.reviews, images
         if (blockId === 'features' || blockId === 'attractions' || blockId === 'images') {
-            // If overrides exist (even if empty array), use them. Otherwise, use defaults.
             return overrideData !== undefined ? overrideData : defaultData || [];
         }
         if (blockId === 'testimonials') {
-            // Testimonials override is an object { reviews: [...] }, default might be too
             const overrideReviews = overrideData?.reviews;
-            const defaultReviews = defaultData?.reviews; // Assuming default has same structure
-            // Merge top-level fields like title, then handle reviews array
+            const defaultReviews = defaultData?.reviews;
             return {
                 ...defaultData,
                 ...overrideData,
-                reviews: overrideReviews !== undefined ? overrideReviews : defaultReviews || [] // Handle reviews array separately
+                reviews: overrideReviews !== undefined ? overrideReviews : defaultReviews || []
             };
         }
         if (blockId === 'hero') {
-            // Specifically merge the bookingForm object if it exists in overrides or defaults
             const mergedHero = {
                 ...defaultData,
                 ...overrideData
@@ -2562,18 +2557,15 @@ function PropertyPageLayout({ property, template, overrides }) {
             }
             return mergedHero;
         }
-        // For other block types (objects), merge overrides onto defaults
         return {
             ...defaultData,
             ...overrideData
-        }; // Overrides take precedence
+        };
     };
-    // Prepare data for each section, merging overrides with defaults and property data
     const mergedHeroData = getMergedBlockData('hero', 'hero');
     const heroData = {
-        // Use override image if available, else default, else property featured, else first image
         backgroundImage: mergedHeroData?.backgroundImage || property.images?.find((img)=>img.isFeatured)?.url || property.images?.[0]?.url || null,
-        'data-ai-hint': mergedHeroData?.backgroundImage ? 'hero background' : property.images?.find((img)=>img.isFeatured)?.['data-ai-hint'] || property.images?.[0]?.['data-ai-hint'],
+        'data-ai-hint': mergedHeroData?.['data-ai-hint'] || property.images?.find((img)=>img.isFeatured)?.['data-ai-hint'] || property.images?.[0]?.['data-ai-hint'],
         price: property.pricePerNight,
         ratings: property.ratings,
         bookingFormProperty: property,
@@ -2586,20 +2578,20 @@ function PropertyPageLayout({ property, template, overrides }) {
     const mergedExperienceData = getMergedBlockData('experience', 'experience');
     const experienceData = {
         title: mergedExperienceData?.title || "Experience Our Property",
-        welcomeText: mergedExperienceData?.description || "Discover the unique charm and comfort of your stay.",
+        description: mergedExperienceData?.description || "Discover the unique charm and comfort of your stay.",
         highlights: mergedExperienceData?.highlights || []
     };
     const mergedHostData = getMergedBlockData('host', 'host');
     const hostData = {
         name: mergedHostData?.name || "Your Host",
         imageUrl: mergedHostData?.image || null,
-        welcomeMessage: mergedHostData?.description || "We're delighted to welcome you!",
+        description: mergedHostData?.description || "We're delighted to welcome you!",
         backstory: mergedHostData?.backstory || "We strive to make your stay exceptional.",
         'data-ai-hint': mergedHostData?.['data-ai-hint'] || 'host portrait friendly'
     };
-    const featuresData = getMergedBlockData('features', 'features'); // Now gets array directly
+    const featuresData = getMergedBlockData('features', 'features');
     const mergedLocationData = getMergedBlockData('location', 'location');
-    const attractionsData = getMergedBlockData('attractions', 'attractions'); // Now gets array directly
+    const attractionsData = getMergedBlockData('attractions', 'attractions');
     const locationHighlightsData = {
         title: mergedLocationData?.title || "Explore the Surroundings",
         propertyLocation: location,
@@ -2617,10 +2609,11 @@ function PropertyPageLayout({ property, template, overrides }) {
         description: mergedCtaData?.description || "Book your stay today and create unforgettable memories.",
         buttonText: mergedCtaData?.buttonText || "Book Now",
         buttonUrl: mergedCtaData?.buttonUrl,
-        propertySlug: slug
+        propertySlug: slug,
+        backgroundImage: mergedCtaData?.backgroundImage,
+        'data-ai-hint': mergedCtaData?.['data-ai-hint']
     };
-    // Filter gallery images - exclude hero image if it's explicitly tagged
-    const galleryImagesData = getMergedBlockData('images', 'gallery'); // Get gallery images array
+    const galleryImagesData = getMergedBlockData('images', 'gallery');
     const galleryImages = galleryImagesData.filter((img)=>!img.tags?.includes('hero'));
     const mergedGalleryData = getMergedBlockData('gallery', 'gallery');
     const galleryData = {
@@ -2628,7 +2621,6 @@ function PropertyPageLayout({ property, template, overrides }) {
         images: galleryImages,
         propertyName: name
     };
-    // Render logic: Iterate through template blocks and render if visible
     const renderBlock = (block)=>{
         if (!visibleBlocks.includes(block.id)) {
             return null;
@@ -2639,29 +2631,35 @@ function PropertyPageLayout({ property, template, overrides }) {
                     heroData: heroData
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 150,
+                    lineNumber: 137,
                     columnNumber: 24
-                }, this); // Pass the full heroData object
+                }, this);
             case 'experience':
-                // Ensure required fields exist before rendering
-                if (experienceData.title && experienceData.welcomeText && experienceData.highlights.length > 0) {
+                if (experienceData.title && experienceData.description && experienceData.highlights.length > 0) {
                     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$experience$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ExperienceSection"], {
-                        ...experienceData
+                        title: experienceData.title,
+                        welcomeText: experienceData.description,
+                        highlights: experienceData.highlights
                     }, block.id, false, {
                         fileName: "[project]/src/components/property/property-page-layout.tsx",
-                        lineNumber: 154,
+                        lineNumber: 140,
                         columnNumber: 28
                     }, this);
                 }
                 return null;
             case 'host':
-                // Only render host section if essential data exists
                 if ("TURBOPACK compile-time truthy", 1) {
                     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$host$2d$introduction$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["HostIntroduction"], {
-                        host: hostData
+                        host: {
+                            name: hostData.name,
+                            welcomeMessage: hostData.description,
+                            backstory: hostData.backstory || "",
+                            imageUrl: hostData.imageUrl,
+                            'data-ai-hint': hostData['data-ai-hint']
+                        }
                     }, block.id, false, {
                         fileName: "[project]/src/components/property/property-page-layout.tsx",
-                        lineNumber: 160,
+                        lineNumber: 145,
                         columnNumber: 29
                     }, this);
                 }
@@ -2671,16 +2669,15 @@ function PropertyPageLayout({ property, template, overrides }) {
                     features: featuresData
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 164,
+                    lineNumber: 149,
                     columnNumber: 50
                 }, this) : null;
             case 'location':
-                // Render if propertyLocation and attractions exist
                 return locationHighlightsData.propertyLocation && locationHighlightsData.attractions.length > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$location$2d$highlights$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["LocationHighlights"], {
                     ...locationHighlightsData
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 168,
+                    lineNumber: 152,
                     columnNumber: 23
                 }, this) : null;
             case 'testimonials':
@@ -2688,7 +2685,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                     testimonials: testimonialsData
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 171,
+                    lineNumber: 155,
                     columnNumber: 64
                 }, this) : null;
             case 'gallery':
@@ -2696,7 +2693,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                     ...galleryData
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 173,
+                    lineNumber: 157,
                     columnNumber: 57
                 }, this) : null;
             case 'details':
@@ -2704,7 +2701,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                     property: property
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 175,
+                    lineNumber: 159,
                     columnNumber: 24
                 }, this);
             case 'amenities':
@@ -2712,7 +2709,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                     amenities: amenities
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 177,
+                    lineNumber: 161,
                     columnNumber: 61
                 }, this) : null;
             case 'rules':
@@ -2722,7 +2719,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                     checkOutTime: checkOutTime
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 179,
+                    lineNumber: 163,
                     columnNumber: 69
                 }, this) : null;
             case 'map':
@@ -2730,21 +2727,21 @@ function PropertyPageLayout({ property, template, overrides }) {
                     location: location
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 181,
+                    lineNumber: 165,
                     columnNumber: 36
                 }, this) : null;
             case 'contact':
                 return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$property$2f$contact$2d$section$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ContactSection"], {}, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 183,
+                    lineNumber: 167,
                     columnNumber: 25
-                }, this); // Assuming contact doesn't need much dynamic data here
+                }, this);
             case 'cta':
                 return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$homepage$2f$call$2d$to$2d$action$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["CallToActionSection"], {
                     ...ctaData
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 185,
+                    lineNumber: 169,
                     columnNumber: 25
                 }, this);
             case 'separator':
@@ -2752,9 +2749,9 @@ function PropertyPageLayout({ property, template, overrides }) {
                     className: "my-8 md:my-12"
                 }, block.id, false, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 187,
+                    lineNumber: 171,
                     columnNumber: 25
-                }, this); // Add spacing around separator
+                }, this);
             default:
                 console.warn(`Unknown block type "${block.type}" for block ID "${block.id}".`);
                 return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2764,7 +2761,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                     ]
                 }, block.id, true, {
                     fileName: "[project]/src/components/property/property-page-layout.tsx",
-                    lineNumber: 190,
+                    lineNumber: 174,
                     columnNumber: 24
                 }, this);
         }
@@ -2772,12 +2769,42 @@ function PropertyPageLayout({ property, template, overrides }) {
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         className: "flex min-h-screen flex-col",
         children: [
+            analytics?.enabled && analytics.googleAnalyticsId && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Fragment"], {
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$script$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["default"], {
+                        strategy: "afterInteractive",
+                        src: `https://www.googletagmanager.com/gtag/js?id=${analytics.googleAnalyticsId}`
+                    }, void 0, false, {
+                        fileName: "[project]/src/components/property/property-page-layout.tsx",
+                        lineNumber: 182,
+                        columnNumber: 11
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$script$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["default"], {
+                        id: `ga-config-${property.slug}`,
+                        strategy: "afterInteractive",
+                        dangerouslySetInnerHTML: {
+                            __html: `
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${analytics.googleAnalyticsId}', {
+                  page_path: window.location.pathname,
+                });
+              `
+                        }
+                    }, void 0, false, {
+                        fileName: "[project]/src/components/property/property-page-layout.tsx",
+                        lineNumber: 186,
+                        columnNumber: 11
+                    }, this)
+                ]
+            }, void 0, true),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$generic$2d$header$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Header"], {
                 propertyName: name,
                 propertySlug: slug
             }, void 0, false, {
                 fileName: "[project]/src/components/property/property-page-layout.tsx",
-                lineNumber: 197,
+                lineNumber: 202,
                 columnNumber: 8
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])("main", {
@@ -2785,7 +2812,7 @@ function PropertyPageLayout({ property, template, overrides }) {
                 children: homepage.map((block)=>renderBlock(block))
             }, void 0, false, {
                 fileName: "[project]/src/components/property/property-page-layout.tsx",
-                lineNumber: 200,
+                lineNumber: 203,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$footer$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["Footer"], {}, void 0, false, {
@@ -2796,7 +2823,7 @@ function PropertyPageLayout({ property, template, overrides }) {
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/property/property-page-layout.tsx",
-        lineNumber: 195,
+        lineNumber: 179,
         columnNumber: 5
     }, this);
 }

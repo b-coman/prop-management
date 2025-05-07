@@ -1,3 +1,4 @@
+
 # Short Rental Management System — Technical Architecture Documentation (Updated)
 
 ## 📌 Purpose
@@ -21,6 +22,7 @@ The system manages short-term rental properties through:
 - **Coupon management** system with Firestore storage (`coupons` collection) and admin interface.
 - **Admin interface** for managing coupons (property management to be added).
 - **Frontend & backend validation** using Zod schemas.
+- **Google Analytics integration** per property.
 
 Initial support: 2 properties (Prahova Mountain Chalet, Coltei Apartment Bucharest)
 Designed for scalability.
@@ -55,6 +57,7 @@ rentalspot/
 │   └── utils.ts         # General utility functions (e.g., cn for Tailwind)
 ├── node_modules/        # Project dependencies (managed by npm/yarn)
 ├── public/              # Static assets (images, fonts, favicon)
+│   └── images/          # Default images for templates and placeholders
 ├── scripts/             # Utility scripts (e.g., load-properties.ts)
 ├── src/                 # Main application source code (using src directory convention)
 │   ├── ai/              # Genkit AI related code (flows, prompts)
@@ -122,16 +125,18 @@ Each template document defines the available blocks and their default content.
     // Add other block types as needed (e.g., 'details', 'amenities', 'rules', 'map', 'contact', 'separator')
   ],
   "header": { // Default header structure
-    "menuItems": [ ... ],
-    "logo": { ... }
+    "menuItems": [ { "label": "Home", "url": "/" }, ... ],
+    "logo": { "src": "/images/templates/holiday-house/logo.svg", "alt": "Holiday House" }
   },
   "footer": { // Default footer structure
-     ...
+     "quickLinks": [ ... ],
+     "contactInfo": { ... },
+     "socialLinks": [ ... ]
   },
   "defaults": { // Default content for each block ID defined in "homepage"
     "hero": {
-        "backgroundImage": "/default-hero.jpg",
-        "title": "Welcome",
+        "backgroundImage": "/images/templates/holiday-house/default-hero.jpg",
+        "title": "Welcome to Your Holiday House",
         "price": 150,
         "showRating": true,
         "showBookingForm": true,
@@ -139,37 +144,40 @@ Each template document defines the available blocks and their default content.
     },
     "experience": {
         "title": "Experience Relaxation",
-        "description": "...",
-        "highlights": [ ... ]
+        "description": "A cozy holiday house perfect for family getaways.",
+        "highlights": [
+          { "icon": "Leaf", "title": "Nature", "description": "Surrounded by beautiful nature." },
+          { "icon": "Users", "title": "Family Friendly", "description": "Ideal for family vacations." }
+        ]
     },
     "features": [ // Default features if overrides not provided
-        { "icon": "firepit", "title": "Fire Pit", "description": "...", "image": "/default-firepit.jpg" }
+        { "icon": "firepit", "title": "Fire Pit", "description": "...", "image": "/images/templates/holiday-house/default-firepit.jpg" }
     ],
     "location": {
-         "title": "Discover Nearby Attractions"
-         // Default mapCenter could be here
+         "title": "Discover Nearby Attractions",
+         "mapCenter": { "lat": 45.2530, "lng": 25.6346 } // Example default
     },
     "attractions": [ // Default attractions
-         { "name": "Default Attraction", "description": "...", "image": "/default-attraction.jpg" }
+         { "name": "Default Attraction", "description": "...", "image": "/images/templates/holiday-house/default-attraction.jpg" }
     ],
     "testimonials": { // Default testimonials wrapper
         "title": "What Guests Say",
         "showRating": true,
         "reviews": [ // Default reviews
-             { "name": "Jane D.", "rating": 5, "text": "Wonderful stay!", "imageUrl": "/default-guest.jpg" }
+             { "name": "Jane D.", "rating": 5, "text": "Wonderful stay!", "imageUrl": "/images/templates/holiday-house/default-guest.jpg" }
         ]
     },
      "gallery": { // Default gallery wrapper
-         "title": "Property Gallery"
+         "title": "Property Gallery",
+         "images": [ // Default gallery images (distinct from top-level overrides.images)
+             { "url": "/images/templates/holiday-house/default-gallery-1.jpg", "alt": "Living Room" }
+         ]
      },
-     "images": [ // Default gallery images
-         { "url": "/default-gallery-1.jpg", "alt": "Living Room" }
-     ],
     "cta": {
         "title": "Book Your Stay",
         "description": "...",
         "buttonText": "Book Now",
-        "backgroundImage": "/default-cta.jpg"
+        "backgroundImage": "/images/templates/holiday-house/default-cta.jpg"
     }
     // ... defaults for other blocks
   }
@@ -199,55 +207,47 @@ Stores **property-specific content overrides** and **visibility settings**. Cont
   ],
   // Overrides for specific block content (only include fields that differ from defaults)
   "hero": { // Override object for the 'hero' block
-    "backgroundImage": "/hero-override.jpg", // Override the background image
-    "data-ai-hint": "specific hint",
-    "bookingForm": { // Can override specific parts of the booking form config
-        "position": "center"
-    }
-    // Other hero fields use defaults if not specified here
+    "backgroundImage": "https://picsum.photos/seed/chalet-override/1200/800",
+    "data-ai-hint": "specific hint for prahova chalet hero",
+    "bookingForm": { "position": "center" }
   },
-  "experience": { // Override object for the 'experience' block
-     "title": "Experience Prahova's Majesty", // Override title
-     "highlights": [ ... ] // Provide a completely new array of highlights
+  "experience": {
+     "title": "Experience Prahova's Majesty",
+     "highlights": [ { "icon": "Mountain", "title": "Prahova Mountain Retreat", "description": "..." } ]
   },
-  "host": { // Override object for the 'host' block
-      "name": "Bogdan",
-      "imageUrl": "/host-image.jpg",
-      "description": "Hello, I'm Bogdan...", // Override description (welcome message)
-      "backstory": "I built this place..." // Override backstory
+  "host": {
+      "name": "Bogdan C.",
+      "imageUrl": "https://picsum.photos/seed/host-bogdan/200/200",
+      "description": "Welcome to my chalet!",
+      "backstory": "I built this place...",
+      "data-ai-hint": "friendly male host portrait outdoors"
   },
   "features": [ // Override array for the 'features' block
-    { "icon": "firepit", "title": "Fire Pit", "description": "...", "image": "/firepit.jpg" },
-    { "icon": "hammock", "title": "Hammocks", "description": "...", "image": "/hammock.jpg" }
-    // If this array exists, it *replaces* the default features array entirely
+    { "icon": "firepit", "title": "Fire Pit", "description": "...", "image": "https://picsum.photos/seed/firepit/400/300", "data-ai-hint": "fire pit night" },
+    { "icon": "hammock", "title": "Hammocks", "description": "...", "image": "https://picsum.photos/seed/hammock/400/300", "data-ai-hint": "hammock forest relax" }
+    // If this array exists, it *replaces* the template.defaults.features array entirely
   ],
-  "location": { // Override object for the 'location' block
-       "title": "Explore Comarnic & Beyond" // Override title
-  },
+  "location": { "title": "Explore Comarnic & Beyond" },
   "attractions": [ // Override array for attractions
-      { "name": "Dracula Castle", ... },
-      { "name": "Ialomita Cave", ... }
-      // Replaces the default attractions array
+      { "name": "Dracula Castle", "description": "...", "image": "https://picsum.photos/seed/dracula/400/300", "data-ai-hint": "Dracula Castle Bran" },
+      { "name": "Ialomita Cave", "description": "...", "image": "https://picsum.photos/seed/ialomita/400/300", "data-ai-hint": "Ialomita Cave entrance" }
   ],
   "testimonials": { // Override object for testimonials
-      "title": "Guest Experiences", // Override title
+      "title": "Guest Experiences",
       "reviews": [ // Override array for reviews
-          { "name": "Maria D.", ... },
-          { "name": "James T.", ... }
-          // Replaces the default reviews array
+          { "name": "Maria D.", "date": "2025-06", "rating": 5, "text": "Amazing!", "imageUrl": "https://picsum.photos/seed/guest-maria/100/100", "data-ai-hint": "happy female guest" }
       ]
   },
-   "gallery": { // Override gallery title
-       "title": "Chalet Gallery"
-   },
-  "images": [ // Override array for gallery images
-      { "url": "/chalet-img1.jpg", ... },
-      { "url": "/chalet-img2.jpg", ... }
-      // Replaces the default images array
-  ],
-  "cta": { // Override object for CTA
+   "gallery": { "title": "Chalet Gallery" },
+   "images": [ // Override array for gallery images
+      { "url": "https://picsum.photos/seed/gallery-img1/800/600", "alt": "Living Room", "data-ai-hint": "chalet living room interior" },
+      { "url": "https://picsum.photos/seed/gallery-img2/800/600", "alt": "Bedroom", "data-ai-hint": "chalet bedroom cozy" }
+   ],
+  "cta": {
       "title": "Ready for Your Mountain Getaway?",
-      "buttonText": "Book Your Stay Now"
+      "buttonText": "Book Your Stay Now",
+      "backgroundImage": "https://picsum.photos/seed/cta-override/1200/600",
+      "data-ai-hint": "mountain panorama sunset"
   }
   // Add other block overrides as needed
 }
@@ -336,9 +336,9 @@ For each block defined in `template.homepage`:
 ## 🖼️ 10. **Image Storage & Referencing**
 
 ✅ **Static Template Images:** Default images used in `template.defaults` (e.g., `/default-hero.jpg`) MUST be stored in `/public/images/templates/{templateId}/...` or a similar structure within `/public`. Reference using relative paths from the root (e.g., `/images/templates/holiday-house/default-hero.jpg`).
-✅ **Property Override Images:** Images specific to a property (hero background override, feature images, attraction images, gallery images) are referenced by their **full URLs** (e.g., from Firebase Storage, Cloudinary, Picsum) directly within the `/propertyOverrides/{slug}` document.
+✅ **Property Override Images:** Images specific to a property (hero background override, feature images, attraction images, gallery images) are referenced by their **full URLs** (e.g., from Firebase Storage, Cloudinary, Picsum) directly within the `/propertyOverrides/{propertySlug}` document. Placeholder images from `picsum.photos` include a `data-ai-hint` attribute.
 ✅ **No Image ID References:** The system does *not* use a separate `/images` collection or reference images by ID. Image URLs are embedded directly where they are used in the overrides.
-✅ `next/image` component should be used for optimized image loading. `data-ai-hint` attribute is used on placeholder images.
+✅ `next/image` component should be used for optimized image loading. `data-ai-hint` attribute is used on placeholder images for future AI-driven image selection.
 
 ---
 
@@ -385,13 +385,43 @@ This section lists the environment variables required or used by the application
 | `TWILIO_AUTH_TOKEN`                      | Twilio Auth Token (if using Twilio for SMS)                              | Server        | Optional | `your_auth_token`                 |
 | `TWILIO_PHONE_NUMBER`                    | Twilio phone number used for sending SMS                                 | Server        | Optional | `+15551234567`                    |
 | `FIREBASE_ADMIN_SERVICE_ACCOUNT_PATH`    | Path to Firebase Admin SDK service account key file (for scripts/admin) | Server        | Optional | `./serviceAccountKey.json`        |
+| `NEXT_PUBLIC_MAIN_APP_HOST`              | The main hostname for the application (e.g., rentalspot.com)             | Client/Server | Yes      | `rentalspot.com`                  |
 
 ✅ **Note:** `NEXT_PUBLIC_` prefix exposes the variable to the client-side browser bundle. Variables without the prefix are only available server-side.
+
+---
+
+## 📊 14. **Google Analytics Integration**
+
+- Per-property Google Analytics tracking is supported.
+- The `properties` collection documents can include an `analytics` object:
+  ```json
+  "analytics": {
+    "enabled": true,
+    "googleAnalyticsId": "G-XXXXXXXXXX" // Property-specific GA ID
+  }
+  ```
+- If `analytics.enabled` is true and `googleAnalyticsId` is provided, the `PropertyPageLayout` component dynamically injects the Google Analytics script tags.
+
+---
+
+## 🌐 15. **Multi-Domain Configuration (Initial Setup)**
+
+- Properties can be configured to use a custom domain.
+- The `properties` collection documents include:
+  ```json
+  "customDomain": "your-property.com", // The custom domain
+  "useCustomDomain": true // Boolean to enable/disable custom domain
+  ```
+- Next.js middleware (`src/middleware.ts`) handles domain resolution:
+    - It checks if the incoming request's hostname matches a configured custom domain for any active property.
+    - If a match is found, it rewrites the request to the standard `/properties/{slug}` path.
+    - If no custom domain match, it proceeds with the default routing.
+- An API route (`/api/resolve-domain`) is used by the middleware to query Firestore for properties matching a given domain.
+- The main application host is defined by the `NEXT_PUBLIC_MAIN_APP_HOST` environment variable.
 
 ---
 
 ## 🏁 **End of Current Documentation**
 
 All future changes should be appended below as updates or clarifications.
-
-```
