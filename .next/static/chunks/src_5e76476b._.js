@@ -522,6 +522,7 @@ const AuthProvider = ({ children })=>{
                     setUser(currentUser);
                     // Only set authInitializing to false after the first onAuthStateChanged event
                     // This indicates that Firebase has checked the initial auth state.
+                    // Check if it's already false before setting to avoid unnecessary re-renders
                     if (authInitializing) {
                         setAuthInitializing(false);
                         console.log("[AuthProvider] onAuthStateChanged: authInitializing set to false (initial auth state checked).");
@@ -611,6 +612,7 @@ const AuthProvider = ({ children })=>{
     const overallLoading = authInitializing || redirectResultProcessing;
     console.log(`[AuthProvider] Render. overallLoading: ${overallLoading} (authInitializing: ${authInitializing}, redirectResultProcessing: ${redirectResultProcessing}), User: ${user ? user.uid : 'null'}`);
     if (!__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["auth"] && "object" !== 'undefined' && window.__NEXT_HYDRATED) {
+        console.error("❌ [AuthProvider] Firebase Auth object is not available during render. Firebase likely failed to initialize.");
         return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
             className: "flex min-h-screen items-center justify-center",
             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -618,12 +620,12 @@ const AuthProvider = ({ children })=>{
                 children: "Error: Firebase Authentication failed to initialize properly. Check console."
             }, void 0, false, {
                 fileName: "[project]/src/contexts/AuthContext.tsx",
-                lineNumber: 135,
+                lineNumber: 137,
                 columnNumber: 9
             }, this)
         }, void 0, false, {
             fileName: "[project]/src/contexts/AuthContext.tsx",
-            lineNumber: 134,
+            lineNumber: 136,
             columnNumber: 7
         }, this);
     }
@@ -637,7 +639,7 @@ const AuthProvider = ({ children })=>{
         children: children
     }, void 0, false, {
         fileName: "[project]/src/contexts/AuthContext.tsx",
-        lineNumber: 141,
+        lineNumber: 143,
         columnNumber: 5
     }, this);
 };

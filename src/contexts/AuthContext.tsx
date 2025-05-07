@@ -42,6 +42,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(currentUser);
       // Only set authInitializing to false after the first onAuthStateChanged event
       // This indicates that Firebase has checked the initial auth state.
+      // Check if it's already false before setting to avoid unnecessary re-renders
       if (authInitializing) {
         setAuthInitializing(false);
         console.log("[AuthProvider] onAuthStateChanged: authInitializing set to false (initial auth state checked).");
@@ -130,6 +131,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   console.log(`[AuthProvider] Render. overallLoading: ${overallLoading} (authInitializing: ${authInitializing}, redirectResultProcessing: ${redirectResultProcessing}), User: ${user ? user.uid : 'null'}`);
 
   if (!auth && typeof window !== 'undefined' && (window as any).__NEXT_HYDRATED) {
+    console.error("❌ [AuthProvider] Firebase Auth object is not available during render. Firebase likely failed to initialize.");
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-destructive">Error: Firebase Authentication failed to initialize properly. Check console.</p>

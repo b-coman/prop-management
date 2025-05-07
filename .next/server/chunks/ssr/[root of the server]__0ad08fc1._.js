@@ -618,6 +618,7 @@ const AuthProvider = ({ children })=>{
             setUser(currentUser);
             // Only set authInitializing to false after the first onAuthStateChanged event
             // This indicates that Firebase has checked the initial auth state.
+            // Check if it's already false before setting to avoid unnecessary re-renders
             if (authInitializing) {
                 setAuthInitializing(false);
                 console.log("[AuthProvider] onAuthStateChanged: authInitializing set to false (initial auth state checked).");
@@ -709,7 +710,7 @@ const AuthProvider = ({ children })=>{
         children: children
     }, void 0, false, {
         fileName: "[project]/src/contexts/AuthContext.tsx",
-        lineNumber: 141,
+        lineNumber: 143,
         columnNumber: 5
     }, this);
 };

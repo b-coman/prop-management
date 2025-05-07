@@ -4,7 +4,7 @@
 import { type ReactNode, Suspense } from 'react'; // Suspense for potential Next.js features
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext'; // AuthProvider is removed, useAuth consumes from root
-import { useRouter } from 'next/navigation'; 
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Loader2, LogOut } from 'lucide-react';
 
@@ -13,10 +13,11 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
 
-  console.log("[ProtectedAdminLayout] User:", user ? user.uid : null, "Loading:", loading);
+  console.log(`[ProtectedAdminLayout] Render. Loading: ${loading}, User: ${user ? user.uid : null}`);
 
 
   if (loading) {
+     console.log("[ProtectedAdminLayout] Rendering: Loading state (loading is true).");
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -26,8 +27,9 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
   }
 
   if (!user) {
-    console.log("[ProtectedAdminLayout] No user, redirecting to /login");
-    router.replace('/login'); 
+    console.log("[ProtectedAdminLayout] No user (loading is false), redirecting to /login...");
+    // Use replace to avoid adding the admin route to browser history if user isn't logged in
+    router.replace('/login');
     return (
          <div className="flex min-h-screen items-center justify-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -37,6 +39,7 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
   }
 
   // User is authenticated, render admin layout
+   console.log("[ProtectedAdminLayout] Rendering: Admin content (loading false, user exists).");
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
