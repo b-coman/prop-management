@@ -1,12 +1,12 @@
 // src/app/admin/layout.tsx
 'use client';
 
-import { type ReactNode, Suspense } from 'react';
+import { type ReactNode, Suspense, useEffect } from 'react'; // Added useEffect
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Loader2, LogOut, LayoutDashboard } from 'lucide-react'; // Added LayoutDashboard
+import { Loader2, LogOut, LayoutDashboard } from 'lucide-react';
 
 // Inner component to handle auth logic
 function ProtectedAdminLayout({ children }: { children: ReactNode }) {
@@ -15,6 +15,13 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
 
   // console.log(`[ProtectedAdminLayout] Render. Loading: ${loading}, User: ${user ? user.uid : null}`);
 
+  useEffect(() => {
+    // console.log(`[ProtectedAdminLayout useEffect] Triggered. Loading: ${loading}, User: ${user ? user.uid : null}`);
+    if (!loading && !user) {
+      // console.log("[ProtectedAdminLayout useEffect] No user (loading false), redirecting to /login...");
+      router.replace('/login');
+    }
+  }, [user, loading, router]); // Add dependencies
 
   if (loading) {
     // console.log("[ProtectedAdminLayout] Rendering: Loading state (loading is true).");
@@ -26,13 +33,14 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
     );
   }
 
+  // If user is not loaded and loading is false, it means useEffect will handle redirect.
+  // Show a loading/redirecting state until useEffect kicks in.
   if (!user) {
-    // console.log("[ProtectedAdminLayout] No user (loading is false), redirecting to /login...");
-    router.replace('/login');
+    // console.log("[ProtectedAdminLayout] Rendering: Redirecting state (loading false, user is null, useEffect will redirect).");
     return (
          <div className="flex min-h-screen items-center justify-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="ml-3 text-muted-foreground">Redirecting to login...</p>
+            <p className="ml-3 text-muted-foreground">Redirecting...</p>
         </div>
     );
   }
