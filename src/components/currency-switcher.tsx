@@ -35,9 +35,13 @@ export function CurrencySwitcher() {
       {/* Adjusted styles for emoji */}
       <SelectTrigger className="w-auto h-9 px-3 bg-transparent hover:bg-white/10 border-white/20 text-white focus:ring-white/50 data-[state=open]:bg-black/50">
         <div className="flex items-center gap-1.5">
-           {/* Display flag emoji */}
-           <span className="text-lg mr-1 opacity-80">{SelectedFlag}</span> {/* Adjusted size and opacity */}
-          <SelectValue placeholder="Select currency" />
+           {/* Display flag emoji and currency code ONLY within the SelectValue */}
+           <SelectValue>
+             <div className="flex items-center gap-1.5">
+                <span className="text-lg mr-1 opacity-80">{SelectedFlag}</span> {/* Flag */}
+                {selectedCurrency} {/* Code */}
+             </div>
+           </SelectValue>
         </div>
       </SelectTrigger>
       <SelectContent className="bg-background border-border">
@@ -45,10 +49,10 @@ export function CurrencySwitcher() {
           const Flag = currencyFlags[currency];
           return (
             <SelectItem key={currency} value={currency} className="cursor-pointer hover:bg-accent/10">
+              {/* Render flag and code inside the item */}
               <div className="flex items-center gap-2">
-                 {/* Display flag emoji */}
-                 <span className="text-lg mr-1 opacity-80">{Flag}</span> {/* Adjusted size and opacity */}
-                {currency}
+                 <span className="text-lg mr-1 opacity-80">{Flag}</span> {/* Flag */}
+                {currency} {/* Code */}
               </div>
             </SelectItem>
           );
