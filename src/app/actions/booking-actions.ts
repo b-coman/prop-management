@@ -1,4 +1,3 @@
-
 "use server";
 
 import { z } from 'zod';
@@ -11,10 +10,10 @@ import { revalidatePath } from 'next/cache'; // May not be needed immediately fo
 const CreatePendingBookingSchema = z.object({
   propertyId: z.string().min(1), // This is the property SLUG now
   guestInfo: z.object({
-    firstName: z.string().min(1),
-    lastName: z.string().min(1),
-    email: z.string().email(),
-    phone: z.string().min(1), // Assuming phone is now required
+    firstName: z.string().min(1, "First name is required.").trim(),
+    lastName: z.string().min(1, "Last name is required.").trim(),
+    email: z.string().email("Invalid email address.").trim(),
+    phone: z.string().min(1, "Phone number is required.").trim(), // Assuming phone is now required
   }).passthrough(), // Allow extra fields if needed
   checkInDate: z.string().datetime(), // ISO string
   checkOutDate: z.string().datetime(), // ISO string
@@ -32,7 +31,7 @@ const CreatePendingBookingSchema = z.object({
     total: z.number().nonnegative(),
   }).passthrough(),
   status: z.literal('pending'), // Explicitly set status
-  appliedCouponCode: z.string().nullable().optional(), // Allow string or null
+  appliedCouponCode: z.string().trim().toUpperCase().nullable().optional(), // Allow string or null, added trim and toUpperCase
 });
 
 type CreatePendingBookingInput = z.infer<typeof CreatePendingBookingSchema>;
@@ -45,7 +44,7 @@ type CreatePendingBookingInput = z.infer<typeof CreatePendingBookingSchema>;
 export async function createPendingBookingAction(
   input: CreatePendingBookingInput
 ): Promise<{ bookingId?: string; error?: string }> {
-  console.log("[Action createPendingBookingAction] Called with input:", input);
+  // console.log("[Action createPendingBookingAction] Called with input:", input);
   const validationResult = CreatePendingBookingSchema.safeParse(input);
 
   if (!validationResult.success) {
@@ -95,11 +94,11 @@ export async function createPendingBookingAction(
       source: 'website-pending', // Indicate source
     };
 
-     console.log("[Action createPendingBookingAction] Prepared Firestore Data (using slug as propertyId):", bookingData);
+     // console.log("[Action createPendingBookingAction] Prepared Firestore Data (using slug as propertyId):", bookingData);
 
     // Add the document
     const docRef = await addDoc(bookingsCollection, bookingData);
-    console.log(`[Action createPendingBookingAction] Pending booking created successfully with ID: ${docRef.id}`);
+    // console.log(`[Action createPendingBookingAction] Pending booking created successfully with ID: ${docRef.id}`);
 
     // No revalidation needed yet, booking isn't confirmed
 
@@ -113,7 +112,7 @@ export async function createPendingBookingAction(
     }
      // Check for specific Firestore invalid data error
      if (errorMessage.includes('invalid data') || errorMessage.includes('Unsupported field value')) {
-         console.error("[Action createPendingBookingAction] Firestore data error details:", errorMessage);
+         // console.error("[Action createPendingBookingAction] Firestore data error details:", errorMessage);
          // Provide cleaner error message
          return { error: `Failed to create pending booking due to invalid data. Please check input values. Details: ${errorMessage.split(' (')[0]}` };
      }

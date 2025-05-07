@@ -1,4 +1,3 @@
-
 "use server";
 
 import { z } from "zod";
@@ -18,11 +17,11 @@ const exclusionPeriodSchema = z.object({
 });
 
 const createCouponSchema = z.object({
-  code: z.string().min(3).max(50).transform(val => val.toUpperCase()),
+  code: z.string().min(3).max(50).trim().transform(val => val.toUpperCase()),
   discount: z.coerce.number().min(1).max(100),
   validUntil: z.date(), // Coupon expiry date
   isActive: z.boolean().default(true),
-  description: z.string().max(100).optional(),
+  description: z.string().max(100).trim().optional(), // Added .trim()
   // Optional booking validity dates (can be null)
   bookingValidFrom: z.date().nullable().optional(),
   bookingValidUntil: z.date().nullable().optional(),
@@ -119,3 +118,4 @@ export async function createCouponAction(
     return { error: `Failed to create coupon: ${errorMessage}` };
   }
 }
+
