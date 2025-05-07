@@ -80,6 +80,13 @@ env:
         - BUILD
         - RUNTIME
 
+# Google Maps
+  - variable: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+    secret: projects/1061532538391/secrets/PUBLIC_GOOGLE_MAPS_API_KEY/versions/1
+    availability:
+        - BUILD
+        - RUNTIME        
+
 # Grant access to secrets in Cloud Secret Manager.
 # See https://firebase.google.com/docs/app-hosting/configure#secret-parameters
 # - variable: MY_SECRET
