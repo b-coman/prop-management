@@ -52,6 +52,7 @@ import { useSanitizedState } from '@/hooks/useSanitizedState';
 import { sanitizeEmail, sanitizePhone, sanitizeText } from '@/lib/sanitize';
 import { useCurrency } from '@/contexts/CurrencyContext'; // Import useCurrency
 
+
 interface AvailabilityCheckProps {
   property: Property;
   initialCheckIn?: string;
@@ -135,12 +136,14 @@ export function AvailabilityCheck({
   }, []);
 
   const pricingDetailsInBaseCurrency = useMemo(() => {
-    if (datesSelected && numberOfGuests > 0) {
+    // Ensure numberOfGuests is a valid number before calculation
+    const guests = typeof numberOfGuests === 'number' && !isNaN(numberOfGuests) ? numberOfGuests : (property.baseOccupancy || 1);
+    if (datesSelected && guests > 0) {
       return calculatePrice(
         property.pricePerNight,
         numberOfNights,
         property.cleaningFee ?? 0,
-        numberOfGuests,
+        guests,
         property.baseOccupancy,
         property.extraGuestFee ?? 0,
         property.baseCurrency,
@@ -178,7 +181,9 @@ export function AvailabilityCheck({
     setSuggestedDates([]);
 
     try {
+      console.log("[AvailabilityCheck] Fetching unavailable dates...");
       const fetchedUnavailableDates = await getUnavailableDatesForProperty(propertySlug);
+      console.log("[AvailabilityCheck] Fetched unavailable dates:", fetchedUnavailableDates.map(d => format(d, 'yyyy-MM-dd')));
       setUnavailableDates(fetchedUnavailableDates);
 
       let conflict = false;
@@ -191,9 +196,11 @@ export function AvailabilityCheck({
         }
         current = addDays(current, 1);
       }
+      console.log(`[AvailabilityCheck] Dates ${format(checkInDate, 'yyyy-MM-dd')} - ${format(checkOutDate, 'yyyy-MM-dd')} conflict: ${conflict}`);
       setIsAvailable(!conflict);
 
       if (conflict) {
+        console.log("[AvailabilityCheck] Generating suggested dates...");
         const suggested = [
           { from: addDays(checkOutDate!, 1), to: addDays(checkOutDate!, 1 + numberOfNights), recommendation: "Next Available" },
           { from: addDays(checkInDate!, 7), to: addDays(checkInDate!, 7 + numberOfNights) },
@@ -212,6 +219,7 @@ export function AvailabilityCheck({
           return isValidSuggestion && !isBefore(startOfDay(range.from), startOfDay(new Date()));
         });
         setSuggestedDates(validSuggestions.slice(0, 3));
+         console.log("[AvailabilityCheck] Valid suggested dates:", validSuggestions.slice(0, 3).map(r => ({from: format(r.from, 'yyyy-MM-dd'), to: format(r.to, 'yyyy-MM-dd')})));
       }
     } catch (error) {
       console.error("Error checking availability:", error);
@@ -232,10 +240,13 @@ export function AvailabilityCheck({
 
   const handleGuestChange = (change: number) => {
     setNumberOfGuests((prev) => {
-      // Ensure prev is a number before calculation
-      const currentGuests = typeof prev === 'number' && !isNaN(prev) ? prev : (property.baseOccupancy || 1);
-      const newCount = currentGuests + change;
-      return Math.max(1, Math.min(newCount, property.maxGuests));
+        // Ensure prev is a number, fallback to baseOccupancy or 1 if not
+        const currentGuests = (typeof prev === 'number' && !isNaN(prev)) ? prev : (property.baseOccupancy || 1);
+        const newCount = currentGuests + change;
+        // Ensure the new count is within the valid range [1, maxGuests]
+        const clampedCount = Math.max(1, Math.min(newCount, property.maxGuests));
+        console.log(`[handleGuestChange] Change: ${change}, Prev: ${prev}, Current: ${currentGuests}, New: ${newCount}, Clamped: ${clampedCount}`);
+        return clampedCount;
     });
   };
 
@@ -298,9 +309,10 @@ export function AvailabilityCheck({
     e.preventDefault();
     setFormError(null);
 
-    // Explicitly check if numberOfGuests is a valid number
-     if (typeof numberOfGuests !== 'number' || isNaN(numberOfGuests) || numberOfGuests < 1 || numberOfGuests > property.maxGuests) {
-       setFormError(`Number of guests must be between 1 and ${property.maxGuests}.`);
+    // Re-check guest count validity before proceeding
+    const currentGuests = typeof numberOfGuests === 'number' && !isNaN(numberOfGuests) ? numberOfGuests : 0;
+     if (currentGuests < 1 || currentGuests > property.maxGuests) {
+       setFormError(`Number of guests must be between 1 and ${property.maxGuests}. Current: ${currentGuests}`);
        return;
      }
 
@@ -335,7 +347,7 @@ export function AvailabilityCheck({
         guestInfo: { firstName, lastName, email, phone },
         checkInDate: checkInDate.toISOString(),
         checkOutDate: checkOutDate.toISOString(),
-        numberOfGuests: numberOfGuests,
+        numberOfGuests: currentGuests, // Use validated currentGuests
         pricing: {
           ...pricingDetailsInBaseCurrency, // Use base currency details
           currency: propertyBaseCcy, // Explicitly state the currency
@@ -356,7 +368,7 @@ export function AvailabilityCheck({
         property: property, // Property object contains baseCurrency
         checkInDate: checkInDate.toISOString(),
         checkOutDate: checkOutDate.toISOString(),
-        numberOfGuests: numberOfGuests,
+        numberOfGuests: currentGuests, // Use validated currentGuests
         totalPrice: pricingDetailsInBaseCurrency.total, // Total in base currency
         numberOfNights: numberOfNights,
         appliedCouponCode: appliedCoupon?.code,
@@ -373,20 +385,8 @@ export function AvailabilityCheck({
         throw new Error(stripeResult.error || 'Failed to create Stripe session or missing session URL.');
       }
 
-      const stripe = await stripePromise;
-      if (!stripe) throw new Error('Stripe.js failed to load.');
-
-      const { error } = await stripe.redirectToCheckout({ sessionId: stripeResult.sessionId });
-
-      if (error) {
-        if (error.name === 'SecurityError' && error.message.includes('permission to navigate the target frame')) {
-             console.error("[Stripe Redirect Error] SecurityError: Likely due to cross-origin restrictions in the iframe environment. Redirection might be blocked.");
-             setFormError("Could not redirect to Stripe due to security restrictions in this environment. Please try booking from the deployed site.");
-           } else {
-             throw new Error(error.message || 'Could not redirect to Stripe.');
-           }
-      }
-      // No need to redirect here, Stripe handles it
+      // Redirect to Stripe Checkout
+      window.location.href = stripeResult.sessionUrl;
 
     } catch (error) {
       console.error("Error processing booking:", error);
@@ -423,7 +423,8 @@ export function AvailabilityCheck({
         method: notificationMethod,
         contact: notificationMethod === 'email' ? email : phone,
       });
-      await new Promise(res => setTimeout(res, 500));
+      // TODO: Replace with actual API call to save alert request
+      await new Promise(res => setTimeout(res, 500)); // Simulate API call
 
       toast({
         title: "Alert Request Saved",
@@ -636,6 +637,7 @@ export function AvailabilityCheck({
               </div>
             ) : (
               <form onSubmit={handleContinueToPayment} className="space-y-6">
+                  {/* Row 1: Dates and Guests */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end border-b pb-4">
                       {datesSelected && checkInDate && checkOutDate && (
                           <div className="space-y-1">
@@ -663,7 +665,7 @@ export function AvailabilityCheck({
                                   <Minus className="h-4 w-4" />
                               </Button>
                               <span className="mx-4 font-medium w-8 text-center" id="guests">
-                                  {guestsDisplay} {/* Render safe value */}
+                                {guestsDisplay}
                               </span>
                               <Button
                                   type="button"
@@ -682,23 +684,24 @@ export function AvailabilityCheck({
                               {(property.extraGuestFee ?? 0) > 0 && ` Extra: ${formatPrice(property.extraGuestFee, propertyBaseCcy)}/guest/night.`}
                           </p>
                       </div>
-                      {/* Coupon Code - Moved here */}
-                      <div className="space-y-1 md:col-span-2">
-                          <Label htmlFor="coupon">Discount Coupon (Optional)</Label>
-                          <div className="flex gap-2">
-                              <Input id="coupon" placeholder="Enter code" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} disabled={isApplyingCoupon || !!appliedCoupon || isProcessingBooking} />
-                              {!appliedCoupon ? (
-                                  <Button type="button" variant="outline" onClick={handleApplyCoupon} disabled={isApplyingCoupon || !couponCode.trim() || isProcessingBooking}>
-                                  {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <TicketPercent className="h-4 w-4" />}
-                                  </Button>
-                              ) : (
-                                  <Button type="button" variant="ghost" size="icon" onClick={handleRemoveCoupon} disabled={isProcessingBooking}><X className="h-4 w-4 text-destructive" /></Button>
-                              )}
-                          </div>
-                          <div className="h-4 text-xs mt-1">
-                              {couponError && <p className="text-destructive">{couponError}</p>}
-                              {appliedCoupon && <p className="text-green-600">Applied: {appliedCoupon.code} ({appliedCoupon.discountPercentage}%)</p>}
-                          </div>
+                  </div>
+
+                   {/* Row 2: Coupon Code */}
+                  <div className="space-y-1">
+                      <Label htmlFor="coupon">Discount Coupon (Optional)</Label>
+                      <div className="flex gap-2">
+                          <Input id="coupon" placeholder="Enter code" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} disabled={isApplyingCoupon || !!appliedCoupon || isProcessingBooking} />
+                          {!appliedCoupon ? (
+                              <Button type="button" variant="outline" onClick={handleApplyCoupon} disabled={isApplyingCoupon || !couponCode.trim() || isProcessingBooking}>
+                              {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <TicketPercent className="h-4 w-4" />}
+                              </Button>
+                          ) : (
+                              <Button type="button" variant="ghost" size="icon" onClick={handleRemoveCoupon} disabled={isProcessingBooking}><X className="h-4 w-4 text-destructive" /></Button>
+                          )}
+                      </div>
+                      <div className="h-4 text-xs mt-1">
+                          {couponError && <p className="text-destructive">{couponError}</p>}
+                          {appliedCoupon && <p className="text-green-600">Applied: {appliedCoupon.code} ({appliedCoupon.discountPercentage}%)</p>}
                       </div>
                   </div>
 
@@ -717,7 +720,8 @@ export function AvailabilityCheck({
                 )}
                 <div className="space-y-4">
                   <h3 className="font-semibold">Your Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Row 3: Names */}
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <Label htmlFor="firstName">First Name</Label>
                       <Input id="firstName" name="firstName" value={firstName} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
@@ -727,6 +731,7 @@ export function AvailabilityCheck({
                       <Input id="lastName" name="lastName" value={lastName} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
                     </div>
                   </div>
+                  {/* Row 4: Email and Phone */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <Label htmlFor="email">Email</Label>
