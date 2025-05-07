@@ -1,11 +1,12 @@
+
 import Image from 'next/image';
 import { InitialBookingForm } from '@/components/booking/initial-booking-form';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Star, Home } from 'lucide-react'; // Added Home icon for placeholder
 import type { Property } from '@/types'; // Still needed for the form prop
-import { heroSchema } from '@/lib/overridesSchemas'; // Import the schema
-import { z } from 'zod';
+import type { heroSchema } from '@/lib/overridesSchemas'; // Import the schema
+import type { z } from 'zod';
 import { cn } from '@/lib/utils'; // Import cn for conditional classes
 
 // Infer the type from the Zod schema
@@ -105,7 +106,7 @@ export function HeroSection({ heroData }: HeroSectionProps) {
                                 {advertisedRateType === 'starting' && <span className="text-xs font-normal ml-1">starting from</span>}
                                 {advertisedRateType === 'special' && <span className="text-xs font-normal ml-1">special deal</span>}
                                 {advertisedRateType === 'exact' && <span className="text-xs font-normal ml-1">/night</span>}
-                                {!advertisedRateType && pricePerNight > 0 && <span className="text-xs font-normal ml-1">/night</span>} 
+                                {!advertisedRateType && pricePerNight > 0 && <span className="text-xs font-normal ml-1">/night</span>}
                               </Badge>
                             ) : heroBlockSpecificPrice !== undefined && heroBlockSpecificPrice > 0 ? (
                               <Badge variant="secondary" className="text-base md:text-lg px-3 py-1">
