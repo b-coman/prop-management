@@ -2940,23 +2940,21 @@ var { g: global, __dirname } = __turbopack_context__;
 // src/lib/firebase.ts
 __turbopack_context__.s({
     "app": (()=>app),
+    "auth": (()=>auth),
     "db": (()=>db)
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$app$2f$dist$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/app/dist/index.mjs [app-rsc] (ecmascript) <module evaluation>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i("[project]/node_modules/@firebase/app/dist/esm/index.esm2017.js [app-rsc] (ecmascript) <locals>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$firestore$2f$dist$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/firestore/dist/index.mjs [app-rsc] (ecmascript) <module evaluation>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@firebase/firestore/dist/index.node.mjs [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$auth$2f$dist$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/auth/dist/index.mjs [app-rsc] (ecmascript) <module evaluation>"); // Added for Firebase Auth
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$227b37e4$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__p__as__getAuth$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/node_modules/@firebase/auth/dist/node-esm/totp-227b37e4.js [app-rsc] (ecmascript) <export p as getAuth>");
 ;
 ;
-// Remove dotenv import - let scripts handle their own env loading if needed outside Next.js context
-// import * as dotenv from 'dotenv';
-// import * as path from 'path';
-// import { getAuth } from "firebase/auth"; // Add if using Firebase Auth
-// import { getStorage } from "firebase/storage"; // Add if using Firebase Storage
+;
 // Load environment variables from .env.local at the project root
-// dotenv.config({ path: path.resolve(process.cwd(), '.env.local') }); // No longer needed here, Next.js handles it
-// Your web app's Firebase configuration
-// Loaded from environment variables automatically by Next.js
+// This is automatically handled by Next.js in the app runtime.
+// Scripts like load-properties.ts need to load .env.local explicitly.
 const firebaseConfig = {
     apiKey: ("TURBOPACK compile-time value", "AIzaSyDCteU3dj_3lAMDzdjW3hLPgci5mGuPUUo"),
     authDomain: ("TURBOPACK compile-time value", "rentalspot-fzwom.firebaseapp.com"),
@@ -2965,51 +2963,39 @@ const firebaseConfig = {
     messagingSenderId: ("TURBOPACK compile-time value", "1061532538391"),
     appId: ("TURBOPACK compile-time value", "1:1061532538391:web:aff9b573f7b4c09f99ae52")
 };
-// Remove the checkEnvVars function, as Next.js handles env loading for the app runtime.
-// The script now uses Admin SDK and verifies its own specific requirements.
-/*
-function checkEnvVars() {
-    // ... (removed) ...
-}
-checkEnvVars();
-*/ // Initialize Firebase Client SDK
-// Use getApps() to ensure initialization only happens once within the Next.js app runtime
+// Initialize Firebase Client SDK
 let app;
 if ((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApps"])().length === 0) {
-    // Check if critical client config vars are present before initializing client SDK
     if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-        console.error("❌ Client Firebase Config Missing: NEXT_PUBLIC_FIREBASE_API_KEY or NEXT_PUBLIC_FIREBASE_PROJECT_ID is missing in environment variables. Client SDK cannot initialize.");
-    // Throwing here might break the app build/runtime if env vars aren't set during build phase
-    // Consider logging the error and letting parts of the app fail gracefully if Firebase is needed client-side
-    // throw new Error("Missing critical client Firebase configuration. Check environment variables.");
+        console.error("❌ Client Firebase Config Missing: NEXT_PUBLIC_FIREBASE_API_KEY or NEXT_PUBLIC_FIREBASE_PROJECT_ID is missing. Client SDK cannot initialize.");
+    // Potentially throw an error or handle this case as critical
     } else {
         try {
             app = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["initializeApp"])(firebaseConfig);
-        // console.log("✅ Firebase Client SDK initialized successfully."); // Less verbose logging
+        // console.log("✅ Firebase Client SDK initialized successfully.");
         } catch (initError) {
             console.error("❌ Firebase Client SDK initialization failed:", initError);
-        // Handle or re-throw the initialization error appropriately
-        // throw initError; // Depending on whether the app can function without Firebase client
         }
     }
 } else {
     app = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApp"])();
 // console.log("ℹ️ Firebase Client SDK app already initialized.");
 }
-// Initialize Firestore Client SDK only if the app was successfully initialized or retrieved
 let db;
+let auth; // Declare auth
 if (app) {
     try {
         db = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getFirestore"])(app);
-    // console.log("✅ Firestore Client SDK initialized successfully.");
-    } catch (firestoreError) {
-        console.error("❌ Firestore Client SDK initialization failed:", firestoreError);
-    // Handle or re-throw the Firestore initialization error
+        auth = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$227b37e4$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__p__as__getAuth$3e$__["getAuth"])(app); // Initialize auth
+    // console.log("✅ Firestore and Auth Client SDKs initialized successfully.");
+    } catch (sdkError) {
+        console.error("❌ Firestore or Auth Client SDK initialization failed:", sdkError);
     }
 } else {
-    console.error("❌ Cannot initialize Firestore Client SDK because Firebase app is not available.");
+    console.error("❌ Cannot initialize Firestore/Auth Client SDKs because Firebase app is not available.");
 }
 ;
+ // Export auth
 }}),
 "[project]/src/app/properties/[slug]/page.tsx [app-rsc] (ecmascript)": ((__turbopack_context__) => {
 "use strict";

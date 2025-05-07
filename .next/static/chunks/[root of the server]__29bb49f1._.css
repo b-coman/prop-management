@@ -774,6 +774,10 @@ body {
   margin-left: .5rem;
 }
 
+.ml-3 {
+  margin-left: .75rem;
+}
+
 .ml-auto {
   margin-left: auto;
 }
@@ -818,16 +822,8 @@ body {
   margin-top: 2rem;
 }
 
-.ml-3 {
-  margin-left: .75rem;
-}
-
 .block {
   display: block;
-}
-
-.inline {
-  display: inline;
 }
 
 .flex {
@@ -2122,11 +2118,6 @@ body {
 .text-primary-foreground {
   --tw-text-opacity: 1;
   color: rgb(255 255 255 / var(--tw-text-opacity, 1));
-}
-
-.text-red-500 {
-  --tw-text-opacity: 1;
-  color: rgb(239 68 68 / var(--tw-text-opacity, 1));
 }
 
 .text-secondary-foreground {
