@@ -1,5 +1,5 @@
 
-# Short Rental Management System — Technical Architecture Documentation (Updated)
+# RentalSpot - Short Rental Management System — Technical Architecture Documentation
 
 ## 📌 Purpose
 
@@ -23,6 +23,8 @@ The system manages short-term rental properties through:
 - **Admin interface** for managing coupons (property management to be added).
 - **Frontend & backend validation** using Zod schemas.
 - **Google Analytics integration** per property.
+- **Multi-domain support** allowing properties to be accessed via custom domains or path-based URLs.
+- **Input sanitization** for user-provided data.
 
 Initial support: 2 properties (Prahova Mountain Chalet, Coltei Apartment Bucharest)
 Designed for scalability.
@@ -48,12 +50,13 @@ rentalspot/
 │   ├── properties/      # Property metadata JSON files (e.g., prahova-mountain-chalet.json)
 │   └── propertyOverrides/ # Property content override JSON files
 │   └── websiteTemplates/  # Website template definition JSON files
-├── hooks/               # Custom React hooks (e.g., useSessionStorage, useToast)
+├── hooks/               # Custom React hooks (e.g., useSessionStorage, useToast, useSanitizedState)
 ├── lib/                 # Utility functions, libraries, configurations
 │   ├── firebase.ts      # Firebase Client SDK initialization
 │   ├── firebaseAdmin.ts # Firebase Admin SDK initialization (for server-side tasks) - Currently commented out
 │   ├── overridesSchemas.ts # Zod schemas for template/override content validation
 │   ├── price-utils.ts   # Pricing calculation logic
+│   ├── sanitize.ts      # Input sanitization functions
 │   └── utils.ts         # General utility functions (e.g., cn for Tailwind)
 ├── node_modules/        # Project dependencies (managed by npm/yarn)
 ├── public/              # Static assets (images, fonts, favicon)
@@ -64,14 +67,21 @@ rentalspot/
 │   ├── app/             # Next.js App Router directory
 │   │   ├── (app)/       # Main application routes and layouts
 │   │   │   ├── admin/     # Admin panel routes and components
-│   │   │   ├── api/       # API routes (e.g., webhooks)
+│   │   │   │   ├── coupons/ # Coupon management pages
+│   │   │   │   └── layout.tsx # Admin panel layout
+│   │   │   ├── api/       # API routes
+│   │   │   │   ├── resolve-domain/ # API for domain resolution
+│   │   │   │   └── webhooks/     # Webhook handlers (e.g., Stripe)
 │   │   │   ├── booking/   # Booking flow pages (check, success, cancel)
 │   │   │   ├── properties/ # Dynamic property detail pages ([slug])
+│   │   │   │   └── [slug]/
+│   │   │   │       └── page.tsx
 │   │   │   ├── globals.css # Global CSS styles and Tailwind base layers
 │   │   │   ├── layout.tsx  # Root application layout
 │   │   │   └── page.tsx    # Homepage component (renders default property)
-│   │   └── actions/       # Server Actions (e.g., booking, checkout)
-│   └── services/        # Backend services (booking, coupon, sync)
+│   │   └── actions/       # Server Actions (e.g., booking, checkout, coupon actions)
+│   └── services/        # Backend services (booking, coupon, sync, sms)
+├── .firebaserc          # Firebase project configuration (linking to project ID)
 ├── .gitignore           # Files and directories ignored by Git
 ├── components.json      # Shadcn UI configuration
 ├── DOCUMENTATION.md     # This file
@@ -151,33 +161,34 @@ Each template document defines the available blocks and their default content.
         ]
     },
     "features": [ // Default features if overrides not provided
-        { "icon": "firepit", "title": "Fire Pit", "description": "...", "image": "/images/templates/holiday-house/default-firepit.jpg" }
+        { "icon": "firepit", "title": "Fire Pit", "description": "...", "image": "/images/templates/holiday-house/default-firepit.jpg", "data-ai-hint": "fire pit night" }
     ],
     "location": {
          "title": "Discover Nearby Attractions",
          "mapCenter": { "lat": 45.2530, "lng": 25.6346 } // Example default
     },
     "attractions": [ // Default attractions
-         { "name": "Default Attraction", "description": "...", "image": "/images/templates/holiday-house/default-attraction.jpg" }
+         { "name": "Default Attraction", "description": "...", "image": "/images/templates/holiday-house/default-attraction.jpg", "data-ai-hint": "landmark" }
     ],
     "testimonials": { // Default testimonials wrapper
         "title": "What Guests Say",
         "showRating": true,
         "reviews": [ // Default reviews
-             { "name": "Jane D.", "rating": 5, "text": "Wonderful stay!", "imageUrl": "/images/templates/holiday-house/default-guest.jpg" }
+             { "name": "Jane D.", "rating": 5, "text": "Wonderful stay!", "imageUrl": "/images/templates/holiday-house/default-guest.jpg", "data-ai-hint": "happy guest" }
         ]
     },
      "gallery": { // Default gallery wrapper
          "title": "Property Gallery",
          "images": [ // Default gallery images (distinct from top-level overrides.images)
-             { "url": "/images/templates/holiday-house/default-gallery-1.jpg", "alt": "Living Room" }
+             { "url": "/images/templates/holiday-house/default-gallery-1.jpg", "alt": "Living Room", "data-ai-hint": "chalet living room" }
          ]
      },
     "cta": {
         "title": "Book Your Stay",
         "description": "...",
         "buttonText": "Book Now",
-        "backgroundImage": "/images/templates/holiday-house/default-cta.jpg"
+        "backgroundImage": "/images/templates/holiday-house/default-cta.jpg",
+        "data-ai-hint": "mountain panorama"
     }
     // ... defaults for other blocks
   }
@@ -209,7 +220,7 @@ Stores **property-specific content overrides** and **visibility settings**. Cont
   "hero": { // Override object for the 'hero' block
     "backgroundImage": "https://picsum.photos/seed/chalet-override/1200/800",
     "data-ai-hint": "specific hint for prahova chalet hero",
-    "bookingForm": { "position": "center" }
+    "bookingForm": { "position": "center", "size": "large" }
   },
   "experience": {
      "title": "Experience Prahova's Majesty",
@@ -218,7 +229,7 @@ Stores **property-specific content overrides** and **visibility settings**. Cont
   "host": {
       "name": "Bogdan C.",
       "imageUrl": "https://picsum.photos/seed/host-bogdan/200/200",
-      "description": "Welcome to my chalet!",
+      "description": "Welcome to my chalet!", // Corresponds to welcomeMessage in component
       "backstory": "I built this place...",
       "data-ai-hint": "friendly male host portrait outdoors"
   },
@@ -238,8 +249,8 @@ Stores **property-specific content overrides** and **visibility settings**. Cont
           { "name": "Maria D.", "date": "2025-06", "rating": 5, "text": "Amazing!", "imageUrl": "https://picsum.photos/seed/guest-maria/100/100", "data-ai-hint": "happy female guest" }
       ]
   },
-   "gallery": { "title": "Chalet Gallery" },
-   "images": [ // Override array for gallery images
+   "gallery": { "title": "Chalet Gallery" }, // Overrides the title for the gallery section
+   "images": [ // Override array for gallery images (this is for the GallerySection, distinct from hero's backgroundImage)
       { "url": "https://picsum.photos/seed/gallery-img1/800/600", "alt": "Living Room", "data-ai-hint": "chalet living room interior" },
       { "url": "https://picsum.photos/seed/gallery-img2/800/600", "alt": "Bedroom", "data-ai-hint": "chalet bedroom cozy" }
    ],
@@ -254,7 +265,7 @@ Stores **property-specific content overrides** and **visibility settings**. Cont
 ```
 
 ✅ **Content is merged per block:** `finalContent = overrides[blockId] ?? template.defaults[blockId]`
-✅ **Arrays replace entirely:** If `overrides.features` exists, it replaces `template.defaults.features`. If `overrides.features` is absent, `template.defaults.features` is used.
+✅ **Arrays replace entirely:** If `overrides.features` exists, it replaces `template.defaults.features`. If `overrides.features` is absent, `template.defaults.features` is used. This applies to `attractions`, `testimonials.reviews`, and `images` (for gallery) as well.
 ✅ `visibleBlocks` array dictates which sections are rendered.
 
 ---
@@ -267,6 +278,7 @@ All block content (in `template.defaults` and `propertyOverrides`) must follow t
 ✅ Each schema is a Zod object (e.g., `heroSchema`, `experienceSchema`).
 ✅ A `blockSchemas` map is exported for dynamic validation.
 ✅ **Validation MUST always use these schemas** (frontend, admin, backend). No duplicate schemas or logic.
+✅ The `propertyOverridesSchema` in the same file is used to validate the entire structure of a `propertyOverrides` document.
 
 ---
 
@@ -277,7 +289,7 @@ For each block defined in `template.homepage`:
 1. Check if `block.id` is present in `overrides.visibleBlocks` (or default to showing if `visibleBlocks` is missing). If not visible, skip rendering.
 2. Fetch the block's content:
    - Try `overrides[blockId]` (e.g., `overrides.hero`, `overrides.features`).
-   - If the override exists (even if it's an empty object/array for relevant types), use it.
+   - If the override for `blockId` exists (even if it's an empty object/array for relevant types like `features`, `attractions`, `testimonials.reviews`, `images`), use it.
    - If the override for `blockId` does *not* exist, fall back to `template.defaults[blockId]`.
 3. Validate the **final chosen content** (either override or default) using the corresponding schema from `src/lib/overridesSchemas.ts`.
 4. Render the block component with the validated content.
@@ -330,12 +342,13 @@ For each block defined in `template.homepage`:
 - Schema includes code, discount %, validity dates, activity status, optional booking timeframe, optional exclusion periods, optional property restriction.
 - Admin pages (`/admin/coupons/new`, `/admin/coupons`) allow creation and management (view, toggle status, edit expiry/validity/exclusions).
 - `couponService.ts` contains `validateAndApplyCoupon` function used in the booking flow to check validity based on dates, exclusions, etc., before applying the discount.
+- Input sanitization is applied to coupon code and description fields.
 
 ---
 
 ## 🖼️ 10. **Image Storage & Referencing**
 
-✅ **Static Template Images:** Default images used in `template.defaults` (e.g., `/default-hero.jpg`) MUST be stored in `/public/images/templates/{templateId}/...` or a similar structure within `/public`. Reference using relative paths from the root (e.g., `/images/templates/holiday-house/default-hero.jpg`).
+✅ **Static Template Images:** Default images used in `template.defaults` (e.g., `/images/templates/holiday-house/default-hero.jpg`) MUST be stored in `/public/images/templates/{templateId}/...` or a similar structure within `/public`. Reference using relative paths from the root (e.g., `/images/templates/holiday-house/default-hero.jpg`).
 ✅ **Property Override Images:** Images specific to a property (hero background override, feature images, attraction images, gallery images) are referenced by their **full URLs** (e.g., from Firebase Storage, Cloudinary, Picsum) directly within the `/propertyOverrides/{propertySlug}` document. Placeholder images from `picsum.photos` include a `data-ai-hint` attribute.
 ✅ **No Image ID References:** The system does *not* use a separate `/images` collection or reference images by ID. Image URLs are embedded directly where they are used in the overrides.
 ✅ `next/image` component should be used for optimized image loading. `data-ai-hint` attribute is used on placeholder images for future AI-driven image selection.
@@ -349,7 +362,7 @@ Rules are defined in `firestore.rules` and should be deployed to Firebase. Key r
 *   `/properties`: Read: `true`, Write: `if isOwner(propertySlug) || isAdmin()`
 *   `/websiteTemplates`: Read: `true`, Write: `if isAdmin()`
 *   `/propertyOverrides`: Read: `true`, Write: `if isOwner(propertySlug) || isAdmin()`
-*   `/availability`: Read: `true`, Write: `if true` (Client SDK handles writes based on user actions, rules might need refinement if direct user modification is needed).
+*   `/availability`: Read: `true`, Write: `if true` (Client SDK handles writes for new bookings, or admin can write)
 *   `/bookings`: Create: `true`, Read/Update: `if isGuest() || isOwner() || isAdmin()`
 *   `/coupons`: Read: `true`, Write: `if isAdmin()`
 *   `/users`: Read/Write: `if isSelf() || isAdmin()`
@@ -361,7 +374,8 @@ Rules are defined in `firestore.rules` and should be deployed to Firebase. Key r
 
 ✅ `/admin/coupons`: Lists all coupons, shows status, allows editing expiry, toggling status, expanding to edit booking validity and exclusion periods.
 ✅ `/admin/coupons/new`: Form to create new coupons with all fields (code, discount, expiry, validity, exclusions, description, etc.).
-✅ Actions (`/admin/coupons/actions.ts`) handle Firestore writes for creating/updating coupons.
+✅ Actions (`/admin/coupons/actions.ts` and `/admin/coupons/new/actions.ts`) handle Firestore writes for creating/updating coupons.
+✅ Input sanitization is applied to coupon fields in the admin forms.
 
 ---
 
@@ -405,7 +419,7 @@ This section lists the environment variables required or used by the application
 
 ---
 
-## 🌐 15. **Multi-Domain Configuration (Initial Setup)**
+## 🌐 15. **Multi-Domain Configuration**
 
 - Properties can be configured to use a custom domain.
 - The `properties` collection documents include:
@@ -419,6 +433,17 @@ This section lists the environment variables required or used by the application
     - If no custom domain match, it proceeds with the default routing.
 - An API route (`/api/resolve-domain`) is used by the middleware to query Firestore for properties matching a given domain.
 - The main application host is defined by the `NEXT_PUBLIC_MAIN_APP_HOST` environment variable.
+
+---
+
+## 🛡️ 16. **Input Sanitization**
+
+- User-provided inputs (e.g., guest information in booking form, coupon codes, descriptions in admin panel) are sanitized to prevent XSS and other injection attacks.
+- Sanitization is primarily handled:
+    - Using Zod transforms in server actions (e.g., `createCouponAction`, `createPendingBookingAction`).
+    - Client-side using the `useSanitizedState` hook for direct input field management where appropriate.
+- The `src/lib/sanitize.ts` file contains utility functions for stripping HTML tags and performing basic sanitization for text, email, and phone numbers.
+- The general approach is to sanitize data as close to the input source as possible or upon receiving it on the server before processing or storing.
 
 ---
 
