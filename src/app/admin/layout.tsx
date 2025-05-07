@@ -1,23 +1,23 @@
 // src/app/admin/layout.tsx
 'use client';
 
-import { type ReactNode, Suspense } from 'react'; // Suspense for potential Next.js features
+import { type ReactNode, Suspense } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/contexts/AuthContext'; // AuthProvider is removed, useAuth consumes from root
+import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Loader2, LogOut } from 'lucide-react';
+import { Loader2, LogOut, LayoutDashboard } from 'lucide-react'; // Added LayoutDashboard
 
 // Inner component to handle auth logic
 function ProtectedAdminLayout({ children }: { children: ReactNode }) {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
 
-  console.log(`[ProtectedAdminLayout] Render. Loading: ${loading}, User: ${user ? user.uid : null}`);
+  // console.log(`[ProtectedAdminLayout] Render. Loading: ${loading}, User: ${user ? user.uid : null}`);
 
 
   if (loading) {
-     console.log("[ProtectedAdminLayout] Rendering: Loading state (loading is true).");
+    // console.log("[ProtectedAdminLayout] Rendering: Loading state (loading is true).");
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -27,24 +27,24 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
   }
 
   if (!user) {
-    console.log("[ProtectedAdminLayout] No user (loading is false), redirecting to /login...");
-    // Use replace to avoid adding the admin route to browser history if user isn't logged in
+    // console.log("[ProtectedAdminLayout] No user (loading is false), redirecting to /login...");
     router.replace('/login');
     return (
          <div className="flex min-h-screen items-center justify-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
             <p className="ml-3 text-muted-foreground">Redirecting to login...</p>
         </div>
-    ); // Render loader while redirecting
+    );
   }
 
   // User is authenticated, render admin layout
-   console.log("[ProtectedAdminLayout] Rendering: Admin content (loading false, user exists).");
+  // console.log("[ProtectedAdminLayout] Rendering: Admin content (loading false, user exists).");
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between">
-          <Link href="/admin" className="text-lg font-semibold text-primary">
+          <Link href="/admin" className="text-lg font-semibold text-primary flex items-center">
+            <LayoutDashboard className="mr-2 h-5 w-5" /> {/* Added Dashboard Icon */}
             RentalSpot Admin
           </Link>
           <nav className="flex items-center gap-4">
@@ -54,7 +54,7 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
             <Link href="/admin/coupons/new" className="text-sm hover:underline">
               Create Coupon
             </Link>
-            {/* Add other admin navigation links here */}
+            {/* Add other admin navigation links here as they are developed */}
             <Button onClick={logout} variant="outline" size="sm">
               <LogOut className="mr-2 h-4 w-4" />
               Logout
@@ -78,7 +78,6 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
 // Main AdminLayout component now directly uses ProtectedAdminLayout
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
-    // AuthProvider is no longer needed here, it's in the root layout
     <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /> <p className="ml-3 text-muted-foreground">Loading...</p></div>}>
         <ProtectedAdminLayout>{children}</ProtectedAdminLayout>
     </Suspense>
