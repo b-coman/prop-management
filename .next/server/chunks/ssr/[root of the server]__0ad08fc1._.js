@@ -588,13 +588,12 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$auth$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/auth/dist/index.mjs [app-ssr] (ecmascript) <module evaluation>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$227b37e4$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__z__as__onAuthStateChanged$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/node_modules/@firebase/auth/dist/node-esm/totp-227b37e4.js [app-ssr] (ecmascript) <export z as onAuthStateChanged>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$227b37e4$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__g__as__signInWithRedirect$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/node_modules/@firebase/auth/dist/node-esm/totp-227b37e4.js [app-ssr] (ecmascript) <export g as signInWithRedirect>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$227b37e4$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__k__as__getRedirectResult$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/node_modules/@firebase/auth/dist/node-esm/totp-227b37e4.js [app-ssr] (ecmascript) <export k as getRedirectResult>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$227b37e4$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__d__as__signInWithPopup$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/node_modules/@firebase/auth/dist/node-esm/totp-227b37e4.js [app-ssr] (ecmascript) <export d as signInWithPopup>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$227b37e4$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__Y__as__GoogleAuthProvider$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/node_modules/@firebase/auth/dist/node-esm/totp-227b37e4.js [app-ssr] (ecmascript) <export Y as GoogleAuthProvider>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$227b37e4$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__D__as__signOut$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/node_modules/@firebase/auth/dist/node-esm/totp-227b37e4.js [app-ssr] (ecmascript) <export D as signOut>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$227b37e4$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__J__as__AuthErrorCodes$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/node_modules/@firebase/auth/dist/node-esm/totp-227b37e4.js [app-ssr] (ecmascript) <export J as AuthErrorCodes>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/firebase.ts [app-ssr] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/navigation.js [app-ssr] (ecmascript)"); // Keep for potential future use, but not in logout
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/navigation.js [app-ssr] (ecmascript)");
 'use client';
 ;
 ;
@@ -605,79 +604,49 @@ const AuthContext = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project
 const AuthProvider = ({ children })=>{
     const [user, setUser] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(null);
     const [authInitializing, setAuthInitializing] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(true);
-    const [redirectResultProcessing, setRedirectResultProcessing] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(true);
-    const router = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRouter"])(); // Keep for potential future use
+    // const [redirectResultProcessing, setRedirectResultProcessing] = useState(true); // No longer needed for popup
+    const router = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRouter"])();
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
-        console.log("[AuthProvider] useEffect: Setting up auth state listener and redirect processor.");
-        // Initialize flags at the start of the effect if they aren't already true
-        // This ensures that on re-evaluation (if deps change), loading state is reset.
-        setAuthInitializing(true);
-        setRedirectResultProcessing(true);
+        console.log("[AuthProvider] useEffect: Setting up auth state listener.");
+        setAuthInitializing(true); // Reset loading state
         const unsubscribe = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$227b37e4$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__z__as__onAuthStateChanged$3e$__["onAuthStateChanged"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["auth"], (currentUser)=>{
-            console.log(`[AuthProvider] onAuthStateChanged fired. New User: ${currentUser ? currentUser.uid : null}. Current local user state: ${user ? user.uid : null}`);
+            console.log(`[AuthProvider] onAuthStateChanged fired. New User: ${currentUser ? currentUser.uid : 'null'}. Current local user state: ${user ? user.uid : 'null'}`);
             setUser(currentUser);
-            // Only set authInitializing to false after the first onAuthStateChanged event
-            // This indicates that Firebase has checked the initial auth state.
-            // Check if it's already false before setting to avoid unnecessary re-renders
             if (authInitializing) {
                 setAuthInitializing(false);
-                console.log("[AuthProvider] onAuthStateChanged: authInitializing set to false (initial auth state checked).");
+                console.log("[AuthProvider] onAuthStateChanged: authInitializing set to false.");
             }
         });
-        // Process redirect result
-        console.log("[AuthProvider] Attempting to get redirect result...");
-        (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$227b37e4$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__k__as__getRedirectResult$3e$__["getRedirectResult"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["auth"]).then((result)=>{
-            if (result && result.user) {
-                console.log("[AuthProvider] getRedirectResult SUCCESS. User from redirect:", result.user.uid);
-            // Firebase best practice: onAuthStateChanged is the single source of truth for user state.
-            // getRedirectResult processes the credential, and onAuthStateChanged will subsequently fire with the new user.
-            // Explicitly setting user here (setUser(result.user)) can sometimes lead to race conditions or double updates.
-            } else {
-                console.log("[AuthProvider] getRedirectResult: No user from redirect or no redirect was pending.");
-            }
-        }).catch((error)=>{
-            if (error.code === __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$227b37e4$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__J__as__AuthErrorCodes$3e$__["AuthErrorCodes"].UNAUTHORIZED_DOMAIN) {
-                console.error('❌ [AuthProvider] getRedirectResult Error: Unauthorized domain. Domain:', ("TURBOPACK compile-time falsy", 0) ? ("TURBOPACK unreachable", undefined) : 'unknown', 'Ensure this is in Firebase Console -> Authentication -> Settings -> Authorized domains.');
-            } else if ([
-                'auth/no-auth-event',
-                'auth/redirect-cancelled',
-                'auth/redirect-error',
-                'auth/popup-closed-by-user'
-            ].includes(error.code)) {
-                console.log(`[AuthProvider] getRedirectResult: Common redirect status/error: ${error.code} - ${error.message}`);
-            } else {
-                console.error("[AuthProvider] getRedirectResult ERROR (unhandled):", error.code, error.message);
-            }
-        }).finally(()=>{
-            console.log("[AuthProvider] getRedirectResult processing FINISHED.");
-            setRedirectResultProcessing(false); // Redirect processing is done
-        });
+        // getRedirectResult logic removed as it's for signInWithRedirect
+        // setRedirectResultProcessing(false); // No longer processing redirect result
         return ()=>{
             console.log("[AuthProvider] useEffect cleanup: Unsubscribing onAuthStateChanged.");
             unsubscribe();
         };
-    // Dependency array:
-    // - `auth`: If `auth` itself could be null/undefined initially and then re-initialize (e.g. if firebase.ts is async),
-    //   then including `auth` would be crucial. Assuming `auth` is stable once firebase app is initialized.
-    // - Empty array `[]`: Ensures this runs once on mount and cleans up on unmount. This is typical for auth listeners.
-    }, []); // Runs once on mount
+    }, []); // Keep empty dependency array
     const signInWithGoogle = async ()=>{
         if (!__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["auth"]) {
-            console.error("[AuthProvider] signInWithGoogle: Firebase Auth is not initialized.");
+            console.error("[AuthProvider] signInWithGoogle (popup): Firebase Auth is not initialized.");
             return;
         }
-        console.log("[AuthProvider] signInWithGoogle called. Initiating redirect.");
-        setAuthInitializing(true); // Reset loading states before auth operation
-        setRedirectResultProcessing(true);
+        console.log("[AuthProvider] signInWithGoogle (popup) called. Initiating popup.");
+        setAuthInitializing(true); // Set loading state
         try {
             const provider = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$227b37e4$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__Y__as__GoogleAuthProvider$3e$__["GoogleAuthProvider"]();
-            await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$227b37e4$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__g__as__signInWithRedirect$3e$__["signInWithRedirect"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["auth"], provider);
-            console.log("[AuthProvider] signInWithRedirect initiated. Page will redirect.");
-        // The rest is handled by onAuthStateChanged and getRedirectResult after redirect.
+            const result = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$227b37e4$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__d__as__signInWithPopup$3e$__["signInWithPopup"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["auth"], provider);
+            // onAuthStateChanged will handle setting the user
+            console.log("[AuthProvider] signInWithPopup successful. User:", result.user.uid);
         } catch (error) {
-            console.error('❌ [AuthProvider] Error initiating Google sign-in with redirect:', error.code, error.message);
-            setAuthInitializing(false); // Reset loading state on error
-            setRedirectResultProcessing(false);
+            if (error.code === __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$227b37e4$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__J__as__AuthErrorCodes$3e$__["AuthErrorCodes"].POPUP_CLOSED_BY_USER) {
+                console.warn('[AuthProvider] signInWithPopup: Popup closed by user.');
+            } else if (error.code === __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$227b37e4$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__J__as__AuthErrorCodes$3e$__["AuthErrorCodes"].UNAUTHORIZED_DOMAIN) {
+                console.error('❌ [AuthProvider] signInWithPopup Error: Unauthorized domain. Domain:', ("TURBOPACK compile-time falsy", 0) ? ("TURBOPACK unreachable", undefined) : 'unknown', 'Ensure this is in Firebase Console -> Authentication -> Settings -> Authorized domains.');
+            } else {
+                console.error('❌ [AuthProvider] Error signing in with Google (popup):', error.code, error.message);
+            }
+        // setUser(null); // Ensure user is null on error
+        } finally{
+            setAuthInitializing(false); // Reset loading state
         }
     };
     const logout = async ()=>{
@@ -686,17 +655,21 @@ const AuthProvider = ({ children })=>{
             return;
         }
         console.log("[AuthProvider] logout called.");
+        setAuthInitializing(true);
         try {
             await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$227b37e4$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__D__as__signOut$3e$__["signOut"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["auth"]);
             console.log("[AuthProvider] Firebase signOut successful. User state will be updated by onAuthStateChanged.");
-        // Removed router.push('/login');
-        // The ProtectedAdminLayout or LoginPage should react to the user becoming null.
+            // No need to manually setUser(null) here, onAuthStateChanged handles it
+            router.push('/login'); // Redirect to login page after logout
         } catch (error) {
             console.error('❌ [AuthProvider] Error signing out:', error);
+        } finally{
+            setAuthInitializing(false);
         }
     };
-    const overallLoading = authInitializing || redirectResultProcessing;
-    console.log(`[AuthProvider] Render. overallLoading: ${overallLoading} (authInitializing: ${authInitializing}, redirectResultProcessing: ${redirectResultProcessing}), User: ${user ? user.uid : 'null'}`);
+    // Simplified loading state for popup flow
+    const overallLoading = authInitializing;
+    console.log(`[AuthProvider] Render. overallLoading: ${overallLoading} (authInitializing: ${authInitializing}), User: ${user ? user.uid : 'null'}`);
     if ("TURBOPACK compile-time falsy", 0) {
         "TURBOPACK unreachable";
     }
@@ -710,7 +683,7 @@ const AuthProvider = ({ children })=>{
         children: children
     }, void 0, false, {
         fileName: "[project]/src/contexts/AuthContext.tsx",
-        lineNumber: 143,
+        lineNumber: 118,
         columnNumber: 5
     }, this);
 };

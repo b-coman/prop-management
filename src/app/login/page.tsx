@@ -20,10 +20,10 @@ export default function LoginPage() {
   const { user, signInWithGoogle, loading } = useAuth();
   const router = useRouter();
 
-  console.log(`[LoginPage] Render. Loading: ${loading}, User: ${user ? user.uid : 'null'}`);
+  console.log(`[LoginPage] Render. Auth Loading: ${loading}, User: ${user ? user.uid : 'null'}`);
 
   useEffect(() => {
-    console.log(`[LoginPage] useEffect triggered. Loading: ${loading}, User: ${user ? user.uid : 'null'}`);
+    console.log(`[LoginPage] useEffect triggered. Auth Loading: ${loading}, User: ${user ? user.uid : 'null'}`);
     if (!loading) {
       if (user) {
         console.log("[LoginPage] User authenticated, redirecting to /admin...");
@@ -32,13 +32,12 @@ export default function LoginPage() {
         console.log("[LoginPage] User not authenticated after loading complete. Displaying login form.");
       }
     } else {
-      console.log("[LoginPage] Still loading auth state...");
+      console.log("[LoginPage] Still loading auth state (AuthContext loading is true)...");
     }
   }, [user, loading, router]);
 
-  // This state is for the visual loading indicator on this page, separate from AuthContext's loading
   if (loading) {
-    console.log("[LoginPage] Rendering: Loading indicator (loading state is true).");
+    console.log("[LoginPage] Rendering: Loading indicator (AuthContext loading is true).");
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -47,10 +46,8 @@ export default function LoginPage() {
     );
   }
 
-  // If !loading and user is defined, useEffect should have redirected.
-  // This part is for when !loading and user is null.
   if (!user) {
-    console.log("[LoginPage] Rendering: Login form (loading is false, user is null).");
+    console.log("[LoginPage] Rendering: Login form (AuthContext loading false, user is null).");
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
         <Card className="w-full max-w-sm shadow-xl">
@@ -62,7 +59,7 @@ export default function LoginPage() {
             <Button
               onClick={signInWithGoogle}
               className="w-full"
-              disabled={loading} // Disable button while any auth operation is in progress
+              disabled={loading} 
               variant="outline"
             >
               {loading ? (
@@ -78,8 +75,8 @@ export default function LoginPage() {
     );
   }
 
-  // Fallback for the brief moment user is set but redirect hasn't happened yet
-  console.log("[LoginPage] Rendering: Redirecting indicator (loading false, user exists, waiting for useEffect).");
+  // Fallback for the brief moment user is set but redirect hasn't happened yet (should be rare with replace)
+  console.log("[LoginPage] Rendering: Redirecting indicator (AuthContext loading false, user exists, waiting for useEffect).");
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
       <Loader2 className="h-12 w-12 animate-spin text-primary" />
