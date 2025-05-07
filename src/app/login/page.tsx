@@ -21,8 +21,14 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (user && !loading) {
-      router.replace('/admin'); // Redirect to admin if already logged in
+    console.log("[LoginPage] useEffect - Loading:", loading, "User:", user ? user.uid : null);
+    if (!loading) {
+      if (user) {
+        console.log("[LoginPage] User authenticated, redirecting to /admin");
+        router.replace('/admin');
+      } else {
+        console.log("[LoginPage] User not authenticated, showing login form.");
+      }
     }
   }, [user, loading, router]);
 
@@ -30,16 +36,23 @@ export default function LoginPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="ml-3 text-muted-foreground">Authenticating, please wait...</p>
       </div>
     );
   }
 
-  // If user is already defined (and not loading), they will be redirected by useEffect.
-  // So, we only render the login form if user is null and not loading.
+  // If !loading and user is defined, useEffect will have initiated redirection.
+  // We can show a "Redirecting..." message or null while that happens.
   if (user) {
-    return null; // Or a loading/redirecting message
+     return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="ml-3 text-muted-foreground">Redirecting to admin panel...</p>
+      </div>
+    );
   }
 
+  // If !loading and user is null, show the login form.
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-sm shadow-xl">
@@ -48,17 +61,13 @@ export default function LoginPage() {
           <CardDescription>Sign in to access the admin panel.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button 
-            onClick={signInWithGoogle} 
-            className="w-full" 
-            disabled={loading}
+          <Button
+            onClick={signInWithGoogle}
+            className="w-full"
+            // No need for disabled={loading} as this part only renders when !loading
             variant="outline"
           >
-            {loading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <GoogleIcon /> // Use the inline SVG component
-            )}
+            <GoogleIcon />
             Sign in with Google
           </Button>
         </CardContent>

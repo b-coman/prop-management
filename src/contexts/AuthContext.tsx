@@ -1,12 +1,12 @@
 // src/contexts/AuthContext.tsx
 'use client';
 
-import type { ReactNode, Dispatch, SetStateAction } from 'react';
+import type { ReactNode } from 'react';
 import { createContext, useContext, useEffect, useState } from 'react';
 import {
   onAuthStateChanged,
-  signInWithRedirect, // Changed from signInWithPopup
-  getRedirectResult, // Added for signInWithRedirect
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   signOut as firebaseSignOut,
   type User as FirebaseUser,
@@ -14,7 +14,6 @@ import {
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
 
 interface AuthContextType {
   user: FirebaseUser | null;
@@ -27,121 +26,121 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [authInitializing, setAuthInitializing] = useState(true); // Tracks initial onAuthStateChanged
+  const [redirectResultProcessing, setRedirectResultProcessing] = useState(true); // Tracks getRedirectResult
   const router = useRouter();
 
+  // Effect for onAuthStateChanged
   useEffect(() => {
     if (!auth) {
-      console.error("[AuthProvider] Firebase Auth is not initialized.");
-      setLoading(false);
+      console.error("[AuthProvider] Firebase Auth is not initialized for onAuthStateChanged.");
+      setAuthInitializing(false);
+      setRedirectResultProcessing(false); // If auth fails, no redirect to process
       return;
     }
-    // This handles initial auth state and subsequent changes
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      console.log("[AuthProvider] onAuthStateChanged. User:", currentUser ? currentUser.uid : null);
       setUser(currentUser);
-      setLoading(false);
-      // console.log("[AuthProvider] onAuthStateChanged. User:", currentUser ? currentUser.uid : null, "Loading:", false);
+      setAuthInitializing(false); // Initial auth state determined
     });
+
     return () => unsubscribe();
-  }, []);
+  }, []); // Runs once on mount
 
-
-  // This effect handles the result of a redirect-based sign-in
+  // Effect for getRedirectResult
   useEffect(() => {
-    if (!auth) return; // Wait for auth to be initialized
-
-    const processRedirectResult = async () => {
-      // It's possible onAuthStateChanged already set loading to false.
-      // If we are in a redirect flow, we might want to set loading to true again.
-      // However, getRedirectResult itself doesn't always mean loading should be true,
-      // as it also runs on normal page loads to check if there's a PENDING redirect.
-      // Let's rely on the onAuthStateChanged to manage the primary loading state.
-      try {
-        const result = await getRedirectResult(auth);
-        if (result) {
-          // User successfully signed in via redirect.
-          // onAuthStateChanged will typically handle setting the user state.
-          // This log confirms the redirect flow completed.
-          console.log("[AuthProvider] Google sign-in via redirect successful. User:", result.user.uid);
-          // setUser(result.user); // Usually redundant as onAuthStateChanged will fire
-          // setLoading(false); // onAuthStateChanged handles this
-        } else {
-          // No redirect result pending. This is normal on initial page loads.
-          // console.log("[AuthProvider] No pending redirect result.");
-        }
-      } catch (error: any) {
-        if (error.code === AuthErrorCodes.UNAUTHORIZED_DOMAIN) {
-          console.error(
-            '❌ Error processing Google Sign-In redirect: Unauthorized domain. ' +
-            'Please ensure your current domain is added to the list of authorized domains ' +
-            'in your Firebase project settings (Authentication -> Sign-in method -> Google -> Authorized redirect URIs). ' +
-            `Current domain is likely: ${window.location.hostname}`
-          );
-        } else if (error.code === 'auth/no-auth-event' || error.code === 'auth/redirect-cancelled') {
-          // These errors are expected if there's no pending redirect or user cancels.
-          // console.log(`[AuthProvider] Redirect status: ${error.message}`);
-        }
-         else {
-          console.error('❌ Error processing Google Sign-In redirect result:', error);
-        }
-        // setLoading(false); // onAuthStateChanged should handle this
-      }
-    };
-
-    processRedirectResult();
-  }, [auth]); // Dependency: run when auth object is available.
+    if (!auth) {
+      console.error("[AuthProvider] Firebase Auth is not initialized for getRedirectResult.");
+      setRedirectResultProcessing(false);
+      return;
+    }
+    
+    // Only process redirect if auth has initialized (to avoid race conditions)
+    // and redirect processing hasn't been marked as complete yet.
+    if (!authInitializing) {
+        getRedirectResult(auth)
+        .then((result) => {
+            if (result) {
+            console.log("[AuthProvider] Google sign-in via redirect processed. User (from result):", result.user.uid);
+            // setUser(result.user); // Not strictly necessary, onAuthStateChanged will update.
+            } else {
+            console.log("[AuthProvider] No pending redirect result.");
+            }
+        })
+        .catch((error: any) => {
+            if (error.code === AuthErrorCodes.UNAUTHORIZED_DOMAIN) {
+            console.error(
+                '❌ Error processing Google Sign-In redirect: Unauthorized domain. ' +
+                'Ensure your current domain is added to the list of authorized domains ' +
+                'in your Firebase project settings (Authentication -> Sign-in method -> Google -> Authorized domains). ' +
+                `Current domain is likely: ${typeof window !== 'undefined' ? window.location.hostname : 'unknown'}`
+            );
+            } else if (error.code === 'auth/no-auth-event' || error.code === 'auth/redirect-cancelled' || error.code === 'auth/redirect-error') {
+            console.log(`[AuthProvider] Redirect status/error: ${error.code} - ${error.message}`);
+            } else {
+            console.error('❌ Error processing Google Sign-In redirect result:', error);
+            }
+        })
+        .finally(() => {
+            console.log("[AuthProvider] Finished processing redirect result.");
+            setRedirectResultProcessing(false); // Redirect processing is complete
+        });
+    }
+  }, [auth, authInitializing]); // Rerun if auth or authInitializing changes
 
   const signInWithGoogle = async () => {
     if (!auth) {
-        console.error("[AuthProvider] Firebase Auth is not initialized for signInWithGoogle.");
-        return;
+      console.error("[AuthProvider] Firebase Auth is not initialized for signInWithGoogle.");
+      return;
     }
-    setLoading(true); // Indicate that an auth process is starting
+    setAuthInitializing(true); // Reset flags when initiating a new sign-in
+    setRedirectResultProcessing(true);
     try {
       const provider = new GoogleAuthProvider();
-      // signInWithRedirect doesn't return a promise that resolves with user credentials here.
-      // It navigates the user. The result is handled by getRedirectResult on page load.
       await signInWithRedirect(auth, provider);
-      // Page will redirect, so code after this might not execute immediately.
+      // Page will redirect.
     } catch (error: any) {
-      // This catch block might not be hit for typical redirect errors,
-      // as the page navigates away. Errors are more likely caught by getRedirectResult.
       if (error.code === AuthErrorCodes.UNAUTHORIZED_DOMAIN) {
-        console.error( /* ... existing error message ... */ );
+         console.error(/* ... existing error message ... */);
       } else {
         console.error('❌ Error initiating Google sign-in with redirect:', error);
       }
-      setLoading(false); // Ensure loading is reset if redirect initiation fails
+      setAuthInitializing(false); // If initiation fails, stop loading states
+      setRedirectResultProcessing(false);
     }
   };
 
   const logout = async () => {
     if (!auth) {
-        console.error("[AuthProvider] Firebase Auth is not initialized for logout.");
-        return;
+      console.error("[AuthProvider] Firebase Auth is not initialized for logout.");
+      return;
     }
-    setLoading(true);
+    setAuthInitializing(true); // Indicate an auth state change is about to happen
+    setRedirectResultProcessing(true); // Not a redirect, but reset to ensure loading state is correct
     try {
       await firebaseSignOut(auth);
-      setUser(null); // Explicitly set user to null
+      // setUser(null) and loading states will be handled by onAuthStateChanged and subsequent effects
       router.push('/login');
     } catch (error) {
       console.error('❌ Error signing out:', error);
-    } finally {
-        setLoading(false);
+      setAuthInitializing(false); // Reset if logout fails
+      setRedirectResultProcessing(false);
     }
   };
-  
-  if (loading && !auth) {
+
+  const overallLoading = authInitializing || redirectResultProcessing;
+
+  if (overallLoading && !auth) { // If still "loading" but auth object itself failed
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-red-500">Error: Firebase Authentication failed to initialize.</p>
+        <p className="text-red-500">Error: Firebase Authentication failed to initialize properly.</p>
       </div>
     );
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, loading: overallLoading, signInWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );

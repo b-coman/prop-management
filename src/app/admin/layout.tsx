@@ -4,7 +4,7 @@
 import { type ReactNode, Suspense } from 'react'; // Suspense for potential Next.js features
 import Link from 'next/link';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation'; // Corrected import
+import { useRouter } from 'next/navigation'; 
 import { Button } from '@/components/ui/button';
 import { Loader2, LogOut } from 'lucide-react';
 
@@ -13,17 +13,27 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
 
+  console.log("[ProtectedAdminLayout] User:", user ? user.uid : null, "Loading:", loading);
+
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
+         <p className="ml-3 text-muted-foreground">Loading admin area...</p>
       </div>
     );
   }
 
   if (!user) {
-    router.replace('/login'); // Use replace to avoid adding login to history stack
-    return null; // Render nothing while redirecting
+    console.log("[ProtectedAdminLayout] No user, redirecting to /login");
+    router.replace('/login'); 
+    return (
+         <div className="flex min-h-screen items-center justify-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="ml-3 text-muted-foreground">Redirecting to login...</p>
+        </div>
+    ); // Render loader while redirecting
   }
 
   // User is authenticated, render admin layout
@@ -42,8 +52,8 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
               Create Coupon
             </Link>
             {/* Add other admin navigation links here */}
-            <Button onClick={logout} variant="outline" size="sm" disabled={loading}>
-              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <LogOut className="mr-2 h-4 w-4" />}
+            <Button onClick={logout} variant="outline" size="sm">
+              <LogOut className="mr-2 h-4 w-4" />
               Logout
             </Button>
           </nav>
@@ -66,7 +76,7 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
-        <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>}>
+        <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /> <p className="ml-3 text-muted-foreground">Loading...</p></div>}>
             <ProtectedAdminLayout>{children}</ProtectedAdminLayout>
         </Suspense>
     </AuthProvider>
