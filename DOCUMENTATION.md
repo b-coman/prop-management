@@ -25,6 +25,7 @@ The system manages short-term rental properties through:
 - **Google Analytics integration** per property.
 - **Multi-domain support** allowing properties to be accessed via custom domains or path-based URLs.
 - **Input sanitization** for user-provided data.
+- **Admin area protection** via Google Sign-In.
 
 Initial support: 2 properties (Prahova Mountain Chalet, Coltei Apartment Bucharest)
 Designed for scalability.
@@ -44,8 +45,8 @@ rentalspot/
 │   ├── homepage/        # Components for specific homepage sections (Hero, Experience, etc.)
 │   ├── property/        # Components related to displaying property details
 │   └── ui/              # Shadcn UI components (Button, Card, Input, etc.)
-├── dataconnect/         # Firebase Data Connect configuration
-├── dataconnect-generated/ # Generated Data Connect SDK
+├── dataconnect/         # Firebase Data Connect configuration (if used)
+├── dataconnect-generated/ # Generated Data Connect SDK (if used)
 ├── firestore/           # JSON files for seeding Firestore data
 │   ├── properties/      # Property metadata JSON files (e.g., prahova-mountain-chalet.json)
 │   └── propertyOverrides/ # Property content override JSON files
@@ -63,7 +64,6 @@ rentalspot/
 │   └── images/          # Default images for templates and placeholders
 ├── scripts/             # Utility scripts (e.g., load-properties.ts)
 ├── src/                 # Main application source code (using src directory convention)
-│   ├── ai/              # Genkit AI related code (flows, prompts)
 │   ├── app/             # Next.js App Router directory
 │   │   ├── (app)/       # Main application routes and layouts
 │   │   │   ├── admin/     # Admin panel routes and components
@@ -76,10 +76,12 @@ rentalspot/
 │   │   │   ├── properties/ # Dynamic property detail pages ([slug])
 │   │   │   │   └── [slug]/
 │   │   │   │       └── page.tsx
+│   │   │   ├── login/     # Login page for admin access
 │   │   │   ├── globals.css # Global CSS styles and Tailwind base layers
 │   │   │   ├── layout.tsx  # Root application layout
 │   │   │   └── page.tsx    # Homepage component (renders default property)
 │   │   └── actions/       # Server Actions (e.g., booking, checkout, coupon actions)
+│   ├── contexts/          # React Contexts (e.g., AuthContext)
 │   └── services/        # Backend services (booking, coupon, sync, sms)
 ├── .firebaserc          # Firebase project configuration (linking to project ID)
 ├── .gitignore           # Files and directories ignored by Git
@@ -370,7 +372,21 @@ Rules are defined in `firestore.rules` and should be deployed to Firebase. Key r
 
 ---
 
-## 💻 12. **Admin Panel Behavior (Coupons)**
+## 🔐 12. **Authentication & Authorization**
+
+*   **Authentication:**
+    *   Method: Firebase Authentication with Google Sign-In.
+    *   Process: Users sign in via a Google popup on the `/login` page.
+    *   State Management: `AuthContext` (`src/contexts/AuthContext.tsx`) manages the user's authentication state.
+*   **Authorization:**
+    *   Roles: Currently, an authenticated user is considered an "admin" for accessing `/admin/*` routes. More granular roles (owner, guest) are defined in Firestore schemas but not fully implemented for access control beyond basic Firestore rules.
+    *   Enforcement:
+        *   Admin area (`/admin/*`) is protected by `ProtectedAdminLayout` which checks `useAuth()` for an authenticated user.
+        *   Firestore rules (see Section 11) provide data-level access control.
+
+---
+
+## 💻 13. **Admin Panel Behavior (Coupons)**
 
 ✅ `/admin/coupons`: Lists all coupons, shows status, allows editing expiry, toggling status, expanding to edit booking validity and exclusion periods.
 ✅ `/admin/coupons/new`: Form to create new coupons with all fields (code, discount, expiry, validity, exclusions, description, etc.).
@@ -379,7 +395,7 @@ Rules are defined in `firestore.rules` and should be deployed to Firebase. Key r
 
 ---
 
-## ⚙️ 13. **Environment Variables**
+## ⚙️ 14. **Environment Variables**
 
 This section lists the environment variables required or used by the application. Store sensitive keys in `.env.local` (which should be in `.gitignore`).
 
@@ -405,7 +421,7 @@ This section lists the environment variables required or used by the application
 
 ---
 
-## 📊 14. **Google Analytics Integration**
+## 📊 15. **Google Analytics Integration**
 
 - Per-property Google Analytics tracking is supported.
 - The `properties` collection documents can include an `analytics` object:
@@ -419,7 +435,7 @@ This section lists the environment variables required or used by the application
 
 ---
 
-## 🌐 15. **Multi-Domain Configuration**
+## 🌐 16. **Multi-Domain Configuration**
 
 - Properties can be configured to use a custom domain.
 - The `properties` collection documents include:
@@ -436,7 +452,7 @@ This section lists the environment variables required or used by the application
 
 ---
 
-## 🛡️ 16. **Input Sanitization**
+## 🛡️ 17. **Input Sanitization**
 
 - User-provided inputs (e.g., guest information in booking form, coupon codes, descriptions in admin panel) are sanitized to prevent XSS and other injection attacks.
 - Sanitization is primarily handled:
@@ -447,6 +463,37 @@ This section lists the environment variables required or used by the application
 
 ---
 
+## 📝 18. **Data Validation**
+
+*   **Zod Schemas:**
+    *   Schemas for website block content (`heroSchema`, `experienceSchema`, etc.) are defined in `src/lib/overridesSchemas.ts`.
+    *   Schemas for server actions (e.g., coupon creation, pending booking) are typically defined within the action files themselves.
+*   **Usage:**
+    *   Server actions use Zod schemas to validate incoming data.
+    *   The Firestore data loader script (`scripts/load-properties.ts`) uses `blockSchemas` from `overridesSchemas.ts` to validate default block content in templates before uploading.
+    *   Client-side forms (e.g., coupon creation, booking guest info) use `zodResolver` with `react-hook-form` for validation.
+*   **Error Handling:** Validation errors are generally returned to the client and displayed using toast notifications or form error messages.
+
+---
+
+## ⚙️ 19. **Firebase Console Setup Notes**
+
+*   **Firestore Database:**
+    *   Create a Firestore database in your Firebase project.
+    *   Start in "Production mode" and apply security rules (see Section 11 and `firestore.rules`).
+    *   Indexes can be configured via the Firebase Console ("Firestore Database" -> "Indexes") or `firestore.indexes.json`.
+*   **Authentication:**
+    *   Enable "Google" as a sign-in provider in "Authentication" -> "Sign-in method".
+    *   **Important for Development (e.g., Firebase Studio):** Add your development domain (e.g., `your-studio-url.cloudworkstations.dev` or `localhost`) to the list of "Authorized domains" under the "Sign-in method" tab. If you encounter an `auth/unauthorized-domain` error, this is the most likely cause.
+*   **Stripe Webhooks:**
+    *   Configure a webhook endpoint in your Stripe Dashboard to point to `YOUR_DEPLOYED_APP_URL/api/webhooks/stripe` (or a local URL using `ngrok` for testing).
+    *   Listen for the `checkout.session.completed` event.
+    *   Store the webhook signing secret in the `STRIPE_WEBHOOK_SECRET` environment variable.
+
+---
+
 ## 🏁 **End of Current Documentation**
 
 All future changes should be appended below as updates or clarifications.
+
+```

@@ -9,6 +9,7 @@ import {
   GoogleAuthProvider,
   signOut as firebaseSignOut, // Renamed to avoid conflict
   type User as FirebaseUser,
+  AuthErrorCodes, // Import AuthErrorCodes
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase'; // Assuming auth is exported from your firebase setup
 import { useRouter } from 'next/navigation';
@@ -37,6 +38,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
+      // console.log("[AuthProvider] Auth state changed, current user:", currentUser ? currentUser.uid : null);
+      // console.log("[AuthProvider] Loading set to false");
     });
     return () => unsubscribe();
   }, []);
@@ -51,8 +54,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
       // onAuthStateChanged will handle setting the user and redirecting
-    } catch (error) {
-      console.error('Error signing in with Google:', error);
+      // User will be redirected to /admin by the LoginPage's useEffect
+    } catch (error: any) {
+      if (error.code === AuthErrorCodes.UNAUTHORIZED_DOMAIN) {
+        console.error(
+            '❌ Error signing in with Google: Unauthorized domain. ' +
+            'Please ensure your current domain is added to the list of authorized domains ' +
+            'in your Firebase project settings (Authentication -> Sign-in method -> Authorized domains). ' +
+            `Current domain is likely: ${window.location.hostname}`
+          );
+      } else {
+        console.error('❌ Error signing in with Google:', error);
+      }
       setLoading(false);
     }
   };
@@ -68,7 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
       router.push('/login'); // Redirect to login page after logout
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('❌ Error signing out:', error);
     } finally {
         setLoading(false);
     }
@@ -97,3 +110,4 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
