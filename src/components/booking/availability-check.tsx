@@ -30,7 +30,7 @@ import {
 import type { Property, Availability, PriceCalculationResult, CurrencyCode } from '@/types';
 import { getUnavailableDatesForProperty } from '@/services/bookingService';
 import { createPendingBookingAction } from '@/app/actions/booking-actions';
-import { createCheckoutSession } from '@/app/actions/create-checkout-session';
+import { createCheckoutSession } from '@/app/actions/create-checkout-session'; // Direct import
 
 
 import { Button } from '@/components/ui/button';
@@ -49,7 +49,7 @@ import { Label } from "@/components/ui/label"; // Import Label
 import { AvailabilityCalendar } from './availability-calendar';
 import { AvailabilityStatus } from './availability-status';
 import { GuestInfoForm } from './guest-info-form';
-// import { TestBookingButton } from '@/components/test-booking-button'; // Removed unused import
+
 
 interface AvailabilityCheckProps {
   property: Property;
@@ -81,7 +81,6 @@ export function AvailabilityCheck({
   // --- Core State ---
   const [checkInDate, setCheckInDate] = useSessionStorage<Date | null>(`booking_${propertySlug}_checkIn`, parseDateSafe(initialCheckIn));
   const [checkOutDate, setCheckOutDate] = useSessionStorage<Date | null>(`booking_${propertySlug}_checkOut`, parseDateSafe(initialCheckOut));
-  // numberOfGuests from session storage is the source of truth AFTER hydration
   const [numberOfGuests, setNumberOfGuests] = useSessionStorage<number>(`booking_${propertySlug}_guests`, property.baseOccupancy || 1);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
@@ -91,18 +90,11 @@ export function AvailabilityCheck({
   const [isProcessingBooking, setIsProcessingBooking] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  // State for client-side rendering of formatted date string
   const [displayDateRangeString, setDisplayDateRangeString] = useState<string | null>(null);
-  const [hasMounted, setHasMounted] = useState(false); // Track client mount
-  const [clientNumberOfNights, setClientNumberOfNights] = useState<number>(0); // State for client-side night calculation
-  // State for displaying guests, initialized with server value, updated client-side
+  const [hasMounted, setHasMounted] = useState(false);
+  const [clientNumberOfNights, setClientNumberOfNights] = useState<number>(0);
   const [displayGuests, setDisplayGuests] = useState<number>(property.baseOccupancy || 1);
 
-  // --- Guest Info State (managed here, passed down) ---
-  const [firstName, setFirstName] = useSessionStorage<string>(`booking_${propertySlug}_firstName`, '');
-  const [lastName, setLastName] = useSessionStorage<string>(`booking_${propertySlug}_lastName`, '');
-  const [email, setEmail] = useSessionStorage<string>(`booking_${propertySlug}_email`, '');
-  const [phone, setPhone] = useSessionStorage<string>(`booking_${propertySlug}_phone`, '');
 
   // Indicate component has mounted
   useEffect(() => {
@@ -112,7 +104,6 @@ export function AvailabilityCheck({
   // Update display state after mount based on session storage value
   useEffect(() => {
     if (hasMounted) {
-      // Read from sessionStorage-backed state and update display state
       const guestValue = typeof numberOfGuests === 'number' && !isNaN(numberOfGuests) && numberOfGuests > 0
         ? numberOfGuests
         : (property.baseOccupancy || 1);
@@ -134,7 +125,7 @@ export function AvailabilityCheck({
 
   // Calculate numberOfNights on the client after hydration
   useEffect(() => {
-    if (hasMounted) { // Ensure this runs only on the client
+    if (hasMounted) {
       if (datesSelected && checkInDate && checkOutDate) {
         setClientNumberOfNights(differenceInDays(checkOutDate, checkInDate));
       } else {
@@ -164,15 +155,14 @@ export function AvailabilityCheck({
 
   // --- Pricing Calculation ---
   const pricingDetailsInBaseCurrency = useMemo(() => {
-    // Use the current value from session storage for calculation
     const currentGuests = typeof numberOfGuests === 'number' && !isNaN(numberOfGuests) && numberOfGuests > 0
       ? numberOfGuests
       : (property.baseOccupancy || 1);
-    // Use clientNumberOfNights for calculation
+
     if (datesSelected && currentGuests > 0 && clientNumberOfNights > 0) {
       return calculatePrice(
         property.pricePerNight,
-        clientNumberOfNights, // Use client-side calculated nights
+        clientNumberOfNights,
         property.cleaningFee ?? 0,
         currentGuests,
         property.baseOccupancy,
@@ -182,8 +172,14 @@ export function AvailabilityCheck({
       );
     }
     return null;
-  }, [datesSelected, property, clientNumberOfNights, numberOfGuests, appliedCoupon, propertyBaseCcy]); // Depend on numberOfGuests
+  }, [datesSelected, property, clientNumberOfNights, numberOfGuests, appliedCoupon, propertyBaseCcy]);
 
+
+  // --- Guest Info State (managed here, passed down) ---
+  const [firstName, setFirstName] = useSessionStorage<string>(`booking_${propertySlug}_firstName`, '');
+  const [lastName, setLastName] = useSessionStorage<string>(`booking_${propertySlug}_lastName`, '');
+  const [email, setEmail] = useSessionStorage<string>(`booking_${propertySlug}_email`, '');
+  const [phone, setPhone] = useSessionStorage<string>(`booking_${propertySlug}_phone`, '');
 
   // --- Availability Check Logic ---
   const checkPropertyAvailability = useCallback(async () => {
@@ -202,7 +198,7 @@ export function AvailabilityCheck({
 
       let conflict = false;
       let current = new Date(checkInDate.getTime());
-      while (isBefore(current, checkOutDate)) { // Check days *within* the range, excluding checkout day
+      while (isBefore(current, checkOutDate)) {
         const dateString = format(startOfDay(current), 'yyyy-MM-dd');
         if (fetchedUnavailableDates.some(d => format(startOfDay(d), 'yyyy-MM-dd') === dateString)) {
           conflict = true;
@@ -212,18 +208,17 @@ export function AvailabilityCheck({
       }
       setIsAvailable(!conflict);
 
-      if (conflict && clientNumberOfNights > 0) { // Ensure clientNumberOfNights is calculated
-        // Basic suggestion logic (find next available block of same length)
+      if (conflict && clientNumberOfNights > 0) {
         let suggestionFound = false;
-        let suggestionStart = addDays(checkOutDate, 1); // Start searching from the day after requested checkout
-        const maxSearchDate = addDays(checkOutDate, 60); // Limit search to avoid infinite loops
+        let suggestionStart = addDays(checkOutDate, 1);
+        const maxSearchDate = addDays(checkOutDate, 60);
 
         while (isAfter(maxSearchDate, suggestionStart) && !suggestionFound) {
-            const suggestionEnd = addDays(suggestionStart, clientNumberOfNights); // Use clientNumberOfNights
+            const suggestionEnd = addDays(suggestionStart, clientNumberOfNights);
             let suggestionConflict = false;
             let checkCurrent = new Date(suggestionStart.getTime());
 
-            while(isBefore(checkCurrent, suggestionEnd)) { // Check days *within* the range
+            while(isBefore(checkCurrent, suggestionEnd)) {
                  const checkDateString = format(startOfDay(checkCurrent), 'yyyy-MM-dd');
                  if (fetchedUnavailableDates.some(d => format(startOfDay(d), 'yyyy-MM-dd') === checkDateString) || isBefore(checkCurrent, startOfDay(new Date()))) {
                       suggestionConflict = true;
@@ -236,12 +231,11 @@ export function AvailabilityCheck({
                  setSuggestedDates([{ from: suggestionStart, to: suggestionEnd, recommendation: "Next Available" }]);
                  suggestionFound = true;
             } else {
-                suggestionStart = addDays(suggestionStart, 1); // Move to the next day
+                suggestionStart = addDays(suggestionStart, 1);
             }
         }
           if (!suggestionFound) {
               console.log("No alternative dates found within 60 days.");
-              // Optionally set a state to indicate no suggestions were found
           }
 
       }
@@ -256,20 +250,18 @@ export function AvailabilityCheck({
     } finally {
       setIsLoadingAvailability(false);
     }
-  }, [checkInDate, checkOutDate, datesSelected, propertySlug, clientNumberOfNights, toast]); // Depend on clientNumberOfNights
+  }, [checkInDate, checkOutDate, datesSelected, propertySlug, clientNumberOfNights, toast]);
 
   useEffect(() => {
-    // Run availability check only after mount and when dates/nights are ready
     if (hasMounted && datesSelected && clientNumberOfNights > 0) {
         checkPropertyAvailability();
     } else if (hasMounted && !datesSelected) {
-        // Reset availability if dates become invalid
         setIsAvailable(null);
         setIsLoadingAvailability(false);
         setUnavailableDates([]);
         setSuggestedDates([]);
     }
-  }, [checkPropertyAvailability, hasMounted, datesSelected, clientNumberOfNights]); // Depend on hasMounted and clientNumberOfNights
+  }, [checkPropertyAvailability, hasMounted, datesSelected, clientNumberOfNights]);
 
 
   // --- Event Handlers ---
@@ -283,36 +275,30 @@ export function AvailabilityCheck({
     if (range?.from) {
       setCheckInDate(startOfDay(range.from));
     } else {
-      setCheckInDate(null); // Clear if 'from' is undefined
+      setCheckInDate(null);
     }
     if (range?.to) {
       setCheckOutDate(startOfDay(range.to));
     } else {
-      setCheckOutDate(null); // Clear if 'to' is undefined
+      setCheckOutDate(null);
     }
-    setIsDatePickerOpen(false); // Close popover after selection
+    setIsDatePickerOpen(false);
   };
 
-  const handleGuestChange = (change: number) => {
-    // This function now updates the session storage state directly
+ const handleGuestChange = (change: number) => {
     setNumberOfGuests((prev) => {
-      // Use the current value from session storage (prev) or default
       const currentGuests = typeof prev === 'number' && !isNaN(prev) && prev > 0
         ? prev
         : (property.baseOccupancy || 1);
       const newCount = currentGuests + change;
-      // Ensure bounds are respected
       return Math.max(1, Math.min(newCount, property.maxGuests));
     });
-    // The useEffect dependency on numberOfGuests will update displayGuests
   };
-
 
   const handleContinueToPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
-    // Use the actual numberOfGuests from state for validation
     const currentGuests = typeof numberOfGuests === 'number' && !isNaN(numberOfGuests) && numberOfGuests > 0
         ? numberOfGuests
         : (property.baseOccupancy || 1);
@@ -321,7 +307,7 @@ export function AvailabilityCheck({
       setFormError(`Number of guests must be between 1 and ${property.maxGuests}.`);
       return;
     }
-    if (!datesSelected || isAvailable !== true || !checkInDate || !checkOutDate || clientNumberOfNights <= 0) { // Check clientNumberOfNights
+    if (!datesSelected || isAvailable !== true || !checkInDate || !checkOutDate || clientNumberOfNights <= 0) {
       setFormError("Selected dates are not available or invalid.");
       return;
     }
@@ -350,14 +336,14 @@ export function AvailabilityCheck({
         guestInfo: { firstName: sanitizeText(firstName), lastName: sanitizeText(lastName), email: sanitizeEmail(email), phone: sanitizePhone(phone) },
         checkInDate: checkInDate.toISOString(),
         checkOutDate: checkOutDate.toISOString(),
-        numberOfGuests: currentGuests, // Use validated current guests
+        numberOfGuests: currentGuests,
         pricing: {
           ...pricingDetailsInBaseCurrency,
-          currency: propertyBaseCcy, // Pass base currency
-          numberOfNights: clientNumberOfNights, // Use client-side nights
+          currency: propertyBaseCcy,
+          numberOfNights: clientNumberOfNights,
         },
         status: 'pending' as const,
-        appliedCouponCode: appliedCoupon?.code ?? null,
+        appliedCouponCode: appliedCoupon?.code ?? null, // Ensure null is sent if undefined
       };
       console.log("[Action createPendingBookingAction] Called with input:", JSON.stringify(bookingInput, null, 2));
 
@@ -375,9 +361,9 @@ export function AvailabilityCheck({
         property: property,
         checkInDate: checkInDate.toISOString(),
         checkOutDate: checkOutDate.toISOString(),
-        numberOfGuests: currentGuests, // Use validated current guests
-        totalPrice: pricingDetailsInBaseCurrency.total, // Total in base currency
-        numberOfNights: clientNumberOfNights, // Use clientNumberOfNights
+        numberOfGuests: currentGuests,
+        totalPrice: pricingDetailsInBaseCurrency.total,
+        numberOfNights: clientNumberOfNights,
         appliedCouponCode: appliedCoupon?.code,
         discountPercentage: appliedCoupon?.discountPercentage,
         guestFirstName: sanitizeText(firstName),
@@ -393,7 +379,6 @@ export function AvailabilityCheck({
       }
 
        if (stripeResult.sessionUrl) {
-          // Redirect using window.location.href
           window.location.href = stripeResult.sessionUrl;
        } else {
           throw new Error("Stripe session URL is missing.");
@@ -420,10 +405,8 @@ export function AvailabilityCheck({
        if (isAvailable === true || isLoadingAvailability || !datesSelected || !hasMounted) {
            return null;
        }
-       // Default to today if checkInDate is not valid or unavailable
        const validCheckIn = checkInDate && isValid(checkInDate) ? checkInDate : new Date();
-       // Calculate the center month (one month before the target month)
-       const calendarCenterMonth = startOfMonth(validCheckIn); // Show requested month in center
+       const calendarCenterMonth = startOfMonth(validCheckIn);
 
        return (
            <div className="mt-6">
@@ -439,8 +422,6 @@ export function AvailabilityCheck({
 
   // --- Main Render ---
   return (
-    // Apply max-width and mx-auto to center the content
-    // Added padding-x for spacing on smaller screens
     <div className="max-w-2xl mx-auto w-full px-4">
 
       {/* Availability Status and Notifications */}
@@ -450,7 +431,7 @@ export function AvailabilityCheck({
         datesSelected={!!datesSelected}
         checkInDate={checkInDate}
         checkOutDate={checkOutDate}
-        numberOfNights={clientNumberOfNights} // Pass client-side calculated nights
+        numberOfNights={clientNumberOfNights}
         suggestedDates={suggestedDates}
         unavailableDates={unavailableDates}
         handleSelectAlternativeDate={handleSelectAlternativeDate}
@@ -462,24 +443,23 @@ export function AvailabilityCheck({
         isProcessingBooking={isProcessingBooking}
       />
 
-      {/* Date Picker and Guest Count */}
-      <div className="mt-6 space-y-6">
+      {/* Date Picker and Guest Count (on the same line for md+ screens) */}
+      <div className="mt-6 flex flex-col md:flex-row md:items-end md:gap-4 space-y-4 md:space-y-0">
           {/* Date Picker */}
-          <div>
+          <div className="flex-grow">
               <Label className="mb-1 block text-sm font-medium">Select Dates</Label>
               <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     className={cn(
-                      "flex-grow justify-between text-left font-normal flex items-center w-full", // Ensure button takes full width
-                      !displayDateRangeString && "text-muted-foreground" // Style when no date is displayed yet
+                      "w-full justify-between text-left font-normal flex items-center h-10", // Ensure consistent height
+                      !displayDateRangeString && "text-muted-foreground"
                     )}
-                    disabled={isProcessingBooking || isLoadingAvailability || !hasMounted} // Disable until mounted
+                    disabled={isProcessingBooking || isLoadingAvailability || !hasMounted}
                   >
                     <div className="flex items-center">
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {/* Render placeholder until mounted or date is set */}
                       {hasMounted && displayDateRangeString ? (
                         displayDateRangeString
                       ) : (
@@ -509,23 +489,21 @@ export function AvailabilityCheck({
           </div>
 
           {/* Number of Guests */}
-          <div className="space-y-1">
-            <Label htmlFor="guests">Number of Guests</Label>
-            <div className="flex items-center justify-between rounded-md border p-2 mt-1 w-full max-w-xs"> {/* Limit width */}
+          <div className="md:w-auto md:shrink-0"> {/* Allow shrink on larger screens */}
+            <Label className="mb-1 block text-sm font-medium">Guests</Label>
+            <div className="flex items-center justify-between rounded-md border p-2 h-10 w-full md:w-auto"> {/* Consistent height, adjust width */}
               <Button
                 type="button"
                 variant="outline"
                 size="icon"
                 className="h-7 w-7"
                 onClick={() => handleGuestChange(-1)}
-                // Disable based on displayGuests for immediate UI feedback
                 disabled={displayGuests <= 1 || isProcessingBooking}
                 aria-label="Decrease guests"
               >
                 <Minus className="h-4 w-4" />
               </Button>
               <span className="mx-4 font-medium w-8 text-center" id="guests">
-                {/* Display the client-side state */}
                 {hasMounted ? displayGuests : (property.baseOccupancy || 1)}
               </span>
               <Button
@@ -534,17 +512,15 @@ export function AvailabilityCheck({
                 size="icon"
                 className="h-7 w-7"
                 onClick={() => handleGuestChange(1)}
-                // Disable based on displayGuests for immediate UI feedback
                 disabled={displayGuests >= property.maxGuests || isProcessingBooking}
                 aria-label="Increase guests"
               >
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Max {property.maxGuests}. Base for {property.baseOccupancy}.
-              {(property.extraGuestFee ?? 0) > 0 && ` Extra: ${property.extraGuestFee ?? 0} ${propertyBaseCcy}/guest/night.`}
-            </p>
+             <p className="text-xs text-muted-foreground mt-1">
+                Max {property.maxGuests}
+              </p>
           </div>
        </div>
 
@@ -563,8 +539,8 @@ export function AvailabilityCheck({
             <form onSubmit={handleContinueToPayment} className="space-y-6">
               <GuestInfoForm
                 property={property}
-                numberOfGuests={numberOfGuests} // Pass raw state for logic
-                setNumberOfGuests={setNumberOfGuests} // Pass setter
+                numberOfGuests={numberOfGuests}
+                setNumberOfGuests={setNumberOfGuests}
                 firstName={firstName}
                 setFirstName={setFirstName}
                 lastName={lastName}
@@ -579,7 +555,6 @@ export function AvailabilityCheck({
                 setAppliedCoupon={setAppliedCoupon}
                 pricingDetailsInBaseCurrency={pricingDetailsInBaseCurrency}
                 isProcessingBooking={isProcessingBooking}
-                // Pass displayGuests for consistent display within the form if needed
                 displayGuests={displayGuests}
               />
 
