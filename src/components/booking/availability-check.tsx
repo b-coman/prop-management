@@ -1,44 +1,40 @@
-
 // src/components/booking/availability-check.tsx
 "use client";
 
 import * as React from 'react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { format, differenceInDays, addDays, parseISO, isValid, isBefore, startOfDay, isAfter, startOfMonth, subMonths } from 'date-fns';
+import { format, differenceInDays, addDays, parseISO, isValid, isAfter, startOfDay, startOfMonth, subMonths } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import {
   Loader2,
   Calendar as CalendarIcon,
   ArrowRight,
   AlertTriangle,
-  Pencil, // Import Pencil icon
+  Pencil,
 } from 'lucide-react';
 
 import type { Property, Availability, PriceCalculationResult, CurrencyCode } from '@/types';
 import { getUnavailableDatesForProperty } from '@/services/bookingService';
 import { createPendingBookingAction } from '@/app/actions/booking-actions';
-import { createCheckoutSession } from '@/app/actions/create-checkout-session'; // Direct import
+import { createCheckoutSession } from '@/app/actions/create-checkout-session';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AvailabilityCalendar } from './availability-calendar';
-import { calculatePrice } from '@/lib/price-utils';
+import { Label } from '@/components/ui/label'; // Import Label
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { useToast } from '@/hooks/use-toast';
 import { useSessionStorage } from '@/hooks/use-session-storage';
-import { useSanitizedState } from '@/hooks/useSanitizedState';
 import { sanitizeEmail, sanitizePhone, sanitizeText } from '@/lib/sanitize';
-import { useCurrency } from '@/contexts/CurrencyContext'; // Import useCurrency
-import { AvailabilityStatus } from './availability-status'; // Import new component
-import { GuestInfoForm } from './guest-info-form'; // Import new component
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'; // Import Popover components
-import { Calendar } from '@/components/ui/calendar'; // Import Calendar component
-import { cn } from '@/lib/utils'; // Import cn for class merging
-import { useToast } from '@/hooks/use-toast'; // Import useToast
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { calculatePrice } from '@/lib/price-utils';
+import { cn } from '@/lib/utils';
+
+import { AvailabilityCalendar } from './availability-calendar';
+import { AvailabilityStatus } from './availability-status';
+import { GuestInfoForm } from './guest-info-form';
 
 interface AvailabilityCheckProps {
   property: Property;
@@ -62,8 +58,8 @@ export function AvailabilityCheck({
   initialCheckOut,
 }: AvailabilityCheckProps) {
   const router = useRouter();
-  const { toast } = useToast(); // Initialize toast
-  const { selectedCurrency, baseCurrencyForProperty } = useCurrency(); // Get currency info
+  const { toast } = useToast();
+  const { selectedCurrency, baseCurrencyForProperty } = useCurrency();
   const propertySlug = property.slug;
   const propertyBaseCcy = baseCurrencyForProperty(property.baseCurrency);
 
@@ -75,10 +71,10 @@ export function AvailabilityCheck({
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
   const [unavailableDates, setUnavailableDates] = useState<Date[]>([]);
   const [suggestedDates, setSuggestedDates] = useState<Array<{ from: Date; to: Date; recommendation?: string }>>([]);
-  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountPercentage: number } | null>(null); // Coupon state here
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountPercentage: number } | null>(null);
   const [isProcessingBooking, setIsProcessingBooking] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false); // State for date picker popover
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
   // --- Guest Info State (managed here, passed down) ---
   const [firstName, setFirstName] = useSessionStorage<string>(`booking_${propertySlug}_firstName`, '');
@@ -86,10 +82,6 @@ export function AvailabilityCheck({
   const [email, setEmail] = useSessionStorage<string>(`booking_${propertySlug}_email`, '');
   const [phone, setPhone] = useSessionStorage<string>(`booking_${propertySlug}_phone`, '');
 
-  // --- Sanitized Guest Info State ---
-  // Note: We might pass the setters from useSessionStorage directly, or use useSanitizedState if needed elsewhere.
-  // For simplicity here, we'll assume the session storage hooks handle basic persistence.
-  // If complex sanitization is needed *before* session storage, use useSanitizedState.
 
   // --- Derived State ---
   const dateRange: DateRange | undefined = useMemo(() => {
@@ -115,7 +107,7 @@ export function AvailabilityCheck({
         currentGuests,
         property.baseOccupancy,
         property.extraGuestFee ?? 0,
-        propertyBaseCcy, // Pass base currency
+        propertyBaseCcy,
         appliedCoupon?.discountPercentage
       );
     }
@@ -139,7 +131,7 @@ export function AvailabilityCheck({
 
       let conflict = false;
       let current = new Date(checkInDate.getTime());
-      while (isBefore(current, checkOutDate)) {
+      while (isAfter(checkOutDate, current)) { // Changed from isBefore to isAfter, should be correct
         const dateString = format(startOfDay(current), 'yyyy-MM-dd');
         if (fetchedUnavailableDates.some(d => format(startOfDay(d), 'yyyy-MM-dd') === dateString)) {
           conflict = true;
@@ -150,24 +142,37 @@ export function AvailabilityCheck({
       setIsAvailable(!conflict);
 
       if (conflict) {
-        const suggested = [
-          { from: addDays(checkOutDate!, 1), to: addDays(checkOutDate!, 1 + numberOfNights), recommendation: "Next Available" },
-          { from: addDays(checkInDate!, 7), to: addDays(checkInDate!, 7 + numberOfNights) },
-        ];
-        const validSuggestions = suggested.filter(range => {
-          let isValidSuggestion = true;
-          let checkCurrent = new Date(range.from.getTime());
-          while (isBefore(checkCurrent, range.to)) {
-            const checkDateString = format(startOfDay(checkCurrent), 'yyyy-MM-dd');
-            if (fetchedUnavailableDates.some(d => format(startOfDay(d), 'yyyy-MM-dd') === checkDateString)) {
-              isValidSuggestion = false;
-              break;
+        // Basic suggestion logic (find next available block of same length)
+        let suggestionFound = false;
+        let suggestionStart = addDays(checkOutDate!, 1); // Start searching from the day after requested checkout
+        const maxSearchDate = addDays(checkOutDate!, 60); // Limit search to avoid infinite loops
+
+        while (isAfter(maxSearchDate, suggestionStart) && !suggestionFound) {
+            const suggestionEnd = addDays(suggestionStart, numberOfNights);
+            let suggestionConflict = false;
+            let checkCurrent = new Date(suggestionStart.getTime());
+
+            while(isAfter(suggestionEnd, checkCurrent)) {
+                 const checkDateString = format(startOfDay(checkCurrent), 'yyyy-MM-dd');
+                 if (fetchedUnavailableDates.some(d => format(startOfDay(d), 'yyyy-MM-dd') === checkDateString) || isBefore(checkCurrent, startOfDay(new Date()))) {
+                      suggestionConflict = true;
+                      break;
+                 }
+                checkCurrent = addDays(checkCurrent, 1);
             }
-            checkCurrent = addDays(checkCurrent, 1);
+
+            if (!suggestionConflict) {
+                 setSuggestedDates([{ from: suggestionStart, to: suggestionEnd, recommendation: "Next Available" }]);
+                 suggestionFound = true;
+            } else {
+                suggestionStart = addDays(suggestionStart, 1); // Move to the next day
+            }
+        }
+          if (!suggestionFound) {
+              console.log("No alternative dates found within 60 days.");
+              // Optionally set a state to indicate no suggestions were found
           }
-          return isValidSuggestion && !isBefore(startOfDay(range.from), startOfDay(new Date()));
-        });
-        setSuggestedDates(validSuggestions.slice(0, 3));
+
       }
     } catch (error) {
       console.error("Error checking availability:", error);
@@ -248,10 +253,10 @@ export function AvailabilityCheck({
         numberOfGuests: currentGuests,
         pricing: {
           ...pricingDetailsInBaseCurrency,
-          currency: propertyBaseCcy,
+          currency: propertyBaseCcy, // Pass base currency
         },
         status: 'pending' as const,
-        appliedCouponCode: appliedCoupon?.code ?? null,
+        appliedCouponCode: appliedCoupon?.code || null, // Send null if no coupon
       };
 
       const pendingBookingResult = await createPendingBookingAction(bookingInput);
@@ -303,34 +308,33 @@ export function AvailabilityCheck({
     }
   };
 
+
   // --- Calendar Rendering Logic ---
-   const renderAvailabilityCalendar = () => {
-       // Only render if dates are unavailable
-       if (isAvailable === true) {
-         return null;
-       }
-       // Default to today if checkInDate is not valid or unavailable
-       const validCheckIn = checkInDate && isValid(checkInDate) ? checkInDate : new Date();
-       // Calculate the center month (one month before the target month)
-       const calendarCenterMonth = startOfMonth(subMonths(validCheckIn, 1));
+  const renderAvailabilityCalendar = () => {
+      // Only render if dates are unavailable
+      if (isAvailable === true || isLoadingAvailability) {
+          return null;
+      }
+      // Default to today if checkInDate is not valid or unavailable
+      const validCheckIn = checkInDate && isValid(checkInDate) ? checkInDate : new Date();
+      // Calculate the center month (one month before the target month)
+      const calendarCenterMonth = startOfMonth(subMonths(validCheckIn, 1));
 
-       return (
-           <div className="mt-6">
-           <h3 className="text-lg font-semibold mb-3">Availability Calendar</h3>
-           <AvailabilityCalendar
-               currentMonth={calendarCenterMonth} // Pass the calculated center month
-               unavailableDates={unavailableDates}
-               selectedRange={dateRange} // Pass the current selection
-           />
-           </div>
-       );
-   };
-
+      return (
+          <div className="mt-6">
+          <h3 className="text-lg font-semibold mb-3">Availability Calendar</h3>
+          <AvailabilityCalendar
+              currentMonth={calendarCenterMonth}
+              unavailableDates={unavailableDates}
+              selectedRange={dateRange}
+          />
+          </div>
+      );
+  };
 
   // --- Main Render ---
   return (
     <div className="max-w-2xl mx-auto w-full px-4">
-
       {/* Date Picker */}
       <div className="mb-6">
           <Label className="mb-1 block text-sm font-medium">Select Dates</Label>
@@ -342,7 +346,7 @@ export function AvailabilityCheck({
                   "w-full justify-between text-left font-normal flex items-center",
                   !dateRange && "text-muted-foreground"
                 )}
-                disabled={isProcessingBooking || isLoadingAvailability} // Disable while loading or processing
+                disabled={isProcessingBooking || isLoadingAvailability}
               >
                 <div className="flex items-center">
                   <CalendarIcon className="mr-2 h-4 w-4" />
@@ -400,62 +404,54 @@ export function AvailabilityCheck({
         isProcessingBooking={isProcessingBooking}
       />
 
-      {/* Calendar (only if dates are unavailable) */}
+       {/* Calendar (only if dates are unavailable) */}
       {renderAvailabilityCalendar()}
 
       {/* Guest Info & Pricing Form (only if dates ARE available) */}
-      {isAvailable === true && (
+      {isAvailable === true && !isLoadingAvailability && (
         <Card className="w-full mt-8">
           <CardHeader>
             <CardTitle>Booking Summary & Details</CardTitle>
             <CardDescription>Confirm details and proceed to payment.</CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoadingAvailability ? (
-              <div className="flex justify-center items-center p-8">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <form onSubmit={handleContinueToPayment} className="space-y-6">
-                <GuestInfoForm
-                  property={property}
-                  numberOfGuests={numberOfGuests}
-                  setNumberOfGuests={setNumberOfGuests}
-                  firstName={firstName}
-                  setFirstName={setFirstName}
-                  lastName={lastName}
-                  setLastName={setLastName}
-                  email={email}
-                  setEmail={setEmail}
-                  phone={phone}
-                  setPhone={setPhone}
-                  checkInDate={checkInDate}
-                  checkOutDate={checkOutDate}
-                  appliedCoupon={appliedCoupon}
-                  setAppliedCoupon={setAppliedCoupon}
-                  pricingDetailsInBaseCurrency={pricingDetailsInBaseCurrency}
-                  isProcessingBooking={isProcessingBooking}
-                />
+            <form onSubmit={handleContinueToPayment} className="space-y-6">
+              <GuestInfoForm
+                property={property}
+                numberOfGuests={numberOfGuests}
+                setNumberOfGuests={setNumberOfGuests}
+                firstName={firstName}
+                setFirstName={setFirstName}
+                lastName={lastName}
+                setLastName={setLastName}
+                email={email}
+                setEmail={setEmail}
+                phone={phone}
+                setPhone={setPhone}
+                checkInDate={checkInDate}
+                checkOutDate={checkOutDate}
+                appliedCoupon={appliedCoupon}
+                setAppliedCoupon={setAppliedCoupon}
+                pricingDetailsInBaseCurrency={pricingDetailsInBaseCurrency}
+                isProcessingBooking={isProcessingBooking}
+              />
 
-                {formError && (
-                  <Alert variant="destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Error</AlertTitle>
-                    <AlertDescription>{formError}</AlertDescription>
-                  </Alert>
-                )}
-                <Button type="submit" className="w-full" disabled={isProcessingBooking || !datesSelected || isAvailable !== true}>
-                  {isProcessingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
-                  {isProcessingBooking ? 'Processing...' : 'Continue to Payment'}
-                </Button>
-                 {/* Removed Test Booking Button - keep separate if needed */}
-              </form>
-            )}
+              {formError && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>{formError}</AlertDescription>
+                </Alert>
+              )}
+              <Button type="submit" className="w-full" disabled={isProcessingBooking || !datesSelected || isAvailable !== true}>
+                {isProcessingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
+                {isProcessingBooking ? 'Processing...' : 'Continue to Payment'}
+              </Button>
+               {/* Removed Test Booking Button - keep separate if needed */}
+            </form>
           </CardContent>
         </Card>
       )}
     </div>
   );
 }
-
-    
