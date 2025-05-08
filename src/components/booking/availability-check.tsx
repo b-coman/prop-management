@@ -23,6 +23,8 @@ import {
   ArrowRight,
   AlertTriangle,
   Pencil,
+  Minus,
+  Plus,
 } from 'lucide-react';
 
 import type { Property, Availability, PriceCalculationResult, CurrencyCode } from '@/types';
@@ -42,11 +44,11 @@ import { sanitizeEmail, sanitizePhone, sanitizeText } from '@/lib/sanitize';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { calculatePrice } from '@/lib/price-utils';
 import { cn } from '@/lib/utils';
+import { Label } from "@/components/ui/label";
 
 import { AvailabilityCalendar } from './availability-calendar';
 import { AvailabilityStatus } from './availability-status';
 import { GuestInfoForm } from './guest-info-form';
-import { Label } from "@/components/ui/label"; // Added Label import
 
 
 interface AvailabilityCheckProps {
@@ -104,8 +106,8 @@ export function AvailabilityCheck({
     setHasMounted(true);
   }, []);
 
-   // Use guestsDisplay for guest count logic
-   const guestsDisplay = useMemo(() => {
+  // Use guestsDisplay for guest count logic
+  const guestsDisplay = useMemo(() => {
     // Ensure numberOfGuests is treated as a number before validation
     const guestValue = typeof numberOfGuests === 'string' ? parseInt(numberOfGuests, 10) : numberOfGuests;
     return typeof guestValue === 'number' && !isNaN(guestValue) && guestValue > 0
@@ -282,6 +284,18 @@ export function AvailabilityCheck({
     setIsDatePickerOpen(false); // Close popover after selection
   };
 
+  const handleGuestChange = (change: number) => {
+    setNumberOfGuests((prev) => {
+      // Use the derived guestsDisplay logic to ensure correct base for calculation
+      const currentGuests = typeof prev === 'number' && !isNaN(prev) && prev > 0
+        ? prev
+        : (property.baseOccupancy || 1);
+      const newCount = currentGuests + change;
+      // Ensure bounds are respected
+      return Math.max(1, Math.min(newCount, property.maxGuests));
+    });
+  };
+
   const handleContinueToPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -413,49 +427,6 @@ export function AvailabilityCheck({
     // Apply max-width and mx-auto to center the content
     // Added padding-x for spacing on smaller screens
     <div className="max-w-2xl mx-auto w-full px-4">
-      {/* Date Picker */}
-      <div className="mb-6">
-          <Label className="mb-1 block text-sm font-medium">Select Dates</Label>
-          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "flex-grow justify-between text-left font-normal flex items-center w-full", // Ensure button takes full width
-                  !displayDateRangeString && "text-muted-foreground" // Style when no date is displayed yet
-                )}
-                disabled={isProcessingBooking || isLoadingAvailability || !hasMounted} // Disable until mounted
-              >
-                <div className="flex items-center">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {/* Render placeholder until mounted or date is set */}
-                  {hasMounted && displayDateRangeString ? (
-                    displayDateRangeString
-                  ) : (
-                    <span>{hasMounted ? 'Pick a date range' : 'Loading dates...'}</span>
-                  )}
-                </div>
-                <Pencil className="h-3 w-3 opacity-50 ml-auto" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={dateRange?.from}
-                selected={dateRange}
-                onSelect={handleDateSelect}
-                numberOfMonths={2}
-                disabled={{ before: startOfDay(new Date()) }}
-              />
-            </PopoverContent>
-          </Popover>
-          {clientNumberOfNights > 0 && (
-             <p className="text-sm text-muted-foreground mt-1">
-               ({clientNumberOfNights} {clientNumberOfNights === 1 ? 'night' : 'nights'})
-             </p>
-          )}
-      </div>
 
       {/* Availability Status and Notifications */}
       <AvailabilityStatus
@@ -475,6 +446,91 @@ export function AvailabilityCheck({
         setPhone={setPhone}
         isProcessingBooking={isProcessingBooking}
       />
+
+      {/* Date Picker and Guest Count */}
+      {/* Moved these sections below AvailabilityStatus */}
+      <div className="mt-6 space-y-6">
+          {/* Date Picker */}
+          <div>
+              <Label className="mb-1 block text-sm font-medium">Selected Dates</Label>
+              <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "flex-grow justify-between text-left font-normal flex items-center w-full", // Ensure button takes full width
+                      !displayDateRangeString && "text-muted-foreground" // Style when no date is displayed yet
+                    )}
+                    disabled={isProcessingBooking || isLoadingAvailability || !hasMounted} // Disable until mounted
+                  >
+                    <div className="flex items-center">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {/* Render placeholder until mounted or date is set */}
+                      {hasMounted && displayDateRangeString ? (
+                        displayDateRangeString
+                      ) : (
+                        <span>{hasMounted ? 'Pick a date range' : 'Loading dates...'}</span>
+                      )}
+                    </div>
+                    <Pencil className="h-3 w-3 opacity-50 ml-auto" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={dateRange?.from}
+                    selected={dateRange}
+                    onSelect={handleDateSelect}
+                    numberOfMonths={2}
+                    disabled={{ before: startOfDay(new Date()) }}
+                  />
+                </PopoverContent>
+              </Popover>
+              {clientNumberOfNights > 0 && hasMounted && (
+                 <p className="text-sm text-muted-foreground mt-1">
+                   ({clientNumberOfNights} {clientNumberOfNights === 1 ? 'night' : 'nights'})
+                 </p>
+              )}
+          </div>
+
+          {/* Number of Guests */}
+          <div className="space-y-1">
+            <Label htmlFor="guests">Number of Guests</Label>
+            <div className="flex items-center justify-between rounded-md border p-2 mt-1 w-full max-w-xs"> {/* Limit width */}
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => handleGuestChange(-1)}
+                disabled={guestsDisplay <= 1 || isProcessingBooking}
+                aria-label="Decrease guests"
+              >
+                <Minus className="h-4 w-4" />
+              </Button>
+              <span className="mx-4 font-medium w-8 text-center" id="guests">
+                {guestsDisplay}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => handleGuestChange(1)}
+                disabled={guestsDisplay >= property.maxGuests || isProcessingBooking}
+                aria-label="Increase guests"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Max {property.maxGuests}. Base for {property.baseOccupancy}.
+              {(property.extraGuestFee ?? 0) > 0 && ` Extra: ${property.extraGuestFee ?? 0} ${propertyBaseCcy}/guest/night.`}
+            </p>
+          </div>
+       </div>
+
 
        {/* Calendar (only if dates are unavailable) */}
       {renderAvailabilityCalendar()}
