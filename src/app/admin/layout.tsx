@@ -1,12 +1,12 @@
 // src/app/admin/layout.tsx
 'use client';
 
-import { type ReactNode, Suspense, useEffect } from 'react'; // Added useEffect
+import { type ReactNode, Suspense, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Loader2, LogOut, LayoutDashboard, Building, Ticket, MessageSquare } from 'lucide-react'; // Added Building, Ticket, MessageSquare
+import { Loader2, LogOut, LayoutDashboard, Building, Ticket, MessageSquare, CalendarCheck } from 'lucide-react'; // Added CalendarCheck
 
 // Inner component to handle auth logic
 function ProtectedAdminLayout({ children }: { children: ReactNode }) {
@@ -14,12 +14,22 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
+    // Log initial state
+    console.log(`[ProtectedAdminLayout] useEffect initial check. Loading: ${loading}, User: ${user ? user.uid : 'null'}`);
+
+    // Redirect if not loading and not authenticated
     if (!loading && !user) {
+      console.log("[ProtectedAdminLayout] Not loading and no user found. Redirecting to /login.");
       router.replace('/login');
+    } else if (!loading && user) {
+       console.log("[ProtectedAdminLayout] User is authenticated. Proceeding.");
+    } else {
+       console.log("[ProtectedAdminLayout] Still loading authentication state...");
     }
   }, [user, loading, router]); // Add dependencies
 
   if (loading) {
+    console.log("[ProtectedAdminLayout] Rendering loading indicator.");
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -29,9 +39,9 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
   }
 
   if (!user) {
-    // If user is null after loading, redirect immediately in the effect
-    // This avoids rendering anything before redirect
-    // Return a minimal loading state while redirect happens
+     console.log("[ProtectedAdminLayout] Rendering redirecting indicator (should be brief).");
+     // If user is null after loading, redirect happens in the effect
+     // Return a minimal loading state while redirect happens
      return (
          <div className="flex min-h-screen items-center justify-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -41,6 +51,7 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
   }
 
   // Only render the protected layout if user is authenticated
+  console.log("[ProtectedAdminLayout] Rendering protected admin content.");
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -50,17 +61,20 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
             RentalSpot Admin
           </Link>
           <nav className="flex items-center gap-4">
-            {/* Added Manage Properties Link */}
+             {/* Links */}
             <Link href="/admin/properties" className="text-sm hover:underline flex items-center">
-               <Building className="mr-1 h-4 w-4" /> Manage Properties
+               <Building className="mr-1 h-4 w-4" /> Properties
+            </Link>
+             <Link href="/admin/bookings" className="text-sm hover:underline flex items-center">
+                <CalendarCheck className="mr-1 h-4 w-4" /> Bookings
             </Link>
              <Link href="/admin/coupons" className="text-sm hover:underline flex items-center">
-               <Ticket className="mr-1 h-4 w-4" /> Manage Coupons
+               <Ticket className="mr-1 h-4 w-4" /> Coupons
             </Link>
             <Link href="/admin/inquiries" className="text-sm hover:underline flex items-center">
-               <MessageSquare className="mr-1 h-4 w-4" /> Manage Inquiries
+               <MessageSquare className="mr-1 h-4 w-4" /> Inquiries
             </Link>
-            {/* Add other admin navigation links here as they are developed */}
+            {/* Logout Button */}
             <Button onClick={logout} variant="outline" size="sm">
               <LogOut className="mr-2 h-4 w-4" />
               Logout

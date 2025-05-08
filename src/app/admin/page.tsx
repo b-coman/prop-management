@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { BookOpen, Ticket, Users, Settings, BarChart3, HelpCircle, Building, PlusCircle, MessageSquare } from 'lucide-react'; // Added Building, PlusCircle, MessageSquare
+import { BookOpen, Ticket, Users, Settings, BarChart3, HelpCircle, Building, PlusCircle, MessageSquare, CalendarCheck } from 'lucide-react'; // Added CalendarCheck
 
 export default function AdminDashboardPage() {
   return (
@@ -47,6 +47,26 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
 
+        {/* Booking Management Card */}
+         <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center text-xl">
+              <CalendarCheck className="mr-2 h-6 w-6 text-primary" />
+              Booking Management
+            </CardTitle>
+            <CardDescription>
+              View bookings, manage holds, and track payments.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col space-y-3">
+            <Link href="/admin/bookings" passHref>
+              <Button variant="outline" className="w-full">View All Bookings</Button>
+            </Link>
+             {/* Add link to create booking manually if needed */}
+             {/* <Button className="w-full" disabled>Create New Booking (NYI)</Button> */}
+          </CardContent>
+        </Card>
+
         {/* Inquiry Management Card */}
          <Card>
           <CardHeader>
@@ -87,8 +107,6 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Removed Placeholder Property Management Card */}
-
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center text-xl">
@@ -112,8 +130,7 @@ export default function AdminDashboardPage() {
             </CardTitle>
             <CardDescription>
               View booking statistics and performance reports. (Coming Soon)
-            </CardHeader>
-          </CardContent>
+            </CardContent>
           <CardContent>
             <Button variant="outline" className="w-full" disabled>View Analytics</Button>
           </CardContent>
@@ -128,7 +145,7 @@ export default function AdminDashboardPage() {
             <CardDescription>
               Configure global settings for your rental platform. (Coming Soon)
             </CardDescription>
-          </CardContent>
+          </CardHeader>
           <CardContent>
             <Button variant="outline" className="w-full" disabled>Configure Settings</Button>
           </CardContent>
@@ -159,10 +176,10 @@ export default function AdminDashboardPage() {
         </CardHeader>
         <CardContent className="space-y-3 text-muted-foreground">
              <p><strong>1. Add Properties:</strong> Use the "Property Management" section to add your rental listings.</p>
-             <p><strong>2. Manage Inquiries:</strong> Respond to potential guests via the "Inquiry Management" section.</p>
-            <p><strong>3. Manage Coupons:</strong> Use the "Coupon Management" section to create discounts.</p>
-            <p><strong>4. Monitor Bookings:</strong> (Future) Keep an eye on incoming bookings and their statuses.</p>
-            <p><strong>5. Customize Property Websites:</strong> (Future) Tailor the content and appearance of individual property websites through overrides.</p>
+             <p><strong>2. Manage Bookings:</strong> Oversee reservations and holds in the "Booking Management" section.</p>
+             <p><strong>3. Manage Inquiries:</strong> Respond to potential guests via the "Inquiry Management" section.</p>
+            <p><strong>4. Manage Coupons:</strong> Use the "Coupon Management" section to create discounts.</p>
+            {/* <p><strong>5. Customize Property Websites:</strong> (Future) Tailor the content and appearance of individual property websites through overrides.</p> */}
              <p><strong>Need Help?</strong> Refer to the documentation or contact support if you encounter any issues.</p>
         </CardContent>
       </Card>
