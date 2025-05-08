@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { BookOpen, Ticket, Users, Settings, BarChart3, HelpCircle, Building, PlusCircle } from 'lucide-react'; // Added Building, PlusCircle
+import { BookOpen, Ticket, Users, Settings, BarChart3, HelpCircle, Building, PlusCircle, MessageSquare } from 'lucide-react'; // Added Building, PlusCircle, MessageSquare
 
 export default function AdminDashboardPage() {
   return (
@@ -44,6 +44,26 @@ export default function AdminDashboardPage() {
                  <PlusCircle className="mr-2 h-4 w-4" /> Add New Property
                </Button>
              </Link>
+          </CardContent>
+        </Card>
+
+        {/* Inquiry Management Card */}
+         <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center text-xl">
+              <MessageSquare className="mr-2 h-6 w-6 text-primary" />
+              Inquiry Management
+            </CardTitle>
+            <CardDescription>
+              View and respond to guest inquiries.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col space-y-3">
+            <Link href="/admin/inquiries" passHref>
+              <Button variant="outline" className="w-full">View All Inquiries</Button>
+            </Link>
+             {/* Add link to create inquiry if needed, or remove button */}
+             {/* <Button className="w-full" disabled>Create New Inquiry</Button> */}
           </CardContent>
         </Card>
 
@@ -107,7 +127,7 @@ export default function AdminDashboardPage() {
             </CardTitle>
             <CardDescription>
               Configure global settings for your rental platform. (Coming Soon)
-            </CardHeader>
+            </CardDescription>
           </CardContent>
           <CardContent>
             <Button variant="outline" className="w-full" disabled>Configure Settings</Button>
@@ -139,9 +159,10 @@ export default function AdminDashboardPage() {
         </CardHeader>
         <CardContent className="space-y-3 text-muted-foreground">
              <p><strong>1. Add Properties:</strong> Use the "Property Management" section to add your rental listings.</p>
-            <p><strong>2. Manage Coupons:</strong> Use the "Coupon Management" section to create discounts that guests can apply during booking.</p>
-            <p><strong>3. Monitor Bookings:</strong> (Future) Keep an eye on incoming bookings and their statuses.</p>
-            <p><strong>4. Customize Property Websites:</strong> (Future) Tailor the content and appearance of individual property websites through overrides.</p>
+             <p><strong>2. Manage Inquiries:</strong> Respond to potential guests via the "Inquiry Management" section.</p>
+            <p><strong>3. Manage Coupons:</strong> Use the "Coupon Management" section to create discounts.</p>
+            <p><strong>4. Monitor Bookings:</strong> (Future) Keep an eye on incoming bookings and their statuses.</p>
+            <p><strong>5. Customize Property Websites:</strong> (Future) Tailor the content and appearance of individual property websites through overrides.</p>
              <p><strong>Need Help?</strong> Refer to the documentation or contact support if you encounter any issues.</p>
         </CardContent>
       </Card>

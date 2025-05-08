@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Loader2, LogOut, LayoutDashboard, Building, Ticket } from 'lucide-react'; // Added Building, Ticket
+import { Loader2, LogOut, LayoutDashboard, Building, Ticket, MessageSquare } from 'lucide-react'; // Added Building, Ticket, MessageSquare
 
 // Inner component to handle auth logic
 function ProtectedAdminLayout({ children }: { children: ReactNode }) {
@@ -29,7 +29,10 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
   }
 
   if (!user) {
-    return (
+    // If user is null after loading, redirect immediately in the effect
+    // This avoids rendering anything before redirect
+    // Return a minimal loading state while redirect happens
+     return (
          <div className="flex min-h-screen items-center justify-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
             <p className="ml-3 text-muted-foreground">Redirecting...</p>
@@ -37,6 +40,7 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
     );
   }
 
+  // Only render the protected layout if user is authenticated
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -52,6 +56,9 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
             </Link>
              <Link href="/admin/coupons" className="text-sm hover:underline flex items-center">
                <Ticket className="mr-1 h-4 w-4" /> Manage Coupons
+            </Link>
+            <Link href="/admin/inquiries" className="text-sm hover:underline flex items-center">
+               <MessageSquare className="mr-1 h-4 w-4" /> Manage Inquiries
             </Link>
             {/* Add other admin navigation links here as they are developed */}
             <Button onClick={logout} variant="outline" size="sm">
