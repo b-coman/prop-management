@@ -104,14 +104,8 @@ export function AvailabilityCheck({
     setHasMounted(true);
   }, []);
 
-
-  // --- Derived State ---
-  const dateRange: DateRange | undefined = useMemo(() => {
-    return checkInDate && checkOutDate ? { from: checkInDate, to: checkOutDate } : undefined;
-  }, [checkInDate, checkOutDate]);
-
-  // Use guestsDisplay for guest count logic
-  const guestsDisplay = useMemo(() => {
+   // Use guestsDisplay for guest count logic
+   const guestsDisplay = useMemo(() => {
     // Ensure numberOfGuests is treated as a number before validation
     const guestValue = typeof numberOfGuests === 'string' ? parseInt(numberOfGuests, 10) : numberOfGuests;
     return typeof guestValue === 'number' && !isNaN(guestValue) && guestValue > 0
@@ -119,6 +113,10 @@ export function AvailabilityCheck({
       : (property.baseOccupancy || 1);
   }, [numberOfGuests, property.baseOccupancy]);
 
+  // --- Derived State ---
+  const dateRange: DateRange | undefined = useMemo(() => {
+    return checkInDate && checkOutDate ? { from: checkInDate, to: checkOutDate } : undefined;
+  }, [checkInDate, checkOutDate]);
 
   // Calculate datesSelected and numberOfNights client-side after mount
   const datesSelected = useMemo(() =>
@@ -128,12 +126,14 @@ export function AvailabilityCheck({
 
   // Calculate numberOfNights on the client after hydration
   useEffect(() => {
-    if (datesSelected && checkInDate && checkOutDate) {
-      setClientNumberOfNights(differenceInDays(checkOutDate, checkInDate));
-    } else {
-      setClientNumberOfNights(0);
+    if (hasMounted) { // Ensure this runs only on the client
+      if (datesSelected && checkInDate && checkOutDate) {
+        setClientNumberOfNights(differenceInDays(checkOutDate, checkInDate));
+      } else {
+        setClientNumberOfNights(0);
+      }
     }
-  }, [checkInDate, checkOutDate, datesSelected]);
+  }, [checkInDate, checkOutDate, datesSelected, hasMounted]);
 
 
   // Update display string only on client after mount
@@ -156,7 +156,7 @@ export function AvailabilityCheck({
 
   // --- Pricing Calculation ---
   const pricingDetailsInBaseCurrency = useMemo(() => {
-    const currentGuests = guestsDisplay; // Now guestsDisplay is guaranteed to be initialized
+    const currentGuests = guestsDisplay; // Use derived guests state
     // Use clientNumberOfNights for calculation
     if (datesSelected && currentGuests > 0 && clientNumberOfNights > 0) {
       return calculatePrice(
@@ -171,7 +171,7 @@ export function AvailabilityCheck({
       );
     }
     return null;
-  }, [datesSelected, property, clientNumberOfNights, guestsDisplay, appliedCoupon, propertyBaseCcy]); // Depend on clientNumberOfNights
+  }, [datesSelected, property, clientNumberOfNights, guestsDisplay, appliedCoupon, propertyBaseCcy]); // Depend on clientNumberOfNights and guestsDisplay
 
 
   // --- Availability Check Logic ---
@@ -315,7 +315,7 @@ export function AvailabilityCheck({
     setIsProcessingBooking(true);
 
     try {
-      const bookingInput = {
+       const bookingInput = {
         propertyId: propertySlug,
         guestInfo: { firstName: sanitizeText(firstName), lastName: sanitizeText(lastName), email: sanitizeEmail(email), phone: sanitizePhone(phone) },
         checkInDate: checkInDate.toISOString(),
@@ -410,6 +410,8 @@ export function AvailabilityCheck({
 
   // --- Main Render ---
   return (
+    // Apply max-width and mx-auto to center the content
+    // Added padding-x for spacing on smaller screens
     <div className="max-w-2xl mx-auto w-full px-4">
       {/* Date Picker */}
       <div className="mb-6">
