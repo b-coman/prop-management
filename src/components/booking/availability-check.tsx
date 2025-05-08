@@ -44,12 +44,12 @@ import { sanitizeEmail, sanitizePhone, sanitizeText } from '@/lib/sanitize';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { calculatePrice } from '@/lib/price-utils';
 import { cn } from '@/lib/utils';
-import { Label } from "@/components/ui/label";
+import { Label } from "@/components/ui/label"; // Import Label
 
 import { AvailabilityCalendar } from './availability-calendar';
 import { AvailabilityStatus } from './availability-status';
 import { GuestInfoForm } from './guest-info-form';
-
+// import { TestBookingButton } from '@/components/test-booking-button'; // Removed unused import
 
 interface AvailabilityCheckProps {
   property: Property;
@@ -81,6 +81,7 @@ export function AvailabilityCheck({
   // --- Core State ---
   const [checkInDate, setCheckInDate] = useSessionStorage<Date | null>(`booking_${propertySlug}_checkIn`, parseDateSafe(initialCheckIn));
   const [checkOutDate, setCheckOutDate] = useSessionStorage<Date | null>(`booking_${propertySlug}_checkOut`, parseDateSafe(initialCheckOut));
+  // numberOfGuests from session storage is the source of truth AFTER hydration
   const [numberOfGuests, setNumberOfGuests] = useSessionStorage<number>(`booking_${propertySlug}_guests`, property.baseOccupancy || 1);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
@@ -94,6 +95,8 @@ export function AvailabilityCheck({
   const [displayDateRangeString, setDisplayDateRangeString] = useState<string | null>(null);
   const [hasMounted, setHasMounted] = useState(false); // Track client mount
   const [clientNumberOfNights, setClientNumberOfNights] = useState<number>(0); // State for client-side night calculation
+  // State for displaying guests, initialized with server value, updated client-side
+  const [displayGuests, setDisplayGuests] = useState<number>(property.baseOccupancy || 1);
 
   // --- Guest Info State (managed here, passed down) ---
   const [firstName, setFirstName] = useSessionStorage<string>(`booking_${propertySlug}_firstName`, '');
@@ -106,14 +109,17 @@ export function AvailabilityCheck({
     setHasMounted(true);
   }, []);
 
-  // Use guestsDisplay for guest count logic
-  const guestsDisplay = useMemo(() => {
-    // Ensure numberOfGuests is treated as a number before validation
-    const guestValue = typeof numberOfGuests === 'string' ? parseInt(numberOfGuests, 10) : numberOfGuests;
-    return typeof guestValue === 'number' && !isNaN(guestValue) && guestValue > 0
-      ? guestValue
-      : (property.baseOccupancy || 1);
-  }, [numberOfGuests, property.baseOccupancy]);
+  // Update display state after mount based on session storage value
+  useEffect(() => {
+    if (hasMounted) {
+      // Read from sessionStorage-backed state and update display state
+      const guestValue = typeof numberOfGuests === 'number' && !isNaN(numberOfGuests) && numberOfGuests > 0
+        ? numberOfGuests
+        : (property.baseOccupancy || 1);
+      setDisplayGuests(guestValue);
+    }
+  }, [hasMounted, numberOfGuests, property.baseOccupancy]);
+
 
   // --- Derived State ---
   const dateRange: DateRange | undefined = useMemo(() => {
@@ -158,7 +164,10 @@ export function AvailabilityCheck({
 
   // --- Pricing Calculation ---
   const pricingDetailsInBaseCurrency = useMemo(() => {
-    const currentGuests = guestsDisplay; // Use derived guests state
+    // Use the current value from session storage for calculation
+    const currentGuests = typeof numberOfGuests === 'number' && !isNaN(numberOfGuests) && numberOfGuests > 0
+      ? numberOfGuests
+      : (property.baseOccupancy || 1);
     // Use clientNumberOfNights for calculation
     if (datesSelected && currentGuests > 0 && clientNumberOfNights > 0) {
       return calculatePrice(
@@ -173,7 +182,7 @@ export function AvailabilityCheck({
       );
     }
     return null;
-  }, [datesSelected, property, clientNumberOfNights, guestsDisplay, appliedCoupon, propertyBaseCcy]); // Depend on clientNumberOfNights and guestsDisplay
+  }, [datesSelected, property, clientNumberOfNights, numberOfGuests, appliedCoupon, propertyBaseCcy]); // Depend on numberOfGuests
 
 
   // --- Availability Check Logic ---
@@ -285,8 +294,9 @@ export function AvailabilityCheck({
   };
 
   const handleGuestChange = (change: number) => {
+    // This function now updates the session storage state directly
     setNumberOfGuests((prev) => {
-      // Use the derived guestsDisplay logic to ensure correct base for calculation
+      // Use the current value from session storage (prev) or default
       const currentGuests = typeof prev === 'number' && !isNaN(prev) && prev > 0
         ? prev
         : (property.baseOccupancy || 1);
@@ -294,15 +304,21 @@ export function AvailabilityCheck({
       // Ensure bounds are respected
       return Math.max(1, Math.min(newCount, property.maxGuests));
     });
+    // The useEffect dependency on numberOfGuests will update displayGuests
   };
+
 
   const handleContinueToPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
-    // Use guestsDisplay for validation
-    if (guestsDisplay < 1 || guestsDisplay > property.maxGuests) {
-      setFormError(`Number of guests must be between 1 and ${property.maxGuests}. Current: ${guestsDisplay}`);
+    // Use the actual numberOfGuests from state for validation
+    const currentGuests = typeof numberOfGuests === 'number' && !isNaN(numberOfGuests) && numberOfGuests > 0
+        ? numberOfGuests
+        : (property.baseOccupancy || 1);
+
+    if (currentGuests < 1 || currentGuests > property.maxGuests) {
+      setFormError(`Number of guests must be between 1 and ${property.maxGuests}.`);
       return;
     }
     if (!datesSelected || isAvailable !== true || !checkInDate || !checkOutDate || clientNumberOfNights <= 0) { // Check clientNumberOfNights
@@ -334,15 +350,14 @@ export function AvailabilityCheck({
         guestInfo: { firstName: sanitizeText(firstName), lastName: sanitizeText(lastName), email: sanitizeEmail(email), phone: sanitizePhone(phone) },
         checkInDate: checkInDate.toISOString(),
         checkOutDate: checkOutDate.toISOString(),
-        numberOfGuests: guestsDisplay, // Use derived state
+        numberOfGuests: currentGuests, // Use validated current guests
         pricing: {
           ...pricingDetailsInBaseCurrency,
           currency: propertyBaseCcy, // Pass base currency
-          // Ensure numberOfNights here matches clientNumberOfNights if needed by schema
-          numberOfNights: clientNumberOfNights,
+          numberOfNights: clientNumberOfNights, // Use client-side nights
         },
         status: 'pending' as const,
-        appliedCouponCode: appliedCoupon?.code ?? null, // Pass null if no coupon applied
+        appliedCouponCode: appliedCoupon?.code ?? null,
       };
       console.log("[Action createPendingBookingAction] Called with input:", JSON.stringify(bookingInput, null, 2));
 
@@ -360,7 +375,7 @@ export function AvailabilityCheck({
         property: property,
         checkInDate: checkInDate.toISOString(),
         checkOutDate: checkOutDate.toISOString(),
-        numberOfGuests: guestsDisplay, // Use derived state
+        numberOfGuests: currentGuests, // Use validated current guests
         totalPrice: pricingDetailsInBaseCurrency.total, // Total in base currency
         numberOfNights: clientNumberOfNights, // Use clientNumberOfNights
         appliedCouponCode: appliedCoupon?.code,
@@ -448,11 +463,10 @@ export function AvailabilityCheck({
       />
 
       {/* Date Picker and Guest Count */}
-      {/* Moved these sections below AvailabilityStatus */}
       <div className="mt-6 space-y-6">
           {/* Date Picker */}
           <div>
-              <Label className="mb-1 block text-sm font-medium">Selected Dates</Label>
+              <Label className="mb-1 block text-sm font-medium">Select Dates</Label>
               <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -504,13 +518,15 @@ export function AvailabilityCheck({
                 size="icon"
                 className="h-7 w-7"
                 onClick={() => handleGuestChange(-1)}
-                disabled={guestsDisplay <= 1 || isProcessingBooking}
+                // Disable based on displayGuests for immediate UI feedback
+                disabled={displayGuests <= 1 || isProcessingBooking}
                 aria-label="Decrease guests"
               >
                 <Minus className="h-4 w-4" />
               </Button>
               <span className="mx-4 font-medium w-8 text-center" id="guests">
-                {guestsDisplay}
+                {/* Display the client-side state */}
+                {hasMounted ? displayGuests : (property.baseOccupancy || 1)}
               </span>
               <Button
                 type="button"
@@ -518,7 +534,8 @@ export function AvailabilityCheck({
                 size="icon"
                 className="h-7 w-7"
                 onClick={() => handleGuestChange(1)}
-                disabled={guestsDisplay >= property.maxGuests || isProcessingBooking}
+                // Disable based on displayGuests for immediate UI feedback
+                disabled={displayGuests >= property.maxGuests || isProcessingBooking}
                 aria-label="Increase guests"
               >
                 <Plus className="h-4 w-4" />
@@ -546,8 +563,8 @@ export function AvailabilityCheck({
             <form onSubmit={handleContinueToPayment} className="space-y-6">
               <GuestInfoForm
                 property={property}
-                numberOfGuests={numberOfGuests} // Pass raw state
-                setNumberOfGuests={setNumberOfGuests}
+                numberOfGuests={numberOfGuests} // Pass raw state for logic
+                setNumberOfGuests={setNumberOfGuests} // Pass setter
                 firstName={firstName}
                 setFirstName={setFirstName}
                 lastName={lastName}
@@ -562,6 +579,8 @@ export function AvailabilityCheck({
                 setAppliedCoupon={setAppliedCoupon}
                 pricingDetailsInBaseCurrency={pricingDetailsInBaseCurrency}
                 isProcessingBooking={isProcessingBooking}
+                // Pass displayGuests for consistent display within the form if needed
+                displayGuests={displayGuests}
               />
 
               {formError && (
