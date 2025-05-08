@@ -138,9 +138,19 @@ export function AvailabilityCheck({
     }
   }, [dateRange, hasMounted]);
 
+
+  // Moved this before pricingDetailsInBaseCurrency
+  // Use guestsDisplay for guest count logic
+  const guestsDisplay = useMemo(() => {
+    return typeof numberOfGuests === 'number' && !isNaN(numberOfGuests) && numberOfGuests > 0
+      ? numberOfGuests
+      : (property.baseOccupancy || 1);
+  }, [numberOfGuests, property.baseOccupancy]);
+
+
   // --- Pricing Calculation ---
   const pricingDetailsInBaseCurrency = useMemo(() => {
-    const currentGuests = guestsDisplay; // Use the derived guestsDisplay state
+    const currentGuests = guestsDisplay; // Now guestsDisplay is guaranteed to be initialized
     if (datesSelected && currentGuests > 0 && numberOfNights > 0) {
       return calculatePrice(
         property.pricePerNight,
@@ -157,12 +167,6 @@ export function AvailabilityCheck({
   }, [datesSelected, property, numberOfNights, guestsDisplay, appliedCoupon, propertyBaseCcy]); // Added guestsDisplay dependency
 
 
-  // Use guestsDisplay for guest count logic
-  const guestsDisplay = useMemo(() => {
-    return typeof numberOfGuests === 'number' && !isNaN(numberOfGuests) && numberOfGuests > 0
-      ? numberOfGuests
-      : (property.baseOccupancy || 1);
-  }, [numberOfGuests, property.baseOccupancy]);
 
   // --- Availability Check Logic ---
   const checkPropertyAvailability = useCallback(async () => {
@@ -308,10 +312,10 @@ export function AvailabilityCheck({
         status: 'pending' as const,
         appliedCouponCode: appliedCoupon?.code ?? null, // Pass null if no coupon applied
       };
-      // console.log("[Action createPendingBookingAction] Called with input:", JSON.stringify(bookingInput, null, 2));
+      console.log("[Action createPendingBookingAction] Called with input:", JSON.stringify(bookingInput, null, 2));
 
       const pendingBookingResult = await createPendingBookingAction(bookingInput);
-      // console.log("[Action createPendingBookingAction] Result:", pendingBookingResult);
+      console.log("[Action createPendingBookingAction] Result:", pendingBookingResult);
 
 
       if (pendingBookingResult.error || !pendingBookingResult.bookingId) {
@@ -391,47 +395,45 @@ export function AvailabilityCheck({
       {/* Date Picker */}
       <div className="mb-6">
           <Label className="mb-1 block text-sm font-medium">Select Dates</Label>
-          <div className="flex items-center gap-4">
-             <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "flex-grow justify-between text-left font-normal flex items-center",
-                    !displayDateRangeString && "text-muted-foreground" // Style when no date is displayed yet
+          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "flex-grow justify-between text-left font-normal flex items-center w-full", // Ensure button takes full width
+                  !displayDateRangeString && "text-muted-foreground" // Style when no date is displayed yet
+                )}
+                disabled={isProcessingBooking || isLoadingAvailability || !hasMounted} // Disable until mounted
+              >
+                <div className="flex items-center">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {/* Render placeholder until mounted or date is set */}
+                  {hasMounted && displayDateRangeString ? (
+                    displayDateRangeString
+                  ) : (
+                    <span>{hasMounted ? 'Pick a date range' : 'Loading dates...'}</span>
                   )}
-                  disabled={isProcessingBooking || isLoadingAvailability || !hasMounted} // Disable until mounted
-                >
-                  <div className="flex items-center">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {/* Render placeholder until mounted or date is set */}
-                    {hasMounted && displayDateRangeString ? (
-                      displayDateRangeString
-                    ) : (
-                      <span>{hasMounted ? 'Pick a date range' : 'Loading dates...'}</span>
-                    )}
-                  </div>
-                  <Pencil className="h-3 w-3 opacity-50 ml-auto" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  initialFocus
-                  mode="range"
-                  defaultMonth={dateRange?.from}
-                  selected={dateRange}
-                  onSelect={handleDateSelect}
-                  numberOfMonths={2}
-                  disabled={{ before: startOfDay(new Date()) }}
-                />
-              </PopoverContent>
-            </Popover>
-            {numberOfNights > 0 && (
-               <p className="text-sm text-muted-foreground whitespace-nowrap shrink-0">
-                 ({numberOfNights} {numberOfNights === 1 ? 'night' : 'nights'})
-               </p>
-             )}
-          </div>
+                </div>
+                <Pencil className="h-3 w-3 opacity-50 ml-auto" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={dateRange?.from}
+                selected={dateRange}
+                onSelect={handleDateSelect}
+                numberOfMonths={2}
+                disabled={{ before: startOfDay(new Date()) }}
+              />
+            </PopoverContent>
+          </Popover>
+          {numberOfNights > 0 && (
+             <p className="text-sm text-muted-foreground mt-1">
+               ({numberOfNights} {numberOfNights === 1 ? 'night' : 'nights'})
+             </p>
+          )}
       </div>
 
       {/* Availability Status and Notifications */}
@@ -467,7 +469,7 @@ export function AvailabilityCheck({
             <form onSubmit={handleContinueToPayment} className="space-y-6">
               <GuestInfoForm
                 property={property}
-                numberOfGuests={guestsDisplay} // Pass derived state
+                numberOfGuests={numberOfGuests} // Pass raw state
                 setNumberOfGuests={setNumberOfGuests}
                 firstName={firstName}
                 setFirstName={setFirstName}
