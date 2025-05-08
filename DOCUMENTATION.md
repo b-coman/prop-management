@@ -16,17 +16,19 @@ The system manages short-term rental properties through:
 - **Property metadata storage** in Firestore (`properties` collection).
 - **Template definition** for website structure and default content (`websiteTemplates` collection).
 - **Property-specific content overrides** and visibility settings (`propertyOverrides` collection).
-- **Multi-step booking flow** with availability check, guest info collection, and Stripe payment processing.
-- **Booking data storage** in Firestore (`bookings` collection).
-- **Availability data storage** per property per month (`availability` collection).
+- **Multi-step booking flow** with availability check, guest info collection, optional inquiry/hold paths, and Stripe payment processing.
+- **Booking data storage** in Firestore (`bookings` collection), including 'on-hold' status.
+- **Inquiry data storage** in Firestore (`inquiries` collection).
+- **Availability data storage** per property per month (`availability` collection), including hold tracking.
 - **Coupon management** system with Firestore storage (`coupons` collection) and admin interface.
-- **Admin interface** for managing coupons (property management to be added).
+- **Admin interface** for managing coupons, properties, bookings (including holds), and inquiries.
 - **Frontend & backend validation** using Zod schemas.
 - **Google Analytics integration** per property.
 - **Multi-domain support** allowing properties to be accessed via custom domains or path-based URLs.
 - **Input sanitization** for user-provided data.
 - **Admin area protection** via Google Sign-In.
 - **Currency Conversion:** Uses exchange rates stored in Firestore (`appConfig/currencyRates`) to display prices in user-selected currencies (USD, EUR, RON).
+- **Scheduled Tasks (Cron):** Placeholder scripts exist for releasing expired holds and updating currency rates (requires deployment and scheduling).
 
 Initial support: 2 properties (Prahova Mountain Chalet, Coltei Apartment Bucharest)
 Designed for scalability.
@@ -42,7 +44,7 @@ rentalspot/
 ├── .env.local           # Local environment variables (API keys, secrets) - DO NOT COMMIT
 ├── .next/               # Next.js build output (generated)
 ├── components/          # Reusable React components
-│   ├── booking/         # Booking flow components (forms, calendar, etc.)
+│   ├── booking/         # Booking flow components (forms, calendar, status, options, etc.)
 │   ├── homepage/        # Components for specific homepage sections (Hero, Experience, etc.)
 │   ├── property/        # Components related to displaying property details
 │   └── ui/              # Shadcn UI components (Button, Card, Input, etc.)
@@ -53,7 +55,7 @@ rentalspot/
 │   └── propertyOverrides/ # Property content override JSON files
 │   └── websiteTemplates/  # Website template definition JSON files
 │   └── appConfig/       # Application configuration JSON files (e.g., currencyRates.json)
-├── hooks/               # Custom React hooks (e.g., useSessionStorage, useToast, useSanitizedState)
+├── hooks/               # Custom React hooks (e.g., useSessionStorage, useToast, useSanitizedState, useIsMobile)
 ├── lib/                 # Utility functions, libraries, configurations
 │   ├── firebase.ts      # Firebase Client SDK initialization
 │   ├── firebaseAdmin.ts # Firebase Admin SDK initialization (currently commented out)
@@ -64,17 +66,28 @@ rentalspot/
 ├── node_modules/        # Project dependencies (managed by npm/yarn)
 ├── public/              # Static assets (images, fonts, favicon)
 │   └── images/          # Default images for templates and placeholders
-├── scripts/             # Utility scripts (e.g., load-properties.ts)
+├── scripts/             # Utility scripts
+│   ├── cron/            # Scripts intended for scheduled execution (placeholders)
+│   │   ├── release-expired-holds.ts
+│   │   └── update-currency-rates.ts
+│   ├── load-properties.ts # Script to load JSON data into Firestore
+│   └── convertTimestamps.ts # Helper for timestamp conversion in load script
 ├── src/                 # Main application source code (using src directory convention)
 │   ├── app/             # Next.js App Router directory
 │   │   ├── (app)/       # Main application routes and layouts
 │   │   │   ├── admin/     # Admin panel routes and components
-│   │   │   │   ├── coupons/ # Coupon management pages
+│   │   │   │   ├── bookings/  # Booking management pages and components
+│   │   │   │   ├── coupons/   # Coupon management pages and components
+│   │   │   │   ├── inquiries/ # Inquiry management pages and components ([inquiryId] for detail)
+│   │   │   │   ├── properties/# Property management pages and components ([slug]/edit, new)
 │   │   │   │   └── layout.tsx # Admin panel layout
 │   │   │   ├── api/       # API routes
 │   │   │   │   ├── resolve-domain/ # API for domain resolution
 │   │   │   │   └── webhooks/     # Webhook handlers (e.g., Stripe)
-│   │   │   ├── booking/   # Booking flow pages (check, success, cancel)
+│   │   │   ├── booking/   # Booking flow pages (check, success, cancel, hold-success)
+│   │   │   │   └── check/
+│   │   │   │       └── [slug]/
+│   │   │   │           └── page.tsx # Availability check page
 │   │   │   ├── properties/ # Dynamic property detail pages ([slug])
 │   │   │   │   └── [slug]/
 │   │   │   │       └── page.tsx
@@ -82,9 +95,9 @@ rentalspot/
 │   │   │   ├── globals.css # Global CSS styles and Tailwind base layers
 │   │   │   ├── layout.tsx  # Root application layout
 │   │   │   └── page.tsx    # Homepage component (renders default property)
-│   │   └── actions/       # Server Actions (e.g., booking, checkout, coupon actions)
+│   │   └── actions/       # Server Actions (e.g., booking, checkout, coupon, property, inquiry actions)
 │   ├── contexts/          # React Contexts (e.g., AuthContext, CurrencyContext)
-│   └── services/        # Backend services (booking, coupon, sync, sms, config)
+│   └── services/        # Backend services (booking, coupon, inquiry, sync, sms, config)
 ├── .firebaserc          # Firebase project configuration (linking to project ID)
 ├── .gitignore           # Files and directories ignored by Git
 ├── components.json      # Shadcn UI configuration
@@ -92,7 +105,7 @@ rentalspot/
 ├── firebase.json        # Firebase project configuration (Hosting, Emulators, Firestore rules path)
 ├── firestore.indexes.json # Firestore index definitions
 ├── firestore.rules      # Firestore security rules
-├── next.config.ts        # Next.js configuration
+├── next.config.ts       # Next.js configuration
 ├── package.json          # Project dependencies and scripts
 ├── README.md             # Project README
 └── tsconfig.json         # TypeScript configuration
@@ -102,19 +115,20 @@ rentalspot/
 
 ## 🗂️ 3. **Firestore Collections**
 
-| Collection                   | Description                                                                 | Document ID Format        |
-| :--------------------------- | :-------------------------------------------------------------------------- | :------------------------ |
-| `/properties/{propertySlug}` | Core metadata & settings for each property                                  | Property Slug             |
-| `/propertyOverrides/{propertySlug}` | Content overrides & section visibility per property                      | Property Slug             |
-| `/websiteTemplates/{templateId}` | Defines template structure + default block content                        | Template ID (e.g., "holiday-house") |
-| `/availability/{propertySlug}_{YYYY-MM}` | Availability status per property, per day, grouped by month             | `{propertySlug}_{YYYY-MM}` |
-| `/bookings/{bookingId}`      | Booking records (pending, confirmed, cancelled)                           | Auto-generated ID         |
-| `/coupons/{couponId}`        | Discount codes and their rules                                            | Auto-generated ID         |
-| `/users/{userId}`            | User profiles (guests, owners, admins)                                     | Firebase Auth User ID     |
-| `/reviews/{reviewId}`        | Guest reviews (schema defined, implementation pending)                    | Auto-generated ID         |
-| `/syncCalendars/{documentId}`| Calendar sync info (schema defined, implementation pending)               | Auto-generated ID         |
-| `/availabilityAlerts/{alertId}`| Requests for availability notifications (schema defined, backend pending) | Auto-generated ID         |
-| `/appConfig/currencyRates`   | Application-wide configuration, starting with currency rates              | `currencyRates`           |
+| Collection                       | Description                                                                 | Document ID Format        | Key Fields                                                                                                                                          |
+| :------------------------------- | :-------------------------------------------------------------------------- | :------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/properties/{propertySlug}`     | Core metadata & settings for each property                                  | Property Slug             | `templateId`, `name`, `slug`, `location`, `pricePerNight`, `baseCurrency`, `maxGuests`, `baseOccupancy`, `holdFeeAmount`, `enableHoldOption`, etc. |
+| `/propertyOverrides/{propertySlug}`| Content overrides & section visibility per property                      | Property Slug             | `visibleBlocks`, `hero`, `features`, `attractions`, `testimonials`, `images`, etc.                                                                 |
+| `/websiteTemplates/{templateId}` | Defines template structure + default block content                        | Template ID               | `homepage`, `header`, `footer`, `defaults`                                                                                                        |
+| `/availability/{propertySlug}_{YYYY-MM}` | Availability status per property, per day, grouped by month             | `{propertySlug}_{YYYY-MM}`| `propertyId`, `month`, `available` (map day->bool), `holds` (map day->bookingId)                                                                    |
+| `/bookings/{bookingId}`          | Booking records                                                           | Auto-generated ID         | `propertyId`, `guestInfo`, `checkInDate`, `checkOutDate`, `status` ('pending', 'on-hold', 'confirmed', 'cancelled', 'completed'), `pricing`, `holdUntil`, `holdFee`, `holdPaymentId`, etc. |
+| `/inquiries/{inquiryId}`         | Guest inquiries                                                           | Auto-generated ID         | `propertySlug`, `checkIn`, `checkOut`, `guestInfo`, `message`, `status` ('new', 'responded', 'converted', 'closed'), `responses` (array)             |
+| `/coupons/{couponId}`            | Discount codes and their rules                                            | Auto-generated ID         | `code`, `discount`, `validUntil`, `isActive`, `bookingValidFrom`, `bookingValidUntil`, `exclusionPeriods`                                         |
+| `/users/{userId}`                | User profiles (guests, owners, admins)                                     | Firebase Auth User ID     | `email`, `role`, `firstName`, `lastName`, etc.                                                                                                      |
+| `/reviews/{reviewId}`            | Guest reviews (schema defined, implementation pending)                    | Auto-generated ID         | `propertyId`, `rating`, `comment`, etc.                                                                                                           |
+| `/syncCalendars/{documentId}`    | Calendar sync info (schema defined, implementation pending)               | Auto-generated ID         | `propertyId`, `platform`, `calendarId`, etc.                                                                                                      |
+| `/availabilityAlerts/{alertId}`  | Requests for availability notifications (schema defined, backend pending) | Auto-generated ID         | `propertyId`, `checkInDate`, `checkOutDate`, `contactMethod`, etc.                                                                                |
+| `/appConfig/currencyRates`       | Application-wide configuration, starting with currency rates              | `currencyRates`           | `rates` (map currency->rate), `lastUpdated`                                                                                                       |
 
 ✅ **`propertySlug` is the canonical identifier for properties.**
 
@@ -313,31 +327,29 @@ For each block defined in `template.homepage`:
     *   Fetches availability data from `/availability/{propertySlug}_YYYY-MM` documents for the selected date range.
     *   Displays property summary, selected dates.
     *   Calculates and shows price breakdown (including potential extra guest fees).
-    *   **If Available:** Shows "Dates Available!" message and the Guest Information form + "Continue to Payment" button.
+    *   **If Available:** Shows "Dates Available!" message, compact booking summary, and option cards (Contact, Hold, Book Now).
     *   **If Unavailable:** Shows "Dates Unavailable" message, displays the 3-month availability calendar, suggests alternative dates (placeholder logic for now), and offers the "Notify Me" option.
-4.  **Guest Information:** User fills in name, email, phone, guest count, and optional coupon code. Guest count changes dynamically update the price. Coupon validation happens via `couponService`. Session storage is used to persist form data across steps/refreshes.
-5.  **Continue to Payment:**
-    *   User clicks "Continue to Payment".
-    *   Client-side validation ensures all required fields are filled.
-    *   `createPendingBookingAction` is called:
-        *   Creates a `bookings` document in Firestore with `status: 'pending'`.
-        *   Stores guest info, dates, calculated pricing, property slug.
-        *   Returns the `pendingBookingId`.
-    *   `createCheckoutSession` action is called:
-        *   Uses the `pendingBookingId` and other details in Stripe metadata.
-        *   Redirects the user to Stripe Checkout.
-6.  **Stripe Payment:** User completes payment on Stripe.
-7.  **Webhook Confirmation (`/api/webhooks/stripe`):**
+4.  **User Action Selection:**
+    *   User clicks one of the option cards (Contact, Hold, Book Now).
+    *   The selected card expands, revealing the relevant form.
+5.  **Option-Specific Forms:**
+    *   **Contact:** User fills in name, email, phone, message. Submits via `createInquiryAction`.
+    *   **Hold:** User fills in name, email, phone. Clicks "Hold for ${fee}". `createHoldBookingAction` is called, then `createHoldCheckoutSession` redirects to Stripe for the hold fee.
+    *   **Book Now:** User fills in name, email, phone, guest count, optional coupon. Clicks "Continue to Payment". `createPendingBookingAction` is called, then `createCheckoutSession` redirects to Stripe for the full amount.
+6.  **Session Storage:** User inputs (name, email, phone, guest count, dates) are persisted in session storage to avoid data loss between steps/refreshes.
+7.  **Stripe Payment:** User completes payment (hold fee or full booking amount) on Stripe.
+8.  **Webhook Confirmation (`/api/webhooks/stripe`):**
     *   Stripe sends `checkout.session.completed` event.
     *   Webhook verifies the event.
-    *   Extracts `pendingBookingId` from metadata.
+    *   Extracts `pendingBookingId` or `holdBookingId` from metadata.
+    *   Determines payment type (hold or full booking) from metadata.
     *   Calls `updateBookingPaymentInfo` (`bookingService`):
-        *   Updates the corresponding booking document status to `confirmed`.
-        *   Adds payment details (`paymentInfo`).
-        *   Calls `updatePropertyAvailability` to mark dates as unavailable in Firestore.
+        *   Updates the corresponding booking document status (`on-hold` or `confirmed`).
+        *   Adds payment details (`paymentInfo` or `holdPaymentId`).
+        *   Calls `updatePropertyAvailability` to mark dates as unavailable or on-hold in Firestore.
         *   (Future) Triggers external calendar sync.
     *   Returns `200 OK` to Stripe.
-8.  **Redirect to Success/Cancel Page:** Stripe redirects the user to `/booking/success` or `/booking/cancel` based on payment outcome.
+9.  **Redirect to Success/Cancel Page:** Stripe redirects the user to `/booking/success`, `/booking/hold-success`, or `/booking/cancel` based on payment outcome.
 
 ---
 
@@ -367,8 +379,9 @@ Rules are defined in `firestore.rules` and should be deployed to Firebase. Key r
 *   `/properties`: Read: `true`, Write: `if isOwner(propertySlug) || isAdmin()` (validation on `customDomain` during update)
 *   `/websiteTemplates`: Read: `true`, Write: `if isAdmin()`
 *   `/propertyOverrides`: Read: `true`, Write: `if isOwner(propertySlug) || isAdmin()`
-*   `/availability`: Read: `true`, Write: `if true` (Client SDK handles writes for new bookings, or admin can write)
-*   `/bookings`: Create: `true`, Read/Update: `if isGuest() || isOwner() || isAdmin()`
+*   `/availability`: Read: `true`, Write: `if true` (Client SDK handles writes for new bookings/holds, or admin can write - **REVIEW: might need stricter write rules for production**)
+*   `/bookings`: Create: `true`, Read/Update: `if isGuest() || isOwner() || isAdmin()` (specific update rules for status needed)
+*   `/inquiries`: Create: `true`, Read/Update: `if isGuest() || isOwner() || isAdmin()`
 *   `/coupons`: Read: `true`, Write: `if isAdmin()`
 *   `/users`: Read/Write: `if isSelf() || isAdmin()`
 *   `/appConfig`: Read: `true`, Write: `if isAdmin()` (or a specific update function role)
@@ -390,12 +403,15 @@ Rules are defined in `firestore.rules` and should be deployed to Firebase. Key r
 
 ---
 
-## 💻 13. **Admin Panel Behavior (Coupons)**
+## 💻 13. **Admin Panel Behavior (Coupons, Bookings, Inquiries)**
 
-✅ `/admin/coupons`: Lists all coupons, shows status, allows editing expiry, toggling status, expanding to edit booking validity and exclusion periods.
-✅ `/admin/coupons/new`: Form to create new coupons with all fields (code, discount, expiry, validity, exclusions, description, etc.).
-✅ Actions (`/admin/coupons/actions.ts` and `/admin/coupons/new/actions.ts`) handle Firestore writes for creating/updating coupons.
-✅ Input sanitization is applied to coupon fields in the admin forms.
+*   **`/admin/coupons`:** Lists all coupons, shows status, allows editing expiry, toggling status, expanding to edit booking validity and exclusion periods.
+*   **`/admin/coupons/new`:** Form to create new coupons with all fields.
+*   **`/admin/bookings`:** Lists all bookings, shows status (including 'on-hold'), allows filtering by status, provides actions to extend hold, cancel hold, convert hold to confirmed.
+*   **`/admin/inquiries`:** Lists all inquiries, shows status ('new', 'responded', 'converted', 'closed'), links to detail view.
+*   **`/admin/inquiries/{inquiryId}`:** Detail view showing inquiry info, conversation history, form to add responses, actions to convert to booking or close.
+*   **Server Actions** (`src/app/admin/.../actions.ts`) handle Firestore writes for creating/updating/managing entities.
+*   Input sanitization is applied to user-submitted fields in the admin forms.
 
 ---
 
@@ -449,7 +465,7 @@ This section lists the environment variables required or used by the application
   "useCustomDomain": true // Boolean to enable/disable custom domain
   ```
 - Next.js middleware (`src/middleware.ts`) handles domain resolution:
-    - It checks if the incoming request's hostname matches a configured custom domain for any active property.
+    - It checks if the incoming request's hostname matches a configured custom domain for any active property (bypassing for localhost and main app host).
     - If a match is found, it rewrites the request to the standard `/properties/{slug}` path.
     - If no custom domain match, it proceeds with the default routing.
 - An API route (`/api/resolve-domain`) is used by the middleware to query Firestore for properties matching a given domain.
@@ -459,9 +475,9 @@ This section lists the environment variables required or used by the application
 
 ## 🛡️ 17. **Input Sanitization**
 
-- User-provided inputs (e.g., guest information in booking form, coupon codes, descriptions in admin panel) are sanitized to prevent XSS and other injection attacks.
+- User-provided inputs (e.g., guest information in booking form, coupon codes, descriptions in admin panel, inquiry messages) are sanitized to prevent XSS and other injection attacks.
 - Sanitization is primarily handled:
-    - Using Zod transforms in server actions (e.g., `createCouponAction`, `createPendingBookingAction`).
+    - Using Zod transforms in server actions (e.g., `createCouponAction`, `createPendingBookingAction`, `createInquiryAction`).
     - Client-side using the `useSanitizedState` hook for direct input field management where appropriate.
 - The `src/lib/sanitize.ts` file contains utility functions for stripping HTML tags and performing basic sanitization for text, email, and phone numbers.
 - The general approach is to sanitize data as close to the input source as possible or upon receiving it on the server before processing or storing.
@@ -472,11 +488,11 @@ This section lists the environment variables required or used by the application
 
 *   **Zod Schemas:**
     *   Schemas for website block content (`heroSchema`, `experienceSchema`, etc.) are defined in `src/lib/overridesSchemas.ts`.
-    *   Schemas for server actions (e.g., coupon creation, pending booking) are typically defined within the action files themselves.
+    *   Schemas for server actions (e.g., coupon creation, pending booking, property creation/update, inquiry creation) are typically defined within the action files themselves or imported from shared locations.
 *   **Usage:**
     *   Server actions use Zod schemas to validate incoming data.
     *   The Firestore data loader script (`scripts/load-properties.ts`) uses `blockSchemas` from `overridesSchemas.ts` to validate default block content in templates before uploading.
-    *   Client-side forms (e.g., coupon creation, booking guest info) use `zodResolver` with `react-hook-form` for validation.
+    *   Client-side forms (e.g., coupon creation, booking guest info, property form) use `zodResolver` with `react-hook-form` for validation.
 *   **Error Handling:** Validation errors are generally returned to the client and displayed using toast notifications or form error messages.
 
 ---
@@ -488,6 +504,7 @@ This section lists the environment variables required or used by the application
     *   Start in "Production mode" and apply security rules (see Section 11 and `firestore.rules`).
     *   Indexes can be configured via the Firebase Console ("Firestore Database" -> "Indexes") or `firestore.indexes.json`.
     *   Create the `appConfig/currencyRates` document manually with initial rates.
+    *   Ensure the `properties` collection exists and contains documents with the correct slugs. Use the `load-properties.ts` script.
 *   **Authentication:**
     *   Enable "Google" as a sign-in provider in "Authentication" -> "Sign-in method".
     *   **Important for Development (e.g., Firebase Studio):** Add your development domain (e.g., `your-studio-url.cloudworkstations.dev` or `localhost`) to the list of "Authorized domains" under the "Sign-in method" tab. If you encounter an `auth/unauthorized-domain` error, this is the most likely cause.
