@@ -34,7 +34,6 @@ import { createCheckoutSession } from '@/app/actions/create-checkout-session';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
@@ -47,6 +46,7 @@ import { cn } from '@/lib/utils';
 import { AvailabilityCalendar } from './availability-calendar';
 import { AvailabilityStatus } from './availability-status';
 import { GuestInfoForm } from './guest-info-form';
+import { Label } from "@/components/ui/label"; // Added Label import
 
 
 interface AvailabilityCheckProps {
@@ -91,6 +91,7 @@ export function AvailabilityCheck({
   // State for client-side rendering of formatted date string
   const [displayDateRangeString, setDisplayDateRangeString] = useState<string | null>(null);
   const [hasMounted, setHasMounted] = useState(false); // Track client mount
+  const [clientNumberOfNights, setClientNumberOfNights] = useState<number>(0); // State for client-side night calculation
 
   // --- Guest Info State (managed here, passed down) ---
   const [firstName, setFirstName] = useSessionStorage<string>(`booking_${propertySlug}_firstName`, '');
@@ -103,21 +104,35 @@ export function AvailabilityCheck({
     setHasMounted(true);
   }, []);
 
+
   // --- Derived State ---
   const dateRange: DateRange | undefined = useMemo(() => {
     return checkInDate && checkOutDate ? { from: checkInDate, to: checkOutDate } : undefined;
   }, [checkInDate, checkOutDate]);
 
+  // Use guestsDisplay for guest count logic
+  const guestsDisplay = useMemo(() => {
+    // Ensure numberOfGuests is treated as a number before validation
+    const guestValue = typeof numberOfGuests === 'string' ? parseInt(numberOfGuests, 10) : numberOfGuests;
+    return typeof guestValue === 'number' && !isNaN(guestValue) && guestValue > 0
+      ? guestValue
+      : (property.baseOccupancy || 1);
+  }, [numberOfGuests, property.baseOccupancy]);
+
+
+  // Calculate datesSelected and numberOfNights client-side after mount
   const datesSelected = useMemo(() =>
     checkInDate && checkOutDate && isValid(checkInDate) && isValid(checkOutDate) && isAfter(checkOutDate, checkInDate),
     [checkInDate, checkOutDate]
   );
 
-  const numberOfNights = useMemo(() => {
+  // Calculate numberOfNights on the client after hydration
+  useEffect(() => {
     if (datesSelected && checkInDate && checkOutDate) {
-      return differenceInDays(checkOutDate, checkInDate);
+      setClientNumberOfNights(differenceInDays(checkOutDate, checkInDate));
+    } else {
+      setClientNumberOfNights(0);
     }
-    return 0;
   }, [checkInDate, checkOutDate, datesSelected]);
 
 
@@ -139,22 +154,14 @@ export function AvailabilityCheck({
   }, [dateRange, hasMounted]);
 
 
-  // Moved this before pricingDetailsInBaseCurrency
-  // Use guestsDisplay for guest count logic
-  const guestsDisplay = useMemo(() => {
-    return typeof numberOfGuests === 'number' && !isNaN(numberOfGuests) && numberOfGuests > 0
-      ? numberOfGuests
-      : (property.baseOccupancy || 1);
-  }, [numberOfGuests, property.baseOccupancy]);
-
-
   // --- Pricing Calculation ---
   const pricingDetailsInBaseCurrency = useMemo(() => {
     const currentGuests = guestsDisplay; // Now guestsDisplay is guaranteed to be initialized
-    if (datesSelected && currentGuests > 0 && numberOfNights > 0) {
+    // Use clientNumberOfNights for calculation
+    if (datesSelected && currentGuests > 0 && clientNumberOfNights > 0) {
       return calculatePrice(
         property.pricePerNight,
-        numberOfNights,
+        clientNumberOfNights, // Use client-side calculated nights
         property.cleaningFee ?? 0,
         currentGuests,
         property.baseOccupancy,
@@ -164,8 +171,7 @@ export function AvailabilityCheck({
       );
     }
     return null;
-  }, [datesSelected, property, numberOfNights, guestsDisplay, appliedCoupon, propertyBaseCcy]); // Added guestsDisplay dependency
-
+  }, [datesSelected, property, clientNumberOfNights, guestsDisplay, appliedCoupon, propertyBaseCcy]); // Depend on clientNumberOfNights
 
 
   // --- Availability Check Logic ---
@@ -195,14 +201,14 @@ export function AvailabilityCheck({
       }
       setIsAvailable(!conflict);
 
-      if (conflict) {
+      if (conflict && clientNumberOfNights > 0) { // Ensure clientNumberOfNights is calculated
         // Basic suggestion logic (find next available block of same length)
         let suggestionFound = false;
         let suggestionStart = addDays(checkOutDate, 1); // Start searching from the day after requested checkout
         const maxSearchDate = addDays(checkOutDate, 60); // Limit search to avoid infinite loops
 
         while (isAfter(maxSearchDate, suggestionStart) && !suggestionFound) {
-            const suggestionEnd = addDays(suggestionStart, numberOfNights);
+            const suggestionEnd = addDays(suggestionStart, clientNumberOfNights); // Use clientNumberOfNights
             let suggestionConflict = false;
             let checkCurrent = new Date(suggestionStart.getTime());
 
@@ -223,7 +229,7 @@ export function AvailabilityCheck({
             }
         }
           if (!suggestionFound) {
-              // console.log("No alternative dates found within 60 days.");
+              console.log("No alternative dates found within 60 days.");
               // Optionally set a state to indicate no suggestions were found
           }
 
@@ -239,11 +245,21 @@ export function AvailabilityCheck({
     } finally {
       setIsLoadingAvailability(false);
     }
-  }, [checkInDate, checkOutDate, datesSelected, propertySlug, numberOfNights, toast]);
+  }, [checkInDate, checkOutDate, datesSelected, propertySlug, clientNumberOfNights, toast]); // Depend on clientNumberOfNights
 
   useEffect(() => {
-    checkPropertyAvailability();
-  }, [checkPropertyAvailability]);
+    // Run availability check only after mount and when dates/nights are ready
+    if (hasMounted && datesSelected && clientNumberOfNights > 0) {
+        checkPropertyAvailability();
+    } else if (hasMounted && !datesSelected) {
+        // Reset availability if dates become invalid
+        setIsAvailable(null);
+        setIsLoadingAvailability(false);
+        setUnavailableDates([]);
+        setSuggestedDates([]);
+    }
+  }, [checkPropertyAvailability, hasMounted, datesSelected, clientNumberOfNights]); // Depend on hasMounted and clientNumberOfNights
+
 
   // --- Event Handlers ---
   const handleSelectAlternativeDate = (range: { from: Date; to: Date }) => {
@@ -275,7 +291,7 @@ export function AvailabilityCheck({
       setFormError(`Number of guests must be between 1 and ${property.maxGuests}. Current: ${guestsDisplay}`);
       return;
     }
-    if (!datesSelected || isAvailable !== true || !checkInDate || !checkOutDate) {
+    if (!datesSelected || isAvailable !== true || !checkInDate || !checkOutDate || clientNumberOfNights <= 0) { // Check clientNumberOfNights
       setFormError("Selected dates are not available or invalid.");
       return;
     }
@@ -308,6 +324,8 @@ export function AvailabilityCheck({
         pricing: {
           ...pricingDetailsInBaseCurrency,
           currency: propertyBaseCcy, // Pass base currency
+          // Ensure numberOfNights here matches clientNumberOfNights if needed by schema
+          numberOfNights: clientNumberOfNights,
         },
         status: 'pending' as const,
         appliedCouponCode: appliedCoupon?.code ?? null, // Pass null if no coupon applied
@@ -330,7 +348,7 @@ export function AvailabilityCheck({
         checkOutDate: checkOutDate.toISOString(),
         numberOfGuests: guestsDisplay, // Use derived state
         totalPrice: pricingDetailsInBaseCurrency.total, // Total in base currency
-        numberOfNights: numberOfNights,
+        numberOfNights: clientNumberOfNights, // Use clientNumberOfNights
         appliedCouponCode: appliedCoupon?.code,
         discountPercentage: appliedCoupon?.discountPercentage,
         guestFirstName: sanitizeText(firstName),
@@ -346,6 +364,7 @@ export function AvailabilityCheck({
       }
 
        if (stripeResult.sessionUrl) {
+          // Redirect using window.location.href
           window.location.href = stripeResult.sessionUrl;
        } else {
           throw new Error("Stripe session URL is missing.");
@@ -368,8 +387,8 @@ export function AvailabilityCheck({
 
   // --- Calendar Rendering Logic ---
    const renderAvailabilityCalendar = () => {
-       // Only render if dates are explicitly unavailable
-       if (isAvailable === true || isLoadingAvailability || !datesSelected) {
+       // Only render if dates are explicitly unavailable and component has mounted
+       if (isAvailable === true || isLoadingAvailability || !datesSelected || !hasMounted) {
            return null;
        }
        // Default to today if checkInDate is not valid or unavailable
@@ -429,9 +448,9 @@ export function AvailabilityCheck({
               />
             </PopoverContent>
           </Popover>
-          {numberOfNights > 0 && (
+          {clientNumberOfNights > 0 && (
              <p className="text-sm text-muted-foreground mt-1">
-               ({numberOfNights} {numberOfNights === 1 ? 'night' : 'nights'})
+               ({clientNumberOfNights} {clientNumberOfNights === 1 ? 'night' : 'nights'})
              </p>
           )}
       </div>
@@ -443,7 +462,7 @@ export function AvailabilityCheck({
         datesSelected={!!datesSelected}
         checkInDate={checkInDate}
         checkOutDate={checkOutDate}
-        numberOfNights={numberOfNights}
+        numberOfNights={clientNumberOfNights} // Pass client-side calculated nights
         suggestedDates={suggestedDates}
         unavailableDates={unavailableDates}
         handleSelectAlternativeDate={handleSelectAlternativeDate}
