@@ -6,25 +6,20 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Loader2, LogOut, LayoutDashboard } from 'lucide-react';
+import { Loader2, LogOut, LayoutDashboard, Building, Ticket } from 'lucide-react'; // Added Building, Ticket
 
 // Inner component to handle auth logic
 function ProtectedAdminLayout({ children }: { children: ReactNode }) {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
 
-  // console.log(`[ProtectedAdminLayout] Render. Loading: ${loading}, User: ${user ? user.uid : null}`);
-
   useEffect(() => {
-    // console.log(`[ProtectedAdminLayout useEffect] Triggered. Loading: ${loading}, User: ${user ? user.uid : null}`);
     if (!loading && !user) {
-      // console.log("[ProtectedAdminLayout useEffect] No user (loading false), redirecting to /login...");
       router.replace('/login');
     }
   }, [user, loading, router]); // Add dependencies
 
   if (loading) {
-    // console.log("[ProtectedAdminLayout] Rendering: Loading state (loading is true).");
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -33,10 +28,7 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // If user is not loaded and loading is false, it means useEffect will handle redirect.
-  // Show a loading/redirecting state until useEffect kicks in.
   if (!user) {
-    // console.log("[ProtectedAdminLayout] Rendering: Redirecting state (loading false, user is null, useEffect will redirect).");
     return (
          <div className="flex min-h-screen items-center justify-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -45,8 +37,6 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // User is authenticated, render admin layout
-  // console.log("[ProtectedAdminLayout] Rendering: Admin content (loading false, user exists).");
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -56,11 +46,12 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
             RentalSpot Admin
           </Link>
           <nav className="flex items-center gap-4">
-            <Link href="/admin/coupons" className="text-sm hover:underline">
-              Manage Coupons
+            {/* Added Manage Properties Link */}
+            <Link href="/admin/properties" className="text-sm hover:underline flex items-center">
+               <Building className="mr-1 h-4 w-4" /> Manage Properties
             </Link>
-            <Link href="/admin/coupons/new" className="text-sm hover:underline">
-              Create Coupon
+             <Link href="/admin/coupons" className="text-sm hover:underline flex items-center">
+               <Ticket className="mr-1 h-4 w-4" /> Manage Coupons
             </Link>
             {/* Add other admin navigation links here as they are developed */}
             <Button onClick={logout} variant="outline" size="sm">

@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { BookOpen, Ticket, Users, Settings, BarChart3, HelpCircle } from 'lucide-react';
+import { BookOpen, Ticket, Users, Settings, BarChart3, HelpCircle, Building, PlusCircle } from 'lucide-react'; // Added Building, PlusCircle
 
 export default function AdminDashboardPage() {
   return (
@@ -23,6 +23,30 @@ export default function AdminDashboardPage() {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+         {/* Property Management Card */}
+         <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center text-xl">
+              <Building className="mr-2 h-6 w-6 text-primary" />
+              Property Management
+            </CardTitle>
+            <CardDescription>
+              Add, edit, and manage your rental property listings.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col space-y-3">
+            <Link href="/admin/properties" passHref>
+              <Button variant="outline" className="w-full">View All Properties</Button>
+            </Link>
+             <Link href="/admin/properties/new" passHref>
+               <Button className="w-full">
+                 <PlusCircle className="mr-2 h-4 w-4" /> Add New Property
+               </Button>
+             </Link>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center text-xl">
@@ -43,20 +67,7 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center text-xl">
-              <BookOpen className="mr-2 h-6 w-6 text-primary" />
-              Property Management (Future)
-            </CardTitle>
-            <CardDescription>
-              Add, edit, and manage your rental property listings. (Coming Soon)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full" disabled>Manage Properties</Button>
-          </CardContent>
-        </Card>
+        {/* Removed Placeholder Property Management Card */}
 
         <Card>
           <CardHeader>
@@ -81,8 +92,8 @@ export default function AdminDashboardPage() {
             </CardTitle>
             <CardDescription>
               View booking statistics and performance reports. (Coming Soon)
-            </CardDescription>
-          </CardHeader>
+            </CardHeader>
+          </CardContent>
           <CardContent>
             <Button variant="outline" className="w-full" disabled>View Analytics</Button>
           </CardContent>
@@ -96,8 +107,8 @@ export default function AdminDashboardPage() {
             </CardTitle>
             <CardDescription>
               Configure global settings for your rental platform. (Coming Soon)
-            </CardDescription>
-          </CardHeader>
+            </CardHeader>
+          </CardContent>
           <CardContent>
             <Button variant="outline" className="w-full" disabled>Configure Settings</Button>
           </CardContent>
@@ -127,7 +138,7 @@ export default function AdminDashboardPage() {
             <CardTitle className="text-xl">Quick Start Guide</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-muted-foreground">
-            <p><strong>1. Set Up Properties:</strong> Before anything else, ensure your property data is correctly loaded into Firestore. (Currently manual or via script)</p>
+             <p><strong>1. Add Properties:</strong> Use the "Property Management" section to add your rental listings.</p>
             <p><strong>2. Manage Coupons:</strong> Use the "Coupon Management" section to create discounts that guests can apply during booking.</p>
             <p><strong>3. Monitor Bookings:</strong> (Future) Keep an eye on incoming bookings and their statuses.</p>
             <p><strong>4. Customize Property Websites:</strong> (Future) Tailor the content and appearance of individual property websites through overrides.</p>
