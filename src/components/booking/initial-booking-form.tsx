@@ -1,3 +1,4 @@
+
 // src/components/booking/initial-booking-form.tsx
 "use client";
 
@@ -62,6 +63,7 @@ export function InitialBookingForm({ property, size = 'compressed' }: InitialBoo
 
     // Navigate to the new availability check page
     router.push(`/booking/check/${property.slug}?${params.toString()}`);
+    // Note: setIsLoading(false) will happen implicitly when navigation occurs
   };
 
   const isButtonDisabled = !isDateRangeValid() || isLoading;
@@ -157,3 +159,5 @@ export function InitialBookingForm({ property, size = 'compressed' }: InitialBoo
     </div>
   );
 }
+
+    
