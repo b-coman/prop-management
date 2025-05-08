@@ -4,14 +4,14 @@
 import { z } from 'zod';
 import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase'; // Client SDK
-import type { Booking, Property, CurrencyCode } from '@/types'; // Added CurrencyCode
-import { SUPPORTED_CURRENCIES } from '@/types'; // Import supported currencies
+import type { Booking, Property, CurrencyCode } from '@/types';
+import { SUPPORTED_CURRENCIES } from '@/types';
 import { revalidatePath } from 'next/cache';
-import { sanitizeEmail, sanitizePhone, sanitizeText } from '@/lib/sanitize'; // Import sanitizers
+import { sanitizeEmail, sanitizePhone, sanitizeText } from '@/lib/sanitize';
 
-// Schema for creating a PENDING booking
+// Schema for creating a PENDING booking (used for the final "Book Now" path)
 const CreatePendingBookingSchema = z.object({
-  propertyId: z.string().min(1), // This is the property SLUG now
+  propertyId: z.string().min(1), // Property SLUG
   guestInfo: z.object({
     firstName: z.string().min(1, "First name is required.").transform(sanitizeText),
     lastName: z.string().min(1, "Last name is required.").transform(sanitizeText),
@@ -21,7 +21,7 @@ const CreatePendingBookingSchema = z.object({
   checkInDate: z.string().datetime(), // ISO string
   checkOutDate: z.string().datetime(), // ISO string
   numberOfGuests: z.number().int().positive(),
-  pricing: z.object({
+  pricing: z.object({ // Includes currency
     baseRate: z.number().nonnegative(),
     numberOfNights: z.number().int().positive(),
     cleaningFee: z.number().nonnegative(),
@@ -32,10 +32,13 @@ const CreatePendingBookingSchema = z.object({
     taxes: z.number().nonnegative().optional(),
     discountAmount: z.number().nonnegative().optional(),
     total: z.number().nonnegative(),
-    currency: z.enum(SUPPORTED_CURRENCIES), // Add currency field
+    currency: z.enum(SUPPORTED_CURRENCIES),
   }).passthrough(),
-  status: z.literal('pending'),
+  status: z.literal('pending'), // Explicitly pending for this action
   appliedCouponCode: z.string().trim().toUpperCase().nullable().optional().transform(val => val ? sanitizeText(val) : null),
+  // Fields related to holds or inquiries might be passed if converting, but not strictly needed by this schema
+  convertedFromHold: z.boolean().optional(),
+  convertedFromInquiry: z.string().optional(),
 });
 
 type CreatePendingBookingInput = z.infer<typeof CreatePendingBookingSchema>;
@@ -53,14 +56,16 @@ export async function createPendingBookingAction(
   }
 
   const {
-    propertyId,
-    guestInfo, 
+    propertyId, // This is the slug
+    guestInfo,
     checkInDate: checkInStr,
     checkOutDate: checkOutStr,
     numberOfGuests,
-    pricing, // Includes currency
+    pricing,
     status,
     appliedCouponCode,
+    convertedFromHold, // Capture conversion flags
+    convertedFromInquiry,
   } = validationResult.data;
 
   try {
@@ -68,28 +73,32 @@ export async function createPendingBookingAction(
     const checkIn = new Date(checkInStr);
     const checkOut = new Date(checkOutStr);
 
-    const bookingData: Omit<Booking, 'id' | 'paymentInfo'> = {
-      propertyId: propertyId,
-      guestInfo, 
+    // Note: Hold-specific fields (holdFee, holdUntil, holdPaymentId) are set by createHoldBookingAction
+    const bookingData: Omit<Booking, 'id'> = {
+      propertyId: propertyId, // Use slug as propertyId
+      guestInfo,
       checkInDate: Timestamp.fromDate(checkIn),
       checkOutDate: Timestamp.fromDate(checkOut),
       numberOfGuests,
-      pricing: { // Pass the entire pricing object which now includes currency
-        ...pricing,
-      },
-      status: 'pending',
+      pricing: { ...pricing },
+      status: 'pending', // Always pending when created via this action
       appliedCouponCode: appliedCouponCode ?? null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      // paymentInfo will be updated by the webhook
-      // Ensure paymentInfo is initialized correctly if needed before webhook update
-      paymentInfo: { 
-        stripePaymentIntentId: '', // Default empty until payment
-        amount: pricing.total, // Amount in property's base currency
+      paymentInfo: { // Default payment info for a pending booking
+        stripePaymentIntentId: '',
+        amount: pricing.total,
         status: 'pending',
         paidAt: null,
       },
-      source: 'website-pending',
+      source: 'website-pending', // Source indicating it's from the main booking flow
+      // Include conversion flags if provided
+      convertedFromHold: convertedFromHold ?? false,
+      convertedFromInquiry: convertedFromInquiry ?? null,
+      // Hold fields are generally null/undefined here
+      holdFee: undefined,
+      holdUntil: undefined,
+      holdPaymentId: undefined,
     };
     console.log("[Action createPendingBookingAction] Prepared Firestore Data:", JSON.stringify({
       ...bookingData,
@@ -101,6 +110,8 @@ export async function createPendingBookingAction(
 
     const docRef = await addDoc(bookingsCollection, bookingData);
     console.log(`[Action createPendingBookingAction] Pending booking created successfully with ID: ${docRef.id}`);
+    revalidatePath(`/properties/${propertyId}`); // Revalidate property page
+    revalidatePath(`/booking/check/${propertyId}`); // Revalidate check page
     return { bookingId: docRef.id };
   } catch (error) {
     console.error(`❌ [Action createPendingBookingAction] Error creating pending booking:`, error);

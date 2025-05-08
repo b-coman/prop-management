@@ -3,14 +3,11 @@
 
 import * as React from 'react';
 import {
-  Users,
   TicketPercent,
   X,
-  Mail,
-  Phone,
   Loader2,
-  Minus,
-  Plus,
+  Mail, // Added for clarity
+  Phone as PhoneIcon, // Added for clarity and renamed Phone
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,12 +17,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import type { Property, CurrencyCode, PriceCalculationResult } from '@/types';
 import { validateAndApplyCoupon } from '@/services/couponService';
-import { useCurrency } from '@/contexts/CurrencyContext'; // Import useCurrency
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface GuestInfoFormProps {
   property: Property;
-  numberOfGuests: number; // Still receive the raw state value for logic
-  setNumberOfGuests: React.Dispatch<React.SetStateAction<number>>;
+  // numberOfGuests and setNumberOfGuests removed - managed by parent AvailabilityCheck
   firstName: string;
   setFirstName: (value: string) => void;
   lastName: string;
@@ -34,19 +30,29 @@ interface GuestInfoFormProps {
   setEmail: (value: string) => void;
   phone: string;
   setPhone: (value: string) => void;
-  checkInDate: Date | null; // Needed for coupon validation
-  checkOutDate: Date | null; // Needed for coupon validation
+  checkInDate: Date | null; // Still needed for coupon validation
+  checkOutDate: Date | null; // Still needed for coupon validation
   appliedCoupon: { code: string; discountPercentage: number } | null;
   setAppliedCoupon: React.Dispatch<React.SetStateAction<{ code: string; discountPercentage: number } | null>>;
-  pricingDetailsInBaseCurrency: PriceCalculationResult | null;
-  isProcessingBooking: boolean;
-  displayGuests: number; // Accept the display state
+  pricingDetailsInBaseCurrency: PriceCalculationResult | null; // Needed for display inside summary/form
+  isProcessingBooking: boolean; // To disable inputs/buttons during submission
+  // displayGuests prop removed as guest count is handled by parent
 }
+
+// Helper Input component (can be moved to ui if used elsewhere)
+const FormInput = ({ label, icon: Icon, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label: string, icon?: React.ElementType }) => (
+    <div className="space-y-1">
+        <Label htmlFor={props.id || props.name} className="flex items-center gap-1 text-xs text-muted-foreground">
+           {Icon && <Icon className="h-3 w-3" />}
+           {label}
+        </Label>
+        <Input id={props.id || props.name} {...props} />
+    </div>
+);
+
 
 export function GuestInfoForm({
   property,
-  numberOfGuests, // Raw state for logic
-  setNumberOfGuests,
   firstName,
   setFirstName,
   lastName,
@@ -59,37 +65,15 @@ export function GuestInfoForm({
   checkOutDate,
   appliedCoupon,
   setAppliedCoupon,
-  pricingDetailsInBaseCurrency,
+  pricingDetailsInBaseCurrency, // Keep for display within this form area if needed, or remove if summary handles it
   isProcessingBooking,
-  displayGuests, // Use the display state for UI
 }: GuestInfoFormProps) {
   const [couponCode, setCouponCode] = React.useState(appliedCoupon?.code || '');
   const [couponError, setCouponError] = React.useState<string | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = React.useState(false);
   const { toast } = useToast();
-  const { selectedCurrency, convertToSelectedCurrency, formatPrice, baseCurrencyForProperty } = useCurrency();
-  const propertyBaseCcy = baseCurrencyForProperty(property.baseCurrency);
-
-  // Use the derived state for display and validation logic internally
-  // const guestsDisplay = React.useMemo(() => {
-  //   return typeof numberOfGuests === 'number' && !isNaN(numberOfGuests) && numberOfGuests > 0
-  //     ? numberOfGuests
-  //     : (property.baseOccupancy || 1);
-  // }, [numberOfGuests, property.baseOccupancy]);
-  // Removed guestsDisplay useMemo, will use displayGuests prop for UI consistency
-
-  const handleGuestChange = (change: number) => {
-    setNumberOfGuests((prev) => {
-      // Use the current value from session storage (prev) or default
-      const currentGuests = typeof prev === 'number' && !isNaN(prev) && prev > 0
-        ? prev
-        : (property.baseOccupancy || 1);
-      const newCount = currentGuests + change;
-      // Ensure bounds are respected
-      return Math.max(1, Math.min(newCount, property.maxGuests));
-    });
-  };
-
+  // Currency context might not be needed here if summary handles display, but keep if price is shown here too
+  const { selectedCurrency, formatPrice } = useCurrency();
 
   const handleGuestInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -111,7 +95,7 @@ export function GuestInfoForm({
 
     setIsApplyingCoupon(true);
     setCouponError(null);
-    setAppliedCoupon(null); // Clear previous coupon before applying new one
+    setAppliedCoupon(null); // Clear previous coupon
 
     try {
       const result = await validateAndApplyCoupon(couponCode.trim(), checkInDate, checkOutDate, property.slug);
@@ -139,72 +123,25 @@ export function GuestInfoForm({
     toast({ title: "Coupon Removed" });
   };
 
-  const pricingDetailsForDisplay = React.useMemo(() => {
-    if (pricingDetailsInBaseCurrency) {
-      return {
-        basePrice: convertToSelectedCurrency(pricingDetailsInBaseCurrency.basePrice, propertyBaseCcy),
-        extraGuestFee: convertToSelectedCurrency(pricingDetailsInBaseCurrency.extraGuestFeeTotal, propertyBaseCcy),
-        cleaningFee: convertToSelectedCurrency(pricingDetailsInBaseCurrency.cleaningFee, propertyBaseCcy),
-        subtotal: convertToSelectedCurrency(pricingDetailsInBaseCurrency.subtotal, propertyBaseCcy),
-        discountAmount: convertToSelectedCurrency(pricingDetailsInBaseCurrency.discountAmount, propertyBaseCcy),
-        total: convertToSelectedCurrency(pricingDetailsInBaseCurrency.total, propertyBaseCcy),
-        numberOfNights: pricingDetailsInBaseCurrency.numberOfNights,
-      };
-    }
-    return null;
-  }, [pricingDetailsInBaseCurrency, convertToSelectedCurrency, propertyBaseCcy]);
+  // Guest count input is removed from here
 
   return (
-    <div className="space-y-6">
-       {/* Number of Guests is now handled in AvailabilityCheck, but display pricing based on it */}
-
-       <Separator />
-
-      {/* Price Details */}
-      {pricingDetailsForDisplay && (
-        <div className="space-y-2 text-sm">
-          <h3 className="font-semibold mb-2">Price Details ({selectedCurrency})</h3>
-          <div className="flex justify-between"><span>Base price ({pricingDetailsForDisplay.numberOfNights} nights)</span><span>{formatPrice(pricingDetailsForDisplay.basePrice, selectedCurrency)}</span></div>
-          {pricingDetailsForDisplay.extraGuestFee > 0 && <div className="flex justify-between text-muted-foreground"><span>Extra guest fee</span><span>+{formatPrice(pricingDetailsForDisplay.extraGuestFee, selectedCurrency)}</span></div>}
-          <div className="flex justify-between"><span>Cleaning fee</span><span>+{formatPrice(pricingDetailsForDisplay.cleaningFee, selectedCurrency)}</span></div>
-          <Separator className="my-1" />
-          <div className="flex justify-between font-medium"><span>Subtotal</span><span>{formatPrice(pricingDetailsForDisplay.subtotal, selectedCurrency)}</span></div>
-          {appliedCoupon && <div className="flex justify-between text-green-600"><span>Discount ({appliedCoupon.code})</span><span>-{formatPrice(pricingDetailsForDisplay.discountAmount, selectedCurrency)}</span></div>}
-          <Separator className="my-2 font-bold" />
-          <div className="flex justify-between font-bold text-base"><span>Total</span><span>{formatPrice(pricingDetailsForDisplay.total, selectedCurrency)}</span></div>
-        </div>
-      )}
-      <Separator />
-
+    <div className="space-y-4">
       {/* Guest Information */}
-      <div className="space-y-4">
-        <h3 className="font-semibold">Your Information</h3>
-        {/* Names */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1">
-            <Label htmlFor="firstName">First Name</Label>
-            <Input id="firstName" name="firstName" value={firstName} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="lastName">Last Name</Label>
-            <Input id="lastName" name="lastName" value={lastName} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
-          </div>
-        </div>
-        {/* Email and Phone */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" value={email} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="phone">Phone Number</Label>
-            <Input id="phone" name="phone" type="tel" value={phone} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
-          </div>
-        </div>
-      </div>
+      <h3 className="font-semibold text-base pt-2">Your Information</h3>
+       {/* Names - side by side on larger screens */}
+       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+           <FormInput label="First Name" name="firstName" value={firstName} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
+           <FormInput label="Last Name" name="lastName" value={lastName} onChange={handleGuestInfoChange} required disabled={isProcessingBooking} />
+       </div>
+        {/* Email and Phone - side by side on larger screens */}
+       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+         <FormInput label="Email" name="email" type="email" value={email} onChange={handleGuestInfoChange} icon={Mail} required disabled={isProcessingBooking} />
+         <FormInput label="Phone Number" name="phone" type="tel" value={phone} onChange={handleGuestInfoChange} icon={PhoneIcon} required disabled={isProcessingBooking} />
+       </div>
 
        {/* Coupon Code */}
-       <div className="space-y-1">
+       <div className="space-y-1 pt-2">
          <Label htmlFor="coupon">Discount Coupon (Optional)</Label>
          <div className="flex gap-2 mt-1">
            <Input id="coupon" placeholder="Enter code" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} disabled={isApplyingCoupon || !!appliedCoupon || isProcessingBooking} className="flex-grow" />
@@ -221,6 +158,15 @@ export function GuestInfoForm({
            {appliedCoupon && <p className="text-green-600">Applied: {appliedCoupon.code} ({appliedCoupon.discountPercentage}%)</p>}
          </div>
        </div>
+       {/* Removed guest count modification controls */}
+        {/* Price details might be displayed in BookingSummary or here depending on final layout */}
+       {/* Example of showing price if needed here:
+       {pricingDetailsInBaseCurrency && (
+           <div className="mt-4 border-t pt-4">
+               <p className="font-bold">Total: {formatPrice(pricingDetailsInBaseCurrency.total, selectedCurrency)}</p>
+           </div>
+       )} */}
+
     </div>
   );
 }

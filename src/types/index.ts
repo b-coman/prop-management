@@ -1,4 +1,3 @@
-
 // src/types/index.ts
 import type { Timestamp } from 'firebase/firestore';
 
@@ -39,7 +38,8 @@ export interface Property {
   images?: PropertyImage[]; // Array of image objects
   amenities?: string[];
   pricePerNight: number; // Base price per night in property's baseCurrency
-  advertisedRate?: number; // Optional: a specific rate to display, in property's baseCurrency
+  advertisedRate?: number | string; // Use string to accommodate formats like "€160" or "450 RON"
+  advertisedRateType?: 'starting' | 'average' | 'special' | 'nightly'; // Type of advertised rate
   baseCurrency: CurrencyCode; // The currency in which pricePerNight & advertisedRate are set
   cleaningFee?: number;
   maxGuests: number;
@@ -71,6 +71,10 @@ export interface Property {
   };
   customDomain?: string | null;
   useCustomDomain?: boolean;
+  // New fields for booking options
+  holdFeeAmount?: number; // Amount for the hold fee
+  enableHoldOption?: boolean; // Toggle for enabling the hold option
+  enableContactOption?: boolean; // Toggle for enabling the contact option
   createdAt?: SerializableTimestamp;
   updatedAt?: SerializableTimestamp;
 }
@@ -80,6 +84,10 @@ export interface Availability {
   month: string; // Format: YYYY-MM
   available: {
     [day: number]: boolean; // Day of month (1-31) -> true (available), false (booked)
+  };
+  // New field to mark holds (optional, could also query bookings collection)
+  holds?: {
+     [day: number]: string; // Day of month -> bookingId of the hold
   };
   pricingModifiers?: {
     [day: number]: number; // Day of month -> price multiplier (e.g., 1.2 for 20% higher)
@@ -131,15 +139,45 @@ export interface Booking {
   checkOutDate: SerializableTimestamp;
   numberOfGuests: number;
   pricing: BookingPricing; // Holds all pricing details including the currency
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'payment_failed';
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'payment_failed' | 'on-hold'; // Added 'on-hold' status
   paymentInfo: PaymentInfo;
   notes?: string;
   source?: string; // e.g., 'website', 'airbnb', 'booking.com', 'test-button'
   externalId?: string; // ID from external platform if applicable
   appliedCouponCode?: string | null; // Store the applied coupon code
+  // New fields for holds
+  holdFee?: number; // Amount paid for the hold
+  holdUntil?: SerializableTimestamp | null; // Timestamp when the hold expires
+  holdPaymentId?: string | null; // Stripe PaymentIntent ID for the hold fee
+  convertedFromHold?: boolean; // Flag if this booking was converted from a hold
+  convertedFromInquiry?: string | null; // Inquiry ID if converted from an inquiry
   createdAt?: SerializableTimestamp;
   updatedAt?: SerializableTimestamp;
 }
+
+export interface Inquiry {
+  id: string; // Document ID from Firestore
+  propertySlug: string;
+  checkIn: SerializableTimestamp;
+  checkOut: SerializableTimestamp;
+  guestCount: number;
+  guestInfo: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string; // Optional phone
+  };
+  message: string;
+  status: "new" | "responded" | "converted" | "closed";
+  createdAt: SerializableTimestamp;
+  updatedAt: SerializableTimestamp;
+  responses?: Array<{ // Array of response messages
+    message: string;
+    createdAt: SerializableTimestamp;
+    fromHost: boolean; // True if message is from host, false if from guest
+  }>;
+}
+
 
 export interface User {
   id: string; // Firebase Auth User ID
@@ -203,23 +241,6 @@ export interface WebsiteTemplate {
   // other template-wide settings
 }
 
-export interface PropertyOverrides {
-  id?: string; // Document ID from Firestore (propertySlug)
-  visibleBlocks?: string[];
-  hero?: Partial<PropertyHeroOverride>;
-  experience?: Partial<PropertyExperienceOverride>;
-  host?: Partial<PropertyHostOverride>;
-  features?: PropertyFeatureOverride[]; // Array of features
-  location?: Partial<PropertyLocationOverride>; // For title override mainly
-  attractions?: PropertyAttractionOverride[]; // Array of attractions
-  testimonials?: Partial<PropertyTestimonialsOverride>; // For title override, reviews array
-  images?: PropertyImage[]; // For the gallery section, distinct from hero image
-  cta?: Partial<PropertyCtaOverride>;
-  // Add other overridable block structures as needed
-  [key: string]: any; // Allow other dynamic properties
-}
-
-// Specific override types (examples, expand as needed)
 export interface PropertyHeroOverride {
   backgroundImage?: string | null;
   'data-ai-hint'?: string;
@@ -296,6 +317,22 @@ export interface PropertyCtaOverride {
   buttonUrl?: string; // Optional: specific URL or anchor link
   backgroundImage?: string | null;
   'data-ai-hint'?: string;
+}
+
+export interface PropertyOverrides {
+  id?: string; // Document ID from Firestore (propertySlug)
+  visibleBlocks?: string[];
+  hero?: Partial<PropertyHeroOverride>;
+  experience?: Partial<PropertyExperienceOverride>;
+  host?: Partial<PropertyHostOverride>;
+  features?: PropertyFeatureOverride[]; // Array of features
+  location?: Partial<PropertyLocationOverride>; // For title override mainly
+  attractions?: PropertyAttractionOverride[]; // Array of attractions
+  testimonials?: Partial<PropertyTestimonialsOverride>; // For title override, reviews array
+  images?: PropertyImage[]; // For the gallery section, distinct from hero image
+  cta?: Partial<PropertyCtaOverride>;
+  // Add other overridable block structures as needed
+  [key: string]: any; // Allow other dynamic properties
 }
 
 export interface Coupon {
