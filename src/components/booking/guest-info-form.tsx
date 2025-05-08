@@ -1,4 +1,3 @@
-
 // src/components/booking/guest-info-form.tsx
 "use client";
 
@@ -25,7 +24,7 @@ import { useCurrency } from '@/contexts/CurrencyContext'; // Import useCurrency
 
 interface GuestInfoFormProps {
   property: Property;
-  numberOfGuests: number;
+  numberOfGuests: number; // Still receive the raw state value
   setNumberOfGuests: React.Dispatch<React.SetStateAction<number>>;
   firstName: string;
   setFirstName: (value: string) => void;
@@ -45,7 +44,7 @@ interface GuestInfoFormProps {
 
 export function GuestInfoForm({
   property,
-  numberOfGuests,
+  numberOfGuests, // Receive raw state
   setNumberOfGuests,
   firstName,
   setFirstName,
@@ -69,17 +68,25 @@ export function GuestInfoForm({
   const { selectedCurrency, convertToSelectedCurrency, formatPrice, baseCurrencyForProperty } = useCurrency();
   const propertyBaseCcy = baseCurrencyForProperty(property.baseCurrency);
 
+  // Use the derived state for display and validation logic internally
   const guestsDisplay = React.useMemo(() => {
-    return typeof numberOfGuests === 'number' && !isNaN(numberOfGuests) ? numberOfGuests : (property.baseOccupancy || 1);
+    return typeof numberOfGuests === 'number' && !isNaN(numberOfGuests) && numberOfGuests > 0
+      ? numberOfGuests
+      : (property.baseOccupancy || 1);
   }, [numberOfGuests, property.baseOccupancy]);
 
   const handleGuestChange = (change: number) => {
     setNumberOfGuests((prev) => {
-      const currentGuests = typeof prev === 'number' && !isNaN(prev) ? prev : (property.baseOccupancy || 1);
+      // Use the internal guestsDisplay logic to ensure correct base for calculation
+      const currentGuests = typeof prev === 'number' && !isNaN(prev) && prev > 0
+        ? prev
+        : (property.baseOccupancy || 1);
       const newCount = currentGuests + change;
+      // Ensure bounds are respected
       return Math.max(1, Math.min(newCount, property.maxGuests));
     });
   };
+
 
   const handleGuestInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -101,7 +108,7 @@ export function GuestInfoForm({
 
     setIsApplyingCoupon(true);
     setCouponError(null);
-    setAppliedCoupon(null);
+    setAppliedCoupon(null); // Clear previous coupon before applying new one
 
     try {
       const result = await validateAndApplyCoupon(couponCode.trim(), checkInDate, checkOutDate, property.slug);
@@ -146,8 +153,9 @@ export function GuestInfoForm({
 
   return (
     <div className="space-y-6">
-      {/* Number of Guests */}
-       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+      {/* Number of Guests & Coupon Code */}
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+         {/* Guests */}
          <div className="space-y-1">
            <Label htmlFor="guests">Number of Guests</Label>
            <div className="flex items-center justify-between rounded-md border p-2 mt-1 w-full">
@@ -183,24 +191,24 @@ export function GuestInfoForm({
            </p>
          </div>
 
-           {/* Coupon Code */}
-           <div className="space-y-1">
-             <Label htmlFor="coupon">Discount Coupon (Optional)</Label>
-             <div className="flex gap-2">
-               <Input id="coupon" placeholder="Enter code" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} disabled={isApplyingCoupon || !!appliedCoupon || isProcessingBooking} />
-               {!appliedCoupon ? (
-                 <Button type="button" variant="outline" onClick={handleApplyCoupon} disabled={isApplyingCoupon || !couponCode.trim() || isProcessingBooking}>
-                   {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <TicketPercent className="h-4 w-4" />}
-                 </Button>
-               ) : (
-                 <Button type="button" variant="ghost" size="icon" onClick={handleRemoveCoupon} disabled={isProcessingBooking}><X className="h-4 w-4 text-destructive" /></Button>
-               )}
-             </div>
-             <div className="h-4 text-xs mt-1">
-               {couponError && <p className="text-destructive">{couponError}</p>}
-               {appliedCoupon && <p className="text-green-600">Applied: {appliedCoupon.code} ({appliedCoupon.discountPercentage}%)</p>}
-             </div>
+         {/* Coupon Code */}
+         <div className="space-y-1">
+           <Label htmlFor="coupon">Discount Coupon (Optional)</Label>
+           <div className="flex gap-2 mt-1">
+             <Input id="coupon" placeholder="Enter code" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} disabled={isApplyingCoupon || !!appliedCoupon || isProcessingBooking} className="flex-grow" />
+             {!appliedCoupon ? (
+               <Button type="button" variant="outline" onClick={handleApplyCoupon} disabled={isApplyingCoupon || !couponCode.trim() || isProcessingBooking} className="shrink-0">
+                 {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <TicketPercent className="h-4 w-4" />}
+               </Button>
+             ) : (
+               <Button type="button" variant="ghost" size="icon" onClick={handleRemoveCoupon} disabled={isProcessingBooking} className="shrink-0"><X className="h-4 w-4 text-destructive" /></Button>
+             )}
            </div>
+           <div className="h-4 text-xs mt-1">
+             {couponError && <p className="text-destructive">{couponError}</p>}
+             {appliedCoupon && <p className="text-green-600">Applied: {appliedCoupon.code} ({appliedCoupon.discountPercentage}%)</p>}
+           </div>
+         </div>
        </div>
        <Separator />
 
@@ -249,5 +257,3 @@ export function GuestInfoForm({
     </div>
   );
 }
-
-    

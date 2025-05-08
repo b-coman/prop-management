@@ -4,7 +4,18 @@
 import * as React from 'react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { format, differenceInDays, addDays, parseISO, isValid, isAfter, startOfDay, startOfMonth, subMonths } from 'date-fns';
+import {
+  format,
+  differenceInDays,
+  addDays,
+  parseISO,
+  isValid,
+  isAfter,
+  startOfDay,
+  startOfMonth,
+  subMonths,
+  isBefore,
+} from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import {
   Loader2,
@@ -19,10 +30,11 @@ import { getUnavailableDatesForProperty } from '@/services/bookingService';
 import { createPendingBookingAction } from '@/app/actions/booking-actions';
 import { createCheckoutSession } from '@/app/actions/create-checkout-session';
 
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Label } from '@/components/ui/label'; // Import Label
+import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
@@ -35,6 +47,7 @@ import { cn } from '@/lib/utils';
 import { AvailabilityCalendar } from './availability-calendar';
 import { AvailabilityStatus } from './availability-status';
 import { GuestInfoForm } from './guest-info-form';
+
 
 interface AvailabilityCheckProps {
   property: Property;
@@ -75,6 +88,9 @@ export function AvailabilityCheck({
   const [isProcessingBooking, setIsProcessingBooking] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  // State for client-side rendering of formatted date string
+  const [displayDateRangeString, setDisplayDateRangeString] = useState<string | null>(null);
+  const [hasMounted, setHasMounted] = useState(false); // Track client mount
 
   // --- Guest Info State (managed here, passed down) ---
   const [firstName, setFirstName] = useSessionStorage<string>(`booking_${propertySlug}_firstName`, '');
@@ -82,23 +98,49 @@ export function AvailabilityCheck({
   const [email, setEmail] = useSessionStorage<string>(`booking_${propertySlug}_email`, '');
   const [phone, setPhone] = useSessionStorage<string>(`booking_${propertySlug}_phone`, '');
 
+  // Indicate component has mounted
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   // --- Derived State ---
   const dateRange: DateRange | undefined = useMemo(() => {
     return checkInDate && checkOutDate ? { from: checkInDate, to: checkOutDate } : undefined;
   }, [checkInDate, checkOutDate]);
 
-  const datesSelected = checkInDate && checkOutDate && isValid(checkInDate) && isValid(checkOutDate) && isAfter(checkOutDate, checkInDate);
+  const datesSelected = useMemo(() =>
+    checkInDate && checkOutDate && isValid(checkInDate) && isValid(checkOutDate) && isAfter(checkOutDate, checkInDate),
+    [checkInDate, checkOutDate]
+  );
+
   const numberOfNights = useMemo(() => {
     if (datesSelected && checkInDate && checkOutDate) {
-      return differenceInDays(startOfDay(checkOutDate), startOfDay(checkInDate));
+      return differenceInDays(checkOutDate, checkInDate);
     }
     return 0;
   }, [checkInDate, checkOutDate, datesSelected]);
 
+
+  // Update display string only on client after mount
+  useEffect(() => {
+    if (!hasMounted) return; // Don't run on server or before mount
+
+    if (dateRange?.from) {
+      if (dateRange.to) {
+        setDisplayDateRangeString(
+          `${format(dateRange.from, 'LLL dd, y')} - ${format(dateRange.to, 'LLL dd, y')}`
+        );
+      } else {
+        setDisplayDateRangeString(format(dateRange.from, 'LLL dd, y'));
+      }
+    } else {
+      setDisplayDateRangeString(null); // Reset if no date range
+    }
+  }, [dateRange, hasMounted]);
+
   // --- Pricing Calculation ---
   const pricingDetailsInBaseCurrency = useMemo(() => {
-    const currentGuests = typeof numberOfGuests === 'number' && !isNaN(numberOfGuests) ? numberOfGuests : (property.baseOccupancy || 1);
+    const currentGuests = guestsDisplay; // Use the derived guestsDisplay state
     if (datesSelected && currentGuests > 0 && numberOfNights > 0) {
       return calculatePrice(
         property.pricePerNight,
@@ -112,7 +154,15 @@ export function AvailabilityCheck({
       );
     }
     return null;
-  }, [datesSelected, property, numberOfNights, numberOfGuests, appliedCoupon, propertyBaseCcy]);
+  }, [datesSelected, property, numberOfNights, guestsDisplay, appliedCoupon, propertyBaseCcy]); // Added guestsDisplay dependency
+
+
+  // Use guestsDisplay for guest count logic
+  const guestsDisplay = useMemo(() => {
+    return typeof numberOfGuests === 'number' && !isNaN(numberOfGuests) && numberOfGuests > 0
+      ? numberOfGuests
+      : (property.baseOccupancy || 1);
+  }, [numberOfGuests, property.baseOccupancy]);
 
   // --- Availability Check Logic ---
   const checkPropertyAvailability = useCallback(async () => {
@@ -131,7 +181,7 @@ export function AvailabilityCheck({
 
       let conflict = false;
       let current = new Date(checkInDate.getTime());
-      while (isAfter(checkOutDate, current)) { // Changed from isBefore to isAfter, should be correct
+      while (isBefore(current, checkOutDate)) { // Check days *within* the range, excluding checkout day
         const dateString = format(startOfDay(current), 'yyyy-MM-dd');
         if (fetchedUnavailableDates.some(d => format(startOfDay(d), 'yyyy-MM-dd') === dateString)) {
           conflict = true;
@@ -144,15 +194,15 @@ export function AvailabilityCheck({
       if (conflict) {
         // Basic suggestion logic (find next available block of same length)
         let suggestionFound = false;
-        let suggestionStart = addDays(checkOutDate!, 1); // Start searching from the day after requested checkout
-        const maxSearchDate = addDays(checkOutDate!, 60); // Limit search to avoid infinite loops
+        let suggestionStart = addDays(checkOutDate, 1); // Start searching from the day after requested checkout
+        const maxSearchDate = addDays(checkOutDate, 60); // Limit search to avoid infinite loops
 
         while (isAfter(maxSearchDate, suggestionStart) && !suggestionFound) {
             const suggestionEnd = addDays(suggestionStart, numberOfNights);
             let suggestionConflict = false;
             let checkCurrent = new Date(suggestionStart.getTime());
 
-            while(isAfter(suggestionEnd, checkCurrent)) {
+            while(isBefore(checkCurrent, suggestionEnd)) { // Check days *within* the range
                  const checkDateString = format(startOfDay(checkCurrent), 'yyyy-MM-dd');
                  if (fetchedUnavailableDates.some(d => format(startOfDay(d), 'yyyy-MM-dd') === checkDateString) || isBefore(checkCurrent, startOfDay(new Date()))) {
                       suggestionConflict = true;
@@ -169,7 +219,7 @@ export function AvailabilityCheck({
             }
         }
           if (!suggestionFound) {
-              console.log("No alternative dates found within 60 days.");
+              // console.log("No alternative dates found within 60 days.");
               // Optionally set a state to indicate no suggestions were found
           }
 
@@ -216,9 +266,9 @@ export function AvailabilityCheck({
     e.preventDefault();
     setFormError(null);
 
-    const currentGuests = typeof numberOfGuests === 'number' && !isNaN(numberOfGuests) ? numberOfGuests : (property.baseOccupancy || 1);
-    if (currentGuests < 1 || currentGuests > property.maxGuests) {
-      setFormError(`Number of guests must be between 1 and ${property.maxGuests}. Current: ${currentGuests}`);
+    // Use guestsDisplay for validation
+    if (guestsDisplay < 1 || guestsDisplay > property.maxGuests) {
+      setFormError(`Number of guests must be between 1 and ${property.maxGuests}. Current: ${guestsDisplay}`);
       return;
     }
     if (!datesSelected || isAvailable !== true || !checkInDate || !checkOutDate) {
@@ -250,16 +300,19 @@ export function AvailabilityCheck({
         guestInfo: { firstName: sanitizeText(firstName), lastName: sanitizeText(lastName), email: sanitizeEmail(email), phone: sanitizePhone(phone) },
         checkInDate: checkInDate.toISOString(),
         checkOutDate: checkOutDate.toISOString(),
-        numberOfGuests: currentGuests,
+        numberOfGuests: guestsDisplay, // Use derived state
         pricing: {
           ...pricingDetailsInBaseCurrency,
           currency: propertyBaseCcy, // Pass base currency
         },
         status: 'pending' as const,
-        appliedCouponCode: appliedCoupon?.code || null, // Send null if no coupon
+        appliedCouponCode: appliedCoupon?.code ?? null, // Pass null if no coupon applied
       };
+      // console.log("[Action createPendingBookingAction] Called with input:", JSON.stringify(bookingInput, null, 2));
 
       const pendingBookingResult = await createPendingBookingAction(bookingInput);
+      // console.log("[Action createPendingBookingAction] Result:", pendingBookingResult);
+
 
       if (pendingBookingResult.error || !pendingBookingResult.bookingId) {
         throw new Error(pendingBookingResult.error || "Failed to create pending booking.");
@@ -271,7 +324,7 @@ export function AvailabilityCheck({
         property: property,
         checkInDate: checkInDate.toISOString(),
         checkOutDate: checkOutDate.toISOString(),
-        numberOfGuests: currentGuests,
+        numberOfGuests: guestsDisplay, // Use derived state
         totalPrice: pricingDetailsInBaseCurrency.total, // Total in base currency
         numberOfNights: numberOfNights,
         appliedCouponCode: appliedCoupon?.code,
@@ -288,11 +341,11 @@ export function AvailabilityCheck({
         throw new Error(stripeResult.error || 'Failed to create Stripe session or missing session URL.');
       }
 
-      if (stripeResult.sessionUrl) {
-        window.location.href = stripeResult.sessionUrl;
-      } else {
-        throw new Error("Stripe session URL is missing.");
-      }
+       if (stripeResult.sessionUrl) {
+          window.location.href = stripeResult.sessionUrl;
+       } else {
+          throw new Error("Stripe session URL is missing.");
+       }
 
     } catch (error) {
       console.error("Error processing booking:", error);
@@ -310,27 +363,27 @@ export function AvailabilityCheck({
 
 
   // --- Calendar Rendering Logic ---
-  const renderAvailabilityCalendar = () => {
-      // Only render if dates are unavailable
-      if (isAvailable === true || isLoadingAvailability) {
-          return null;
-      }
-      // Default to today if checkInDate is not valid or unavailable
-      const validCheckIn = checkInDate && isValid(checkInDate) ? checkInDate : new Date();
-      // Calculate the center month (one month before the target month)
-      const calendarCenterMonth = startOfMonth(subMonths(validCheckIn, 1));
+   const renderAvailabilityCalendar = () => {
+       // Only render if dates are explicitly unavailable
+       if (isAvailable === true || isLoadingAvailability || !datesSelected) {
+           return null;
+       }
+       // Default to today if checkInDate is not valid or unavailable
+       const validCheckIn = checkInDate && isValid(checkInDate) ? checkInDate : new Date();
+       // Calculate the center month (one month before the target month)
+       const calendarCenterMonth = startOfMonth(validCheckIn); // Show requested month in center
 
-      return (
-          <div className="mt-6">
-          <h3 className="text-lg font-semibold mb-3">Availability Calendar</h3>
-          <AvailabilityCalendar
-              currentMonth={calendarCenterMonth}
-              unavailableDates={unavailableDates}
-              selectedRange={dateRange}
-          />
-          </div>
-      );
-  };
+       return (
+           <div className="mt-6">
+           <h3 className="text-lg font-semibold mb-3">Availability Calendar</h3>
+           <AvailabilityCalendar
+               currentMonth={calendarCenterMonth}
+               unavailableDates={unavailableDates}
+               selectedRange={dateRange}
+           />
+           </div>
+       );
+   };
 
   // --- Main Render ---
   return (
@@ -338,51 +391,47 @@ export function AvailabilityCheck({
       {/* Date Picker */}
       <div className="mb-6">
           <Label className="mb-1 block text-sm font-medium">Select Dates</Label>
-          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full justify-between text-left font-normal flex items-center",
-                  !dateRange && "text-muted-foreground"
-                )}
-                disabled={isProcessingBooking || isLoadingAvailability}
-              >
-                <div className="flex items-center">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateRange?.from ? (
-                    dateRange.to ? (
-                      <>
-                        {format(dateRange.from, 'LLL dd, y')} -{' '}
-                        {format(dateRange.to, 'LLL dd, y')}
-                      </>
-                    ) : (
-                      format(dateRange.from, 'LLL dd, y')
-                    )
-                  ) : (
-                    <span>Pick a date range</span>
+          <div className="flex items-center gap-4">
+             <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "flex-grow justify-between text-left font-normal flex items-center",
+                    !displayDateRangeString && "text-muted-foreground" // Style when no date is displayed yet
                   )}
-                </div>
-                <Pencil className="h-3 w-3 opacity-50 ml-auto" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={dateRange?.from}
-                selected={dateRange}
-                onSelect={handleDateSelect}
-                numberOfMonths={2}
-                disabled={{ before: startOfDay(new Date()) }}
-              />
-            </PopoverContent>
-          </Popover>
-           {numberOfNights > 0 && (
-             <p className="text-xs text-muted-foreground mt-1 text-right">
-               ({numberOfNights} nights)
-             </p>
-           )}
+                  disabled={isProcessingBooking || isLoadingAvailability || !hasMounted} // Disable until mounted
+                >
+                  <div className="flex items-center">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {/* Render placeholder until mounted or date is set */}
+                    {hasMounted && displayDateRangeString ? (
+                      displayDateRangeString
+                    ) : (
+                      <span>{hasMounted ? 'Pick a date range' : 'Loading dates...'}</span>
+                    )}
+                  </div>
+                  <Pencil className="h-3 w-3 opacity-50 ml-auto" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateRange?.from}
+                  selected={dateRange}
+                  onSelect={handleDateSelect}
+                  numberOfMonths={2}
+                  disabled={{ before: startOfDay(new Date()) }}
+                />
+              </PopoverContent>
+            </Popover>
+            {numberOfNights > 0 && (
+               <p className="text-sm text-muted-foreground whitespace-nowrap shrink-0">
+                 ({numberOfNights} {numberOfNights === 1 ? 'night' : 'nights'})
+               </p>
+             )}
+          </div>
       </div>
 
       {/* Availability Status and Notifications */}
@@ -408,7 +457,7 @@ export function AvailabilityCheck({
       {renderAvailabilityCalendar()}
 
       {/* Guest Info & Pricing Form (only if dates ARE available) */}
-      {isAvailable === true && !isLoadingAvailability && (
+      {isAvailable === true && !isLoadingAvailability && datesSelected && (
         <Card className="w-full mt-8">
           <CardHeader>
             <CardTitle>Booking Summary & Details</CardTitle>
@@ -418,7 +467,7 @@ export function AvailabilityCheck({
             <form onSubmit={handleContinueToPayment} className="space-y-6">
               <GuestInfoForm
                 property={property}
-                numberOfGuests={numberOfGuests}
+                numberOfGuests={guestsDisplay} // Pass derived state
                 setNumberOfGuests={setNumberOfGuests}
                 firstName={firstName}
                 setFirstName={setFirstName}
@@ -447,7 +496,6 @@ export function AvailabilityCheck({
                 {isProcessingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
                 {isProcessingBooking ? 'Processing...' : 'Continue to Payment'}
               </Button>
-               {/* Removed Test Booking Button - keep separate if needed */}
             </form>
           </CardContent>
         </Card>
