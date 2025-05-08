@@ -96,7 +96,7 @@
       "testimonials": {
         "title": "What Our Guests Say",
         "showRating": true,
-        "reviews": [ // Updated key from featuredReviews to reviews
+        "reviews": [ 
           { "name": "Maria D.", "date": "2025-04", "rating": 5, "text": "We loved our stay! The house was perfect.", "imageUrl": "/images/templates/holiday-house/default-guest1.jpg", "data-ai-hint": "happy female guest portrait" },
           { "name": "James T.", "date": "2025-03", "rating": 5, "text": "Great experience. Highly recommend!", "imageUrl": "/images/templates/holiday-house/default-guest2.jpg", "data-ai-hint": "happy male guest portrait" }
         ]
