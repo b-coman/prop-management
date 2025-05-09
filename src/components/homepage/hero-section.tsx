@@ -7,7 +7,7 @@ import { InitialBookingForm } from '@/components/booking/initial-booking-form';
 import type { Property, CurrencyCode } from '@/types';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { cn } from '@/lib/utils';
-
+import { useEffect, useState } from 'react'; // Import useEffect and useState
 
 export interface HeroData {
   backgroundImage: string | null;
@@ -17,8 +17,8 @@ export interface HeroData {
   price?: number | null; // Advertised rate from property's base currency
   showRating?: boolean;
   showBookingForm?: boolean;
-  bookingFormProperty: Property; 
-   bookingForm?: { 
+  bookingFormProperty: Property;
+   bookingForm?: {
     position?: 'center' | 'top' | 'bottom' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
     size?: 'compressed' | 'large';
   };
@@ -29,13 +29,18 @@ interface HeroSectionProps {
 }
 
 export function HeroSection({ heroData }: HeroSectionProps) {
-  const { formatPrice, selectedCurrency, baseCurrencyForProperty, convertToSelectedCurrency } = useCurrency();
+  const { formatPrice, selectedCurrency, baseCurrencyForProperty, convertToSelectedCurrency, ratesLoading } = useCurrency();
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   const {
     backgroundImage,
     title,
     subtitle,
-    price, 
+    price,
     showRating,
     showBookingForm,
     bookingFormProperty,
@@ -46,12 +51,14 @@ export function HeroSection({ heroData }: HeroSectionProps) {
   const propertyBaseCcy = baseCurrencyForProperty(bookingFormProperty.baseCurrency);
 
   // Convert the hero's advertised price to the selected display currency
-  const displayPriceAmount = price !== null && price !== undefined 
-    ? convertToSelectedCurrency(price, propertyBaseCcy) 
-    : null;
-  
-  const formattedDisplayPrice = displayPriceAmount !== null 
-    ? formatPrice(displayPriceAmount, selectedCurrency) 
+  const displayPriceAmount = price !== null && price !== undefined && !ratesLoading && hasMounted
+    ? convertToSelectedCurrency(price, propertyBaseCcy)
+    : price; // Fallback to base price if not mounted or rates loading
+
+  const currencyToDisplay = !hasMounted || ratesLoading ? propertyBaseCcy : selectedCurrency;
+
+  const formattedDisplayPrice = displayPriceAmount !== null && displayPriceAmount !== undefined
+    ? formatPrice(displayPriceAmount, currencyToDisplay)
     : null;
 
   const rating = bookingFormProperty.ratings?.average;
@@ -99,16 +106,27 @@ export function HeroSection({ heroData }: HeroSectionProps) {
         {showBookingForm && (
            <div className={formWrapperClasses}>
              <div className="flex flex-col md:flex-row items-center justify-between mb-4 gap-4">
-                {formattedDisplayPrice !== null && (
+                {hasMounted && formattedDisplayPrice !== null ? (
                   <div className='text-center md:text-left'>
                     <p className="text-2xl md:text-3xl font-bold text-foreground">
                       {formattedDisplayPrice}
                       <span className="text-base font-normal text-muted-foreground">/night</span>
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      special deal / starting with
+                      {bookingFormProperty.advertisedRateType || "special deal / starting with"}
                     </p>
                   </div>
+                ) : (
+                   <div className='text-center md:text-left'>
+                     <p className="text-2xl md:text-3xl font-bold text-foreground">
+                       {/* Placeholder or base currency price before hydration */}
+                       {price !== null && price !== undefined ? formatPrice(price, propertyBaseCcy) : "Loading price..."}
+                       <span className="text-base font-normal text-muted-foreground">/night</span>
+                     </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                       {bookingFormProperty.advertisedRateType || "special deal / starting with"}
+                     </p>
+                   </div>
                 )}
                 {showRating && rating && reviewsCount && (
                   <div className="flex items-center gap-1 text-foreground">
