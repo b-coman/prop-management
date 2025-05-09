@@ -401,6 +401,13 @@ export function AvailabilityCheck({
           {/* Date Picker */}
           <div className="flex-grow">
               <Label className="mb-1 block text-sm font-medium">Selected Dates</Label>
+
+              {clientNumberOfNights > 0 && hasMounted && (
+                 <p className="text-sm text-muted-foreground mt-1">
+                   ({clientNumberOfNights} {clientNumberOfNights === 1 ? 'night' : 'nights'})
+                 </p>
+              )}
+
               <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                 <PopoverTrigger asChild>
                   <Button
