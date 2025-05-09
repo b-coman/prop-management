@@ -1,4 +1,4 @@
- 
+
 {
     "templateId": "holiday-house",
     "name": "Prahova Mountain Chalet",
@@ -60,6 +60,9 @@
       "enabled": true,
       "googleAnalyticsId": "G-3D08B7JSEZ"
     },
+    "holdFeeAmount": 25,
+    "enableHoldOption": true,
+    "enableContactOption": true,
     "createdAt": { "_seconds": 1746200000, "_nanoseconds": 0 },
     "updatedAt": { "_seconds": 1746200000, "_nanoseconds": 0 }
   }

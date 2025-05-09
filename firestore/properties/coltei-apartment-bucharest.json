@@ -1,3 +1,4 @@
+
 {
     "templateId": "holiday-house",
     "name": "Coltei Apartment Bucharest",
@@ -59,6 +60,9 @@
       "enabled": true,
       "googleAnalyticsId": "G-YYYYYYYYYY"
     },
+    "holdFeeAmount": 15,
+    "enableHoldOption": true,
+    "enableContactOption": true,
     "createdAt": { "_seconds": 1746200000, "_nanoseconds": 0 },
     "updatedAt": { "_seconds": 1746200000, "_nanoseconds": 0 }
   }
