@@ -87,7 +87,7 @@ export interface Availability {
   };
   // New field to mark holds (optional, could also query bookings collection)
   holds?: {
-     [day: number]: string; // Day of month -> bookingId of the hold
+     [day: number]: string | null; // Day of month -> bookingId of the hold, or null if no hold
   };
   pricingModifiers?: {
     [day: number]: number; // Day of month -> price multiplier (e.g., 1.2 for 20% higher)

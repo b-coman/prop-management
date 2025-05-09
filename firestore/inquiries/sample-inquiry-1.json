@@ -1,0 +1,18 @@
+
+{
+  "propertySlug": "prahova-mountain-chalet",
+  "checkIn": "2025-07-15T00:00:00.000Z",
+  "checkOut": "2025-07-20T00:00:00.000Z",
+  "guestCount": 2,
+  "guestInfo": {
+    "firstName": "Alex",
+    "lastName": "Popescu",
+    "email": "alex.popescu@example.com",
+    "phone": "+40722123456"
+  },
+  "message": "Hello, I'm interested in booking your chalet for these dates. Could you tell me if you allow small, well-behaved pets? We have a small dog.",
+  "status": "new",
+  "createdAt": "2025-06-01T10:30:00.000Z",
+  "updatedAt": "2025-06-01T10:30:00.000Z",
+  "responses": []
+}

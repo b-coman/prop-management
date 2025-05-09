@@ -1,0 +1,23 @@
+
+{
+  "propertySlug": "coltei-apartment-bucharest",
+  "checkIn": "2025-08-01T00:00:00.000Z",
+  "checkOut": "2025-08-05T00:00:00.000Z",
+  "guestCount": 1,
+  "guestInfo": {
+    "firstName": "Maria",
+    "lastName": "Ionescu",
+    "email": "maria.ionescu@example.com"
+  },
+  "message": "Is there a discount available for a solo traveler for these dates?",
+  "status": "responded",
+  "createdAt": "2025-06-05T14:00:00.000Z",
+  "updatedAt": "2025-06-05T15:15:00.000Z",
+  "responses": [
+    {
+      "message": "Hello Maria, thank you for your inquiry! We don't have specific solo traveler discounts, but our rates are competitive. We can offer a 5% discount if you book directly for 4 nights or more.",
+      "createdAt": "2025-06-05T15:15:00.000Z",
+      "fromHost": true
+    }
+  ]
+}

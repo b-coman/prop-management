@@ -4,13 +4,10 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as admin from 'firebase-admin';
 import { blockSchemas } from '../lib/overridesSchemas'; // Assuming this path is correct
-import { convertObjectToFirestoreTimestamps } from './convertTimestamps'; // Assuming this path is correct
-
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 console.log('✅ Environment variables loaded.');
 console.log(`Project ID from env: ${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}`);
-
 
 const serviceAccountPath = process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_PATH;
 
@@ -26,8 +23,6 @@ try {
 
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccountFullPath),
-        // Optionally specify projectId if not in service account key or if you want to be explicit
-        // projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
       });
       console.log('✅ Firebase Admin SDK initialized successfully.');
   } else {
@@ -41,6 +36,54 @@ try {
 
 const db = admin.firestore();
 
+// Enhanced convertTimestamps to handle ISO strings as well
+const convertObjectToFirestoreTimestamps = (data: any): any => {
+    if (data === null || typeof data !== 'object') {
+        // Check if it's a string and looks like an ISO date
+        if (typeof data === 'string') {
+            // Basic ISO date check (YYYY-MM-DDTHH:mm:ss.sssZ or YYYY-MM-DD)
+            const isoDateRegex = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|([+-]\d{2}:\d{2}))?)?$/;
+            if (isoDateRegex.test(data)) {
+                try {
+                    const date = new Date(data);
+                    // Ensure the date is valid before converting
+                    if (!isNaN(date.getTime())) {
+                        return admin.firestore.Timestamp.fromDate(date);
+                    }
+                } catch (e) {
+                    console.warn(`Could not parse string as date: ${data}`, e);
+                    // Fall through to return original string if parsing fails
+                }
+            }
+        }
+        return data;
+    }
+
+    // Handle Firestore-like timestamp objects
+    if (data._seconds !== undefined && data._nanoseconds !== undefined) {
+        try {
+            return new admin.firestore.Timestamp(data._seconds, data._nanoseconds);
+        } catch (e) {
+            console.warn(`Could not convert object to Timestamp: ${JSON.stringify(data)}`, e);
+            return data; // Return original object if conversion fails
+        }
+    }
+
+    // Recursively process arrays and objects
+    if (Array.isArray(data)) {
+        return data.map(convertObjectToFirestoreTimestamps);
+    }
+
+    const convertedData: { [key: string]: any } = {};
+    for (const key in data) {
+        if (Object.prototype.hasOwnProperty.call(data, key)) {
+            convertedData[key] = convertObjectToFirestoreTimestamps(data[key]);
+        }
+    }
+    return convertedData;
+};
+
+
 async function loadJsonIntoFirestore(collectionName: string, docId: string, filePath: string) {
     console.log(`Processing [${collectionName}/${docId}] from ${filePath}...`);
     try {
@@ -48,7 +91,7 @@ async function loadJsonIntoFirestore(collectionName: string, docId: string, file
         const fileContent = await fs.readFile(fullPath, 'utf-8');
         const jsonData = JSON.parse(fileContent);
 
-        // --- Validate blocks in defaults
+        // --- Validate blocks in defaults for websiteTemplates
         if (collectionName === 'websiteTemplates' && jsonData.defaults) {
             for (const blockKey of Object.keys(jsonData.defaults)) {
                 const schema = blockSchemas[blockKey];
@@ -69,7 +112,7 @@ async function loadJsonIntoFirestore(collectionName: string, docId: string, file
         const dataWithTimestamps = convertObjectToFirestoreTimestamps(jsonData);
 
         const docRef = db.collection(collectionName).doc(docId);
-        await docRef.set(dataWithTimestamps, { merge: true }); // Using merge: true can be safer
+        await docRef.set(dataWithTimestamps, { merge: true });
         console.log(`✅ Loaded document: ${collectionName}/${docId}`);
     } catch (error) {
         console.error(`❌ Failed loading ${collectionName}/${docId} from ${filePath}:`, error);
@@ -90,7 +133,6 @@ async function processDirectory(directoryPath: string) {
                 const filePath = entryPath;
                 await loadJsonIntoFirestore(collectionName, docId, filePath);
             }
-            // Removed recursive directory processing to handle appConfig explicitly
         }
     } catch (error) {
         if (error instanceof Error && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -111,8 +153,8 @@ async function main() {
 
         if (inputFilePath) {
             const resolvedFile = path.resolve(inputFilePath);
-            const collectionName = path.basename(path.dirname(resolvedFile)); // e.g., 'properties'
-            const docId = path.basename(resolvedFile).replace(/\.json$/, ''); // e.g., 'prahova-mountain-chalet'
+            const collectionName = path.basename(path.dirname(resolvedFile)); 
+            const docId = path.basename(resolvedFile).replace(/\.json$/, ''); 
             console.log(`🔍 Single-file mode: Loading ${resolvedFile} into ${collectionName}/${docId}`);
             await loadJsonIntoFirestore(collectionName, docId, resolvedFile);
         } else {
@@ -121,8 +163,9 @@ async function main() {
             await processDirectory(path.join(firestoreBaseFolder, 'websiteTemplates'));
             await processDirectory(path.join(firestoreBaseFolder, 'properties'));
             await processDirectory(path.join(firestoreBaseFolder, 'propertyOverrides'));
-            // Process appConfig specifically
             await processDirectory(path.join(firestoreBaseFolder, 'appConfig'));
+            // Process the new inquiries directory
+            await processDirectory(path.join(firestoreBaseFolder, 'inquiries'));
             // Add other directories/collections as needed
         }
 
