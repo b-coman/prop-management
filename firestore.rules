@@ -1,5 +1,5 @@
-
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -8,107 +8,119 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(propertyId) {
-      // Assumes propertyId passed is the slug (document ID)
-      return isSignedIn() &&
-             exists(/databases/$(database)/documents/properties/$(propertyId)) &&
-             get(/databases/$(database)/documents/properties/$(propertyId)).data.ownerId == request.auth.uid;
+    function isOwner(propertySlug) {
+      // Assumes propertySlug is the document ID in 'properties' collection
+      return isSignedIn() && get(/databases/$(database)/documents/properties/$(propertySlug)).data.ownerId == request.auth.uid;
     }
 
     function isAdmin() {
-      // Assumes user document exists and has a 'role' field
-      return isSignedIn() &&
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Assumes there's a 'users' collection where admin role is defined
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Checks if a custom domain is already in use by another property
-    // function domainIsAvailable(domain) {
-    //   return !exists(/databases/$(database)/documents/properties/{otherPropertyId}) ||
-    //         query(/databases/$(database)/documents/properties).where('customDomain', '==', domain).where('useCustomDomain', '==', true).size() == 0;
-    // }
-
-    // Properties collection (using slug as document ID)
+    // --- Properties Collection ---
     match /properties/{propertySlug} {
       allow read: if true; // Publicly readable
-
-      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-
-      // Allow update if owner or admin
-      // TODO: Add validation for customDomain uniqueness if needed (can be complex)
+      allow create: if isSignedIn(); // Allow authenticated users to create (further checks might be needed, e.g., admin or specific role)
       allow update: if isOwner(propertySlug) || isAdmin();
-                      // Example domain validation (needs refinement/testing):
-                      // && (request.resource.data.useCustomDomain == false ||
-                      //     (request.resource.data.useCustomDomain == true && request.resource.data.customDomain is string)) // Add length/format check?
-
       allow delete: if isOwner(propertySlug) || isAdmin();
+
+      // Custom domain validation (simplified example, actual validation is complex)
+      // Ensure domain is unique before allowing update if useCustomDomain is true
+      // This rule is complex and might need a Cloud Function for robust uniqueness checks.
+      // For simplicity, we'll allow updates by owner/admin for now, but real-world needs more.
+      // allow update: if (isOwner(propertySlug) || isAdmin()) &&
+      //                   (request.resource.data.useCustomDomain == false ||
+      //                    (request.resource.data.useCustomDomain == true &&
+      //                     /* TODO: Add domain uniqueness check logic here if possible, often needs a backend function */
+      //                     true
+      //                   ));
     }
 
-     // PropertyOverrides collection (using slug as document ID)
+    // --- Property Overrides Collection ---
     match /propertyOverrides/{propertySlug} {
-        allow read: if true; // Publicly readable for website rendering
-        allow write: if isOwner(propertySlug) || isAdmin(); // Only owner or admin can modify overrides
-    }
-
-
-    // Availability collection (using {propertySlug}_{YYYY-MM} as document ID)
-    match /availability/{availabilityId} {
-      allow read: if true; // Publicly readable for calendar display
-
-      // Allow write if the booking creation logic runs with authenticated user context (owner/admin)
-      // Or allow if triggered by a secure server process (like a Cloud Function)
-      // For now, allowing signed-in users for simplicity during development. Refine this for production.
-      allow write: if isSignedIn(); // Simpler rule for now, refine later
-                      // More secure rule: if isOwner(availabilityId.split('_')[0]) || isAdmin();
-    }
-
-    // Bookings collection (using auto-generated ID)
-    match /bookings/{bookingId} {
-      // Allow creation from the client (e.g., during checkout)
-      allow create: if true; // Allow any user to create a PENDING booking
-
-      // Allow read/update if the user is the guest associated with the booking,
-      // the property owner, or an admin.
-      // Note: Requires guestInfo.userId to be set correctly during booking creation if using isGuest check.
-      allow read, update: if isSignedIn() &&
-                            (request.auth.uid == resource.data.guestInfo.userId ||
-                             isOwner(resource.data.propertyId) ||
-                             isAdmin());
-
-      // Allow deletion only by admin (or potentially owner)
-      allow delete: if isAdmin();
-    }
-
-    // Users collection (using auth user ID as document ID)
-    match /users/{userId} {
-      // Allow users to read/write their own profile, admins can read/write any profile
-      allow read, write: if request.auth.uid == userId || isAdmin();
-    }
-
-    // Reviews collection (using auto-generated ID)
-    match /reviews/{reviewId} {
       allow read: if true; // Publicly readable
-      allow create: if isSignedIn(); // Must be signed in to leave a review
-      allow update, delete: if isAdmin(); // Only admins can modify/delete reviews
+      allow write: if isOwner(propertySlug) || isAdmin(); // Only owner or admin can write overrides
     }
 
-    // App Config (e.g., currency rates)
-    match /appConfig/{configDocId} {
-        allow read: if true; // Allow public read for currency rates, etc.
-        allow write: if isAdmin(); // Only admins can update configuration
+    // --- Website Templates Collection ---
+    match /websiteTemplates/{templateId} {
+      allow read: if true; // Templates are public
+      allow write: if isAdmin(); // Only admins can modify templates
     }
 
-    // SyncCalendars collection (using auto-generated ID)
-    match /syncCalendars/{syncDocId} {
-      allow read, write: if isSignedIn() &&
-                            (isOwner(resource.data.propertyId) || isAdmin());
+    // --- Availability Collection ---
+    // Document ID format: {propertySlug}_{YYYY-MM}
+    match /availability/{availabilityId} {
+      allow read: if true; // Publicly readable for booking checks
+      // Writes to availability are complex:
+      // - Client SDK needs to write when a booking is made (potentially after payment confirmation)
+      // - Admin/Owner might need to manually adjust
+      // - Cron jobs might update it
+      // For now, allow writes if authenticated, but this needs refinement for production.
+      // Consider using callable functions for updating availability to enforce business logic.
+      allow write: if isSignedIn();
+      // A more secure rule for writes, ensuring it relates to a property the user owns or is admin for:
+      // allow write: if isOwner(availabilityId.split('_')[0]) || isAdmin();
+      // However, client booking flow also needs to write here.
+      // This might indicate the client should call a server action/function to update availability.
     }
 
-     // AvailabilityAlerts collection (using auto-generated ID)
+    // --- Bookings Collection ---
+    match /bookings/{bookingId} {
+      allow create: if true; // Allow anyone to create a pending booking
+      allow read, update: if isSignedIn() &&
+                           (resource.data.guestInfo.userId == request.auth.uid || // Guest who made booking
+                            isOwner(resource.data.propertyId) ||             // Property owner
+                            isAdmin());                                     // Admin
+      // Specific status updates might need more granular rules.
+      // For example, only an admin or owner can change status to 'confirmed' or 'cancelled'.
+      // allow update: if (isOwner(resource.data.propertyId) || isAdmin()) ||
+      //                   (resource.data.guestInfo.userId == request.auth.uid && request.resource.data.status == 'cancelled');
+    }
+
+    // --- Inquiries Collection ---
+    match /inquiries/{inquiryId} {
+      allow create: if true; // Allow anyone to create an inquiry
+      allow read, update: if isSignedIn() &&
+                           (resource.data.guestInfo.email == request.auth.token.email || // User who made inquiry (if email matches)
+                            isOwner(resource.data.propertySlug) ||           // Property owner
+                            isAdmin());                                     // Admin
+    }
+
+    // --- Coupons Collection ---
+    match /coupons/{couponId} {
+      allow read: if true; // Coupons can be read by client to validate
+      allow write: if isAdmin(); // Only admins can create/update/delete coupons
+    }
+
+    // --- Users Collection ---
+    match /users/{userId} {
+      allow read, write: if request.auth.uid == userId || isAdmin(); // User can read/write own data, admin can too
+    }
+
+    // --- Reviews Collection (Placeholder rules) ---
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn(); // Only signed-in users can create reviews
+      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid); // Admin or review author
+    }
+
+    // --- SyncCalendars Collection (Placeholder rules) ---
+    match /syncCalendars/{syncId} {
+      allow read, write: if isSignedIn() && (isOwner(resource.data.propertyId) || isAdmin());
+    }
+
+    // --- AvailabilityAlerts Collection (Placeholder rules) ---
     match /availabilityAlerts/{alertId} {
-        allow create: if true; // Allow anyone to request an alert
-        allow read, update, delete: if isAdmin(); // Only admin can manage alerts
+      allow create: if true; // Anyone can request an alert
+      allow read, delete: if isSignedIn() && (isOwner(resource.data.propertyId) || isAdmin() || resource.data.contactMethod == request.auth.token.email);
     }
 
+    // --- AppConfig Collection (e.g., for currencyRates) ---
+    match /appConfig/{configId} {
+      allow read: if true; // Config is public
+      allow write: if isAdmin(); // Only admins can change config
+    }
   }
 }
