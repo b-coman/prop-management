@@ -22,6 +22,7 @@ const CreateHoldBookingSchema = z.object({
     phone: z.string().optional().transform(val => val ? sanitizePhone(val) : undefined),
   }),
   holdFeeAmount: z.number().positive("Hold fee amount must be positive."), // Hold fee from property settings
+  selectedCurrency: z.string().optional(), // User's selected currency from header dropdown
 }).refine(data => new Date(data.checkOutDate) > new Date(data.checkInDate), {
   message: "Check-out date must be after check-in date.",
   path: ["checkOutDate"],
@@ -48,6 +49,7 @@ export async function createHoldBookingAction(
     guestCount,
     guestInfo,
     holdFeeAmount,
+    selectedCurrency,
   } = validationResult.data;
 
   try {
@@ -58,7 +60,7 @@ export async function createHoldBookingAction(
     const holdUntil = addHours(now, 24); // Hold expires in 24 hours
 
     // Note: Pricing details are minimal here, as full calculation happens later
-    const bookingData: Omit<Booking, 'id' | 'pricing' | 'paymentInfo'> & Partial<Pick<Booking, 'pricing' | 'paymentInfo'>> = {
+    const bookingData = {
       propertyId: propertySlug,
       guestInfo: guestInfo,
       checkInDate: Timestamp.fromDate(checkIn),
@@ -71,20 +73,26 @@ export async function createHoldBookingAction(
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       source: 'website-hold',
-      // Pricing and full paymentInfo are not set yet
-      pricing: undefined, // Or a minimal placeholder if needed
+      // Define a minimal pricing object for the hold
+      pricing: {
+        baseRate: 0,
+        numberOfNights: 0,
+        cleaningFee: 0,
+        accommodationTotal: 0,
+        subtotal: holdFeeAmount,
+        total: holdFeeAmount,
+        currency: selectedCurrency || 'RON', // Use the user's selected currency from the header dropdown
+      },
       paymentInfo: { // Minimal payment info for the hold
           amount: holdFeeAmount,
           status: 'pending', // Pending hold fee payment
           paidAt: null,
-          stripePaymentIntentId: undefined, // Added to match type
+          stripePaymentIntentId: "", // Empty string instead of undefined
       },
-       // Add other fields as needed, defaulting to null/undefined/false
-       appliedCouponCode: null,
-       convertedFromHold: false,
-       convertedFromInquiry: null,
-       notes: undefined,
-       externalId: undefined,
+      // Add other fields as needed, defaulting to null/undefined/false
+      appliedCouponCode: null,
+      convertedFromHold: false,
+      convertedFromInquiry: null,
 
     };
     console.log("[Action createHoldBookingAction] Prepared Firestore Data:", bookingData);

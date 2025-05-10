@@ -21,7 +21,9 @@ interface AvailabilityCheckPageProps {
 
 // Optional: Function to generate metadata dynamically
 export async function generateMetadata({ params }: AvailabilityCheckPageProps): Promise<Metadata> {
-  const property = await getPropertyBySlug(params.slug);
+  // In Next.js 15, we need to await params before accessing its properties
+  const { slug } = await params;
+  const property = await getPropertyBySlug(slug);
   if (!property) {
     return { title: 'Availability Check - Not Found' };
   }
@@ -33,9 +35,9 @@ export async function generateMetadata({ params }: AvailabilityCheckPageProps): 
 
 // Main Page Component
 export default async function AvailabilityCheckPage({ params, searchParams }: AvailabilityCheckPageProps) {
-  // Await the params before using its properties
-  const awaitedParams = await params;
-  const slug = awaitedParams.slug;
+  // In Next.js 15, we need to await params and searchParams before accessing properties
+  const { slug } = await params;
+  const { checkIn, checkOut } = await searchParams;
 
   if (!slug) {
     console.error("[AvailabilityCheckPage] Slug is missing from params.");
@@ -49,9 +51,6 @@ export default async function AvailabilityCheckPage({ params, searchParams }: Av
   }
 
   // Basic validation for search params (only dates now)
-  // Accessing searchParams directly is the standard pattern in page components
-  const checkIn = searchParams.checkIn;
-  const checkOut = searchParams.checkOut;
 
   if (!checkIn || !checkOut) {
     // Handle invalid search params, maybe redirect back or show an error

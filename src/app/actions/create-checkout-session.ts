@@ -13,41 +13,45 @@ if (!stripeSecretKey) {
 const stripe = new Stripe(stripeSecretKey);
 
 interface CreateCheckoutSessionInput {
-  property: Property; 
-  checkInDate: string; 
-  checkOutDate: string; 
+  property: Property;
+  checkInDate: string;
+  checkOutDate: string;
   numberOfGuests: number;
-  totalPrice: number; // FINAL price in property's base currency
+  totalPrice: number; // Total price to charge
   numberOfNights: number;
   guestFirstName?: string;
   guestLastName?: string;
-  guestEmail?: string; 
+  guestEmail?: string;
   appliedCouponCode?: string;
   discountPercentage?: number;
-  pendingBookingId?: string; 
+  pendingBookingId?: string;
+  selectedCurrency?: CurrencyCode; // User's selected currency
 }
 
 export async function createCheckoutSession(input: CreateCheckoutSessionInput): Promise<{ sessionId?: string; sessionUrl?: string | null; error?: string }> {
   const {
-    property, 
+    property,
     checkInDate,
     checkOutDate,
     numberOfGuests,
-    totalPrice, // This should be in property.baseCurrency
+    totalPrice,
     numberOfNights,
     guestEmail,
     guestFirstName,
     guestLastName,
     appliedCouponCode,
     discountPercentage,
-    pendingBookingId, 
+    pendingBookingId,
+    selectedCurrency, // New parameter for user's selected currency
   } = input;
 
-  const headersList = await headers(); 
+  const headersList = await headers();
   const origin = headersList.get('origin') || 'http://localhost:9002';
 
   const numberOfExtraGuests = Math.max(0, numberOfGuests - property.baseOccupancy);
-  const stripeCurrency = property.baseCurrency.toLowerCase() as Stripe.Checkout.SessionCreateParams.LineItem.PriceData.Currency; // Ensure Stripe compatible format
+
+  // Use the user's selected currency if provided, otherwise fall back to property's base currency
+  const stripeCurrency = (selectedCurrency || property.baseCurrency).toLowerCase() as Stripe.Checkout.SessionCreateParams.LineItem.PriceData.Currency;
 
   const metadata: Stripe.MetadataParam = {
     propertyId: property.slug, 
@@ -57,7 +61,7 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput): 
     numberOfGuests: String(numberOfGuests),
     numberOfNights: String(numberOfNights),
     totalPrice: String(totalPrice), // Price in base currency
-    priceCurrency: property.baseCurrency, // Store the currency used for this price
+    priceCurrency: selectedCurrency || property.baseCurrency, // Store the actual currency used for this price
     cleaningFee: String(property.cleaningFee),
     pricePerNight: String(property.pricePerNight),
     baseOccupancy: String(property.baseOccupancy),
@@ -85,8 +89,11 @@ export async function createCheckoutSession(input: CreateCheckoutSessionInput): 
             currency: stripeCurrency, // Use property's base currency
             product_data: {
               name: `${property.name} (${numberOfNights} nights, ${numberOfGuests} guests)${appliedCouponCode ? ` - Coupon: ${appliedCouponCode}` : ''}`,
-              description: `Booking from ${new Date(checkInDate).toLocaleDateString()} to ${new Date(checkOutDate).toLocaleDateString()}. Ref: ${pendingBookingId || 'N/A'}`, 
-              images: [property.images?.find(img => img.isFeatured)?.url || property.images?.[0]?.url || ''], 
+              description: `Booking from ${new Date(checkInDate).toLocaleDateString()} to ${new Date(checkOutDate).toLocaleDateString()}. Ref: ${pendingBookingId || 'N/A'}`,
+              // Only include images if we have valid URLs - omit entirely if none available
+              ...(property.images && property.images.length > 0 && property.images.some(img => !!img.url)
+                  ? { images: [property.images.find(img => img.isFeatured)?.url || property.images.find(img => !!img.url)?.url].filter(Boolean) }
+                  : {}),
             },
             unit_amount: Math.round(totalPrice * 100), // Amount in smallest currency unit (cents for USD/EUR, bani for RON)
           },

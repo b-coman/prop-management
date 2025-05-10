@@ -39,6 +39,7 @@ export function BookingOptionsCards({
           isSelected={selectedOption === 'hold'}
           onSelect={() => onSelectOption('hold')}
           holdFeeAmount={property.holdFeeAmount || 25} // Use property config or default
+          propertyBaseCurrency={property.baseCurrency} // Pass the property's base currency
         />
       )}
 

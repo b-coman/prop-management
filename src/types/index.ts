@@ -176,6 +176,9 @@ export interface Inquiry {
     createdAt: SerializableTimestamp;
     fromHost: boolean; // True if message is from host, false if from guest
   }>;
+  // New fields for inquiry
+  totalPrice?: number;
+  currency?: CurrencyCode;
 }
 
 

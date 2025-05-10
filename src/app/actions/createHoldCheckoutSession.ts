@@ -4,6 +4,7 @@
 import type { Property, CurrencyCode } from '@/types';
 import { headers } from 'next/headers';
 import Stripe from 'stripe';
+import { getCurrencyRates } from '@/services/configService'; // Import to get currency rates
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 if (!stripeSecretKey) {
@@ -17,6 +18,7 @@ interface CreateHoldCheckoutSessionInput {
   holdBookingId: string; // The ID of the 'on-hold' booking document
   holdFeeAmount: number; // The amount for the hold fee
   guestEmail?: string;
+  selectedCurrency?: CurrencyCode; // User's selected currency from the header dropdown
 }
 
 export async function createHoldCheckoutSession(input: CreateHoldCheckoutSessionInput): Promise<{ sessionId?: string; sessionUrl?: string | null; error?: string }> {
@@ -25,6 +27,7 @@ export async function createHoldCheckoutSession(input: CreateHoldCheckoutSession
     holdBookingId,
     holdFeeAmount,
     guestEmail,
+    selectedCurrency,
   } = input;
 
   const headersList = await headers();
@@ -35,8 +38,36 @@ export async function createHoldCheckoutSession(input: CreateHoldCheckoutSession
     return { error: "Invalid hold fee amount." };
   }
 
-  // Determine currency - use property's base currency for the hold fee
-  const stripeCurrency = property.baseCurrency.toLowerCase() as Stripe.Checkout.SessionCreateParams.LineItem.PriceData.Currency;
+  // Get the selected currency for Stripe (lowercase for Stripe's API)
+  const stripeCurrency = (selectedCurrency || property.baseCurrency).toLowerCase() as Stripe.Checkout.SessionCreateParams.LineItem.PriceData.Currency;
+
+  // We need to convert the holdFeeAmount to the selected currency
+  let convertedHoldFeeAmount = holdFeeAmount;
+
+  // Only convert if the selected currency is different from the property's base currency
+  if (selectedCurrency && selectedCurrency !== property.baseCurrency) {
+    try {
+      // Get currency rates
+      const rates = await getCurrencyRates();
+
+      if (rates) {
+        // Convert from property's base currency to selected currency
+        const baseRate = rates[property.baseCurrency] || 1;
+        const targetRate = rates[selectedCurrency] || 1;
+
+        // First convert to USD (base), then to selected currency
+        const amountInUSD = holdFeeAmount / baseRate;
+        convertedHoldFeeAmount = amountInUSD * targetRate;
+
+        console.log(`[createHoldCheckoutSession] Converted hold fee: ${holdFeeAmount} ${property.baseCurrency} → ${convertedHoldFeeAmount.toFixed(2)} ${selectedCurrency}`);
+      } else {
+        console.warn("[createHoldCheckoutSession] Currency rates not available, using original amount");
+      }
+    } catch (error) {
+      console.error("[createHoldCheckoutSession] Error converting currency:", error);
+      // Continue with original amount if conversion fails
+    }
+  }
 
   const metadata: Stripe.MetadataParam = {
     type: 'booking_hold', // Differentiate from full booking
@@ -44,7 +75,7 @@ export async function createHoldCheckoutSession(input: CreateHoldCheckoutSession
     propertyName: property.name,
     holdBookingId: holdBookingId, // Link session to the hold booking
     holdFeeAmount: String(holdFeeAmount),
-    holdCurrency: property.baseCurrency,
+    holdCurrency: selectedCurrency || property.baseCurrency, // Store the actual currency used
   };
 
   // Define success/cancel URLs - These might need adjustment.
@@ -67,7 +98,8 @@ export async function createHoldCheckoutSession(input: CreateHoldCheckoutSession
               // images: [property.images?.find(img => img.isFeatured)?.url || property.images?.[0]?.url || ''],
             },
             // Amount must be in the smallest currency unit (e.g., cents)
-            unit_amount: Math.round(holdFeeAmount * 100),
+            // Use the converted amount for the selected currency
+            unit_amount: Math.round(convertedHoldFeeAmount * 100),
           },
           quantity: 1,
         },

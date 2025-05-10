@@ -1,18 +1,18 @@
 
 // src/lib/firebaseAdmin.ts
-// import * as admin from 'firebase-admin';
-// import * as dotenv from 'dotenv';
-// import * as path from 'path';
+import * as admin from 'firebase-admin';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
 
-// // Load environment variables from .env.local at the project root
-// dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+// Load environment variables from .env.local at the project root
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
-// const serviceAccountPath = process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_PATH;
+const serviceAccountPath = process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_PATH;
 
 let dbAdmin: undefined = undefined; // Initialize as undefined - Keep type for potential future use
 let adminApp: undefined = undefined; // Initialize as undefined - Keep type for potential future use
 
-/* **** Temporarily commenting out Admin SDK initialization ****
+/**** Temporarily commenting out Admin SDK initialization ****
    This is because we're switching to the Client SDK for updating availability
    due to persistent initialization errors with the Admin SDK in this environment.
    If Admin SDK functionality is needed elsewhere later, this can be revisited.
