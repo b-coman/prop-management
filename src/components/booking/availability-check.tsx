@@ -1,9 +1,16 @@
 // src/components/booking/availability-check.tsx
 "use client";
 
-import * as React from 'react';
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import *
+as React from 'react';
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useTransition
+} from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   format,
   differenceInDays,
@@ -25,12 +32,21 @@ import {
   Pencil,
   Minus,
   Plus,
+  Send,
+  Mail,
+  Phone as PhoneIcon
 } from 'lucide-react';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 import type { Property, Availability, PriceCalculationResult, CurrencyCode } from '@/types';
 import { getUnavailableDatesForProperty } from '@/services/bookingService';
 import { createPendingBookingAction } from '@/app/actions/booking-actions';
 import { createCheckoutSession } from '@/app/actions/create-checkout-session';
+import { createHoldBookingAction } from '@/app/actions/createHoldBookingAction';
+import { createHoldCheckoutSession } from '@/app/actions/createHoldCheckoutSession';
+import { createInquiryAction } from '@/app/actions/createInquiryAction';
 
 
 import { Button } from '@/components/ui/button';
@@ -44,15 +60,20 @@ import { sanitizeEmail, sanitizePhone, sanitizeText } from '@/lib/sanitize';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { calculatePrice } from '@/lib/price-utils';
 import { cn } from '@/lib/utils';
-import { Label } from "@/components/ui/label"; // Import Label
+import { Label } from "@/components/ui/label";
+import { Input as ShadcnInput } from "@/components/ui/input"; // Renamed to avoid conflict
+import { Textarea } from "@/components/ui/textarea";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+
 
 import { AvailabilityCalendar } from './availability-calendar';
 import { AvailabilityStatus } from './availability-status';
 import { GuestInfoForm } from './guest-info-form';
-import { BookingSummary } from './booking-summary'; // Import new component
-import { BookingOptionsCards } from './booking-options-cards'; // Import new component
+import { BookingSummary } from './booking-summary';
+import { BookingOptionsCards } from './booking-options-cards';
 
-// Helper function (keep or move to utils)
+
+// Helper function
 const parseDateSafe = (dateStr: string | undefined | null): Date | null => {
   if (!dateStr) return null;
   try {
@@ -69,9 +90,19 @@ interface AvailabilityCheckProps {
   initialCheckOut?: string;
 }
 
-export function AvailabilityCheck({
+// Zod schema for the inquiry form
+const inquiryFormSchema = z.object({
+  firstName: z.string().min(1, "First name is required.").transform(sanitizeText),
+  lastName: z.string().min(1, "Last name is required.").transform(sanitizeText),
+  email: z.string().email("Invalid email address.").transform(sanitizeEmail),
+  phone: z.string().optional().transform(val => val ? sanitizePhone(val) : undefined),
+  message: z.string().min(10, "Message must be at least 10 characters.").max(1000, "Message must be at most 1000 characters.").transform(sanitizeText),
+});
+
+
+function AvailabilityCheck({
   property,
-  initialCheckIn,
+ initialCheckIn,
   initialCheckOut,
 }: AvailabilityCheckProps) {
   const router = useRouter();
@@ -80,10 +111,24 @@ export function AvailabilityCheck({
   const propertySlug = property.slug;
   const propertyBaseCcy = baseCurrencyForProperty(property.baseCurrency);
 
-  // --- Core State ---
+  const [isPending, startTransition] = useTransition();
+
+
   const [checkInDate, setCheckInDate] = useSessionStorage<Date | null>(`booking_${propertySlug}_checkIn`, parseDateSafe(initialCheckIn));
   const [checkOutDate, setCheckOutDate] = useSessionStorage<Date | null>(`booking_${propertySlug}_checkOut`, parseDateSafe(initialCheckOut));
-  const [numberOfGuests, setNumberOfGuests] = useSessionStorage<number>(`booking_${propertySlug}_guests`, property.baseOccupancy || 1);
+  
+  const [clientNumberOfNights, setClientNumberOfNights] = useSessionStorage<number>(`booking_${propertySlug}_nights`, () => {
+      const from = parseDateSafe(initialCheckIn);
+      const to = parseDateSafe(initialCheckOut);
+      if (from && to && isValid(from) && isValid(to) && isAfter(to, from)) {
+          return differenceInDays(to, from);
+      }
+      return 0;
+  });
+
+  const [guestsDisplay, setGuestsDisplay] = useSessionStorage<number>(`booking_${propertySlug}_guests`, property.baseOccupancy || 1);
+
+
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
   const [unavailableDates, setUnavailableDates] = useState<Date[]>([]);
@@ -93,18 +138,48 @@ export function AvailabilityCheck({
   const [formError, setFormError] = useState<string | null>(null);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
-  const [clientNumberOfNights, setClientNumberOfNights] = useState<number>(0);
 
-  // --- New State for Redesign ---
+
   type SelectedOption = 'contact' | 'hold' | 'bookNow' | null;
   const [selectedOption, setSelectedOption] = useState<SelectedOption>(null);
 
-  // Indicate component has mounted
+  const inquiryForm = useForm<z.infer<typeof inquiryFormSchema>>({
+    resolver: zodResolver(inquiryFormSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      message: "",
+    },
+  });
+
+  // UseEffect to sync session storage values to inquiryForm
+  // Initialize with empty strings to ensure we never have undefined values
+  const [sessionFirstName, setSessionFirstName] = useSessionStorage<string>(`booking_${propertySlug}_firstName`, '');
+  const [sessionLastName, setSessionLastName] = useSessionStorage<string>(`booking_${propertySlug}_lastName`, '');
+  const [sessionEmail, setSessionEmail] = useSessionStorage<string>(`booking_${propertySlug}_email`, '');
+  const [sessionPhone, setSessionPhone] = useSessionStorage<string>(`booking_${propertySlug}_phone`, '');
+  const [sessionMessage, setSessionMessage] = useSessionStorage<string>(`booking_${propertySlug}_message`, '');
+
+
+  useEffect(() => {
+    if (hasMounted) {
+      inquiryForm.reset({
+        firstName: sessionFirstName || '',
+        lastName: sessionLastName || '',
+        email: sessionEmail || '',
+        phone: sessionPhone || '',
+        message: sessionMessage || '',
+      });
+    }
+  }, [hasMounted, sessionFirstName, sessionLastName, sessionEmail, sessionPhone, sessionMessage, inquiryForm]);
+
+
   useEffect(() => {
     setHasMounted(true);
   }, []);
 
-  // --- Derived State ---
   const dateRange: DateRange | undefined = useMemo(() => {
     return checkInDate && checkOutDate ? { from: checkInDate, to: checkOutDate } : undefined;
   }, [checkInDate, checkOutDate]);
@@ -122,21 +197,16 @@ export function AvailabilityCheck({
         setClientNumberOfNights(0);
       }
     }
-  }, [checkInDate, checkOutDate, datesSelected, hasMounted]);
+  }, [checkInDate, checkOutDate, datesSelected, hasMounted, setClientNumberOfNights]);
 
 
-  // --- Pricing Calculation ---
   const pricingDetailsInBaseCurrency = useMemo(() => {
-    const currentGuests = typeof numberOfGuests === 'number' && !isNaN(numberOfGuests) && numberOfGuests > 0
-      ? numberOfGuests
-      : (property.baseOccupancy || 1);
-
-    if (datesSelected && currentGuests > 0 && clientNumberOfNights > 0) {
+    if (datesSelected && guestsDisplay > 0 && clientNumberOfNights > 0) {
       return calculatePrice(
         property.pricePerNight,
         clientNumberOfNights,
         property.cleaningFee ?? 0,
-        currentGuests,
+        guestsDisplay,
         property.baseOccupancy,
         property.extraGuestFee ?? 0,
         propertyBaseCcy,
@@ -144,22 +214,13 @@ export function AvailabilityCheck({
       );
     }
     return null;
-  }, [datesSelected, property, clientNumberOfNights, numberOfGuests, appliedCoupon, propertyBaseCcy]);
+  }, [datesSelected, property, clientNumberOfNights, guestsDisplay, appliedCoupon, propertyBaseCcy]);
 
-
-  // --- Guest Info State (might move to specific forms later) ---
-  const [firstName, setFirstName] = useSessionStorage<string>(`booking_${propertySlug}_firstName`, '');
-  const [lastName, setLastName] = useSessionStorage<string>(`booking_${propertySlug}_lastName`, '');
-  const [email, setEmail] = useSessionStorage<string>(`booking_${propertySlug}_email`, '');
-  const [phone, setPhone] = useSessionStorage<string>(`booking_${propertySlug}_phone`, '');
-  const [message, setMessage] = useSessionStorage<string>(`booking_${propertySlug}_message`, ''); // For contact form
-
-  // --- Availability Check Logic (keep as is for now) ---
   const checkPropertyAvailability = useCallback(async () => {
     setIsAvailable(null);
     setIsLoadingAvailability(true);
     setSuggestedDates([]);
-    setSelectedOption(null); // Reset option on availability change
+    setSelectedOption(null);
 
     if (!datesSelected || !checkInDate || !checkOutDate) {
       setIsLoadingAvailability(false);
@@ -183,31 +244,30 @@ export function AvailabilityCheck({
       setIsAvailable(!conflict);
 
       if (conflict && clientNumberOfNights > 0) {
-        // Suggest alternative dates logic (keep as is for now)
         let suggestionFound = false;
         let suggestionStart = addDays(checkOutDate, 1);
         const maxSearchDate = addDays(checkOutDate, 60);
 
         while (isAfter(maxSearchDate, suggestionStart) && !suggestionFound) {
-            const suggestionEnd = addDays(suggestionStart, clientNumberOfNights);
-            let suggestionConflict = false;
-            let checkCurrent = new Date(suggestionStart.getTime());
+          const suggestionEnd = addDays(suggestionStart, clientNumberOfNights);
+          let suggestionConflict = false;
+          let checkCurrent = new Date(suggestionStart.getTime());
 
-            while(isBefore(checkCurrent, suggestionEnd)) {
-                 const checkDateString = format(startOfDay(checkCurrent), 'yyyy-MM-dd');
-                 if (fetchedUnavailableDates.some(d => format(startOfDay(d), 'yyyy-MM-dd') === checkDateString) || isBefore(checkCurrent, startOfDay(new Date()))) {
-                      suggestionConflict = true;
-                      break;
-                 }
-                checkCurrent = addDays(checkCurrent, 1);
+          while (isBefore(checkCurrent, suggestionEnd)) {
+            const checkDateString = format(startOfDay(checkCurrent), 'yyyy-MM-dd');
+            if (fetchedUnavailableDates.some(d => format(startOfDay(d), 'yyyy-MM-dd') === checkDateString) || isBefore(checkCurrent, startOfDay(new Date()))) {
+              suggestionConflict = true;
+              break;
             }
+            checkCurrent = addDays(checkCurrent, 1);
+          }
 
-            if (!suggestionConflict) {
-                 setSuggestedDates([{ from: suggestionStart, to: suggestionEnd, recommendation: "Next Available" }]);
-                 suggestionFound = true;
-            } else {
-                suggestionStart = addDays(suggestionStart, 1);
-            }
+          if (!suggestionConflict) {
+            setSuggestedDates([{ from: suggestionStart, to: suggestionEnd, recommendation: "Next Available" }]);
+            suggestionFound = true;
+          } else {
+            suggestionStart = addDays(suggestionStart, 1);
+          }
         }
       }
     } catch (error) {
@@ -225,22 +285,21 @@ export function AvailabilityCheck({
 
   useEffect(() => {
     if (hasMounted && datesSelected && clientNumberOfNights > 0) {
-        checkPropertyAvailability();
+      checkPropertyAvailability();
     } else if (hasMounted && !datesSelected) {
-        setIsAvailable(null);
-        setIsLoadingAvailability(false);
-        setUnavailableDates([]);
-        setSuggestedDates([]);
-        setSelectedOption(null); // Reset option
+      setIsAvailable(null);
+      setIsLoadingAvailability(false);
+      setUnavailableDates([]);
+      setSuggestedDates([]);
+      setSelectedOption(null);
     }
   }, [checkPropertyAvailability, hasMounted, datesSelected, clientNumberOfNights]);
 
 
-  // --- Event Handlers ---
   const handleSelectAlternativeDate = (range: { from: Date; to: Date }) => {
     setCheckInDate(range.from);
     setCheckOutDate(range.to);
-    setSelectedOption(null); // Reset selected option when dates change
+    setSelectedOption(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -255,72 +314,133 @@ export function AvailabilityCheck({
     } else {
       setCheckOutDate(null);
     }
-    setSelectedOption(null); // Reset selected option when dates change
+    setSelectedOption(null);
     setIsDatePickerOpen(false);
   };
 
   const handleGuestChange = (change: number) => {
-    setNumberOfGuests((prev) => {
-      const currentGuests = typeof prev === 'number' && !isNaN(prev) && prev > 0
-        ? prev
-        : (property.baseOccupancy || 1);
-      const newCount = currentGuests + change;
+    setGuestsDisplay((prev) => {
+      const newCount = prev + change;
       return Math.max(1, Math.min(newCount, property.maxGuests));
     });
   };
 
-  // --- OLD Continue to Payment Logic (will be adapted for Book Now path later) ---
-  const handleContinueToPayment_OLD = async (e: React.FormEvent) => {
-    // This logic will be moved/adapted into the BookNowCard component's submission handler
-    e.preventDefault();
+
+  const onInquirySubmit = async (values: z.infer<typeof inquiryFormSchema>) => {
+    setFormError(null);
+    if (!checkInDate || !checkOutDate) {
+      setFormError("Please select valid check-in and check-out dates.");
+      toast({ title: "Missing Dates", description: "Please select check-in and check-out dates for your inquiry.", variant: "destructive" });
+      return;
+    }
+
+    startTransition(async () => {
+      const inquiryInput = {
+        propertySlug: propertySlug,
+        checkInDate: checkInDate.toISOString(),
+        checkOutDate: checkOutDate.toISOString(),
+        guestCount: guestsDisplay,
+        guestInfo: {
+          firstName: values.firstName,
+          lastName: values.lastName,
+          email: values.email,
+          phone: values.phone,
+        },
+        message: values.message,
+        // Convert the price to the selected currency
+        totalPrice: pricingDetailsInBaseCurrency
+          ? convertToSelectedCurrency(pricingDetailsInBaseCurrency.total, pricingDetailsInBaseCurrency.currency)
+          : undefined,
+        currency: selectedCurrency,
+      };
+
+      const result = await createInquiryAction(inquiryInput);
+      if (result.error) {
+        setFormError(result.error);
+        toast({ title: "Inquiry Failed", description: result.error, variant: "destructive" });
+      } else {
+        toast({ title: "Inquiry Sent!", description: "Your message has been sent to the host." });
+
+        // Just close the form without resetting values
+        // This avoids the controlled/uncontrolled component error
+        setSelectedOption(null);
+      }
+    });
+  };
+
+  const handleContinueToPayment = async (e?: React.FormEvent) => { // Make e optional
+    if (e) e.preventDefault();
     setFormError(null);
 
-    const currentGuests = typeof numberOfGuests === 'number' && !isNaN(numberOfGuests) && numberOfGuests > 0
-        ? numberOfGuests
-        : (property.baseOccupancy || 1);
-
-    // ... existing validation ...
+    if (!datesSelected || !checkInDate || !checkOutDate || !pricingDetailsInBaseCurrency) {
+      setFormError("Please select valid dates and ensure price is calculated.");
+      return;
+    }
+    if (!sessionFirstName || !sessionLastName || !sessionEmail || !sessionPhone) {
+      setFormError("Please fill in all required guest information.");
+      return;
+    }
 
     setIsProcessingBooking(true);
 
     try {
-      // 1. Create Pending Booking
+      // Create the booking input with default values to avoid undefined
       const bookingInput = {
         propertyId: propertySlug,
-        guestInfo: { firstName: sanitizeText(firstName), lastName: sanitizeText(lastName), email: sanitizeEmail(email), phone: sanitizePhone(phone) },
-        checkInDate: checkInDate!.toISOString(),
-        checkOutDate: checkOutDate!.toISOString(),
-        numberOfGuests: currentGuests,
+        guestInfo: {
+          firstName: sanitizeText(sessionFirstName),
+          lastName: sanitizeText(sessionLastName),
+          email: sanitizeEmail(sessionEmail),
+          phone: sanitizePhone(sessionPhone)
+        },
+        checkInDate: checkInDate.toISOString(),
+        checkOutDate: checkOutDate.toISOString(),
+        numberOfGuests: guestsDisplay,
         pricing: {
-          ...pricingDetailsInBaseCurrency!,
-          currency: propertyBaseCcy,
-          numberOfNights: clientNumberOfNights,
+          // Map fields with safe defaults
+          baseRate: pricingDetailsInBaseCurrency.basePrice || 0,
+          accommodationTotal: (pricingDetailsInBaseCurrency.basePrice || 0) + (pricingDetailsInBaseCurrency.extraGuestFeeTotal || 0),
+          cleaningFee: pricingDetailsInBaseCurrency.cleaningFee || 0,
+          // These two are optional in the schema, but set them to 0 to avoid undefined
+          extraGuestFee: pricingDetailsInBaseCurrency.extraGuestFeeTotal || 0,
+          numberOfExtraGuests: pricingDetailsInBaseCurrency.numberOfExtraGuests || 0,
+          // Required fields with safe defaults
+          subtotal: pricingDetailsInBaseCurrency.subtotal || 0,
+          discountAmount: pricingDetailsInBaseCurrency.discountAmount || 0,
+          total: pricingDetailsInBaseCurrency.total || 0,
+          currency: selectedCurrency,
+          numberOfNights: pricingDetailsInBaseCurrency.numberOfNights || 0,
         },
         status: 'pending' as const,
         appliedCouponCode: appliedCoupon?.code ?? null,
       };
+
+      // Print the pricing object to debug
+      console.log("Booking input pricing:", JSON.stringify(bookingInput.pricing));
 
       const pendingBookingResult = await createPendingBookingAction(bookingInput);
 
       if (pendingBookingResult.error || !pendingBookingResult.bookingId) {
         throw new Error(pendingBookingResult.error || "Failed to create pending booking.");
       }
+
       const { bookingId } = pendingBookingResult;
 
-      // 2. Create Stripe Checkout Session
       const checkoutInput = {
         property: property,
-        checkInDate: checkInDate!.toISOString(),
-        checkOutDate: checkOutDate!.toISOString(),
-        numberOfGuests: currentGuests,
-        totalPrice: pricingDetailsInBaseCurrency!.total,
+        checkInDate: checkInDate.toISOString(),
+        checkOutDate: checkOutDate.toISOString(),
+        numberOfGuests: guestsDisplay,
+        // Use the already-converted price from the booking input (which is in the user's selected currency)
+        totalPrice: bookingInput.pricing.total,
         numberOfNights: clientNumberOfNights,
         appliedCouponCode: appliedCoupon?.code,
         discountPercentage: appliedCoupon?.discountPercentage,
-        guestFirstName: sanitizeText(firstName),
-        guestLastName: sanitizeText(lastName),
-        guestEmail: sanitizeEmail(email),
+        guestFirstName: sanitizeText(sessionFirstName),
+        guestLastName: sanitizeText(sessionLastName),
+        guestEmail: sanitizeEmail(sessionEmail),
         pendingBookingId: bookingId,
+        selectedCurrency: selectedCurrency, // Pass the user's selected currency
       };
 
       const stripeResult = await createCheckoutSession(checkoutInput);
@@ -329,11 +449,10 @@ export function AvailabilityCheck({
         throw new Error(stripeResult.error || 'Failed to create Stripe session or missing session URL.');
       }
 
-      // 3. Redirect to Stripe
       if (stripeResult.sessionUrl) {
-         window.location.href = stripeResult.sessionUrl;
+        router.push(stripeResult.sessionUrl); 
       } else {
-          throw new Error("Stripe session URL is missing.");
+        throw new Error("Stripe session URL is missing.");
       }
 
     } catch (error) {
@@ -350,12 +469,76 @@ export function AvailabilityCheck({
     }
   };
 
+  const handleHoldDates = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setFormError(null);
 
-  // --- Calendar Rendering Logic ---
+    if (!datesSelected || !checkInDate || !checkOutDate || !property.holdFeeAmount) {
+        setFormError("Please select valid dates. Hold fee must be configured for this property.");
+        return;
+    }
+     if (!sessionFirstName || !sessionLastName || !sessionEmail) { // Phone is optional for hold
+      setFormError("Please fill in First Name, Last Name, and Email to hold dates.");
+      return;
+    }
+
+    setIsProcessingBooking(true);
+    try {
+        const holdBookingInput = {
+            propertySlug: propertySlug,
+            checkInDate: checkInDate.toISOString(),
+            checkOutDate: checkOutDate.toISOString(),
+            guestCount: guestsDisplay,
+            guestInfo: {
+                firstName: sanitizeText(sessionFirstName),
+                lastName: sanitizeText(sessionLastName),
+                email: sanitizeEmail(sessionEmail),
+                phone: sessionPhone ? sanitizePhone(sessionPhone) : undefined,
+            },
+            holdFeeAmount: property.holdFeeAmount,
+            selectedCurrency: selectedCurrency, // Pass the user's selected currency from the header dropdown
+        };
+        const holdBookingResult = await createHoldBookingAction(holdBookingInput);
+
+        if (holdBookingResult.error || !holdBookingResult.bookingId) {
+            throw new Error(holdBookingResult.error || "Failed to create hold booking record.");
+        }
+        const { bookingId: holdBookingId } = holdBookingResult;
+
+        const holdCheckoutInput = {
+            property: property,
+            holdBookingId: holdBookingId,
+            holdFeeAmount: property.holdFeeAmount,
+            guestEmail: sanitizeEmail(sessionEmail),
+            selectedCurrency: selectedCurrency, // Pass the user's selected currency to Stripe
+        };
+
+        const stripeHoldResult = await createHoldCheckoutSession(holdCheckoutInput);
+
+        if (stripeHoldResult.error || !stripeHoldResult.sessionId || !stripeHoldResult.sessionUrl) {
+            throw new Error(stripeHoldResult.error || "Failed to create Stripe session for hold fee.");
+        }
+
+        if (stripeHoldResult.sessionUrl) {
+            router.push(stripeHoldResult.sessionUrl);
+        } else {
+            throw new Error("Stripe hold session URL is missing.");
+        }
+
+    } catch (error) {
+        console.error("Error processing hold dates:", error);
+        const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred while trying to hold dates.";
+        setFormError(errorMessage);
+        toast({ title: "Hold Dates Error", description: errorMessage, variant: "destructive" });
+    } finally {
+        setIsProcessingBooking(false);
+    }
+  };
+
+
   const renderAvailabilityCalendar = () => {
-    // Only render if dates are explicitly unavailable and component has mounted
     if (isAvailable === true || isLoadingAvailability || !datesSelected || !hasMounted) {
-        return null;
+      return null;
     }
     const validCheckIn = checkInDate && isValid(checkInDate) ? checkInDate : new Date();
     const calendarCenterMonth = startOfMonth(validCheckIn);
@@ -372,12 +555,18 @@ export function AvailabilityCheck({
     );
   };
 
-  // --- Main Render ---
-  return (
-    // Apply max-width styling here to constrain the content width
-    <div className="max-w-3xl mx-auto w-full px-4 md:px-0"> {/* Adjusted max-width and padding */}
+  if (!hasMounted) {
+    return (
+      <div className="flex justify-center items-center min-h-[300px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-2 text-muted-foreground">Loading booking options...</p>
+      </div>
+    );
+  }
 
-      {/* Availability Status and Notifications */}
+
+  return (
+    <div className="max-w-2xl mx-auto w-full px-4 md:px-0">
       <AvailabilityStatus
         isLoadingAvailability={isLoadingAvailability}
         isAvailable={isAvailable}
@@ -389,118 +578,107 @@ export function AvailabilityCheck({
         unavailableDates={unavailableDates}
         handleSelectAlternativeDate={handleSelectAlternativeDate}
         propertySlug={propertySlug}
-        email={email}
-        setEmail={setEmail}
-        phone={phone}
-        setPhone={setPhone}
-        isProcessingBooking={isProcessingBooking}
+        email={sessionEmail}
+        setEmail={setSessionEmail}
+        phone={sessionPhone}
+        setPhone={setSessionPhone}
+        isProcessingBooking={isProcessingBooking || isPending}
       />
 
-       {/* Date Picker and Guest Count (on the same line for md+ screens) */}
-       <div className="mt-6 flex flex-col md:flex-row md:items-end md:gap-4 space-y-4 md:space-y-0">
-          {/* Date Picker */}
-          <div className="flex-grow">
-              <Label className="mb-1 block text-sm font-medium">Selected Dates</Label>
-
-              {clientNumberOfNights > 0 && hasMounted && (
-                 <p className="text-sm text-muted-foreground mt-1">
-                   ({clientNumberOfNights} {clientNumberOfNights === 1 ? 'night' : 'nights'})
-                 </p>
-              )}
-
-              <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-between text-left font-normal flex items-center h-10", // Ensure consistent height
-                      !dateRange?.from && "text-muted-foreground"
-                    )}
-                    disabled={isProcessingBooking || isLoadingAvailability || !hasMounted}
-                  >
-                    <div className="flex items-center">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {hasMounted && dateRange?.from ? (
-                         dateRange.to ? (
-                            <>
-                              {format(dateRange.from, 'LLL dd, y')} -{' '}
-                              {format(dateRange.to, 'LLL dd, y')}
-                            </>
-                         ) : (
-                            format(dateRange.from, 'LLL dd, y')
-                         )
-                      ) : (
-                        <span>{hasMounted ? 'Pick a date range' : 'Loading dates...'}</span>
-                      )}
-                    </div>
-                    <Pencil className="h-3 w-3 opacity-50 ml-auto" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    initialFocus
-                    mode="range"
-                    defaultMonth={dateRange?.from}
-                    selected={dateRange}
-                    onSelect={handleDateSelect}
-                    numberOfMonths={2}
-                    disabled={{ before: startOfDay(new Date()) }}
-                  />
-                </PopoverContent>
-              </Popover>
-              {clientNumberOfNights > 0 && hasMounted && (
-                 <p className="text-sm text-muted-foreground mt-1">
-                   ({clientNumberOfNights} {clientNumberOfNights === 1 ? 'night' : 'nights'})
-                 </p>
-              )}
-          </div>
-
-          {/* Number of Guests */}
-          <div className="md:w-auto md:shrink-0"> {/* Allow shrink on larger screens */}
-            <Label className="mb-1 block text-sm font-medium">Guests</Label>
-            <div className="flex items-center justify-between rounded-md border p-2 h-10 w-full md:w-auto"> {/* Consistent height, adjust width */}
+      {/* Date Picker and Guest Picker - Moved under AvailabilityStatus */}
+      <div className="mt-6 flex flex-col md:flex-row md:items-end md:gap-4 space-y-4 md:space-y-0">
+        <div className="flex-grow">
+          <Label className="mb-1 block text-sm font-medium">Selected Dates</Label>
+          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+            <PopoverTrigger asChild>
               <Button
-                type="button"
                 variant="outline"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => handleGuestChange(-1)}
-                disabled={numberOfGuests <= 1 || isProcessingBooking}
-                aria-label="Decrease guests"
+                className={cn(
+                  "w-full justify-between text-left font-normal flex items-center h-10",
+                  !dateRange?.from && "text-muted-foreground"
+                )}
+                disabled={isProcessingBooking || isLoadingAvailability}
               >
-                <Minus className="h-4 w-4" />
+                <div className="flex items-center">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateRange?.from ? (
+                    dateRange.to ? (
+                      <>
+                        {format(dateRange.from, 'LLL dd, y')} -{' '}
+                        {format(dateRange.to, 'LLL dd, y')}
+                      </>
+                    ) : (
+                      format(dateRange.from, 'LLL dd, y')
+                    )
+                  ) : (
+                    <span>Pick a date range</span>
+                  )}
+                </div>
+                <Pencil className="h-3 w-3 opacity-50 ml-auto" />
               </Button>
-              <span className="mx-4 font-medium w-8 text-center" id="guests">
-                 {hasMounted ? numberOfGuests : (property.baseOccupancy || 1)}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => handleGuestChange(1)}
-                disabled={numberOfGuests >= property.maxGuests || isProcessingBooking}
-                aria-label="Increase guests"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-             <p className="text-xs text-muted-foreground mt-1">
-                Max {property.maxGuests}
-              </p>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={dateRange?.from}
+                selected={dateRange}
+                onSelect={handleDateSelect}
+                numberOfMonths={2}
+                disabled={{ before: startOfDay(new Date()) }}
+              />
+            </PopoverContent>
+          </Popover>
+          {clientNumberOfNights > 0 && (
+            <p className="text-sm text-muted-foreground mt-1">
+              ({clientNumberOfNights} {clientNumberOfNights === 1 ? 'night' : 'nights'})
+            </p>
+          )}
+        </div>
+
+        <div className="md:w-auto md:shrink-0">
+          <Label className="mb-1 block text-sm font-medium">Guests</Label>
+          <div className="flex items-center justify-between rounded-md border p-2 h-10 w-full md:w-auto">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => handleGuestChange(-1)}
+              disabled={guestsDisplay <= 1 || isProcessingBooking}
+              aria-label="Decrease guests"
+            >
+              <Minus className="h-4 w-4" />
+            </Button>
+            <span className="mx-4 font-medium w-8 text-center" id="guests">
+              {guestsDisplay}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => handleGuestChange(1)}
+              disabled={guestsDisplay >= property.maxGuests || isProcessingBooking}
+              aria-label="Increase guests"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
           </div>
-       </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Max {property.maxGuests}
+          </p>
+        </div>
+      </div>
 
 
-       {/* Calendar (only if dates are unavailable) */}
-       {renderAvailabilityCalendar()}
+      {renderAvailabilityCalendar()}
 
-      {/* New Booking Summary and Options (only if dates ARE available) */}
-      {isAvailable === true && !isLoadingAvailability && datesSelected && hasMounted && (
+      {isAvailable === true && !isLoadingAvailability && datesSelected && (
         <div className="mt-8 space-y-6">
           <BookingSummary
             numberOfNights={clientNumberOfNights}
-            numberOfGuests={numberOfGuests}
+            numberOfGuests={guestsDisplay}
             pricingDetails={pricingDetailsInBaseCurrency}
             propertyBaseCcy={propertyBaseCcy}
             appliedCoupon={appliedCoupon}
@@ -508,93 +686,206 @@ export function AvailabilityCheck({
           <BookingOptionsCards
             selectedOption={selectedOption}
             onSelectOption={setSelectedOption}
-            property={property} // Pass property for config options
+            property={property}
           />
 
-          {/* Conditionally Render Forms based on selectedOption */}
           {selectedOption === 'contact' && (
             <Card className="mt-4">
-                <CardHeader><CardTitle>Contact Host</CardTitle></CardHeader>
-                <CardContent>
-                   {/* TODO: Implement Contact Form Component Here */}
-                   <p>Contact form placeholder...</p>
-                   <Input label="Name" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-                   <Input label="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-                   <Input label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
-                   <textarea value={message} onChange={(e) => setMessage(e.target.value)} />
-                   <Button disabled={isProcessingBooking}>Send Inquiry</Button>
-                </CardContent>
-            </Card>
-          )}
-           {selectedOption === 'hold' && (
-            <Card className="mt-4">
-                <CardHeader><CardTitle>Hold Dates</CardTitle></CardHeader>
-                <CardContent>
-                   {/* TODO: Implement Hold Form Component Here */}
-                   <p>Hold form placeholder...</p>
-                    <Input label="Name" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-                    <Input label="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-                    <Input label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
-                   {/* Add payment element for hold fee */}
-                   <Button disabled={isProcessingBooking}>Pay ${property.holdFeeAmount || 25} to Hold</Button>
-                </CardContent>
-            </Card>
-          )}
-           {selectedOption === 'bookNow' && (
-            <Card className="mt-4">
-                <CardHeader><CardTitle>Complete Booking</CardTitle></CardHeader>
-                <CardContent>
-                  {/* Use existing GuestInfoForm for Book Now path */}
-                  <form onSubmit={handleContinueToPayment_OLD} className="space-y-6">
-                      <GuestInfoForm
-                        property={property}
-                        numberOfGuests={numberOfGuests}
-                        setNumberOfGuests={setNumberOfGuests} // Pass setter down
-                        firstName={firstName}
-                        setFirstName={setFirstName}
-                        lastName={lastName}
-                        setLastName={setLastName}
-                        email={email}
-                        setEmail={setEmail}
-                        phone={phone}
-                        setPhone={setPhone}
-                        checkInDate={checkInDate} // Needed for coupon validation
-                        checkOutDate={checkOutDate} // Needed for coupon validation
-                        appliedCoupon={appliedCoupon}
-                        setAppliedCoupon={setAppliedCoupon}
-                        pricingDetailsInBaseCurrency={pricingDetailsInBaseCurrency}
-                        isProcessingBooking={isProcessingBooking}
-                        // No need for displayGuests prop here as it's self-contained? Review GuestInfoForm
-                      />
+              <CardHeader><CardTitle>Contact Host</CardTitle></CardHeader>
+              <CardContent>
+                <Form {...inquiryForm}>
+                  <form onSubmit={inquiryForm.handleSubmit(onInquirySubmit)} className="space-y-4">
+                    <h3 className="font-semibold text-base pt-2">Your Information</h3>
 
-                      {formError && (
-                        <Alert variant="destructive">
-                          <AlertTriangle className="h-4 w-4" />
-                          <AlertTitle>Error</AlertTitle>
-                          <AlertDescription>{formError}</AlertDescription>
-                        </Alert>
-                      )}
-                      <Button type="submit" className="w-full" disabled={isProcessingBooking || !datesSelected || isAvailable !== true}>
-                        {isProcessingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
-                        {isProcessingBooking ? 'Processing...' : 'Continue to Payment'}
-                      </Button>
+                    {/* Names - side by side on larger screens */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FormField control={inquiryForm.control} name="firstName" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-1 text-xs">
+                            First Name
+                            <span className="text-destructive ml-1">*</span>
+                          </FormLabel>
+                          <FormControl>
+                            <ShadcnInput placeholder="Your first name" {...field}
+                              onChange={e => { field.onChange(e); setSessionFirstName(e.target.value);}}
+                              className={inquiryForm.formState.errors.firstName && "border-destructive focus-visible:ring-destructive/25"}
+                              disabled={isPending}
+                              required />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <FormField control={inquiryForm.control} name="lastName" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-1 text-xs">
+                            Last Name
+                            <span className="text-destructive ml-1">*</span>
+                          </FormLabel>
+                          <FormControl>
+                            <ShadcnInput placeholder="Your last name" {...field}
+                              onChange={e => { field.onChange(e); setSessionLastName(e.target.value);}}
+                              className={inquiryForm.formState.errors.lastName && "border-destructive focus-visible:ring-destructive/25"}
+                              disabled={isPending} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
+
+                    {/* Email and Phone - side by side on larger screens */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FormField control={inquiryForm.control} name="email" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-1 text-xs">
+                            <Mail className={cn("h-3 w-3", inquiryForm.formState.errors.email && "text-destructive")} />
+                            Email
+                            <span className="text-destructive ml-1">*</span>
+                          </FormLabel>
+                          <FormControl>
+                            <ShadcnInput type="email" placeholder="your.email@example.com" {...field}
+                              onChange={e => { field.onChange(e); setSessionEmail(e.target.value);}}
+                              className={inquiryForm.formState.errors.email && "border-destructive focus-visible:ring-destructive/25"}
+                              disabled={isPending} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <FormField control={inquiryForm.control} name="phone" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <PhoneIcon className={cn("h-3 w-3", inquiryForm.formState.errors.phone && "text-destructive")} />
+                            Phone (Optional)
+                          </FormLabel>
+                          <FormControl>
+                            <ShadcnInput type="tel" placeholder="Your phone number" {...field}
+                              onChange={e => { field.onChange(e); setSessionPhone(e.target.value);}}
+                              className={inquiryForm.formState.errors.phone && "border-destructive focus-visible:ring-destructive/25"}
+                              disabled={isPending} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
+                    <FormField control={inquiryForm.control} name="message" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-1 text-xs">
+                          Message
+                          <span className="text-destructive ml-1">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Your questions or custom request..."
+                            {...field}
+                            onChange={e => { field.onChange(e); setSessionMessage(e.target.value);}}
+                            rows={4}
+                            disabled={isPending}
+                            className={inquiryForm.formState.errors.message && "border-destructive focus-visible:ring-destructive/25"}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <Button type="submit" disabled={isPending || isProcessingBooking}>
+                      {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                      {isPending ? "Sending..." : "Send Inquiry"}
+                    </Button>
                   </form>
-                </CardContent>
+                </Form>
+              </CardContent>
             </Card>
           )}
-
+          {selectedOption === 'hold' && (
+            <Card className="mt-4">
+              <CardHeader><CardTitle>Hold Dates</CardTitle></CardHeader>
+              <CardContent>
+                <GuestInfoForm
+                  property={property}
+                  firstName={sessionFirstName} setFirstName={setSessionFirstName}
+                  lastName={sessionLastName} setLastName={setSessionLastName}
+                  email={sessionEmail} setEmail={setSessionEmail}
+                  phone={sessionPhone} setPhone={setSessionPhone}
+                  checkInDate={checkInDate}
+                  checkOutDate={checkOutDate}
+                  appliedCoupon={null} // No coupons for hold fee
+                  setAppliedCoupon={() => { }} // No coupons for hold fee
+                  pricingDetailsInBaseCurrency={null} // No full pricing for hold
+                  isProcessingBooking={isProcessingBooking || isPending}
+                  showCouponField={false} // Hide coupon field for hold form
+                />
+                <p className="text-sm text-muted-foreground my-4">
+                  You will be charged a non-refundable fee of <strong>{formatPrice(convertToSelectedCurrency(property.holdFeeAmount || 0, propertyBaseCcy), selectedCurrency)}</strong> to hold these dates for 24 hours.
+                  This fee will be applied towards your booking if you confirm within 24 hours.
+                </p>
+                <Button onClick={handleHoldDates} className="w-full" disabled={isProcessingBooking || isPending}>
+                  {isProcessingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
+                  {isProcessingBooking ? 'Processing...' : `Pay ${formatPrice(convertToSelectedCurrency(property.holdFeeAmount || 0, propertyBaseCcy), selectedCurrency)} to Hold`}
+                </Button>
+                {formError && (
+                  <div className="border border-destructive bg-destructive/5 p-3 rounded-md mt-4">
+                    <div className="flex items-start gap-2">
+                      <div className="h-5 w-5 rounded-full bg-red-100 flex items-center justify-center shrink-0 mt-0.5">
+                        <span className="text-destructive text-xs font-bold">!</span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-destructive">Error</p>
+                        <p className="text-xs text-destructive mt-1">{formError}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+          {selectedOption === 'bookNow' && (
+            <Card className="mt-4">
+              <CardHeader><CardTitle>Complete Booking</CardTitle></CardHeader>
+              <CardContent>
+                <form onSubmit={handleContinueToPayment} className="space-y-6">
+                  <GuestInfoForm
+                    property={property}
+                    firstName={sessionFirstName} setFirstName={setSessionFirstName}
+                    lastName={sessionLastName} setLastName={setSessionLastName}
+                    email={sessionEmail} setEmail={setSessionEmail}
+                    phone={sessionPhone} setPhone={setSessionPhone}
+                    checkInDate={checkInDate}
+                    checkOutDate={checkOutDate}
+                    appliedCoupon={appliedCoupon}
+                    setAppliedCoupon={setAppliedCoupon}
+                    pricingDetailsInBaseCurrency={pricingDetailsInBaseCurrency}
+                    isProcessingBooking={isProcessingBooking || isPending}
+                  />
+                  {formError && (
+                    <div className="border border-destructive bg-destructive/5 p-3 rounded-md my-3">
+                      <div className="flex items-start gap-2">
+                        <div className="h-5 w-5 rounded-full bg-red-100 flex items-center justify-center shrink-0 mt-0.5">
+                          <span className="text-destructive text-xs font-bold">!</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-destructive">Error</p>
+                          <p className="text-xs text-destructive mt-1">{formError}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <Button type="submit" className="w-full" disabled={isProcessingBooking || !datesSelected || isAvailable !== true || isPending}>
+                    {isProcessingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
+                    {isProcessingBooking ? 'Processing...' : 'Continue to Payment'}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-// Helper Input component (can be moved to ui)
+export { AvailabilityCheck };
+
 const Input = ({ label, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) => (
-    <div className="space-y-1">
-        <Label htmlFor={props.id || props.name}>{label}</Label>
-        <input
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            {...props} />
-    </div>
+  <div className="space-y-1">
+    <Label htmlFor={props.id || props.name}>{label}</Label>
+    <ShadcnInput id={props.id || props.name} {...props} />
+  </div>
 );

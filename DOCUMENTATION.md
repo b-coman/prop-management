@@ -518,3 +518,37 @@ This section lists the environment variables required or used by the application
 ## 🏁 **End of Current Documentation**
 
 All future changes should be appended below as updates or clarifications.
+
+---
+
+## 20. **Form Error Styling & Validation**
+
+*Added: 2025-05-10*
+
+The booking form system has been enhanced with custom validation styling to provide a more consistent and visually appealing experience:
+
+### Form Component Updates
+- The FormMessage component in `src/components/ui/form.tsx` has been redesigned with a more subtle and branded error display.
+- A custom circular icon with exclamation mark provides clear visual indication of errors.
+- Color and spacing have been refined to match the overall design system.
+
+### Guest Information Form Validation
+- The `GuestInfoForm` component in `src/components/booking/guest-info-form.tsx` now uses custom client-side validation.
+- A new `FormInput` component that:
+  - Shows required fields with an asterisk.
+  - Displays validation errors with a consistent style.
+  - Changes border and label colors on error states.
+  - Validates on blur for immediate feedback.
+
+### CSS Improvements
+- Added custom styling in `src/app/globals.css` to override browser default validation bubbles.
+- Implemented consistent styling for different error states (server validation, client validation, form submission errors).
+
+### Error Pattern Usage
+The updated validation pattern creates a consistent experience across:
+- Required field validation
+- Email format validation
+- Form submission errors
+- Coupon application errors/success messages
+
+This styling is used throughout the booking flow, including the main booking form, hold form, and contact form.

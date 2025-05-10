@@ -119,4 +119,23 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Custom form validation styling */
+  input:invalid,
+  textarea:invalid,
+  select:invalid {
+    box-shadow: none;
+  }
+
+  /* Remove default browser validation bubble */
+  input::-webkit-validation-bubble-message,
+  textarea::-webkit-validation-bubble-message,
+  select::-webkit-validation-bubble-message {
+    display: none;
+  }
+
+  /* Hide browser's validation popup - Firefox */
+  ::-moz-validation-bubble {
+    display: none;
+  }
 }
