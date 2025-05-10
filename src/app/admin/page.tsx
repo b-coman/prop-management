@@ -130,7 +130,8 @@ export default function AdminDashboardPage() {
             </CardTitle>
             <CardDescription>
               View booking statistics and performance reports. (Coming Soon)
-            </CardContent>
+            </CardDescription>
+          </CardHeader>
           <CardContent>
             <Button variant="outline" className="w-full" disabled>View Analytics</Button>
           </CardContent>
