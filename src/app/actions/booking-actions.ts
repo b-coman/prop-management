@@ -2,7 +2,7 @@
 "use server";
 
 import { z } from 'zod';
-import { collection, addDoc, serverTimestamp, Timestamp, getFirestore } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, Timestamp, getFirestore, Firestore } from 'firebase/firestore';
 import { dbAdmin } from '@/lib/firebaseAdmin'; // Admin SDK
 import { db } from '@/lib/firebase'; // Client SDK
 import type { Booking, Property, CurrencyCode } from '@/types';

@@ -1,7 +1,7 @@
 // src/lib/firebase.ts
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
-import { getAuth } from "firebase/auth"; // Added for Firebase Auth
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getFirestore, Firestore } from 'firebase/firestore';
+import { getAuth, Auth } from "firebase/auth"; // Added for Firebase Auth
 
 // Load environment variables from .env.local at the project root
 // This is automatically handled by Next.js in the app runtime.
@@ -17,7 +17,7 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase Client SDK
-let app;
+let app: FirebaseApp | undefined;
 if (getApps().length === 0) {
   if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
     console.error(
@@ -37,8 +37,9 @@ if (getApps().length === 0) {
   // console.log("ℹ️ Firebase Client SDK app already initialized.");
 }
 
-let db;
-let auth; // Declare auth
+// Properly type the Firestore database
+let db: Firestore | undefined;
+let auth: Auth | undefined; // Declare auth with type
 
 if (app) {
   try {
