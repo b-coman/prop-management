@@ -42,7 +42,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import type { Property, Availability, PriceCalculationResult, CurrencyCode } from '@/types';
-import { getUnavailableDatesForProperty } from '@/services/bookingService';
+import { getUnavailableDatesForProperty } from '@/services/availabilityService';
 import { createPendingBookingAction } from '@/app/actions/booking-actions';
 import { createCheckoutSession } from '@/app/actions/create-checkout-session';
 import { createHoldBookingAction } from '@/app/actions/createHoldBookingAction';
@@ -402,10 +402,15 @@ function AvailabilityCheck({
 
   const checkPropertyAvailability = useCallback(async () => {
     // Force log the dates we're checking to help debug
-    console.log("[AvailabilityCheck] Starting availability check...", {
+    console.log("==========================================");
+    console.log("🚨 MANUAL AVAILABILITY CHECK TRIGGERED 🚨");
+    console.log("==========================================");
+
+    console.log("🔍 [AvailabilityCheck] Starting availability check for property:" + propertySlug, {
       from: checkInDate ? checkInDate.toISOString() : 'null',
       to: checkOutDate ? checkOutDate.toISOString() : 'null',
-      numNights: clientNumberOfNights
+      numNights: clientNumberOfNights,
+      propertySlug: propertySlug
     });
 
     // Always reset the state first
@@ -415,9 +420,11 @@ function AvailabilityCheck({
     // Don't reset selectedOption when just checking availability
     // setSelectedOption(null);
 
+    console.log("🔄 [AvailabilityCheck] State reset, starting availability check flow");
+
     // Set a timeout to prevent infinite loading state
     const timeoutId = setTimeout(() => {
-      console.log("Availability check timed out after 10 seconds");
+      console.log("⏱️ [AvailabilityCheck] ERROR: Availability check timed out after 10 seconds");
       setIsLoadingAvailability(false);
       setIsAvailable(null);
       toast({
@@ -431,7 +438,11 @@ function AvailabilityCheck({
     if (!datesSelected || !checkInDate || !checkOutDate) {
       clearTimeout(timeoutId);
       setIsLoadingAvailability(false);
-      console.log("Availability check aborted - no dates selected");
+      console.log("❌ [AvailabilityCheck] ERROR: Availability check aborted - no dates selected", {
+        datesSelected,
+        checkInDate: checkInDate?.toISOString() || 'null',
+        checkOutDate: checkOutDate?.toISOString() || 'null'
+      });
       return;
     }
 
@@ -439,7 +450,12 @@ function AvailabilityCheck({
     if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
       clearTimeout(timeoutId);
       setIsLoadingAvailability(false);
-      console.error("Availability check aborted - invalid date objects");
+      console.error("❌ [AvailabilityCheck] ERROR: Availability check aborted - invalid date objects", {
+        checkInValid: !isNaN(checkInDate.getTime()),
+        checkOutValid: !isNaN(checkOutDate.getTime()),
+        checkInDate: checkInDate.toString(),
+        checkOutDate: checkOutDate.toString()
+      });
       toast({
         title: "Invalid Dates",
         description: "The selected dates are invalid. Please try selecting dates again.",
@@ -449,92 +465,176 @@ function AvailabilityCheck({
     }
 
     try {
-      console.log(`[AvailabilityCheck] Fetching unavailable dates for ${propertySlug}...`);
+      console.log(`📅 [AvailabilityCheck] Fetching unavailable dates for property: "${propertySlug}"`);
 
       // TEMPORARY FIX: For development/testing, force the property to be available
       // This is useful to help with debugging the booking forms
       if (process.env.NODE_ENV === 'development') {
-        console.log("[AvailabilityCheck] DEVELOPMENT MODE: Setting property as available");
-        // Wait a bit to simulate loading
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log("🧪 [AvailabilityCheck] DEVELOPMENT MODE DETECTED - Should we force availability?");
 
-        // For development testing, set availability to true to show the booking forms
-        setIsAvailable(true);
-        setUnavailableDates([]);
+        // FORCE the actual availability check in development
+        const forceDevelopmentAvailability = false; // Keep false to always run the real check
 
-        // Ensure we have a valid number of nights for testing
-        if (checkInDate && checkOutDate) {
-          // Force recalculate nights using a different method
-          const daysDiff = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
-          console.log(`[AvailabilityCheck] DEV MODE: Force setting nights to ${daysDiff}`);
+        if (forceDevelopmentAvailability) {
+          console.log("🧪 [AvailabilityCheck] DEVELOPMENT MODE: Forcing property as available");
+          // Wait a bit to simulate loading
+          await new Promise(resolve => setTimeout(resolve, 1000));
 
-          if (daysDiff > 0) {
-            setClientNumberOfNights(daysDiff);
-          } else {
-            // Fallback to manual night count from URL params
-            const nights = 8; // Default to 8 nights if calculation fails
-            console.log(`[AvailabilityCheck] DEV MODE: Calculation failed, forcing to ${nights} nights`);
-            setClientNumberOfNights(nights);
+          // For development testing, set availability to true to show the booking forms
+          setIsAvailable(true);
+          setUnavailableDates([]);
+          console.log("🧪 [AvailabilityCheck] DEV MODE: Availability forced to TRUE, unavailable dates cleared");
+
+          // Ensure we have a valid number of nights for testing
+          if (checkInDate && checkOutDate) {
+            // Force recalculate nights using a different method
+            const daysDiff = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+            console.log(`🧪 [AvailabilityCheck] DEV MODE: Force setting nights to ${daysDiff}`, {
+              checkIn: checkInDate.toISOString(),
+              checkOut: checkOutDate.toISOString(),
+              timeDiff: checkOutDate.getTime() - checkInDate.getTime(),
+              daysDiff: daysDiff
+            });
+
+            if (daysDiff > 0) {
+              setClientNumberOfNights(daysDiff);
+            } else {
+              // Fallback to manual night count from URL params
+              const nights = 8; // Default to 8 nights if calculation fails
+              console.log(`🧪 [AvailabilityCheck] DEV MODE: Calculation failed, forcing to ${nights} nights`, {
+                calculatedDaysDiff: daysDiff,
+                forcedNights: nights
+              });
+              setClientNumberOfNights(nights);
+            }
           }
-        }
 
-        // Skip the actual availability check
-        return;
+          clearTimeout(timeoutId);
+          setIsLoadingAvailability(false);
+          console.log("🧪 [AvailabilityCheck] DEV MODE: Availability check process completed with forced result");
+          return;
+        } else {
+          console.log("🧪 [AvailabilityCheck] DEVELOPMENT MODE: Using real availability check");
+        }
       }
 
       // Continue with the normal availability check for production
+      console.log(`📞 [AvailabilityCheck] Calling getUnavailableDatesForProperty service for "${propertySlug}"`);
       const fetchedUnavailableDates = await getUnavailableDatesForProperty(propertySlug);
-      console.log(`[AvailabilityCheck] Received ${fetchedUnavailableDates.length} unavailable dates`);
+      console.log(`✅ [AvailabilityCheck] Received ${fetchedUnavailableDates.length} unavailable dates from service`);
+
+      // Log all unavailable dates for debugging
+      if (fetchedUnavailableDates.length > 0) {
+        // Only show the first 20 dates to avoid console spam
+        const datesToShow = fetchedUnavailableDates.length > 20 ? fetchedUnavailableDates.slice(0, 20) : fetchedUnavailableDates;
+        console.log(`📋 [AvailabilityCheck] First ${datesToShow.length} unavailable dates:`,
+          datesToShow.map(d => format(d, 'yyyy-MM-dd')).join(', ') +
+          (fetchedUnavailableDates.length > 20 ? ' ...(more)' : '')
+        );
+      } else {
+        console.log("📋 [AvailabilityCheck] No unavailable dates returned from service");
+      }
+
       setUnavailableDates(fetchedUnavailableDates);
 
       let conflict = false;
       let current = new Date(checkInDate.getTime());
-      console.log(`[AvailabilityCheck] Checking from ${format(current, 'yyyy-MM-dd')} to ${format(checkOutDate, 'yyyy-MM-dd')}`);
+      console.log(`🔎 [AvailabilityCheck] Starting date-by-date availability check from ${format(current, 'yyyy-MM-dd')} to ${format(checkOutDate, 'yyyy-MM-dd')}`);
 
+      const allDatesToCheck = [];
+      let currentDate = new Date(current);
+
+      // Pre-collect all dates to check for logging
+      while (isBefore(currentDate, checkOutDate)) {
+        allDatesToCheck.push(format(startOfDay(currentDate), 'yyyy-MM-dd'));
+        currentDate = addDays(currentDate, 1);
+      }
+
+      console.log(`🗓️ [AvailabilityCheck] Will check ${allDatesToCheck.length} dates for availability: ${allDatesToCheck.join(', ')}`);
+
+      // Actual date-by-date check
       while (isBefore(current, checkOutDate)) {
         const dateString = format(startOfDay(current), 'yyyy-MM-dd');
-        if (fetchedUnavailableDates.some(d => format(startOfDay(d), 'yyyy-MM-dd') === dateString)) {
+        console.log(`🔍 [AvailabilityCheck] Checking date: ${dateString}`);
+
+        const isUnavailable = fetchedUnavailableDates.some(d => {
+          const unavailableDateStr = format(startOfDay(d), 'yyyy-MM-dd');
+          const matches = unavailableDateStr === dateString;
+          if (matches) {
+            console.log(`❌ [AvailabilityCheck] MATCH! Date ${dateString} matches unavailable date ${unavailableDateStr}`);
+          }
+          return matches;
+        });
+
+        if (isUnavailable) {
           conflict = true;
-          console.log(`[AvailabilityCheck] Conflict found on ${dateString}`);
+          console.log(`⛔ [AvailabilityCheck] CONFLICT FOUND: Date ${dateString} is unavailable`);
           break;
+        } else {
+          console.log(`✓ [AvailabilityCheck] Date ${dateString} is available`);
         }
+
         current = addDays(current, 1);
       }
 
-      console.log(`[AvailabilityCheck] Check result: ${!conflict ? 'Available' : 'Not Available'}`);
+      console.log(`📊 [AvailabilityCheck] Final availability result: ${!conflict ? '✅ AVAILABLE' : '❌ NOT AVAILABLE'}`);
       setIsAvailable(!conflict);
 
       if (conflict && clientNumberOfNights > 0) {
-        console.log("Finding alternative dates...");
+        console.log(`🔄 [AvailabilityCheck] Finding alternative dates for a ${clientNumberOfNights}-night stay...`);
         let suggestionFound = false;
         let suggestionStart = addDays(checkOutDate, 1);
         const maxSearchDate = addDays(checkOutDate, 60);
+        console.log(`🔍 [AvailabilityCheck] Will search for alternatives from ${format(suggestionStart, 'yyyy-MM-dd')} to ${format(maxSearchDate, 'yyyy-MM-dd')}`);
 
+        let attemptCount = 0;
         while (isAfter(maxSearchDate, suggestionStart) && !suggestionFound) {
+          attemptCount++;
           const suggestionEnd = addDays(suggestionStart, clientNumberOfNights);
+          console.log(`🔄 [AvailabilityCheck] Trying alternative dates: ${format(suggestionStart, 'yyyy-MM-dd')} to ${format(suggestionEnd, 'yyyy-MM-dd')} (attempt ${attemptCount})`);
+
           let suggestionConflict = false;
           let checkCurrent = new Date(suggestionStart.getTime());
 
           while (isBefore(checkCurrent, suggestionEnd)) {
             const checkDateString = format(startOfDay(checkCurrent), 'yyyy-MM-dd');
-            if (fetchedUnavailableDates.some(d => format(startOfDay(d), 'yyyy-MM-dd') === checkDateString) || isBefore(checkCurrent, startOfDay(new Date()))) {
+            const isUnavailable = fetchedUnavailableDates.some(d => format(startOfDay(d), 'yyyy-MM-dd') === checkDateString);
+            const isPastDate = isBefore(checkCurrent, startOfDay(new Date()));
+
+            if (isUnavailable || isPastDate) {
               suggestionConflict = true;
+              console.log(`❌ [AvailabilityCheck] Alternative date conflict on ${checkDateString} - ${isUnavailable ? 'unavailable' : 'past date'}`);
               break;
             }
             checkCurrent = addDays(checkCurrent, 1);
           }
 
           if (!suggestionConflict) {
-            console.log(`Found alternative dates: ${format(suggestionStart, 'yyyy-MM-dd')} to ${format(suggestionEnd, 'yyyy-MM-dd')}`);
+            console.log(`✅ [AvailabilityCheck] SUCCESS: Found alternative dates on attempt ${attemptCount}: ${format(suggestionStart, 'yyyy-MM-dd')} to ${format(suggestionEnd, 'yyyy-MM-dd')}`);
             setSuggestedDates([{ from: suggestionStart, to: suggestionEnd, recommendation: "Next Available" }]);
             suggestionFound = true;
           } else {
+            console.log(`↪️ [AvailabilityCheck] Alternative dates ${format(suggestionStart, 'yyyy-MM-dd')} to ${format(suggestionEnd, 'yyyy-MM-dd')} have conflicts, trying next day`);
             suggestionStart = addDays(suggestionStart, 1);
           }
         }
+
+        if (!suggestionFound) {
+          console.log(`❗ [AvailabilityCheck] Could not find alternative dates within the next 60 days after ${attemptCount} attempts`);
+        }
       }
     } catch (error) {
-      console.error("Error checking availability:", error);
+      console.error("❌ [AvailabilityCheck] ERROR checking availability:", error);
+      // Log more details about the error
+      if (error instanceof Error) {
+        console.error("⚠️ [AvailabilityCheck] Error details:", {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+          propertySlug
+        });
+      }
+
       toast({
         title: "Error Checking Availability",
         description: "Could not check property availability. Please try again.",
@@ -544,7 +644,7 @@ function AvailabilityCheck({
     } finally {
       clearTimeout(timeoutId); // Clear the timeout on success or error
       setIsLoadingAvailability(false);
-      console.log("Availability check finished");
+      console.log("🏁 [AvailabilityCheck] Availability check process completed");
     }
   }, [checkInDate, checkOutDate, datesSelected, propertySlug, clientNumberOfNights, toast]);
 
@@ -552,15 +652,16 @@ function AvailabilityCheck({
   const prevCheckInRef = useRef<Date | null>(null);
   const prevCheckOutRef = useRef<Date | null>(null);
 
-  // Effect to check availability
+  // Effect to handle date changes and set initial availability
+  // This replaces the auto-checking effect with one that only sets initial state
   useEffect(() => {
-    // Return early if not mounted or dates not selected
+    // Return early if not mounted
     if (!hasMounted) {
       return;
     }
 
+    // If dates are not selected or invalid, reset states
     if (!datesSelected || clientNumberOfNights <= 0) {
-      // If dates are not selected or invalid, reset states
       setIsAvailable(null);
       setIsLoadingAvailability(false);
       setUnavailableDates([]);
@@ -569,7 +670,7 @@ function AvailabilityCheck({
       return;
     }
 
-    // Check if the date range has actually changed
+    // Check if the date range has actually changed to avoid infinite loops
     const dateRangeChanged =
       !prevCheckInRef.current ||
       !prevCheckOutRef.current ||
@@ -577,20 +678,28 @@ function AvailabilityCheck({
       prevCheckOutRef.current.getTime() !== checkOutDate?.getTime();
 
     if (dateRangeChanged) {
-      // Update refs with current values
+      // Update refs with current values for tracking
       prevCheckInRef.current = checkInDate;
       prevCheckOutRef.current = checkOutDate;
 
-      console.log("[AvailabilityCheck] Date range changed, automatically checking availability");
+      console.log("==========================================");
+      console.log("⚠️ [DATE-CHANGE] Dates changed - Reset availability state");
+      console.log("==========================================");
 
-      // Auto-check when dates change - we do this after a short delay to allow the UI to update
-      const autoCheckTimeout = setTimeout(() => {
-        checkPropertyAvailability();
-      }, 500);
+      console.log("🔄 [DATE-CHANGE] New date range: " +
+        (checkInDate ? format(checkInDate, 'yyyy-MM-dd') : 'null') + " to " +
+        (checkOutDate ? format(checkOutDate, 'yyyy-MM-dd') : 'null'));
 
-      return () => clearTimeout(autoCheckTimeout);
-    } else {
-      console.log("[AvailabilityCheck] Date range unchanged, skipping availability check");
+      // IMPORTANT: Just reset the availability state without auto-checking
+      // This forces the user to explicitly check availability with the button
+      setIsAvailable(null);
+
+      // No auto-checking to prevent infinite loops
+      console.log("⚠️ [DATE-CHANGE] Resetting availability state to null - waiting for user to check");
+
+      // Also clear any previously loaded unavailable dates to avoid confusion
+      setUnavailableDates([]);
+      setSuggestedDates([]);
     }
   }, [
     hasMounted,
@@ -598,8 +707,9 @@ function AvailabilityCheck({
     clientNumberOfNights,
     // Use the stringified date values to prevent reference comparison issues
     checkInDate?.toISOString(),
-    checkOutDate?.toISOString(),
-    checkPropertyAvailability
+    checkOutDate?.toISOString()
+    // IMPORTANT: We removed checkPropertyAvailability from dependencies
+    // This helps break the loop of auto-checking
   ]);
 
   // Add a safety timeout to ensure loading state is never stuck
@@ -615,43 +725,41 @@ function AvailabilityCheck({
     }
   }, [isLoadingAvailability]);
 
-  // Create a ref to track if we've already auto-started the availability check
-  const autoStartedRef = useRef(false);
+  // Create a ref to track if we've already initialized
+  const initializedRef = useRef(false);
 
-  // Effect that runs once to set up initial availability check
+  // Effect that runs once to set up initial night count calculation
   useEffect(() => {
-    // Only run once after component has mounted and only if not already started
-    if (hasMounted && !autoStartedRef.current) {
-      // Mark as started immediately to prevent re-entry
-      autoStartedRef.current = true;
+    // Only run once after component has mounted and only if not already initialized
+    if (hasMounted && !initializedRef.current) {
+      // Mark as initialized immediately to prevent re-entry
+      initializedRef.current = true;
 
-      // Wait for the next render cycle to ensure all state is set
-      const initialCheckTimeout = setTimeout(() => {
-        // In development, just force the property to be available without checking
-        if (process.env.NODE_ENV === 'development') {
-          console.log("[AvailabilityCheck] Development mode: Setting property as available");
+      // Calculate nights if needed, but don't auto-start availability check
+      const initialSetupTimeout = setTimeout(() => {
+        console.log("==========================================");
+        console.log("🚀 [INITIAL SETUP] Setting up initial state");
+        console.log("==========================================");
 
-          // Force availability to true
-          setIsAvailable(true);
-
-          // Also ensure we have a number of nights set
-          if (checkInDate && checkOutDate) {
-            const daysDiff = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
-            const nightsToSet = daysDiff > 0 ? daysDiff : 8;
-            if (clientNumberOfNights <= 0) {
-              console.log(`[AvailabilityCheck] Force setting nights to ${nightsToSet} for development`);
-              setClientNumberOfNights(nightsToSet);
-            }
-          }
+        // Only calculate nights if needed (this won't auto-check availability)
+        if (checkInDate && checkOutDate && clientNumberOfNights <= 0) {
+          const daysDiff = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+          const nightsToSet = daysDiff > 0 ? daysDiff : 1; // Default to 1 night
+          console.log(`[AvailabilityCheck] Setting initial nights to ${nightsToSet}`);
+          setClientNumberOfNights(nightsToSet);
         }
-        // In production, check availability normally but only if we have dates
-        else if (checkInDate && checkOutDate) {
-          console.log("[AvailabilityCheck] Auto-starting availability check on initial load");
-          checkPropertyAvailability();
-        }
-      }, 2000); // Longer timeout to ensure everything is ready
 
-      return () => clearTimeout(initialCheckTimeout);
+        // Important: We update the ref values but DON'T auto-check availability
+        if (checkInDate && checkOutDate) {
+          prevCheckInRef.current = checkInDate;
+          prevCheckOutRef.current = checkOutDate;
+          console.log("[AvailabilityCheck] Stored initial date range in refs");
+        }
+
+        console.log("[AvailabilityCheck] Initial setup completed - user must check availability manually");
+      }, 500); // Short timeout for initial setup
+
+      return () => clearTimeout(initialSetupTimeout);
     }
   // Only depend on hasMounted to run once after mount
   // eslint-disable-next-line react-hooks/exhaustive-deps
