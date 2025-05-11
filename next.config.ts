@@ -22,15 +22,26 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // The allowedDevOrigins should be inside the experimental object
+  // Support for multi-page structure and custom domains
   experimental: {
-    allowedDevOrigins: [
-      "https://6000-idx-studio-1746248400476.cluster-l6vkdperq5ebaqo3qy4ksvoqom.cloudworkstations.dev", 
-      "https://9000-idx-studio-1746248400476.cluster-l6vkdperq5ebaqo3qy4ksvoqom.cloudworkstations.dev",
-      "https://*.cloudworkstations.dev", 
-      "https://*.prahova-chalet.ro"
-    ]
-  }
+    allowedOrigins: ["*"],
+    allowedDevOrigins: ["*"]
+  },
+  // External packages that need special handling
+  serverExternalPackages: [],
+  // Handle custom domains
+  async rewrites() {
+    return {
+      beforeFiles: [
+        // Rewrite API requests from custom domains
+        {
+          source: '/api/:path*',
+          destination: '/api/:path*',
+          has: [{ type: 'host', value: '(?!localhost).*' }],
+        },
+      ],
+    };
+  },
 };
 
 export default nextConfig;

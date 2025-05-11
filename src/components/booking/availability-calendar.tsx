@@ -50,7 +50,7 @@ export function AvailabilityCalendar({
     return mods;
   }, [unavailableDates, selectedRange]);
 
-  // Modifier styles with proper typing
+  // Modifiers styles with proper typing (matches the modifiersStyles prop name)
   const modifierStyles = React.useMemo<ModifiersStyles>(() => {
     return {
       unavailable: {
@@ -84,7 +84,7 @@ export function AvailabilityCalendar({
         numberOfMonths={3} // Always display 3 months
         disabled={disabledDays}
         modifiers={modifiers}
-        modifierStyles={modifierStyles}
+        modifiersStyles={modifierStyles} // Corrected property name from modifierStyles to modifiersStyles
         selected={selectedRange} // Visually highlight the selected range
         onDayClick={onDateClick} // Handle date clicks if needed
         showOutsideDays // Good practice for calendar context

@@ -47,7 +47,7 @@ type CreatePendingBookingInput = z.infer<typeof CreatePendingBookingSchema>;
 
 export async function createPendingBookingAction(
   input: CreatePendingBookingInput
-): Promise<{ bookingId?: string; error?: string }> {
+): Promise<{ bookingId?: string; error?: string; errorType?: string; retry?: boolean }> {
   console.log("[Action createPendingBookingAction] Called with input:", JSON.stringify(input, null, 2));
 
   // Check for any undefined values in pricing before validation
@@ -55,17 +55,24 @@ export async function createPendingBookingAction(
     for (const [key, value] of Object.entries(input.pricing)) {
       if (value === undefined) {
         console.error(`[Action createPendingBookingAction] Found undefined value for pricing.${key}`);
-        return { error: `Invalid pricing data: ${key} is undefined` };
+        return {
+          error: `Invalid pricing data: ${key} is undefined`,
+          errorType: 'validation_error'
+        };
       }
     }
   }
 
+  // Validate using Zod schema
   const validationResult = CreatePendingBookingSchema.safeParse(input);
 
   if (!validationResult.success) {
     const errorMessages = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
     console.error("[Action createPendingBookingAction] Validation Error:", errorMessages);
-    return { error: `Invalid pending booking data: ${errorMessages}` };
+    return {
+      error: `Please check your booking information: ${errorMessages}`,
+      errorType: 'validation_error'
+    };
   }
 
   const {
@@ -82,14 +89,42 @@ export async function createPendingBookingAction(
   } = validationResult.data;
 
   try {
+    // Check if database is initialized
     if (!db) {
       console.error("[Action createPendingBookingAction] Firebase Client SDK not initialized.");
-      return { error: "Internal server error: Database connection not available." };
+      return {
+        error: "We're experiencing technical difficulties. Please try again in a moment.",
+        errorType: 'service_unavailable',
+        retry: true
+      };
     }
-    
-    const bookingsCollection = collection(db, 'bookings');
+
+    // Check for valid dates
     const checkIn = new Date(checkInStr);
     const checkOut = new Date(checkOutStr);
+
+    if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
+      return {
+        error: "Invalid dates selected for booking. Please select valid check-in and check-out dates.",
+        errorType: 'validation_error'
+      };
+    }
+
+    if (checkOut <= checkIn) {
+      return {
+        error: "Check-out date must be after check-in date.",
+        errorType: 'validation_error'
+      };
+    }
+
+    if (checkIn < new Date()) {
+      return {
+        error: "Check-in date cannot be in the past.",
+        errorType: 'validation_error'
+      };
+    }
+
+    const bookingsCollection = collection(db, 'bookings');
 
     // Note: Hold-specific fields (holdFee, holdUntil, holdPaymentId) are set by createHoldBookingAction
     // Create the booking data with guaranteed non-undefined values
@@ -121,21 +156,74 @@ export async function createPendingBookingAction(
     };
     console.log("[Action createPendingBookingAction] Preparing to save booking data...");
 
-    const docRef = await addDoc(bookingsCollection, bookingData);
+    // Add timeout to detect hanging operations
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error("Operation timed out. Please try again."));
+      }, 10000); // 10 second timeout
+    });
+
+    // Race between the DB operation and timeout
+    const docRef = await Promise.race([
+      addDoc(bookingsCollection, bookingData),
+      timeoutPromise
+    ]) as any;
+
     console.log(`[Action createPendingBookingAction] Pending booking created successfully with ID: ${docRef.id}`);
-    revalidatePath(`/properties/${propertyId}`); // Revalidate property page
-    revalidatePath(`/booking/check/${propertyId}`); // Revalidate check page
+
+    // Revalidate relevant pages
+    try {
+      revalidatePath(`/properties/${propertyId}`); // Revalidate property page
+      revalidatePath(`/booking/check/${propertyId}`); // Revalidate check page
+    } catch (revalidationError) {
+      // Log but don't fail if revalidation has issues
+      console.warn(`[Action createPendingBookingAction] Revalidation warning:`, revalidationError);
+    }
+
     return { bookingId: docRef.id };
   } catch (error) {
-    console.error(`❌ [Action createPendingBookingAction] Error creating pending booking:`, error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    if (errorMessage.includes('PERMISSION_DENIED')) {
-      return { error: 'Permission denied. Could not create pending booking.' };
+    // Import error utilities for better error handling
+    const { logError, getErrorMessage, isNetworkError, isPermissionError } = await import('@/lib/error-utils');
+
+    // Log the error with context
+    logError('createPendingBookingAction', error, { propertyId, guestEmail: guestInfo.email });
+
+    // Determine if this is a network error that might resolve with retry
+    const isNetwork = isNetworkError(error);
+    const isPermission = isPermissionError(error);
+    const errorMessage = getErrorMessage(error);
+
+    // Handle different error types
+    if (isPermission || errorMessage.includes('PERMISSION_DENIED')) {
+      return {
+        error: 'Permission denied. Please try again or contact customer support if the problem persists.',
+        errorType: 'permission_error',
+        retry: false
+      };
     }
+
     if (errorMessage.includes('invalid data') || errorMessage.includes('Unsupported field value')) {
-      return { error: `Failed to create pending booking due to invalid data. Please check input values. Details: ${errorMessage.split(' (')[0]}` };
+      return {
+        error: `There was an issue with your booking information. Please verify all details and try again.`,
+        errorType: 'validation_error',
+        retry: false
+      };
     }
-    return { error: `Failed to create pending booking: ${errorMessage}` };
+
+    if (isNetwork || errorMessage.includes('timeout')) {
+      return {
+        error: "We're having trouble connecting to our servers. Please check your internet connection and try again.",
+        errorType: 'network_error',
+        retry: true
+      };
+    }
+
+    // Fallback generic error message
+    return {
+      error: `We couldn't process your booking. Please try again or contact support for assistance.`,
+      errorType: 'unknown_error',
+      retry: true
+    };
   }
 }
 

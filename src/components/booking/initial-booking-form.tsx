@@ -3,7 +3,7 @@
 "use client";
 
 import * as React from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, isAfter } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
@@ -31,6 +31,27 @@ export function InitialBookingForm({ property, size = 'compressed' }: InitialBoo
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+
+  // Clear any existing booking storage when this initial form loads
+  // This ensures we start fresh when booking a new stay
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Clear any property-specific booking storage
+      console.log("InitialBookingForm mounted - clearing old booking storage");
+
+      // Simple session storage cleanup approach
+      // Look for and remove any booking-related items
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith('booking_')) {
+          console.log(`Clearing old booking storage: ${key}`);
+          sessionStorage.removeItem(key);
+          // Re-adjust index because we removed an item
+          i--;
+        }
+      }
+    }
+  }, []);
 
   // Check if date range is valid (end date is after start date)
   const isDateRangeValid = (): boolean => {

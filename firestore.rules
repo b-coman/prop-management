@@ -68,15 +68,20 @@ service cloud.firestore {
 
     // --- Bookings Collection ---
     match /bookings/{bookingId} {
-      allow create: if true; // Allow anyone to create a pending booking
-      allow read, update: if isSignedIn() &&
-                           (resource.data.guestInfo.userId == request.auth.uid || // Guest who made booking
-                            isOwner(resource.data.propertyId) ||             // Property owner
-                            isAdmin());                                     // Admin
-      // Specific status updates might need more granular rules.
-      // For example, only an admin or owner can change status to 'confirmed' or 'cancelled'.
-      // allow update: if (isOwner(resource.data.propertyId) || isAdmin()) ||
-      //                   (resource.data.guestInfo.userId == request.auth.uid && request.resource.data.status == 'cancelled');
+      // Allow anyone to create a pending booking
+      allow create: if true;
+
+      // Allow public read access for booking confirmation page
+      // This is a simpler approach for MVP - in production,
+      // you might want to implement more secure access controls
+      // using custom claims or session tokens
+      allow read: if true;
+
+      // Allow updates only if authenticated with proper permissions
+      allow update: if isSignedIn() &&
+                    (resource.data.guestInfo.userId == request.auth.uid || // Guest who made booking
+                     isOwner(resource.data.propertyId) ||                 // Property owner
+                     isAdmin());                                         // Admin
     }
 
     // --- Inquiries Collection ---

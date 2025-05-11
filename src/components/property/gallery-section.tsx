@@ -9,13 +9,31 @@ interface ImageType {
     'data-ai-hint'?: string;
 }
 
-interface GallerySectionProps {
-  title: string; // Add title prop
-  images?: ImageType[]; // Pass the filtered gallery images
-  propertyName: string; // For alt text
+interface GalleryContent {
+  title?: string;
+  images?: ImageType[];
+  propertyName?: string; // For alt text
+  'data-ai-hint'?: string;
 }
 
-export function GallerySection({ title, images, propertyName }: GallerySectionProps) {
+interface GallerySectionProps {
+  content: GalleryContent;
+}
+
+export function GallerySection({ content }: GallerySectionProps) {
+  // Don't render if content is missing
+  if (!content) {
+    console.warn("GallerySection received invalid content");
+    return null;
+  }
+
+  // Extract properties with defaults to prevent destructuring errors
+  const {
+    title = "Gallery",
+    images = [],
+    propertyName = "Property"
+  } = content;
+
   if (!images || images.length === 0) {
     return null; // Don't render if no images
   }
@@ -23,7 +41,7 @@ export function GallerySection({ title, images, propertyName }: GallerySectionPr
   return (
     <section className="py-8 md:py-12" id="gallery">
       <div className="container mx-auto px-4">
-        <h2 className="text-2xl font-semibold text-foreground mb-6">{title || "Gallery"}</h2> {/* Use title prop */}
+        <h2 className="text-2xl font-semibold text-foreground mb-6">{title}</h2>
          {/* Use a fluid grid layout */}
         <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
           {images.map((image, index) => (

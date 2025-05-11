@@ -12,7 +12,9 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "load-properties": "tsx scripts/load-properties.ts",
-    "ensure-property-options": "tsx scripts/ensure-property-booking-options.ts"
+    "ensure-property-options": "tsx scripts/ensure-property-booking-options.ts",
+    "validate-multipage": "tsx scripts/validate-multipage-structure.ts",
+    "update-multipage": "tsx scripts/update-multipage-template.ts"
   },
   "dependencies": {
     "@firebasegen/default-connector": "file:dataconnect-generated/js/default-connector",
@@ -50,6 +52,7 @@
     "genkit": "^1.6.2",
     "lucide-react": "^0.475.0",
     "next": "15.2.3",
+    "nodemailer": "^6.9.13",
     "patch-package": "^8.0.0",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
@@ -64,6 +67,7 @@
   },
   "devDependencies": {
     "@types/node": "^20",
+    "@types/nodemailer": "^6.4.14",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "dotenv": "^16.4.5",

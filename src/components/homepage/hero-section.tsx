@@ -10,25 +10,38 @@ import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react'; // Import useEffect and useState
 
 export interface HeroData {
-  backgroundImage: string | null;
+  backgroundImage?: string | null;
   'data-ai-hint'?: string;
   title?: string | null;
   subtitle?: string | null;
   price?: number | null; // Advertised rate from property's base currency
   showRating?: boolean;
   showBookingForm?: boolean;
-  bookingFormProperty: Property;
-   bookingForm?: {
+  bookingFormProperty?: Property;
+  bookingForm?: {
     position?: 'center' | 'top' | 'bottom' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
     size?: 'compressed' | 'large';
   };
 }
 
 interface HeroSectionProps {
-  heroData: HeroData;
+  content: HeroData | any; // Accept content instead of heroData to match other components
 }
 
-export function HeroSection({ heroData }: HeroSectionProps) {
+export function HeroSection({ content }: HeroSectionProps) {
+  // Ensure content exists with defaults
+  if (!content) {
+    console.warn("HeroSection received invalid content");
+    return (
+      <section className="relative h-[70vh] min-h-[500px] md:h-[80vh] md:min-h-[600px] w-full flex text-white">
+        <div className="absolute inset-0 bg-black/80"></div>
+        <div className="container mx-auto px-4 flex items-center justify-center">
+          <h1 className="text-3xl">Welcome</h1>
+        </div>
+      </section>
+    );
+  }
+
   const { formatPrice, selectedCurrency, baseCurrencyForProperty, convertToSelectedCurrency, ratesLoading } = useCurrency();
   const [hasMounted, setHasMounted] = useState(false);
 
@@ -36,19 +49,39 @@ export function HeroSection({ heroData }: HeroSectionProps) {
     setHasMounted(true);
   }, []);
 
+  // Extract properties with defaults to prevent destructuring errors
   const {
-    backgroundImage,
-    title,
-    subtitle,
-    price,
-    showRating,
-    showBookingForm,
-    bookingFormProperty,
-    bookingForm,
-    'data-ai-hint': dataAiHint,
-  } = heroData;
+    backgroundImage = null,
+    title = "Welcome",
+    subtitle = null,
+    price = null,
+    showRating = false,
+    showBookingForm = false,
+    bookingFormProperty = null,
+    bookingForm = { position: 'bottom', size: 'compressed' },
+    'data-ai-hint': dataAiHint = "property image",
+  } = content;
 
-  const propertyBaseCcy = baseCurrencyForProperty(bookingFormProperty.baseCurrency);
+  // Load property data with defaults
+  // We'll keep this even if property data isn't available, but log a warning
+  if (!bookingFormProperty) {
+    console.warn("HeroSection: Missing property data for booking form. Using default values.");
+  }
+
+  const property = bookingFormProperty || {
+    id: propertySlug || 'default',
+    slug: propertySlug || 'default',
+    name: title || 'Property',
+    baseCurrency: 'EUR',
+    baseRate: price || 150, // Use price from content or default
+    advertisedRate: price || 150,
+    advertisedRateType: "from",
+    minNights: 2,
+    maxNights: 14,
+    maxGuests: 6
+  };
+
+  const propertyBaseCcy = baseCurrencyForProperty(property.baseCurrency || 'EUR');
 
   // Convert the hero's advertised price to the selected display currency
   const displayPriceAmount = price !== null && price !== undefined && !ratesLoading && hasMounted
@@ -61,8 +94,8 @@ export function HeroSection({ heroData }: HeroSectionProps) {
     ? formatPrice(displayPriceAmount, currencyToDisplay)
     : null;
 
-  const rating = bookingFormProperty.ratings?.average;
-  const reviewsCount = bookingFormProperty.ratings?.count;
+  const rating = property.ratings?.average;
+  const reviewsCount = property.ratings?.count;
 
   const formPositionClasses = {
     center: 'items-center justify-center',
@@ -81,18 +114,17 @@ export function HeroSection({ heroData }: HeroSectionProps) {
      bookingForm?.size === 'large' ? 'max-w-3xl' : 'max-w-md'
   );
 
-
   return (
     <section className="relative h-[70vh] min-h-[500px] md:h-[80vh] md:min-h-[600px] w-full flex text-white" id="hero">
       {backgroundImage && (
         <Image
           src={backgroundImage}
-          alt={title || bookingFormProperty.name || 'Hero background image'}
+          alt={title || property.name || 'Hero background image'}
           fill
           style={{ objectFit: 'cover' }}
           priority
           className="-z-10"
-          data-ai-hint={dataAiHint || "mountain landscape"}
+          data-ai-hint={dataAiHint}
         />
       )}
       <div className="absolute inset-0 bg-black/40 -z-10"></div>
@@ -113,18 +145,18 @@ export function HeroSection({ heroData }: HeroSectionProps) {
                       <span className="text-base font-normal text-muted-foreground">/night</span>
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {bookingFormProperty.advertisedRateType || "special deal / starting with"}
+                      {property.advertisedRateType || "special deal / starting with"}
                     </p>
                   </div>
                 ) : (
                    <div className='text-center md:text-left'>
                      <p className="text-2xl md:text-3xl font-bold text-foreground">
                        {/* Placeholder or base currency price before hydration */}
-                       {price !== null && price !== undefined ? formatPrice(price, propertyBaseCcy) : "Loading price..."}
+                       {property.baseRate ? formatPrice(property.baseRate, propertyBaseCcy) : "Loading price..."}
                        <span className="text-base font-normal text-muted-foreground">/night</span>
                      </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                       {bookingFormProperty.advertisedRateType || "special deal / starting with"}
+                       {property.advertisedRateType || "special deal / starting with"}
                      </p>
                    </div>
                 )}
@@ -136,7 +168,7 @@ export function HeroSection({ heroData }: HeroSectionProps) {
                   </div>
                 )}
              </div>
-            <InitialBookingForm property={bookingFormProperty} size={bookingForm?.size || 'compressed'} />
+            <InitialBookingForm property={property} size={bookingForm?.size || 'compressed'} />
           </div>
         )}
       </div>

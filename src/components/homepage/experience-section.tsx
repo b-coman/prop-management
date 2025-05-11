@@ -9,12 +9,18 @@ interface Highlight {
   icon: IconName;
   title: string;
   description: string;
+  'data-ai-hint'?: string;
 }
 
-interface ExperienceSectionProps {
+interface ExperienceContent {
   title: string;
   welcomeText: string;
   highlights: Highlight[];
+  'data-ai-hint'?: string;
+}
+
+interface ExperienceSectionProps {
+  content: ExperienceContent;
 }
 
 // Map icon names to actual Lucide components
@@ -26,8 +32,21 @@ const iconMap: { [key in IconName]: React.ElementType } = {
   // Add more mappings as needed
 };
 
-export function ExperienceSection({ title, welcomeText, highlights }: ExperienceSectionProps) {
+export function ExperienceSection({ content }: ExperienceSectionProps) {
   // Don't render if required props are missing
+  if (!content) {
+    console.warn("ExperienceSection received invalid content");
+    return null;
+  }
+
+  // Extract properties with defaults to prevent destructuring errors
+  const {
+    title = "",
+    welcomeText = "",
+    highlights = []
+  } = content;
+
+  // Don't render if required content is missing
   if (!title || !welcomeText || !highlights || highlights.length === 0) {
     return null;
   }

@@ -21,13 +21,31 @@ interface Attraction {
      'data-ai-hint'?: string;
 }
 
-interface LocationHighlightsProps {
+interface LocationHighlightsContent {
     title: string;
     propertyLocation: Location; // Use the Location type
     attractions: Attraction[];
+    'data-ai-hint'?: string;
 }
 
-export function LocationHighlights({ title, propertyLocation, attractions }: LocationHighlightsProps) {
+interface LocationHighlightsProps {
+    content: LocationHighlightsContent;
+}
+
+export function LocationHighlights({ content }: LocationHighlightsProps) {
+    // Don't render if content is missing
+    if (!content) {
+        console.warn("[LocationHighlights] Rendering skipped: Missing content");
+        return null;
+    }
+
+    // Extract properties with defaults to prevent destructuring errors
+    const {
+        title = "",
+        propertyLocation = {},
+        attractions = []
+    } = content;
+
     // Don't render if required info is missing
     if (!title || !propertyLocation || !attractions || attractions.length === 0) {
         console.warn("[LocationHighlights] Rendering skipped: Missing required props (title, propertyLocation, or attractions).");

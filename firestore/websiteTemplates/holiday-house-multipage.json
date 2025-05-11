@@ -1,0 +1,353 @@
+{
+  "templateId": "holiday-house",
+  "name": "Holiday House Template",
+  "pages": {
+    "homepage": {
+      "path": "/",
+      "title": "Welcome",
+      "blocks": [
+        { "id": "hero", "type": "hero" },
+        { "id": "experience", "type": "experience" },
+        { "id": "host", "type": "host" },
+        { "id": "features", "type": "features" },
+        { "id": "location", "type": "location" },
+        { "id": "testimonials", "type": "testimonials" },
+        { "id": "gallery", "type": "gallery" },
+        { "id": "cta", "type": "cta" }
+      ]
+    },
+    "details": {
+      "path": "/details",
+      "title": "Property Details",
+      "blocks": [
+        { "id": "details-header", "type": "pageHeader" },
+        { "id": "amenities", "type": "amenitiesList" },
+        { "id": "rooms", "type": "roomsList" },
+        { "id": "specifications", "type": "specificationsList" },
+        { "id": "pricing-detail", "type": "pricingTable" },
+        { "id": "cta", "type": "cta" }
+      ]
+    },
+    "location": {
+      "path": "/location",
+      "title": "Location",
+      "blocks": [
+        { "id": "location-header", "type": "pageHeader" },
+        { "id": "map-large", "type": "fullMap" },
+        { "id": "attractions", "type": "attractionsList" },
+        { "id": "transport", "type": "transportOptions" },
+        { "id": "distances", "type": "distancesList" },
+        { "id": "cta", "type": "cta" }
+      ]
+    },
+    "gallery": {
+      "path": "/gallery",
+      "title": "Photo Gallery",
+      "blocks": [
+        { "id": "gallery-header", "type": "pageHeader" },
+        { "id": "full-gallery", "type": "galleryGrid" },
+        { "id": "photo-categories", "type": "photoCategories" },
+        { "id": "cta", "type": "cta" }
+      ]
+    },
+    "booking": {
+      "path": "/booking",
+      "title": "Book Your Stay",
+      "blocks": [
+        { "id": "booking-header", "type": "pageHeader" },
+        { "id": "booking-form", "type": "fullBookingForm" },
+        { "id": "booking-policies", "type": "policiesList" }
+      ]
+    }
+  },
+  "header": {
+    "menuItems": [
+      { "label": "Home", "url": "/" },
+      { "label": "Property Details", "url": "/details" },
+      { "label": "Location", "url": "/location" },
+      { "label": "Gallery", "url": "/gallery" },
+      { "label": "Book Now", "url": "/booking", "isButton": true }
+    ],
+    "logo": {
+      "src": "/images/templates/holiday-house/logo.svg",
+      "alt": "Holiday House"
+    }
+  },
+  "footer": {
+    "quickLinks": [
+      { "label": "Home", "url": "/" },
+      { "label": "Property Details", "url": "/details" },
+      { "label": "Location", "url": "/location" },
+      { "label": "Gallery", "url": "/gallery" },
+      { "label": "Book Now", "url": "/booking" }
+    ],
+    "contactInfo": {
+      "email": "contact@example.com",
+      "phone": "+1 (555) 123-4567"
+    },
+    "socialLinks": [
+      { "platform": "facebook", "url": "https://facebook.com/example" },
+      { "platform": "instagram", "url": "https://instagram.com/example" }
+    ]
+  },
+  "defaults": {
+    "hero": {
+      "backgroundImage": "/images/templates/holiday-house/default-hero.jpg",
+      "title": "Welcome to Your Holiday House",
+      "price": 150,
+      "showRating": true,
+      "showBookingForm": true,
+      "bookingForm": { "position": "bottom", "size": "large" }
+    },
+    "experience": {
+      "title": "Experience Relaxation",
+      "description": "A cozy holiday house perfect for family getaways.",
+      "highlights": [
+        { "icon": "Leaf", "title": "Nature", "description": "Surrounded by beautiful nature." },
+        { "icon": "Users", "title": "Family Friendly", "description": "Ideal for family vacations." }
+      ]
+    },
+    "host": {
+      "name": "Your Host",
+      "imageUrl": "/images/templates/holiday-house/default-host.jpg",
+      "description": "Welcome to my holiday house!",
+      "backstory": "I've been hosting for over 5 years and love helping guests create memorable experiences.",
+      "data-ai-hint": "friendly host portrait outdoors"
+    },
+    "features": [
+      { "icon": "firepit", "title": "Fire Pit", "description": "Gather around the fire for evening conversations.", "image": "/images/templates/holiday-house/default-firepit.jpg", "data-ai-hint": "fire pit night" },
+      { "icon": "hammock", "title": "Hammock", "description": "Relax with a book in our comfortable hammock.", "image": "/images/templates/holiday-house/default-hammock.jpg", "data-ai-hint": "hammock forest relax" },
+      { "icon": "bbq", "title": "BBQ Area", "description": "Enjoy outdoor dining with our gas grill.", "image": "/images/templates/holiday-house/default-bbq.jpg", "data-ai-hint": "bbq grill outdoor cooking" }
+    ],
+    "location": {
+      "title": "Discover Nearby Attractions",
+      "mapCenter": { "lat": 45.2530, "lng": 25.6346 }
+    },
+    "attractions": [
+      { "name": "Local Attraction", "description": "A popular destination for tourists", "image": "/images/templates/holiday-house/default-attraction.jpg", "data-ai-hint": "landmark" },
+      { "name": "Outdoor Adventure", "description": "Perfect for nature lovers", "image": "/images/templates/holiday-house/default-adventure.jpg", "data-ai-hint": "nature trail" }
+    ],
+    "testimonials": {
+      "title": "What Guests Say",
+      "showRating": true,
+      "reviews": [
+        { "name": "Jane D.", "date": "2025-01", "rating": 5, "text": "Wonderful stay! Clean, comfortable, and the host was very responsive.", "imageUrl": "/images/templates/holiday-house/default-guest.jpg", "data-ai-hint": "happy guest" }
+      ]
+    },
+    "gallery": {
+      "title": "Property Gallery",
+      "images": [
+        { "url": "/images/templates/holiday-house/default-gallery-1.jpg", "alt": "Living Room", "data-ai-hint": "chalet living room" }
+      ]
+    },
+    "cta": {
+      "title": "Book Your Stay",
+      "description": "Secure your dates now for an unforgettable vacation experience.",
+      "buttonText": "Book Now",
+      "buttonUrl": "/booking",
+      "backgroundImage": "/images/templates/holiday-house/default-cta.jpg",
+      "data-ai-hint": "mountain panorama"
+    },
+    "pageHeader": {
+      "title": "Page Title",
+      "subtitle": "Page description goes here",
+      "backgroundImage": "/images/templates/holiday-house/default-header.jpg"
+    },
+    "amenitiesList": {
+      "title": "Amenities",
+      "categories": [
+        {
+          "name": "Indoor",
+          "amenities": [
+            { "icon": "Wifi", "name": "Free WiFi" },
+            { "icon": "Tv", "name": "Smart TV" },
+            { "icon": "Thermometer", "name": "Air Conditioning" },
+            { "icon": "ShowerHead", "name": "Hot Water" }
+          ]
+        },
+        {
+          "name": "Outdoor",
+          "amenities": [
+            { "icon": "ParkingSquare", "name": "Free Parking" },
+            { "icon": "Trees", "name": "Garden" },
+            { "icon": "Flame", "name": "BBQ" }
+          ]
+        }
+      ]
+    },
+    "roomsList": {
+      "title": "Rooms",
+      "rooms": [
+        {
+          "name": "Master Bedroom",
+          "description": "Spacious room with king-size bed",
+          "features": ["King Bed", "Ensuite Bathroom", "TV"],
+          "image": "/images/templates/holiday-house/default-master.jpg"
+        },
+        {
+          "name": "Second Bedroom",
+          "description": "Comfortable room with two single beds",
+          "features": ["Two Single Beds", "Closet"],
+          "image": "/images/templates/holiday-house/default-second.jpg"
+        },
+        {
+          "name": "Living Room",
+          "description": "Cozy space with fireplace",
+          "features": ["Sofa", "Fireplace", "TV"],
+          "image": "/images/templates/holiday-house/default-living.jpg"
+        }
+      ]
+    },
+    "specificationsList": {
+      "title": "Property Specifications",
+      "specifications": [
+        { "name": "Size", "value": "150 m²" },
+        { "name": "Bedrooms", "value": "2" },
+        { "name": "Bathrooms", "value": "2" },
+        { "name": "Max Guests", "value": "4" },
+        { "name": "Built", "value": "2010" },
+        { "name": "Renovated", "value": "2022" }
+      ]
+    },
+    "pricingTable": {
+      "title": "Pricing",
+      "description": "Our rates vary by season. All prices include cleaning fee and taxes.",
+      "seasons": [
+        {
+          "name": "Low Season",
+          "period": "November - March (except holidays)",
+          "rate": "€120 per night",
+          "minimumStay": "2 nights"
+        },
+        {
+          "name": "Mid Season",
+          "period": "April - June, September - October",
+          "rate": "€150 per night",
+          "minimumStay": "2 nights"
+        },
+        {
+          "name": "High Season",
+          "period": "July - August, Christmas, New Year",
+          "rate": "€180 per night",
+          "minimumStay": "3 nights"
+        }
+      ]
+    },
+    "fullMap": {
+      "title": "Our Location",
+      "description": "Centrally located with easy access to attractions",
+      "address": "123 Main St, Example City, Country",
+      "coordinates": { "lat": 45.2530, "lng": 25.6346 },
+      "zoom": 14,
+      "showDirections": true
+    },
+    "attractionsList": {
+      "title": "Nearby Attractions",
+      "description": "Discover these amazing places just a short distance away",
+      "attractions": [
+        {
+          "name": "Mountain Hiking Trail",
+          "description": "Beautiful trails with panoramic views",
+          "distance": "2 km",
+          "image": "/images/templates/holiday-house/default-hiking.jpg"
+        },
+        {
+          "name": "Historical Museum",
+          "description": "Learn about local history",
+          "distance": "5 km",
+          "image": "/images/templates/holiday-house/default-museum.jpg"
+        },
+        {
+          "name": "Local Winery",
+          "description": "Wine tasting and tours available",
+          "distance": "8 km",
+          "image": "/images/templates/holiday-house/default-winery.jpg"
+        }
+      ]
+    },
+    "transportOptions": {
+      "title": "Getting Around",
+      "description": "Various transportation options are available",
+      "options": [
+        {
+          "icon": "Car",
+          "name": "Car",
+          "description": "Recommended for maximum flexibility"
+        },
+        {
+          "icon": "Bus",
+          "name": "Bus",
+          "description": "The #42 bus stops 200m from the property"
+        },
+        {
+          "icon": "Train",
+          "name": "Train",
+          "description": "The nearest station is 3km away"
+        }
+      ]
+    },
+    "distancesList": {
+      "title": "Distances",
+      "distances": [
+        { "place": "City Center", "distance": "10 km", "time": "15 min by car" },
+        { "place": "Beach", "distance": "5 km", "time": "10 min by car" },
+        { "place": "Airport", "distance": "35 km", "time": "40 min by car" },
+        { "place": "Supermarket", "distance": "1 km", "time": "5 min walk" },
+        { "place": "Restaurant", "distance": "0.5 km", "time": "3 min walk" }
+      ]
+    },
+    "galleryGrid": {
+      "title": "Photo Gallery",
+      "description": "Browse through images of our beautiful property",
+      "layout": "grid",
+      "enableLightbox": true
+    },
+    "photoCategories": {
+      "title": "Browse by Category",
+      "categories": [
+        {
+          "name": "Interior",
+          "description": "Inside our beautiful property",
+          "thumbnail": "/images/templates/holiday-house/default-interior.jpg",
+          "images": [
+            { "url": "/images/templates/holiday-house/default-living.jpg", "alt": "Living Room" },
+            { "url": "/images/templates/holiday-house/default-kitchen.jpg", "alt": "Kitchen" }
+          ]
+        },
+        {
+          "name": "Exterior",
+          "description": "Outside areas and views",
+          "thumbnail": "/images/templates/holiday-house/default-exterior.jpg",
+          "images": [
+            { "url": "/images/templates/holiday-house/default-garden.jpg", "alt": "Garden" },
+            { "url": "/images/templates/holiday-house/default-terrace.jpg", "alt": "Terrace" }
+          ]
+        }
+      ]
+    },
+    "fullBookingForm": {
+      "title": "Book Your Stay",
+      "description": "Select your dates and complete your booking",
+      "showCalendar": true,
+      "showSummary": true,
+      "enableCoupons": true
+    },
+    "policiesList": {
+      "title": "Booking Policies",
+      "policies": [
+        {
+          "title": "Cancellation Policy",
+          "description": "Free cancellation up to 14 days before check-in. Cancellations made within 14 days of check-in receive a 50% refund."
+        },
+        {
+          "title": "Check-in/Check-out",
+          "description": "Check-in: 3:00 PM - 8:00 PM, Check-out: by 11:00 AM"
+        },
+        {
+          "title": "House Rules",
+          "description": "No smoking, no parties or events, pets not allowed."
+        }
+      ]
+    }
+  }
+}

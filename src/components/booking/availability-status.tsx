@@ -62,6 +62,26 @@ export function AvailabilityStatus({
   setPhone,
   isProcessingBooking,
 }: AvailabilityStatusProps) {
+
+  // Track loading time for better UX
+  const [longLoading, setLongLoading] = React.useState(false);
+
+  // Set a flag if loading takes more than 3 seconds
+  React.useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    if (isLoadingAvailability) {
+      timeoutId = setTimeout(() => {
+        setLongLoading(true);
+      }, 3000);
+    } else {
+      setLongLoading(false);
+    }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [isLoadingAvailability]);
   const [notifyAvailability, setNotifyAvailability] = React.useState(false);
   const [notificationMethod, setNotificationMethod] = React.useState<'email' | 'sms'>('email');
   const { toast } = useToast();
@@ -114,17 +134,47 @@ export function AvailabilityStatus({
         <Alert variant="default" className="bg-blue-50 border-blue-200">
           <Loader2 className="h-4 w-4 animate-spin" />
           <AlertTitle>Checking Availability...</AlertTitle>
-          <AlertDescription>Please wait while we check the dates.</AlertDescription>
+          <AlertDescription className="flex flex-col space-y-2">
+            <span>Please wait while we check the dates.</span>
+            {longLoading && (
+              <div className="mt-2 text-sm">
+                <p className="text-amber-700">This is taking longer than expected.</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 self-start text-xs"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    // Manually retry the availability check
+                    window.location.reload();
+                  }}
+                >
+                  Reload to try again
+                </Button>
+              </div>
+            )}
+          </AlertDescription>
         </Alert>
       );
     }
     if (isAvailable === true && datesSelected && checkInDate && checkOutDate) {
+      // Force a specific date format to ensure consistency
+      const formattedCheckIn = format(checkInDate, 'MMM d, yyyy');
+      const formattedCheckOut = format(checkOutDate, 'MMM d, yyyy');
+
+      console.log("Displaying available dates message:", {
+        checkIn: checkInDate.toISOString(),
+        checkOut: checkOutDate.toISOString(),
+        nights: numberOfNights,
+        formatted: `${formattedCheckIn} - ${formattedCheckOut}`
+      });
+
       return (
         <Alert variant="default" className="bg-green-50 border-green-200 text-green-800">
           <CheckCircle className="h-4 w-4 text-green-600" />
           <AlertTitle>Dates Available!</AlertTitle>
           <AlertDescription>
-            Good news! The dates {`${format(checkInDate, 'MMM d')} - ${format(checkOutDate, 'MMM d')} (${numberOfNights} nights)`} are available. Please fill in your details below to proceed.
+            Good news! The dates {`${formattedCheckIn} - ${formattedCheckOut} (${numberOfNights} nights)`} are available. Please fill in your details below to proceed.
           </AlertDescription>
         </Alert>
       );

@@ -126,8 +126,36 @@ export async function POST(req: NextRequest) {
     try {
       const isHold = paymentType === 'booking_hold';
       console.log(`[Webhook] Calling updateBookingPaymentInfo for booking ${bookingId} (isHold: ${isHold})...`);
+
+      // Update booking status in the database
       await updateBookingPaymentInfo(bookingId, paymentInfo, propertyId, paymentCurrency, isHold);
       console.log(`✅✅ [Webhook] Booking ${bookingId} successfully updated for session ${sessionId} (type: ${paymentType}).`);
+
+      // Send booking confirmation email
+      try {
+        // Dynamically import the email service to avoid loading it unnecessarily
+        const { sendBookingConfirmationEmail } = await import('@/services/emailService');
+
+        // Send confirmation email
+        const emailResult = await sendBookingConfirmationEmail(bookingId);
+        if (emailResult.success) {
+          console.log(`✅ [Webhook] Confirmation email sent for booking ${bookingId}${emailResult.previewUrl ? ` (Preview: ${emailResult.previewUrl})` : ''}`);
+        } else {
+          console.warn(`⚠️ [Webhook] Failed to send confirmation email for booking ${bookingId}: ${emailResult.error}`);
+          // Don't fail the webhook if just the email fails
+        }
+
+        // For a hold booking, we might want to send a different type of email
+        if (isHold) {
+          console.log(`[Webhook] Hold booking email would be different, but sent standard confirmation for now.`);
+        }
+
+        // TODO: Send notification to property owner/admin
+        // This could be implemented similarly, using the owner's email from the property details
+      } catch (emailError) {
+        console.error(`❌ [Webhook] Error sending confirmation email for booking ${bookingId}:`, emailError instanceof Error ? emailError.message : String(emailError));
+        // Don't fail the webhook if just the email fails
+      }
     } catch (error) {
       console.error(`❌❌ [Webhook Error - Session ${sessionId}] Error updating booking ${bookingId}:`, error instanceof Error ? error.message : String(error));
       // Return 500 to signal Stripe to retry? Or 400 if it's a data issue? For now, 500.

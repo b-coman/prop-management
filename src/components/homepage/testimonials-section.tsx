@@ -16,14 +16,15 @@ interface Review {
    'data-ai-hint'?: string; // Optional AI hint for image generation
 }
 
-interface TestimonialsData {
+interface TestimonialsContent {
   title: string; // Title for the section
   overallRating: number; // Overall rating for the property
   reviews: Review[]; // Array of review objects
+  'data-ai-hint'?: string;
 }
 
 interface TestimonialsSectionProps {
-  testimonials: TestimonialsData; // Accept the structured data
+  content: TestimonialsContent; // Use content property name for consistency
 }
 
 // Helper function to render stars
@@ -45,9 +46,22 @@ const renderStars = (rating: number) => {
   return stars;
 };
 
-export function TestimonialsSection({ testimonials }: TestimonialsSectionProps) {
-  // Don't render if no testimonials data or no reviews
-  if (!testimonials || !testimonials.reviews || testimonials.reviews.length === 0) {
+export function TestimonialsSection({ content }: TestimonialsSectionProps) {
+  // Don't render if content is missing
+  if (!content) {
+    console.warn("TestimonialsSection received invalid content");
+    return null;
+  }
+
+  // Extract properties with defaults to prevent destructuring errors
+  const {
+    title = "What Our Guests Say",
+    overallRating = 0,
+    reviews = []
+  } = content;
+
+  // Don't render if no reviews
+  if (!reviews || reviews.length === 0) {
     return null;
   }
 
@@ -56,15 +70,15 @@ export function TestimonialsSection({ testimonials }: TestimonialsSectionProps) 
       <div className="container mx-auto px-4">
         <div className="max-w-3xl mx-auto text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
-             {testimonials.title || "What Our Guests Say"} {/* Use title from props */}
+             {title}
           </h2>
-          {testimonials.overallRating > 0 && (
+          {overallRating > 0 && (
              <div className="flex items-center justify-center gap-2">
                 <Badge variant="secondary" className="text-lg px-3 py-1">
-                 Overall Rating: {testimonials.overallRating.toFixed(1)} / 5
+                 Overall Rating: {overallRating.toFixed(1)} / 5
                 </Badge>
                 <div className="flex">
-                 {renderStars(testimonials.overallRating)}
+                 {renderStars(overallRating)}
                 </div>
             </div>
           )}
@@ -73,7 +87,7 @@ export function TestimonialsSection({ testimonials }: TestimonialsSectionProps) 
 
          {/* Use a fluid grid layout */}
         <div className="grid gap-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
-          {testimonials.reviews.slice(0, 3).map((review, index) => ( // Show first 3 reviews
+          {reviews.slice(0, 3).map((review, index) => ( // Show first 3 reviews
             <Card key={review.id || index} className="flex flex-col border-border"> {/* Use index as fallback key */}
               <CardContent className="p-6 flex-grow flex flex-col">
                 <div className="flex items-center mb-4">

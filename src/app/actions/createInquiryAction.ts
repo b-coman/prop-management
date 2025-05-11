@@ -8,8 +8,8 @@ import type { Inquiry, CurrencyCode } from "@/types"; // Added CurrencyCode
 import { SUPPORTED_CURRENCIES } from "@/types"; // Import SUPPORTED_CURRENCIES
 import { sanitizeEmail, sanitizePhone, sanitizeText } from "@/lib/sanitize";
 import { revalidatePath } from "next/cache";
-// TODO: Implement email sending service
-// import { sendInquiryConfirmationEmail, sendInquiryNotificationEmail } from "@/services/emailService";
+// Import email service functions
+import { sendInquiryConfirmationEmail, sendInquiryNotificationEmail } from "@/services/emailService";
 
 // Schema for creating an inquiry
 const CreateInquirySchema = z.object({
@@ -80,20 +80,44 @@ export async function createInquiryAction(
     const docRef = await addDoc(inquiriesCollection, inquiryData);
     console.log(`[Action createInquiryAction] Inquiry created successfully with ID: ${docRef.id}`);
 
-    // --- Optional: Send Notifications ---
-    // try {
-    //   // Fetch property owner email (requires fetching property details)
-    //   // const property = await getPropertyBySlug(propertySlug);
-    //   // const ownerEmail = await getOwnerEmail(property?.ownerId);
-    //   // if (ownerEmail) {
-    //   //   await sendInquiryNotificationEmail(ownerEmail, { ...inquiryData, id: docRef.id });
-    //   // }
-    //   await sendInquiryConfirmationEmail(guestInfo.email, { ...inquiryData, id: docRef.id });
-    // } catch (emailError) {
-    //   console.error("[Action createInquiryAction] Failed to send notification emails:", emailError);
-    //   // Don't fail the whole action if email fails, but log it
-    // }
-    // --- End Optional Notifications ---
+    // Send email notifications
+    try {
+      // Send confirmation email to the guest
+      const inquiryWithId = { ...inquiryData, id: docRef.id } as Inquiry;
+      const guestEmailResult = await sendInquiryConfirmationEmail(guestInfo.email, inquiryWithId);
+
+      if (guestEmailResult.success) {
+        console.log(`✅ [Action createInquiryAction] Sent confirmation email to guest ${guestInfo.email}`);
+        if (guestEmailResult.previewUrl) {
+          console.log(`  - Preview URL: ${guestEmailResult.previewUrl}`);
+        }
+      } else {
+        console.warn(`⚠️ [Action createInquiryAction] Failed to send confirmation email: ${guestEmailResult.error}`);
+      }
+
+      // Fetch property owner email and send notification
+      try {
+        // For now, send to a fallback admin email since we don't have owner email
+        // In a real implementation, you would fetch the property owner's email
+        const adminEmail = process.env.ADMIN_EMAIL || 'admin@rentalspot.com';
+        const ownerEmailResult = await sendInquiryNotificationEmail(adminEmail, inquiryWithId);
+
+        if (ownerEmailResult.success) {
+          console.log(`✅ [Action createInquiryAction] Sent notification email to admin ${adminEmail}`);
+          if (ownerEmailResult.previewUrl) {
+            console.log(`  - Preview URL: ${ownerEmailResult.previewUrl}`);
+          }
+        } else {
+          console.warn(`⚠️ [Action createInquiryAction] Failed to send notification email: ${ownerEmailResult.error}`);
+        }
+      } catch (ownerEmailError) {
+        console.error(`❌ [Action createInquiryAction] Error sending notification to owner:`, ownerEmailError);
+        // Don't fail if just owner notification fails
+      }
+    } catch (emailError) {
+      console.error(`❌ [Action createInquiryAction] Failed to send notification emails:`, emailError);
+      // Don't fail the whole action if email fails, but log it
+    }
 
     revalidatePath(`/properties/${propertySlug}`); // May need revalidation if inquiries affect display
     return { inquiryId: docRef.id };

@@ -11,11 +11,31 @@ interface Feature {
   'data-ai-hint'?: string; // Optional AI hint for image generation
 }
 
-interface UniqueFeaturesProps {
-  features: Feature[]; // Accept the features array directly
+interface UniqueFeaturesContent {
+  title?: string;
+  description?: string;
+  features: Feature[];
+  'data-ai-hint'?: string;
 }
 
-export function UniqueFeatures({ features }: UniqueFeaturesProps) {
+interface UniqueFeaturesProps {
+  content: UniqueFeaturesContent; // Use content prop for consistency
+}
+
+export function UniqueFeatures({ content }: UniqueFeaturesProps) {
+  // Don't render if content is missing
+  if (!content) {
+    console.warn("UniqueFeatures received invalid content");
+    return null;
+  }
+
+  // Extract properties with defaults to prevent destructuring errors
+  const {
+    title = "Make Your Stay Unforgettable",
+    description = "Discover the special touches that set our property apart.",
+    features = []
+  } = content;
+
   // Don't render if no features are provided
   if (!features || features.length === 0) {
     return null;
@@ -26,10 +46,10 @@ export function UniqueFeatures({ features }: UniqueFeaturesProps) {
       <div className="container mx-auto px-4">
         <div className="max-w-3xl mx-auto text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
-            Make Your Stay Unforgettable
+            {title}
           </h2>
           <p className="text-lg text-muted-foreground">
-            Discover the special touches that set our property apart.
+            {description}
           </p>
         </div>
 
