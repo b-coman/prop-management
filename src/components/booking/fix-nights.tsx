@@ -22,28 +22,28 @@ export function FixNights() {
   
   // Run this effect whenever dates or nights change
   useEffect(() => {
-    // Only run if we have both dates and nights is 0 or missing
-    if (
-      checkInDate && 
-      checkOutDate && 
-      (numberOfNights <= 0 || numberOfNights === undefined) &&
-      !fixingRef.current
-    ) {
+    // Only run if we have both dates
+    if (checkInDate && checkOutDate && !fixingRef.current) {
       // Set flag to prevent re-entry
       fixingRef.current = true;
-      
+
       // Calculate using multiple methods
       const method1 = differenceInDays(checkOutDate, checkInDate);
       const method2 = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       // Use the most reliable result
       let nights = 4; // Default fallback
       if (method1 > 0) nights = method1;
       else if (method2 > 0) nights = method2;
-      
-      console.log(`[FixNights] Setting nights to ${nights} (was ${numberOfNights})`);
-      setNumberOfNights(nights);
-      
+
+      // Only update if nights is incorrect
+      if (numberOfNights <= 0 || numberOfNights === undefined || numberOfNights !== nights) {
+        console.log(`[FixNights] Setting nights to ${nights} (was ${numberOfNights})`);
+        setNumberOfNights(nights);
+      } else {
+        console.log(`[FixNights] Nights already correct: ${numberOfNights}`);
+      }
+
       // Release the flag after a delay
       setTimeout(() => {
         fixingRef.current = false;

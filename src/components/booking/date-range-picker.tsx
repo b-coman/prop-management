@@ -9,17 +9,23 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useDatePicker } from './hooks';
+import { useBooking } from '@/contexts/BookingContext';
 
 interface DateRangePickerProps {
   disabled?: boolean;
   showNights?: boolean;
   className?: string;
+  // New props for allowing custom handlers
+  customDateRange?: { from: Date | null, to: Date | null };
+  onDateChange?: (range: { from: Date | null, to: Date | null }) => void;
 }
 
-export function DateRangePicker({ 
-  disabled = false, 
+export function DateRangePicker({
+  disabled = false,
   showNights = true,
-  className
+  className,
+  customDateRange,
+  onDateChange
 }: DateRangePickerProps) {
   const { 
     dateRange, 
@@ -29,8 +35,8 @@ export function DateRangePicker({
     handleDateSelect 
   } = useDatePicker();
   
-  // Get number of nights from the context via the useDatePicker hook
-  const { numberOfNights } = React.useContext(require('@/contexts/BookingContext').BookingContext);
+  // Get number of nights directly from the BookingContext
+  const { numberOfNights } = useBooking();
   
   return (
     <div className={cn("space-y-1", className)}>

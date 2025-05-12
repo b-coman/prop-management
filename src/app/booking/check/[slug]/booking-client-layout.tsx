@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BookingProvider } from '@/contexts/BookingContext';
 import { useBooking } from '@/contexts/BookingContext';
-import { DebugDates } from '@/components/booking/debug-dates';
-import { UrlDebugger } from '@/components/booking/url-debug';
 import { useSearchParams } from 'next/navigation';
-import { clearSyncedStorageByPrefix, setSyncedStorageValue } from '@/hooks/use-synced-storage';
+import { clearSyncedStorageByPrefix } from '@/hooks/use-synced-storage';
 import { parseISO, isValid, startOfDay } from 'date-fns';
+import { ErrorBoundary } from '@/components/error-boundary';
+import BookingErrorFallback from '../../ErrorFallback';
+import { AvailabilityErrorHandler } from '../error-handler';
 
 interface BookingClientLayoutProps {
   children: React.ReactNode;
@@ -114,29 +115,76 @@ function BookingClientInner({ children, propertySlug }: { children: React.ReactN
 
   return (
     <>
-      {/* Debug components for development only */}
-      {process.env.NODE_ENV === 'development' && (
-        <>
-          <DebugDates />
-          <UrlDebugger />
-        </>
-      )}
+      {/* Debug components removed to prevent duplication with DebugPanel */}
       {children}
     </>
   );
 }
 
-// Main layout component
+// Main layout component with React Strict Mode protection
 export default function BookingClientLayout({ children, propertySlug }: BookingClientLayoutProps) {
+  // Track if this instance has already mounted a provider
+  const [shouldMount, setShouldMount] = React.useState(false);
+
+  // Check if a provider is already mounted - this helps with React Strict Mode
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Only check in development mode
+    if (process.env.NODE_ENV === 'development') {
+      const mountKey = `booking_provider_mounted_${propertySlug || 'global'}`;
+      const isAlreadyMounted = window[mountKey as any];
+
+      if (isAlreadyMounted) {
+        console.log('ℹ️ [CLIENT] BookingInitializer already ran - skipping initialization');
+        setShouldMount(false);
+      } else {
+        setShouldMount(true);
+      }
+    } else {
+      // In production, always mount
+      setShouldMount(true);
+    }
+  }, [propertySlug]);
+
   // First initialize storage
   return (
     <>
       <BookingStorageInitializer propertySlug={propertySlug} />
-      <BookingProvider propertySlug={propertySlug}>
-        <BookingClientInner propertySlug={propertySlug}>
-          {children}
-        </BookingClientInner>
-      </BookingProvider>
+
+      {/* Add global error handler for fetch abort errors */}
+      <AvailabilityErrorHandler />
+
+      {/* Add an error boundary to catch any booking-related errors */}
+      <ErrorBoundary
+        fallback={(error: Error) => (
+          <BookingErrorFallback
+            error={error}
+            reset={() => {
+              // Clear storage and reload on reset
+              if (typeof window !== 'undefined') {
+                Object.keys(sessionStorage).forEach(key => {
+                  if (key.startsWith('booking_')) {
+                    sessionStorage.removeItem(key);
+                  }
+                });
+                window.location.reload();
+              }
+            }}
+          />
+        )}
+      >
+        {shouldMount || process.env.NODE_ENV !== 'development' ? (
+          <BookingProvider propertySlug={propertySlug}>
+            <BookingClientInner propertySlug={propertySlug}>
+              {children}
+            </BookingClientInner>
+          </BookingProvider>
+        ) : (
+          // Pass children through without a provider if we've determined a provider is already mounted
+          <>{children}</>
+        )}
+      </ErrorBoundary>
     </>
   );
 }

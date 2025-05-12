@@ -4,12 +4,13 @@ import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Header } from '@/components/generic-header'; // Assuming a generic header
-import { AvailabilityCheck } from '@/components/booking/availability-check'; // Import the new component
+import { BookingContainer } from '@/components/booking'; // Import the new container component
 // Import from the utility file
 import { getPropertyBySlug } from '@/lib/property-utils';
 import { db } from '@/lib/firebase'; // Import db for data fetching
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import BookingClientLayout from './booking-client-layout';
+import { AvailabilityErrorHandler } from '../error-handler';
 
 interface AvailabilityCheckPageProps {
   params: { slug: string };
@@ -40,47 +41,67 @@ export default async function AvailabilityCheckPage({ params, searchParams }: Av
   const { slug } = await params;
   const { checkIn, checkOut } = await searchParams;
 
+  console.log("\n================================");
+  console.log("🔍 [SERVER] Booking Check Page Requested");
+  console.log("================================");
+  console.log(`📆 Date/Time: ${new Date().toISOString()}`);
+  console.log(`🏠 Property Slug: ${slug}`);
+  console.log(`🗓️ Check-in: ${checkIn || 'Not provided'}`);
+  console.log(`🗓️ Check-out: ${checkOut || 'Not provided'}`);
+  console.log("================================\n");
+
   if (!slug) {
-    console.error("[AvailabilityCheckPage] Slug is missing from params.");
+    console.error("❌ [SERVER] Slug is missing from params - returning 404");
     notFound();
   }
 
+  console.log("🔍 [SERVER] Fetching property data from database...");
   const property = await getPropertyBySlug(slug);
 
   if (!property) {
+    console.error(`❌ [SERVER] Property not found with slug: ${slug} - returning 404`);
     notFound(); // Property slug is invalid
   }
 
-  // Log the dates coming in from the URL for debugging
-  console.log("[AvailabilityCheckPage] Received search parameters:", {
-    checkIn,
-    checkOut
-  });
+  console.log(`✅ [SERVER] Property found: "${property.name}"`);
 
   // Basic validation for search params (only dates now)
   if (!checkIn || !checkOut) {
-    // Handle invalid search params, maybe redirect back or show an error
-    // For now, we can let the AvailabilityCheck component handle it,
-    // or redirect: redirect(`/properties/${params.slug}`);
-    console.warn("[AvailabilityCheckPage] Invalid search parameters received:", searchParams);
-    // Consider rendering an error state within AvailabilityCheck instead of redirecting immediately
+    console.warn("⚠️ [SERVER] Missing date parameters in URL:");
+    console.warn(`   Check-in: ${checkIn || 'MISSING'}`);
+    console.warn(`   Check-out: ${checkOut || 'MISSING'}`);
+    console.warn("   The client component will handle this case.");
   } else {
     // Additional validation to catch invalid date formats
     try {
       const checkInDate = new Date(checkIn);
       const checkOutDate = new Date(checkOut);
+
       if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
-        console.error("[AvailabilityCheckPage] Invalid date format in URL params:", { checkIn, checkOut });
+        console.error("❌ [SERVER] Invalid date format detected in URL params:");
+        console.error(`   Check-in: ${checkIn} - Valid: ${!isNaN(checkInDate.getTime())}`);
+        console.error(`   Check-out: ${checkOut} - Valid: ${!isNaN(checkOutDate.getTime())}`);
       } else {
-        console.log("[AvailabilityCheckPage] Valid dates parsed from URL params:", {
-          checkInDate: checkInDate.toISOString(),
-          checkOutDate: checkOutDate.toISOString()
-        });
+        const nights = Math.round((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+        console.log("✅ [SERVER] Valid dates parsed from URL params:");
+        console.log(`   Check-in: ${checkInDate.toISOString().split('T')[0]}`);
+        console.log(`   Check-out: ${checkOutDate.toISOString().split('T')[0]}`);
+        console.log(`   Nights: ${nights}`);
+
+        if (nights <= 0) {
+          console.warn("⚠️ [SERVER] Potential issue: Check-out date is before or same as check-in date");
+        }
+
+        if (checkInDate < new Date()) {
+          console.warn("⚠️ [SERVER] Potential issue: Check-in date is in the past");
+        }
       }
     } catch (error) {
-      console.error("[AvailabilityCheckPage] Error parsing dates from URL params:", error);
+      console.error("❌ [SERVER] Error parsing dates from URL params:", error);
     }
   }
+
+  console.log("🚀 [SERVER] Rendering booking check page...\n");
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -91,10 +112,8 @@ export default async function AvailabilityCheckPage({ params, searchParams }: Av
             but passing props is generally preferred for Server Components */}
         <Suspense fallback={<div>Loading availability...</div>}>
           <BookingClientLayout propertySlug={property.slug}>
-            <AvailabilityCheck
+            <BookingContainer
               property={property}
-              initialCheckIn={checkIn}
-              initialCheckOut={checkOut}
             />
           </BookingClientLayout>
         </Suspense>

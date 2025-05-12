@@ -1,2 +1,5 @@
-// Export all container components for easier imports
-export * from './AvailabilityCheckContainer';
+// Export container components
+export { AvailabilityContainer } from './AvailabilityContainer';
+export { AvailabilityCheckContainer } from './AvailabilityCheckContainer';
+export { BookingContainer } from './BookingContainer';
+export { RefactoredAvailabilityCheck } from './RefactoredAvailabilityCheck';

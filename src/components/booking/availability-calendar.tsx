@@ -20,6 +20,16 @@ export function AvailabilityCalendar({
   selectedRange,
   onDateClick,
 }: AvailabilityCalendarProps) {
+  // Log when calendar renders to verify we have unavailable dates
+  console.log(`[AvailabilityCalendar] Rendering calendar with ${unavailableDates.length} unavailable dates`);
+
+  // If we have dates, log a sample of them for debugging
+  if (unavailableDates.length > 0) {
+    const sample = unavailableDates.slice(0, Math.min(3, unavailableDates.length));
+    console.log(`[AvailabilityCalendar] Sample unavailable dates:`,
+      sample.map(d => d.toISOString()).join(', ')
+    );
+  }
 
   const disabledDays = [
     { before: startOfDay(new Date()) }, // Disable dates before today
@@ -28,8 +38,15 @@ export function AvailabilityCalendar({
 
   // Modifiers to style specific date types
   const modifiers = React.useMemo<DayModifiers>(() => {
+    // Validate unavailable dates
+    const validUnavailableDates = unavailableDates
+      .filter(date => date instanceof Date && !isNaN(date.getTime()))
+      .map(date => startOfDay(date));
+
+    console.log(`[AvailabilityCalendar] Creating modifiers with ${validUnavailableDates.length} valid unavailable dates`);
+
     const mods: DayModifiers = {
-      unavailable: unavailableDates.map(date => startOfDay(date))
+      unavailable: validUnavailableDates
     };
 
     // Only add the selected modifier if we have a valid range with at least one defined date

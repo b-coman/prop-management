@@ -17,7 +17,7 @@ import { RulesSection } from './rules-section';
 import { MapSection } from './map-section';
 import { ContactSection } from './contact-section';
 import { Separator } from '@/components/ui/separator';
-import { heroSchema, propertyOverridesSchema } from '@/lib/overridesSchemas'; 
+import { heroSchema, propertyOverridesSchema } from '@/lib/overridesSchemas-multipage'; 
 import { z } from 'zod';
 
 

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useTransition, useMemo } from 'react';
-import { Loader2, Calendar, Check, X, ArrowRight, Mail, Phone as PhoneIcon, Send } from 'lucide-react';
+import React, { useState, useEffect, useRef, useTransition, useMemo, useCallback } from 'react';
+import { Loader2, Calendar, Check, X, ArrowRight, Mail, Phone as PhoneIcon, Send, Minus, Plus } from 'lucide-react';
 import { format, startOfDay, differenceInDays } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { useBooking } from '@/contexts/BookingContext';
@@ -9,11 +9,15 @@ import { useCurrency } from '@/contexts/CurrencyContext';
 import { useToast } from '@/hooks/use-toast';
 import { calculatePrice } from '@/lib/price-utils';
 import { Button } from '@/components/ui/button';
+import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
 import { BookingOptionsCards } from '../booking-options-cards';
 import { BookingSummary } from '../booking-summary';
 import { BookingForm } from '../forms/BookingForm';
 import { HoldForm } from '../forms/HoldForm';
 import { ContactHostForm } from '../forms/ContactHostForm';
+import { UnavailableDatesView } from './UnavailableDatesView';
+import { RefactoredAvailabilityCheck } from './RefactoredAvailabilityCheck';
 import { createInquiryAction } from '@/app/actions/createInquiryAction';
 import { createHoldBookingAction } from '@/app/actions/createHoldBookingAction';
 import { createHoldCheckoutSession } from '@/app/actions/createHoldCheckoutSession';
@@ -32,7 +36,40 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
   const renderCountRef = useRef(0);
   const [hasMounted, setHasMounted] = useState(false);
 
-  // Get values from booking context
+  // Get values from booking context with error handling
+  const bookingContext = useMemo(() => {
+    try {
+      const context = useBooking();
+      // Verify return value
+      if (!context || typeof context !== 'object') {
+        console.error('[AvailabilityCheckContainer] Invalid context returned from useBooking:', context);
+        throw new Error('Invalid booking context');
+      }
+      return context;
+    } catch (error) {
+      console.error('[AvailabilityCheckContainer] Error accessing booking context:', error);
+      // Return fallback values to prevent component crash
+      return {
+        checkInDate: null,
+        checkOutDate: null,
+        numberOfNights: 0,
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        message: '',
+        setFirstName: () => {},
+        setLastName: () => {},
+        setEmail: () => {},
+        setPhone: () => {},
+        setMessage: () => {},
+        setCheckInDate: () => {},
+        setCheckOutDate: () => {},
+      };
+    }
+  }, []);
+
+  // Destructure values from context or fallback
   const {
     checkInDate,
     checkOutDate,
@@ -48,7 +85,49 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
     setEmail,
     setPhone,
     setMessage,
-  } = useBooking();
+    setCheckInDate,
+    setCheckOutDate,
+    setNumberOfGuests,
+  } = bookingContext;
+  
+  // Use a ref to avoid infinite update loops
+  const didMount = useRef(false);
+
+  // Use local state to directly manage the guest count, initialized from the context
+  const [guestCount, setGuestCount] = useState(numberOfGuests);
+
+  // Helper function to update guest count and context together
+  const updateGuestCount = useCallback((newCount: number) => {
+    console.log(`[AvailabilityCheckContainer] 🧑‍🤝‍🧑 Updating guest count through helper: ${guestCount} -> ${newCount}`);
+
+    // Force a state update
+    setGuestCount(newCount);
+
+    // Also update the global context
+    setNumberOfGuests(newCount);
+
+    // Force a render of the price summary
+    console.log(`[AvailabilityCheckContainer] ✅ Guest count updated to: ${newCount}`);
+  }, [guestCount, setNumberOfGuests]);
+
+  // Sync with context on mount and when numberOfGuests changes externally
+  useEffect(() => {
+    // Skip the first render to avoid double-updates
+    if (!didMount.current) {
+      didMount.current = true;
+      return;
+    }
+
+    // Only update if there's an actual difference
+    if (guestCount !== numberOfGuests) {
+      console.log(`[AvailabilityCheckContainer] 🔄 Syncing guest count from context: ${guestCount} -> ${numberOfGuests}`);
+      setGuestCount(numberOfGuests);
+    }
+  }, [numberOfGuests, guestCount]);
+
+  // These effects have been replaced by the updateGuestCount function and
+  // the sync effect above to avoid infinite update loops
+
 
   // State for availability checking and booking options
   const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
@@ -72,35 +151,102 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
   // Calculate pricing details for the booking - using hooks in the proper order
   const propertyBaseCcy = useMemo(() => baseCurrencyForProperty(property.baseCurrency), [property.baseCurrency, baseCurrencyForProperty]);
 
-  const pricingDetailsInBaseCurrency = useMemo(() => {
+  // Calculate pricing details whenever any relevant input changes
+  // We're NOT using useMemo here to ensure recalculation on all state changes
+  const pricingDetailsInBaseCurrency = (() => {
+    const timeNow = new Date().toISOString();
+    console.log(`[AvailabilityCheckContainer] 🔄 DIRECT IIFE PRICING CALCULATION at ${timeNow}:`, {
+      guestCount,
+      numberOfNights,
+      dates: {
+        checkIn: checkInDate?.toISOString(),
+        checkOut: checkOutDate?.toISOString()
+      },
+      selectedCurrency,
+      coupon: appliedCoupon?.code,
+      renderCount: renderCountRef.current,
+      calculationId: Math.random().toString(36).substr(2, 9) // Add random ID to track calls
+    });
+
     if (checkInDate && checkOutDate && numberOfNights > 0 && property) {
-      return calculatePrice(
+      console.log(`[AvailabilityCheckContainer] 💰 Calling calculatePrice with guestCount=${guestCount}`);
+
+      const priceCalc = calculatePrice(
         property.pricePerNight,
         numberOfNights,
         property.cleaningFee ?? 0,
-        numberOfGuests,
+        guestCount, // Use our local state for guest count
         property.baseOccupancy || 1,
         property.extraGuestFee ?? 0,
         propertyBaseCcy,
         appliedCoupon?.discountPercentage
       );
+
+      console.log(`[AvailabilityCheckContainer] 💰 DIRECT Price calculation result (${timeNow.substr(11, 8)}):`, {
+        basePrice: priceCalc.basePrice,
+        extraGuestFee: priceCalc.extraGuestFeeTotal,
+        cleaningFee: priceCalc.cleaningFee,
+        subtotal: priceCalc.subtotal,
+        total: priceCalc.total,
+        currency: priceCalc.currency,
+        numberOfGuests: guestCount,
+        numberOfExtraGuests: priceCalc.numberOfExtraGuests,
+        calculationDone: true
+      });
+
+      return priceCalc;
     }
+
+    console.log(`[AvailabilityCheckContainer] ❌ Cannot calculate price - missing required inputs`);
     return null;
-  }, [
-    checkInDate,
-    checkOutDate,
-    numberOfNights,
-    numberOfGuests,
-    property,
-    appliedCoupon,
-    propertyBaseCcy
-  ]);
+  })();
 
 
-  // Set mounted flag on first render
+  // Set mounted flag and load unavailable dates on first render
+  const [unavailableDates, setUnavailableDates] = useState<Date[]>([]);
+  const [isLoadingInitialData, setIsLoadingInitialData] = useState(true);
+
+  // Load unavailable dates on mount
   useEffect(() => {
-    setHasMounted(true);
-  }, []);
+    const loadUnavailableDates = async () => {
+      try {
+        console.log(`[AvailabilityCheckContainer] Loading initial unavailable dates for ${property.slug}`);
+        const { getUnavailableDatesForProperty } = await import('@/services/availabilityService');
+        const dates = await getUnavailableDatesForProperty(property.slug);
+        console.log(`[AvailabilityCheckContainer] Loaded ${dates.length} unavailable dates on init`);
+
+        // Log some example dates to verify format
+        if (dates.length > 0) {
+          const sampleDates = dates.slice(0, 3);
+          console.log('[AvailabilityCheckContainer] Sample unavailable dates:',
+            sampleDates.map(d => d instanceof Date ? d.toISOString() : String(d))
+          );
+
+          // Check if all dates are valid Date objects and normalize them
+          const validDates = dates
+            .filter(d => d instanceof Date && !isNaN(d.getTime()))
+            .map(d => {
+              // Create a new date object with time set to midnight for consistent comparison
+              return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+            });
+
+          console.log(`[AvailabilityCheckContainer] Valid date objects: ${validDates.length} out of ${dates.length}`);
+
+          // Set the normalized dates to state
+          setUnavailableDates(validDates);
+        } else {
+          setUnavailableDates([]);
+        }
+      } catch (error) {
+        console.error(`[AvailabilityCheckContainer] Error loading initial unavailable dates:`, error);
+      } finally {
+        setIsLoadingInitialData(false);
+        setHasMounted(true);
+      }
+    };
+
+    loadUnavailableDates();
+  }, [property.slug]);
 
   // Log each render for debugging
   useEffect(() => {
@@ -112,21 +258,17 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
     };
   });
 
-  // Real availability check using the getUnavailableDatesForProperty service
+  // Optimized availability check using pre-loaded unavailable dates
   const handleCheckAvailability = async () => {
     if (!checkInDate || !checkOutDate) return;
 
     setIsCheckingAvailability(true);
 
     try {
-      // Import the service directly to avoid dependency injection issues
-      const { getUnavailableDatesForProperty } = await import('@/services/availabilityService');
-
       console.log(`[AvailabilityCheckContainer] Checking availability for dates: ${checkInDate.toDateString()} to ${checkOutDate.toDateString()}`);
 
-      // Get unavailable dates from Firebase through the API
-      const unavailableDates = await getUnavailableDatesForProperty(property.slug);
-      console.log(`[AvailabilityCheckContainer] Received ${unavailableDates.length} unavailable dates`);
+      // Use already loaded unavailable dates
+      console.log(`[AvailabilityCheckContainer] Using ${unavailableDates.length} pre-loaded unavailable dates`);
 
       // Check if any of the selected dates are unavailable
       let conflict = false;
@@ -160,11 +302,64 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
     }
   };
 
-  if (!hasMounted) {
+  // Optimized method that updates dates and immediately checks availability
+  const selectAndCheckDates = async (newCheckIn: Date, newCheckOut: Date) => {
+    console.log(`[AvailabilityCheckContainer] Setting new dates: ${newCheckIn.toDateString()} - ${newCheckOut.toDateString()}`);
+
+    // First update the dates
+    setCheckInDate(newCheckIn);
+    setCheckOutDate(newCheckOut);
+
+    // Reset the availability check status
+    setWasChecked(false);
+    setIsAvailable(null);
+
+    // Perform availability check immediately using the new dates
+    setIsCheckingAvailability(true);
+
+    try {
+      console.log(`[AvailabilityCheckContainer] Checking availability for new dates: ${newCheckIn.toDateString()} to ${newCheckOut.toDateString()}`);
+      console.log(`[AvailabilityCheckContainer] Using ${unavailableDates.length} pre-loaded unavailable dates`);
+
+      // Check if any of the selected dates are unavailable
+      let conflict = false;
+      let current = new Date(newCheckIn.getTime());
+
+      // Check day by day
+      while (current < newCheckOut) {
+        const currentDateStr = format(startOfDay(current), 'yyyy-MM-dd');
+
+        // Check if this date is in the unavailableDates array
+        if (unavailableDates.some(d => format(startOfDay(d), 'yyyy-MM-dd') === currentDateStr)) {
+          console.log(`[AvailabilityCheckContainer] Conflict found on date: ${currentDateStr}`);
+          conflict = true;
+          break;
+        }
+
+        // Move to the next day
+        current.setDate(current.getDate() + 1);
+      }
+
+      console.log(`[AvailabilityCheckContainer] Availability result: ${!conflict ? 'Available' : 'Not Available'}`);
+      setIsAvailable(!conflict);
+      setWasChecked(true);
+    } catch (error) {
+      console.error('[AvailabilityCheckContainer] Error checking availability:', error);
+      // In case of error, assume not available for safety
+      setIsAvailable(false);
+      setWasChecked(true);
+    } finally {
+      setIsCheckingAvailability(false);
+    }
+  };
+
+  if (!hasMounted || isLoadingInitialData) {
     return (
-      <div className="flex justify-center items-center min-h-[200px]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="ml-2">Loading booking options...</p>
+      <div className="flex flex-col justify-center items-center min-h-[200px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+        <p className="text-muted-foreground">
+          {isLoadingInitialData ? 'Loading availability data...' : 'Loading booking options...'}
+        </p>
       </div>
     );
   }
@@ -188,7 +383,7 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
         propertySlug: property.slug,
         checkInDate: checkInDate.toISOString(),
         checkOutDate: checkOutDate.toISOString(),
-        guestCount: numberOfGuests,
+        guestCount: guestCount, // Use our local state
         guestInfo: {
           firstName: values.firstName,
           lastName: values.lastName,
@@ -255,7 +450,7 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
         propertySlug: property.slug,
         checkInDate: checkInDate.toISOString(),
         checkOutDate: checkOutDate.toISOString(),
-        guestCount: numberOfGuests,
+        guestCount: guestCount, // Use our local state
         guestInfo,
         holdFeeAmount: property.holdFeeAmount,
         selectedCurrency: selectedCurrency,
@@ -364,7 +559,7 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
         },
         checkInDate: checkInDate.toISOString(),
         checkOutDate: checkOutDate.toISOString(),
-        numberOfGuests,
+        numberOfGuests: guestCount, // Use our local state
         pricing: {
           // Map fields with safe defaults
           baseRate: pricingDetailsInBaseCurrency.basePrice || 0,
@@ -413,7 +608,7 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
         property: property,
         checkInDate: checkInDate.toISOString(),
         checkOutDate: checkOutDate.toISOString(),
-        numberOfGuests: numberOfGuests,
+        numberOfGuests: guestCount, // Use our local state
         totalPrice: bookingInput.pricing.total,
         numberOfNights: numberOfNights,
         appliedCouponCode: appliedCoupon?.code,
@@ -483,119 +678,214 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
 
   return (
     <div className="max-w-2xl mx-auto w-full px-4 md:px-0">
-      <div className="p-4 border border-blue-200 bg-blue-50 rounded-md mb-6">
-        <h3 className="font-medium text-blue-800">Availability Container</h3>
-        <p className="text-sm text-blue-700 mb-4">
-          Select your dates and check availability.
-        </p>
+      {/* Use our refactored component with custom date picker */}
+      <RefactoredAvailabilityCheck
+        property={property}
+        initialCheckIn={initialCheckIn}
+        initialCheckOut={initialCheckOut}
+        preloadedUnavailableDates={unavailableDates}
+        onAvailabilityChecked={(isAvailable) => {
+          console.log(`[AvailabilityCheckContainer] Received availability result: ${isAvailable}`);
+          setIsAvailable(isAvailable);
+          setWasChecked(true);
+        }}
+      />
 
-        <div className="flex items-center space-x-2 bg-white p-3 rounded shadow-sm">
-          <Calendar className="h-4 w-4 text-blue-600" />
-          <p>Property: {property.name || property.slug}</p>
+      {/* Guest Count Selector */}
+      <div className="mb-6 p-4 border border-gray-200 bg-white rounded-md">
+        <Label className="mb-1 block text-sm font-medium">Number of Guests</Label>
+        <div className="flex items-center justify-between rounded-md border p-2 h-10 w-full md:w-48 bg-white">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => {
+              console.log(`[AvailabilityCheckContainer] 🔽 Decrease guest button clicked: ${guestCount} -> ${guestCount - 1}`);
+              if (guestCount > 1) {
+                // Directly update context and local state
+                const newCount = guestCount - 1;
+                console.log(`[AvailabilityCheckContainer] ✅ Updating guest count: ${guestCount} -> ${newCount}`);
+
+                // First, update the local state
+                setGuestCount(newCount);
+
+                // Then update the global context
+                setNumberOfGuests(newCount);
+
+                // EXPLICITLY CALCULATE PRICES after updating guest count
+                console.log(`[AvailabilityCheckContainer] 💰 EXPLICITLY calculating price for ${newCount} guests`);
+                if (checkInDate && checkOutDate && numberOfNights > 0 && property) {
+                  const recalculatedPrice = calculatePrice(
+                    property.pricePerNight,
+                    numberOfNights,
+                    property.cleaningFee ?? 0,
+                    newCount, // Use our updated guest count
+                    property.baseOccupancy || 1,
+                    property.extraGuestFee ?? 0,
+                    propertyBaseCcy,
+                    appliedCoupon?.discountPercentage
+                  );
+
+                  console.log(`[AvailabilityCheckContainer] 💰 RECALCULATED price details:`, {
+                    basePrice: recalculatedPrice.basePrice,
+                    extraGuestFee: recalculatedPrice.extraGuestFeeTotal,
+                    cleaningFee: recalculatedPrice.cleaningFee,
+                    subtotal: recalculatedPrice.subtotal,
+                    total: recalculatedPrice.total,
+                    currency: recalculatedPrice.currency,
+                    numberOfGuests: newCount,
+                    extraGuests: recalculatedPrice.numberOfExtraGuests
+                  });
+                } else {
+                  console.log(`[AvailabilityCheckContainer] 💰 Cannot recalculate price - missing required inputs`);
+                }
+              }
+            }}
+            disabled={guestCount <= 1 || isCheckingAvailability}
+            aria-label="Decrease guests"
+          >
+            <Minus className="h-4 w-4" />
+          </Button>
+          <span className="mx-4 font-medium w-8 text-center" id="guests">
+            {guestCount}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => {
+              console.log(`[AvailabilityCheckContainer] 🔼 Increase guest button clicked: ${guestCount} -> ${guestCount + 1}`);
+              if (guestCount < property.maxGuests) {
+                // Directly update context and local state
+                const newCount = guestCount + 1;
+                console.log(`[AvailabilityCheckContainer] ✅ Updating guest count: ${guestCount} -> ${newCount}`);
+
+                // First, update the local state
+                setGuestCount(newCount);
+
+                // Then update the global context
+                setNumberOfGuests(newCount);
+
+                // EXPLICITLY CALCULATE PRICES after updating guest count
+                console.log(`[AvailabilityCheckContainer] 💰 EXPLICITLY calculating price for ${newCount} guests`);
+                if (checkInDate && checkOutDate && numberOfNights > 0 && property) {
+                  const recalculatedPrice = calculatePrice(
+                    property.pricePerNight,
+                    numberOfNights,
+                    property.cleaningFee ?? 0,
+                    newCount, // Use our updated guest count
+                    property.baseOccupancy || 1,
+                    property.extraGuestFee ?? 0,
+                    propertyBaseCcy,
+                    appliedCoupon?.discountPercentage
+                  );
+
+                  console.log(`[AvailabilityCheckContainer] 💰 RECALCULATED price details:`, {
+                    basePrice: recalculatedPrice.basePrice,
+                    extraGuestFee: recalculatedPrice.extraGuestFeeTotal,
+                    cleaningFee: recalculatedPrice.cleaningFee,
+                    subtotal: recalculatedPrice.subtotal,
+                    total: recalculatedPrice.total,
+                    currency: recalculatedPrice.currency,
+                    numberOfGuests: newCount,
+                    extraGuests: recalculatedPrice.numberOfExtraGuests
+                  });
+                } else {
+                  console.log(`[AvailabilityCheckContainer] 💰 Cannot recalculate price - missing required inputs`);
+                }
+              }
+            }}
+            disabled={guestCount >= property.maxGuests || isCheckingAvailability}
+            aria-label="Increase guests"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
         </div>
-
-        {(checkInDate && checkOutDate) && (
-          <div className="mt-3 bg-white p-3 rounded shadow-sm">
-            <p className="text-sm">
-              <strong>Selected Dates:</strong> {format(checkInDate, 'MMM dd, yyyy')} to {format(checkOutDate, 'MMM dd, yyyy')}
-              {numberOfNights > 0 && ` (${numberOfNights} nights)`}
-            </p>
-          </div>
-        )}
-
-        {wasChecked && isAvailable !== null && (
-          <div className={`mt-3 ${isAvailable ? 'bg-green-100' : 'bg-red-100'} p-3 rounded shadow-sm flex items-center`}>
-            {isAvailable ? (
-              <>
-                <Check className="h-4 w-4 text-green-600 mr-2" />
-                <p className="text-sm text-green-800">These dates are available!</p>
-              </>
-            ) : (
-              <>
-                <X className="h-4 w-4 text-red-600 mr-2" />
-                <p className="text-sm text-red-800">These dates are not available.</p>
-              </>
-            )}
-          </div>
-        )}
-
-        {checkInDate && checkOutDate && (
-          <div className="mt-4">
-            <Button
-              onClick={handleCheckAvailability}
-              disabled={isCheckingAvailability || !checkInDate || !checkOutDate}
-              className="w-full"
-            >
-              {isCheckingAvailability ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Checking...
-                </>
-              ) : (
-                wasChecked ? 'Re-check Availability' : 'Check Availability'
-              )}
-            </Button>
-          </div>
-        )}
+        <p className="text-xs text-muted-foreground mt-1">
+          Max {property.maxGuests}
+        </p>
       </div>
 
-      {/* Booking options and forms section - only show when dates are available */}
-      {isAvailable === true && wasChecked && (
+      {/* Booking options and forms section */}
+      {wasChecked && (
         <div className="mt-8 space-y-6">
-          {/* Pricing summary */}
-          <BookingSummary
-            numberOfNights={numberOfNights}
-            numberOfGuests={numberOfGuests}
-            pricingDetails={pricingDetailsInBaseCurrency}
-            propertyBaseCcy={propertyBaseCcy}
-            appliedCoupon={appliedCoupon}
-          />
+          {isAvailable ? (
+            // Available Dates: Show all booking options
+            <>
+              {/* Pricing summary */}
+              {/* Force a fresh render of BookingSummary whenever key props change, including a timestamp */}
+              <div key={`booking-summary-container-${guestCount}-${numberOfNights}-${selectedCurrency}-${Date.now()}`}>
+                <BookingSummary
+                  numberOfNights={numberOfNights}
+                  numberOfGuests={guestCount}
+                  pricingDetails={pricingDetailsInBaseCurrency}
+                  propertyBaseCcy={propertyBaseCcy}
+                  appliedCoupon={appliedCoupon}
+                />
+              </div>
 
-          {/* Booking options */}
-          <BookingOptionsCards
-            selectedOption={selectedOption}
-            onSelectOption={setSelectedOption}
-            property={property}
-          />
+              {/* Booking options */}
+              <BookingOptionsCards
+                selectedOption={selectedOption}
+                onSelectOption={setSelectedOption}
+                property={property}
+              />
 
-          {/* Contact host form */}
-          {selectedOption === 'contact' && (
-            <ContactHostForm
-              onSubmit={onInquirySubmit}
-              isProcessing={isProcessingBooking}
+              {/* Contact host form */}
+              {selectedOption === 'contact' && (
+                <ContactHostForm
+                  onSubmit={onInquirySubmit}
+                  isProcessing={isProcessingBooking}
+                  isPending={isPending}
+                  pricingDetails={pricingDetailsInBaseCurrency}
+                  selectedCurrency={selectedCurrency}
+                />
+              )}
+
+              {/* Hold form */}
+              {selectedOption === 'hold' && (
+                <HoldForm
+                  property={property}
+                  isProcessing={isProcessingBooking}
+                  isPending={isPending}
+                  formError={formError}
+                  pricingDetails={pricingDetailsInBaseCurrency}
+                  selectedCurrency={selectedCurrency}
+                  onSubmit={handleHoldDates}
+                />
+              )}
+
+              {/* Book now form */}
+              {selectedOption === 'bookNow' && (
+                <BookingForm
+                  property={property}
+                  isProcessing={isProcessingBooking}
+                  isPending={isPending}
+                  formError={formError}
+                  lastErrorType={lastErrorType}
+                  canRetryError={canRetryError}
+                  pricingDetails={pricingDetailsInBaseCurrency}
+                  appliedCoupon={appliedCoupon}
+                  setAppliedCoupon={setAppliedCoupon}
+                  selectedCurrency={selectedCurrency}
+                  onSubmit={handleContinueToPayment}
+                />
+              )}
+            </>
+          ) : (
+            <UnavailableDatesView
+              checkInDate={checkInDate}
+              checkOutDate={checkOutDate}
+              numberOfNights={numberOfNights}
+              selectedOption={selectedOption}
+              setSelectedOption={setSelectedOption}
+              onInquirySubmit={onInquirySubmit}
+              isProcessingBooking={isProcessingBooking || isCheckingAvailability}
               isPending={isPending}
-              pricingDetails={pricingDetailsInBaseCurrency}
+              selectAndCheckDates={selectAndCheckDates}
               selectedCurrency={selectedCurrency}
-            />
-          )}
-
-          {/* Hold form */}
-          {selectedOption === 'hold' && (
-            <HoldForm
-              property={property}
-              isProcessing={isProcessingBooking}
-              isPending={isPending}
-              formError={formError}
-              pricingDetails={pricingDetailsInBaseCurrency}
-              selectedCurrency={selectedCurrency}
-              onSubmit={handleHoldDates}
-            />
-          )}
-
-          {/* Book now form */}
-          {selectedOption === 'bookNow' && (
-            <BookingForm
-              property={property}
-              isProcessing={isProcessingBooking}
-              isPending={isPending}
-              formError={formError}
-              lastErrorType={lastErrorType}
-              canRetryError={canRetryError}
-              pricingDetails={pricingDetailsInBaseCurrency}
-              appliedCoupon={appliedCoupon}
-              setAppliedCoupon={setAppliedCoupon}
-              selectedCurrency={selectedCurrency}
-              onSubmit={handleContinueToPayment}
             />
           )}
         </div>

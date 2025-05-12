@@ -1144,17 +1144,62 @@ function AvailabilityCheck({
     }
   };
 
+  // New effect to load unavailable dates as soon as the component mounts
+  useEffect(() => {
+    if (!hasMounted || !propertySlug) {
+      return;
+    }
+
+    console.log("==========================================");
+    console.log("🔍 [INITIAL-LOAD] Loading unavailable dates on mount");
+    console.log("==========================================");
+
+    // Set loading state
+    setIsLoadingAvailability(true);
+
+    // Fetch unavailable dates immediately on component mount
+    getUnavailableDatesForProperty(propertySlug)
+      .then(dates => {
+        console.log(`🔍 [INITIAL-LOAD] Loaded ${dates.length} unavailable dates for property ${propertySlug}`);
+
+        // Process dates to ensure they're valid Date objects with consistent time (midnight)
+        const validDates = dates
+          .filter(date => date instanceof Date && !isNaN(date.getTime()))
+          .map(date => new Date(date.getFullYear(), date.getMonth(), date.getDate()));
+
+        console.log(`🔍 [INITIAL-LOAD] Processed ${validDates.length} valid unavailable dates`);
+
+        // Store the unavailable dates
+        setUnavailableDates(validDates);
+        setIsLoadingAvailability(false);
+      })
+      .catch(error => {
+        console.error("❌ [INITIAL-LOAD] Error loading unavailable dates:", error);
+        // Set empty array in case of error
+        setUnavailableDates([]);
+        setIsLoadingAvailability(false);
+      });
+  }, [hasMounted, propertySlug]);
 
   const renderAvailabilityCalendar = () => {
-    if (isAvailable === true || isLoadingAvailability || !datesSelected || !hasMounted) {
+    // Changed the condition to show calendar when dates are selected and we have unavailable dates
+    // This ensures unavailable dates are shown even when availability is still being checked
+    if (!datesSelected || !hasMounted || unavailableDates.length === 0) {
       return null;
     }
+
+    // Log to confirm we're showing the calendar with unavailable dates
+    console.log(`[AvailabilityCheck] Rendering calendar with ${unavailableDates.length} unavailable dates`);
+
     const validCheckIn = checkInDate && isValid(checkInDate) ? checkInDate : new Date();
     const calendarCenterMonth = startOfMonth(validCheckIn);
 
     return (
       <div className="mt-6">
         <h3 className="text-lg font-semibold mb-3">Availability Calendar</h3>
+        <p className="text-sm text-muted-foreground mb-3">
+          Dates that are unavailable for booking are marked with a strikethrough.
+        </p>
         <AvailabilityCalendar
           currentMonth={calendarCenterMonth}
           unavailableDates={unavailableDates}
@@ -1309,6 +1354,18 @@ function AvailabilityCheck({
                   onSelect={handleDateSelect}
                   numberOfMonths={2}
                   disabled={{ before: startOfDay(new Date()) }}
+                  // Add modifiers to style unavailable dates
+                  modifiers={{
+                    unavailable: unavailableDates
+                  }}
+                  modifiersStyles={{
+                    unavailable: {
+                      textDecoration: 'line-through',
+                      color: 'hsl(var(--muted-foreground))',
+                      opacity: 0.6,
+                      pointerEvents: 'none' as const
+                    }
+                  }}
                 />
               )}
             </PopoverContent>
@@ -1316,6 +1373,11 @@ function AvailabilityCheck({
           {clientNumberOfNights > 0 && (
             <p className="text-sm text-muted-foreground mt-1">
               ({clientNumberOfNights} {clientNumberOfNights === 1 ? 'night' : 'nights'})
+            </p>
+          )}
+          {unavailableDates.length > 0 && (
+            <p className="text-xs text-muted-foreground mt-1">
+              <span className="text-amber-600">•</span> Some dates are not available (marked with strikethrough)
             </p>
           )}
         </div>

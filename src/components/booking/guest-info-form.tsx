@@ -73,6 +73,15 @@ const FormInput = ({
             id={props.id || props.name}
             {...props}
             required={false} // Disable browser validation
+            // Ensure onChange is being properly handled
+            onChange={(e) => {
+              if (typeof window !== 'undefined') {
+                console.log(`⌨️ [CLIENT] Input direct change: ${props.name}="${e.target.value}"`);
+              }
+              if (props.onChange) {
+                props.onChange(e);
+              }
+            }}
             className={cn(
               props.className,
               isInvalid && "border-destructive focus-visible:ring-destructive/25"
@@ -106,9 +115,15 @@ export function GuestInfoForm({
   appliedCoupon,
   setAppliedCoupon,
   pricingDetailsInBaseCurrency, // Keep for display within this form area if needed, or remove if summary handles it
-  isProcessingBooking,
+  isProcessingBooking = false, // Default to false to ensure inputs aren't disabled
   showCouponField = true, // Default to showing the coupon field
 }: GuestInfoFormProps) {
+
+  // Debug log for form state - only runs on client
+  if (typeof window !== 'undefined') {
+    console.log(`🔍 [CLIENT] GuestInfoForm rendering with isProcessingBooking=${isProcessingBooking}`);
+    console.log(`🔍 [CLIENT] Current form values:`, { firstName, lastName, email, phone });
+  }
   const [couponCode, setCouponCode] = React.useState(appliedCoupon?.code || '');
   const [couponError, setCouponError] = React.useState<string | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = React.useState(false);
@@ -125,16 +140,38 @@ export function GuestInfoForm({
 
   const handleGuestInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    
+    const isClient = typeof window !== 'undefined';
+
+    if (isClient) {
+      console.log(`📝 [CLIENT] Input change - ${name}: "${value}"`);
+    }
+
     // Clear error when field is being edited
     if (fieldErrors[name as keyof typeof fieldErrors]) {
       setFieldErrors(prev => ({ ...prev, [name]: undefined }));
     }
-    
-    if (name === 'firstName') setFirstName(value);
-    else if (name === 'lastName') setLastName(value);
-    else if (name === 'email') setEmail(value);
-    else if (name === 'phone') setPhone(value);
+
+    // Use try-catch to debug potential errors in state updates
+    try {
+      if (name === 'firstName') {
+        if (isClient) console.log(`📝 [CLIENT] Setting firstName to "${value}"`);
+        setFirstName(value);
+      }
+      else if (name === 'lastName') {
+        if (isClient) console.log(`📝 [CLIENT] Setting lastName to "${value}"`);
+        setLastName(value);
+      }
+      else if (name === 'email') {
+        if (isClient) console.log(`📝 [CLIENT] Setting email to "${value}"`);
+        setEmail(value);
+      }
+      else if (name === 'phone') {
+        if (isClient) console.log(`📝 [CLIENT] Setting phone to "${value}"`);
+        setPhone(value);
+      }
+    } catch (error) {
+      if (isClient) console.error(`❌ [CLIENT] Error updating field ${name}:`, error);
+    }
   };
   
   // Validate individual field
@@ -214,52 +251,56 @@ export function GuestInfoForm({
       <h3 className="font-semibold text-base pt-2">Your Information</h3>
        {/* Names - side by side on larger screens */}
        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-           <FormInput 
-             label="First Name" 
-             name="firstName" 
-             value={firstName} 
+           <FormInput
+             label="First Name"
+             name="firstName"
+             value={firstName || ''}
              onChange={handleGuestInfoChange}
              onBlur={handleFieldBlur}
-             required 
-             disabled={isProcessingBooking}
-             error={fieldErrors.firstName} 
+             placeholder="Your first name"
+             required
+             disabled={!!isProcessingBooking}
+             error={fieldErrors.firstName}
            />
-           <FormInput 
-             label="Last Name" 
-             name="lastName" 
-             value={lastName} 
+           <FormInput
+             label="Last Name"
+             name="lastName"
+             value={lastName || ''}
              onChange={handleGuestInfoChange}
              onBlur={handleFieldBlur}
-             required 
-             disabled={isProcessingBooking}
-             error={fieldErrors.lastName} 
+             placeholder="Your last name"
+             required
+             disabled={!!isProcessingBooking}
+             error={fieldErrors.lastName}
            />
        </div>
         {/* Email and Phone - side by side on larger screens */}
        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-         <FormInput 
-           label="Email" 
-           name="email" 
-           type="email" 
-           value={email} 
+         <FormInput
+           label="Email"
+           name="email"
+           type="email"
+           value={email || ''}
            onChange={handleGuestInfoChange}
            onBlur={handleFieldBlur}
-           icon={Mail} 
-           required 
-           disabled={isProcessingBooking}
-           error={fieldErrors.email} 
+           placeholder="your.email@example.com"
+           icon={Mail}
+           required
+           disabled={!!isProcessingBooking}
+           error={fieldErrors.email}
          />
-         <FormInput 
-           label="Phone Number" 
-           name="phone" 
-           type="tel" 
-           value={phone} 
+         <FormInput
+           label="Phone Number"
+           name="phone"
+           type="tel"
+           value={phone || ''}
            onChange={handleGuestInfoChange}
-           onBlur={handleFieldBlur} 
-           icon={PhoneIcon} 
-           required 
-           disabled={isProcessingBooking}
-           error={fieldErrors.phone} 
+           onBlur={handleFieldBlur}
+           placeholder="Your phone number"
+           icon={PhoneIcon}
+           required
+           disabled={!!isProcessingBooking}
+           error={fieldErrors.phone}
          />
        </div>
 

@@ -134,20 +134,23 @@ export async function POST(req: NextRequest) {
       // Send booking confirmation email
       try {
         // Dynamically import the email service to avoid loading it unnecessarily
-        const { sendBookingConfirmationEmail } = await import('@/services/emailService');
+        const { sendBookingConfirmationEmail, sendHoldConfirmationEmail } = await import('@/services/emailService');
 
-        // Send confirmation email
-        const emailResult = await sendBookingConfirmationEmail(bookingId);
-        if (emailResult.success) {
-          console.log(`✅ [Webhook] Confirmation email sent for booking ${bookingId}${emailResult.previewUrl ? ` (Preview: ${emailResult.previewUrl})` : ''}`);
+        // Send the appropriate confirmation email based on payment type
+        let emailResult;
+        if (isHold) {
+          console.log(`[Webhook] Sending hold-specific email for booking ${bookingId}`);
+          emailResult = await sendHoldConfirmationEmail(bookingId);
         } else {
-          console.warn(`⚠️ [Webhook] Failed to send confirmation email for booking ${bookingId}: ${emailResult.error}`);
-          // Don't fail the webhook if just the email fails
+          console.log(`[Webhook] Sending standard booking confirmation for booking ${bookingId}`);
+          emailResult = await sendBookingConfirmationEmail(bookingId);
         }
 
-        // For a hold booking, we might want to send a different type of email
-        if (isHold) {
-          console.log(`[Webhook] Hold booking email would be different, but sent standard confirmation for now.`);
+        if (emailResult.success) {
+          console.log(`✅ [Webhook] ${isHold ? 'Hold' : 'Booking'} confirmation email sent for booking ${bookingId}${emailResult.previewUrl ? ` (Preview: ${emailResult.previewUrl})` : ''}`);
+        } else {
+          console.warn(`⚠️ [Webhook] Failed to send ${isHold ? 'hold' : 'booking'} confirmation email for booking ${bookingId}: ${emailResult.error}`);
+          // Don't fail the webhook if just the email fails
         }
 
         // TODO: Send notification to property owner/admin

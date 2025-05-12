@@ -158,14 +158,31 @@ export async function updateBookingPaymentInfo(
 
         // Update specific payment fields
         if (isHoldPayment) {
+            // Validate hold currency if provided
+            if (bookingData.pricing?.currency && bookingData.pricing?.currency !== paymentCurrency) {
+                console.error(`[updateBookingPaymentInfo] Currency Mismatch for Hold: Booking ${bookingId} pricing currency (${bookingData.pricing?.currency}) does not match payment currency (${paymentCurrency}).`);
+                throw new Error("Currency mismatch between hold booking and payment.");
+            }
+
+            // Set hold payment ID
             updatePayload.holdPaymentId = paymentInfo.stripePaymentIntentId;
-             updatePayload.paymentInfo = {
-                 ...bookingData.paymentInfo,
-                 stripePaymentIntentId: paymentInfo.stripePaymentIntentId,
-                 amount: paymentInfo.amount,
-                 status: 'succeeded',
-                 paidAt: paymentInfo.paidAt instanceof Date ? ClientTimestamp.fromDate(paymentInfo.paidAt) : clientServerTimestamp(),
-             };
+
+            // Update payment info
+            updatePayload.paymentInfo = {
+                ...bookingData.paymentInfo,
+                stripePaymentIntentId: paymentInfo.stripePaymentIntentId,
+                amount: paymentInfo.amount,
+                status: 'succeeded',
+                paidAt: paymentInfo.paidAt instanceof Date ? ClientTimestamp.fromDate(paymentInfo.paidAt) : clientServerTimestamp(),
+            };
+
+            // Calculate holdUntil date (24 hours from now)
+            const holdDurationHours = process.env.HOLD_DURATION_HOURS ? parseInt(process.env.HOLD_DURATION_HOURS) : 24;
+            const holdUntilDate = new Date();
+            holdUntilDate.setHours(holdUntilDate.getHours() + holdDurationHours);
+            updatePayload.holdUntil = ClientTimestamp.fromDate(holdUntilDate);
+
+            console.log(`[updateBookingPaymentInfo] Setting hold expiration for booking ${bookingId} to ${holdUntilDate.toISOString()} (${holdDurationHours} hours)`);
         } else {
             updatePayload.paymentInfo = {
                 ...bookingData.paymentInfo,
@@ -738,72 +755,107 @@ async function triggerExternalSyncForDateUpdate(propertyId: string, checkInDate:
 
 // --- getUnavailableDatesForProperty ---
 export async function getUnavailableDatesForProperty(propertySlug: string, monthsToFetch: number = 12): Promise<Date[]> {
-  const unavailableDates: Date[] = [];
-  // console.log(`--- [getUnavailableDatesForProperty] Function called ---`);
-  // console.log(`[getUnavailableDatesForProperty] Fetching for property ${propertySlug} for the next ${monthsToFetch} months.`);
+  // Add a very obvious console log that's hard to miss
+  console.log(`==========================================`);
+  console.log(`🚨 SERVER-SIDE AVAILABILITY CHECK RUNNING 🚨`);
+  console.log(`📡 USING API INSTEAD OF DIRECT FIRESTORE QUERY 📡`);
+  console.log(`==========================================`);
 
-  if (!db) {
-      console.error("❌ [getUnavailableDatesForProperty] Firestore Client SDK (db) is not initialized.");
-      return [];
-  }
+  console.log(`--- [getUnavailableDatesForProperty] 🔍 Function called ---`);
+  console.log(`[getUnavailableDatesForProperty] Fetching for property slug: "${propertySlug}" for the next ${monthsToFetch} months.`);
+  console.log(`[getUnavailableDatesForProperty] 📡 Using server API endpoint instead of direct Firestore query`);
 
   const availabilityCollection = collection(db, 'availability');
+  console.log(`[getUnavailableDatesForProperty] 📂 Targeting Firestore collection: 'availability'`);
+
   const today = new Date();
   const currentMonthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+  console.log(`[getUnavailableDatesForProperty] Current month start: ${format(currentMonthStart, 'yyyy-MM-dd')}`);
 
   try {
     const monthDocIds: string[] = [];
     for (let i = 0; i < monthsToFetch; i++) {
       const targetMonth = new Date(Date.UTC(currentMonthStart.getUTCFullYear(), currentMonthStart.getUTCMonth() + i, 1));
       const monthStr = format(targetMonth, 'yyyy-MM');
-      monthDocIds.push(`${propertySlug}_${monthStr}`); // Use slug
+      const docId = `${propertySlug}_${monthStr}`;
+      monthDocIds.push(docId);
+      console.log(`[getUnavailableDatesForProperty] Adding doc ID to query: ${docId}`);
     }
 
-     if (monthDocIds.length === 0) return [];
-    // console.log(`[getUnavailableDatesForProperty] Querying for document IDs: ${monthDocIds.join(', ')}`);
+    if (monthDocIds.length === 0) {
+      console.warn(`[getUnavailableDatesForProperty] No document IDs to query. Returning empty array.`);
+      return [];
+    }
+
+    console.log(`[getUnavailableDatesForProperty] 🔍 Querying for ${monthDocIds.length} document IDs`);
 
     const queryBatches: string[][] = [];
     for (let i = 0; i < monthDocIds.length; i += 30) {
         queryBatches.push(monthDocIds.slice(i, i + 30));
     }
-    // console.log(`[getUnavailableDatesForProperty] Split into ${queryBatches.length} query batches.`);
+    console.log(`[getUnavailableDatesForProperty] Split into ${queryBatches.length} query batches due to Firestore limits.`);
 
     const allQuerySnapshots = await Promise.all(
-      queryBatches.map(async (batchIds) => {
+      queryBatches.map(async (batchIds, index) => {
           if (batchIds.length === 0) return null; // Return null for empty batches
-          // console.log(`[getUnavailableDatesForProperty] Executing query for batch: ${batchIds.join(', ')}`);
+          console.log(`[getUnavailableDatesForProperty] 🔄 Executing query for batch ${index + 1}: ${batchIds.join(', ')}`);
           const q = query(availabilityCollection, where(documentId(), 'in', batchIds));
           return getDocs(q);
       })
     );
-    // console.log(`[getUnavailableDatesForProperty] Fetched results from ${allQuerySnapshots.length} batches.`);
+    console.log(`[getUnavailableDatesForProperty] ✅ Completed ${allQuerySnapshots.length} Firestore batch queries.`);
 
     let docCount = 0;
+    let docsWithDataCount = 0;
+
     allQuerySnapshots.forEach((querySnapshot, batchIndex) => {
-         if (!querySnapshot) return; // Skip null results from empty batches
-         // console.log(`[getUnavailableDatesForProperty] Processing batch ${batchIndex + 1}: Found ${querySnapshot.docs.length} documents.`);
+         if (!querySnapshot) {
+           console.log(`[getUnavailableDatesForProperty] Batch ${batchIndex + 1} had no results (null).`);
+           return;
+         }
+
+         console.log(`[getUnavailableDatesForProperty] 📄 Processing batch ${batchIndex + 1}: Found ${querySnapshot.docs.length} documents.`);
          docCount += querySnapshot.docs.length;
+
          querySnapshot.forEach((doc) => {
             const data = doc.data() as Partial<Availability>;
             const docId = doc.id;
+            console.log(`[getUnavailableDatesForProperty] 📝 Processing document: ${docId}`);
+
              // Simple check if docId starts with the correct slug
              if (!docId.startsWith(`${propertySlug}_`)) {
-                 console.warn(`[getUnavailableDates] Mismatch: Doc ID ${docId} doesn't match expected pattern for slug ${propertySlug}. Skipping.`);
+                 console.warn(`[getUnavailableDatesForProperty] ❌ Mismatch: Doc ID ${docId} doesn't match expected pattern for slug ${propertySlug}. Skipping.`);
                  return;
              }
 
             const monthStr = data.month || docId.split('_').slice(1).join('_'); // Get month part
+            console.log(`[getUnavailableDatesForProperty] Document is for month: ${monthStr}`);
 
              if (!monthStr || !/^\d{4}-\d{2}$/.test(monthStr)) {
-                 console.warn(`[getUnavailableDates] Invalid month string '${monthStr}' for doc ${docId}. Skipping.`);
+                 console.warn(`[getUnavailableDatesForProperty] ❌ Invalid month string '${monthStr}' for doc ${docId}. Skipping.`);
                  return;
              }
 
              const [year, monthIndex] = monthStr.split('-').map(num => parseInt(num, 10));
              const month = monthIndex - 1; // JS month is 0-indexed
+             console.log(`[getUnavailableDatesForProperty] Parsed year: ${year}, month: ${month + 1} (0-indexed: ${month})`);
+
+             docsWithDataCount++;
+
+             // Debug log the raw document data
+             console.log(`[getUnavailableDatesForProperty] Document data:`, JSON.stringify({
+               docId,
+               month: data.month,
+               hasAvailableMap: !!data.available,
+               hasHoldsMap: !!data.holds,
+               availableDaysCount: data.available ? Object.keys(data.available).length : 0,
+               holdsDaysCount: data.holds ? Object.keys(data.holds).length : 0
+             }));
 
              // Process 'available' map
+             let unavailableFromAvailableMap = 0;
              if (data.available && typeof data.available === 'object') {
+                 console.log(`[getUnavailableDatesForProperty] Processing 'available' map with ${Object.keys(data.available).length} days`);
                  for (const dayStr in data.available) {
                      const day = parseInt(dayStr, 10);
                      if (!isNaN(day) && data.available[day] === false) { // Only add if explicitly marked as unavailable
@@ -815,20 +867,29 @@ export async function getUnavailableDatesForProperty(propertySlug: string, month
                                      // Check if date already added from 'holds' map
                                      if (!unavailableDates.some(d => d.getTime() === date.getTime())) {
                                           unavailableDates.push(date);
+                                          unavailableFromAvailableMap++;
+                                          console.log(`[getUnavailableDatesForProperty] ➕ Added UNAVAILABLE date from 'available' map: ${format(date, 'yyyy-MM-dd')}`);
                                      }
+                                 } else {
+                                     console.log(`[getUnavailableDatesForProperty] Skipping past date: ${format(date, 'yyyy-MM-dd')}`);
                                  }
                               } else {
-                                  console.warn(`[getUnavailableDates] Invalid date created for ${monthStr}-${dayStr}. Skipping.`);
+                                  console.warn(`[getUnavailableDatesForProperty] ❌ Invalid date created for ${monthStr}-${dayStr}. Skipping.`);
                               }
                          } catch (dateError) {
-                              console.warn(`[getUnavailableDates] Error creating date ${monthStr}-${dayStr}:`, dateError);
+                              console.warn(`[getUnavailableDatesForProperty] ❌ Error creating date ${monthStr}-${dayStr}:`, dateError);
                          }
                      }
                  }
+                 console.log(`[getUnavailableDatesForProperty] Added ${unavailableFromAvailableMap} dates from 'available' map`);
+             } else {
+                 console.log(`[getUnavailableDatesForProperty] No 'available' map found in document ${docId}`);
              }
 
             // Process 'holds' map - consider held dates as unavailable
+            let unavailableFromHoldsMap = 0;
             if (data.holds && typeof data.holds === 'object') {
+                 console.log(`[getUnavailableDatesForProperty] Processing 'holds' map with ${Object.keys(data.holds).length} days`);
                  for (const dayStr in data.holds) {
                      if (data.holds[dayStr]) { // If there's a hold ID for this day
                           const day = parseInt(dayStr, 10);
@@ -840,28 +901,41 @@ export async function getUnavailableDatesForProperty(propertySlug: string, month
                                        if (date >= todayUtcStart && !unavailableDates.some(d => d.getTime() === date.getTime())) {
                                            // Add if not already added from 'available' map
                                            unavailableDates.push(date);
+                                           unavailableFromHoldsMap++;
+                                           console.log(`[getUnavailableDatesForProperty] ➕ Added HELD date from 'holds' map: ${format(date, 'yyyy-MM-dd')} (Hold ID: ${data.holds[dayStr]})`);
                                        }
                                    }
                                } catch (dateError) {
-                                   console.warn(`[getUnavailableDates - Holds] Error creating date ${monthStr}-${dayStr}:`, dateError);
+                                   console.warn(`[getUnavailableDatesForProperty] ❌ Error creating date ${monthStr}-${dayStr}:`, dateError);
                                }
                           }
                      }
                  }
+                 console.log(`[getUnavailableDatesForProperty] Added ${unavailableFromHoldsMap} dates from 'holds' map`);
+            } else {
+                console.log(`[getUnavailableDatesForProperty] No 'holds' map found in document ${docId}`);
             }
         });
     });
-    // console.log(`[getUnavailableDates] Processed ${docCount} total documents.`);
+    console.log(`[getUnavailableDatesForProperty] 📊 Summary: Processed ${docCount} total documents, ${docsWithDataCount} with valid data.`);
 
     unavailableDates.sort((a, b) => a.getTime() - b.getTime());
-    // console.log(`[getUnavailableDates] Total unavailable dates found for property ${propertySlug}: ${unavailableDates.length}`);
-    // console.log(`[getUnavailableDates] Returning sorted unavailable dates: ${unavailableDates.length > 0 ? unavailableDates.map(d => format(d, 'yyyy-MM-dd')).join(', ') : 'None'}`);
-    // console.log(`--- [getUnavailableDatesForProperty] Function finished successfully ---`);
+    console.log(`[getUnavailableDatesForProperty] 🗓️ Total unavailable dates found for property ${propertySlug}: ${unavailableDates.length}`);
+
+    if (unavailableDates.length > 0) {
+        // Only show up to 20 dates to avoid console spam
+        const datesToShow = unavailableDates.length > 20 ? unavailableDates.slice(0, 20) : unavailableDates;
+        console.log(`[getUnavailableDatesForProperty] First ${datesToShow.length} unavailable dates: ${datesToShow.map(d => format(d, 'yyyy-MM-dd')).join(', ')}${unavailableDates.length > 20 ? ' ...(more)' : ''}`);
+    } else {
+        console.log(`[getUnavailableDatesForProperty] No unavailable dates found for property ${propertySlug}`);
+    }
+
+    console.log(`--- [getUnavailableDatesForProperty] ✅ Function finished successfully ---`);
     return unavailableDates;
 
   } catch (error) {
-    console.error(`❌ Error fetching unavailable dates for property ${propertySlug}:`, error);
-    // console.log(`--- [getUnavailableDatesForProperty] Function finished with error ---`);
+    console.error(`❌ [getUnavailableDatesForProperty] Error fetching unavailable dates for property ${propertySlug}:`, error);
+    console.log(`--- [getUnavailableDatesForProperty] ❌ Function finished with error ---`);
     return [];
   }
 }

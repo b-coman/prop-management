@@ -4,3 +4,5 @@ export * from './useAvailabilityCheck';
 export * from './usePriceCalculation';
 export * from './useBookingForm';
 export * from './useDatePicker';
+export * from './useCustomDatePicker';
+export { useDateSuggestions } from './useDateSuggestions';

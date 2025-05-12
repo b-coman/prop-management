@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useBooking } from '@/contexts/BookingContext';
 import { useDateCalculation } from '../hooks/useDateCalculation';
 
@@ -23,17 +23,29 @@ export function DebugPanel({
   forceAvailable,
   selectedOption
 }: DebugPanelProps) {
-  // Get values from booking context
+  // Get values from booking context using a more controlled approach
+  const bookingContext = useBooking();
   const {
     propertySlug,
     checkInDate,
     checkOutDate,
     numberOfNights,
     numberOfGuests
-  } = useBooking();
+  } = bookingContext;
 
-  // Get date calculation utilities
+  // Get date calculation utilities with proper memoization
+  const recalculateNightsRef = useRef<() => void>();
+
+  // Get the function only once and update the ref, avoiding re-renders
   const { recalculateNights } = useDateCalculation();
+
+  // Store the function in a ref with an empty dependency array to prevent re-renders
+  useEffect(() => {
+    // Only update if ref is empty or different
+    if (recalculateNightsRef.current !== recalculateNights) {
+      recalculateNightsRef.current = recalculateNights;
+    }
+  }, []); // Empty dependency array to run only once on mount
 
   // Only show in development mode
   if (process.env.NODE_ENV !== 'development') {
@@ -49,11 +61,11 @@ export function DebugPanel({
           checkInDate: {checkInDate ? checkInDate.toISOString() : 'null'}
           checkOutDate: {checkOutDate ? checkOutDate.toISOString() : 'null'}
           datesSelected: {!!(checkInDate && checkOutDate) + ''}
-          isAvailable: {String(isAvailable)}
-          isLoadingAvailability: {String(isLoadingAvailability)}
           numberOfNights: {numberOfNights}
           numberOfGuests: {numberOfGuests}
           selectedOption: {selectedOption || 'null'}
+          {/* isAvailable: {String(isAvailable)} */}
+          {/* isLoadingAvailability: {String(isLoadingAvailability)} */}
         </pre>
 
         <div className="mt-2 pt-2 border-t border-gray-300">
@@ -74,7 +86,7 @@ export function DebugPanel({
           </button>
 
           <button
-            onClick={recalculateNights}
+            onClick={() => recalculateNightsRef.current?.()}
             className="text-xs bg-yellow-500 hover:bg-yellow-700 text-white py-1 px-2 rounded"
           >
             Fix Nights

@@ -1,39 +1,19 @@
-# RentalSpot Multi-Page Architecture Fixes
+# Claude AI Notes and Documentation
 
-## Icon Compatibility Issues
+## Booking Component Behavior
 
-- Replace unavailable icons with alternatives:
-  - Taxi → MapPin
-  - PersonStanding → User
-  - Cab → MapPin
+### Booking Availability Checking
 
-- Add error handling for icons:
-  - Add fallbacks in `getIconByName` function
-  - Try case-insensitive matches
-  - Add try/catch blocks for icon rendering
+The booking flow requires that the calendar component displays unavailable dates properly (marked with strikethrough). The correct implementation follows these critical guidelines:
 
-## Component Aliases
+1. Data must be loaded FIRST, then UI rendered with that data.
+2. Unavailable dates must be loaded when the component mounts, before displaying the calendar.
+3. The calendar must receive all unavailable dates before rendering to properly mark them as unavailable.
+4. Auto-checking should happen after data is loaded, but only if not already checked.
 
-- Add multiple block name handling in property-page-renderer.tsx
-  - "full-gallery" → GalleryGrid (for template compatibility)
+The proper flow is:
+```
+Mount → Load Dates → Process Dates → Display Calendar → Auto-Check → Show Result
+```
 
-## Configuration Improvements
-
-- Fix next.config.ts options:
-  - Use allowedOrigins and allowedDevOrigins with ["*"]
-  - Remove experimental.instrumentationHook (no longer needed)
-  - Move serverComponentsExternalPackages to root-level serverExternalPackages
-
-## Error Handling
-
-- Add robust error handling to components:
-  - Check for null/undefined in categories and amenities
-  - Add fallback icons
-  - Add conditional rendering to prevent crashes
-  - Add component-level error boundaries (future improvement)
-
-## Future Improvements
-
-1. Rename template files to avoid confusion (remove "-multipage" suffixes)
-2. Create a schema validation script for templates and overrides
-3. Implement error boundaries around each block renderer
+For more detailed technical information, see `docs/implementation/booking-availability-components.md`.

@@ -1,0 +1,959 @@
+"use client";
+
+import React, { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { useBooking } from '@/contexts/BookingContext';
+import { format, startOfDay } from 'date-fns';
+import { Loader2, ArrowRight, Mail, Phone as PhoneIcon, Send } from 'lucide-react';
+import { EnhancedAvailabilityChecker } from '../sections/availability/EnhancedAvailabilityChecker';
+import { ErrorBoundary } from '../ErrorBoundary';
+import { UnavailableDatesView } from '../sections/availability/UnavailableDatesView';
+import { BookingSummary } from '../sections/common/BookingSummary';
+import { BookingOptions } from '../sections/common/BookingOptions';
+import { BookingForm } from '../sections/forms/BookingForm';
+import { HoldForm } from '../sections/forms/HoldForm';
+import { ContactHostForm } from '../sections/forms/ContactHostForm';
+import { useToast } from '@/hooks/use-toast';
+import { checkAvailability } from '../services/availabilityService';
+import { BookingOptionsCards } from '../booking-options-cards';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { createPendingBookingAction } from '@/app/actions/booking-actions';
+import { createCheckoutSession } from '@/app/actions/create-checkout-session';
+import { createHoldBookingAction } from '@/app/actions/createHoldBookingAction';
+import { createHoldCheckoutSession } from '@/app/actions/createHoldCheckoutSession';
+import { createInquiryAction } from '@/app/actions/createInquiryAction';
+import { sanitizeEmail, sanitizePhone, sanitizeText } from '@/lib/sanitize';
+
+interface AvailabilityContainerProps {
+  property: any;
+  initialCheckIn?: string;
+  initialCheckOut?: string;
+}
+
+/**
+ * AvailabilityContainer component
+ * 
+ * This container component manages the state and logic for checking availability
+ * and showing the appropriate view based on the availability status.
+ */
+export function AvailabilityContainer({
+  property,
+  initialCheckIn,
+  initialCheckOut
+}: AvailabilityContainerProps) {
+  // Get values from booking context
+  const {
+    checkInDate,
+    checkOutDate,
+    numberOfNights,
+    setCheckInDate,
+    setCheckOutDate,
+    setNumberOfGuests,
+    firstName: contextFirstName,
+    lastName: contextLastName,
+    email: contextEmail,
+    phone: contextPhone,
+    message: contextMessage,
+    setFirstName: setContextFirstName,
+    setLastName: setContextLastName,
+    setEmail: setContextEmail,
+    setPhone: setContextPhone,
+    setMessage: setContextMessage
+  } = useBooking();
+  
+  // Local state for the guest count
+  const [guestCount, setGuestCount] = useState(2);
+  
+  // State for availability checking
+  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
+  const [wasChecked, setWasChecked] = useState(false);
+  const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
+  
+  // State for booking functionality
+  const [selectedOption, setSelectedOption] = useState<'contact' | 'hold' | 'bookNow' | null>(null);
+  const [isProcessingBooking, setIsProcessingBooking] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [lastErrorType, setLastErrorType] = useState<string | undefined>(undefined);
+  const [canRetryError, setCanRetryError] = useState<boolean>(false);
+
+  // State for coupon and prices
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountPercentage: number } | null>(null);
+  const [pricingDetailsInBaseCurrency, setPricingDetailsInBaseCurrency] = useState<any>(null);
+  
+  // State for unavailable dates (in a real implementation, this would come from a service)
+  const [unavailableDates, setUnavailableDates] = useState<Date[]>([]);
+
+  // State for storing user form data
+  const [sessionFirstName, setSessionFirstName] = useState<string>('');
+  const [sessionLastName, setSessionLastName] = useState<string>('');
+  const [sessionEmail, setSessionEmail] = useState<string>('');
+  const [sessionPhone, setSessionPhone] = useState<string>('');
+  const [sessionMessage, setSessionMessage] = useState<string>('');
+
+  const { toast } = useToast();
+  const [isPending, startTransition] = React.useTransition();
+
+  // Add router for navigation
+  const router = useRouter();
+
+  // Add currency context
+  const { selectedCurrency, baseCurrencyForProperty, convertToSelectedCurrency, formatPrice } = useCurrency();
+  const propertyBaseCcy = baseCurrencyForProperty(property.baseCurrency);
+
+  // Create Input component for the forms
+  const Input = ({ ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input
+      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+      {...props}
+    />
+  );
+  
+  // Handler for checking availability
+  const handleCheckAvailability = useCallback(async () => {
+    if (!checkInDate || !checkOutDate) return;
+    
+    setIsCheckingAvailability(true);
+    
+    try {
+      // Use the service to check availability
+      const result = await checkAvailability(
+        property.slug,
+        checkInDate,
+        checkOutDate
+      );
+      
+      console.log(`Checking availability for dates: ${checkInDate.toDateString()} to ${checkOutDate.toDateString()}`);
+      console.log(`Availability result: ${result.isAvailable ? 'Available' : 'Not Available'}`);
+      
+      // Store the unavailable dates for the calendar view
+      setUnavailableDates(result.unavailableDates);
+      
+      setIsAvailable(result.isAvailable);
+      setWasChecked(true);
+    } catch (error) {
+      console.error('Error checking availability:', error);
+      // In case of error, assume not available for safety
+      setIsAvailable(false);
+      setWasChecked(true);
+      toast({
+        title: "Error",
+        description: "There was an error checking availability. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsCheckingAvailability(false);
+    }
+  }, [checkInDate, checkOutDate, property.slug, toast]);
+  
+  // Handler for selecting and checking new dates
+  const selectAndCheckDates = useCallback(async (newCheckIn: Date, newCheckOut: Date) => {
+    console.log(`Setting new dates: ${newCheckIn.toDateString()} - ${newCheckOut.toDateString()}`);
+
+    // First update the dates
+    setCheckInDate(newCheckIn);
+    setCheckOutDate(newCheckOut);
+
+    // Wait for state update to propagate
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    // Reset the availability check status
+    setWasChecked(false);
+    setIsAvailable(null);
+
+    // Small delay before checking availability
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    // Now check availability with the new dates
+    await handleCheckAvailability();
+  }, [setCheckInDate, setCheckOutDate, handleCheckAvailability]);
+
+  // Handler for check-in date changes
+  const handleCheckInChange = useCallback((date: Date | null) => {
+    console.log(`Check-in date changed: ${date?.toDateString() || 'null'}`);
+    setCheckInDate(date);
+
+    // Reset availability state when dates change
+    setWasChecked(false);
+    setIsAvailable(null);
+
+    // Optional: When check-in is set to null, also reset checkout
+    if (date === null && checkOutDate !== null) {
+      setCheckOutDate(null);
+    }
+  }, [setCheckInDate, checkOutDate, setCheckOutDate]);
+
+  // Handler for check-out date changes
+  const handleCheckOutChange = useCallback((date: Date | null) => {
+    console.log(`Check-out date changed: ${date?.toDateString() || 'null'}`);
+    setCheckOutDate(date);
+
+    // Reset availability state when dates change
+    setWasChecked(false);
+    setIsAvailable(null);
+
+    // Automatically check availability if both dates are selected
+    if (date !== null && checkInDate !== null) {
+      setTimeout(() => {
+        console.log('Auto-checking availability after date selection');
+        handleCheckAvailability().catch(error => {
+          console.error('Error during auto availability check:', error);
+        });
+      }, 100);
+    }
+  }, [setCheckOutDate, checkInDate, handleCheckAvailability]);
+  
+  // Handler for inquiry submission
+  const handleInquirySubmit = useCallback(async (values: any) => {
+    setFormError(null);
+    if (!checkInDate || !checkOutDate) {
+      setFormError("Please select valid check-in and check-out dates.");
+      toast({
+        title: "Missing Dates",
+        description: "Please select check-in and check-out dates for your inquiry.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    startTransition(async () => {
+      setIsProcessingBooking(true);
+      try {
+        const inquiryInput = {
+          propertySlug: property.slug,
+          checkInDate: checkInDate.toISOString(),
+          checkOutDate: checkOutDate.toISOString(),
+          guestCount: guestCount,
+          guestInfo: {
+            firstName: values.firstName || sessionFirstName,
+            lastName: values.lastName || sessionLastName,
+            email: values.email || sessionEmail,
+            phone: values.phone || sessionPhone,
+          },
+          message: values.message || sessionMessage || "I'm interested in booking your property.",
+          // Convert the price to the selected currency
+          totalPrice: pricingDetailsInBaseCurrency
+            ? convertToSelectedCurrency(pricingDetailsInBaseCurrency.total, pricingDetailsInBaseCurrency.currency)
+            : undefined,
+          currency: selectedCurrency,
+        };
+
+        const result = await createInquiryAction(inquiryInput);
+        if (result.error) {
+          setFormError(result.error);
+          toast({
+            title: "Inquiry Failed",
+            description: result.error,
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Inquiry Sent!",
+            description: "Your message has been sent to the host."
+          });
+
+          // Close the form without resetting values
+          setSelectedOption(null);
+        }
+      } catch (error) {
+        console.error("Error sending inquiry:", error);
+        setFormError("Failed to send inquiry. Please try again.");
+        toast({
+          title: "Inquiry Failed",
+          description: "There was an error sending your inquiry.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsProcessingBooking(false);
+      }
+    });
+  }, [checkInDate, checkOutDate, property.slug, sessionFirstName, sessionLastName, sessionEmail,
+      sessionPhone, sessionMessage, guestCount, pricingDetailsInBaseCurrency, convertToSelectedCurrency,
+      selectedCurrency, toast, startTransition]);
+
+  // Handler for holding dates
+  const handleHoldDates = useCallback(async () => {
+    setFormError(null);
+
+    // Client-side validation
+    if (!checkInDate || !checkOutDate || !property.holdFeeAmount) {
+      setFormError("Please select valid dates. Hold fee must be configured for this property.");
+      toast({
+        title: "Missing Information",
+        description: "Please select valid dates. This property requires a hold fee.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!sessionFirstName || !sessionLastName || !sessionEmail) { // Phone is optional for hold
+      setFormError("Please fill in First Name, Last Name, and Email to hold dates.");
+      toast({
+        title: "Missing Information",
+        description: "Please provide your name and email to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessingBooking(true);
+
+    try {
+      // Prepare hold booking input
+      const holdBookingInput = {
+        propertySlug: property.slug,
+        checkInDate: checkInDate.toISOString(),
+        checkOutDate: checkOutDate.toISOString(),
+        guestCount: guestCount,
+        guestInfo: {
+          firstName: sanitizeText(sessionFirstName),
+          lastName: sanitizeText(sessionLastName),
+          email: sanitizeEmail(sessionEmail),
+          phone: sessionPhone ? sanitizePhone(sessionPhone) : undefined,
+        },
+        holdFeeAmount: property.holdFeeAmount,
+        selectedCurrency: selectedCurrency,
+      };
+
+      // Create hold booking in database
+      const holdBookingResult = await createHoldBookingAction(holdBookingInput);
+
+      // Handle errors from hold booking creation
+      if (holdBookingResult.error || !holdBookingResult.bookingId) {
+        const errorMsg = holdBookingResult.error || "Could not create hold booking";
+        const canRetry = holdBookingResult.retry === true;
+
+        toast({
+          title: canRetry ? "Please Try Again" : "Hold Booking Error",
+          description: errorMsg,
+          variant: "destructive",
+          duration: holdBookingResult.errorType === 'network_error' ? 8000 : 5000,
+        });
+
+        setFormError(errorMsg);
+        return;
+      }
+
+      const { bookingId: holdBookingId } = holdBookingResult;
+
+      // Set up hold checkout session for payment
+      const holdCheckoutInput = {
+        property: property,
+        holdBookingId: holdBookingId,
+        holdFeeAmount: property.holdFeeAmount,
+        guestEmail: sanitizeEmail(sessionEmail),
+        selectedCurrency: selectedCurrency,
+      };
+
+      // Create checkout session
+      const stripeHoldResult = await createHoldCheckoutSession(holdCheckoutInput);
+
+      // Handle errors from checkout session creation
+      if (stripeHoldResult.error || !stripeHoldResult.sessionUrl) {
+        const errorMsg = stripeHoldResult.error || "Payment processing error";
+        const canRetry = stripeHoldResult.retry === true;
+
+        toast({
+          title: canRetry ? "Payment Processing Issue" : "Payment Error",
+          description: errorMsg,
+          variant: "destructive",
+          duration: stripeHoldResult.errorType === 'network_error' ? 8000 : 5000,
+        });
+
+        setFormError(errorMsg);
+        return;
+      }
+
+      // Redirect to Stripe checkout
+      router.push(stripeHoldResult.sessionUrl);
+
+    } catch (error) {
+      // Handle unexpected errors
+      console.error("Error processing hold dates:", error);
+
+      let errorMessage = "Something went wrong while trying to hold these dates. Please try again.";
+
+      // Provide more specific messages for known error types
+      if (error instanceof Error) {
+        if (error.message.includes('network') || error.message.includes('connection')) {
+          errorMessage = "Network connection issue. Please check your internet connection and try again.";
+        } else if (error.message.includes('Stripe') || error.message.includes('payment')) {
+          errorMessage = "There was a problem with the payment system. Please try again.";
+        } else if (error.message.includes('unavailable') || error.message.includes('service')) {
+          errorMessage = "Service temporarily unavailable. Please try again in a few minutes.";
+        } else {
+          // Use the actual error message for other cases
+          errorMessage = error.message;
+        }
+      }
+
+      setFormError(errorMessage);
+
+      toast({
+        title: "Hold Dates Error",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 7000 // Longer duration for unexpected errors
+      });
+    } finally {
+      setIsProcessingBooking(false);
+    }
+  }, [checkInDate, checkOutDate, property, sessionFirstName, sessionLastName, sessionEmail, sessionPhone,
+      guestCount, selectedCurrency, router, toast]);
+
+  // Handler for continuing to payment
+  const handleContinueToPayment = useCallback(async () => {
+    setFormError(null);
+
+    // Client-side validation
+    if (!checkInDate || !checkOutDate || !pricingDetailsInBaseCurrency) {
+      setFormError("Please select valid dates and ensure price is calculated.");
+      toast({
+        title: "Missing Information",
+        description: "Please select valid dates for your booking.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!sessionFirstName || !sessionLastName || !sessionEmail || !sessionPhone) {
+      setFormError("Please fill in all required guest information.");
+      toast({
+        title: "Missing Information",
+        description: "Please provide all required guest details.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessingBooking(true);
+
+    try {
+      // Create the booking input with default values to avoid undefined
+      const bookingInput = {
+        propertyId: property.slug,
+        guestInfo: {
+          firstName: sanitizeText(sessionFirstName),
+          lastName: sanitizeText(sessionLastName),
+          email: sanitizeEmail(sessionEmail),
+          phone: sanitizePhone(sessionPhone)
+        },
+        checkInDate: checkInDate.toISOString(),
+        checkOutDate: checkOutDate.toISOString(),
+        numberOfGuests: guestCount,
+        pricing: {
+          // Map fields with safe defaults
+          baseRate: pricingDetailsInBaseCurrency.basePrice || 0,
+          accommodationTotal: (pricingDetailsInBaseCurrency.basePrice || 0) + (pricingDetailsInBaseCurrency.extraGuestFeeTotal || 0),
+          cleaningFee: pricingDetailsInBaseCurrency.cleaningFee || 0,
+          // These two are optional in the schema, but set them to 0 to avoid undefined
+          extraGuestFee: pricingDetailsInBaseCurrency.extraGuestFeeTotal || 0,
+          numberOfExtraGuests: pricingDetailsInBaseCurrency.numberOfExtraGuests || 0,
+          // Required fields with safe defaults
+          subtotal: pricingDetailsInBaseCurrency.subtotal || 0,
+          discountAmount: pricingDetailsInBaseCurrency.discountAmount || 0,
+          total: pricingDetailsInBaseCurrency.total || 0,
+          currency: selectedCurrency,
+          numberOfNights: pricingDetailsInBaseCurrency.numberOfNights || 0,
+        },
+        status: 'pending' as const,
+        appliedCouponCode: null,
+      };
+
+      // Create pending booking in database
+      const pendingBookingResult = await createPendingBookingAction(bookingInput);
+
+      // Handle errors from booking creation
+      if (pendingBookingResult.error || !pendingBookingResult.bookingId) {
+        const errorMsg = pendingBookingResult.error || "Could not create booking";
+        const canRetry = pendingBookingResult.retry === true;
+
+        toast({
+          title: canRetry ? "Please Try Again" : "Booking Error",
+          description: errorMsg,
+          variant: "destructive",
+          // For network errors, make toast stay longer to give user time to read it
+          duration: pendingBookingResult.errorType === 'network_error' ? 8000 : 5000,
+        });
+
+        setFormError(errorMsg);
+        return;
+      }
+
+      const { bookingId } = pendingBookingResult;
+
+      // Create checkout session to process payment
+      const checkoutInput = {
+        property: property,
+        checkInDate: checkInDate.toISOString(),
+        checkOutDate: checkOutDate.toISOString(),
+        numberOfGuests: guestCount,
+        totalPrice: bookingInput.pricing.total,
+        numberOfNights: numberOfNights,
+        appliedCouponCode: null,
+        discountPercentage: 0,
+        guestFirstName: sanitizeText(sessionFirstName),
+        guestLastName: sanitizeText(sessionLastName),
+        guestEmail: sanitizeEmail(sessionEmail),
+        pendingBookingId: bookingId,
+        selectedCurrency: selectedCurrency,
+      };
+
+      const stripeResult = await createCheckoutSession(checkoutInput);
+
+      // Handle errors from Stripe checkout creation
+      if (stripeResult.error || !stripeResult.sessionUrl) {
+        const errorMsg = stripeResult.error || "Payment processing error";
+        const canRetry = stripeResult.retry === true;
+
+        toast({
+          title: canRetry ? "Payment Processing Issue" : "Payment Error",
+          description: errorMsg,
+          variant: "destructive",
+          duration: stripeResult.errorType === 'network_error' ? 8000 : 5000,
+        });
+
+        setFormError(errorMsg);
+        return;
+      }
+
+      // Navigate to Stripe Checkout
+      router.push(stripeResult.sessionUrl);
+
+    } catch (error) {
+      // Handle unexpected errors
+      console.error("Error processing booking:", error);
+
+      let errorMessage = "Something went wrong with your booking. Please try again.";
+
+      // For known error types, provide more specific messages
+      if (error instanceof Error) {
+        if (error.message.includes('network') || error.message.includes('connection')) {
+          errorMessage = "Network connection issue. Please check your internet connection and try again.";
+        } else if (error.message.includes('Stripe') || error.message.includes('payment')) {
+          errorMessage = "There was a problem processing your payment. Please try again.";
+        } else if (error.message.includes('unavailable') || error.message.includes('service')) {
+          errorMessage = "Service temporarily unavailable. Please try again in a few minutes.";
+        } else {
+          // Use the actual error message for other cases
+          errorMessage = error.message;
+        }
+      }
+
+      setFormError(errorMessage);
+
+      toast({
+        title: "Booking Error",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 7000, // Longer duration for unexpected errors
+      });
+    } finally {
+      setIsProcessingBooking(false);
+    }
+  }, [checkInDate, checkOutDate, property, guestCount, pricingDetailsInBaseCurrency, numberOfNights,
+      sessionFirstName, sessionLastName, sessionEmail, sessionPhone, selectedCurrency, router, toast]);
+  
+  // Handler for updating the guest count
+  const handleGuestCountChange = useCallback((count: number) => {
+    setGuestCount(count);
+    setNumberOfGuests(count);
+  }, [setNumberOfGuests]);
+
+  // Initialize local state from context and sync changes
+  React.useEffect(() => {
+    // Initialize from context
+    if (contextFirstName) setSessionFirstName(contextFirstName);
+    if (contextLastName) setSessionLastName(contextLastName);
+    if (contextEmail) setSessionEmail(contextEmail);
+    if (contextPhone) setSessionPhone(contextPhone);
+    if (contextMessage) setSessionMessage(contextMessage);
+  }, [contextFirstName, contextLastName, contextEmail, contextPhone, contextMessage]);
+
+  // Calculate pricing when necessary values change
+  React.useEffect(() => {
+    if (checkInDate && checkOutDate && numberOfNights > 0 && guestCount > 0) {
+      // This is a simplified calculation, in a real app this would use the price utilities
+      const basePrice = property.pricePerNight || 100;
+      const cleaningFee = property.cleaningFee || 50;
+      const baseOccupancy = property.baseOccupancy || 2;
+      const extraGuestFee = property.extraGuestFee || 20;
+
+      const extraGuests = Math.max(0, guestCount - baseOccupancy);
+      const extraGuestTotal = extraGuests * extraGuestFee * numberOfNights;
+
+      const subtotal = (basePrice * numberOfNights) + cleaningFee + extraGuestTotal;
+
+      // Apply discount if coupon exists
+      const discountAmount = appliedCoupon ? (subtotal * (appliedCoupon.discountPercentage / 100)) : 0;
+      const total = subtotal - discountAmount;
+
+      // Update pricing details
+      setPricingDetailsInBaseCurrency({
+        basePrice,
+        cleaningFee,
+        extraGuestFeeTotal: extraGuestTotal,
+        numberOfExtraGuests: extraGuests,
+        subtotal,
+        discountAmount,
+        total,
+        currency: propertyBaseCcy,
+        numberOfNights
+      });
+    } else {
+      // Reset pricing details if necessary data is missing
+      setPricingDetailsInBaseCurrency(null);
+    }
+  }, [checkInDate, checkOutDate, numberOfNights, guestCount, property, appliedCoupon, propertyBaseCcy]);
+
+  // Sync session state back to context
+  React.useEffect(() => {
+    if (sessionFirstName) setContextFirstName(sessionFirstName);
+    if (sessionLastName) setContextLastName(sessionLastName);
+    if (sessionEmail) setContextEmail(sessionEmail);
+    if (sessionPhone) setContextPhone(sessionPhone);
+    if (sessionMessage) setContextMessage(sessionMessage);
+  }, [
+    sessionFirstName, sessionLastName, sessionEmail, sessionPhone, sessionMessage,
+    setContextFirstName, setContextLastName, setContextEmail, setContextPhone, setContextMessage
+  ]);
+  
+  return (
+    <div className="max-w-2xl mx-auto w-full px-4 md:px-0">
+      {/* Wrap the component with ErrorBoundary to catch and handle any errors */}
+      <ErrorBoundary>
+        <EnhancedAvailabilityChecker
+          propertySlug={property.slug}
+          propertyName={property.name || property.slug}
+          maxGuests={property.maxGuests || 10}
+          onAvailabilityResult={(result) => {
+            setIsAvailable(result);
+            setWasChecked(true);
+          }}
+        />
+      </ErrorBoundary>
+      
+      {/* Content based on availability */}
+      {wasChecked && (
+        <div className="mt-8 space-y-6">
+          {isAvailable ? (
+            // Booking options when dates are available
+            <>
+              {/* Real booking summary component */}
+              <BookingSummary 
+                numberOfNights={numberOfNights}
+                numberOfGuests={guestCount}
+                pricingDetails={{ 
+                  // Here would be the actual pricing details from a pricing service
+                  basePrice: property.basePrice || 100,
+                  cleaningFee: property.cleaningFee || 50,
+                  total: (property.basePrice || 100) * numberOfNights + (property.cleaningFee || 50)
+                }}
+                propertyBaseCcy={property.currency || 'USD'}
+                appliedCoupon={null}
+              />
+              
+              {/* Use the original booking options cards for compatibility */}
+              <BookingOptionsCards
+                selectedOption={selectedOption}
+                onSelectOption={setSelectedOption}
+                property={property}
+              />
+
+              {/* Contact host form - using the original implementation */}
+              {selectedOption === 'contact' && (
+                <Card className="mt-4">
+                  <CardHeader><CardTitle>Contact Host</CardTitle></CardHeader>
+                  <CardContent>
+                    <form onSubmit={(e) => { e.preventDefault(); handleInquirySubmit({ firstName: sessionFirstName, lastName: sessionLastName, email: sessionEmail, phone: sessionPhone, message: "I'm interested in booking your property." }); }} className="space-y-4">
+                      <h3 className="font-semibold text-base pt-2">Your Information</h3>
+
+                      {/* Names - side by side on larger screens */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="mb-1 block text-sm font-medium">
+                            First Name
+                            <span className="text-destructive ml-1">*</span>
+                          </Label>
+                          <Input
+                            placeholder="Your first name"
+                            disabled={isProcessingBooking || isPending}
+                            required
+                            value={sessionFirstName || ''}
+                            onChange={e => setSessionFirstName(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label className="mb-1 block text-sm font-medium">
+                            Last Name
+                            <span className="text-destructive ml-1">*</span>
+                          </Label>
+                          <Input
+                            placeholder="Your last name"
+                            disabled={isProcessingBooking || isPending}
+                            value={sessionLastName || ''}
+                            onChange={e => setSessionLastName(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Email and Phone - side by side on larger screens */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="flex items-center gap-1 text-xs">
+                            <Mail className="h-3 w-3" />
+                            Email
+                            <span className="text-destructive ml-1">*</span>
+                          </Label>
+                          <Input
+                            type="email"
+                            placeholder="your.email@example.com"
+                            disabled={isProcessingBooking || isPending}
+                            value={sessionEmail || ''}
+                            onChange={e => setSessionEmail(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <PhoneIcon className="h-3 w-3" />
+                            Phone (Optional)
+                          </Label>
+                          <Input
+                            type="tel"
+                            placeholder="Your phone number"
+                            disabled={isProcessingBooking || isPending}
+                            value={sessionPhone || ''}
+                            onChange={e => setSessionPhone(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label className="flex items-center gap-1 text-xs">
+                          Message
+                          <span className="text-destructive ml-1">*</span>
+                        </Label>
+                        <Textarea
+                          placeholder="Your questions or custom request..."
+                          rows={4}
+                          disabled={isProcessingBooking || isPending}
+                          value={sessionMessage || ''}
+                          onChange={e => setSessionMessage(e.target.value)}
+                        />
+                      </div>
+
+                      <Button type="submit" disabled={isProcessingBooking || isPending}>
+                        {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                        {isPending ? "Sending..." : "Send Inquiry"}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Hold dates form - using the original implementation */}
+              {selectedOption === 'hold' && (
+                <Card className="mt-4">
+                  <CardHeader>
+                    <CardTitle>Hold Dates</CardTitle>
+                    <CardDescription>
+                      Reserve these dates for {property.holdDurationHours || 24} hours with a small holding fee.
+                      {property.holdFeeRefundable && " This fee is refundable if you complete your booking."}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={(e) => { e.preventDefault(); handleHoldDates(); }} className="space-y-6">
+                      <h3 className="font-semibold text-base pt-2">Your Information</h3>
+
+                      {/* Names - side by side on larger screens */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="mb-1 block text-sm font-medium">
+                            First Name
+                            <span className="text-destructive ml-1">*</span>
+                          </Label>
+                          <Input
+                            placeholder="Your first name"
+                            disabled={isProcessingBooking || isPending}
+                            required
+                            value={sessionFirstName || ''}
+                            onChange={e => setSessionFirstName(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label className="mb-1 block text-sm font-medium">
+                            Last Name
+                            <span className="text-destructive ml-1">*</span>
+                          </Label>
+                          <Input
+                            placeholder="Your last name"
+                            disabled={isProcessingBooking || isPending}
+                            value={sessionLastName || ''}
+                            onChange={e => setSessionLastName(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Email and Phone - side by side on larger screens */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="flex items-center gap-1 text-xs">
+                            <Mail className="h-3 w-3" />
+                            Email
+                            <span className="text-destructive ml-1">*</span>
+                          </Label>
+                          <Input
+                            type="email"
+                            placeholder="your.email@example.com"
+                            disabled={isProcessingBooking || isPending}
+                            value={sessionEmail || ''}
+                            onChange={e => setSessionEmail(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label className="flex items-center gap-1 text-xs">
+                            <PhoneIcon className="h-3 w-3" />
+                            Phone Number
+                            <span className="text-destructive ml-1">*</span>
+                          </Label>
+                          <Input
+                            type="tel"
+                            placeholder="Your phone number"
+                            disabled={isProcessingBooking || isPending}
+                            value={sessionPhone || ''}
+                            onChange={e => setSessionPhone(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <Button
+                        type="submit"
+                        className="w-full"
+                        disabled={isProcessingBooking || isPending}
+                      >
+                        {isProcessingBooking ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <ArrowRight className="mr-2 h-4 w-4" />
+                            Pay {property.holdFeeAmount ? `$${property.holdFeeAmount}` : '$10'} to Hold Dates
+                          </>
+                        )}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Booking form - using the original implementation */}
+              {selectedOption === 'bookNow' && (
+                <Card className="mt-4">
+                  <CardHeader>
+                    <CardTitle>Complete Booking</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={(e) => { e.preventDefault(); handleContinueToPayment(); }} className="space-y-6">
+                      <h3 className="font-semibold text-base pt-2">Your Information</h3>
+
+                      {/* Names - side by side on larger screens */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="mb-1 block text-sm font-medium">
+                            First Name
+                            <span className="text-destructive ml-1">*</span>
+                          </Label>
+                          <Input
+                            placeholder="Your first name"
+                            disabled={isProcessingBooking || isPending}
+                            required
+                            value={sessionFirstName || ''}
+                            onChange={e => setSessionFirstName(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label className="mb-1 block text-sm font-medium">
+                            Last Name
+                            <span className="text-destructive ml-1">*</span>
+                          </Label>
+                          <Input
+                            placeholder="Your last name"
+                            disabled={isProcessingBooking || isPending}
+                            value={sessionLastName || ''}
+                            onChange={e => setSessionLastName(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Email and Phone - side by side on larger screens */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="flex items-center gap-1 text-xs">
+                            <Mail className="h-3 w-3" />
+                            Email
+                            <span className="text-destructive ml-1">*</span>
+                          </Label>
+                          <Input
+                            type="email"
+                            placeholder="your.email@example.com"
+                            disabled={isProcessingBooking || isPending}
+                            value={sessionEmail || ''}
+                            onChange={e => setSessionEmail(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label className="flex items-center gap-1 text-xs">
+                            <PhoneIcon className="h-3 w-3" />
+                            Phone Number
+                            <span className="text-destructive ml-1">*</span>
+                          </Label>
+                          <Input
+                            type="tel"
+                            placeholder="Your phone number"
+                            disabled={isProcessingBooking || isPending}
+                            value={sessionPhone || ''}
+                            onChange={e => setSessionPhone(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <Button
+                        type="submit"
+                        className="w-full"
+                        disabled={isProcessingBooking || isPending}
+                      >
+                        {isProcessingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
+                        {isProcessingBooking ? 'Processing...' : 'Continue to Payment'}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          ) : (
+            // UnavailableDatesView when dates are not available
+            <UnavailableDatesView
+              checkInDate={checkInDate}
+              checkOutDate={checkOutDate}
+              numberOfNights={numberOfNights}
+              selectedOption={selectedOption}
+              setSelectedOption={setSelectedOption}
+              onInquirySubmit={handleInquirySubmit}
+              isProcessingBooking={isProcessingBooking}
+              isPending={isPending}
+              selectAndCheckDates={selectAndCheckDates}
+              selectedCurrency={property.currency || 'USD'}
+              unavailableDates={unavailableDates}
+              property={property}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

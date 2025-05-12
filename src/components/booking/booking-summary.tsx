@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -27,24 +27,58 @@ export function BookingSummary({
 }: BookingSummaryProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const { selectedCurrency, convertToSelectedCurrency, formatPrice } = useCurrency();
+  
+  // Add identification log
+  useEffect(() => {
+    console.log(`[IDENTIFICATION] This is BookingSummary from /booking-summary.tsx`);
+    console.log(`[BookingSummary] Props updated: numberOfNights=${numberOfNights}, numberOfGuests=${numberOfGuests}`);
+    console.log(`[BookingSummary] PricingDetails:`, pricingDetails ? {
+      basePrice: pricingDetails.basePrice,
+      total: pricingDetails.total,
+      currency: pricingDetails.currency
+    } : 'null');
+  }, [numberOfNights, numberOfGuests, pricingDetails]);
 
-  const toggleExpansion = () => setIsExpanded(!isExpanded);
+  const toggleExpansion = () => setIsExpanded((prev) => !prev);
 
   // Convert pricing details to the selected display currency
   const pricingDetailsForDisplay = React.useMemo(() => {
-    if (pricingDetails) {
-      return {
-        basePrice: convertToSelectedCurrency(pricingDetails.basePrice, propertyBaseCcy),
-        extraGuestFee: convertToSelectedCurrency(pricingDetails.extraGuestFeeTotal, propertyBaseCcy),
-        cleaningFee: convertToSelectedCurrency(pricingDetails.cleaningFee, propertyBaseCcy),
-        subtotal: convertToSelectedCurrency(pricingDetails.subtotal, propertyBaseCcy),
-        discountAmount: convertToSelectedCurrency(pricingDetails.discountAmount, propertyBaseCcy),
-        total: convertToSelectedCurrency(pricingDetails.total, propertyBaseCcy),
-        numberOfNights: pricingDetails.numberOfNights, // Keep nights as is
-      };
+    // Log with a prominent marker to ensure we see it in the console
+    console.log(`[!!!RECALCULATION!!!] BookingSummary recalculating pricing details`, {
+      nights: numberOfNights,
+      guests: numberOfGuests,
+      selectedCurrency,
+      timestamp: new Date().toISOString(),
+      hasPricingDetails: !!pricingDetails,
+    });
+    
+    if (!pricingDetails) {
+      console.log(`[BookingSummary] No pricing details available, returning null`);
+      return null;
     }
-    return null;
-  }, [pricingDetails, convertToSelectedCurrency, propertyBaseCcy]);
+    
+    const result = {
+      basePrice: convertToSelectedCurrency(pricingDetails.basePrice, propertyBaseCcy),
+      extraGuestFee: convertToSelectedCurrency(pricingDetails.extraGuestFeeTotal, propertyBaseCcy),
+      cleaningFee: convertToSelectedCurrency(pricingDetails.cleaningFee, propertyBaseCcy),
+      subtotal: convertToSelectedCurrency(pricingDetails.subtotal, propertyBaseCcy),
+      discountAmount: convertToSelectedCurrency(pricingDetails.discountAmount, propertyBaseCcy),
+      total: convertToSelectedCurrency(pricingDetails.total, propertyBaseCcy),
+      numberOfNights: pricingDetails.numberOfNights,
+      numberOfGuests: numberOfGuests, // Store guest count directly
+    };
+    
+    console.log(`[BookingSummary] Calculated display pricing:`, result);
+    return result;
+  }, [
+    // Including ALL dependencies explicitly to ensure recalculation
+    pricingDetails, 
+    convertToSelectedCurrency, 
+    propertyBaseCcy, 
+    numberOfNights, 
+    numberOfGuests, 
+    selectedCurrency
+  ]);
 
   if (!pricingDetailsForDisplay) {
     return <div className="text-muted-foreground">Calculating price...</div>;

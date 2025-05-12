@@ -3,7 +3,8 @@ import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import type { Property, WebsiteTemplate, PropertyOverrides } from '@/types';
 import { PropertyPageLayout } from '@/components/property/property-page-layout';
-import { getPropertyBySlug, getWebsiteTemplate, getPropertyOverrides } from '@/app/properties/[slug]/page'; // Import shared functions
+import { getWebsiteTemplate, getPropertyOverrides } from '@/app/properties/[slug]/page'; // Import shared functions
+import { getPropertyBySlug } from '@/lib/property-utils';
 // AuthProvider removed, context will be consumed from root layout
 
 export const dynamic = 'force-dynamic'; // Ensures the page is always dynamically rendered
@@ -22,14 +23,67 @@ export default async function HomePage() {
 
   if (!property) {
     console.error(`[HomePage] Default property "${defaultPropertySlug}" not found.`);
-    notFound(); // Or render a fallback homepage
+    // Show a clear error message instead of notFound()
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center text-center p-4">
+        <div className="max-w-md">
+          <h1 className="text-3xl font-bold text-red-600 mb-4">Property Not Found</h1>
+          <p className="text-lg mb-6">
+            We're sorry, but we couldn't find the property you're looking for.
+          </p>
+          <p className="text-sm text-gray-500 mb-8">
+            Our team has been notified and is working on resolving this issue.
+          </p>
+          <p className="text-sm">
+            Error reference: PROPERTY_NOT_FOUND_{defaultPropertySlug.replace(/-/g, '_').toUpperCase()}
+          </p>
+        </div>
+      </div>
+    );
   }
 
   const template = await getWebsiteTemplate(property.templateId);
 
   if (!template) {
     console.error(`[HomePage] Website template "${property.templateId}" not found for default property "${defaultPropertySlug}".`);
-    notFound(); // Or render a fallback homepage
+    // Instead of fallback content, show a clear error page
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center text-center p-4">
+        <div className="max-w-md">
+          <h1 className="text-3xl font-bold text-red-600 mb-4">Temporarily Unavailable</h1>
+          <p className="text-lg mb-6">
+            We're sorry, but this property is currently unavailable due to a technical issue.
+          </p>
+          <p className="text-sm text-gray-500 mb-8">
+            Our team has been notified and is working on resolving this issue as quickly as possible.
+          </p>
+          <p className="text-sm">
+            Error reference: TEMPLATE_NOT_FOUND_{defaultPropertySlug.replace(/-/g, '_').toUpperCase()}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!overrides) {
+    console.error(`[HomePage] Property overrides for "${defaultPropertySlug}" not found.`);
+    // Instead of passing empty object, show error message
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center text-center p-4">
+        <div className="max-w-md">
+          <h1 className="text-3xl font-bold text-red-600 mb-4">Configuration Issue</h1>
+          <p className="text-lg mb-6">
+            We're sorry, but this property is currently unavailable due to a configuration issue.
+          </p>
+          <p className="text-sm text-gray-500 mb-8">
+            Our team has been notified and is working on resolving this issue as quickly as possible.
+          </p>
+          <p className="text-sm">
+            Error reference: OVERRIDES_NOT_FOUND_{defaultPropertySlug.replace(/-/g, '_').toUpperCase()}
+          </p>
+        </div>
+      </div>
+    );
   }
 
   // console.log(`[HomePage] Data fetched successfully for ${defaultPropertySlug}.`);
@@ -40,7 +94,7 @@ export default async function HomePage() {
       <PropertyPageLayout
         property={property}
         template={template}
-        overrides={overrides || {}} // Pass overrides or empty object
+        overrides={overrides}
       />
     </Suspense>
   );

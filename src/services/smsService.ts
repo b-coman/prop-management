@@ -96,7 +96,3 @@ export async function sendHouseRulesSms(booking: Booking, houseRules: string[]):
 // This could involve:
 // 1. A daily scheduled Cloud Function that queries bookings checking in today.
 // 2. Using Firestore triggers and a delay mechanism (e.g., Cloud Tasks).
-```
-  </change>
-  <change>
-    <file>package.json</file

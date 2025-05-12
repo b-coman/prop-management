@@ -85,7 +85,13 @@ export async function createHoldCheckoutSession(input: CreateHoldCheckoutSession
   const cancel_url = `${origin}/booking/check/${property.slug}?hold_cancelled=true&booking_id=${holdBookingId}`; // Go back to check page
 
   try {
-    const session = await stripe.checkout.sessions.create({
+    // Validate essential fields to provide clearer error messages
+    if (!guestEmail || guestEmail.trim() === '') {
+      console.error('[createHoldCheckoutSession] Missing required guest email');
+      return { error: "Missing required guest email. Please fill in your email to continue." };
+    }
+
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       payment_method_types: ['card'],
       line_items: [
         {
@@ -109,7 +115,9 @@ export async function createHoldCheckoutSession(input: CreateHoldCheckoutSession
       cancel_url: cancel_url,
       customer_email: guestEmail, // Pre-fill email if available
       metadata: metadata,
-    });
+    };
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     if (!session.id || !session.url) {
       throw new Error('Failed to create Stripe session or missing session URL.');

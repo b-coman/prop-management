@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSyncedSessionStorage, clearSyncedStorageByPrefix } from '@/hooks/use-synced-storage';
 import type { CurrencyCode } from '@/types';
 
@@ -73,20 +73,39 @@ const getInitialState = (propertySlug?: string | null): BookingContextState => (
 // Version of the context - increment when making breaking changes
 const CONTEXT_VERSION = 1;
 
-// Generate a unique session ID to isolate different booking sessions
-// This ensures each time the user refreshes the page or navigates back after a redirect,
-// they get a clean slate for storage
-const generateSessionId = () => {
-  // Use timestamp to ensure uniqueness
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+// Singleton pattern for session IDs to prevent multiple initializations
+// This ensures we reuse the same session ID for the same property during a single page visit
+const getOrCreateSessionId = (propertySlug: string | null) => {
+  // In client-side code, use sessionStorage to store the session ID
+  if (typeof window !== 'undefined') {
+    const storageKey = `booking_session_id_${propertySlug || 'global'}`;
+    const existingId = sessionStorage.getItem(storageKey);
+
+    if (existingId) {
+      console.log(`[BookingContext] Reusing existing session: ${existingId} for property: ${propertySlug}`);
+      return existingId;
+    }
+
+    // Create new session ID only if needed
+    const newId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    sessionStorage.setItem(storageKey, newId);
+    console.log(`[BookingContext] Created new session: ${newId} for property: ${propertySlug}`);
+    return newId;
+  }
+
+  // For server-side rendering, just create a temporary ID
+  return `server-${Date.now()}`;
 };
 
 export const BookingProvider: React.FC<BookingProviderProps> = ({
   children,
   propertySlug = null
 }) => {
-  // Generate a session-specific ID to isolate different booking sessions
-  const sessionId = useMemo(() => generateSessionId(), []);
+  // Use a ref to track if this is the first mount
+  const isFirstMount = useRef(true);
+
+  // Get or create a consistent session ID for this property
+  const sessionId = useMemo(() => getOrCreateSessionId(propertySlug), [propertySlug]);
 
   // Initialize with property-specific and session-specific prefix
   const storagePrefix = useMemo(
@@ -95,7 +114,12 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
         ? `${STORAGE_PREFIX}${propertySlug}_${sessionId}_`
         : `${STORAGE_PREFIX}${sessionId}_`;
 
-      console.log(`Creating BookingProvider with storage prefix: ${prefix}`);
+      // Only log on first render to reduce console noise
+      if (isFirstMount.current) {
+        console.log(`[BookingContext] Using storage prefix: ${prefix}`);
+        isFirstMount.current = false;
+      }
+
       return prefix;
     },
     [propertySlug, sessionId]
@@ -266,6 +290,55 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     clearGuestData,
   };
   
+  // Add a mountCount check to detect duplicate/nested providers in development mode
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      // Use a property-specific key for this check
+      const mountKey = `booking_provider_mounted_${propertySlug || 'global'}`;
+      const mountCountKey = `booking_provider_mount_count_${propertySlug || 'global'}`;
+
+      if (typeof window !== 'undefined') {
+        // Increment mount count for tracking
+        const currentCount = window[mountCountKey as any] || 0;
+        window[mountCountKey as any] = currentCount + 1;
+
+        if (window[mountKey as any]) {
+          console.warn(
+            `[BookingContext] ⚠️ Multiple BookingProvider instances detected for property "${propertySlug}" (count: ${window[mountCountKey as any]}). ` +
+            `This can cause state conflicts and performance issues. ` +
+            `Provider IDs may include: ${window[mountKey as any] || 'unknown'}, ${sessionId}. ` +
+            `Ensure you only mount one BookingProvider per property.`
+          );
+
+          // Add this provider ID to the list for debugging
+          if (typeof window[mountKey as any] === 'string') {
+            window[mountKey as any] = `${window[mountKey as any]}, ${sessionId}`;
+          } else {
+            window[mountKey as any] = sessionId;
+          }
+        } else {
+          // Mark this provider as mounted
+          window[mountKey as any] = sessionId;
+          console.log(`[BookingContext] Provider mounted for property "${propertySlug}" with session ID ${sessionId}`);
+        }
+
+        // Clean up on unmount
+        return () => {
+          if (window[mountCountKey as any] > 0) {
+            window[mountCountKey as any] = window[mountCountKey as any] - 1;
+          }
+
+          if (window[mountCountKey as any] === 0) {
+            window[mountKey as any] = false;
+            console.log(`[BookingContext] All providers unmounted for property "${propertySlug}"`);
+          } else {
+            console.log(`[BookingContext] Provider unmounted for property "${propertySlug}", ${window[mountCountKey as any]} remaining`);
+          }
+        };
+      }
+    }
+  }, [propertySlug, sessionId]);
+
   return (
     <BookingStateContext.Provider value={state}>
       <BookingActionsContext.Provider value={actions}>
@@ -275,20 +348,95 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
   );
 };
 
-// Hooks for consuming the context
+// Global data shared between multiple provider instances
+// This helps prevent state conflicts when multiple providers mount due to React Strict Mode
+// We store references indexed by property slug to keep data separate between different properties
+interface GlobalContextCache {
+  states: Record<string, BookingContextState>;
+  actions: Record<string, BookingContextActions>;
+  initialized: boolean;
+}
+
+// Initialize the global cache object
+const globalContextCache: GlobalContextCache = {
+  states: {},
+  actions: {},
+  initialized: false
+};
+
+// Global fallback data to use when outside a provider
+// This helps prevent errors in development with hot reloading and strict mode
+let globalFallbackState: BookingContextState | null = null;
+let globalFallbackActions: BookingContextActions | null = null;
+
+// Hooks for consuming the context with improved error handling
 export const useBookingState = () => {
   const context = useContext(BookingStateContext);
+
+  // Instead of throwing, use fallback in development
   if (context === undefined) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(
+        '[BookingContext] useBookingState called outside a BookingProvider. ' +
+        'This may happen during development with hot reloading, ' +
+        'but should be fixed in production.'
+      );
+
+      // Initialize fallback if needed
+      if (!globalFallbackState) {
+        globalFallbackState = getInitialState(null);
+      }
+
+      return globalFallbackState;
+    }
+
+    // In production, still throw the error
     throw new Error('useBookingState must be used within a BookingProvider');
   }
+
   return context;
 };
 
 export const useBookingActions = () => {
   const context = useContext(BookingActionsContext);
+
+  // Instead of throwing, use fallback in development
   if (context === undefined) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(
+        '[BookingContext] useBookingActions called outside a BookingProvider. ' +
+        'This may happen during development with hot reloading, ' +
+        'but should be fixed in production.'
+      );
+
+      // Initialize fallback if needed - no-op functions
+      if (!globalFallbackActions) {
+        globalFallbackActions = {
+          setPropertySlug: () => {},
+          setCheckInDate: () => {},
+          setCheckOutDate: () => {},
+          setNumberOfGuests: () => {},
+          setFirstName: () => {},
+          setLastName: () => {},
+          setEmail: () => {},
+          setPhone: () => {},
+          setMessage: () => {},
+          setNumberOfNights: () => {},
+          setTotalPrice: () => {},
+          setAppliedCouponCode: () => {},
+          setSelectedCurrency: () => {},
+          clearBookingData: () => {},
+          clearGuestData: () => {},
+        };
+      }
+
+      return globalFallbackActions;
+    }
+
+    // In production, still throw the error
     throw new Error('useBookingActions must be used within a BookingProvider');
   }
+
   return context;
 };
 

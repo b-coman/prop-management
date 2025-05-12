@@ -684,6 +684,177 @@ The RentalSpot Team
   }
 }
 
+/**
+ * Sends a hold confirmation email to the guest
+ * @param bookingId The ID of the hold booking to send confirmation for
+ * @param recipientEmail Optional: Override recipient email (defaults to guest email)
+ * @returns Success status with additional details
+ */
+export async function sendHoldConfirmationEmail(
+  bookingId: string,
+  recipientEmail?: string
+): Promise<{ success: boolean; messageId?: string; previewUrl?: string; error?: string }> {
+  try {
+    console.log(`[EmailService] Preparing to send hold confirmation for booking ${bookingId}`);
+
+    // Fetch booking data
+    const booking = await getBookingById(bookingId);
+    if (!booking) {
+      console.error(`[EmailService] Hold booking not found with ID: ${bookingId}`);
+      return { success: false, error: 'Hold booking not found' };
+    }
+
+    // Use provided email or get from booking
+    const email = recipientEmail || booking.guestInfo.email;
+    if (!email) {
+      console.error(`[EmailService] No recipient email for hold booking ${bookingId}`);
+      return { success: false, error: 'No recipient email' };
+    }
+
+    // Fetch property data
+    const property = await getPropertyBySlug(booking.propertyId);
+    if (!property) {
+      console.warn(`[EmailService] Property not found for hold booking ${bookingId}`);
+    }
+
+    // Create transporter
+    const transporter = await getTransporter();
+
+    // Format dates for display
+    const checkInDate = formatDate(booking.checkInDate);
+    const checkOutDate = formatDate(booking.checkOutDate);
+
+    // Format hold expiration date
+    const holdUntil = booking.holdUntil ? formatDate(booking.holdUntil) : 'N/A';
+
+    // Format message
+    const message = {
+      from: process.env.EMAIL_FROM || '"RentalSpot" <bookings@rentalspot.com>',
+      to: email,
+      subject: `Dates On Hold - ${property?.name || booking.propertyId}`,
+      text: `
+Dates On Hold Confirmation
+
+Dear ${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''},
+
+Thank you for placing a hold on your selected dates! Your hold is confirmed.
+
+Hold Details:
+------------------
+Hold ID: ${booking.id}
+Property: ${property?.name || booking.propertyId}
+Check-in: ${checkInDate}
+Check-out: ${checkOutDate}
+Hold Expires: ${holdUntil}
+Guests: ${booking.numberOfGuests}
+
+Payment Summary:
+------------------
+Hold fee: ${formatCurrency(booking.holdFee || 0, booking.pricing?.currency || 'EUR')}
+${booking.holdFeeRefundable ? 'This hold fee is refundable when you complete your booking.' : 'This hold fee is non-refundable.'}
+
+Your dates will be held until ${holdUntil}. To complete your booking, please visit the property page before this time.
+
+If you have any questions or need assistance, please don't hesitate to contact us.
+
+Thank you,
+The RentalSpot Team
+      `,
+      html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; }
+    .header { background-color: #3b82f6; color: white; padding: 20px; text-align: center; }
+    .content { padding: 20px; }
+    .hold-details, .payment-details { background-color: #f9fafb; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+    .expiry { background-color: #fef3c7; padding: 15px; margin-bottom: 20px; border-radius: 5px; color: #92400e; }
+    .total { font-weight: bold; font-size: 18px; margin-top: 10px; }
+    .footer { text-align: center; padding: 20px; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+    table { width: 100%; }
+    td { padding: 5px 0; }
+    .right { text-align: right; }
+    .button { display: inline-block; background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Dates On Hold</h1>
+  </div>
+  <div class="content">
+    <p>Dear ${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''},</p>
+    <p>Thank you for placing a hold on your selected dates! Your hold is confirmed.</p>
+
+    <div class="hold-details">
+      <h2>Hold Details</h2>
+      <p><strong>Hold ID:</strong> ${booking.id}</p>
+      <p><strong>Property:</strong> ${property?.name || booking.propertyId}</p>
+      <p><strong>Check-in:</strong> ${checkInDate}</p>
+      <p><strong>Check-out:</strong> ${checkOutDate}</p>
+      <p><strong>Guests:</strong> ${booking.numberOfGuests}</p>
+    </div>
+
+    <div class="expiry">
+      <h2>Hold Expiration</h2>
+      <p><strong>Your hold expires:</strong> ${holdUntil}</p>
+      <p>To complete your booking, please visit the property page before this time.</p>
+    </div>
+
+    <div class="payment-details">
+      <h2>Payment Summary</h2>
+      <table>
+        <tr>
+          <td>Hold fee</td>
+          <td class="right">${formatCurrency(booking.holdFee || 0, booking.pricing?.currency || 'EUR')}</td>
+        </tr>
+        <tr class="total">
+          <td>Total Paid</td>
+          <td class="right">${formatCurrency(booking.holdFee || 0, booking.pricing?.currency || 'EUR')}</td>
+        </tr>
+      </table>
+      <p class="mt-2 text-sm ${booking.holdFeeRefundable ? 'text-green-600' : 'text-gray-500'}">
+        ${booking.holdFeeRefundable ? 'This hold fee is refundable when you complete your booking.' : 'This hold fee is non-refundable.'}
+      </p>
+    </div>
+
+    <p>If you have any questions or need assistance, please don't hesitate to contact us.</p>
+    <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://rentalspot.com'}/properties/${booking.propertyId}" class="button">Complete Your Booking</a>
+
+    <p>Thank you,<br>The RentalSpot Team</p>
+  </div>
+  <div class="footer">
+    <p>This email was sent by RentalSpot.</p>
+    <p>&copy; ${new Date().getFullYear()} RentalSpot. All rights reserved.</p>
+  </div>
+</body>
+</html>
+      `,
+    };
+
+    // Send email
+    console.log(`[EmailService] Sending hold confirmation to ${email}`);
+    const info = await transporter.sendMail(message);
+
+    // For development, log preview URL
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[EmailService] Preview URL: ${nodemailer.getTestMessageUrl(info)}`);
+      return {
+        success: true,
+        messageId: info.messageId,
+        previewUrl: nodemailer.getTestMessageUrl(info) as string
+      };
+    }
+
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('[EmailService] Error sending hold confirmation email:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, error: errorMessage };
+  }
+}
+
 // Helper to get booking by ID for email use
 // This should be imported from bookingService, but including here to avoid circular dependencies
 async function getBookingById(bookingId: string): Promise<Booking | null> {

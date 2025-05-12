@@ -7,7 +7,7 @@ import { db } from "@/lib/firebase";
 import type { Booking, Property } from "@/types"; // Assuming Property type includes holdFeeAmount
 import { sanitizeEmail, sanitizePhone, sanitizeText } from "@/lib/sanitize";
 import { revalidatePath } from "next/cache";
-import { addHours } from 'date-fns'; // For calculating hold expiry
+import { addHours, differenceInDays } from 'date-fns'; // For calculating hold expiry
 
 // Schema for creating an ON-HOLD booking
 const CreateHoldBookingSchema = z.object({
@@ -32,7 +32,7 @@ type CreateHoldBookingInput = z.infer<typeof CreateHoldBookingSchema>;
 
 export async function createHoldBookingAction(
   input: CreateHoldBookingInput
-): Promise<{ bookingId?: string; error?: string }> {
+): Promise<{ bookingId?: string; error?: string; errorType?: string; retry?: boolean }> {
   console.log("[Action createHoldBookingAction] Called with input:", JSON.stringify(input, null, 2));
   const validationResult = CreateHoldBookingSchema.safeParse(input);
 
@@ -58,8 +58,12 @@ export async function createHoldBookingAction(
     const checkOut = new Date(checkOutDate);
     const now = new Date();
     const holdUntil = addHours(now, 24); // Hold expires in 24 hours
+    
+    // Calculate the number of nights
+    const numberOfNights = differenceInDays(checkOut, checkIn);
+    
+    console.log(`[Action createHoldBookingAction] Calculated ${numberOfNights} nights between ${checkIn.toISOString()} and ${checkOut.toISOString()}`);
 
-    // Note: Pricing details are minimal here, as full calculation happens later
     const bookingData = {
       propertyId: propertySlug,
       guestInfo: guestInfo,
@@ -73,28 +77,31 @@ export async function createHoldBookingAction(
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       source: 'website-hold',
-      // Define a minimal pricing object for the hold
+      
+      // Define a pricing object structure for the hold - all accommodation pricing is 0
+      // since this is just a hold, not a full booking yet
       pricing: {
-        baseRate: 0,
-        numberOfNights: 0,
-        cleaningFee: 0,
-        accommodationTotal: 0,
-        subtotal: holdFeeAmount,
-        total: holdFeeAmount,
-        currency: selectedCurrency || 'RON', // Use the user's selected currency from the header dropdown
+        baseRate: 0, // We'll calculate this when converting to a full booking
+        numberOfNights: numberOfNights,
+        cleaningFee: 0, // We'll calculate this when converting to a full booking
+        accommodationTotal: 0, // Will be set when converting to full booking
+        subtotal: 0, // For holds, this should be 0 as it's not a full booking yet
+        total: 0, // For holds, this should be 0 as it's not a full booking yet
+        currency: selectedCurrency || 'RON', // Use the user's selected currency
       },
-      paymentInfo: { // Minimal payment info for the hold
-          amount: holdFeeAmount,
-          status: 'pending', // Pending hold fee payment
-          paidAt: null,
-          stripePaymentIntentId: "", // Empty string instead of undefined
+      // The hold fee amount is stored in the paymentInfo since it's not part of the accommodation cost
+      paymentInfo: {
+        amount: holdFeeAmount, // This is the hold fee amount that will be charged
+        status: 'pending', // Status of the hold fee payment
+        paidAt: null,
+        stripePaymentIntentId: "", // Will be filled by the webhook
       },
       // Add other fields as needed, defaulting to null/undefined/false
       appliedCouponCode: null,
       convertedFromHold: false,
       convertedFromInquiry: null,
-
     };
+    
     console.log("[Action createHoldBookingAction] Prepared Firestore Data:", bookingData);
 
     const docRef = await addDoc(bookingsCollection, bookingData);
@@ -106,9 +113,26 @@ export async function createHoldBookingAction(
   } catch (error) {
     console.error(`❌ [Action createHoldBookingAction] Error creating hold booking:`, error);
     const errorMessage = error instanceof Error ? error.message : String(error);
-     if (errorMessage.includes('PERMISSION_DENIED')) {
-      return { error: 'Permission denied. Could not create hold booking.' };
+    
+    if (errorMessage.includes('PERMISSION_DENIED')) {
+      return { 
+        error: 'Permission denied. Could not create hold booking.',
+        errorType: 'permission_denied',
+        retry: false 
+      };
     }
-    return { error: `Failed to create hold booking: ${errorMessage}` };
+    
+    if (errorMessage.includes('network') || errorMessage.includes('connection')) {
+      return { 
+        error: 'Network error. Please check your connection and try again.',
+        errorType: 'network_error',
+        retry: true 
+      };
+    }
+    
+    return { 
+      error: `Failed to create hold booking: ${errorMessage}`,
+      retry: false
+    };
   }
 }

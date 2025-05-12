@@ -24,7 +24,6 @@ const nextConfig: NextConfig = {
   },
   // Support for multi-page structure and custom domains
   experimental: {
-    allowedOrigins: ["*"],
     allowedDevOrigins: ["*"]
   },
   // External packages that need special handling

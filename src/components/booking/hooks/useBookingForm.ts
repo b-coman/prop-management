@@ -209,6 +209,12 @@ export function useBookingForm(property: Property) {
    */
   const handleHoldDates = async (
     selectedCurrency: string,
+    formData?: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string;
+    },
     e?: React.FormEvent
   ) => {
     if (e) e.preventDefault();
@@ -225,11 +231,28 @@ export function useBookingForm(property: Property) {
       return;
     }
 
-    if (!firstName || !lastName || !email) { // Phone is optional for hold
-      setFormError("Please fill in First Name, Last Name, and Email to hold dates.");
+    // Use form data if provided, otherwise use context values
+    const useFormData = !!formData;
+    const currentFirstName = useFormData ? formData.firstName : firstName;
+    const currentLastName = useFormData ? formData.lastName : lastName;
+    const currentEmail = useFormData ? formData.email : email;
+    const currentPhone = useFormData ? formData.phone : phone;
+
+    // Log validation check
+    console.log('🔍 [CLIENT] Validating hold form data:', {
+      source: useFormData ? 'direct form data' : 'context',
+      firstName: currentFirstName,
+      lastName: currentLastName,
+      email: currentEmail,
+      phone: currentPhone
+    });
+
+    // Check form values, but be more lenient
+    if (!currentFirstName?.trim() || !currentLastName?.trim() || !currentEmail?.trim() || !currentPhone?.trim()) {
+      setFormError("Please fill in all required fields to hold dates.");
       toast({
         title: "Missing Information",
-        description: "Please provide your name and email to continue.",
+        description: "Please provide your name, email and phone number to continue.",
         variant: "destructive",
       });
       return;
@@ -245,10 +268,10 @@ export function useBookingForm(property: Property) {
         checkOutDate: checkOutDate.toISOString(),
         guestCount: numberOfGuests,
         guestInfo: {
-          firstName: sanitizeText(firstName),
-          lastName: sanitizeText(lastName),
-          email: sanitizeEmail(email),
-          phone: phone ? sanitizePhone(phone) : undefined,
+          firstName: sanitizeText(currentFirstName),
+          lastName: sanitizeText(currentLastName),
+          email: sanitizeEmail(currentEmail),
+          phone: currentPhone ? sanitizePhone(currentPhone) : undefined,
         },
         holdFeeAmount: property.holdFeeAmount,
         selectedCurrency: selectedCurrency,
@@ -280,7 +303,7 @@ export function useBookingForm(property: Property) {
         property: property,
         holdBookingId: holdBookingId,
         holdFeeAmount: property.holdFeeAmount,
-        guestEmail: sanitizeEmail(email),
+        guestEmail: sanitizeEmail(currentEmail), // Use the currentEmail which might be from formData
         selectedCurrency: selectedCurrency,
       };
 
