@@ -152,15 +152,16 @@ export function Header({
           ))}
           {/* Pass dynamic text color class to CurrencySwitcher */}
           <CurrencySwitcher className={currencySwitcherClasses} />
-          <Link href={`${basePath}#booking`} passHref>
-            <Button
-              size="sm"
-              variant={buttonVariant}
-              className={cn(buttonExtraClasses)}
-            >
+          <Button
+            size="sm"
+            variant={buttonVariant}
+            className={cn(buttonExtraClasses)}
+            asChild
+          >
+            <Link href={`${basePath}#booking`}>
               Book Now
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </nav>
 
         {/* Mobile Navigation Sheet */}
@@ -203,9 +204,9 @@ export function Header({
                </div>
             </nav>
             <div className="mt-8">
-              <Link href={`${basePath}#booking`} passHref>
-                <Button className="w-full">Book Now</Button>
-              </Link>
+              <Button className="w-full" asChild>
+                <Link href={`${basePath}#booking`}>Book Now</Link>
+              </Button>
             </div>
           </SheetContent>
         </Sheet>

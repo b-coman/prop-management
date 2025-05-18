@@ -54,11 +54,11 @@ export function CallToActionSection({ content }: CallToActionSectionProps) {
           {tc(description)}
         </p>
         {/* Link to the determined target */}
-         <Link href={targetHref} passHref>
-           <Button size="lg" variant="secondary" className="text-primary hover:bg-secondary/90">
+         <Button size="lg" variant="secondary" className="text-primary hover:bg-secondary/90" asChild>
+           <Link href={targetHref}>
              {tc(buttonText)}
-           </Button>
-         </Link>
+           </Link>
+         </Button>
       </div>
     </section>
   );
