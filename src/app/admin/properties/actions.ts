@@ -17,6 +17,7 @@ const propertyActionSchema = z.object({
     description: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
     shortDescription: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
     templateId: z.string().min(1),
+    themeId: z.string().optional(),
     location: z.object({
         address: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
         city: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
@@ -64,7 +65,51 @@ const serializeTimestamp = (timestamp: SerializableTimestamp | undefined | null)
   if (timestamp instanceof Timestamp) return timestamp.toDate().toISOString();
   if (timestamp instanceof Date) return timestamp.toISOString();
   if (typeof timestamp === 'string') return timestamp; // Assume already ISO string
-  return new Date(timestamp).toISOString(); // Try converting number
+  
+  // Handle Firestore-like objects with _seconds and _nanoseconds
+  if (typeof timestamp === 'object' && '_seconds' in timestamp && '_nanoseconds' in timestamp) {
+    try {
+      const seconds = Number(timestamp._seconds);
+      const nanoseconds = Number(timestamp._nanoseconds);
+      if (!isNaN(seconds) && !isNaN(nanoseconds)) {
+        return new Date(seconds * 1000 + nanoseconds / 1000000).toISOString();
+      }
+    } catch (error) {
+      console.error("Error converting Firestore timestamp object:", error);
+      return null;
+    }
+  }
+  
+  // Last resort - try to convert as is
+  try {
+    return new Date(timestamp as any).toISOString();
+  } catch (error) {
+    console.error("Invalid timestamp format:", timestamp);
+    return null;
+  }
+};
+
+// Helper function to recursively serialize timestamps in an object
+const serializeTimestampsInObject = (obj: any): any => {
+  if (!obj || typeof obj !== 'object') return obj;
+  
+  // If it's an array, process each element
+  if (Array.isArray(obj)) {
+    return obj.map(item => serializeTimestampsInObject(item));
+  }
+  
+  // If it's a timestamp-like object
+  if ('_seconds' in obj && '_nanoseconds' in obj) {
+    return serializeTimestamp(obj);
+  }
+  
+  // Process each property of the object
+  const result: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    result[key] = serializeTimestampsInObject(value);
+  }
+  
+  return result;
 };
 
 // Fetch all properties
@@ -74,13 +119,12 @@ export async function fetchProperties(): Promise<Property[]> {
     const querySnapshot = await getDocs(propertiesCollection);
     const properties = querySnapshot.docs.map((doc) => {
       const data = doc.data();
+      // Recursively serialize all timestamps in the data
+      const serializedData = serializeTimestampsInObject(data);
       return {
         id: doc.id,
         slug: doc.id, // Use doc ID as slug
-        ...data,
-        // Serialize Timestamps if they exist
-        createdAt: serializeTimestamp(data.createdAt),
-        updatedAt: serializeTimestamp(data.updatedAt),
+        ...serializedData,
       } as Property;
     });
     return properties;
@@ -139,9 +183,9 @@ export async function updatePropertyAction(
   currentSlug: string, // The slug of the property to update
   values: z.infer<typeof propertyActionSchema>
 ): Promise<{ slug?: string; name?: string; error?: string }> {
-   // Exclude slug from validation for update, as it cannot be changed
-   const updateSchema = propertyActionSchema.omit({ slug: true });
-   const validatedFields = updateSchema.safeParse(values);
+   // Instead of omit, validate directly against propertyActionSchema
+   // and ignore the slug field since we use the currentSlug
+   const validatedFields = propertyActionSchema.safeParse(values);
 
    if (!validatedFields.success) {
      const errorMessages = validatedFields.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
@@ -161,8 +205,9 @@ export async function updatePropertyAction(
     }
 
      // Prepare data for update (excluding slug)
+     const { slug: _, ...dataWithoutSlug } = propertyData;
      const dataToUpdate = {
-         ...propertyData,
+         ...dataWithoutSlug,
          updatedAt: serverTimestamp(),
      };
 

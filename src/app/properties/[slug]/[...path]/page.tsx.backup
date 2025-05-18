@@ -1,0 +1,195 @@
+// src/app/properties/[slug]/[...path]/page.tsx
+import { Suspense } from 'react';
+import { notFound } from 'next/navigation';
+import { collection, doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { PropertyPageRenderer } from '@/components/property/property-page-renderer';
+import { websiteTemplateSchema, propertyOverridesSchema } from '@/lib/overridesSchemas-multipage';
+import { LanguageProvider } from '@/contexts/LanguageContext';
+import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
+
+export const dynamic = 'force-dynamic'; // Ensures the page is always dynamically rendered
+
+// Import the utility function
+import { getPropertyBySlug } from '@/lib/property-utils';
+
+// Alias for backward compatibility
+const getProperty = getPropertyBySlug;
+
+// Function to get website template data
+async function getTemplate(templateId: string) {
+  if (!templateId) return null;
+  const templateRef = doc(db, 'websiteTemplates', templateId);
+  try {
+    const docSnap = await getDoc(templateRef);
+    if (docSnap.exists()) {
+      const data = { id: docSnap.id, ...docSnap.data() };
+      // Serialize timestamps to avoid toJSON method issues
+      const serialized = serializeTimestamps(data);
+      return JSON.parse(JSON.stringify(serialized));
+    } else {
+      console.warn(`[getTemplate] Template document not found: websiteTemplates/${templateId}`);
+      return null;
+    }
+  } catch (error) {
+    console.error(`❌ Error fetching website template ${templateId}:`, error);
+    return null;
+  }
+}
+
+// Function to get property overrides data
+async function getPropertyOverrides(slug: string) {
+  if (!slug) {
+    console.warn("[getPropertyOverrides] Attempted to fetch overrides with empty slug.");
+    return null;
+  }
+  const overridesRef = doc(db, 'propertyOverrides', slug);
+  try {
+    const docSnap = await getDoc(overridesRef);
+    if (docSnap.exists()) {
+      const data = { id: docSnap.id, ...docSnap.data() };
+      // Serialize timestamps to avoid toJSON method issues
+      const serialized = serializeTimestamps(data);
+      return JSON.parse(JSON.stringify(serialized));
+    } else {
+      console.warn(`[getPropertyOverrides] No overrides document found for: propertyOverrides/${slug}`);
+      return null;
+    }
+  } catch (error) {
+    console.error(`❌ Error fetching property overrides for ${slug}:`, error);
+    return null;
+  }
+}
+
+// Helper function to serialize timestamps in any object
+const serializeTimestamps = (obj: any): any => {
+  if (!obj || typeof obj !== 'object') return obj;
+  
+  // Handle arrays
+  if (Array.isArray(obj)) {
+    return obj.map(item => serializeTimestamps(item));
+  }
+  
+  // Handle dates and objects with toJSON method
+  if (obj instanceof Date) {
+    return obj.toISOString();
+  }
+  
+  // Handle Firestore Timestamp objects
+  if (obj.constructor?.name === 'Timestamp' || obj._seconds !== undefined) {
+    return new Date(obj.seconds * 1000).toISOString();
+  }
+  
+  // Special handling for objects with toJSON method (like Firestore timestamps)
+  if (typeof obj.toJSON === 'function') {
+    return obj.toJSON();
+  }
+  
+  // Recursively handle nested objects
+  const result: any = {};
+  for (const key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      result[key] = serializeTimestamps(obj[key]);
+    }
+  }
+  
+  return result;
+};
+
+interface PropertyDynamicPageProps {
+  params: {
+    slug: string;
+    path: string[];
+  };
+}
+
+export default async function PropertyDynamicPage({ params }: PropertyDynamicPageProps) {
+  // Await the params object to ensure it's fully resolved
+  const resolvedParams = await Promise.resolve(params);
+  const { slug, path } = resolvedParams;
+
+  // Extract language from path if present
+  let language = DEFAULT_LANGUAGE;
+  let actualPath = path || [];
+  
+  // Check if the first path segment is a supported language
+  if (actualPath.length > 0 && SUPPORTED_LANGUAGES.includes(actualPath[0])) {
+    language = actualPath[0];
+    actualPath = actualPath.slice(1); // Remove language from path
+  }
+
+  // Fetch property data
+  const property = await getProperty(slug);
+  if (!property) {
+    return notFound();
+  }
+
+  // Fetch template
+  const template = await getTemplate(property.templateId);
+  if (!template) {
+    return notFound();
+  }
+
+  // Fetch property overrides
+  const overrides = await getPropertyOverrides(slug);
+  if (!overrides) {
+    return notFound();
+  }
+
+  // Determine which page to render based on the path
+  const pathString = actualPath.join('/');
+
+  // Find the page in the template that matches this path
+  let pageName = 'homepage'; // Default to homepage if no match found
+
+  // Check if the template has a pages structure
+  if (!template.pages) {
+    console.error(`[PropertyDynamicPage] Template ${template.id} does not have a pages structure.`);
+    return notFound();
+  }
+
+  // Look through all pages in the template to find a matching path
+  // First try exact match
+  for (const [name, page] of Object.entries(template.pages)) {
+    if (page.path === `/${pathString}`) {
+      pageName = name;
+      break;
+    }
+  }
+
+  // If no exact match is found, use our fallback mapping
+  if (pageName === 'homepage' && pathString) {
+    // Fallback mapping for common paths
+    if (pathString === 'details') {
+      pageName = 'details';
+    } else if (pathString === 'location') {
+      pageName = 'location';
+    } else if (pathString === 'gallery') {
+      pageName = 'gallery';
+    } else if (pathString === 'booking') {
+      pageName = 'booking';
+    }
+  }
+
+  // Check if the page is visible in overrides
+  if (overrides.visiblePages && !overrides.visiblePages.includes(pageName)) {
+    console.log(`[PropertyDynamicPage] Page "${pageName}" is not visible in overrides for property "${slug}".`);
+    return notFound();
+  }
+
+  return (
+    <LanguageProvider initialLanguage={language}>
+      <Suspense fallback={<div>Loading property details...</div>}>
+        <PropertyPageRenderer
+          template={template}
+          overrides={overrides}
+          propertyName={typeof property.name === 'string' ? property.name : (property.name[language] || property.name.en || property.name.ro || 'Property')}
+          propertySlug={slug}
+          pageName={pageName}
+          themeId={property.themeId}
+          language={language}
+        />
+      </Suspense>
+    </LanguageProvider>
+  );
+}

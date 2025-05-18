@@ -2,18 +2,18 @@
 "use client";
 
 import Image from 'next/image';
-import { Star } from 'lucide-react';
-import { InitialBookingForm } from '@/components/booking/initial-booking-form';
-import type { Property, CurrencyCode } from '@/types';
-import { useCurrency } from '@/contexts/CurrencyContext';
+import type { Property } from '@/types';
 import { cn } from '@/lib/utils';
-import { useEffect, useState } from 'react'; // Import useEffect and useState
+import { useEffect, useState } from 'react';
+import { setupHeroContentAdjustment } from './hero-helper';
+import { BookingContainer } from '@/components/booking';
+import { useLanguage } from '@/hooks/useLanguage';
 
 export interface HeroData {
   backgroundImage?: string | null;
   'data-ai-hint'?: string;
-  title?: string | null;
-  subtitle?: string | null;
+  title?: string | { [key: string]: string } | null;
+  subtitle?: string | { [key: string]: string } | null;
   price?: number | null; // Advertised rate from property's base currency
   showRating?: boolean;
   showBookingForm?: boolean;
@@ -26,28 +26,45 @@ export interface HeroData {
 
 interface HeroSectionProps {
   content: HeroData | any; // Accept content instead of heroData to match other components
+  language?: string; // Add language prop
 }
 
-export function HeroSection({ content }: HeroSectionProps) {
+export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
+  const { tc, t } = useLanguage();
+  
   // Ensure content exists with defaults
   if (!content) {
-    console.warn("HeroSection received invalid content");
+    console.warn("[HeroSection] ⚠️ Received invalid content");
     return (
       <section className="relative h-[70vh] min-h-[500px] md:h-[80vh] md:min-h-[600px] w-full flex text-white">
         <div className="absolute inset-0 bg-black/80"></div>
         <div className="container mx-auto px-4 flex items-center justify-center">
-          <h1 className="text-3xl">Welcome</h1>
+          <h1 className="text-3xl">{t('common.welcome')}</h1>
         </div>
       </section>
     );
   }
 
-  const { formatPrice, selectedCurrency, baseCurrencyForProperty, convertToSelectedCurrency, ratesLoading } = useCurrency();
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
     setHasMounted(true);
-  }, []);
+    
+    // Only run the hero content adjustment when the component actually has the booking form
+    let cleanup: (() => void) | undefined;
+    
+    // Small delay to ensure all components are rendered
+    const timer = setTimeout(() => {
+      cleanup = setupHeroContentAdjustment();
+    }, 100);
+    
+    return () => {
+      clearTimeout(timer);
+      if (cleanup) {
+        cleanup();
+      }
+    };
+  }, []); // Empty dependency array ensures this only runs once
 
   // Extract properties with defaults to prevent destructuring errors
   const {
@@ -68,10 +85,13 @@ export function HeroSection({ content }: HeroSectionProps) {
     console.warn("HeroSection: Missing property data for booking form. Using default values.");
   }
 
+  // Extract property slug from bookingFormProperty
+  const propertySlug = bookingFormProperty?.slug || 'default';
+
   const property = bookingFormProperty || {
     id: propertySlug || 'default',
     slug: propertySlug || 'default',
-    name: title || 'Property',
+    name: tc(title, language) || 'Property',
     baseCurrency: 'EUR',
     baseRate: price || 150, // Use price from content or default
     advertisedRate: price || 150,
@@ -81,45 +101,23 @@ export function HeroSection({ content }: HeroSectionProps) {
     maxGuests: 6
   };
 
-  const propertyBaseCcy = baseCurrencyForProperty(property.baseCurrency || 'EUR');
-
-  // Convert the hero's advertised price to the selected display currency
-  const displayPriceAmount = price !== null && price !== undefined && !ratesLoading && hasMounted
-    ? convertToSelectedCurrency(price, propertyBaseCcy)
-    : price; // Fallback to base price if not mounted or rates loading
-
-  const currencyToDisplay = !hasMounted || ratesLoading ? propertyBaseCcy : selectedCurrency;
-
-  const formattedDisplayPrice = displayPriceAmount !== null && displayPriceAmount !== undefined
-    ? formatPrice(displayPriceAmount, currencyToDisplay)
-    : null;
-
-  const rating = property.ratings?.average;
-  const reviewsCount = property.ratings?.count;
-
-  const formPositionClasses = {
-    center: 'items-center justify-center',
-    top: 'items-start justify-center',
-    bottom: 'items-end justify-center',
-    'top-left': 'items-start justify-start',
-    'top-right': 'items-start justify-end',
-    'bottom-left': 'items-end justify-start',
-    'bottom-right': 'items-end justify-end',
-  };
-
-  const currentPositionClass = bookingForm?.position ? formPositionClasses[bookingForm.position] : formPositionClasses.bottom;
-
-  const formWrapperClasses = cn(
-    'bg-background/80 backdrop-blur-sm p-6 md:p-8 rounded-xl shadow-2xl w-full',
-     bookingForm?.size === 'large' ? 'max-w-3xl' : 'max-w-md'
-  );
-
+  // Extract form position and size for the BookingContainer
+  const formPosition = bookingForm?.position || 'bottom';
+  const formSize = bookingForm?.size || 'compressed';
+  
+  
   return (
-    <section className="relative h-[70vh] min-h-[500px] md:h-[80vh] md:min-h-[600px] w-full flex text-white" id="hero">
+    <section 
+      className="relative h-[70vh] min-h-[600px] md:h-[80vh] md:min-h-[700px] w-full flex text-white has-transparent-header slides-under-header" 
+      id="hero"
+      data-form-position={formPosition} // Pass position data for JavaScript positioning
+      data-form-size={formSize} // Pass size data for future use
+      style={{ position: 'relative', overflow: 'visible' }} // Ensure relative positioning for absolute children
+    >
       {backgroundImage && (
         <Image
           src={backgroundImage}
-          alt={title || property.name || 'Hero background image'}
+          alt={tc(title, language) || property.name || t('common.heroBackgroundImage')}
           fill
           style={{ objectFit: 'cover' }}
           priority
@@ -129,48 +127,54 @@ export function HeroSection({ content }: HeroSectionProps) {
       )}
       <div className="absolute inset-0 bg-black/40 -z-10"></div>
 
-      <div className={`container mx-auto px-4 flex flex-col h-full w-full ${currentPositionClass} py-8 md:py-12`}>
-        <div className="text-center mb-8 max-w-2xl mx-auto">
-          {title && <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 drop-shadow-md">{title}</h1>}
-          {subtitle && <p className="text-lg md:text-xl mb-6 drop-shadow-sm">{subtitle}</p>}
+      {/* 
+        Main container for hero content
+        - Uses flex column layout (items stacked vertically)
+        - Items are horizontally centered (items-center)
+        - Vertical alignment starts from top (justify-start)
+        - This layout works with our JS positioning in hero-helper.ts
+      */}
+      <div className="container mx-auto px-4 flex flex-col h-full w-full justify-start items-center py-8 md:py-12 relative" style={{ position: 'relative', overflow: 'visible' }}>
+        <div className="text-center max-w-2xl mx-auto opacity-0 transition-opacity duration-300" ref={(el) => {
+          // Initial invisible state to prevent flicker
+          if (el) setTimeout(() => el.classList.remove('opacity-0'), 350);
+        }}> {/* Initially invisible, fades in after positioning */}
+          {title && <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 drop-shadow-md">{tc(title, language)}</h1>}
+          {subtitle && <p className="text-lg md:text-xl mb-6 drop-shadow-sm">{tc(subtitle, language)}</p>}
         </div>
 
-        {showBookingForm && (
-           <div className={formWrapperClasses}>
-             <div className="flex flex-col md:flex-row items-center justify-between mb-4 gap-4">
-                {hasMounted && formattedDisplayPrice !== null ? (
-                  <div className='text-center md:text-left'>
-                    <p className="text-2xl md:text-3xl font-bold text-foreground">
-                      {formattedDisplayPrice}
-                      <span className="text-base font-normal text-muted-foreground">/night</span>
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {property.advertisedRateType || "special deal / starting with"}
-                    </p>
-                  </div>
-                ) : (
-                   <div className='text-center md:text-left'>
-                     <p className="text-2xl md:text-3xl font-bold text-foreground">
-                       {/* Placeholder or base currency price before hydration */}
-                       {property.baseRate ? formatPrice(property.baseRate, propertyBaseCcy) : "Loading price..."}
-                       <span className="text-base font-normal text-muted-foreground">/night</span>
-                     </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                       {property.advertisedRateType || "special deal / starting with"}
-                     </p>
-                   </div>
-                )}
-                {showRating && rating && reviewsCount && (
-                  <div className="flex items-center gap-1 text-foreground">
-                    <Star className="h-5 w-5 text-primary fill-primary" />
-                    <span className="font-semibold">{rating.toFixed(1)}</span>
-                    <span className="text-sm text-muted-foreground">({reviewsCount} reviews)</span>
-                  </div>
-                )}
-             </div>
-            <InitialBookingForm property={property} size={bookingForm?.size || 'compressed'} />
-          </div>
-        )}
+        {/* Check if booking form should be displayed */}
+        {showBookingForm ? (
+              <div className="transition-opacity duration-300 opacity-0" 
+                ref={(el) => {
+                  // Start invisible and fade in after positioning for smoother appearance
+                  if (el) {
+                    setTimeout(() => {
+                      el.classList.remove('opacity-0');
+                      el.style.opacity = '1';
+                    }, 400);
+                  }
+                }}
+                style={{ 
+                  zIndex: 10,
+                  position: 'absolute',
+                  bottom: '20px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: formSize === 'large' ? '840px' : 'auto',
+                  maxWidth: '90%'
+                }} // Apply positioning and size based on configuration
+              >
+                <BookingContainer 
+                  property={property}
+                  position={formPosition}
+                  size={formSize}
+                  showRating={showRating}
+                  variant="embedded"
+                  className="min-w-[320px]" // Ensure minimum width for better display
+                />
+              </div>
+        ) : null}
       </div>
     </section>
   );

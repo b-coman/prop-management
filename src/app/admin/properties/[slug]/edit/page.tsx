@@ -2,7 +2,7 @@
 import { notFound } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PropertyForm } from '../../_components/property-form'; // Reusable form component
-import { getPropertyBySlug } from '@/app/properties/[slug]/page'; // Reuse existing fetch function
+import { getPropertyBySlug } from '@/lib/property-utils'; // Import utility function
 
 interface EditPropertyPageProps {
   params: { slug: string };
@@ -11,21 +11,15 @@ interface EditPropertyPageProps {
 export const dynamic = 'force-dynamic'; // Ensure fresh data for editing
 
 export default async function EditPropertyPage({ params }: EditPropertyPageProps) {
-  const { slug } = params;
+  // Await the params object to ensure it's fully resolved
+  const resolvedParams = await Promise.resolve(params);
+  const { slug } = resolvedParams;
+  // getPropertyBySlug now automatically serializes timestamps
   const property = await getPropertyBySlug(slug);
 
   if (!property) {
     notFound();
   }
-
-  // Convert Firestore Timestamps/SerializableTimestamps to Date objects for the form if needed
-  // (Assuming PropertyForm expects Date objects for date fields)
-  // Example:
-  // const initialDataForForm = {
-  //   ...property,
-  //   createdAt: property.createdAt instanceof Timestamp ? property.createdAt.toDate() : property.createdAt,
-  //   updatedAt: property.updatedAt instanceof Timestamp ? property.updatedAt.toDate() : property.updatedAt,
-  // };
 
   return (
     <div className="container mx-auto py-10">
@@ -37,7 +31,7 @@ export default async function EditPropertyPage({ params }: EditPropertyPageProps
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Pass mode='edit' and the fetched property data */}
+          {/* Pass mode='edit' and the property data (timestamps are already serialized) */}
           <PropertyForm mode="edit" initialData={property} />
         </CardContent>
       </Card>

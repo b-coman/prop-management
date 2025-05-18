@@ -1,0 +1,13 @@
+{
+  "id": "traditional-fireplace",
+  "title": {
+    "en": "Traditional Fireplace",
+    "ro": "Șemineu Tradițional"
+  },
+  "description": {
+    "en": "Cozy up by the authentic Romanian fireplace during cold evenings.",
+    "ro": "Cozy up by the authentic Romanian fireplace during cold evenings."
+  },
+  "icon": "firepit",
+  "order": 0
+}

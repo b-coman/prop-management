@@ -5,6 +5,7 @@ import { DistancesListBlock } from '@/lib/overridesSchemas-multipage';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card } from '@/components/ui/card';
 import { Clock, MapPin } from 'lucide-react';
+import { useLanguage } from '@/hooks/useLanguage';
 
 interface DistancesListProps {
   content: DistancesListBlock;
@@ -12,11 +13,12 @@ interface DistancesListProps {
 
 export function DistancesList({ content }: DistancesListProps) {
   const { title, distances } = content;
+  const { tc } = useLanguage();
 
   return (
     <section className="py-16 bg-background">
       <div className="container mx-auto px-4">
-        <h2 className="text-3xl font-bold text-center mb-12">{title}</h2>
+        <h2 className="text-3xl font-bold text-center mb-12">{tc(title)}</h2>
         
         <Card className="overflow-hidden max-w-3xl mx-auto">
           <Table>

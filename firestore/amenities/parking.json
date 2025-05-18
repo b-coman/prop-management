@@ -1,0 +1,8 @@
+{
+  "id": "parking",
+  "icon": "Car",
+  "name": {
+    "en": "Parking",
+    "ro": "Parcare"
+  }
+}

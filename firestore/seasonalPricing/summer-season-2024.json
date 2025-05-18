@@ -1,0 +1,25 @@
+{
+  "id": "summer-season-2024",
+  "propertyId": "prahova-mountain-chalet",
+  "name": "Summer Season 2024",
+  "seasonType": "medium",
+  "startDate": "2024-06-15",
+  "endDate": "2024-08-31",
+  "priceMultiplier": 1.3,
+  "minimumStay": 2,
+  "enabled": true,
+  "createdAt": {
+    "__type": "timestamp",
+    "value": {
+      "_seconds": 1714583282,
+      "_nanoseconds": 0
+    }
+  },
+  "updatedAt": {
+    "__type": "timestamp",
+    "value": {
+      "_seconds": 1714583282,
+      "_nanoseconds": 0
+    }
+  }
+}

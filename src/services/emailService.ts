@@ -4,6 +4,13 @@ import nodemailer from 'nodemailer';
 import { format } from 'date-fns';
 import type { Booking, Property, Inquiry } from '@/types';
 import { getPropertyBySlug } from '@/lib/property-utils';
+import {
+  createBookingConfirmationTemplate,
+  createHoldConfirmationTemplate,  
+  createInquiryConfirmationTemplate,
+  createInquiryResponseTemplate,
+  createBookingCancellationTemplate
+} from './emailTemplates';
 
 // Development transporter for testing - uses Ethereal
 let devTransporter: nodemailer.Transporter | null = null;
@@ -116,117 +123,36 @@ export async function sendBookingConfirmationEmail(
     const checkInDate = formatDate(booking.checkInDate);
     const checkOutDate = formatDate(booking.checkOutDate);
     
+    // Create bilingual email content
+    const { text, html } = createBookingConfirmationTemplate({
+      guestName: `${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''}`.trim(),
+      bookingId: booking.id,
+      propertyName: property?.name || booking.propertyId,
+      checkInDate,
+      checkOutDate,
+      checkInTime: property?.checkInTime,
+      checkOutTime: property?.checkOutTime,
+      numberOfGuests: booking.numberOfGuests,
+      numberOfNights: booking.pricing.numberOfNights,
+      baseAmount: formatCurrency(booking.pricing.baseRate * booking.pricing.numberOfNights, booking.pricing.currency),
+      cleaningFee: formatCurrency(booking.pricing.cleaningFee, booking.pricing.currency),
+      extraGuestFee: booking.pricing.extraGuestFee ? formatCurrency(booking.pricing.extraGuestFee, booking.pricing.currency) : undefined,
+      totalAmount: formatCurrency(booking.pricing.total, booking.pricing.currency),
+      currency: booking.pricing.currency,
+      cancellationPolicy: property?.cancellationPolicy,
+      propertyAddress: property?.location ? `${property.location.address}, ${property.location.city}, ${property.location.state}, ${property.location.country}` : undefined,
+      hostName: property?.hostInfo?.name,
+      hostPhone: property?.hostInfo?.phone,
+      specialRequests: booking.specialRequests
+    });
+    
     // Format message
     const message = {
       from: process.env.EMAIL_FROM || '"RentalSpot" <bookings@rentalspot.com>',
       to: email,
-      subject: `Booking Confirmation - ${property?.name || booking.propertyId}`,
-      text: `
-Booking Confirmation
-
-Dear ${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''},
-
-Thank you for your booking! Your reservation is confirmed.
-
-Booking Details:
-------------------
-Booking ID: ${booking.id}
-Property: ${property?.name || booking.propertyId}
-Check-in: ${checkInDate}${property?.checkInTime ? ` (After ${property.checkInTime})` : ''}
-Check-out: ${checkOutDate}${property?.checkOutTime ? ` (Before ${property.checkOutTime})` : ''}
-Guests: ${booking.numberOfGuests}
-
-Payment Summary:
-------------------
-${booking.pricing.numberOfNights} nights: ${formatCurrency(booking.pricing.baseRate * booking.pricing.numberOfNights, booking.pricing.currency)}
-Cleaning fee: ${formatCurrency(booking.pricing.cleaningFee, booking.pricing.currency)}
-${booking.pricing.extraGuestFee ? `Extra guest fee: ${formatCurrency(booking.pricing.extraGuestFee, booking.pricing.currency)}\n` : ''}
-${booking.pricing.taxes ? `Taxes: ${formatCurrency(booking.pricing.taxes, booking.pricing.currency)}\n` : ''}
-${booking.pricing.discountAmount ? `Discount: -${formatCurrency(booking.pricing.discountAmount, booking.pricing.currency)}\n` : ''}
-Total: ${formatCurrency(booking.pricing.total, booking.pricing.currency)}
-
-If you have any questions or need assistance, please don't hesitate to contact us.
-
-Thank you,
-The RentalSpot Team
-      `,
-      html: `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; }
-    .header { background-color: #4f46e5; color: white; padding: 20px; text-align: center; }
-    .content { padding: 20px; }
-    .booking-details, .payment-details { background-color: #f9fafb; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
-    .total { font-weight: bold; font-size: 18px; margin-top: 10px; }
-    .footer { text-align: center; padding: 20px; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
-    table { width: 100%; }
-    td { padding: 5px 0; }
-    .right { text-align: right; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>Booking Confirmation</h1>
-  </div>
-  <div class="content">
-    <p>Dear ${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''},</p>
-    <p>Thank you for your booking! Your reservation is confirmed.</p>
-    
-    <div class="booking-details">
-      <h2>Booking Details</h2>
-      <p><strong>Booking ID:</strong> ${booking.id}</p>
-      <p><strong>Property:</strong> ${property?.name || booking.propertyId}</p>
-      <p><strong>Check-in:</strong> ${checkInDate}${property?.checkInTime ? ` (After ${property.checkInTime})` : ''}</p>
-      <p><strong>Check-out:</strong> ${checkOutDate}${property?.checkOutTime ? ` (Before ${property.checkOutTime})` : ''}</p>
-      <p><strong>Guests:</strong> ${booking.numberOfGuests}</p>
-    </div>
-    
-    <div class="payment-details">
-      <h2>Payment Summary</h2>
-      <table>
-        <tr>
-          <td>${booking.pricing.numberOfNights} nights</td>
-          <td class="right">${formatCurrency(booking.pricing.baseRate * booking.pricing.numberOfNights, booking.pricing.currency)}</td>
-        </tr>
-        <tr>
-          <td>Cleaning fee</td>
-          <td class="right">${formatCurrency(booking.pricing.cleaningFee, booking.pricing.currency)}</td>
-        </tr>
-        ${booking.pricing.extraGuestFee ? `
-        <tr>
-          <td>Extra guest fee</td>
-          <td class="right">${formatCurrency(booking.pricing.extraGuestFee, booking.pricing.currency)}</td>
-        </tr>` : ''}
-        ${booking.pricing.taxes ? `
-        <tr>
-          <td>Taxes</td>
-          <td class="right">${formatCurrency(booking.pricing.taxes, booking.pricing.currency)}</td>
-        </tr>` : ''}
-        ${booking.pricing.discountAmount ? `
-        <tr>
-          <td>Discount</td>
-          <td class="right">-${formatCurrency(booking.pricing.discountAmount, booking.pricing.currency)}</td>
-        </tr>` : ''}
-        <tr class="total">
-          <td>Total</td>
-          <td class="right">${formatCurrency(booking.pricing.total, booking.pricing.currency)}</td>
-        </tr>
-      </table>
-    </div>
-    
-    <p>If you have any questions or need assistance, please don't hesitate to contact us.</p>
-    <p>Thank you,<br>The RentalSpot Team</p>
-  </div>
-  <div class="footer">
-    <p>This email was sent by RentalSpot.</p>
-    <p>&copy; ${new Date().getFullYear()} RentalSpot. All rights reserved.</p>
-  </div>
-</body>
-</html>
-      `,
+      subject: `Booking Confirmation | Confirmare Rezervare - ${property?.name || booking.propertyId}`,
+      text,
+      html
     };
     
     // Send email
@@ -452,80 +378,21 @@ export async function sendInquiryConfirmationEmail(
     const checkInDate = formatDate(inquiry.checkIn);
     const checkOutDate = formatDate(inquiry.checkOut);
     
+    // Create bilingual email content
+    const { text, html } = createInquiryConfirmationTemplate({
+      guestName: `${inquiry.guestInfo.firstName} ${inquiry.guestInfo.lastName || ''}`.trim(),
+      inquiryId: inquiry.id,
+      propertyName: property?.name || inquiry.propertySlug,
+      message: inquiry.message
+    });
+    
     // Format message
     const message = {
       from: process.env.EMAIL_FROM || '"RentalSpot" <inquiries@rentalspot.com>',
       to: recipientEmail,
-      subject: `Inquiry Received - ${property?.name || inquiry.propertySlug}`,
-      text: `
-Inquiry Confirmation
-
-Dear ${inquiry.guestInfo.firstName} ${inquiry.guestInfo.lastName || ''},
-
-Thank you for your inquiry about ${property?.name || inquiry.propertySlug}!
-
-Inquiry Details:
-------------------
-Inquiry ID: ${inquiry.id}
-Property: ${property?.name || inquiry.propertySlug}
-Check-in: ${checkInDate}
-Check-out: ${checkOutDate}
-Guests: ${inquiry.guestCount}
-
-Your Message:
-------------------
-${inquiry.message}
-
-We will review your inquiry and get back to you as soon as possible.
-
-Thank you,
-The RentalSpot Team
-      `,
-      html: `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; }
-    .header { background-color: #4f46e5; color: white; padding: 20px; text-align: center; }
-    .content { padding: 20px; }
-    .inquiry-details, .message-details { background-color: #f9fafb; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
-    .footer { text-align: center; padding: 20px; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>Inquiry Received</h1>
-  </div>
-  <div class="content">
-    <p>Dear ${inquiry.guestInfo.firstName} ${inquiry.guestInfo.lastName || ''},</p>
-    <p>Thank you for your inquiry about ${property?.name || inquiry.propertySlug}!</p>
-    
-    <div class="inquiry-details">
-      <h2>Inquiry Details</h2>
-      <p><strong>Inquiry ID:</strong> ${inquiry.id}</p>
-      <p><strong>Property:</strong> ${property?.name || inquiry.propertySlug}</p>
-      <p><strong>Check-in:</strong> ${checkInDate}</p>
-      <p><strong>Check-out:</strong> ${checkOutDate}</p>
-      <p><strong>Guests:</strong> ${inquiry.guestCount}</p>
-    </div>
-    
-    <div class="message-details">
-      <h2>Your Message</h2>
-      <p>${inquiry.message}</p>
-    </div>
-    
-    <p>We will review your inquiry and get back to you as soon as possible.</p>
-    <p>Thank you,<br>The RentalSpot Team</p>
-  </div>
-  <div class="footer">
-    <p>This email was sent by RentalSpot.</p>
-    <p>&copy; ${new Date().getFullYear()} RentalSpot. All rights reserved.</p>
-  </div>
-</body>
-</html>
-      `,
+      subject: `Inquiry Confirmation | Confirmare Solicitare - ${property?.name || inquiry.propertySlug}`,
+      text,
+      html
     };
     
     // Send email
@@ -727,110 +594,26 @@ export async function sendHoldConfirmationEmail(
     // Format hold expiration date
     const holdUntil = booking.holdUntil ? formatDate(booking.holdUntil) : 'N/A';
 
+    // Create bilingual email content
+    const { text, html } = createHoldConfirmationTemplate({
+      guestName: `${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''}`.trim(),
+      holdId: booking.id,
+      propertyName: property?.name || booking.propertyId,
+      checkInDate,
+      checkOutDate,
+      numberOfGuests: booking.numberOfGuests,
+      expirationTime: holdUntil,
+      estimatedTotal: formatCurrency(booking.holdFee || 0, booking.pricing?.currency || 'EUR'),
+      currency: booking.pricing?.currency || 'EUR'
+    });
+
     // Format message
     const message = {
       from: process.env.EMAIL_FROM || '"RentalSpot" <bookings@rentalspot.com>',
       to: email,
-      subject: `Dates On Hold - ${property?.name || booking.propertyId}`,
-      text: `
-Dates On Hold Confirmation
-
-Dear ${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''},
-
-Thank you for placing a hold on your selected dates! Your hold is confirmed.
-
-Hold Details:
-------------------
-Hold ID: ${booking.id}
-Property: ${property?.name || booking.propertyId}
-Check-in: ${checkInDate}
-Check-out: ${checkOutDate}
-Hold Expires: ${holdUntil}
-Guests: ${booking.numberOfGuests}
-
-Payment Summary:
-------------------
-Hold fee: ${formatCurrency(booking.holdFee || 0, booking.pricing?.currency || 'EUR')}
-${booking.holdFeeRefundable ? 'This hold fee is refundable when you complete your booking.' : 'This hold fee is non-refundable.'}
-
-Your dates will be held until ${holdUntil}. To complete your booking, please visit the property page before this time.
-
-If you have any questions or need assistance, please don't hesitate to contact us.
-
-Thank you,
-The RentalSpot Team
-      `,
-      html: `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; }
-    .header { background-color: #3b82f6; color: white; padding: 20px; text-align: center; }
-    .content { padding: 20px; }
-    .hold-details, .payment-details { background-color: #f9fafb; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
-    .expiry { background-color: #fef3c7; padding: 15px; margin-bottom: 20px; border-radius: 5px; color: #92400e; }
-    .total { font-weight: bold; font-size: 18px; margin-top: 10px; }
-    .footer { text-align: center; padding: 20px; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
-    table { width: 100%; }
-    td { padding: 5px 0; }
-    .right { text-align: right; }
-    .button { display: inline-block; background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>Dates On Hold</h1>
-  </div>
-  <div class="content">
-    <p>Dear ${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''},</p>
-    <p>Thank you for placing a hold on your selected dates! Your hold is confirmed.</p>
-
-    <div class="hold-details">
-      <h2>Hold Details</h2>
-      <p><strong>Hold ID:</strong> ${booking.id}</p>
-      <p><strong>Property:</strong> ${property?.name || booking.propertyId}</p>
-      <p><strong>Check-in:</strong> ${checkInDate}</p>
-      <p><strong>Check-out:</strong> ${checkOutDate}</p>
-      <p><strong>Guests:</strong> ${booking.numberOfGuests}</p>
-    </div>
-
-    <div class="expiry">
-      <h2>Hold Expiration</h2>
-      <p><strong>Your hold expires:</strong> ${holdUntil}</p>
-      <p>To complete your booking, please visit the property page before this time.</p>
-    </div>
-
-    <div class="payment-details">
-      <h2>Payment Summary</h2>
-      <table>
-        <tr>
-          <td>Hold fee</td>
-          <td class="right">${formatCurrency(booking.holdFee || 0, booking.pricing?.currency || 'EUR')}</td>
-        </tr>
-        <tr class="total">
-          <td>Total Paid</td>
-          <td class="right">${formatCurrency(booking.holdFee || 0, booking.pricing?.currency || 'EUR')}</td>
-        </tr>
-      </table>
-      <p class="mt-2 text-sm ${booking.holdFeeRefundable ? 'text-green-600' : 'text-gray-500'}">
-        ${booking.holdFeeRefundable ? 'This hold fee is refundable when you complete your booking.' : 'This hold fee is non-refundable.'}
-      </p>
-    </div>
-
-    <p>If you have any questions or need assistance, please don't hesitate to contact us.</p>
-    <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://rentalspot.com'}/properties/${booking.propertyId}" class="button">Complete Your Booking</a>
-
-    <p>Thank you,<br>The RentalSpot Team</p>
-  </div>
-  <div class="footer">
-    <p>This email was sent by RentalSpot.</p>
-    <p>&copy; ${new Date().getFullYear()} RentalSpot. All rights reserved.</p>
-  </div>
-</body>
-</html>
-      `,
+      subject: `Hold Confirmation | Confirmare Rezervare Temporară - ${property?.name || booking.propertyId}`,
+      text,
+      html
     };
 
     // Send email
@@ -850,6 +633,158 @@ The RentalSpot Team
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error('[EmailService] Error sending hold confirmation email:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
+ * Sends an inquiry response email to the guest
+ */
+export async function sendInquiryResponseEmail(
+  inquiryId: string,
+  responseMessage: string,
+  recipientEmail: string
+): Promise<{ success: boolean; messageId?: string; previewUrl?: string; error?: string }> {
+  try {
+    console.log(`[EmailService] Preparing to send inquiry response for inquiry ${inquiryId}`);
+    
+    // Get inquiry data  
+    const { getInquiryById } = await import('./inquiryService');
+    const inquiry = await getInquiryById(inquiryId);
+    if (!inquiry) {
+      console.error(`[EmailService] Inquiry not found with ID: ${inquiryId}`);
+      return { success: false, error: 'Inquiry not found' };
+    }
+    
+    // Fetch property data
+    const property = await getPropertyBySlug(inquiry.propertySlug);
+    
+    // Create transporter
+    const transporter = await getTransporter();
+    
+    // Create bilingual email content
+    const { text, html } = createInquiryResponseTemplate({
+      guestName: `${inquiry.guestInfo.firstName} ${inquiry.guestInfo.lastName || ''}`.trim(),
+      inquiryId: inquiry.id,
+      propertyName: property?.name || inquiry.propertySlug,
+      message: inquiry.message,
+      responseMessage,
+      hostName: property?.hostInfo?.name
+    });
+    
+    // Format message
+    const message = {
+      from: process.env.EMAIL_FROM || '"RentalSpot" <inquiries@rentalspot.com>',
+      to: recipientEmail,
+      subject: `Response to Your Inquiry | Răspuns la Solicitarea Dvs. - ${property?.name || inquiry.propertySlug}`,
+      text,
+      html
+    };
+    
+    // Send email
+    console.log(`[EmailService] Sending inquiry response to ${recipientEmail}`);
+    const info = await transporter.sendMail(message);
+    
+    // For development, log preview URL
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[EmailService] Preview URL: ${nodemailer.getTestMessageUrl(info)}`);
+      return { 
+        success: true, 
+        messageId: info.messageId, 
+        previewUrl: nodemailer.getTestMessageUrl(info) as string 
+      };
+    }
+    
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('[EmailService] Error sending inquiry response email:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
+ * Sends a booking cancellation email to the guest
+ */
+export async function sendBookingCancellationEmail(
+  bookingId: string,
+  recipientEmail?: string
+): Promise<{ success: boolean; messageId?: string; previewUrl?: string; error?: string }> {
+  try {
+    console.log(`[EmailService] Preparing to send booking cancellation for booking ${bookingId}`);
+    
+    // Fetch booking data
+    const booking = await getBookingById(bookingId);
+    if (!booking) {
+      console.error(`[EmailService] Booking not found with ID: ${bookingId}`);
+      return { success: false, error: 'Booking not found' };
+    }
+    
+    // Use provided email or get from booking
+    const email = recipientEmail || booking.guestInfo.email;
+    if (!email) {
+      console.error(`[EmailService] No recipient email for booking ${bookingId}`);
+      return { success: false, error: 'No recipient email' };
+    }
+    
+    // Fetch property data
+    const property = await getPropertyBySlug(booking.propertyId);
+    if (!property) {
+      console.warn(`[EmailService] Property not found for booking ${bookingId}`);
+    }
+    
+    // Create transporter
+    const transporter = await getTransporter();
+    
+    // Format dates for display
+    const checkInDate = formatDate(booking.checkInDate);
+    const checkOutDate = formatDate(booking.checkOutDate);
+    
+    // Create bilingual email content
+    const { text, html } = createBookingCancellationTemplate({
+      guestName: `${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''}`.trim(),
+      bookingId: booking.id,
+      propertyName: property?.name || booking.propertyId,
+      checkInDate,
+      checkOutDate,
+      checkInTime: property?.checkInTime,
+      checkOutTime: property?.checkOutTime,
+      numberOfGuests: booking.numberOfGuests,
+      numberOfNights: booking.pricing.numberOfNights,
+      baseAmount: formatCurrency(booking.pricing.baseRate * booking.pricing.numberOfNights, booking.pricing.currency),
+      cleaningFee: formatCurrency(booking.pricing.cleaningFee, booking.pricing.currency),
+      extraGuestFee: booking.pricing.extraGuestFee ? formatCurrency(booking.pricing.extraGuestFee, booking.pricing.currency) : undefined,
+      totalAmount: formatCurrency(booking.pricing.total, booking.pricing.currency),
+      currency: booking.pricing.currency
+    });
+    
+    // Format message
+    const message = {
+      from: process.env.EMAIL_FROM || '"RentalSpot" <bookings@rentalspot.com>',
+      to: email,
+      subject: `Booking Cancellation | Anulare Rezervare - ${property?.name || booking.propertyId}`,
+      text,
+      html
+    };
+    
+    // Send email
+    console.log(`[EmailService] Sending booking cancellation to ${email}`);
+    const info = await transporter.sendMail(message);
+    
+    // For development, log preview URL
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[EmailService] Preview URL: ${nodemailer.getTestMessageUrl(info)}`);
+      return { 
+        success: true, 
+        messageId: info.messageId, 
+        previewUrl: nodemailer.getTestMessageUrl(info) as string 
+      };
+    }
+    
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('[EmailService] Error sending booking cancellation email:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     return { success: false, error: errorMessage };
   }

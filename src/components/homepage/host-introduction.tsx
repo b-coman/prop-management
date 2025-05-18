@@ -1,12 +1,15 @@
+"use client";
+
 import Image from 'next/image';
 import { User } from 'lucide-react'; // Import a fallback icon
+import { useLanguage } from '@/hooks/useLanguage';
 
 interface HostInfo {
-  name: string;
+  name: string | any; // Could be multilingual
   imageUrl?: string | null; // Make optional
-  description?: string; // Alternative to welcomeMessage
-  welcomeMessage?: string;
-  backstory: string;
+  description?: string | any; // Alternative to welcomeMessage
+  welcomeMessage?: string | any;
+  backstory: string | any;
   'data-ai-hint'?: string;
 }
 
@@ -15,6 +18,8 @@ interface HostIntroductionProps {
 }
 
 export function HostIntroduction({ content }: HostIntroductionProps) {
+  const { tc } = useLanguage();
+  
   // Don't render if required host info is missing
   if (!content || !content.name || !content.backstory) {
     return null;
@@ -48,13 +53,13 @@ export function HostIntroduction({ content }: HostIntroductionProps) {
           {/* Host Message */}
           <div className="text-center md:text-left">
             <h3 className="text-2xl md:text-3xl font-semibold text-foreground mb-4">
-              A Warm Welcome from {content.name}
+              A Warm Welcome from {tc(content.name)}
             </h3>
             <p className="text-lg text-muted-foreground mb-4 italic">
-              "{welcomeMessage}"
+              "{tc(welcomeMessage)}"
             </p>
             <p className="text-muted-foreground">
-              {content.backstory}
+              {tc(content.backstory)}
             </p>
           </div>
         </div>

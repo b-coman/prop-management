@@ -1,0 +1,12 @@
+{
+  "id": "traditional-fireplace",
+  "icon": "Flame",
+  "name": {
+    "en": "Traditional Fireplace",
+    "ro": "Șemineu Tradițional"
+  },
+  "category": {
+    "en": "Indoor",
+    "ro": "Interior"
+  }
+}

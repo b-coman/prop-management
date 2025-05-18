@@ -1,0 +1,113 @@
+// src/app/properties/[slug]/page-multipage.tsx
+import { Suspense } from 'react';
+import { notFound } from 'next/navigation';
+import { PropertyPageRenderer } from '@/components/property/property-page-renderer';
+import { collection, doc, getDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+
+export const dynamic = 'force-dynamic'; // Ensures the page is always dynamically rendered
+
+// Function to get core property data by slug
+async function getProperty(slug: string) {
+  if (!slug) {
+    console.warn("[getProperty] Attempted to fetch property with empty slug.");
+    return null;
+  }
+  const propertyRef = doc(db, 'properties', slug);
+  try {
+    const docSnap = await getDoc(propertyRef);
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      return { id: docSnap.id, slug: docSnap.id, ...data };
+    } else {
+      console.warn(`[getProperty] Property document not found: properties/${slug}`);
+      return null;
+    }
+  } catch (error) {
+    console.error(`❌ Error fetching property with slug ${slug}:`, error);
+    return null;
+  }
+}
+
+// Function to get website template data
+async function getTemplate(templateId: string) {
+  if (!templateId) return null;
+  const templateRef = doc(db, 'websiteTemplates', templateId);
+  try {
+    const docSnap = await getDoc(templateRef);
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() };
+    } else {
+      console.warn(`[getTemplate] Template document not found: websiteTemplates/${templateId}`);
+      return null;
+    }
+  } catch (error) {
+    console.error(`❌ Error fetching website template ${templateId}:`, error);
+    return null;
+  }
+}
+
+// Function to get property overrides data
+async function getPropertyOverrides(slug: string) {
+  if (!slug) {
+    console.warn("[getPropertyOverrides] Attempted to fetch overrides with empty slug.");
+    return null;
+  }
+  const overridesRef = doc(db, 'propertyOverrides', slug);
+  try {
+    const docSnap = await getDoc(overridesRef);
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() };
+    } else {
+      console.warn(`[getPropertyOverrides] No overrides document found for: propertyOverrides/${slug}`);
+      return null;
+    }
+  } catch (error) {
+    console.error(`❌ Error fetching property overrides for ${slug}:`, error);
+    return null;
+  }
+}
+
+interface PropertyPageProps {
+  params: { slug: string };
+}
+
+export default async function PropertyPage({ params }: PropertyPageProps) {
+  const slug = params.slug;
+
+  if (!slug) {
+    console.error("[PropertyPage] Slug is missing from params.");
+    notFound();
+  }
+
+  // Fetch all necessary data for the property
+  const property = await getProperty(slug);
+  if (!property) {
+    console.error(`[PropertyPage] Property "${slug}" not found.`);
+    notFound();
+  }
+
+  const template = await getTemplate(property.templateId);
+  if (!template) {
+    console.error(`[PropertyPage] Website template "${property.templateId}" not found for property "${slug}".`);
+    notFound();
+  }
+
+  const overrides = await getPropertyOverrides(slug);
+  if (!overrides) {
+    console.error(`[PropertyPage] Property overrides for "${slug}" not found.`);
+    notFound();
+  }
+
+  return (
+    <Suspense fallback={<div>Loading property details...</div>}>
+      <PropertyPageRenderer
+        template={template}
+        overrides={overrides}
+        propertyName={typeof property.name === 'string' ? property.name : (property.name.en || property.name.ro || 'Property')}
+        propertySlug={slug}
+        pageName="homepage"
+      />
+    </Suspense>
+  );
+}

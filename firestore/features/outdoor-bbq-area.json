@@ -1,0 +1,13 @@
+{
+  "id": "outdoor-bbq-area",
+  "title": {
+    "en": "Outdoor BBQ Area",
+    "ro": "Zonă BBQ Exterioară"
+  },
+  "description": {
+    "en": "Enjoy traditional Romanian grilled specialties on our dedicated outdoor BBQ.",
+    "ro": "Enjoy traditional Romanian grilled specialties on our dedicated outdoor BBQ."
+  },
+  "icon": "bbq",
+  "order": 0
+}

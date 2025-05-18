@@ -5,8 +5,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import React from 'react';
 import { Loader2 } from 'lucide-react';
+import { ThemeSelector } from "@/components/ui/theme-selector";
+import { DEFAULT_THEME_ID } from "@/lib/themes/theme-definitions";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +44,7 @@ const propertyFormSchema = z.object({
     description: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
     shortDescription: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
     templateId: z.string().min(1, "Template ID is required."), // Assuming this is selected or fixed
+    themeId: z.string().optional(), // Theme ID for styling the property website
 
     // Location
     location: z.object({
@@ -125,6 +129,7 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
         description: initialData?.description ?? '',
         shortDescription: initialData?.shortDescription ?? '',
         templateId: initialData?.templateId ?? 'holiday-house', // Default or fetch options
+        themeId: initialData?.themeId ?? DEFAULT_THEME_ID,
         location: {
             address: initialData?.location?.address ?? '',
             city: initialData?.location?.city ?? '',
@@ -165,7 +170,7 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
 
   // Derive slug from name if creating and slug is empty
     const watchName = form.watch("name");
-    React.useEffect(() => {
+    useEffect(() => {
         if (mode === 'create' && watchName && !form.getValues("slug")) {
             const generatedSlug = watchName
                 .toLowerCase()
@@ -232,6 +237,29 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
             {/* Replace with actual template selection if needed */}
             <Input {...field} disabled />
             </FormControl><FormDescription>Currently fixed template.</FormDescription><FormMessage /></FormItem> )} />
+            
+        {/* Theme Selection */}
+        <Separator className="my-6" />
+        <h3 className="text-lg font-medium border-b pb-2">Website Theme</h3>
+        <FormField
+          control={form.control}
+          name="themeId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Choose a design theme for your property website</FormLabel>
+              <FormControl>
+                <ThemeSelector
+                  selectedThemeId={field.value}
+                  onThemeChange={field.onChange}
+                />
+              </FormControl>
+              <FormDescription>
+                The selected theme will determine the colors, typography, and styling of your property website.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         {/* --- Section: Location --- */}
         <Separator className="my-6" />

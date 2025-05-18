@@ -340,13 +340,13 @@ import BookingSuccessClient from './booking-success-client';
 // Wrap the component in Suspense to handle searchParams
 export default function BookingSuccessPage() {
   return (
-    <BookingProvider>
-      <BookingSuccessClient>
-        <Suspense fallback={<BookingSuccessLoading />}>
+    <Suspense fallback={<BookingSuccessLoading />}>
+      <BookingProvider>
+        <BookingSuccessClient>
           <BookingSuccessContent />
-        </Suspense>
-      </BookingSuccessClient>
-    </BookingProvider>
+        </BookingSuccessClient>
+      </BookingProvider>
+    </Suspense>
   )
 }
 

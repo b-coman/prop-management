@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Edit, Trash2, Eye } from "lucide-react"; // Import icons
 import { DeletePropertyButton } from './delete-property-button'; // Import delete button
+import { cn } from "@/lib/utils";
 
 interface PropertyTableProps {
   properties: Property[];
@@ -49,7 +50,7 @@ export function PropertyTable({ properties }: PropertyTableProps) {
           <TableRow key={property.slug}>
             <TableCell className="font-medium">
               <Link href={`/properties/${property.slug}`} className="hover:underline" target="_blank">
-                 {property.name}
+                 {typeof property.name === 'string' ? property.name : property.name?.en || property.name?.ro || 'Unnamed'}
               </Link>
               <p className="text-xs text-muted-foreground">{property.slug}</p>
             </TableCell>
@@ -70,7 +71,7 @@ export function PropertyTable({ properties }: PropertyTableProps) {
                    <Edit className="h-4 w-4" />
                  </Button>
                </Link>
-               <DeletePropertyButton propertySlug={property.slug} propertyName={property.name} />
+               <DeletePropertyButton propertySlug={property.slug} propertyName={typeof property.name === 'string' ? property.name : property.name?.en || property.name?.ro || 'Unnamed'} />
             </TableCell>
           </TableRow>
         ))}

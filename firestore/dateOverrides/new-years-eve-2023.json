@@ -1,0 +1,24 @@
+{
+  "id": "new-years-eve-2023",
+  "propertyId": "prahova-mountain-chalet",
+  "date": "2023-12-31",
+  "customPrice": 250.00,
+  "reason": "New Year's Eve",
+  "minimumStay": 3,
+  "available": true,
+  "flatRate": true,
+  "createdAt": {
+    "__type": "timestamp",
+    "value": {
+      "_seconds": 1714583282,
+      "_nanoseconds": 0
+    }
+  },
+  "updatedAt": {
+    "__type": "timestamp",
+    "value": {
+      "_seconds": 1714583282,
+      "_nanoseconds": 0
+    }
+  }
+}

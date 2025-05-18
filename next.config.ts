@@ -27,7 +27,22 @@ const nextConfig: NextConfig = {
     allowedDevOrigins: ["*"]
   },
   // External packages that need special handling
-  serverExternalPackages: [],
+  serverExternalPackages: ['firebase-admin'],
+  // WebAssembly config for firebase-admin dependencies
+  webpack: (config, { isServer }) => {
+    // Only apply these configurations in production builds or non-Turbopack dev
+    if (!process.env.TURBOPACK) {
+      config.experiments = {
+        ...config.experiments,
+        asyncWebAssembly: true
+      };
+      config.module.rules.push({
+        test: /\.wasm$/,
+        type: 'webassembly/async',
+      });
+    }
+    return config;
+  },
   // Handle custom domains
   async rewrites() {
     return {

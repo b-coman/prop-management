@@ -1,0 +1,68 @@
+{
+  "id": "default",
+  "name": "Default Pricing Template",
+  "description": "Standard template with common seasonal pricing",
+  "defaultPricing": {
+    "weekendAdjustment": 1.2,
+    "weekendDays": [
+      "friday",
+      "saturday"
+    ]
+  },
+  "seasons": [
+    {
+      "name": "Winter High Season",
+      "seasonType": "high",
+      "startMonth": 12,
+      "startDay": 15,
+      "endMonth": 3,
+      "endDay": 15,
+      "priceMultiplier": 1.5,
+      "minimumStay": 3
+    },
+    {
+      "name": "Summer Season",
+      "seasonType": "medium",
+      "startMonth": 6,
+      "startDay": 1,
+      "endMonth": 8,
+      "endDay": 31,
+      "priceMultiplier": 1.3,
+      "minimumStay": 2
+    },
+    {
+      "name": "Low Season",
+      "seasonType": "low",
+      "startMonth": 10,
+      "startDay": 1,
+      "endMonth": 11,
+      "endDay": 30,
+      "priceMultiplier": 0.8,
+      "minimumStay": 1
+    }
+  ],
+  "suggestedLengthOfStayDiscounts": [
+    {
+      "nightsThreshold": 7,
+      "discountPercentage": 5
+    },
+    {
+      "nightsThreshold": 14,
+      "discountPercentage": 10
+    }
+  ],
+  "createdAt": {
+    "__type": "timestamp",
+    "value": {
+      "_seconds": 1714583282,
+      "_nanoseconds": 0
+    }
+  },
+  "updatedAt": {
+    "__type": "timestamp",
+    "value": {
+      "_seconds": 1714583282,
+      "_nanoseconds": 0
+    }
+  }
+}

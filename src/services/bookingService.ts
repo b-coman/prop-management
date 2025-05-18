@@ -723,7 +723,7 @@ export async function updatePropertyAvailability(
 }
 
 // --- triggerExternalSyncForDateUpdate ---
-async function triggerExternalSyncForDateUpdate(propertyId: string, checkInDate: Date, checkOutDate: Date, isAvailable: boolean): Promise<void> {
+export async function triggerExternalSyncForDateUpdate(propertyId: string, checkInDate: Date, checkOutDate: Date, isAvailable: boolean): Promise<void> {
     console.log(`[Sync Trigger] Syncing availability change for property ${propertyId} (slug) (${isAvailable ? 'Release' : 'Block'})`);
      try {
        const propertyDetails = await getPropertyForSync(propertyId); // Uses slug

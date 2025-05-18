@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import GenericHeader from '@/components/generic-header';
+import { Header as GenericHeader } from '@/components/generic-header';
 // Removed Footer import: import { Footer } from '@/components/footer';
 import { Suspense } from 'react';
 
@@ -16,7 +16,10 @@ function BookingCancelContent() {
 
     return (
         <div className="flex min-h-screen flex-col">
-            <GenericHeader/>
+            <GenericHeader 
+                propertyName="Property"
+                propertySlug={propertySlug || "/"} 
+            />
             <main className="flex-grow container py-12 md:py-16 lg:py-20 flex items-center justify-center">
                 <Card className="w-full max-w-lg text-center shadow-xl">
                     <CardHeader>

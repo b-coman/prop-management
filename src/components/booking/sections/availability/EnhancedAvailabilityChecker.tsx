@@ -1,5 +1,10 @@
 "use client";
 
+// DEPRECATED: This component is now deprecated and should be archived.
+// Please use the RefactoredAvailabilityCheck component in /components/booking/container/
+// instead, which includes better error handling and support for pricing calendar.
+// This file will be moved to /src/archive in a future cleanup.
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { addDays, format, startOfDay } from 'date-fns';
 import { Check, Loader2, X, Calendar } from 'lucide-react';

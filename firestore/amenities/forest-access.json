@@ -1,0 +1,12 @@
+{
+  "id": "forest-access",
+  "icon": "Trees",
+  "name": {
+    "en": "Forest Access",
+    "ro": "Acces la Pădure"
+  },
+  "category": {
+    "en": "Outdoor",
+    "ro": "Exterior"
+  }
+}

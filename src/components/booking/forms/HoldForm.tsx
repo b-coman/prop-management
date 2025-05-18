@@ -139,7 +139,7 @@ export function HoldForm({
   const isFormDisabled = isProcessing || isPending || !checkInDate || !checkOutDate || !property.holdFeeAmount;
 
   return (
-    <Card className="mt-4">
+    <Card className="mt-4 booking-form-card">
       <CardHeader>
         <CardTitle>Hold Dates</CardTitle>
         <CardDescription>
@@ -259,6 +259,7 @@ export function HoldForm({
             
             <Button 
               type="submit" 
+              variant="cta"
               className="w-full" 
               disabled={isFormDisabled}
             >

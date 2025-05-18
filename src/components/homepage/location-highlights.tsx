@@ -2,6 +2,7 @@
 import { MapPin } from 'lucide-react'; // Added MapPin for fallback
 import Image from 'next/image';
 import type { Property } from '@/types'; // Import Property type to get Location
+import { useLanguage } from '@/hooks/useLanguage';
 
 interface Location {
     city?: string;
@@ -14,15 +15,15 @@ interface Location {
 }
 
 interface Attraction {
-    name: string;
-    description: string;
+    name: string | { [key: string]: string };
+    description: string | { [key: string]: string };
     distance?: string;
     image?: string | null;
      'data-ai-hint'?: string;
 }
 
 interface LocationHighlightsContent {
-    title: string;
+    title: string | { [key: string]: string };
     propertyLocation: Location; // Use the Location type
     attractions: Attraction[];
     'data-ai-hint'?: string;
@@ -30,9 +31,12 @@ interface LocationHighlightsContent {
 
 interface LocationHighlightsProps {
     content: LocationHighlightsContent;
+    language?: string;
 }
 
-export function LocationHighlights({ content }: LocationHighlightsProps) {
+export function LocationHighlights({ content, language = 'en' }: LocationHighlightsProps) {
+    const { tc, t } = useLanguage();
+    
     // Don't render if content is missing
     if (!content) {
         console.warn("[LocationHighlights] Rendering skipped: Missing content");
@@ -65,11 +69,11 @@ export function LocationHighlights({ content }: LocationHighlightsProps) {
             <div className="container mx-auto px-4">
                  <div className="max-w-3xl mx-auto text-center mb-12">
                     <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
-                        {title}
+                        {tc(title, language)}
                     </h2>
                     {propertyLocation.city && propertyLocation.state && (
                         <p className="text-lg text-muted-foreground mb-4">
-                        Nestled in {propertyLocation.city}, {propertyLocation.state}, our property offers easy access to stunning natural wonders and historical sites.
+                        {t('location.nestledIn', { city: propertyLocation.city, state: propertyLocation.state })}
                         </p>
                     )}
                      {/* Actual map embed using apiKey */}
@@ -91,12 +95,12 @@ export function LocationHighlights({ content }: LocationHighlightsProps) {
                       <div className="aspect-video bg-muted rounded-lg flex flex-col items-center justify-center my-8 max-w-2xl mx-auto border border-border">
                         <MapPin className="h-12 w-12 text-muted-foreground/50 mb-2" />
                          <p className="text-sm text-muted-foreground">
-                            { !apiKey ? "Map API key is missing." : !propertyLocation.coordinates ? "Coordinates unavailable." : "Map Unavailable"}
+                            { !apiKey ? t('location.mapKeyMissing') : !propertyLocation.coordinates ? t('location.coordinatesUnavailable') : t('location.mapUnavailable')}
                          </p>
                       </div>
                     )}
                     <p className="text-lg text-muted-foreground">
-                       Discover these nearby attractions:
+                       {t('location.discoverNearby')}
                     </p>
                 </div>
 
@@ -109,7 +113,7 @@ export function LocationHighlights({ content }: LocationHighlightsProps) {
                                 {attraction.image ? (
                                     <Image
                                         src={attraction.image}
-                                        alt={attraction.name}
+                                        alt={tc(attraction.name, language)}
                                         fill
                                         style={{objectFit: 'cover'}}
                                         className="rounded-lg"
@@ -121,12 +125,12 @@ export function LocationHighlights({ content }: LocationHighlightsProps) {
                                      </div>
                                 )}
                              </div>
-                            <h3 className="text-lg font-semibold text-foreground mb-1">{attraction.name}</h3>
+                            <h3 className="text-lg font-semibold text-foreground mb-1">{tc(attraction.name, language)}</h3>
                              {attraction.distance && (
                                  <p className="text-xs text-muted-foreground mb-2">{attraction.distance}</p>
                              )}
                             <p className="text-muted-foreground text-sm flex-grow">
-                                {attraction.description}
+                                {tc(attraction.description, language)}
                             </p>
                         </div>
                     ))}

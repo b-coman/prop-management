@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import type { Property, WebsiteTemplate, PropertyOverrides } from '@/types';
 import { PropertyPageLayout } from '@/components/property/property-page-layout';
-import { getWebsiteTemplate, getPropertyOverrides } from '@/app/properties/[slug]/page'; // Import shared functions
+import { getWebsiteTemplate, getPropertyOverrides } from '@/app/properties/[slug]/[[...path]]/page'; // Import shared functions
 import { getPropertyBySlug } from '@/lib/property-utils';
 // AuthProvider removed, context will be consumed from root layout
 

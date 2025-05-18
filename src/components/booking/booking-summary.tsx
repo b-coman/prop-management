@@ -3,19 +3,37 @@
 
 import * as React from 'react';
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import type { PriceCalculationResult, CurrencyCode } from '@/types';
 
+// Updated interface to optionally support the new dynamic pricing model
 interface BookingSummaryProps {
   numberOfNights: number;
   numberOfGuests: number;
   pricingDetails: PriceCalculationResult | null;
   propertyBaseCcy: CurrencyCode;
   appliedCoupon: { code: string; discountPercentage: number } | null;
+  // New optional dynamic pricing props
+  dynamicPricing?: {
+    accommodationTotal: number;
+    cleaningFee: number;
+    subtotal: number;
+    total: number;
+    currency: CurrencyCode;
+    dailyRates?: Record<string, number>;
+    lengthOfStayDiscount?: {
+      discountPercentage: number;
+      discountAmount: number;
+    } | null;
+    couponDiscount?: {
+      discountPercentage: number;
+      discountAmount: number;
+    } | null;
+  } | null;
 }
 
 export function BookingSummary({
@@ -24,40 +42,93 @@ export function BookingSummary({
   pricingDetails,
   propertyBaseCcy,
   appliedCoupon,
+  dynamicPricing = null,
 }: BookingSummaryProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const { selectedCurrency, convertToSelectedCurrency, formatPrice } = useCurrency();
-  
+
   // Add identification log
   useEffect(() => {
-    console.log(`[IDENTIFICATION] This is BookingSummary from /booking-summary.tsx`);
-    console.log(`[BookingSummary] Props updated: numberOfNights=${numberOfNights}, numberOfGuests=${numberOfGuests}`);
-    console.log(`[BookingSummary] PricingDetails:`, pricingDetails ? {
-      basePrice: pricingDetails.basePrice,
-      total: pricingDetails.total,
-      currency: pricingDetails.currency
-    } : 'null');
-  }, [numberOfNights, numberOfGuests, pricingDetails]);
+    // Log component identification
+    console.log(`[IDENTIFICATION] This is BookingSummary from /src/components/booking/booking-summary.tsx`);
+    console.log(`[BookingSummary] Props updated: numberOfNights=${numberOfNights}, numberOfGuests=${numberOfGuests}, renderCount=${Math.random().toString(36).substring(7)}`);
+    
+    // Log pricing model and details
+    if (dynamicPricing) {
+      console.log(`[BookingSummary] 💰 Dynamic pricing details:`, {
+        basePrice: dynamicPricing.accommodationTotal,
+        totalPrice: dynamicPricing.total,
+        extraGuestFee: dynamicPricing.couponDiscount?.discountAmount,
+        numberOfGuests: numberOfGuests,
+        timestamp: new Date().toISOString()
+      });
+    } else if (pricingDetails) {
+      console.log(`[BookingSummary] 💰 Standard pricing details:`, {
+        basePrice: pricingDetails.basePrice,
+        totalPrice: pricingDetails.total,
+        extraGuestFee: pricingDetails.extraGuestFeeTotal,
+        numberOfGuests: numberOfGuests,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      console.log(`[BookingSummary] ⚠️ No pricing details available`);
+    }
+  }, [numberOfNights, numberOfGuests, pricingDetails, dynamicPricing]);
 
   const toggleExpansion = () => setIsExpanded((prev) => !prev);
 
   // Convert pricing details to the selected display currency
   const pricingDetailsForDisplay = React.useMemo(() => {
-    // Log with a prominent marker to ensure we see it in the console
-    console.log(`[!!!RECALCULATION!!!] BookingSummary recalculating pricing details`, {
-      nights: numberOfNights,
-      guests: numberOfGuests,
-      selectedCurrency,
-      timestamp: new Date().toISOString(),
-      hasPricingDetails: !!pricingDetails,
-    });
-    
+    // If dynamic pricing is provided, use it
+    if (dynamicPricing) {
+      console.log(`[BookingSummary/details] 🔢 Rendering with dynamicPricing:`, dynamicPricing);
+      
+      const baseCurrency = dynamicPricing.currency || propertyBaseCcy;
+
+      // Process daily rates for display
+      const dailyRatesForDisplay = dynamicPricing.dailyRates
+        ? Object.entries(dynamicPricing.dailyRates).reduce((acc, [date, price]) => {
+            acc[date] = convertToSelectedCurrency(price, baseCurrency);
+            return acc;
+          }, {} as Record<string, number>)
+        : {};
+
+      return {
+        useDynamicModel: true,
+        accommodationTotal: convertToSelectedCurrency(dynamicPricing.accommodationTotal, baseCurrency),
+        cleaningFee: convertToSelectedCurrency(dynamicPricing.cleaningFee, baseCurrency),
+        subtotal: convertToSelectedCurrency(dynamicPricing.subtotal, baseCurrency),
+        lengthOfStayDiscount: dynamicPricing.lengthOfStayDiscount
+          ? {
+              discountPercentage: dynamicPricing.lengthOfStayDiscount.discountPercentage,
+              discountAmount: convertToSelectedCurrency(dynamicPricing.lengthOfStayDiscount.discountAmount, baseCurrency)
+            }
+          : null,
+        couponDiscount: dynamicPricing.couponDiscount
+          ? {
+              discountPercentage: dynamicPricing.couponDiscount.discountPercentage,
+              discountAmount: convertToSelectedCurrency(dynamicPricing.couponDiscount.discountAmount, baseCurrency)
+            }
+          : null,
+        totalDiscountAmount: convertToSelectedCurrency(
+          (dynamicPricing.lengthOfStayDiscount?.discountAmount || 0) +
+          (dynamicPricing.couponDiscount?.discountAmount || 0),
+          baseCurrency
+        ),
+        total: convertToSelectedCurrency(dynamicPricing.total, baseCurrency),
+        numberOfNights: numberOfNights,
+        numberOfGuests: numberOfGuests,
+        dailyRates: dailyRatesForDisplay
+      };
+    }
+
+    // Otherwise use the traditional pricing model
     if (!pricingDetails) {
-      console.log(`[BookingSummary] No pricing details available, returning null`);
       return null;
     }
-    
-    const result = {
+
+    return {
+      useDynamicModel: false,
       basePrice: convertToSelectedCurrency(pricingDetails.basePrice, propertyBaseCcy),
       extraGuestFee: convertToSelectedCurrency(pricingDetails.extraGuestFeeTotal, propertyBaseCcy),
       cleaningFee: convertToSelectedCurrency(pricingDetails.cleaningFee, propertyBaseCcy),
@@ -65,18 +136,15 @@ export function BookingSummary({
       discountAmount: convertToSelectedCurrency(pricingDetails.discountAmount, propertyBaseCcy),
       total: convertToSelectedCurrency(pricingDetails.total, propertyBaseCcy),
       numberOfNights: pricingDetails.numberOfNights,
-      numberOfGuests: numberOfGuests, // Store guest count directly
+      numberOfGuests: numberOfGuests
     };
-    
-    console.log(`[BookingSummary] Calculated display pricing:`, result);
-    return result;
   }, [
-    // Including ALL dependencies explicitly to ensure recalculation
-    pricingDetails, 
-    convertToSelectedCurrency, 
-    propertyBaseCcy, 
-    numberOfNights, 
-    numberOfGuests, 
+    pricingDetails,
+    dynamicPricing,
+    convertToSelectedCurrency,
+    propertyBaseCcy,
+    numberOfNights,
+    numberOfGuests,
     selectedCurrency
   ]);
 
@@ -102,36 +170,92 @@ export function BookingSummary({
         {/* Expanded View */}
         {isExpanded && (
           <div className="mt-4 space-y-2 text-sm border-t pt-4">
-            <div className="flex justify-between">
-              <span>Base price ({pricingDetailsForDisplay.numberOfNights} nights)</span>
-              <span>{formatPrice(pricingDetailsForDisplay.basePrice, selectedCurrency)}</span>
-            </div>
-            {pricingDetailsForDisplay.extraGuestFee > 0 && (
-              <div className="flex justify-between text-muted-foreground">
-                <span>Extra guest fee</span>
-                <span>+{formatPrice(pricingDetailsForDisplay.extraGuestFee, selectedCurrency)}</span>
-              </div>
+            {/* Dynamic pricing model */}
+            {pricingDetailsForDisplay.useDynamicModel ? (
+              <>
+                <div className="flex justify-between">
+                  <span>Accommodation ({pricingDetailsForDisplay.numberOfNights} nights)</span>
+                  <span>{formatPrice(pricingDetailsForDisplay.accommodationTotal, selectedCurrency)}</span>
+                </div>
+
+                {Object.keys(pricingDetailsForDisplay.dailyRates || {}).length > 0 && (
+                  <div className="pl-4 space-y-1 text-xs text-muted-foreground">
+                    {Object.entries(pricingDetailsForDisplay.dailyRates || {})
+                      .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+                      .map(([date, price]) => (
+                        <div key={date} className="flex justify-between">
+                          <span className="flex items-center">
+                            <CalendarIcon className="h-3 w-3 mr-1" /> {date}
+                          </span>
+                          <span>{formatPrice(price, selectedCurrency)}</span>
+                        </div>
+                      ))
+                    }
+                  </div>
+                )}
+
+                <div className="flex justify-between">
+                  <span>Cleaning fee</span>
+                  <span>+{formatPrice(pricingDetailsForDisplay.cleaningFee, selectedCurrency)}</span>
+                </div>
+
+                <Separator className="my-1" />
+
+                <div className="flex justify-between font-medium">
+                  <span>Subtotal</span>
+                  <span>{formatPrice(pricingDetailsForDisplay.subtotal, selectedCurrency)}</span>
+                </div>
+
+                {pricingDetailsForDisplay.lengthOfStayDiscount && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Stay discount ({pricingDetailsForDisplay.lengthOfStayDiscount.discountPercentage}%)</span>
+                    <span>-{formatPrice(pricingDetailsForDisplay.lengthOfStayDiscount.discountAmount, selectedCurrency)}</span>
+                  </div>
+                )}
+
+                {pricingDetailsForDisplay.couponDiscount && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Coupon discount ({pricingDetailsForDisplay.couponDiscount.discountPercentage}%)</span>
+                    <span>-{formatPrice(pricingDetailsForDisplay.couponDiscount.discountAmount, selectedCurrency)}</span>
+                  </div>
+                )}
+              </>
+            ) : (
+              /* Standard pricing model */
+              <>
+                <div className="flex justify-between">
+                  <span>Base price ({pricingDetailsForDisplay.numberOfNights} nights)</span>
+                  <span>{formatPrice(pricingDetailsForDisplay.basePrice, selectedCurrency)}</span>
+                </div>
+                {pricingDetailsForDisplay.extraGuestFee > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Extra guest fee</span>
+                    <span>+{formatPrice(pricingDetailsForDisplay.extraGuestFee, selectedCurrency)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span>Cleaning fee</span>
+                  <span>+{formatPrice(pricingDetailsForDisplay.cleaningFee, selectedCurrency)}</span>
+                </div>
+                <Separator className="my-1" />
+                <div className="flex justify-between font-medium">
+                  <span>Subtotal</span>
+                  <span>{formatPrice(pricingDetailsForDisplay.subtotal, selectedCurrency)}</span>
+                </div>
+                {appliedCoupon && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Discount ({appliedCoupon.code})</span>
+                    <span>-{formatPrice(pricingDetailsForDisplay.discountAmount, selectedCurrency)}</span>
+                  </div>
+                )}
+              </>
             )}
-            <div className="flex justify-between">
-              <span>Cleaning fee</span>
-              <span>+{formatPrice(pricingDetailsForDisplay.cleaningFee, selectedCurrency)}</span>
+
+            <Separator className="my-2 font-bold" />
+            <div className="flex justify-between font-bold text-base">
+              <span>Total ({selectedCurrency})</span>
+              <span>{formattedTotal}</span>
             </div>
-            <Separator className="my-1" />
-            <div className="flex justify-between font-medium">
-              <span>Subtotal</span>
-              <span>{formatPrice(pricingDetailsForDisplay.subtotal, selectedCurrency)}</span>
-            </div>
-            {appliedCoupon && (
-              <div className="flex justify-between text-green-600">
-                <span>Discount ({appliedCoupon.code})</span>
-                <span>-{formatPrice(pricingDetailsForDisplay.discountAmount, selectedCurrency)}</span>
-              </div>
-            )}
-             <Separator className="my-2 font-bold" />
-             <div className="flex justify-between font-bold text-base">
-                 <span>Total ({selectedCurrency})</span>
-                 <span>{formattedTotal}</span>
-             </div>
           </div>
         )}
       </CardContent>

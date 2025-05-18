@@ -1,0 +1,25 @@
+{
+  "id": "winter-season-2023",
+  "propertyId": "prahova-mountain-chalet",
+  "name": "Winter Holiday Season 2023",
+  "seasonType": "high",
+  "startDate": "2023-12-20",
+  "endDate": "2024-01-05",
+  "priceMultiplier": 1.5,
+  "minimumStay": 3,
+  "enabled": true,
+  "createdAt": {
+    "__type": "timestamp",
+    "value": {
+      "_seconds": 1714583282,
+      "_nanoseconds": 0
+    }
+  },
+  "updatedAt": {
+    "__type": "timestamp",
+    "value": {
+      "_seconds": 1714583282,
+      "_nanoseconds": 0
+    }
+  }
+}

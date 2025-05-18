@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { getUnavailableDatesForProperty } from '@/services/availabilityService';
 import { format, isWithinInterval, isBefore, startOfDay } from 'date-fns';
 import { CustomDateRangePicker } from '../CustomDateRangePicker';
+import { useLanguage } from '@/hooks/useLanguage';
 import type { Property } from '@/types';
 
 interface RefactoredAvailabilityCheckProps {
@@ -29,6 +30,9 @@ export function RefactoredAvailabilityCheck({
 }: RefactoredAvailabilityCheckProps) {
   // Log each render for debugging
   console.log(`[RefactoredAvailabilityCheck] Rendering with property: ${property.slug}, initialCheckIn: ${initialCheckIn}, initialCheckOut: ${initialCheckOut}`);
+  
+  // Get translation function
+  const { tc } = useLanguage();
   
   // Get values from booking context with error handling
   const bookingContext = React.useMemo(() => {
@@ -211,7 +215,7 @@ export function RefactoredAvailabilityCheck({
               <Calendar className="h-4 w-4 mr-1" />
               Property
             </h4>
-            <p className="text-sm">{property.name || property.slug}</p>
+            <p className="text-sm">{tc(property.name) || property.slug}</p>
           </div>
 
           <div className="bg-white p-3 rounded shadow-sm">

@@ -1,0 +1,8 @@
+{
+  "id": "elevator",
+  "icon": "Building",
+  "name": {
+    "en": "Elevator",
+    "ro": "Lift"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "high-speed-wifi",
+  "icon": "Wifi",
+  "name": {
+    "en": "High-Speed WiFi",
+    "ro": "WiFi de Mare Viteză"
+  },
+  "category": {
+    "en": "Indoor",
+    "ro": "Interior"
+  }
+}

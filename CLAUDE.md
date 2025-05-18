@@ -1,5 +1,17 @@
 # Claude AI Notes and Documentation
 
+## General Guidelines
+
+1. Only update documentation files when explicitly requested by the user.
+2. Focus on code changes and avoid modifying documentation unless specifically asked.
+
+## Coding Principles
+
+- Do not hardcode data, do not use mock data inside of the scripts or code
+- Avoid creating duplicate component implementations for the same functionality
+- When refactoring, ensure old components are properly marked as obsolete and have migration paths
+- Focus on modifying existing components rather than creating new versions with slightly different names
+
 ## Booking Component Behavior
 
 ### Booking Availability Checking

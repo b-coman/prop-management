@@ -2,27 +2,31 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import Image from 'next/image'; // Assuming you might use images later
 import { Star } from 'lucide-react'; // Fallback icon
+import { useLanguage } from '@/hooks/useLanguage';
 
 interface Feature {
   icon?: string; // Optional icon name (from overrides)
-  title: string;
-  description: string;
+  title: string | { [key: string]: string };
+  description: string | { [key: string]: string };
   image?: string | null; // Optional image URL
   'data-ai-hint'?: string; // Optional AI hint for image generation
 }
 
 interface UniqueFeaturesContent {
-  title?: string;
-  description?: string;
+  title?: string | { [key: string]: string };
+  description?: string | { [key: string]: string };
   features: Feature[];
   'data-ai-hint'?: string;
 }
 
 interface UniqueFeaturesProps {
   content: UniqueFeaturesContent; // Use content prop for consistency
+  language?: string;
 }
 
-export function UniqueFeatures({ content }: UniqueFeaturesProps) {
+export function UniqueFeatures({ content, language = 'en' }: UniqueFeaturesProps) {
+  const { tc, t } = useLanguage();
+  
   // Don't render if content is missing
   if (!content) {
     console.warn("UniqueFeatures received invalid content");
@@ -31,8 +35,8 @@ export function UniqueFeatures({ content }: UniqueFeaturesProps) {
 
   // Extract properties with defaults to prevent destructuring errors
   const {
-    title = "Make Your Stay Unforgettable",
-    description = "Discover the special touches that set our property apart.",
+    title = t('features.defaultTitle'),
+    description = t('features.defaultDescription'),
     features = []
   } = content;
 
@@ -46,10 +50,10 @@ export function UniqueFeatures({ content }: UniqueFeaturesProps) {
       <div className="container mx-auto px-4">
         <div className="max-w-3xl mx-auto text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
-            {title}
+            {tc(title, language)}
           </h2>
           <p className="text-lg text-muted-foreground">
-            {description}
+            {tc(description, language)}
           </p>
         </div>
 
@@ -63,7 +67,7 @@ export function UniqueFeatures({ content }: UniqueFeaturesProps) {
                  {feature.image ? (
                      <Image
                          src={feature.image}
-                         alt={feature.title}
+                         alt={tc(feature.title, language)}
                          fill
                          style={{objectFit: 'cover'}}
                          className="rounded-lg"
@@ -76,9 +80,9 @@ export function UniqueFeatures({ content }: UniqueFeaturesProps) {
                      </div>
                  )}
               </div>
-              <h3 className="text-xl font-semibold text-foreground mb-2">{feature.title}</h3>
+              <h3 className="text-xl font-semibold text-foreground mb-2">{tc(feature.title, language)}</h3>
               <p className="text-muted-foreground text-sm">
-                {feature.description}
+                {tc(feature.description, language)}
               </p>
             </div>
           ))}

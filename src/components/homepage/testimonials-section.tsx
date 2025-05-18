@@ -5,19 +5,20 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/hooks/useLanguage';
 
 interface Review {
   id?: string; // Make optional if not always present
   name: string;
   date?: string; // Add date field
   rating: number;
-  text: string; // Renamed from comment for consistency
+  text: string | { [key: string]: string }; // Renamed from comment for consistency
   imageUrl?: string | null; // Optional guest image
    'data-ai-hint'?: string; // Optional AI hint for image generation
 }
 
 interface TestimonialsContent {
-  title: string; // Title for the section
+  title: string | { [key: string]: string }; // Title for the section
   overallRating: number; // Overall rating for the property
   reviews: Review[]; // Array of review objects
   'data-ai-hint'?: string;
@@ -25,6 +26,7 @@ interface TestimonialsContent {
 
 interface TestimonialsSectionProps {
   content: TestimonialsContent; // Use content property name for consistency
+  language?: string;
 }
 
 // Helper function to render stars
@@ -46,7 +48,9 @@ const renderStars = (rating: number) => {
   return stars;
 };
 
-export function TestimonialsSection({ content }: TestimonialsSectionProps) {
+export function TestimonialsSection({ content, language = 'en' }: TestimonialsSectionProps) {
+  const { tc, t } = useLanguage();
+  
   // Don't render if content is missing
   if (!content) {
     console.warn("TestimonialsSection received invalid content");
@@ -70,12 +74,12 @@ export function TestimonialsSection({ content }: TestimonialsSectionProps) {
       <div className="container mx-auto px-4">
         <div className="max-w-3xl mx-auto text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
-             {title}
+             {tc(title, language)}
           </h2>
           {overallRating > 0 && (
              <div className="flex items-center justify-center gap-2">
                 <Badge variant="secondary" className="text-lg px-3 py-1">
-                 Overall Rating: {overallRating.toFixed(1)} / 5
+                 {t('testimonials.overallRating')}: {overallRating.toFixed(1)} / 5
                 </Badge>
                 <div className="flex">
                  {renderStars(overallRating)}
@@ -116,7 +120,7 @@ export function TestimonialsSection({ content }: TestimonialsSectionProps) {
                   </div>
                 </div>
                 <p className="text-muted-foreground text-sm italic flex-grow">
-                  "{review.text}"
+                  "{tc(review.text, language)}"
                 </p>
               </CardContent>
             </Card>

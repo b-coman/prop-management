@@ -1,0 +1,395 @@
+{
+  "booking": {
+    "booking-header": {
+      "backgroundImage": "/images/properties/prahova-mountain-chalet/comarnic-hero-1.jpg",
+      "subtitle": "Reserve your dates at Prahova Mountain Chalet",
+      "title": "Book Your Mountain Retreat"
+    },
+    "visibleBlocks": [
+      "booking-header",
+      "booking-form",
+      "booking-policies"
+    ],
+    "booking-policies": {
+      "policies": [
+        {
+          "title": "Cancellation Policy",
+          "description": "Free cancellation up to 7 days before check-in. Cancellations made within 7 days of check-in receive a 30% refund."
+        },
+        {
+          "title": "Check-in/Check-out",
+          "description": "Check-in: 2:00 PM - 8:00 PM, Check-out: by 12:00 PM"
+        },
+        {
+          "title": "House Rules",
+          "description": "No smoking inside the chalet, no loud parties after 10 PM, pets allowed with prior notice."
+        }
+      ]
+    }
+  },
+  "visiblePages": [
+    "homepage",
+    "details",
+    "location",
+    "gallery",
+    "booking"
+  ],
+  "menuItems": [
+    {
+      "label": "Home",
+      "url": "/"
+    },
+    {
+      "label": "About the Chalet",
+      "url": "/details"
+    },
+    {
+      "label": "Where We Are",
+      "url": "/location"
+    },
+    {
+      "label": "Photo Gallery",
+      "url": "/gallery"
+    },
+    {
+      "label": "Book Now",
+      "url": "/booking",
+      "isButton": true
+    }
+  ],
+  "details": {
+    "amenities": {
+      "categories": [
+        {
+          "name": "Indoor",
+          "amenities": [
+            {
+              "icon": "Wifi",
+              "name": "High-Speed WiFi"
+            },
+            {
+              "icon": "Tv",
+              "name": "4K Smart TV"
+            },
+            {
+              "icon": "Flame",
+              "name": "Traditional Fireplace"
+            },
+            {
+              "icon": "ChefHat",
+              "name": "Fully Equipped Kitchen"
+            }
+          ]
+        },
+        {
+          "name": "Outdoor",
+          "amenities": [
+            {
+              "icon": "Mountain",
+              "name": "Mountain Views"
+            },
+            {
+              "icon": "Utensils",
+              "name": "BBQ Grill"
+            },
+            {
+              "icon": "Car",
+              "name": "Private Parking"
+            },
+            {
+              "icon": "Trees",
+              "name": "Forest Access"
+            }
+          ]
+        }
+      ],
+      "title": "Chalet Amenities"
+    },
+    "visibleBlocks": [
+      "details-header",
+      "amenities",
+      "rooms",
+      "specifications",
+      "pricing-detail",
+      "cta"
+    ],
+    "rooms": {
+      "rooms": [
+        {
+          "name": "Master Bedroom",
+          "description": "Spacious room with queen-size bed and mountain views",
+          "features": [
+            "Queen Bed",
+            "Mountain View",
+            "Wardrobe"
+          ],
+          "image": "/images/properties/prahova-mountain-chalet/IMG_3864.jpg"
+        },
+        {
+          "name": "Second Bedroom",
+          "description": "Cozy room with two single beds",
+          "features": [
+            "Two Single Beds",
+            "Desk",
+            "Closet"
+          ],
+          "image": "/images/properties/prahova-mountain-chalet/IMG_3868.jpg"
+        },
+        {
+          "name": "Living Area",
+          "description": "Open-plan living area with traditional fireplace",
+          "features": [
+            "Fireplace",
+            "Sofa Bed",
+            "Dining Table",
+            "Smart TV"
+          ],
+          "image": "/images/properties/prahova-mountain-chalet/IMG_3889.jpg"
+        }
+      ],
+      "title": "Accommodation"
+    },
+    "details-header": {
+      "backgroundImage": "/images/properties/prahova-mountain-chalet/IMG_3864.jpg",
+      "subtitle": "Authentic mountain living with modern comforts",
+      "title": "About Prahova Mountain Chalet"
+    },
+    "specifications": {
+      "title": "Chalet Specifications",
+      "specifications": [
+        {
+          "name": "Size",
+          "value": "120 m²"
+        },
+        {
+          "name": "Bedrooms",
+          "value": "2"
+        },
+        {
+          "name": "Bathrooms",
+          "value": "1"
+        },
+        {
+          "name": "Max Guests",
+          "value": "6"
+        },
+        {
+          "name": "Built",
+          "value": "1985"
+        },
+        {
+          "name": "Renovated",
+          "value": "2023"
+        }
+      ]
+    }
+  },
+  "location": {
+    "distances": {
+      "distances": [
+        {
+          "place": "Sinaia",
+          "distance": "25 km",
+          "time": "30 min by car"
+        },
+        {
+          "place": "Brasov",
+          "distance": "60 km",
+          "time": "1 hour by car"
+        },
+        {
+          "place": "Bucharest",
+          "distance": "120 km",
+          "time": "2 hours by car"
+        },
+        {
+          "place": "Bran Castle",
+          "distance": "70 km",
+          "time": "1.5 hours by car"
+        },
+        {
+          "place": "Local Restaurant",
+          "distance": "3 km",
+          "time": "5 min by car"
+        }
+      ],
+      "title": "Distances from Chalet"
+    },
+    "visibleBlocks": [
+      "location-header",
+      "map-large",
+      "attractions",
+      "transport",
+      "distances",
+      "cta"
+    ],
+    "location-header": {
+      "backgroundImage": "/images/properties/prahova-mountain-chalet/comarnic-position.jpg",
+      "subtitle": "Perfectly positioned in the Carpathian Mountains",
+      "title": "Our Location"
+    },
+    "attractions": {
+      "description": "Discover these spectacular places near our chalet",
+      "attractions": [
+        {
+          "name": "Cantacuzino Castle",
+          "description": "Historic castle with beautiful architecture",
+          "distance": "15 km",
+          "image": "/images/properties/prahova-mountain-chalet/castelul-bran.jpg"
+        },
+        {
+          "name": "7 Ladders Canyon",
+          "description": "Spectacular canyon with metal ladders and walkways",
+          "distance": "30 km",
+          "image": "/images/properties/prahova-mountain-chalet/canionul_7_scari.jpg"
+        },
+        {
+          "name": "Sphinx and Babele",
+          "description": "Natural rock formations resembling a sphinx and mushrooms",
+          "distance": "45 km",
+          "image": "/images/properties/prahova-mountain-chalet/sfinx.jpg"
+        }
+      ],
+      "title": "Nearby Attractions"
+    }
+  },
+  "gallery": {
+    "visibleBlocks": [
+      "gallery-header",
+      "full-gallery",
+      "cta"
+    ],
+    "gallery-header": {
+      "backgroundImage": "/images/properties/prahova-mountain-chalet/IMG_3889.jpg",
+      "subtitle": "Explore our mountain chalet through images",
+      "title": "Photo Gallery"
+    },
+    "full-gallery": {
+      "images": [
+        {
+          "url": "/images/properties/prahova-mountain-chalet/IMG_3864.jpg",
+          "alt": "Chalet Interior"
+        },
+        {
+          "url": "/images/properties/prahova-mountain-chalet/IMG_3868.jpg",
+          "alt": "Chalet Bedroom"
+        },
+        {
+          "url": "/images/properties/prahova-mountain-chalet/IMG_3889.jpg",
+          "alt": "Chalet Living Room"
+        },
+        {
+          "url": "/images/properties/prahova-mountain-chalet/canionul_7_scari.jpg",
+          "alt": "7 Ladders Canyon"
+        },
+        {
+          "url": "/images/properties/prahova-mountain-chalet/castelul-bran.jpg",
+          "alt": "Bran Castle"
+        },
+        {
+          "url": "/images/properties/prahova-mountain-chalet/cheile-dambovicioarei-1.jpg",
+          "alt": "Dambovicioara Gorges"
+        },
+        {
+          "url": "/images/properties/prahova-mountain-chalet/comarnic-hero-1.jpg",
+          "alt": "Chalet Exterior"
+        },
+        {
+          "url": "/images/properties/prahova-mountain-chalet/comarnic-position.jpg",
+          "alt": "Chalet Location"
+        },
+        {
+          "url": "/images/properties/prahova-mountain-chalet/sfinx.jpg",
+          "alt": "Sphinx Rock Formation"
+        }
+      ]
+    }
+  },
+  "homepage": {
+    "features": [
+      {
+        "icon": "firepit",
+        "title": "Traditional Fireplace",
+        "description": "Cozy up by the authentic Romanian fireplace during cold evenings.",
+        "image": "/images/properties/prahova-mountain-chalet/IMG_3864.jpg"
+      },
+      {
+        "icon": "bbq",
+        "title": "Outdoor BBQ Area",
+        "description": "Enjoy traditional Romanian grilled specialties on our dedicated outdoor BBQ.",
+        "image": "/images/properties/prahova-mountain-chalet/IMG_3868.jpg"
+      },
+      {
+        "icon": "view",
+        "title": "Panoramic Terrace",
+        "description": "Take in breathtaking views of the Carpathian Mountains from our spacious terrace.",
+        "image": "/images/properties/prahova-mountain-chalet/IMG_3889.jpg"
+      }
+    ],
+    "cta": {
+      "buttonText": "Check Availability",
+      "data-ai-hint": "carpathian mountains panorama",
+      "backgroundImage": "/images/properties/prahova-mountain-chalet/sfinx.jpg",
+      "description": "Book now and experience the majesty of the Carpathian Mountains in our comfortable chalet.",
+      "title": "Ready for Your Mountain Getaway?",
+      "buttonUrl": "/booking"
+    },
+    "visibleBlocks": [
+      "hero",
+      "experience",
+      "host",
+      "features",
+      "location",
+      "testimonials",
+      "gallery",
+      "cta"
+    ],
+    "host": {
+      "backstory": "I'm passionate about sharing the beauty of the Carpathian Mountains with visitors. This chalet has been in my family for generations, and we've lovingly restored it to provide authentic mountain experiences with modern comforts.",
+      "data-ai-hint": "friendly male host mountain background",
+      "imageUrl": "/images/templates/holiday-house/default-host.jpg",
+      "name": "Bogdan C.",
+      "description": "Welcome to my mountain chalet!"
+    },
+    "location": {
+      "mapCenter": {
+        "lng": 25.6346,
+        "lat": 45.253
+      },
+      "title": "Explore Comarnic & Beyond"
+    },
+    "experience": {
+      "highlights": [
+        {
+          "icon": "Mountain",
+          "title": "Mountain Retreat",
+          "description": "Situated at 800m altitude with panoramic views"
+        },
+        {
+          "icon": "Trees",
+          "title": "Forest Surroundings",
+          "description": "Surrounded by pine forests with hiking trails"
+        },
+        {
+          "icon": "Home",
+          "title": "Cozy Comfort",
+          "description": "Modern amenities in a traditional mountain setting"
+        }
+      ],
+      "description": "Nestled in the foothills of the Carpathian Mountains, our chalet offers a perfect blend of rustic charm and modern comfort, with breathtaking views of the Prahova Valley.",
+      "title": "Experience Prahova's Majesty"
+    },
+    "hero": {
+      "data-ai-hint": "mountain chalet exterior view carpathian mountains",
+      "backgroundImage": "/images/properties/prahova-mountain-chalet/comarnic-hero-1.jpg",
+      "subtitle": "Experience the majestic beauty of the Carpathian Mountains",
+      "title": "Prahova Mountain Chalet",
+      "bookingForm": {
+        "position": "bottom",
+        "size": "large"
+      },
+      "showBookingForm": true,
+      "showRating": true
+    }
+  }
+}

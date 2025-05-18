@@ -7,6 +7,7 @@ import {
   Bike, User, MapPin, Ship
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { useLanguage } from '@/hooks/useLanguage';
 
 // Map of icon names to Lucide icon components
 const iconMap: Record<string, React.ElementType> = {
@@ -24,6 +25,7 @@ interface TransportOptionsProps {
 
 export function TransportOptions({ content }: TransportOptionsProps) {
   const { title, description, options } = content;
+  const { tc } = useLanguage();
 
   // Function to get an icon component by name
   const getIconByName = (name: string): React.ElementType => {
@@ -34,8 +36,8 @@ export function TransportOptions({ content }: TransportOptionsProps) {
     <section className="py-16 bg-background">
       <div className="container mx-auto px-4">
         <div className="text-center max-w-3xl mx-auto mb-12">
-          <h2 className="text-3xl font-bold mb-4">{title}</h2>
-          {description && <p className="text-muted-foreground">{description}</p>}
+          <h2 className="text-3xl font-bold mb-4">{tc(title)}</h2>
+          {description && <p className="text-muted-foreground">{tc(description)}</p>}
         </div>
         
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
@@ -50,8 +52,8 @@ export function TransportOptions({ content }: TransportOptionsProps) {
                       <Icon size={24} />
                     </div>
                     <div>
-                      <h3 className="text-lg font-medium mb-2">{option.name}</h3>
-                      <p className="text-sm text-muted-foreground">{option.description}</p>
+                      <h3 className="text-lg font-medium mb-2">{tc(option.name)}</h3>
+                      <p className="text-sm text-muted-foreground">{tc(option.description)}</p>
                     </div>
                   </div>
                 </CardContent>

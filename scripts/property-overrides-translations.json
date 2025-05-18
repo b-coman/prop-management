@@ -1,0 +1,104 @@
+{
+  "details-header": {
+    "old": {
+      "title": "About Prahova Mountain Chalet",
+      "subtitle": "Authentic mountain living with modern comforts"
+    },
+    "new": {
+      "title": {
+        "en": "About Prahova Mountain Chalet",
+        "ro": "Despre Cabana din Prahova"
+      },
+      "subtitle": {
+        "en": "Authentic mountain living with modern comforts",
+        "ro": "Viață autentică la munte cu confort modern"
+      }
+    }
+  },
+  "location-header": {
+    "old": {
+      "title": "Our Location",
+      "subtitle": "Perfectly positioned in the Carpathian Mountains"
+    },
+    "new": {
+      "title": {
+        "en": "Our Location",
+        "ro": "Locația Noastră"
+      },
+      "subtitle": {
+        "en": "Perfectly positioned in the Carpathian Mountains",
+        "ro": "Perfect poziționată în Munții Carpați"
+      }
+    }
+  },
+  "gallery-header": {
+    "old": {
+      "title": "Photo Gallery",
+      "subtitle": "Explore our mountain chalet through images"
+    },
+    "new": {
+      "title": {
+        "en": "Photo Gallery",
+        "ro": "Galerie Foto"
+      },
+      "subtitle": {
+        "en": "Explore our mountain chalet through images",
+        "ro": "Explorează cabana noastră montană prin imagini"
+      }
+    }
+  },
+  "attractions": {
+    "title": {
+      "en": "Nearby Attractions",
+      "ro": "Atracții în Apropiere"
+    },
+    "description": {
+      "en": "Discover these spectacular places near our chalet",
+      "ro": "Descoperă aceste locuri spectaculoase lângă cabana noastră"
+    }
+  },
+  "amenity_categories": {
+    "Indoor": {
+      "en": "Indoor",
+      "ro": "Interior"
+    },
+    "Outdoor": {
+      "en": "Outdoor",
+      "ro": "Exterior"
+    }
+  },
+  "amenity_names": {
+    "High-Speed WiFi": {
+      "en": "High-Speed WiFi",
+      "ro": "WiFi de Mare Viteză"
+    },
+    "4K Smart TV": {
+      "en": "4K Smart TV",
+      "ro": "Smart TV 4K"
+    },
+    "Traditional Fireplace": {
+      "en": "Traditional Fireplace",
+      "ro": "Șemineu Tradițional"
+    },
+    "Fully Equipped Kitchen": {
+      "en": "Fully Equipped Kitchen",
+      "ro": "Bucătărie Complet Echipată"
+    },
+    "Mountain Views": {
+      "en": "Mountain Views",
+      "ro": "Vedere la Munte"
+    },
+    "BBQ Grill": {
+      "en": "BBQ Grill",
+      "ro": "Grătar BBQ"
+    },
+    "Private Parking": {
+      "en": "Private Parking",
+      "ro": "Parcare Privată"
+    },
+    "Forest Access": {
+      "en": "Forest Access",
+      "ro": "Acces la Pădure"
+    }
+  }
+}

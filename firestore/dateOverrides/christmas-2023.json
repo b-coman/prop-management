@@ -1,0 +1,24 @@
+{
+  "id": "christmas-2023",
+  "propertyId": "prahova-mountain-chalet",
+  "date": "2023-12-25",
+  "customPrice": 200.00,
+  "reason": "Christmas Day",
+  "minimumStay": 3,
+  "available": true,
+  "flatRate": true,
+  "createdAt": {
+    "__type": "timestamp",
+    "value": {
+      "_seconds": 1714583282,
+      "_nanoseconds": 0
+    }
+  },
+  "updatedAt": {
+    "__type": "timestamp",
+    "value": {
+      "_seconds": 1714583282,
+      "_nanoseconds": 0
+    }
+  }
+}

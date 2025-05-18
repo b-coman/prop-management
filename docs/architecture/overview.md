@@ -25,9 +25,14 @@ The system manages short-term rental properties through:
 - **Frontend & backend validation** using Zod schemas.
 - **Google Analytics integration** per property.
 - **Multi-domain support** allowing properties to be accessed via custom domains or path-based URLs.
+- **Multipage support** using optional catch-all routes (`[[...path]]`) for property websites.
+- **Dynamic theme system** supporting multiple visual themes with real-time preview (Enhanced with proper color palette generation).
+- **Multilingual system** using `tc()` function for template-based content translations.
+- **Dynamic pricing** with seasonal rates, date overrides, and length-of-stay discounts stored in Firestore.
 - **Input sanitization** for user-provided data.
-- **Admin area protection** via Google Sign-In.
+- **Admin area protection** via Google Sign-In (Server components architecture).
 - **Currency Conversion:** Uses exchange rates stored in Firestore (`appConfig/currencyRates`) to display prices in user-selected currencies (USD, EUR, RON).
+- **Edge Runtime optimization** for better performance and serverless deployment.
 - **Scheduled Tasks (Cron):** Placeholder scripts exist for releasing expired holds and updating currency rates (requires deployment and scheduling).
 
 Initial support: 2 properties (Prahova Mountain Chalet, Coltei Apartment Bucharest)
@@ -44,25 +49,57 @@ rentalspot/
 ├── .env.local           # Local environment variables (API keys, secrets) - DO NOT COMMIT
 ├── .next/               # Next.js build output (generated)
 ├── components/          # Reusable React components
-│   ├── booking/         # Booking flow components (forms, calendar, status, options, etc.)
-│   ├── homepage/        # Components for specific homepage sections (Hero, Experience, etc.)
+│   ├── booking/         # Booking flow components
+│   │   ├── container/   # Container components for booking flow
+│   │   ├── forms/       # Booking, hold, and contact forms
+│   │   ├── sections/    # Availability and common sections
+│   │   └── hooks/       # Booking-specific hooks
+│   ├── homepage/        # Components for specific homepage sections
+│   │   ├── hero-section.tsx # Hero section with dynamic positioning
+│   │   ├── hero-helper.ts # Helper for hero positioning
+│   │   └── ... # Other homepage components
 │   ├── property/        # Components related to displaying property details
-│   └── ui/              # Shadcn UI components (Button, Card, Input, etc.)
+│   │   ├── property-page-layout.tsx # Main layout component
+│   │   ├── property-page-renderer.tsx # Dynamic content renderer
+│   │   └── ... # Other property components
+│   ├── ui/              # Shadcn UI components (Button, Card, Input, etc.)
+│   ├── generic-header.tsx # Single page header component
+│   ├── generic-header-multipage.tsx # Multipage header component
+│   ├── currency-switcher.tsx # Currency selection component
+│   └── theme-switcher.tsx # Theme selection component
 ├── dataconnect/         # Firebase Data Connect configuration (if used)
 ├── dataconnect-generated/ # Generated Data Connect SDK (if used)
 ├── firestore/           # JSON files for seeding Firestore data
 │   ├── properties/      # Property metadata JSON files (e.g., prahova-mountain-chalet.json)
-│   └── propertyOverrides/ # Property content override JSON files
-│   └── websiteTemplates/  # Website template definition JSON files
-│   └── appConfig/       # Application configuration JSON files (e.g., currencyRates.json)
+│   ├── propertyOverrides/ # Property content override JSON files (includes multipage structures)
+│   ├── websiteTemplates/  # Website template definition JSON files (includes multipage templates)
+│   ├── appConfig/       # Application configuration JSON files (e.g., currencyRates.json)
+│   ├── dateOverrides/   # Price overrides for specific dates (e.g., christmas-2023.json)
+│   ├── seasonalPricing/ # Seasonal pricing rules (e.g., summer-season-2024.json)
+│   ├── priceCalendars/  # Generated price calendar data per property
+│   └── pricingTemplates/# Base pricing templates
 ├── hooks/               # Custom React hooks (e.g., useSessionStorage, useToast, useSanitizedState, useIsMobile)
 ├── lib/                 # Utility functions, libraries, configurations
 │   ├── firebase.ts      # Firebase Client SDK initialization
-│   ├── firebaseAdmin.ts # Firebase Admin SDK initialization (currently commented out)
+│   ├── firebaseAdmin.ts # Firebase Admin SDK initialization (Edge Runtime compatible)
 │   ├── overridesSchemas.ts # Zod schemas for template/override content validation
 │   ├── price-utils.ts   # Pricing calculation logic
 │   ├── sanitize.ts      # Input sanitization functions
-│   └── utils.ts         # General utility functions (e.g., cn for Tailwind)
+│   ├── utils.ts         # General utility functions (e.g., cn for Tailwind)
+│   ├── theme-utils.ts   # Theme system utilities and color palette generation
+│   ├── hero-helper.ts   # Helper functions for hero section positioning
+│   ├── page-header-helper.ts # Helper functions for page header positioning
+│   ├── themes/          # Theme definitions and utilities
+│   │   ├── theme-definitions.ts # Available theme configurations
+│   │   ├── theme-types.ts # TypeScript types for themes
+│   │   └── theme-utils.ts # Theme utility functions
+│   ├── pricing/         # Dynamic pricing system
+│   │   ├── price-calculation.ts # Price calculation logic
+│   │   ├── price-calendar-generator.ts # Calendar generation
+│   │   ├── price-calendar-updater.ts # Calendar update logic
+│   │   └── pricing-schemas.ts # Zod schemas for pricing
+│   └── server/
+│       └── pricing-data.ts # Server-side pricing data access
 ├── node_modules/        # Project dependencies (managed by npm/yarn)
 ├── public/              # Static assets (images, fonts, favicon)
 │   └── images/          # Default images for templates and placeholders
@@ -74,30 +111,49 @@ rentalspot/
 │   └── convertTimestamps.ts # Helper for timestamp conversion in load script
 ├── src/                 # Main application source code (using src directory convention)
 │   ├── app/             # Next.js App Router directory
-│   │   ├── (app)/       # Main application routes and layouts
-│   │   │   ├── admin/     # Admin panel routes and components
-│   │   │   │   ├── bookings/  # Booking management pages and components
-│   │   │   │   ├── coupons/   # Coupon management pages and components
-│   │   │   │   ├── inquiries/ # Inquiry management pages and components ([inquiryId] for detail)
-│   │   │   │   ├── properties/# Property management pages and components ([slug]/edit, new)
-│   │   │   │   └── layout.tsx # Admin panel layout
-│   │   │   ├── api/       # API routes
-│   │   │   │   ├── resolve-domain/ # API for domain resolution
-│   │   │   │   └── webhooks/     # Webhook handlers (e.g., Stripe)
-│   │   │   ├── booking/   # Booking flow pages (check, success, cancel, hold-success)
-│   │   │   │   └── check/
-│   │   │   │       └── [slug]/
-│   │   │   │           └── page.tsx # Availability check page
-│   │   │   ├── properties/ # Dynamic property detail pages ([slug])
-│   │   │   │   └── [slug]/
-│   │   │   │       └── page.tsx
-│   │   │   ├── login/     # Login page for admin access
-│   │   │   ├── globals.css # Global CSS styles and Tailwind base layers
-│   │   │   ├── layout.tsx  # Root application layout
-│   │   │   └── page.tsx    # Homepage component (renders default property)
+│   │   ├── admin/       # Admin panel routes (Server Components)
+│   │   │   ├── _components/ # Admin-specific client components
+│   │   │   ├── bookings/  # Booking management pages and components
+│   │   │   ├── coupons/   # Coupon management pages and components
+│   │   │   ├── inquiries/ # Inquiry management pages and components ([inquiryId] for detail)
+│   │   │   ├── properties/# Property management pages and components ([slug]/edit, new)
+│   │   │   ├── pricing/   # Dynamic pricing management interface
+│   │   │   │   ├── _components/ # Pricing UI components
+│   │   │   │   ├── date-overrides/ # Date-specific pricing overrides
+│   │   │   │   └── seasons/ # Seasonal pricing configuration
+│   │   │   └── layout.tsx # Admin panel layout (Server Component)
+│   │   ├── api/         # API routes
+│   │   │   ├── resolve-domain/ # API for domain resolution
+│   │   │   ├── check-pricing/ # Pricing calculation API
+│   │   │   ├── check-availability/ # Availability checking API
+│   │   │   └── webhooks/     # Webhook handlers (e.g., Stripe)
+│   │   ├── booking/     # Booking flow pages (check, success, cancel, hold-success)
+│   │   │   └── check/
+│   │   │       └── [slug]/
+│   │   │           └── page.tsx # Availability check page
+│   │   ├── properties/  # Dynamic property detail pages
+│   │   │   └── [slug]/
+│   │   │       ├── [[...path]]/ # Optional catch-all for multipage support
+│   │   │       │   └── page.tsx
+│   │   │       └── page.tsx # Single page fallback
+│   │   ├── login/       # Login page for admin access
+│   │   ├── globals.css  # Global CSS styles and Tailwind base layers
+│   │   ├── layout.tsx   # Root application layout
+│   │   └── page.tsx     # Homepage component (renders default property)
 │   │   └── actions/       # Server Actions (e.g., booking, checkout, coupon, property, inquiry actions)
-│   ├── contexts/          # React Contexts (e.g., AuthContext, CurrencyContext)
-│   └── services/        # Backend services (booking, coupon, inquiry, sync, sms, config)
+│   ├── contexts/          # React Contexts
+│   │   ├── AuthContext.tsx # Authentication state management
+│   │   ├── CurrencyContext.tsx # Currency selection state
+│   │   ├── BookingContext.tsx # Booking flow state management
+│   │   └── ThemeContext.tsx # Dynamic theme state management
+│   ├── services/          # Backend services
+│   │   ├── bookingService.ts # Booking operations
+│   │   ├── couponService.ts # Coupon validation and management
+│   │   ├── inquiryService.ts # Inquiry management
+│   │   ├── pricingService.ts # Dynamic pricing calculations
+│   │   ├── availabilityService.ts # Availability checking
+│   │   ├── emailService.ts # Email notifications
+│   │   └── configService.ts # App configuration
 ├── .firebaserc          # Firebase project configuration (linking to project ID)
 ├── .gitignore           # Files and directories ignored by Git
 ├── components.json      # Shadcn UI configuration
@@ -117,9 +173,11 @@ rentalspot/
 
 | Collection                       | Description                                                                 | Document ID Format        | Key Fields                                                                                                                                          |
 | :------------------------------- | :-------------------------------------------------------------------------- | :------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/properties/{propertySlug}`     | Core metadata & settings for each property                                  | Property Slug             | `templateId`, `name`, `slug`, `location`, `pricePerNight`, `baseCurrency`, `maxGuests`, `baseOccupancy`, `holdFeeAmount`, `enableHoldOption`, etc. |
-| `/propertyOverrides/{propertySlug}`| Content overrides & section visibility per property                      | Property Slug             | `visibleBlocks`, `hero`, `features`, `attractions`, `testimonials`, `images`, etc.                                                                 |
-| `/websiteTemplates/{templateId}` | Defines template structure + default block content                        | Template ID               | `homepage`, `header`, `footer`, `defaults`                                                                                                        |
+| `/properties/{propertySlug}`     | Core metadata & settings for each property                                  | Property Slug             | `templateId`, `name`, `slug`, `location`, `pricePerNight`, `baseCurrency`, `maxGuests`, `baseOccupancy`, `holdFeeAmount`, `enableHoldOption`, `theme`, `themeSettings`, etc. |
+| `/propertyOverrides/{propertySlug}`| Content overrides & section visibility per property                      | Property Slug             | `visibleBlocks`, `hero`, `features`, `attractions`, `testimonials`, `images`, `contentTranslations`, `pages` (for multipage), etc.                 |
+| `/websiteTemplates/{templateId}` | Defines template structure + default block content                        | Template ID               | `homepage`, `header`, `footer`, `defaults`, `contentTranslations`, `pages` (for multipage templates)                                              |
+| `/amenities/{amenityId}`         | Standardized amenities with translations                                  | Amenity ID                | `id`, `name` (multilingual), `icon`, `category` (multilingual)                                                                                    |
+| `/features/{featureId}`          | Property features with translations                                       | Feature ID                | `id`, `title` (multilingual), `description` (multilingual), `icon`, `order`                                                                       |
 | `/availability/{propertySlug}_{YYYY-MM}` | Availability status per property, per day, grouped by month             | `{propertySlug}_{YYYY-MM}`| `propertyId`, `month`, `available` (map day->bool), `holds` (map day->bookingId)                                                                    |
 | `/bookings/{bookingId}`          | Booking records                                                           | Auto-generated ID         | `propertyId`, `guestInfo`, `checkInDate`, `checkOutDate`, `status` ('pending', 'on-hold', 'confirmed', 'cancelled', 'completed'), `pricing`, `holdUntil`, `holdFee`, `holdPaymentId`, etc. |
 | `/inquiries/{inquiryId}`         | Guest inquiries                                                           | Auto-generated ID         | `propertySlug`, `checkIn`, `checkOut`, `guestInfo`, `message`, `status` ('new', 'responded', 'converted', 'closed'), `responses` (array)             |
@@ -129,6 +187,10 @@ rentalspot/
 | `/syncCalendars/{documentId}`    | Calendar sync info (schema defined, implementation pending)               | Auto-generated ID         | `propertyId`, `platform`, `calendarId`, etc.                                                                                                      |
 | `/availabilityAlerts/{alertId}`  | Requests for availability notifications (schema defined, backend pending) | Auto-generated ID         | `propertyId`, `checkInDate`, `checkOutDate`, `contactMethod`, etc.                                                                                |
 | `/appConfig/currencyRates`       | Application-wide configuration, starting with currency rates              | `currencyRates`           | `rates` (map currency->rate), `lastUpdated`                                                                                                       |
+| `/priceCalendars/{propertySlug}_{YYYY-MM}` | Generated price calendar data per property per month            | `{propertySlug}_{YYYY-MM}`| `propertySlug`, `month`, `year`, `days` (array of daily pricing)                                                                                   |
+| `/seasonalPricing/{seasonId}`    | Seasonal pricing rules across properties                                  | Auto-generated ID         | `name`, `startDate`, `endDate`, `pricePerNight`, `currency`, `applicablePropertySlugs`                                                           |
+| `/dateOverrides/{overrideId}`    | Date-specific price overrides                                             | Auto-generated ID         | `propertySlug`, `date`, `pricePerNight`, `name`, `description`                                                                                    |
+| `/lengthOfStayDiscounts/{discountId}` | Length of stay discount rules                                       | Auto-generated ID         | `propertySlug`, `minNights`, `maxNights`, `discountPercentage`                                                                                    |
 
 ✅ **`propertySlug` is the canonical identifier for properties.**
 
@@ -301,6 +363,39 @@ All block content (in `template.defaults` and `propertyOverrides`) must follow t
 
 ---
 
+## 📝 6.1. **Multipage Template Structure**
+
+Properties can optionally use a multipage structure, enabled by the `pages` array in templates and overrides:
+
+```json
+{
+  "templateId": "holiday-house-multipage",
+  "pages": [
+    {
+      "id": "home",
+      "title": "Home", 
+      "path": "/",
+      "blocks": ["hero", "experience", "features"],
+      "header": { "transparent": true }
+    },
+    {
+      "id": "amenities",
+      "title": "Amenities",
+      "path": "/amenities",
+      "blocks": ["amenities-hero", "amenities-list", "amenities-gallery"],
+      "header": { "transparent": false }
+    }
+  ]
+}
+```
+
+✅ Routes are handled by `[[...path]]` catch-all routing
+✅ Each page can have its own set of blocks
+✅ Headers can be configured per page (transparent, position, etc.)
+✅ Content translations supported via `tc()` function
+
+---
+
 ## 🚀 7. **Frontend Rendering Logic (Updated)**
 
 For each block defined in `template.homepage`:
@@ -316,6 +411,47 @@ For each block defined in `template.homepage`:
 
 ✅ No hardcoded defaults in frontend components.
 ✅ Rendering is driven by template structure, visibility flags, and merged content (override > default).
+
+---
+
+## 🎨 7.1. **Dynamic Theme System**
+
+Properties support multiple visual themes with CSS variables and real-time preview:
+
+- **Theme Configuration**: Stored in `property.theme` and `property.themeSettings`
+- **Available Themes**: modern, rustic, beach, mountain, minimal, luxury
+- **Theme Features**:
+  - Dynamic color palette generation from primary/secondary colors
+  - CSS variables for consistent styling
+  - Real-time preview in admin interface
+  - Support for light/dark contrast calculations
+  - Button style variants (solid, outline, ghost)
+  
+✅ Theme utilities in `src/lib/theme-utils.ts`
+✅ Theme definitions in `src/lib/themes/`
+✅ Applied via CSS variables in root layout
+
+---
+
+## 💰 7.2. **Dynamic Pricing System**
+
+Advanced pricing system supporting multiple pricing strategies:
+
+- **Price Calendars**: Generated monthly calendars with daily pricing
+- **Seasonal Pricing**: Date ranges with specific rates
+- **Date Overrides**: Special pricing for specific dates (holidays, events)
+- **Length of Stay Discounts**: Percentage discounts based on booking duration
+- **Base Pricing**: Property's default rate as fallback
+
+**Price Calculation Priority**:
+1. Date-specific overrides (highest priority)
+2. Seasonal pricing
+3. Generated calendar prices
+4. Base property price (fallback)
+
+✅ Price calculation in `src/lib/pricing/price-calculation.ts`
+✅ Calendar generation in `src/lib/pricing/price-calendar-generator.ts`
+✅ Admin UI in `src/app/admin/pricing/`
 
 ---
 
@@ -363,6 +499,39 @@ For each block defined in `template.homepage`:
 
 ---
 
+## 📐 9.1. **Component Positioning System**
+
+Dynamic positioning system for headers and booking forms:
+
+- **Hero Positioning**: Forms can be positioned at different locations (bottom, center, side)
+- **Page Headers**: Support for transparent/solid headers with dynamic positioning
+- **Helper Utilities**:
+  - `hero-helper.ts`: Calculates form positioning in hero sections
+  - `page-header-helper.ts`: Manages header transparency and positioning
+- **Responsive Design**: Different positioning on mobile vs desktop
+
+---
+
+## 🌐 9.2. **Multilingual Content System**
+
+Template-based translation system using the `tc()` function:
+
+```typescript
+// Usage in components
+tc(template.defaults.hero, "title", locale) || "Default Title"
+```
+
+- **Translation Structure**: Content translations stored in `contentTranslations` object
+- **Locale Support**: Currently supports English (en) and Romanian (ro)
+- **Fallback Logic**: Falls back to default language if translation missing
+- **Template Integration**: Works with both templates and property overrides
+
+✅ Translations defined per block in templates/overrides
+✅ Seamless integration with dynamic content
+✅ No separate translation files needed
+
+---
+
 ## 🖼️ 10. **Image Storage & Referencing**
 
 ✅ **Static Template Images:** Default images used in `template.defaults` (e.g., `/images/templates/holiday-house/default-hero.jpg`) MUST be stored in `/public/images/templates/{templateId}/...` or a similar structure within `/public`. Reference using relative paths from the root (e.g., `/images/templates/holiday-house/default-hero.jpg`).
@@ -392,14 +561,38 @@ Rules are defined in `firestore.rules` and should be deployed to Firebase. Key r
 ## 🔐 12. **Authentication & Authorization**
 
 *   **Authentication:**
-    *   Method: Firebase Authentication with Google Sign-In (currently using Popup).
-    *   Process: Users sign in via a Google popup on the `/login` page.
-    *   State Management: `AuthContext` (`src/contexts/AuthContext.tsx`) manages the user's authentication state.
+    *   Method: Firebase Authentication with Google Sign-In.
+    *   Process: Users sign in via Google on the `/login` page.
+    *   Server Components: Admin area uses server-side authentication checks.
+    *   State Management: `AuthContext` manages client-side auth state.
 *   **Authorization:**
-    *   Roles: Currently, an authenticated user is considered an "admin" for accessing `/admin/*` routes. More granular roles (owner, guest) are defined in Firestore schemas but not fully implemented for access control beyond basic Firestore rules.
-    *   Enforcement:
-        *   Admin area (`/admin/*`) is protected by `ProtectedAdminLayout` which checks `useAuth()` for an authenticated user.
-        *   Firestore rules (see Section 11) provide data-level access control.
+    *   Admin Routes: Protected using server-side middleware and components.
+    *   `AdminAuthCheck` component validates auth state server-side.
+    *   Edge Runtime compatible authentication using Firebase Admin SDK.
+*   **Implementation:**
+    *   Admin routes check authentication at the server level.
+    *   No client-side redirects for protected routes.
+    *   Session validation happens on each request.
+
+---
+
+## ⚡ 12.1. **Edge Runtime Optimization**
+
+The application is optimized for Edge Runtime deployment:
+
+*   **Firebase Admin SDK**: Modified to work with Edge Runtime limitations.
+*   **Server Components**: Admin interface uses server components for better performance.
+*   **No Node.js Dependencies**: Core functionality avoids Node.js-specific APIs.
+*   **Middleware**: Edge-compatible middleware for routing and auth.
+*   **Benefits**:
+    *   Faster cold starts
+    *   Global edge deployment
+    *   Reduced infrastructure costs
+    *   Better scalability
+
+✅ Edge Runtime config in `next.config.ts`
+✅ Compatible Firebase Admin in `firebaseAdmin.ts`
+✅ Server components for admin interface
 
 ---
 
@@ -552,3 +745,37 @@ The updated validation pattern creates a consistent experience across:
 - Coupon application errors/success messages
 
 This styling is used throughout the booking flow, including the main booking form, hold form, and contact form.
+
+---
+
+## 21. **Documentation References**
+
+*Added: 2025-05-17*
+
+For more detailed information on specific features and implementations, refer to these specialized documentation files:
+
+### Architecture Documentation
+- [`/docs/architecture/multipage-architecture.md`](multipage-architecture.md) - Multipage website structure and routing
+- [`/docs/architecture/dynamic-theme-system.md`](dynamic-theme-system.md) - Theme system implementation details
+- [`/docs/architecture/admin-server-components.md`](admin-server-components.md) - Server components architecture for admin
+
+### Implementation Guides
+- [`/docs/implementation/dynamic-pricing-implementation.md`](../implementation/dynamic-pricing-implementation.md) - Pricing system details
+- [`/docs/implementation/pricing-system.md`](../implementation/pricing-system.md) - Complete pricing architecture
+- [`/docs/implementation/theme-system-implementation.md`](../implementation/theme-system-implementation.md) - Theme system implementation
+- [`/docs/implementation/booking-form-positioning.md`](../implementation/booking-form-positioning.md) - Form positioning system
+- [`/docs/implementation/edge-runtime-compatibility.md`](../implementation/edge-runtime-compatibility.md) - Edge Runtime optimization
+- [`/docs/implementation/admin-auth-system.md`](../implementation/admin-auth-system.md) - Admin authentication system
+
+### User Guides
+- [`/docs/guides/using-property-themes.md`](../guides/using-property-themes.md) - How to use themes
+- [`/docs/guides/using-dynamic-pricing.md`](../guides/using-dynamic-pricing.md) - Pricing system usage
+- [`/docs/guides/using-availability-preview.md`](../guides/using-availability-preview.md) - Availability preview feature
+- [`/docs/guides/consecutively-blocked-dates.md`](../guides/consecutively-blocked-dates.md) - Handling blocked dates
+- [`/docs/guides/debugging-form-positions.md`](../guides/debugging-form-positions.md) - Form position debugging
+- [`/docs/guides/extending-admin-interface.md`](../guides/extending-admin-interface.md) - Adding admin features
+- [`/docs/guides/claude-assistance.md`](../guides/claude-assistance.md) - AI assistance guidelines
+
+✅ Documentation is continuously updated as features evolve
+✅ Each feature has implementation documentation and user guides
+✅ Cross-references help navigate the documentation system

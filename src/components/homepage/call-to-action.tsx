@@ -1,10 +1,13 @@
+"use client";
+
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useLanguage } from '@/hooks/useLanguage';
 
 interface CtaContent {
-  title: string;
-  description: string;
-  buttonText: string;
+  title: string | any;
+  description: string | any;
+  buttonText: string | any;
   buttonUrl: string;
   backgroundImage?: string;
   'data-ai-hint'?: string;
@@ -18,6 +21,7 @@ interface CallToActionSectionProps {
 export function CallToActionSection({ content }: CallToActionSectionProps) {
   // Extract properties from content
   const { title, description, buttonText, buttonUrl } = content;
+  const { tc } = useLanguage();
 
   // Determine the target link
   const targetHref = buttonUrl || '/booking'; // Default to booking page
@@ -44,15 +48,15 @@ export function CallToActionSection({ content }: CallToActionSectionProps) {
     >
       <div className="container mx-auto px-4 text-center text-primary-foreground">
         <h2 className="text-3xl md:text-4xl font-bold mb-6">
-          {title}
+          {tc(title)}
         </h2>
         <p className="text-lg mb-8 max-w-2xl mx-auto">
-          {description}
+          {tc(description)}
         </p>
         {/* Link to the determined target */}
          <Link href={targetHref} passHref>
            <Button size="lg" variant="secondary" className="text-primary hover:bg-secondary/90">
-             {buttonText}
+             {tc(buttonText)}
            </Button>
          </Link>
       </div>

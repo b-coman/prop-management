@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { FullMapBlock } from '@/lib/overridesSchemas-multipage';
 import { Button } from '@/components/ui/button';
 import { MapPin, Navigation } from 'lucide-react';
+import { useLanguage } from '@/hooks/useLanguage';
 
 // Extend the Window interface to include our callback
 declare global {
@@ -19,6 +20,8 @@ interface FullMapProps {
 }
 
 export function FullMap({ content }: FullMapProps) {
+  const { tc } = useLanguage();
+
   // Add safety check for missing content
   if (!content) {
     console.warn("FullMap received invalid content");
@@ -153,14 +156,14 @@ export function FullMap({ content }: FullMapProps) {
     <section className="py-16 bg-background">
       <div className="container mx-auto px-4">
         <div className="text-center max-w-2xl mx-auto mb-10">
-          <h2 className="text-3xl font-bold mb-4">{title}</h2>
-          {description && <p className="text-muted-foreground">{description}</p>}
+          <h2 className="text-3xl font-bold mb-4">{tc(title)}</h2>
+          {description && <p className="text-muted-foreground">{tc(description)}</p>}
         </div>
         
         <div className="mb-6 flex flex-col items-center">
           <div className="flex items-center gap-2 mb-4">
             <MapPin className="text-primary" />
-            <span className="text-lg">{address}</span>
+            <span className="text-lg">{tc(address)}</span>
           </div>
 
           {showDirections && (
@@ -170,7 +173,7 @@ export function FullMap({ content }: FullMapProps) {
               className="gap-2"
             >
               <Navigation size={16} />
-              Get Directions
+              {tc("Get Directions")}
             </Button>
           )}
         </div>

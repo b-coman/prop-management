@@ -1,0 +1,12 @@
+{
+  "id": "mountain-views",
+  "icon": "Mountain",
+  "name": {
+    "en": "Mountain Views",
+    "ro": "Vedere la Munte"
+  },
+  "category": {
+    "en": "Outdoor",
+    "ro": "Exterior"
+  }
+}

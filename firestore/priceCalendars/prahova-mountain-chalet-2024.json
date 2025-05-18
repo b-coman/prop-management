@@ -1,0 +1,110 @@
+{
+  "id": "prahova-mountain-chalet-2024",
+  "propertyId": "prahova-mountain-chalet",
+  "year": 2024,
+  "lastUpdated": {
+    "__type": "timestamp",
+    "value": {
+      "_seconds": 1714583282,
+      "_nanoseconds": 0
+    }
+  },
+  "prices": {
+    "2024-01-01": {
+      "basePrice": 270,
+      "adjustedPrice": 270,
+      "minimumStay": 3,
+      "available": true,
+      "seasonId": "winter-season-2023",
+      "isWeekend": false,
+      "reason": "New Years Day"
+    },
+    "2024-01-02": {
+      "basePrice": 270,
+      "adjustedPrice": 270,
+      "minimumStay": 3,
+      "available": true,
+      "seasonId": "winter-season-2023",
+      "isWeekend": false
+    },
+    "2024-01-03": {
+      "basePrice": 270,
+      "adjustedPrice": 270,
+      "minimumStay": 3,
+      "available": true,
+      "seasonId": "winter-season-2023",
+      "isWeekend": false
+    },
+    "2024-01-04": {
+      "basePrice": 270,
+      "adjustedPrice": 270,
+      "minimumStay": 3,
+      "available": true,
+      "seasonId": "winter-season-2023",
+      "isWeekend": false
+    },
+    "2024-01-05": {
+      "basePrice": 270,
+      "adjustedPrice": 270,
+      "minimumStay": 3,
+      "available": true,
+      "seasonId": "winter-season-2023",
+      "isWeekend": false
+    },
+    "2024-01-06": {
+      "basePrice": 180,
+      "adjustedPrice": 216,
+      "minimumStay": 2,
+      "available": true,
+      "isWeekend": true
+    },
+    "2024-01-07": {
+      "basePrice": 180,
+      "adjustedPrice": 180,
+      "minimumStay": 1,
+      "available": true,
+      "isWeekend": false
+    },
+    "2024-07-01": {
+      "basePrice": 180,
+      "adjustedPrice": 234,
+      "minimumStay": 2,
+      "available": true,
+      "seasonId": "summer-season-2024",
+      "isWeekend": false
+    },
+    "2024-07-15": {
+      "basePrice": 180,
+      "adjustedPrice": 234,
+      "minimumStay": 2,
+      "available": true,
+      "seasonId": "summer-season-2024",
+      "isWeekend": false
+    },
+    "2024-07-20": {
+      "basePrice": 180,
+      "adjustedPrice": 280,
+      "minimumStay": 2,
+      "available": true,
+      "seasonId": "summer-season-2024",
+      "isWeekend": true
+    },
+    "2024-12-24": {
+      "basePrice": 180,
+      "adjustedPrice": 270,
+      "minimumStay": 3,
+      "available": true,
+      "seasonId": "winter-season-2024",
+      "isWeekend": false
+    },
+    "2024-12-25": {
+      "basePrice": 180,
+      "adjustedPrice": 210,
+      "minimumStay": 3,
+      "available": true,
+      "seasonId": "winter-season-2024",
+      "isWeekend": false,
+      "reason": "Christmas Day"
+    }
+  }
+}

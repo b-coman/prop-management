@@ -1,5 +1,10 @@
 "use client";
 
+// DEPRECATED: This component is now deprecated and should be archived.
+// Please use /components/booking/booking-summary.tsx instead, which includes
+// support for dynamic pricing from the price calendar.
+// This file will be moved to /src/archive in a future cleanup.
+
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';

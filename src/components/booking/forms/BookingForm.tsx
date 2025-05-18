@@ -164,7 +164,7 @@ export function BookingForm({
   const isFormDisabled = isProcessing || isPending || !checkInDate || !checkOutDate;
 
   return (
-    <Card className="mt-4">
+    <Card className="mt-4 booking-form-card">
       <CardHeader>
         <CardTitle>Complete Booking</CardTitle>
       </CardHeader>
@@ -338,6 +338,7 @@ export function BookingForm({
             
             <Button 
               type="submit" 
+              variant="cta"
               className="w-full" 
               disabled={isFormDisabled}
             >

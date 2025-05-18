@@ -1,0 +1,334 @@
+{
+  "visibleBlocks": [
+    "hero",
+    "experience",
+    "host",
+    "features",
+    "location",
+    "testimonials",
+    "cta",
+    "gallery"
+  ],
+  "hero": {
+    "backgroundImage": "https://picsum.photos/seed/chalet1/800/600",
+    "data-ai-hint": "mountain chalet exterior Romania",
+    "showBookingForm": true,
+    "showRating": true,
+    "bookingForm": {
+      "position": "bottom",
+      "size": "large"
+    }
+  },
+  "experience": {
+    "title": {
+      "en": "Experience Nature's Embrace",
+      "ro": "Experience Nature's Embrace"
+    },
+    "description": {
+      "en": "Welcome to our home, and thank you for choosing to stay with us. This place is close to our hearts, and we hope it will become a warm spot for you too. Settle in, unwind, and let the magic of place weave its spell.",
+      "ro": "Welcome to our home, and thank you for choosing to stay with us. This place is close to our hearts, and we hope it will become a warm spot for you too. Settle in, unwind, and let the magic of place weave its spell."
+    },
+    "highlights": [
+      {
+        "icon": "Mountain",
+        "title": {
+          "en": "Mountain Retreat",
+          "ro": "Mountain Retreat"
+        },
+        "description": {
+          "en": "Escape to our serene chalet nestled in the majestic foothills",
+          "ro": "Escape to our serene chalet nestled in the majestic foothills"
+        }
+      },
+      {
+        "icon": "Users",
+        "title": {
+          "en": "Family Friendly",
+          "ro": "Family Friendly"
+        },
+        "description": {
+          "en": "A perfect playground for children with zip line, hammocks, and swings",
+          "ro": "A perfect playground for children with zip line, hammocks, and swings"
+        }
+      },
+      {
+        "icon": "Leaf",
+        "title": {
+          "en": "Nature Connection",
+          "ro": "Nature Connection"
+        },
+        "description": {
+          "en": "Breathe fresh mountain air while enjoying stunning valley views",
+          "ro": "Breathe fresh mountain air while enjoying stunning valley views"
+        }
+      },
+      {
+        "icon": "Map",
+        "title": {
+          "en": "Local Exploration",
+          "ro": "Local Exploration"
+        },
+        "description": {
+          "en": "Discover the rich history and natural wonders of Prahova Valley",
+          "ro": "Discover the rich history and natural wonders of Prahova Valley"
+        }
+      }
+    ]
+  },
+  "host": {
+    "name": "Bogdan",
+    "image": "/host-image.jpg",
+    "description": {
+      "en": "Hello, my name is Bogdan and I'm happy to share my house with you. I built this place some years ago as a family retreat and basecamp for our mountain adventures... It's a place where each stone tells a tale, and every corner holds some warmth. For me, you're more than just guests - you're part of the story that continues to grow with the joy of all who stay.",
+      "ro": "Hello, my name is Bogdan and I'm happy to share my house with you. I built this place some years ago as a family retreat and basecamp for our mountain adventures... It's a place where each stone tells a tale, and every corner holds some warmth. For me, you're more than just guests - you're part of the story that continues to grow with the joy of all who stay."
+    },
+    "data-ai-hint": "friendly male host portrait outdoors"
+  },
+  "features": [
+    {
+      "icon": "firepit",
+      "title": {
+        "en": "Fire Pit",
+        "ro": "Fire Pit"
+      },
+      "description": {
+        "en": "Perfect for cozy nights, our fire pit includes a 15-liter cauldron for outdoor cooking.",
+        "ro": "Perfect for cozy nights, our fire pit includes a 15-liter cauldron for outdoor cooking."
+      },
+      "image": "/firepit.jpg",
+      "data-ai-hint": "fire pit outdoors night"
+    },
+    {
+      "icon": "hammock",
+      "title": {
+        "en": "Hammocks",
+        "ro": "Hammocks"
+      },
+      "description": {
+        "en": "Relax among the trees with several hammocks set up for reading or napping.",
+        "ro": "Relax among the trees with several hammocks set up for reading or napping."
+      },
+      "image": "/hammock.jpg",
+      "data-ai-hint": "hammock forest relax"
+    },
+    {
+      "icon": "zipline",
+      "title": {
+        "en": "30m Zip Line",
+        "ro": "30m Zip Line"
+      },
+      "description": {
+        "en": "The zip line is the children's favorite feature, stretching 30 meters for safe fun.",
+        "ro": "The zip line is the children's favorite feature, stretching 30 meters for safe fun."
+      },
+      "image": "/zipline.jpg",
+      "data-ai-hint": "zipline forest adventure"
+    },
+    {
+      "icon": "bbq",
+      "title": {
+        "en": "BBQ Area",
+        "ro": "BBQ Area"
+      },
+      "description": {
+        "en": "Right next to the terrace, our BBQ is set up for your grilling pleasures, fully equipped with essential tools for perfect evening cookouts.",
+        "ro": "Right next to the terrace, our BBQ is set up for your grilling pleasures, fully equipped with essential tools for perfect evening cookouts."
+      },
+      "image": "/bbq.jpg",
+      "data-ai-hint": "bbq grill terrace evening"
+    }
+  ],
+  "location": {
+    "title": {
+      "en": "Discover Nearby Attractions",
+      "ro": "Discover Nearby Attractions"
+    }
+  },
+  "attractions": [
+    {
+      "name": {
+        "en": "Dracula Castle",
+        "ro": "Dracula Castle"
+      },
+      "distance": {
+        "en": "2.5 hours by car",
+        "ro": "2.5 hours by car"
+      },
+      "image": "/dracula-castle.jpg",
+      "description": {
+        "en": "Located in Transylvania, Bran Castle is steeped in myth as the reputed home of Dracula.",
+        "ro": "Located in Transylvania, Bran Castle is steeped in myth as the reputed home of Dracula."
+      },
+      "data-ai-hint": "Dracula Castle Bran Romania exterior"
+    },
+    {
+      "name": {
+        "en": "Ialomita Cave",
+        "ro": "Ialomita Cave"
+      },
+      "distance": {
+        "en": "1.5 hours by car",
+        "ro": "1.5 hours by car"
+      },
+      "image": "/ialomita-cave.jpg",
+      "description": {
+        "en": "Explore the historic Ialomita Cave, a 480-meter-long geological marvel in Bucegi National Park.",
+        "ro": "Explore the historic Ialomita Cave, a 480-meter-long geological marvel in Bucegi National Park."
+      },
+      "data-ai-hint": "Ialomita Cave entrance monastery"
+    },
+    {
+      "name": {
+        "en": "7 Ladders Canyon",
+        "ro": "7 Ladders Canyon"
+      },
+      "distance": {
+        "en": "2.5 hours by car",
+        "ro": "2.5 hours by car"
+      },
+      "image": "/7-ladders.jpg",
+      "description": {
+        "en": "An exhilarating climb through gorges and waterfalls, with one of Europe's longest zip-lines.",
+        "ro": "An exhilarating climb through gorges and waterfalls, with one of Europe's longest zip-lines."
+      },
+      "data-ai-hint": "7 ladders canyon waterfall ladders"
+    },
+    {
+      "name": {
+        "en": "The Sphinx",
+        "ro": "The Sphinx"
+      },
+      "distance": {
+        "en": "Cable car from Busteni",
+        "ro": "Cable car from Busteni"
+      },
+      "image": "/sphinx.jpg",
+      "description": {
+        "en": "The mysterious Sphinx rock formation at 2,216 meters, a natural wonder of the Bucegi Mountains.",
+        "ro": "The mysterious Sphinx rock formation at 2,216 meters, a natural wonder of the Bucegi Mountains."
+      },
+      "data-ai-hint": "Sphinx Bucegi mountains rock formation"
+    }
+  ],
+  "testimonials": {
+    "title": "What Our Guests Say",
+    "reviews": [
+      {
+        "name": "Maria D.",
+        "date": "2025-05",
+        "rating": 5,
+        "text": "We had an amazing stay at the Mountain Retreat! The cabin is beautiful and the surroundings breathtaking.",
+        "imageUrl": "/guest-maria.jpg",
+        "data-ai-hint": "happy female guest review"
+      },
+      {
+        "name": "James T.",
+        "date": "2025-04",
+        "rating": 5,
+        "text": "Perfect mountain getaway with all the amenities you could need. The sunset view is spectacular.",
+        "imageUrl": "/guest-james.jpg",
+        "data-ai-hint": "happy male guest review"
+      },
+      {
+        "name": "Sofia C.",
+        "date": "2025-03",
+        "rating": 5,
+        "text": "This was our second stay and it was just as wonderful as the first. Great kitchen and lovely terrace BBQ.",
+        "imageUrl": "/guest-sofia.jpg",
+        "data-ai-hint": "happy guest couple review"
+      }
+    ]
+  },
+  "gallery": {
+    "title": "Property Gallery"
+  },
+  "images": [
+    {
+      "url": "https://picsum.photos/seed/chalet1/800/600",
+      "alt": "Chalet exterior view",
+      "isFeatured": true,
+      "tags": [
+        "exterior",
+        "hero"
+      ],
+      "sortOrder": 1,
+      "data-ai-hint": "mountain chalet exterior Romania"
+    },
+    {
+      "url": "https://picsum.photos/seed/chalet2/800/600",
+      "alt": "Cozy living room with fireplace",
+      "isFeatured": false,
+      "tags": [
+        "interior",
+        "livingroom"
+      ],
+      "sortOrder": 2,
+      "data-ai-hint": "chalet living room fireplace"
+    },
+    {
+      "url": "https://picsum.photos/seed/chalet3/800/600",
+      "alt": "Mountain view from balcony",
+      "isFeatured": false,
+      "tags": [
+        "view",
+        "balcony"
+      ],
+      "sortOrder": 3,
+      "data-ai-hint": "mountain view balcony Romania"
+    },
+    {
+      "url": "https://picsum.photos/seed/chalet4/800/600",
+      "alt": "Kitchen area",
+      "isFeatured": false,
+      "tags": [
+        "interior",
+        "kitchen"
+      ],
+      "sortOrder": 4,
+      "data-ai-hint": "chalet kitchen"
+    },
+    {
+      "url": "https://picsum.photos/seed/chalet5/800/600",
+      "alt": "Bedroom with view",
+      "isFeatured": false,
+      "tags": [
+        "interior",
+        "bedroom"
+      ],
+      "sortOrder": 5,
+      "data-ai-hint": "chalet bedroom mountain view"
+    },
+    {
+      "url": "https://picsum.photos/seed/chalet6/800/600",
+      "alt": "Garden area",
+      "isFeatured": false,
+      "tags": [
+        "exterior",
+        "garden"
+      ],
+      "sortOrder": 6,
+      "data-ai-hint": "chalet garden summer"
+    }
+  ],
+  "cta": {
+    "title": {
+      "en": "Ready for Your Mountain Getaway?",
+      "ro": "Ready for Your Mountain Getaway?"
+    },
+    "description": {
+      "en": "Escape to the tranquility of Prahova Valley and create lasting memories with your loved ones.",
+      "ro": "Escape to the tranquility of Prahova Valley and create lasting memories with your loved ones."
+    },
+    "buttonText": {
+      "en": "Book Your Stay Now",
+      "ro": "Book Your Stay Now"
+    },
+    "buttonUrl": "#booking",
+    "backgroundImage": "/mountain-panorama.jpg",
+    "data-ai-hint": "mountain panorama sunset Prahova"
+  },
+  "_translationStatus": {
+    "needsManualTranslation": true,
+    "lastMigrated": "2025-05-16T12:28:04.085Z"
+  }
+}

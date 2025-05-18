@@ -1,0 +1,12 @@
+{
+  "id": "4k-smart-tv",
+  "icon": "Tv",
+  "name": {
+    "en": "4K Smart TV",
+    "ro": "Smart TV 4K"
+  },
+  "category": {
+    "en": "Indoor",
+    "ro": "Interior"
+  }
+}

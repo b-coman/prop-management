@@ -11,6 +11,7 @@ import {
   Waves, Gem, AirVent, LampDesk
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/hooks/useLanguage';
 
 // Map of icon names to Lucide icon components
 const iconMap: Record<string, React.ElementType> = {
@@ -45,16 +46,19 @@ const iconMap: Record<string, React.ElementType> = {
 
 interface AmenitiesListProps {
   content: AmenitiesListBlock;
+  language?: string;
 }
 
-export function AmenitiesList({ content }: AmenitiesListProps) {
+export function AmenitiesList({ content, language = 'en' }: AmenitiesListProps) {
+  const { tc, t } = useLanguage();
+  
   // Add safety check for missing content
   if (!content) {
     console.warn("AmenitiesList received invalid content");
     return null;
   }
 
-  const { title = "Amenities", categories = [] } = content;
+  const { title = t('property.amenities'), categories = [] } = content;
 
   // Function to get an icon component by name, with safety checks
   const getIconByName = (name: string): React.ElementType => {
@@ -97,7 +101,7 @@ export function AmenitiesList({ content }: AmenitiesListProps) {
   return (
     <section className="py-16 bg-background">
       <div className="container mx-auto px-4">
-        <h2 className="text-3xl font-bold text-center mb-12">{title}</h2>
+        <h2 className="text-3xl font-bold text-center mb-12">{tc(title, language)}</h2>
 
         <div className="grid md:grid-cols-2 gap-8 mx-auto max-w-5xl">
           {categories && categories.map((category, categoryIndex) => {
@@ -108,7 +112,7 @@ export function AmenitiesList({ content }: AmenitiesListProps) {
 
             return (
               <div key={categoryIndex} className="border rounded-lg p-6 bg-card shadow-sm">
-                <h3 className="text-xl font-semibold mb-6 text-primary">{category.name}</h3>
+                <h3 className="text-xl font-semibold mb-6 text-primary">{tc(category.name, language)}</h3>
 
                 <div className="grid grid-cols-2 gap-y-4 gap-x-6">
                   {category.amenities && category.amenities.map((amenity, amenityIndex) => {
@@ -125,7 +129,7 @@ export function AmenitiesList({ content }: AmenitiesListProps) {
                         <div className="text-primary">
                           <Icon size={18} />
                         </div>
-                        <span className="text-sm">{amenity.name}</span>
+                        <span className="text-sm">{tc(amenity.name, language)}</span>
                       </div>
                     );
                   })}

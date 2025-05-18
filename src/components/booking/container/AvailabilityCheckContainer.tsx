@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useTransition, useMemo, useCallback } from 'react';
-import { Loader2, Calendar, Check, X, ArrowRight, Mail, Phone as PhoneIcon, Send, Minus, Plus } from 'lucide-react';
+import { Loader2, Calendar, Check, X, ArrowRight, Mail, Phone as PhoneIcon, Send, Minus, Plus, CalendarDays } from 'lucide-react';
 import { format, startOfDay, differenceInDays } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { useBooking } from '@/contexts/BookingContext';
@@ -11,6 +11,7 @@ import { calculatePrice } from '@/lib/price-utils';
 import { Button } from '@/components/ui/button';
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { BookingOptionsCards } from '../booking-options-cards';
 import { BookingSummary } from '../booking-summary';
 import { BookingForm } from '../forms/BookingForm';
@@ -18,6 +19,7 @@ import { HoldForm } from '../forms/HoldForm';
 import { ContactHostForm } from '../forms/ContactHostForm';
 import { UnavailableDatesView } from './UnavailableDatesView';
 import { RefactoredAvailabilityCheck } from './RefactoredAvailabilityCheck';
+import { AvailabilityPreview } from '../AvailabilityPreview';
 import { createInquiryAction } from '@/app/actions/createInquiryAction';
 import { createHoldBookingAction } from '@/app/actions/createHoldBookingAction';
 import { createHoldCheckoutSession } from '@/app/actions/createHoldCheckoutSession';
@@ -30,7 +32,7 @@ interface AvailabilityCheckContainerProps {
   initialCheckOut?: string;
 }
 
-// Enhanced version that safely handles availability checking
+// Enhanced version that safely handles availability checking and uses price calendar for pricing
 function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut }: AvailabilityCheckContainerProps) {
   // Use ref to track renders
   const renderCountRef = useRef(0);
@@ -151,60 +153,146 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
   // Calculate pricing details for the booking - using hooks in the proper order
   const propertyBaseCcy = useMemo(() => baseCurrencyForProperty(property.baseCurrency), [property.baseCurrency, baseCurrencyForProperty]);
 
-  // Calculate pricing details whenever any relevant input changes
-  // We're NOT using useMemo here to ensure recalculation on all state changes
-  const pricingDetailsInBaseCurrency = (() => {
-    const timeNow = new Date().toISOString();
-    console.log(`[AvailabilityCheckContainer] 🔄 DIRECT IIFE PRICING CALCULATION at ${timeNow}:`, {
-      guestCount,
-      numberOfNights,
-      dates: {
-        checkIn: checkInDate?.toISOString(),
-        checkOut: checkOutDate?.toISOString()
-      },
-      selectedCurrency,
-      coupon: appliedCoupon?.code,
-      renderCount: renderCountRef.current,
-      calculationId: Math.random().toString(36).substr(2, 9) // Add random ID to track calls
-    });
+  // For storing the dynamic pricing from price calendar API
+  const [dynamicPricingDetails, setDynamicPricingDetails] = useState<any>(null);
 
+  // State for pricing data errors
+  const [pricingError, setPricingError] = useState<string | null>(null);
+  
+  // Effect to fetch pricing data from priceCalendar when dates or guests change
+  useEffect(() => {
+    // Create a marker to identify this render cycle
+    const fetchId = Date.now();
+    console.log(`[AvailabilityCheckContainer] 🔄 Pricing effect running: ID=${fetchId}`);
+    
+    const fetchDynamicPricing = async () => {
+      // Reset pricing state
+      setDynamicPricingDetails(null);
+      setPricingError(null);
+      
+      // Only fetch if we have valid dates and guest count
+      if (checkInDate && checkOutDate && numberOfNights > 0 && property && guestCount > 0) {
+        console.log(`[AvailabilityCheckContainer] 🔍 Fetch ID=${fetchId}: Fetching dynamic pricing data for ${property.slug}`, {
+          checkIn: checkInDate.toISOString(),
+          checkOut: checkOutDate.toISOString(),
+          nights: numberOfNights,
+          guests: guestCount
+        });
+        
+        try {
+          // Direct import with full path to make sure we get the correct module
+          const { getPricingForDateRange } = await import('@/services/availabilityService');
+          
+          // Verify function exists
+          if (typeof getPricingForDateRange !== 'function') {
+            console.error(`[AvailabilityCheckContainer] ❌ Fetch ID=${fetchId}: getPricingForDateRange function not found!`);
+            setPricingError("Pricing service unavailable. Please try again later.");
+            return;
+          }
+          
+          console.log(`[AvailabilityCheckContainer] 🚀 Fetch ID=${fetchId}: Calling getPricingForDateRange now...`);
+          
+          // Call the pricing function with specific parameters
+          const pricingData = await getPricingForDateRange(
+            property.slug,
+            checkInDate,
+            checkOutDate,
+            guestCount
+          );
+          
+          // Log the raw response for debugging
+          console.log(`[AvailabilityCheckContainer] 📦 Fetch ID=${fetchId}: Raw pricing response:`, pricingData);
+          
+          if (pricingData && pricingData.pricing) {
+            console.log(`[AvailabilityCheckContainer] ✅ Fetch ID=${fetchId}: Received valid pricing data:`, {
+              dailyRates: Object.keys(pricingData.pricing.dailyRates || {}).length + " entries",
+              totalPrice: pricingData.pricing.totalPrice,
+              averageRate: pricingData.pricing.averageNightlyRate,
+              currency: pricingData.pricing.currency
+            });
+            
+            // Store the dynamic pricing data
+            setDynamicPricingDetails({
+              accommodationTotal: pricingData.pricing.subtotal - (pricingData.pricing.cleaningFee || 0),
+              cleaningFee: pricingData.pricing.cleaningFee || 0,
+              subtotal: pricingData.pricing.subtotal,
+              total: pricingData.pricing.totalPrice,
+              currency: pricingData.pricing.currency as any,
+              dailyRates: pricingData.pricing.dailyRates || {},
+              // Apply any discount from coupon if present
+              couponDiscount: appliedCoupon ? {
+                discountPercentage: appliedCoupon.discountPercentage,
+                discountAmount: (pricingData.pricing.subtotal * appliedCoupon.discountPercentage) / 100
+              } : null
+            });
+          } else {
+            console.error(`[AvailabilityCheckContainer] ❌ Fetch ID=${fetchId}: No valid pricing data available`);
+            setPricingError("Pricing information is currently unavailable. Please try again later.");
+          }
+        } catch (error) {
+          console.error(`[AvailabilityCheckContainer] Error fetching dynamic pricing:`, error);
+          setPricingError("We're having trouble getting pricing information. Please try again later.");
+        }
+      } else {
+        console.log(`[AvailabilityCheckContainer] ⚠️ Fetch ID=${fetchId}: Missing data for pricing fetch`, { 
+          hasCheckIn: !!checkInDate, 
+          hasCheckOut: !!checkOutDate, 
+          nights: numberOfNights, 
+          hasProperty: !!property, 
+          guests: guestCount 
+        });
+      }
+    };
+    
+    // Attempt to fetch dynamic pricing
+    fetchDynamicPricing();
+  }, [property?.slug, checkInDate, checkOutDate, numberOfNights, guestCount, appliedCoupon]);
+  
+  // No longer calculate fallback prices - only for logging/debugging purposes
+  // This will help us identify when dynamic pricing is missing
+  const debugPriceCalculation = (() => {
     if (checkInDate && checkOutDate && numberOfNights > 0 && property) {
-      console.log(`[AvailabilityCheckContainer] 💰 Calling calculatePrice with guestCount=${guestCount}`);
-
-      const priceCalc = calculatePrice(
-        property.pricePerNight,
+      console.log(`[AvailabilityCheckContainer] 📊 LOGGING ONLY - Not used for booking - What price would have been:`, {
+        guestCount,
         numberOfNights,
-        property.cleaningFee ?? 0,
-        guestCount, // Use our local state for guest count
-        property.baseOccupancy || 1,
-        property.extraGuestFee ?? 0,
-        propertyBaseCcy,
-        appliedCoupon?.discountPercentage
-      );
-
-      console.log(`[AvailabilityCheckContainer] 💰 DIRECT Price calculation result (${timeNow.substr(11, 8)}):`, {
-        basePrice: priceCalc.basePrice,
-        extraGuestFee: priceCalc.extraGuestFeeTotal,
-        cleaningFee: priceCalc.cleaningFee,
-        subtotal: priceCalc.subtotal,
-        total: priceCalc.total,
-        currency: priceCalc.currency,
-        numberOfGuests: guestCount,
-        numberOfExtraGuests: priceCalc.numberOfExtraGuests,
-        calculationDone: true
+        dynamicPricingAvailable: dynamicPricingDetails ? "Yes" : "No",
+        dates: {
+          checkIn: checkInDate?.toISOString(),
+          checkOut: checkOutDate?.toISOString()
+        }
       });
-
-      return priceCalc;
     }
-
-    console.log(`[AvailabilityCheckContainer] ❌ Cannot calculate price - missing required inputs`);
     return null;
   })();
+  
+  // Only use dynamic pricing - no fallback
+  const pricingDetailsInBaseCurrency = null;
 
 
   // Set mounted flag and load unavailable dates on first render
   const [unavailableDates, setUnavailableDates] = useState<Date[]>([]);
   const [isLoadingInitialData, setIsLoadingInitialData] = useState(true);
+  
+  // Run the diagnostic test for the pricing API on mount
+  useEffect(() => {
+    const testPricingAPI = async () => {
+      try {
+        const { testPricingApi } = await import('@/services/availabilityService');
+        console.log(`[AvailabilityCheckContainer] 🔬 Running pricing API diagnostic test...`);
+        
+        if (typeof testPricingApi === 'function') {
+          testPricingApi();
+          console.log(`[AvailabilityCheckContainer] ✅ Pricing API diagnostic test passed`);
+        } else {
+          console.error(`[AvailabilityCheckContainer] ❌ testPricingApi not found in service!`);
+        }
+      } catch (error) {
+        console.error(`[AvailabilityCheckContainer] ❌ Error testing pricing API:`, error);
+      }
+    };
+    
+    testPricingAPI();
+  }, []);
 
   // Load unavailable dates on mount
   useEffect(() => {
@@ -423,6 +511,17 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
       });
       return;
     }
+    
+    // Ensure dynamic pricing data is available
+    if (!dynamicPricingDetails) {
+      setFormError(pricingError || "Pricing information is unavailable. Please try again later.");
+      toast({
+        title: "Hold Not Available",
+        description: pricingError || "We cannot process your hold request without valid pricing. Please try again later.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     if (!firstName || !lastName || !email) { // Phone is optional for hold
       setFormError("Please fill in First Name, Last Name, and Email to hold dates.");
@@ -525,11 +624,22 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
     setFormError(null);
 
     // Client-side validation
-    if (!checkInDate || !checkOutDate || !pricingDetailsInBaseCurrency) {
-      setFormError("Please select valid dates and ensure price is calculated.");
+    if (!checkInDate || !checkOutDate) {
+      setFormError("Please select valid dates for your booking.");
       toast({
         title: "Missing Information",
         description: "Please select valid dates for your booking.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Ensure dynamic pricing data is available
+    if (!dynamicPricingDetails) {
+      setFormError(pricingError || "Pricing information is unavailable. Please try again later.");
+      toast({
+        title: "Pricing Information Unavailable",
+        description: pricingError || "We cannot process your booking without valid pricing. Please try again later.",
         variant: "destructive",
       });
       return;
@@ -548,7 +658,12 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
     setIsProcessingBooking(true);
 
     try {
-      // Create the booking input with default values to avoid undefined
+      // Create the booking input with dynamic pricing data
+      // At this point we've already validated that dynamicPricingDetails exists
+      if (!dynamicPricingDetails) {
+        throw new Error("Cannot create booking without pricing information");
+      }
+      
       const bookingInput = {
         propertyId: property.slug,
         guestInfo: {
@@ -561,19 +676,23 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
         checkOutDate: checkOutDate.toISOString(),
         numberOfGuests: guestCount, // Use our local state
         pricing: {
-          // Map fields with safe defaults
-          baseRate: pricingDetailsInBaseCurrency.basePrice || 0,
-          accommodationTotal: (pricingDetailsInBaseCurrency.basePrice || 0) + (pricingDetailsInBaseCurrency.extraGuestFeeTotal || 0),
-          cleaningFee: pricingDetailsInBaseCurrency.cleaningFee || 0,
-          // These two are optional in the schema, but set them to 0 to avoid undefined
-          extraGuestFee: pricingDetailsInBaseCurrency.extraGuestFeeTotal || 0,
-          numberOfExtraGuests: pricingDetailsInBaseCurrency.numberOfExtraGuests || 0,
-          // Required fields with safe defaults
-          subtotal: pricingDetailsInBaseCurrency.subtotal || 0,
-          discountAmount: pricingDetailsInBaseCurrency.discountAmount || 0,
-          total: pricingDetailsInBaseCurrency.total || 0,
-          currency: selectedCurrency as any,
-          numberOfNights: pricingDetailsInBaseCurrency.numberOfNights || 0,
+          // Use dynamic pricing data
+          baseRate: property.pricePerNight,
+          accommodationTotal: dynamicPricingDetails.accommodationTotal,
+          cleaningFee: dynamicPricingDetails.cleaningFee,
+          // Set extra guest fee info (may be included in accommodationTotal already)
+          extraGuestFee: Math.max(0, guestCount - (property.baseOccupancy || 1)) * (property.extraGuestFee || 0) * numberOfNights,
+          numberOfExtraGuests: Math.max(0, guestCount - (property.baseOccupancy || 1)),
+          // Required fields with values from dynamic pricing
+          subtotal: dynamicPricingDetails.subtotal,
+          discountAmount: (dynamicPricingDetails.couponDiscount?.discountAmount || 0),
+          total: dynamicPricingDetails.total,
+          currency: dynamicPricingDetails.currency || selectedCurrency as any,
+          numberOfNights: numberOfNights,
+          // Include daily rates if available
+          dailyRates: dynamicPricingDetails.dailyRates,
+          useDynamicPricing: true,
+          pricingSource: "priceCalendar"
         },
         status: 'pending' as const,
         appliedCouponCode: appliedCoupon?.code ?? null,
@@ -678,6 +797,26 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
 
   return (
     <div className="max-w-2xl mx-auto w-full px-4 md:px-0">
+      {/* Debug indicator that code is up-to-date */}
+      <div className="text-xs p-1 mb-2 bg-green-50 text-green-700 rounded text-center">
+        Updated Booking Component v1.2 - Using Dynamic Price Calendar
+      </div>
+
+      {/* Tools container with availability preview */}
+      <div className="flex justify-end mb-3">
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="flex items-center gap-1 text-xs">
+              <CalendarDays className="h-3.5 w-3.5" />
+              Check More Dates
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-4xl w-[90vw]">
+            <AvailabilityPreview propertySlug={property.slug} />
+          </DialogContent>
+        </Dialog>
+      </div>
+
       {/* Use our refactored component with custom date picker */}
       <RefactoredAvailabilityCheck
         property={property}
@@ -817,21 +956,45 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
               {/* Pricing summary */}
               {/* Force a fresh render of BookingSummary whenever key props change, including a timestamp */}
               <div key={`booking-summary-container-${guestCount}-${numberOfNights}-${selectedCurrency}-${Date.now()}`}>
-                <BookingSummary
-                  numberOfNights={numberOfNights}
-                  numberOfGuests={guestCount}
-                  pricingDetails={pricingDetailsInBaseCurrency}
-                  propertyBaseCcy={propertyBaseCcy}
-                  appliedCoupon={appliedCoupon}
-                />
+                {dynamicPricingDetails ? (
+                  <BookingSummary
+                    numberOfNights={numberOfNights}
+                    numberOfGuests={guestCount}
+                    pricingDetails={null}
+                    propertyBaseCcy={propertyBaseCcy}
+                    appliedCoupon={appliedCoupon}
+                    dynamicPricing={dynamicPricingDetails} // Pass dynamic pricing if available
+                  />
+                ) : (
+                  <div className="p-4 border border-orange-200 bg-orange-50 rounded text-orange-800">
+                    <p className="text-sm font-medium">
+                      {pricingError || "Retrieving pricing information..."}
+                    </p>
+                    {pricingError && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="mt-2 text-xs"
+                        onClick={() => {
+                          // Recheck availability which will trigger a new pricing fetch
+                          handleCheckAvailability();
+                        }}
+                      >
+                        Retry
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* Booking options */}
-              <BookingOptionsCards
-                selectedOption={selectedOption}
-                onSelectOption={setSelectedOption}
-                property={property}
-              />
+              {/* Booking options - only show if we have valid pricing */}
+              {dynamicPricingDetails ? (
+                <BookingOptionsCards
+                  selectedOption={selectedOption}
+                  onSelectOption={setSelectedOption}
+                  property={property}
+                />
+              ) : null}
 
               {/* Contact host form */}
               {selectedOption === 'contact' && (

@@ -1,0 +1,12 @@
+{
+  "id": "private-parking",
+  "icon": "Car",
+  "name": {
+    "en": "Private Parking",
+    "ro": "Parcare Privată"
+  },
+  "category": {
+    "en": "Outdoor",
+    "ro": "Exterior"
+  }
+}

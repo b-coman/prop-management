@@ -93,7 +93,7 @@ export function ContactHostForm({
   };
   
   return (
-    <Card className="mt-4">
+    <Card className="mt-4 booking-form-card">
       <CardHeader><CardTitle>Contact Host</CardTitle></CardHeader>
       <CardContent>
         <Form {...inquiryForm}>

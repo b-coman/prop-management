@@ -1,0 +1,284 @@
+{
+  "templateId": "holiday-house",
+  "name": "Holiday House Template",
+  "homepage": [
+    {
+      "id": "hero",
+      "type": "hero"
+    },
+    {
+      "id": "experience",
+      "type": "experience"
+    },
+    {
+      "id": "host",
+      "type": "host"
+    },
+    {
+      "id": "features",
+      "type": "features"
+    },
+    {
+      "id": "location",
+      "type": "location"
+    },
+    {
+      "id": "testimonials",
+      "type": "testimonials"
+    },
+    {
+      "id": "gallery",
+      "type": "gallery"
+    },
+    {
+      "id": "cta",
+      "type": "cta"
+    }
+  ],
+  "header": {
+    "menuItems": [
+      {
+        "label": {
+          "en": "Home",
+          "ro": "Acasă"
+        },
+        "url": "/"
+      },
+      {
+        "label": {
+          "en": "Property Details",
+          "ro": "Detalii Proprietate"
+        },
+        "url": "/property"
+      },
+      {
+        "label": {
+          "en": "Location",
+          "ro": "Locație"
+        },
+        "url": "/location"
+      },
+      {
+        "label": {
+          "en": "Gallery",
+          "ro": "Galerie"
+        },
+        "url": "/gallery"
+      },
+      {
+        "label": {
+          "en": "About",
+          "ro": "Despre"
+        },
+        "url": "/about"
+      },
+      {
+        "label": {
+          "en": "Contact",
+          "ro": "Contact"
+        },
+        "url": "/contact"
+      }
+    ],
+    "logo": {
+      "src": "/images/templates/holiday-house/logo-dynamic.svg",
+      "alt": "RentalSpot"
+    }
+  },
+  "footer": {
+    "quickLinks": [
+      {
+        "label": {
+          "en": "Home",
+          "ro": "Acasă"
+        },
+        "url": "/"
+      },
+      {
+        "label": {
+          "en": "Booking Policy",
+          "ro": "Booking Policy"
+        },
+        "url": "/policy"
+      },
+      {
+        "label": {
+          "en": "House Rules",
+          "ro": "House Rules"
+        },
+        "url": "/rules"
+      }
+    ],
+    "contactInfo": {
+      "email": "COMAN2904@GMAIL.COM",
+      "phone": "+40 723-200868",
+      "address": "Comarnic, Prahova, Romania"
+    },
+    "socialLinks": [
+      {
+        "platform": "facebook",
+        "url": "https://facebook.com/yourpage"
+      },
+      {
+        "platform": "instagram",
+        "url": "https://instagram.com/yourpage"
+      }
+    ],
+    "showNewsletter": true,
+    "newsletterTitle": "Subscribe to our newsletter",
+    "newsletterDescription": "Get updates and offers."
+  },
+  "defaults": {
+    "hero": {
+      "backgroundImage": "/images/templates/holiday-house/default-hero.jpg",
+      "title": "Welcome to Your Holiday House",
+      "price": 150,
+      "showRating": true,
+      "showBookingForm": true,
+      "bookingForm": {
+        "position": "bottom",
+        "size": "large"
+      }
+    },
+    "experience": {
+      "title": "Experience Relaxation",
+      "description": "A cozy holiday house perfect for family getaways.",
+      "highlights": [
+        {
+          "icon": "Leaf",
+          "title": "Nature",
+          "description": "Surrounded by beautiful nature."
+        },
+        {
+          "icon": "Users",
+          "title": "Family Friendly",
+          "description": "Ideal for family vacations."
+        },
+        {
+          "icon": "Map",
+          "title": "Explore",
+          "description": "Close to hiking trails and attractions."
+        }
+      ]
+    },
+    "host": {
+      "title": "Meet Your Host",
+      "name": "Bogdan",
+      "image": "/images/templates/holiday-house/default-host.jpg",
+      "description": "I'm delighted to welcome you to our holiday house. Feel at home and enjoy your stay!",
+      "contact": {
+        "phone": "+40 723-200868",
+        "email": "COMAN2904@GMAIL.COM"
+      },
+      "ctaText": "Learn More About Your Host",
+      "ctaUrl": "/about"
+    },
+    "features": [
+      {
+        "icon": "firepit",
+        "title": "Fire Pit",
+        "description": "Enjoy evenings by the fire pit.",
+        "image": "/images/templates/holiday-house/default-firepit.jpg",
+        "data-ai-hint": "fire pit cozy night"
+      },
+      {
+        "icon": "bbq",
+        "title": "BBQ Area",
+        "description": "Cook delicious meals outdoors.",
+        "image": "/images/templates/holiday-house/default-bbq.jpg",
+        "data-ai-hint": "outdoor bbq grill summer"
+      },
+      {
+        "icon": "hammock",
+        "title": "Hammocks",
+        "description": "Relax in our garden hammocks.",
+        "image": "/images/templates/holiday-house/default-hammock.jpg",
+        "data-ai-hint": "garden hammock relax"
+      }
+    ],
+    "location": {
+      "title": "Discover Nearby Attractions",
+      "mapCenter": {
+        "lat": 45.253,
+        "lng": 25.6346
+      },
+      "attractions": [
+        {
+          "name": "Dracula Castle",
+          "distance": "2.5 hours by car",
+          "description": "Visit the legendary Bran Castle.",
+          "image": "/images/templates/holiday-house/default-dracula.jpg",
+          "data-ai-hint": "Dracula Castle Bran Romania"
+        },
+        {
+          "name": "Ialomita Cave",
+          "distance": "1.5 hours by car",
+          "description": "Explore the famous Ialomita Cave.",
+          "image": "/images/templates/holiday-house/default-cave.jpg",
+          "data-ai-hint": "Ialomita Cave Romania Bucegi"
+        }
+      ],
+      "ctaText": "Explore All Attractions",
+      "ctaUrl": "/location"
+    },
+    "testimonials": {
+      "title": "What Our Guests Say",
+      "showRating": true,
+      "reviews": [
+        {
+          "name": "Maria D.",
+          "date": "2025-04",
+          "rating": 5,
+          "text": "We loved our stay! The house was perfect.",
+          "imageUrl": "/images/templates/holiday-house/default-guest1.jpg",
+          "data-ai-hint": "happy female guest portrait"
+        },
+        {
+          "name": "James T.",
+          "date": "2025-03",
+          "rating": 5,
+          "text": "Great experience. Highly recommend!",
+          "imageUrl": "/images/templates/holiday-house/default-guest2.jpg",
+          "data-ai-hint": "happy male guest portrait"
+        }
+      ]
+    },
+    "cta": {
+      "title": "Book Your Stay Now",
+      "description": "Escape to tranquility and comfort.",
+      "buttonText": "Book Now",
+      "buttonUrl": "/book",
+      "backgroundImage": "/images/templates/holiday-house/default-cta.jpg",
+      "data-ai-hint": "mountain landscape sunset scenic"
+    },
+    "gallery": {
+      "title": "Property Gallery",
+      "images": [
+        {
+          "url": "/images/templates/holiday-house/default-gallery-1.jpg",
+          "alt": "Living Room",
+          "data-ai-hint": "cozy living room interior"
+        },
+        {
+          "url": "/images/templates/holiday-house/default-gallery-2.jpg",
+          "alt": "Bedroom 1",
+          "data-ai-hint": "bedroom interior comfortable"
+        },
+        {
+          "url": "/images/templates/holiday-house/default-gallery-3.jpg",
+          "alt": "Kitchen",
+          "data-ai-hint": "modern kitchen interior"
+        },
+        {
+          "url": "/images/templates/holiday-house/default-gallery-4.jpg",
+          "alt": "Exterior View",
+          "data-ai-hint": "house exterior summer day"
+        }
+      ]
+    }
+  },
+  "_translationStatus": {
+    "needsManualTranslation": false,
+    "lastMigrated": "2025-05-16T12:28:04.086Z"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "bbq-grill",
+  "icon": "Utensils",
+  "name": {
+    "en": "BBQ Grill",
+    "ro": "Grătar BBQ"
+  },
+  "category": {
+    "en": "Outdoor",
+    "ro": "Exterior"
+  }
+}

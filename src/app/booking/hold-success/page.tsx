@@ -308,13 +308,13 @@ import HoldSuccessClient from './hold-success-client';
 // Wrap the component in Suspense to handle searchParams
 export default function HoldSuccessPage() {
   return (
-    <BookingProvider>
-      <HoldSuccessClient>
-        <Suspense fallback={<HoldSuccessLoading />}>
+    <Suspense fallback={<HoldSuccessLoading />}>
+      <BookingProvider>
+        <HoldSuccessClient>
           <HoldSuccessContent />
-        </Suspense>
-      </HoldSuccessClient>
-    </BookingProvider>
+        </HoldSuccessClient>
+      </BookingProvider>
+    </Suspense>
   )
 }
 

@@ -2,8 +2,65 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Add custom styles */
+@layer base {
+  /* Reset base styles */
+  html, body {
+    margin: 0;
+    padding: 0;
+  }
+  
+  /* Header and layout styling for fixed header */
+  #site-header {
+    z-index: 50;
+  }
+
+  /* Main content styling to work with fixed header */
+  #main-content {
+    position: relative;
+    z-index: 40;
+    padding-top: 4rem; /* Ensure content starts below fixed header */
+  }
+
+  /* First section in main content should have negative margin to go behind header */
+  #main-content > section:first-child {
+    margin-top: -4rem;
+  }
+}
+
+@layer utilities {
+  /* Header classes for different states */
+  .transparent-header {
+    @apply bg-transparent backdrop-blur-sm;
+  }
+
+  /* Helper class for layering */
+  .z-header {
+    @apply z-50;
+  }
+
+  .z-content {
+    @apply z-40;
+  }
+  
+  /* Special marker class for sections with transparent header overlay */
+  .has-transparent-header {
+    @apply relative;
+  }
+  
+  /* Elements that should slide under the transparent header */
+  .slides-under-header {
+    margin-top: -4rem;
+  }
+}
+
 body {
   /* Removed font-family definition here, now handled in layout.tsx */
+}
+
+/* Theme-aware header and UI elements */
+[data-theme-aware="true"][data-state="open"] {
+  background-color: hsla(var(--primary), 0.5) !important;
 }
 
 @layer base {
@@ -50,9 +107,6 @@ body {
     --chart-4: 358 80% 75%;   /* Lighter Primary */
     --chart-5: 358 80% 80%;   /* Lighter Accent */
 
-    /* Radius */
-    --radius: 0.5rem; /* Default radius */
-
     /* Sidebar specific colors (adjust if needed) */
     --sidebar-background: 240 4.8% 95.9%; /* Light gray sidebar */
     --sidebar-foreground: 240 10% 3.9%;
@@ -62,6 +116,25 @@ body {
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 240 5.9% 90%;
     --sidebar-ring: 358 100% 62%;
+    
+    /* Typography variables */
+    --font-family: 'Inter', sans-serif;
+    
+    /* Sizing and spacing variables for the theme system */
+    --radius: 0.5rem;           /* Default radius */
+    --button-radius: 0.5rem;    /* Button-specific radius */
+    --card-radius: 0.75rem;     /* Card-specific radius */
+    --input-radius: 0.5rem;     /* Input-specific radius */
+    --spacing: 1rem;            /* Base spacing unit */
+    
+    /* Component-specific styling variables */
+    --button-padding: 0.625rem 1.25rem;
+    --button-shadow: none;
+    --card-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    --card-border-width: 1px;
+    --card-padding: 1.5rem;
+    --input-border-width: 1px;
+    --input-padding: 0.625rem 0.75rem;
   }
 
   .dark {
@@ -109,6 +182,10 @@ body {
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 358 100% 67%;
+    
+    /* Dark mode component-specific styling variables */
+    --button-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    --card-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
   }
 }
 

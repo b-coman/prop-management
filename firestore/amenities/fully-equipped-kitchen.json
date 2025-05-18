@@ -1,0 +1,12 @@
+{
+  "id": "fully-equipped-kitchen",
+  "icon": "ChefHat",
+  "name": {
+    "en": "Fully Equipped Kitchen",
+    "ro": "Bucătărie Complet Echipată"
+  },
+  "category": {
+    "en": "Indoor",
+    "ro": "Interior"
+  }
+}

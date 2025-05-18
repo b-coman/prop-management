@@ -1,0 +1,13 @@
+{
+  "id": "panoramic-terrace",
+  "title": {
+    "en": "Panoramic Terrace",
+    "ro": "Terasă Panoramică"
+  },
+  "description": {
+    "en": "Take in breathtaking views of the Carpathian Mountains from our spacious terrace.",
+    "ro": "Take in breathtaking views of the Carpathian Mountains from our spacious terrace."
+  },
+  "icon": "view",
+  "order": 0
+}

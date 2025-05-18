@@ -1,26 +1,28 @@
 import { Mountain, Users, Leaf, Map } from 'lucide-react'; // Import appropriate icons
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/hooks/useLanguage';
 
 // Define a type for the icon names we expect
 type IconName = 'Mountain' | 'Users' | 'Leaf' | 'Map' | string; // Allow string for flexibility
 
 interface Highlight {
   icon: IconName;
-  title: string;
-  description: string;
+  title: string | { [key: string]: string };
+  description: string | { [key: string]: string };
   'data-ai-hint'?: string;
 }
 
 interface ExperienceContent {
-  title: string;
-  welcomeText: string;
+  title: string | { [key: string]: string };
+  welcomeText: string | { [key: string]: string };
   highlights: Highlight[];
   'data-ai-hint'?: string;
 }
 
 interface ExperienceSectionProps {
   content: ExperienceContent;
+  language?: string;
 }
 
 // Map icon names to actual Lucide components
@@ -32,7 +34,9 @@ const iconMap: { [key in IconName]: React.ElementType } = {
   // Add more mappings as needed
 };
 
-export function ExperienceSection({ content }: ExperienceSectionProps) {
+export function ExperienceSection({ content, language = 'en' }: ExperienceSectionProps) {
+  const { tc } = useLanguage();
+  
   // Don't render if required props are missing
   if (!content) {
     console.warn("ExperienceSection received invalid content");
@@ -56,10 +60,10 @@ export function ExperienceSection({ content }: ExperienceSectionProps) {
       <div className="container mx-auto px-4">
         <div className="max-w-3xl mx-auto text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
-            {title}
+            {tc(title, language)}
           </h2>
           <p className="text-lg text-muted-foreground">
-            {welcomeText}
+            {tc(welcomeText, language)}
           </p>
         </div>
 
@@ -76,13 +80,13 @@ export function ExperienceSection({ content }: ExperienceSectionProps) {
                         <IconComponent className="h-6 w-6" />
                    </div>
                   <CardTitle className="text-xl font-semibold text-foreground">
-                    {highlight.title}
+                    {tc(highlight.title, language)}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   {/* Ensure CardContent text is centered (already achieved by parent text-center) */}
                   <p className="text-muted-foreground text-sm">
-                    {highlight.description}
+                    {tc(highlight.description, language)}
                   </p>
                 </CardContent>
               </Card>

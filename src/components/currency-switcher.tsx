@@ -28,6 +28,7 @@ interface CurrencySwitcherProps {
 export function CurrencySwitcher({ className }: CurrencySwitcherProps) {
   const { selectedCurrency, setSelectedCurrency } = useCurrency();
   const [hasMounted, setHasMounted] = useState(false); // State to track client mount
+  const [isOpen, setIsOpen] = useState(false); // Track open state
 
   // Set hasMounted to true after the component mounts on the client
   useEffect(() => {
@@ -43,12 +44,26 @@ export function CurrencySwitcher({ className }: CurrencySwitcherProps) {
   const SelectedFlag = currencyFlags[selectedCurrency];
 
   return (
-    <Select value={selectedCurrency} onValueChange={handleCurrencyChange}>
+    <Select 
+      value={selectedCurrency} 
+      onValueChange={handleCurrencyChange}
+      onOpenChange={setIsOpen}
+    >
       {/* Apply passed className to the trigger */}
-      <SelectTrigger className={cn(
-        "w-auto h-9 px-3 bg-transparent hover:bg-white/10 border-white/20 text-white focus:ring-white/50 data-[state=open]:bg-black/50",
-        className // Merge dynamic class here
-      )}>
+      <SelectTrigger 
+        className={cn(
+          "w-auto h-9 px-3 transition-all duration-200 focus:ring-1 focus:ring-offset-0",
+          // Override default styles completely based on state
+          isOpen ? "bg-black/20" : "bg-transparent",
+          className // Merge dynamic class here
+        )}
+        style={{
+          // Use inline styles as a last resort to override everything
+          backgroundColor: isOpen ? "rgba(0,0,0,0.2)" : "transparent"
+        }}
+        // Custom data attribute to allow styling dropdowns in theme-aware way
+        data-theme-aware="true"
+      >
         <SelectValue>
            {/* Render placeholder or nothing until mounted */}
           {hasMounted ? (
@@ -65,11 +80,11 @@ export function CurrencySwitcher({ className }: CurrencySwitcherProps) {
           )}
         </SelectValue>
       </SelectTrigger>
-      <SelectContent className="bg-background border-border">
+      <SelectContent className="bg-background border-border shadow-lg">
         {SUPPORTED_CURRENCIES.map((currency) => {
           const Flag = currencyFlags[currency];
           return (
-            <SelectItem key={currency} value={currency} className="cursor-pointer hover:bg-accent/10">
+            <SelectItem key={currency} value={currency} className="cursor-pointer hover:bg-accent/10 focus:bg-accent/10">
               <div className="flex items-center gap-2">
                 <span className="text-lg mr-1 opacity-80">{Flag}</span> {/* Flag */}
                 {currency} {/* Code */}

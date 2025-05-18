@@ -3,14 +3,15 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { Header } from '@/components/generic-header'; // Assuming a generic header
-import { BookingContainer } from '@/components/booking'; // Import the new container component
+import { ClientHeader } from '@/components/client-header'; // Use the client header wrapper
+import { ClientBookingWrapper } from '@/components/booking/client-booking-wrapper'; // Import the client wrapper
 // Import from the utility file
 import { getPropertyBySlug } from '@/lib/property-utils';
 import { db } from '@/lib/firebase'; // Import db for data fetching
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import BookingClientLayout from './booking-client-layout';
 import { AvailabilityErrorHandler } from '../error-handler';
+import { serverTranslateContent } from '@/lib/server-language-utils';
 
 interface AvailabilityCheckPageProps {
   params: { slug: string };
@@ -29,9 +30,10 @@ export async function generateMetadata({ params }: AvailabilityCheckPageProps): 
   if (!property) {
     return { title: 'Availability Check - Not Found' };
   }
+  const propertyName = serverTranslateContent(property.name);
   return {
-    title: `Check Availability - ${property.name}`,
-    description: `Check booking availability for ${property.name} for your selected dates.`,
+    title: `Check Availability - ${propertyName}`,
+    description: `Check booking availability for ${propertyName} for your selected dates.`,
   };
 }
 
@@ -103,16 +105,19 @@ export default async function AvailabilityCheckPage({ params, searchParams }: Av
 
   console.log("🚀 [SERVER] Rendering booking check page...\n");
 
+  // Extract property name for display using server-side multilingual handling
+  const propertyName = serverTranslateContent(property.name) || property.slug;
+
   return (
     <div className="flex min-h-screen flex-col">
-      {/* Use Generic Header for this page */}
-      <Header propertyName={property.name} propertySlug={property.slug}/>
+      {/* Use Client Header wrapper for this page */}
+      <ClientHeader propertyName={property.name} propertySlug={property.slug}/>
       <main className="flex-grow container py-12 md:py-16">
         {/* Wrap AvailabilityCheck in Suspense if it uses useSearchParams directly,
             but passing props is generally preferred for Server Components */}
         <Suspense fallback={<div>Loading availability...</div>}>
           <BookingClientLayout propertySlug={property.slug}>
-            <BookingContainer
+            <ClientBookingWrapper
               property={property}
             />
           </BookingClientLayout>

@@ -7,6 +7,13 @@ export type CurrencyCode = typeof SUPPORTED_CURRENCIES[number];
 // Representing Firestore Timestamps for client-side (can be Date, string, or Firestore Timestamp)
 export type SerializableTimestamp = Timestamp | Date | string;
 
+// Multilingual string type for i18n support
+export type MultilingualString = {
+  [languageCode: string]: string;
+  en: string; // English is required as default
+  ro?: string; // Romanian is optional
+};
+
 export interface PropertyImage {
   url: string;
   alt: string;
@@ -31,14 +38,14 @@ export interface Location {
 export interface Property {
   id: string; // Document ID from Firestore (which is the slug)
   slug: string; // URL-friendly identifier, same as id
-  name: string;
-  description?: string;
-  shortDescription?: string;
+  name: MultilingualString;
+  description?: MultilingualString;
+  shortDescription?: MultilingualString;
   location: Location;
   images?: PropertyImage[]; // Array of image objects
-  amenities?: string[];
+  amenityRefs?: string[]; // References to amenity collection
   pricePerNight: number; // Base price per night in property's baseCurrency
-  advertisedRate?: number | string; // Use string to accommodate formats like "€160" or "450 RON"
+  advertisedRate?: number; // Numeric value in property's baseCurrency
   advertisedRateType?: 'starting' | 'average' | 'special' | 'nightly'; // Type of advertised rate
   baseCurrency: CurrencyCode; // The currency in which pricePerNight & advertisedRate are set
   cleaningFee?: number;
@@ -51,14 +58,15 @@ export interface Property {
   squareFeet?: number;
   checkInTime?: string;
   checkOutTime?: string;
-  houseRules?: string[];
-  cancellationPolicy?: string;
+  houseRules?: MultilingualString[];
+  cancellationPolicy?: MultilingualString;
   ratings?: {
     average: number;
     count: number;
   };
   status?: 'active' | 'inactive' | 'draft'; // Property status
   templateId: string; // ID of the website template to use
+  themeId?: string; // ID of the design theme to use
   ownerId?: string; // User ID of the property owner
   channelIds?: { // For external platform sync
     airbnb?: string;
@@ -73,6 +81,8 @@ export interface Property {
   useCustomDomain?: boolean;
   // New fields for booking options
   holdFeeAmount?: number; // Amount for the hold fee
+  holdDurationHours?: number; // Duration in hours that the hold is valid
+  holdFeeRefundable?: boolean; // Whether the hold fee is refundable when booking is completed
   enableHoldOption?: boolean; // Toggle for enabling the hold option
   enableContactOption?: boolean; // Toggle for enabling the contact option
   createdAt?: SerializableTimestamp;
@@ -325,10 +335,12 @@ export interface PropertyCtaOverride {
 export interface PropertyOverrides {
   id?: string; // Document ID from Firestore (propertySlug)
   visibleBlocks?: string[];
+  amenityRefs?: string[]; // References to amenity IDs in the amenities collection
+  featureRefs?: string[]; // References to feature IDs in the features collection
   hero?: Partial<PropertyHeroOverride>;
   experience?: Partial<PropertyExperienceOverride>;
   host?: Partial<PropertyHostOverride>;
-  features?: PropertyFeatureOverride[]; // Array of features
+  features?: PropertyFeatureOverride[]; // Array of features (deprecated - use featureRefs)
   location?: Partial<PropertyLocationOverride>; // For title override mainly
   attractions?: PropertyAttractionOverride[]; // Array of attractions
   testimonials?: Partial<PropertyTestimonialsOverride>; // For title override, reviews array
@@ -336,6 +348,24 @@ export interface PropertyOverrides {
   cta?: Partial<PropertyCtaOverride>;
   // Add other overridable block structures as needed
   [key: string]: any; // Allow other dynamic properties
+}
+
+// Amenity document structure
+export interface Amenity {
+  id: string;
+  name: MultilingualString;
+  category: MultilingualString;
+  icon: string;
+  order?: number;
+}
+
+// Feature document structure  
+export interface Feature {
+  id: string;
+  title: MultilingualString;
+  description: MultilingualString;
+  icon: string;
+  order: number;
 }
 
 export interface Coupon {

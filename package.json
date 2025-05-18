@@ -1,10 +1,9 @@
-
 {
   "name": "nextn",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack -p 9002",
+    "dev": "next dev -p 9002",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "next build",
@@ -14,7 +13,12 @@
     "load-properties": "tsx scripts/load-properties.ts",
     "ensure-property-options": "tsx scripts/ensure-property-booking-options.ts",
     "validate-multipage": "tsx scripts/validate-multipage-structure.ts",
-    "update-multipage": "tsx scripts/update-multipage-template.ts"
+    "update-multipage": "tsx scripts/update-multipage-template.ts",
+    "update-pricing-schema": "tsx scripts/update-property-pricing-schema.ts",
+    "initialize-price-calendars": "tsx scripts/initialize-price-calendars.ts",
+    "update-price-calendars": "tsx src/scripts/cron/update-price-calendars.ts",
+    "load-pricing-data": "tsx scripts/load-pricing-data.ts",
+    "generate-price-calendars": "tsx scripts/generate-price-calendars.ts"
   },
   "dependencies": {
     "@firebasegen/default-connector": "file:dataconnect-generated/js/default-connector",
@@ -70,7 +74,7 @@
     "@types/nodemailer": "^6.4.14",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.5.0",
     "genkit-cli": "^1.6.1",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",

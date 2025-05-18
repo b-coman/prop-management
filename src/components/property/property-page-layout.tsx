@@ -1,7 +1,11 @@
 // src/components/property/property-page-layout.tsx
+// OBSOLETE COMPONENT: This is an older version of the property page layout.
+// This is still used in the main page.tsx but should be migrated to use PropertyPageRenderer instead.
+// See src/components/property/property-page-renderer.tsx for the current implementation.
+// TODO: Deprecate this component and migrate all usages to PropertyPageRenderer
 import Script from 'next/script'; // Import next/script
 import type { Property, WebsiteTemplate, PropertyOverrides } from '@/types';
-import { Header } from '@/components/generic-header';
+import { Header } from '@/components/generic-header-multipage';
 import { Footer } from '@/components/footer';
 import { HeroSection } from '@/components/homepage/hero-section';
 import { ExperienceSection } from '@/components/homepage/experience-section';
@@ -19,6 +23,7 @@ import { ContactSection } from './contact-section';
 import { Separator } from '@/components/ui/separator';
 import { heroSchema, propertyOverridesSchema } from '@/lib/overridesSchemas-multipage'; 
 import { z } from 'zod';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 
 
 interface PropertyPageLayoutProps {
@@ -187,35 +192,51 @@ export function PropertyPageLayout({ property, template, overrides }: PropertyPa
         }
     };
 
+  // Determine if property has a specific theme
+  const propertyThemeId = overrides?.theme || property?.theme?.id || undefined;
+  
   return (
-    <div className="flex min-h-screen flex-col">
-       {analytics?.enabled && analytics.googleAnalyticsId && (
-        <>
-          <Script
-            strategy="afterInteractive"
-            src={`https://www.googletagmanager.com/gtag/js?id=${analytics.googleAnalyticsId}`}
-          />
-          <Script
-            id={`ga-config-${property.slug}`} // Unique ID per property
-            strategy="afterInteractive"
-            dangerouslySetInnerHTML={{
-              __html: `
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('config', '${analytics.googleAnalyticsId}', {
-                  page_path: window.location.pathname,
-                });
-              `,
-            }}
-          />
-        </>
-      )}
-       <Header propertyName={name} propertySlug={slug} />
-      <main className="flex-grow">
-         {homepage.map(block => renderBlock(block))}
-      </main>
-       <Footer />
-    </div>
+    <ThemeProvider initialThemeId={propertyThemeId}>
+      <div className="flex flex-col min-h-screen">
+        {analytics?.enabled && analytics.googleAnalyticsId && (
+          <>
+            <Script
+              strategy="afterInteractive"
+              src={`https://www.googletagmanager.com/gtag/js?id=${analytics.googleAnalyticsId}`}
+            />
+            <Script
+              id={`ga-config-${property.slug}`}
+              strategy="afterInteractive"
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${analytics.googleAnalyticsId}', {
+                    page_path: window.location.pathname,
+                  });
+                `,
+              }}
+            />
+          </>
+        )}
+        
+        {/* Place header here, marked with position fixed */}
+        <div id="header-container">
+          <Header propertyName={name} propertySlug={slug} menuItems={overrides?.menuItems || []} />
+        </div>
+        
+        {/* Main content */}
+        <main id="main-content">
+          {homepage.map((block, index) => (
+            <div key={block.id || index} className={index === 0 ? 'first-block' : ''}>
+              {renderBlock(block)}
+            </div>
+          ))}
+        </main>
+        
+        <Footer />
+      </div>
+    </ThemeProvider>
   );
 }

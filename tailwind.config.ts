@@ -12,12 +12,13 @@ const config: Config = {
   theme: {
   	extend: {
   		colors: {
-        // Airbnb specific colors
+        // Airbnb specific colors (keep for backward compatibility)
         'airbnb-red': '#FF5A5F',
         'airbnb-pink': '#FF385C',
         'airbnb-dark-gray': '#222222',
         'airbnb-light-gray': '#717171',
-        // Shadcn/ui theme colors (using CSS variables)
+        
+        // Theme colors using CSS variables
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {
@@ -29,8 +30,8 @@ const config: Config = {
   				foreground: 'hsl(var(--popover-foreground))'
   			},
   			primary: {
-          DEFAULT: "#FF385C", // Airbnb pink as primary
-          foreground: "#FFFFFF", // White foreground for pink
+          DEFAULT: 'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))'
   			},
   			secondary: {
   				DEFAULT: 'hsl(var(--secondary))',
@@ -70,15 +71,44 @@ const config: Config = {
   			}
   		},
   		borderRadius: {
-        'airbnb': '32px', // Airbnb border radius
-  			lg: 'var(--radius)',
-  			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
+        // Keep original radius for backward compatibility
+        'airbnb': '32px',
+        
+        // Theme-aware border radius
+  			DEFAULT: 'var(--radius)',
+  			sm: 'calc(var(--radius) - 0.125rem)',
+  			md: 'calc(var(--radius) - 0.0625rem)',
+  			lg: 'calc(var(--radius) + 0.0625rem)',
+  			xl: 'calc(var(--radius) + 0.125rem)',
+  			
+  			// Component-specific border radius
+  			button: 'var(--button-radius)',
+  			card: 'var(--card-radius)',
+  			input: 'var(--input-radius)'
   		},
        fontFamily: {
-        // Update to use Inter font variable
-        sans: ['var(--font-inter)', 'sans-serif'],
-        mono: ['var(--font-geist-mono)', 'monospace'], // Keep Geist Mono or replace if needed
+        // Primary font family from theme
+        sans: ['var(--font-family)', 'var(--font-inter)', 'sans-serif'],
+        mono: ['var(--font-geist-mono)', 'monospace'],
+      },
+      
+      // Theme-aware shadows
+      boxShadow: {
+        button: 'var(--button-shadow)',
+        card: 'var(--card-shadow)',
+      },
+      
+      // Theme-aware spacing values
+      padding: {
+        button: 'var(--button-padding)',
+        card: 'var(--card-padding)',
+        input: 'var(--input-padding)',
+      },
+      
+      // Theme-aware border widths
+      borderWidth: {
+        card: 'var(--card-border-width)',
+        input: 'var(--input-border-width)',
       },
   		keyframes: {
   			'accordion-down': {

@@ -1,0 +1,24 @@
+{
+  "id": "easter-2024",
+  "propertyId": "prahova-mountain-chalet",
+  "date": "2024-05-05",
+  "customPrice": 230.00,
+  "reason": "Orthodox Easter 2024",
+  "minimumStay": 3,
+  "available": true,
+  "flatRate": true,
+  "createdAt": {
+    "__type": "timestamp",
+    "value": {
+      "_seconds": 1714583282,
+      "_nanoseconds": 0
+    }
+  },
+  "updatedAt": {
+    "__type": "timestamp",
+    "value": {
+      "_seconds": 1714583282,
+      "_nanoseconds": 0
+    }
+  }
+}

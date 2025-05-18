@@ -1,0 +1,8 @@
+{
+  "id": "washer-dryer",
+  "icon": "WashingMachine",
+  "name": {
+    "en": "Washer/Dryer",
+    "ro": "Mașină de Spălat/Uscător"
+  }
+}
