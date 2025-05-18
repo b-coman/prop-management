@@ -252,16 +252,18 @@ export function Header({
           
           {/* Button Items (usually Book Now) */}
           {buttonItems.map(buttonItem => (
-            <Link key={buttonItem.label} href={buttonItem.url} passHref>
-              <Button
-                size="sm"
-                variant={buttonVariant}
-                className={cn(buttonExtraClasses)}
-                data-theme-aware="true"
-              >
+            <Button
+              key={buttonItem.label}
+              size="sm"
+              variant={buttonVariant}
+              className={cn(buttonExtraClasses)}
+              data-theme-aware="true"
+              asChild
+            >
+              <Link href={buttonItem.url}>
                 {buttonItem.label}
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           ))}
         </nav>
 
