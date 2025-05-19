@@ -1,3 +1,8 @@
+// Test: Disable problematic environment variables
+if (process.env.NODE_ENV === 'production') {
+  import('@/lib/firebaseAdminTest');
+}
+
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google'; // Import Inter font
 import './globals.css';
