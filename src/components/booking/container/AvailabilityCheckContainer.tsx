@@ -12,6 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { TouchTarget } from '@/components/ui/touch-target';
+import { InteractionFeedback } from '@/components/ui/interaction-feedback';
+import { useScrollToElement } from '@/hooks/useScrollToElement';
 import { BookingOptionsCards } from '../booking-options-cards';
 import { BookingSummary } from '../booking-summary';
 import { BookingForm } from '../forms/BookingForm';
@@ -149,6 +152,7 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const { selectedCurrency, baseCurrencyForProperty, convertToSelectedCurrency, formatPrice } = useCurrency();
+  const scrollToElement = useScrollToElement();
 
   // Calculate pricing details for the booking - using hooks in the proper order
   const propertyBaseCcy = useMemo(() => baseCurrencyForProperty(property.baseCurrency), [property.baseCurrency, baseCurrencyForProperty]);
@@ -345,6 +349,31 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
       console.log(`[AvailabilityCheckContainer] Component will unmount`);
     };
   });
+  
+  // Scroll to booking options when availability is checked
+  useEffect(() => {
+    if (wasChecked && isAvailable) {
+      scrollToElement('booking-options', {
+        behavior: 'smooth',
+        block: 'start',
+        offset: 80,
+        delay: 300
+      });
+    }
+  }, [wasChecked, isAvailable, scrollToElement]);
+  
+  // Scroll to selected option when it changes
+  useEffect(() => {
+    if (selectedOption) {
+      const elementId = selectedOption === 'contact' ? 'contact-form' : selectedOption === 'hold' ? 'hold-form' : 'booking-form';
+      scrollToElement(elementId, {
+        behavior: 'smooth',
+        block: 'start',
+        offset: 80,
+        delay: 300
+      });
+    }
+  }, [selectedOption, scrollToElement]);
 
   // Optimized availability check using pre-loaded unavailable dates
   const handleCheckAvailability = async () => {
@@ -806,10 +835,12 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
       <div className="flex justify-end mb-3">
         <Dialog>
           <DialogTrigger asChild>
-            <Button variant="outline" size="sm" className="flex items-center gap-1 text-xs">
-              <CalendarDays className="h-3.5 w-3.5" />
-              Check More Dates
-            </Button>
+            <TouchTarget>
+              <Button variant="outline" size="sm" className="flex items-center gap-1 text-xs h-full w-full">
+                <CalendarDays className="h-3.5 w-3.5" />
+                Check More Dates
+              </Button>
+            </TouchTarget>
           </DialogTrigger>
           <DialogContent className="max-w-4xl w-[90vw]">
             <AvailabilityPreview propertySlug={property.slug} />
@@ -834,113 +865,121 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
       <div className="mb-6 p-4 border border-gray-200 bg-white rounded-md">
         <Label className="mb-1 block text-sm font-medium">Number of Guests</Label>
         <div className="flex items-center justify-between rounded-md border p-2 h-10 w-full md:w-48 bg-white">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => {
-              console.log(`[AvailabilityCheckContainer] 🔽 Decrease guest button clicked: ${guestCount} -> ${guestCount - 1}`);
-              if (guestCount > 1) {
-                // Directly update context and local state
-                const newCount = guestCount - 1;
-                console.log(`[AvailabilityCheckContainer] ✅ Updating guest count: ${guestCount} -> ${newCount}`);
+          <TouchTarget>
+            <InteractionFeedback variant="scale">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-full w-full"
+                onClick={() => {
+                console.log(`[AvailabilityCheckContainer] 🔽 Decrease guest button clicked: ${guestCount} -> ${guestCount - 1}`);
+                if (guestCount > 1) {
+                  // Directly update context and local state
+                  const newCount = guestCount - 1;
+                  console.log(`[AvailabilityCheckContainer] ✅ Updating guest count: ${guestCount} -> ${newCount}`);
 
-                // First, update the local state
-                setGuestCount(newCount);
+                  // First, update the local state
+                  setGuestCount(newCount);
 
-                // Then update the global context
-                setNumberOfGuests(newCount);
+                  // Then update the global context
+                  setNumberOfGuests(newCount);
 
-                // EXPLICITLY CALCULATE PRICES after updating guest count
-                console.log(`[AvailabilityCheckContainer] 💰 EXPLICITLY calculating price for ${newCount} guests`);
-                if (checkInDate && checkOutDate && numberOfNights > 0 && property) {
-                  const recalculatedPrice = calculatePrice(
-                    property.pricePerNight,
-                    numberOfNights,
-                    property.cleaningFee ?? 0,
-                    newCount, // Use our updated guest count
-                    property.baseOccupancy || 1,
-                    property.extraGuestFee ?? 0,
-                    propertyBaseCcy,
-                    appliedCoupon?.discountPercentage
-                  );
+                  // EXPLICITLY CALCULATE PRICES after updating guest count
+                  console.log(`[AvailabilityCheckContainer] 💰 EXPLICITLY calculating price for ${newCount} guests`);
+                  if (checkInDate && checkOutDate && numberOfNights > 0 && property) {
+                    const recalculatedPrice = calculatePrice(
+                      property.pricePerNight,
+                      numberOfNights,
+                      property.cleaningFee ?? 0,
+                      newCount, // Use our updated guest count
+                      property.baseOccupancy || 1,
+                      property.extraGuestFee ?? 0,
+                      propertyBaseCcy,
+                      appliedCoupon?.discountPercentage
+                    );
 
-                  console.log(`[AvailabilityCheckContainer] 💰 RECALCULATED price details:`, {
-                    basePrice: recalculatedPrice.basePrice,
-                    extraGuestFee: recalculatedPrice.extraGuestFeeTotal,
-                    cleaningFee: recalculatedPrice.cleaningFee,
-                    subtotal: recalculatedPrice.subtotal,
-                    total: recalculatedPrice.total,
-                    currency: recalculatedPrice.currency,
-                    numberOfGuests: newCount,
-                    extraGuests: recalculatedPrice.numberOfExtraGuests
-                  });
-                } else {
-                  console.log(`[AvailabilityCheckContainer] 💰 Cannot recalculate price - missing required inputs`);
+                    console.log(`[AvailabilityCheckContainer] 💰 RECALCULATED price details:`, {
+                      basePrice: recalculatedPrice.basePrice,
+                      extraGuestFee: recalculatedPrice.extraGuestFeeTotal,
+                      cleaningFee: recalculatedPrice.cleaningFee,
+                      subtotal: recalculatedPrice.subtotal,
+                      total: recalculatedPrice.total,
+                      currency: recalculatedPrice.currency,
+                      numberOfGuests: newCount,
+                      extraGuests: recalculatedPrice.numberOfExtraGuests
+                    });
+                  } else {
+                    console.log(`[AvailabilityCheckContainer] 💰 Cannot recalculate price - missing required inputs`);
+                  }
                 }
-              }
-            }}
-            disabled={guestCount <= 1 || isCheckingAvailability}
-            aria-label="Decrease guests"
-          >
-            <Minus className="h-4 w-4" />
-          </Button>
+              }}
+              disabled={guestCount <= 1 || isCheckingAvailability}
+              aria-label="Decrease guests"
+            >
+                <Minus className="h-4 w-4" />
+              </Button>
+            </InteractionFeedback>
+          </TouchTarget>
           <span className="mx-4 font-medium w-8 text-center" id="guests">
             {guestCount}
           </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => {
-              console.log(`[AvailabilityCheckContainer] 🔼 Increase guest button clicked: ${guestCount} -> ${guestCount + 1}`);
-              if (guestCount < property.maxGuests) {
-                // Directly update context and local state
-                const newCount = guestCount + 1;
-                console.log(`[AvailabilityCheckContainer] ✅ Updating guest count: ${guestCount} -> ${newCount}`);
+          <TouchTarget>
+            <InteractionFeedback variant="scale">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-full w-full"
+                onClick={() => {
+                console.log(`[AvailabilityCheckContainer] 🔼 Increase guest button clicked: ${guestCount} -> ${guestCount + 1}`);
+                if (guestCount < property.maxGuests) {
+                  // Directly update context and local state
+                  const newCount = guestCount + 1;
+                  console.log(`[AvailabilityCheckContainer] ✅ Updating guest count: ${guestCount} -> ${newCount}`);
 
-                // First, update the local state
-                setGuestCount(newCount);
+                  // First, update the local state
+                  setGuestCount(newCount);
 
-                // Then update the global context
-                setNumberOfGuests(newCount);
+                  // Then update the global context
+                  setNumberOfGuests(newCount);
 
-                // EXPLICITLY CALCULATE PRICES after updating guest count
-                console.log(`[AvailabilityCheckContainer] 💰 EXPLICITLY calculating price for ${newCount} guests`);
-                if (checkInDate && checkOutDate && numberOfNights > 0 && property) {
-                  const recalculatedPrice = calculatePrice(
-                    property.pricePerNight,
-                    numberOfNights,
-                    property.cleaningFee ?? 0,
-                    newCount, // Use our updated guest count
-                    property.baseOccupancy || 1,
-                    property.extraGuestFee ?? 0,
-                    propertyBaseCcy,
-                    appliedCoupon?.discountPercentage
-                  );
+                  // EXPLICITLY CALCULATE PRICES after updating guest count
+                  console.log(`[AvailabilityCheckContainer] 💰 EXPLICITLY calculating price for ${newCount} guests`);
+                  if (checkInDate && checkOutDate && numberOfNights > 0 && property) {
+                    const recalculatedPrice = calculatePrice(
+                      property.pricePerNight,
+                      numberOfNights,
+                      property.cleaningFee ?? 0,
+                      newCount, // Use our updated guest count
+                      property.baseOccupancy || 1,
+                      property.extraGuestFee ?? 0,
+                      propertyBaseCcy,
+                      appliedCoupon?.discountPercentage
+                    );
 
-                  console.log(`[AvailabilityCheckContainer] 💰 RECALCULATED price details:`, {
-                    basePrice: recalculatedPrice.basePrice,
-                    extraGuestFee: recalculatedPrice.extraGuestFeeTotal,
-                    cleaningFee: recalculatedPrice.cleaningFee,
-                    subtotal: recalculatedPrice.subtotal,
-                    total: recalculatedPrice.total,
-                    currency: recalculatedPrice.currency,
-                    numberOfGuests: newCount,
-                    extraGuests: recalculatedPrice.numberOfExtraGuests
-                  });
-                } else {
-                  console.log(`[AvailabilityCheckContainer] 💰 Cannot recalculate price - missing required inputs`);
+                    console.log(`[AvailabilityCheckContainer] 💰 RECALCULATED price details:`, {
+                      basePrice: recalculatedPrice.basePrice,
+                      extraGuestFee: recalculatedPrice.extraGuestFeeTotal,
+                      cleaningFee: recalculatedPrice.cleaningFee,
+                      subtotal: recalculatedPrice.subtotal,
+                      total: recalculatedPrice.total,
+                      currency: recalculatedPrice.currency,
+                      numberOfGuests: newCount,
+                      extraGuests: recalculatedPrice.numberOfExtraGuests
+                    });
+                  } else {
+                    console.log(`[AvailabilityCheckContainer] 💰 Cannot recalculate price - missing required inputs`);
+                  }
                 }
-              }
-            }}
-            disabled={guestCount >= property.maxGuests || isCheckingAvailability}
-            aria-label="Increase guests"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
+              }}
+              disabled={guestCount >= property.maxGuests || isCheckingAvailability}
+              aria-label="Increase guests"
+            >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </InteractionFeedback>
+          </TouchTarget>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
           Max {property.maxGuests}
@@ -949,7 +988,7 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
 
       {/* Booking options and forms section */}
       {wasChecked && (
-        <div className="mt-8 space-y-6">
+        <div id="booking-options" className="mt-8 space-y-6">
           {isAvailable ? (
             // Available Dates: Show all booking options
             <>
@@ -998,43 +1037,49 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
 
               {/* Contact host form */}
               {selectedOption === 'contact' && (
-                <ContactHostForm
-                  onSubmit={onInquirySubmit}
-                  isProcessing={isProcessingBooking}
-                  isPending={isPending}
-                  pricingDetails={pricingDetailsInBaseCurrency}
-                  selectedCurrency={selectedCurrency}
-                />
+                <div id="contact-form">
+                  <ContactHostForm
+                    onSubmit={onInquirySubmit}
+                    isProcessing={isProcessingBooking}
+                    isPending={isPending}
+                    pricingDetails={pricingDetailsInBaseCurrency}
+                    selectedCurrency={selectedCurrency}
+                  />
+                </div>
               )}
 
               {/* Hold form */}
               {selectedOption === 'hold' && (
-                <HoldForm
-                  property={property}
-                  isProcessing={isProcessingBooking}
-                  isPending={isPending}
-                  formError={formError}
-                  pricingDetails={pricingDetailsInBaseCurrency}
-                  selectedCurrency={selectedCurrency}
-                  onSubmit={handleHoldDates}
-                />
+                <div id="hold-form">
+                  <HoldForm
+                    property={property}
+                    isProcessing={isProcessingBooking}
+                    isPending={isPending}
+                    formError={formError}
+                    pricingDetails={pricingDetailsInBaseCurrency}
+                    selectedCurrency={selectedCurrency}
+                    onSubmit={handleHoldDates}
+                  />
+                </div>
               )}
 
               {/* Book now form */}
               {selectedOption === 'bookNow' && (
-                <BookingForm
-                  property={property}
-                  isProcessing={isProcessingBooking}
-                  isPending={isPending}
-                  formError={formError}
-                  lastErrorType={lastErrorType}
-                  canRetryError={canRetryError}
-                  pricingDetails={pricingDetailsInBaseCurrency}
-                  appliedCoupon={appliedCoupon}
-                  setAppliedCoupon={setAppliedCoupon}
-                  selectedCurrency={selectedCurrency}
-                  onSubmit={handleContinueToPayment}
-                />
+                <div id="booking-form">
+                  <BookingForm
+                    property={property}
+                    isProcessing={isProcessingBooking}
+                    isPending={isPending}
+                    formError={formError}
+                    lastErrorType={lastErrorType}
+                    canRetryError={canRetryError}
+                    pricingDetails={pricingDetailsInBaseCurrency}
+                    appliedCoupon={appliedCoupon}
+                    setAppliedCoupon={setAppliedCoupon}
+                    selectedCurrency={selectedCurrency}
+                    onSubmit={handleContinueToPayment}
+                  />
+                </div>
               )}
             </>
           ) : (

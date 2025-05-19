@@ -11,6 +11,8 @@ This document summarizes all documentation updates made during the recent sessio
 - `docs/architecture/overview.md` - High-level architecture overview
 
 ### Implementation Documentation
+- `docs/implementation/booking-availability-check-redesign.md` - Booking page UX redesign specification
+- `docs/implementation/booking-redesign-tracking.md` - Implementation progress tracking for booking redesign
 - `docs/implementation/multilanguage-system.md` - Comprehensive multilingual feature documentation
 - `docs/implementation/multilanguage-task-list.md` - Task tracking for multilingual implementation
 - `docs/implementation/multilingual-deployment-guide.md` - Deployment guide for multilingual features

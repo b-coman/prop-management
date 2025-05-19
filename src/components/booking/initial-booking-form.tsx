@@ -21,6 +21,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { useToast } from "@/hooks/use-toast";
 import type { Property } from '@/types';
+import { TouchTarget } from '@/components/ui/touch-target';
 
 interface InitialBookingFormProps {
   property: Property;
@@ -284,31 +285,33 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
          </Label>
          <Popover>
           <PopoverTrigger asChild>
-            <Button
-              id="date"
-              variant={'outline'}
-              className={cn(
-                'w-full justify-start text-left font-normal min-h-[46px]', // Taller minimum height
-                !date && 'text-muted-foreground', // Placeholder text styling
-                isBottomLarge() && 'md:px-6 md:py-3 md:border-2 md:text-base md:font-medium md:rounded-md md:bg-background/50 hover:md:bg-background/80' // Larger input appearance for bottom-large with subtle background effect
-              )}
-              disabled={isLoading}
-            >
-              <CalendarIcon className={cn("mr-2 h-4 w-4 flex-shrink-0", isBottomLarge() && "md:h-5 md:w-5")} />
-              <span className="inline-block w-full overflow-hidden text-ellipsis whitespace-nowrap">
-                {date?.from ? (
-                  date.to ? (
-                    <span className="font-medium relative bg-background/80 px-1 py-0.5 rounded text-foreground">
-                      {format(date.from, 'MMM d')} - {format(date.to, 'MMM d')}
-                    </span>
-                  ) : (
-                    <span className="font-medium relative bg-background/80 px-1 py-0.5 rounded text-foreground">{format(date.from, 'MMM d')}</span>
-                  )
-                ) : (
-                  t('booking.selectDates')
+            <TouchTarget>
+              <Button
+                id="date"
+                variant={'outline'}
+                className={cn(
+                  'w-full h-full justify-start text-left font-normal min-h-[46px]', // Taller minimum height
+                  !date && 'text-muted-foreground', // Placeholder text styling
+                  isBottomLarge() && 'md:px-6 md:py-3 md:border-2 md:text-base md:font-medium md:rounded-md md:bg-background/50 hover:md:bg-background/80' // Larger input appearance for bottom-large with subtle background effect
                 )}
-              </span>
-            </Button>
+                disabled={isLoading}
+              >
+                <CalendarIcon className={cn("mr-2 h-4 w-4 flex-shrink-0", isBottomLarge() && "md:h-5 md:w-5")} />
+                <span className="inline-block w-full overflow-hidden text-ellipsis whitespace-nowrap">
+                  {date?.from ? (
+                    date.to ? (
+                      <span className="font-medium relative bg-background/80 px-1 py-0.5 rounded text-foreground">
+                        {format(date.from, 'MMM d')} - {format(date.to, 'MMM d')}
+                      </span>
+                    ) : (
+                      <span className="font-medium relative bg-background/80 px-1 py-0.5 rounded text-foreground">{format(date.from, 'MMM d')}</span>
+                    )
+                  ) : (
+                    t('booking.selectDates')
+                  )}
+                </span>
+              </Button>
+            </TouchTarget>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
               <Calendar
@@ -326,27 +329,29 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
 
       {/* Check Availability Button */}
       <div className="w-full md:w-[110px] lg:w-[120px] md:flex-shrink-0 mt-4 md:mt-0 md:mr-1 lg:mr-2">
-          <Button
-            id="check-availability-btn"
-            type="button"
-            variant="cta"
-            size="compact"
-            onClick={handleCheckAvailability}
-            className="w-full whitespace-nowrap text-xs md:text-xs lg:text-sm"
-            disabled={isButtonDisabled}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                {t('booking.checkingAvailability')}
-              </>
-            ) : (
-              <>
-                <SearchCheck className="mr-1 h-3 w-3" />
-                {t('booking.checkDates')}
-              </>
-            )}
-          </Button>
+          <TouchTarget>
+            <Button
+              id="check-availability-btn"
+              type="button"
+              variant="cta"
+              size="compact"
+              onClick={handleCheckAvailability}
+              className="w-full h-full whitespace-nowrap text-xs md:text-xs lg:text-sm"
+              disabled={isButtonDisabled}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  {t('booking.checkingAvailability')}
+                </>
+              ) : (
+                <>
+                  <SearchCheck className="mr-1 h-3 w-3" />
+                  {t('booking.checkDates')}
+                </>
+              )}
+            </Button>
+          </TouchTarget>
        </div>
     </div>
   );

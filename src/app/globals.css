@@ -58,6 +58,73 @@ body {
   /* Removed font-family definition here, now handled in layout.tsx */
 }
 
+/* Animation keyframes for custom animations */
+@layer utilities {
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(-3deg); }
+    50% { transform: rotate(3deg); }
+  }
+  
+  @keyframes ring {
+    0% { transform: rotate(0deg); }
+    10% { transform: rotate(14deg); }
+    20% { transform: rotate(-8deg); }
+    30% { transform: rotate(14deg); }
+    40% { transform: rotate(-4deg); }
+    50% { transform: rotate(10deg); }
+    60% { transform: rotate(0deg); }
+    100% { transform: rotate(0deg); }
+  }
+  
+  @keyframes tada {
+    0% { transform: scale(1) rotate(0deg); }
+    10%, 20% { transform: scale(0.9) rotate(-3deg); }
+    30%, 50%, 70%, 90% { transform: scale(1.1) rotate(3deg); }
+    40%, 60%, 80% { transform: scale(1.1) rotate(-3deg); }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+  
+  .animate-wiggle {
+    animation: wiggle 0.3s ease-in-out;
+  }
+  
+  .animate-ring {
+    animation: ring 0.5s ease-in-out;
+  }
+  
+  .animate-tada {
+    animation: tada 0.8s ease-in-out;
+  }
+  
+  /* Smooth transitions for theme changes */
+  .transition-theme {
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+  }
+  
+  /* Enhance focus indicators */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2;
+  }
+  
+  /* Skip to content link for keyboard navigation */
+  .skip-link {
+    @apply absolute left-4 top-4 transform -translate-y-16 bg-primary text-primary-foreground px-4 py-2 rounded-md z-50;
+    @apply focus:translate-y-0 transition-transform duration-200;
+  }
+  
+  /* Enhanced focus states */
+  .focus-highlight {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
+  }
+  
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .focus-highlight {
+      @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current;
+    }
+  }
+}
+
 /* Theme-aware header and UI elements */
 [data-theme-aware="true"][data-state="open"] {
   background-color: hsla(var(--primary), 0.5) !important;

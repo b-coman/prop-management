@@ -109,28 +109,14 @@ export default async function AvailabilityCheckPage({ params, searchParams }: Av
   const propertyName = serverTranslateContent(property.name) || property.slug;
 
   return (
-    <div className="flex min-h-screen flex-col">
-      {/* Use Client Header wrapper for this page */}
-      <ClientHeader propertyName={property.name} propertySlug={property.slug}/>
-      <main className="flex-grow container py-12 md:py-16">
-        {/* Wrap AvailabilityCheck in Suspense if it uses useSearchParams directly,
-            but passing props is generally preferred for Server Components */}
-        <Suspense fallback={<div>Loading availability...</div>}>
-          <BookingClientLayout propertySlug={property.slug}>
-            <ClientBookingWrapper
-              property={property}
-            />
-          </BookingClientLayout>
-        </Suspense>
-      </main>
-      {/* Add a generic footer if desired */}
-      {/* <Footer /> */}
-       <footer className="border-t bg-muted/50">
-         <div className="container py-4 text-center text-xs text-muted-foreground">
-           RentalSpot &copy; {new Date().getFullYear()}
-         </div>
-       </footer>
-    </div>
+    <Suspense fallback={<div>Loading availability...</div>}>
+      <BookingClientLayout propertySlug={property.slug}>
+        <ClientBookingWrapper
+          property={property}
+          urlParams={{ checkIn, checkOut }}
+        />
+      </BookingClientLayout>
+    </Suspense>
   );
 }
 

@@ -32,6 +32,8 @@ import { createInquiryAction } from '@/app/actions/createInquiryAction';
 import { sanitizeEmail, sanitizePhone, sanitizeText } from '@/lib/sanitize';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/hooks/useLanguage';
+import { AvailabilityCheckerSkeleton, BookingSummarySkeleton, BookingOptionsSkeleton, FormSkeleton } from './BookingCheckSkeleton';
+import { StateTransitionWrapper, transitionVariants } from './StateTransitionWrapper';
 
 interface AvailabilityContainerProps {
   property: any;
@@ -100,6 +102,7 @@ export function AvailabilityContainer({
   // State for dynamic pricing data from price calendar API
   const [dynamicPricingDetails, setDynamicPricingDetails] = useState<any>(null);
   const [pricingError, setPricingError] = useState<string | null>(null);
+  const [isPricingLoading, setIsPricingLoading] = useState(false);
   
   // Effect to fetch pricing data from priceCalendar when dates or guests change
   React.useEffect(() => {
@@ -111,6 +114,7 @@ export function AvailabilityContainer({
       // Reset pricing state
       setDynamicPricingDetails(null);
       setPricingError(null);
+      setIsPricingLoading(true);
       
       // Only fetch if we have valid dates and guest count
       if (checkInDate && checkOutDate && numberOfNights > 0 && property && guestCount > 0) {
@@ -174,6 +178,8 @@ export function AvailabilityContainer({
         } catch (error) {
           console.error(`[AvailabilityContainer] Error fetching dynamic pricing:`, error);
           setPricingError("We're having trouble getting pricing information. Please try again later.");
+        } finally {
+          setIsPricingLoading(false);
         }
       } else {
         console.log(`[AvailabilityContainer] ⚠️ Fetch ID=${fetchId}: Missing data for pricing fetch`, { 
@@ -749,32 +755,42 @@ export function AvailabilityContainer({
   ]);
   
   return (
-    <div className={cn("max-w-2xl mx-auto w-full px-4 md:px-0", className)}>
+    <div className={cn("w-full", className)}>
       {/* Wrap the component with ErrorBoundary to catch and handle any errors */}
       <ErrorBoundary>
-        <EnhancedAvailabilityChecker
-          propertySlug={property.slug}
-          propertyName={typeof property.name === 'string' ? property.name : (tc(property.name) || property.slug)}
-          maxGuests={property.maxGuests || 10}
-          onAvailabilityResult={(result) => {
-            setIsAvailable(result);
-            setWasChecked(true);
-          }}
-        />
+        {isCheckingAvailability ? (
+          <AvailabilityCheckerSkeleton />
+        ) : (
+          <EnhancedAvailabilityChecker
+            propertySlug={property.slug}
+            propertyName={typeof property.name === 'string' ? property.name : (tc(property.name) || property.slug)}
+            maxGuests={property.maxGuests || 10}
+            onAvailabilityResult={(result) => {
+              setIsAvailable(result);
+              setWasChecked(true);
+            }}
+          />
+        )}
       </ErrorBoundary>
       
       {/* Content based on availability */}
       {wasChecked && (
-        <div className="mt-8 space-y-6">
-          {isAvailable ? (
-            // Booking options when dates are available
-            <>
+        <StateTransitionWrapper 
+          transitionKey={isAvailable ? "available" : "unavailable"}
+          {...transitionVariants.slideUp}
+        >
+          <div className="mt-8 space-y-6">
+            {isAvailable ? (
+              // Booking options when dates are available
+              <>
               {/* Real booking summary component with dynamic pricing */}
               <div className="text-xs p-1 mb-2 bg-green-50 text-green-700 rounded text-center">
                 Using Dynamic Price Calendar v1.2.1
               </div>
               
-              {dynamicPricingDetails ? (
+              {isPricingLoading ? (
+                <BookingSummarySkeleton />
+              ) : dynamicPricingDetails ? (
                 <>
                   <BookingSummary 
                     numberOfNights={numberOfNights}
@@ -828,20 +844,27 @@ export function AvailabilityContainer({
 
               {/* Contact host form - using the original implementation */}
               {selectedOption === 'contact' && (
-                <Card className="mt-4">
+                <StateTransitionWrapper 
+                  transitionKey="contact-form"
+                  {...transitionVariants.slideUp}
+                >
+                  <Card className="mt-4">
                   <CardHeader><CardTitle>Contact Host</CardTitle></CardHeader>
                   <CardContent>
+                    {isProcessingBooking ? (
+                      <FormSkeleton />
+                    ) : (
                     <form onSubmit={(e) => { e.preventDefault(); handleInquirySubmit({ firstName: sessionFirstName, lastName: sessionLastName, email: sessionEmail, phone: sessionPhone, message: "I'm interested in booking your property." }); }} className="space-y-4">
-                      <h3 className="font-semibold text-base pt-2">Your Information</h3>
+                      <h3 className="font-semibold text-lg text-foreground pt-2">Your Information</h3>
 
                       {/* Names - side by side on larger screens */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <Label className="mb-1 block text-sm font-medium">
+                        <div className="space-y-2">
+                          <Label htmlFor="contact-first-name" required>
                             First Name
-                            <span className="text-destructive ml-1">*</span>
                           </Label>
                           <Input
+                            id="contact-first-name"
                             placeholder="Your first name"
                             disabled={isProcessingBooking || isPending}
                             required
@@ -849,14 +872,15 @@ export function AvailabilityContainer({
                             onChange={e => setSessionFirstName(e.target.value)}
                           />
                         </div>
-                        <div>
-                          <Label className="mb-1 block text-sm font-medium">
+                        <div className="space-y-2">
+                          <Label htmlFor="contact-last-name" required>
                             Last Name
-                            <span className="text-destructive ml-1">*</span>
                           </Label>
                           <Input
+                            id="contact-last-name"
                             placeholder="Your last name"
                             disabled={isProcessingBooking || isPending}
+                            required
                             value={sessionLastName || ''}
                             onChange={e => setSessionLastName(e.target.value)}
                           />
@@ -865,26 +889,28 @@ export function AvailabilityContainer({
 
                       {/* Email and Phone - side by side on larger screens */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <Label className="flex items-center gap-1 text-xs">
+                        <div className="space-y-2">
+                          <Label htmlFor="contact-email" required className="flex items-center gap-1">
                             <Mail className="h-3 w-3" />
                             Email
-                            <span className="text-destructive ml-1">*</span>
                           </Label>
                           <Input
+                            id="contact-email"
                             type="email"
                             placeholder="your.email@example.com"
                             disabled={isProcessingBooking || isPending}
+                            required
                             value={sessionEmail || ''}
                             onChange={e => setSessionEmail(e.target.value)}
                           />
                         </div>
-                        <div>
-                          <Label className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <div className="space-y-2">
+                          <Label htmlFor="contact-phone" variant="optional" className="flex items-center gap-1">
                             <PhoneIcon className="h-3 w-3" />
                             Phone (Optional)
                           </Label>
                           <Input
+                            id="contact-phone"
                             type="tel"
                             placeholder="Your phone number"
                             disabled={isProcessingBooking || isPending}
@@ -894,12 +920,12 @@ export function AvailabilityContainer({
                         </div>
                       </div>
 
-                      <div>
-                        <Label className="flex items-center gap-1 text-xs">
+                      <div className="space-y-2">
+                        <Label htmlFor="contact-message" required>
                           Message
-                          <span className="text-destructive ml-1">*</span>
                         </Label>
                         <Textarea
+                          id="contact-message"
                           placeholder="Your questions or custom request..."
                           rows={4}
                           disabled={isProcessingBooking || isPending}
@@ -913,13 +939,19 @@ export function AvailabilityContainer({
                         {isPending ? "Sending..." : "Send Inquiry"}
                       </Button>
                     </form>
+                    )}
                   </CardContent>
-                </Card>
+                  </Card>
+                </StateTransitionWrapper>
               )}
 
               {/* Hold dates form - using the original implementation */}
               {selectedOption === 'hold' && (
-                <Card className="mt-4">
+                <StateTransitionWrapper 
+                  transitionKey="hold-form"
+                  {...transitionVariants.slideUp}
+                >
+                  <Card className="mt-4">
                   <CardHeader>
                     <CardTitle>Hold Dates</CardTitle>
                     <CardDescription>
@@ -937,6 +969,9 @@ export function AvailabilityContainer({
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
+                    {isProcessingBooking ? (
+                      <FormSkeleton />
+                    ) : (
                     <form onSubmit={(e) => { e.preventDefault(); handleHoldDates(); }} className="space-y-6">
                       <h3 className="font-semibold text-base pt-2">Your Information</h3>
 
@@ -1019,17 +1054,26 @@ export function AvailabilityContainer({
                         )}
                       </Button>
                     </form>
+                    )}
                   </CardContent>
-                </Card>
+                  </Card>
+                </StateTransitionWrapper>
               )}
 
               {/* Booking form - using the original implementation */}
               {selectedOption === 'bookNow' && (
-                <Card className="mt-4">
+                <StateTransitionWrapper 
+                  transitionKey="booking-form"
+                  {...transitionVariants.slideUp}
+                >
+                  <Card className="mt-4">
                   <CardHeader>
                     <CardTitle>Complete Booking</CardTitle>
                   </CardHeader>
                   <CardContent>
+                    {isProcessingBooking ? (
+                      <FormSkeleton />
+                    ) : (
                     <form onSubmit={(e) => { e.preventDefault(); handleContinueToPayment(); }} className="space-y-6">
                       <h3 className="font-semibold text-base pt-2">Your Information</h3>
 
@@ -1103,8 +1147,10 @@ export function AvailabilityContainer({
                         {isProcessingBooking ? 'Processing...' : 'Continue to Payment'}
                       </Button>
                     </form>
+                    )}
                   </CardContent>
-                </Card>
+                  </Card>
+                </StateTransitionWrapper>
               )}
             </>
           ) : (
@@ -1124,7 +1170,8 @@ export function AvailabilityContainer({
               property={property}
             />
           )}
-        </div>
+          </div>
+        </StateTransitionWrapper>
       )}
     </div>
   );

@@ -15,6 +15,8 @@ import { cn } from '@/lib/utils';
 import { sanitizeEmail, sanitizePhone, sanitizeText } from '@/lib/sanitize';
 import type { Property, PriceCalculationResult } from '@/types';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { TouchTarget } from '@/components/ui/touch-target';
+import { InteractionFeedback, ErrorShake } from '@/components/ui/interaction-feedback';
 
 // Schema for the hold form
 const holdFormSchema = z.object({
@@ -139,15 +141,16 @@ export function HoldForm({
   const isFormDisabled = isProcessing || isPending || !checkInDate || !checkOutDate || !property.holdFeeAmount;
 
   return (
-    <Card className="mt-4 booking-form-card">
-      <CardHeader>
-        <CardTitle>Hold Dates</CardTitle>
-        <CardDescription>
-          Reserve these dates for {property.holdDurationHours || 24} hours with a small holding fee of {displayHoldFee}.
-          {property.holdFeeRefundable && " This fee is refundable if you complete your booking."}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <ErrorShake shake={!!formError} onShakeComplete={() => setFormError(null)}>
+      <Card className="mt-4 booking-form-card">
+        <CardHeader>
+          <CardTitle>Hold Dates</CardTitle>
+          <CardDescription>
+            Reserve these dates for {property.holdDurationHours || 24} hours with a small holding fee of {displayHoldFee}.
+            {property.holdFeeRefundable && " This fee is refundable if you complete your booking."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
         <Form {...holdForm}>
           <form onSubmit={holdForm.handleSubmit(handleSubmit)} className="space-y-6">
             <h3 className="font-semibold text-base pt-2">Your Information</h3>
@@ -257,27 +260,35 @@ export function HoldForm({
               />
             )}
             
-            <Button 
-              type="submit" 
-              variant="cta"
-              className="w-full" 
-              disabled={isFormDisabled}
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <ArrowRight className="mr-2 h-4 w-4" />
-                  Pay {displayHoldFee} to Hold Dates
-                </>
-              )}
-            </Button>
+            <TouchTarget size="lg">
+              <InteractionFeedback
+                variant="hover"
+                state={isProcessing ? 'loading' : 'idle'}
+              >
+                <Button 
+                  type="submit" 
+                  variant="cta"
+                  className="w-full h-full" 
+                  disabled={isFormDisabled}
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <ArrowRight className="mr-2 h-4 w-4" />
+                      Pay {displayHoldFee} to Hold Dates
+                    </>
+                  )}
+                </Button>
+              </InteractionFeedback>
+            </TouchTarget>
           </form>
         </Form>
       </CardContent>
-    </Card>
+      </Card>
+    </ErrorShake>
   );
 }

@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { sanitizeEmail, sanitizePhone, sanitizeText } from '@/lib/sanitize';
 import type { PriceCalculationResult } from '@/types';
+import { TouchTarget } from '@/components/ui/touch-target';
+import { InteractionFeedback } from '@/components/ui/interaction-feedback';
 
 // Schema for the inquiry form
 const inquiryFormSchema = z.object({
@@ -188,10 +190,17 @@ export function ContactHostForm({
                 <FormMessage />
               </FormItem>
             )} />
-            <Button type="submit" disabled={isPending || isProcessing}>
-              {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-              {isPending ? "Sending..." : "Send Inquiry"}
-            </Button>
+            <TouchTarget size="lg">
+              <InteractionFeedback
+                variant="hover"
+                state={isPending || isProcessing ? 'loading' : 'idle'}
+              >
+                <Button type="submit" className="w-full h-full" disabled={isPending || isProcessing}>
+                  {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                  {isPending ? "Sending..." : "Send Inquiry"}
+                </Button>
+              </InteractionFeedback>
+            </TouchTarget>
           </form>
         </Form>
       </CardContent>

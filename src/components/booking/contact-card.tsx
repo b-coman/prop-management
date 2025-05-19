@@ -3,9 +3,9 @@
 
 import * as React from 'react';
 import { MessageSquare } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { InteractionFeedback } from '@/components/ui/interaction-feedback';
 
 interface ContactCardProps {
   isSelected: boolean;
@@ -14,26 +14,40 @@ interface ContactCardProps {
 
 export function ContactCard({ isSelected, onSelect }: ContactCardProps) {
   return (
-    <Card
-      className={cn(
-        "cursor-pointer transition-all border-2",
-        isSelected ? "border-primary shadow-lg scale-105" : "border-border hover:border-muted-foreground/50"
-      )}
-      onClick={onSelect}
-    >
+    <InteractionFeedback variant="ripple">
+      <Card
+        className={cn(
+          "relative cursor-pointer transition-all duration-300 ease-in-out",
+          "border-[var(--card-border-width)] hover:shadow-[var(--card-shadow)]",
+          "transform hover:scale-[1.02] active:scale-[0.98]",
+          isSelected 
+            ? "border-primary shadow-lg scale-105 bg-primary/5" 
+            : "border-border hover:border-primary/50 hover:bg-muted/30"
+        )}
+        onClick={onSelect}
+      >
       <CardHeader className="items-center text-center">
-        <MessageSquare className={cn("h-8 w-8 mb-2", isSelected ? "text-primary" : "text-muted-foreground")} />
-        <CardTitle className="text-lg">Contact for Details</CardTitle>
-        <CardDescription className="text-sm">Ask questions or request a custom offer.</CardDescription>
+        <div className={cn(
+          "p-3 rounded-full mb-3 transition-all duration-300",
+          isSelected 
+            ? "bg-primary/20 text-primary" 
+            : "bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary"
+        )}>
+          <MessageSquare className="h-8 w-8" />
+        </div>
+        <CardTitle className="text-lg font-semibold text-foreground">Contact for Details</CardTitle>
+        <CardDescription className="text-sm text-muted-foreground">
+          Ask questions or request a custom offer.
+        </CardDescription>
       </CardHeader>
-      {/* Form will be rendered outside/below when selected */}
-      {/* {!isSelected && ( // Optionally show button only when not selected
-        <CardContent className="text-center pb-4">
-          <Button variant={isSelected ? "default" : "outline"} size="sm">
-            {isSelected ? "Selected" : "Select"}
-          </Button>
-        </CardContent>
-      )} */}
-    </Card>
+      
+      {/* Indicator badge */}
+      {isSelected && (
+        <div className="absolute top-3 right-3">
+          <div className="h-3 w-3 rounded-full bg-primary animate-pulse" />
+        </div>
+      )}
+      </Card>
+    </InteractionFeedback>
   );
 }

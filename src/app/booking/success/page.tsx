@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { CheckCircle, Loader2, Calendar, Users, Info, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { SuccessAnimation } from '@/components/ui/interaction-feedback';
 import { Header } from '@/components/generic-header';
 import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
@@ -100,6 +101,7 @@ function BookingSuccessContent() {
       />
 
       <main className="flex-grow container py-12 md:py-16 lg:py-20 flex items-center justify-center">
+        <SuccessAnimation show={true} />
         <Card className="w-full max-w-2xl shadow-xl">
           <CardHeader>
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-600">

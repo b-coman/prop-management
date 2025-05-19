@@ -15,6 +15,8 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { sanitizeEmail, sanitizePhone, sanitizeText } from '@/lib/sanitize';
 import type { Property, PriceCalculationResult } from '@/types';
+import { TouchTarget } from '@/components/ui/touch-target';
+import { InteractionFeedback, ErrorShake } from '@/components/ui/interaction-feedback';
 
 // Schema for the booking form
 const bookingFormSchema = z.object({
@@ -164,13 +166,14 @@ export function BookingForm({
   const isFormDisabled = isProcessing || isPending || !checkInDate || !checkOutDate;
 
   return (
-    <Card className="mt-4 booking-form-card">
-      <CardHeader>
-        <CardTitle>Complete Booking</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Form {...bookingForm}>
-          <form onSubmit={bookingForm.handleSubmit(handleSubmit)} className="space-y-6">
+    <ErrorShake shake={!!formError} onShakeComplete={() => setFormError(null)}>
+      <Card className="mt-4 booking-form-card">
+        <CardHeader>
+          <CardTitle>Complete Booking</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Form {...bookingForm}>
+            <form onSubmit={bookingForm.handleSubmit(handleSubmit)} className="space-y-6">
             <h3 className="font-semibold text-base pt-2">Your Information</h3>
 
             {/* Names - side by side on larger screens */}
@@ -283,26 +286,37 @@ export function BookingForm({
                   className="flex-grow" 
                 />
                 {!appliedCoupon ? (
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={handleApplyCoupon} 
-                    disabled={isApplyingCoupon || !couponCode.trim() || isFormDisabled} 
-                    className="shrink-0"
-                  >
-                    {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <TicketPercent className="h-4 w-4" />}
-                  </Button>
+                  <TouchTarget>
+                    <InteractionFeedback
+                      variant="scale"
+                      state={isApplyingCoupon ? 'loading' : 'idle'}
+                    >
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={handleApplyCoupon} 
+                        disabled={isApplyingCoupon || !couponCode.trim() || isFormDisabled} 
+                        className="shrink-0 w-full h-full"
+                      >
+                        {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <TicketPercent className="h-4 w-4" />}
+                      </Button>
+                    </InteractionFeedback>
+                  </TouchTarget>
                 ) : (
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={handleRemoveCoupon} 
-                    disabled={isFormDisabled} 
-                    className="shrink-0"
-                  >
-                    <X className="h-4 w-4 text-destructive" />
-                  </Button>
+                  <TouchTarget>
+                    <InteractionFeedback variant="scale">
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={handleRemoveCoupon} 
+                        disabled={isFormDisabled} 
+                        className="shrink-0 w-full h-full"
+                      >
+                        <X className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </InteractionFeedback>
+                  </TouchTarget>
                 )}
               </div>
               <div className="mt-1">
@@ -336,18 +350,26 @@ export function BookingForm({
               />
             )}
             
-            <Button 
-              type="submit" 
-              variant="cta"
-              className="w-full" 
-              disabled={isFormDisabled}
-            >
-              {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
-              {isProcessing ? 'Processing...' : 'Continue to Payment'}
-            </Button>
+            <TouchTarget size="lg">
+              <InteractionFeedback
+                variant="hover"
+                state={isProcessing ? 'loading' : 'idle'}
+              >
+                <Button 
+                  type="submit" 
+                  variant="cta"
+                  className="w-full h-full" 
+                  disabled={isFormDisabled}
+                >
+                  {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
+                  {isProcessing ? 'Processing...' : 'Continue to Payment'}
+                </Button>
+              </InteractionFeedback>
+            </TouchTarget>
           </form>
         </Form>
       </CardContent>
-    </Card>
+      </Card>
+    </ErrorShake>
   );
 }

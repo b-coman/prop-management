@@ -74,7 +74,7 @@ export function GalleryGrid({ content }: GalleryGridProps) {
               >
                 <Image
                   src={image.url}
-                  alt={image.alt || ''}
+                  alt={image.alt || `Property image ${index + 1}`}
                   fill
                   className="object-cover"
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -95,7 +95,7 @@ export function GalleryGrid({ content }: GalleryGridProps) {
               >
                 <Image
                   src={image.url}
-                  alt={image.alt || ''}
+                  alt={image.alt || `Property image ${index + 1}`}
                   width={800}
                   height={600}
                   className="w-full h-auto object-cover hover:scale-[1.02] transition-transform"
@@ -138,7 +138,7 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                 >
                   <Image
                     src={image.url}
-                    alt={image.alt || ''}
+                    alt={image.alt || `Property image ${index + 1}`}
                     fill
                     className="object-cover"
                   />
@@ -181,7 +181,7 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                 <div className="relative h-full w-full max-h-[80vh]">
                   <Image
                     src={images[currentImageIndex].url}
-                    alt={images[currentImageIndex].alt || ''}
+                    alt={images[currentImageIndex].alt || `Property image ${currentImageIndex + 1}`}
                     fill
                     className="object-contain"
                   />

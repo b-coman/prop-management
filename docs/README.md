@@ -9,6 +9,8 @@ This directory contains comprehensive documentation for the RentalSpot Builder p
 The documentation has been significantly expanded and reorganized. For a detailed summary of recent changes, see [Recent Documentation Updates](RECENT_DOCUMENTATION_UPDATES.md).
 
 ### Highlights
+- **New**: Booking/Availability Check page redesign documentation
+- **New**: Implementation tracking system for redesign project  
 - **New**: Comprehensive multilingual system documentation
 - **New**: Complete troubleshooting guide with common issues and solutions
 - **New**: Amenities and features normalization system
@@ -44,6 +46,10 @@ Guides and plans for implementing key features:
 - [Multi-Page Fixes](implementation/multipage-fixes.md) - Solutions for issues encountered in multi-page implementation
 - [Email Service](implementation/email-service.md) - Email service implementation details
 - [Hold Expiration](implementation/hold-expiration.md) - Automated cleanup of expired hold bookings
+
+### Booking System
+- [Booking Availability Check Redesign](implementation/booking-availability-check-redesign.md) - Agreed UX improvements for booking flow
+- [Booking Redesign Tracking](implementation/booking-redesign-tracking.md) - Implementation progress tracking
 
 ### Pricing System
 - [Pricing System](implementation/pricing-system.md) - Overview of the dynamic pricing system architecture
