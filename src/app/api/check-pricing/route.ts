@@ -83,8 +83,7 @@ export async function POST(request: NextRequest) {
       const day = currentDate.getDate().toString();
       
       // Find the relevant calendar
-      const monthStr = month.toString().padStart(2, '0');
-      const calendar = calendars.find(c => c?.month === `${year}-${monthStr}`);
+      const calendar = calendars.find(c => c?.year === year && c?.month === month);
       
       if (!calendar || !calendar.days[day]) {
         // No price information available
