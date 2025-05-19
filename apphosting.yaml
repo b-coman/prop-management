@@ -7,6 +7,9 @@ runConfig:
   cpu: 1
   memoryMiB: 512
   startupTimeoutSeconds: 300
+  # Health check configuration
+  readinessCheckPath: /api/readiness
+  livenessCheckPath: /api/health
 
 # Environment variables and secrets.
 # env:

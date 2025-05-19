@@ -10,8 +10,7 @@ import { SUPPORTED_CURRENCIES } from '@/types';
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-console.log('--- [Webhook /api/webhooks/stripe] Initializing ---');
-
+// Only log when the function is actually called, not at module level
 if (!stripeSecretKey) {
   console.error('❌ FATAL: STRIPE_SECRET_KEY is not set.');
 }
@@ -26,6 +25,7 @@ if (!stripeWebhookSecret && process.env.NODE_ENV === 'production') {
 const stripe = new Stripe(stripeSecretKey || '');
 
 export async function POST(req: NextRequest) {
+  console.log('--- [Webhook /api/webhooks/stripe] Initializing ---');
   console.log('--- [Webhook /api/webhooks/stripe] Received POST request ---');
   const headersList = headers();
   const signature = headersList.get('stripe-signature');
