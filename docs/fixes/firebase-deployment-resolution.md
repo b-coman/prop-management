@@ -38,6 +38,55 @@ async function ensureFirebaseAdmin() {
 }
 ```
 
+Implemented isolated Firebase Admin for pricing API operations using a safe initialization approach in `firebaseAdminPricing.ts`:
+```typescript
+// Cache the initialization promise
+let initPromise: Promise<admin.firestore.Firestore | null> | null = null;
+
+export async function getFirestoreForPricing(): Promise<admin.firestore.Firestore | null> {
+  if (!initPromise) {
+    initPromise = (async () => {
+      try {
+        console.log('[PRICING] Initializing Firebase Admin for pricing...');
+        await initializeFirebaseAdminSafe();
+        const db = getFirestoreSafe();
+        if (!db) {
+          console.error('[PRICING] Failed to get Firestore instance');
+          return null;
+        }
+        console.log('[PRICING] Firebase Admin initialized successfully');
+        return db;
+      } catch (error) {
+        console.error('[PRICING] Error initializing Firebase Admin:', error);
+        return null;
+      }
+    })();
+  }
+  
+  return initPromise;
+}
+```
+
+The pricing API uses the Admin SDK through a wrapper in `pricing-with-db.ts` that ensures proper initialization:
+```typescript
+export async function getPriceCalendarWithDb(propertyId: string, year: number, month: number): Promise<PriceCalendar | null> {
+  const db = await getFirestoreForPricing();
+  if (!db) {
+    throw new Error('Database connection unavailable');
+  }
+
+  const monthStr = month.toString().padStart(2, '0');
+  const docId = `${propertyId}_${year}-${monthStr}`;
+  
+  const doc = await db.collection('priceCalendars').doc(docId).get();
+  if (!doc.exists) {
+    return null;
+  }
+  
+  return doc.data() as PriceCalendar;
+}
+```
+
 ### 3. Health Check Endpoints
 
 Created `/api/health` and `/api/readiness` endpoints with both GET and POST support:

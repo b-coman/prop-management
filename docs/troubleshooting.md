@@ -4,16 +4,168 @@ This guide covers common issues encountered in the RentalSpot Builder applicatio
 
 ## Table of Contents
 
-1. [React Rendering Errors](#react-rendering-errors)
-2. [Edge Runtime Compatibility](#edge-runtime-compatibility)
-3. [Header Positioning Issues](#header-positioning-issues)
-4. [Timestamp Serialization](#timestamp-serialization)
-5. [Language Routing Issues](#language-routing-issues)
-6. [Theme Application Problems](#theme-application-problems)
-7. [WebAssembly Build Errors](#webassembly-build-errors)
-8. [Route Handling with Optional Catch-All](#route-handling-with-optional-catch-all)
-9. [CSS Layer Conflicts](#css-layer-conflicts)
-10. [Performance Issues with Translations](#performance-issues-with-translations)
+1. [Production Deployment Issues](#production-deployment-issues)
+2. [React Rendering Errors](#react-rendering-errors)
+3. [Edge Runtime Compatibility](#edge-runtime-compatibility)
+4. [Header Positioning Issues](#header-positioning-issues)
+5. [Timestamp Serialization](#timestamp-serialization)
+6. [Language Routing Issues](#language-routing-issues)
+7. [Theme Application Problems](#theme-application-problems)
+8. [WebAssembly Build Errors](#webassembly-build-errors)
+9. [Route Handling with Optional Catch-All](#route-handling-with-optional-catch-all)
+10. [CSS Layer Conflicts](#css-layer-conflicts)
+11. [Performance Issues with Translations](#performance-issues-with-translations)
+
+## Production Deployment Issues
+
+### Problem: "Resource readiness deadline exceeded" in Cloud Run
+
+This error occurs when Cloud Run fails to start your application before the timeout.
+
+**Common Causes:**
+- Slow startup time due to synchronous operations
+- Port configuration issues
+- Firebase Admin SDK initialization problems
+- Missing health check endpoints
+- Traffic routing to old revisions
+
+**Solutions:**
+
+1. **Implement Proper Health Check Endpoints:**
+```typescript
+// app/api/health/route.ts
+export async function GET() {
+  return new Response('OK', { status: 200 });
+}
+
+export async function POST() {
+  return new Response('OK', { status: 200 });
+}
+```
+
+2. **Use Lazy Initialization for Firebase Admin:**
+```typescript
+// lib/firebaseAdminSafe.ts
+export async function initializeFirebaseAdminSafe() {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    try {
+      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+      _adminApp = admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+      });
+      console.log('Firebase Admin initialized');
+    } catch (error) {
+      console.error('Failed to initialize Firebase Admin:', error);
+    }
+  }
+}
+```
+
+3. **Fix Traffic Routing:** If the deployment succeeds but users see errors, check the traffic routing:
+```bash
+# Get latest revision
+LATEST_REVISION=$(gcloud run revisions list --service YOUR_SERVICE --region REGION --format="value(name)" --limit=1)
+
+# Update traffic routing
+gcloud run services update-traffic YOUR_SERVICE --to-revisions=$LATEST_REVISION=100 --region=REGION
+```
+
+4. **Configure Proper Port:**
+```json
+// package.json
+{
+  "start": "next start -p ${PORT:-8080}"
+}
+```
+
+5. **Create Debug Endpoints:** Add diagnostic endpoints to test specific aspects:
+```typescript
+// app/api/debug-pricing/route.ts
+export async function POST(request: NextRequest) {
+  try {
+    const { propertyId, checkIn, checkOut } = await request.json();
+    
+    // Test Firebase connection
+    const property = await getPropertyWithDb(propertyId);
+    
+    // Test specific functionality
+    const calendar = await getPriceCalendarWithDb(
+      propertyId, 
+      new Date(checkIn).getFullYear(),
+      new Date(checkIn).getMonth() + 1
+    );
+    
+    return NextResponse.json({ 
+      status: 'debug_success',
+      property: property?.id,
+      calendar: calendar?.id 
+    });
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}
+```
+
+**Additional Tools:**
+- See detailed fixes in `/docs/fixes/firebase-deployment-resolution.md`
+- Use `/docs/fixes/cloud-run-revisions-resolution.md` for traffic routing issues
+- Monitor deployments with `/scripts/monitor-price-calendars.ts`
+
+### Problem: Firestore data structure mismatches in production
+
+Inconsistencies between expected data structure and actual Firestore documents can cause runtime errors.
+
+**Solution:**
+
+1. **Create data validation scripts:**
+```typescript
+// scripts/validate-data-structure.ts
+async function validateCollection(collection, schema) {
+  const snapshot = await db.collection(collection).limit(100).get();
+  let invalidDocs = [];
+  
+  snapshot.forEach(doc => {
+    try {
+      schema.parse(doc.data());
+    } catch (error) {
+      invalidDocs.push({ id: doc.id, errors: error.errors });
+    }
+  });
+  
+  return invalidDocs;
+}
+```
+
+2. **Document expected data structures:**
+```markdown
+// docs/COLLECTION_STRUCTURE.md
+## priceCalendars Collection
+
+- Document ID format: `{propertyId}_{YYYY-MM}`
+- Required fields:
+  - `propertyId`: string
+  - `year`: number
+  - `month`: number
+  - `days`: Object with day numbers as keys
+```
+
+3. **Use data migration scripts:**
+```typescript
+// scripts/fix-data-structure.ts
+async function migrateDocuments() {
+  const snapshot = await db.collection('priceCalendars').get();
+  
+  for (const doc of snapshot.docs) {
+    const data = doc.data();
+    if (!data.baseOccupancyPrice && data.basePrice) {
+      // Fix structure
+      await doc.ref.update({
+        baseOccupancyPrice: data.basePrice
+      });
+    }
+  }
+}
+```
 
 ## React Rendering Errors
 

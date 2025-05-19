@@ -637,6 +637,104 @@ To transition from the current system:
    - Incrementally release new pricing features
    - Maintain backward compatibility throughout
 
+## API Implementation
+
+The pricing API is implemented in `/src/app/api/check-pricing/route.ts` and uses the Firebase Admin SDK to access Firestore. The API follows this architecture:
+
+1. **Safe Firebase Admin Initialization**:
+   The API uses a safe initialization approach implemented in `/src/lib/firebaseAdminSafe.ts` that handles missing environment variables and prevents app crashes.
+
+2. **Dedicated Pricing DB Client**:
+   A specialized client in `/src/lib/firebaseAdminPricing.ts` provides an isolated Firestore instance for pricing operations:
+   ```typescript
+   export async function getFirestoreForPricing(): Promise<admin.firestore.Firestore | null> {
+     if (!initPromise) {
+       initPromise = (async () => {
+         try {
+           console.log('[PRICING] Initializing Firebase Admin for pricing...');
+           await initializeFirebaseAdminSafe();
+           const db = getFirestoreSafe();
+           // ...
+         } catch (error) {
+           // Error handling
+         }
+       })();
+     }
+     return initPromise;
+   }
+   ```
+
+3. **Database Access Layer**:
+   A wrapper in `/src/lib/pricing/pricing-with-db.ts` handles Firestore operations:
+   ```typescript
+   export async function getPriceCalendarWithDb(
+     propertyId: string, 
+     year: number, 
+     month: number
+   ): Promise<PriceCalendar | null> {
+     const db = await getFirestoreForPricing();
+     if (!db) {
+       throw new Error('Database connection unavailable');
+     }
+
+     const monthStr = month.toString().padStart(2, '0');
+     const docId = `${propertyId}_${year}-${monthStr}`;
+     
+     const doc = await db.collection('priceCalendars').doc(docId).get();
+     if (!doc.exists) {
+       return null;
+     }
+     
+     return doc.data() as PriceCalendar;
+   }
+   ```
+
+4. **API Endpoint**:
+   The `/api/check-pricing/route.ts` endpoint handles requests by:
+   - Validating required parameters (propertyId, checkIn, checkOut, guests)
+   - Getting property details from Firestore
+   - Fetching price calendars for all required months
+   - Checking availability for each day
+   - Calculating pricing based on occupancy
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Price information not available for the selected dates error**:
+   - Check if price calendars exist for the requested dates
+   - Verify the document ID format matches `{propertyId}_{YYYY-MM}`
+   - Ensure the calendar has the correct fields (year, month, days)
+   - Each day must have `baseOccupancyPrice` field and `prices` object
+
+2. **Structure validation**:
+   You can use the monitoring script to check for data structure issues:
+   ```bash
+   npx tsx scripts/monitor-price-calendars.ts
+   ```
+
+3. **Missing fields**:
+   If calendars exist but have incorrect structure, the fix script can help:
+   ```bash
+   npx tsx scripts/fix-price-calendar-structure.ts
+   ```
+
+4. **Structure reference**:
+   The pricing API expects each day object to have this structure:
+   ```json
+   {
+     "baseOccupancyPrice": 180,
+     "prices": {
+       "5": 205,
+       "6": 230,
+       "7": 255
+     },
+     "available": true,
+     "minimumStay": 1,
+     "priceSource": "base"
+   }
+   ```
+
 ## Summary
 
 This simplified Firestore structure provides:
@@ -649,3 +747,12 @@ This simplified Firestore structure provides:
 6. **Future-Proofing**: Room to extend with additional features as needed
 
 The design focuses on simplicity and performance while providing the essential flexibility required for vacation rental pricing, without overwhelming users with complexity.
+
+## Testing Tools
+
+We've created several tools to help test and maintain this pricing structure:
+
+1. `/scripts/monitor-price-calendars.ts` - Validates pricing data structure
+2. `/scripts/fix-price-calendar-structure.ts` - Fixes common structure issues
+3. `/scripts/generate-missing-price-calendars.ts` - Generates sample calendars
+4. `/docs/PRICING_TROUBLESHOOTING.md` - Detailed troubleshooting guide
