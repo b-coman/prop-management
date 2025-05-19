@@ -155,6 +155,27 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
 export const useCurrency = (): CurrencyContextType => {
   const context = useContext(CurrencyContext);
   if (context === undefined) {
+    // During SSR or if provider is missing, return a safe default
+    if (typeof window === 'undefined') {
+      return {
+        selectedCurrency: 'USD' as CurrencyCode,
+        setSelectedCurrency: () => {},
+        exchangeRates: DEFAULT_EXCHANGE_RATES,
+        ratesLoading: false,
+        ratesError: null,
+        convertToSelectedCurrency: (amount: number) => amount,
+        formatPrice: (amount: number, currencyCode?: CurrencyCode) => {
+          const currency = currencyCode || 'USD';
+          return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency,
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+          }).format(amount);
+        },
+        baseCurrencyForProperty: (currency: CurrencyCode) => currency,
+      };
+    }
     throw new Error('useCurrency must be used within a CurrencyProvider');
   }
   return context;
