@@ -57,7 +57,7 @@ async function debugPricingCalendars() {
             year,
             month: monthStr,
             monthName: format(monthDate, 'MMMM yyyy'),
-            dayCount: Object.keys(calendarData.days || {}).length
+            dayCount: Object.keys(calendarData?.days || {}).length
           });
         }
       }
