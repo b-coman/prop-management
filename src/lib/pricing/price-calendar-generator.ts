@@ -1,9 +1,7 @@
 import * as admin from 'firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
-import { dbAdmin } from '@/lib/firebaseAdmin';
 
-// Use the centralized Firebase Admin instance
-let db: admin.firestore.Firestore | undefined = dbAdmin;
+// The db instance will be passed as a parameter to functions that need it
 import { 
   PropertyPricing, 
   SeasonalPricing, 
@@ -22,11 +20,11 @@ import {
 /**
  * Fetches a property document by ID
  */
-export async function getProperty(propertyId: string): Promise<PropertyPricing> {
-  // Check if Firebase Admin is properly initialized
+export async function getProperty(propertyId: string, db: admin.firestore.Firestore): Promise<PropertyPricing> {
+  // Check if db is provided
   if (!db) {
-    console.error('Firebase Admin is not properly initialized.');
-    throw new Error('Firebase Admin is not properly initialized');
+    console.error('Firestore instance not provided');
+    throw new Error('Firestore instance not provided');
   }
 
   const doc = await db.collection('properties').doc(propertyId).get();

@@ -9,3 +9,7 @@ export const getAuthAdmin = getAuthSafe;
 
 // Initialize on first use
 export const initializeFirebaseAdmin = initializeFirebaseAdminSafe;
+
+// Export db and dbAdmin for compatibility with existing code
+export const db = getFirestoreSafe();
+export const dbAdmin = getFirestoreSafe();

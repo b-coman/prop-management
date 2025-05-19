@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/firebaseAdmin';
-import { getProperty, getPriceCalendar, getMonthsBetweenDates } from '@/lib/pricing/price-calendar-generator';
+import { getPropertyWithDb, getPriceCalendarWithDb } from '@/lib/pricing/pricing-with-db';
+import { getMonthsBetweenDates } from '@/lib/pricing/price-calendar-generator';
 import { calculateBookingPrice, LengthOfStayDiscount } from '@/lib/pricing/price-calculation';
 import { differenceInDays, format, addDays, parseISO } from 'date-fns';
 
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Get property details
-    const property = await getProperty(propertyId);
+    const property = await getPropertyWithDb(propertyId);
     
     // Get number of nights
     const nights = differenceInDays(checkOutDate, checkInDate);
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     const months = getMonthsBetweenDates(checkInDate, checkOutDate);
     const calendars = await Promise.all(
       months.map(async ({ year, month }) => {
-        const calendar = await getPriceCalendar(propertyId, year, month);
+        const calendar = await getPriceCalendarWithDb(propertyId, year, month);
         return calendar;
       })
     );
