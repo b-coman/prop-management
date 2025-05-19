@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
           if (guests <= property.baseOccupancy) {
             dailyPrices[dateStr] = dayPrice.baseOccupancyPrice;
           } else {
-            const occupancyPrice = dayPrice.prices[guests.toString()];
+            const occupancyPrice = dayPrice.prices?.[guests.toString()];
             if (occupancyPrice) {
               dailyPrices[dateStr] = occupancyPrice;
             } else {
