@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       
       debug.logs.push(`Checking calendar: ${calendarId}`);
       
-      const calendarDoc = await db.collection('priceCalendar').doc(calendarId).get();
+      const calendarDoc = await db.collection('priceCalendars').doc(calendarId).get();
       
       if (!calendarDoc.exists) {
         debug.errors.push(`Price calendar ${calendarId} not found`);

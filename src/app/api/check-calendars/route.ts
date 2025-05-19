@@ -11,7 +11,7 @@ export async function GET() {
     console.log('Fetching price calendars...');
     
     // Get all price calendars
-    const snapshot = await db.collection('priceCalendar').limit(10).get();
+    const snapshot = await db.collection('priceCalendars').get();
     
     const calendars = [];
     snapshot.forEach(doc => {

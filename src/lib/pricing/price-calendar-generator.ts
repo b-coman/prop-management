@@ -320,7 +320,7 @@ export async function savePriceCalendar(calendar: PriceCalendar): Promise<void> 
     throw new Error('Firebase Admin is not properly initialized');
   }
 
-  await db.collection('priceCalendar').doc(calendar.id).set(calendar);
+  await db.collection('priceCalendars').doc(calendar.id).set(calendar);
 }
 
 /**
@@ -340,7 +340,7 @@ export async function getPriceCalendar(
   const monthStr = month.toString().padStart(2, '0');
   const docId = `${propertyId}_${year}-${monthStr}`;
 
-  const doc = await db.collection('priceCalendar').doc(docId).get();
+  const doc = await db.collection('priceCalendars').doc(docId).get();
 
   if (!doc.exists) {
     return null;
