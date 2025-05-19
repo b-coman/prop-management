@@ -13,8 +13,8 @@ const DOMAIN_TO_PROPERTY_MAP: Record<string, string> = {
 
 export const config = {
   matcher: [
-    // Match all paths except for API routes, static files, etc.
-    '/((?!api|_next/static|_next/image|favicon.ico|locales).*)',
+    // Match all paths except for API routes, static files, health checks, etc.
+    '/((?!api|_next/static|_next/image|favicon.ico|locales|health|readiness).*)',
   ],
 };
 
@@ -22,6 +22,11 @@ export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
   const pathname = url.pathname;
   const hostname = request.headers.get('host') || '';
+
+  // Skip middleware for health check endpoints
+  if (pathname === '/api/health' || pathname === '/api/readiness') {
+    return NextResponse.next();
+  }
 
   // Handle admin routes with authentication check
   if (pathname.startsWith('/admin')) {
@@ -33,14 +38,47 @@ export async function middleware(request: NextRequest) {
 
   // Skip middleware for localhost and app's main domain
   const mainAppHost = process.env.NEXT_PUBLIC_MAIN_APP_HOST || 'localhost';
-  if (hostname.includes('localhost') || hostname === mainAppHost) {
+  if (hostname.includes('localhost') || hostname === mainAppHost || hostname.includes('0.0.0.0')) {
     // For main app, only handle language redirects if needed
     return handleLanguageRouting(request, preferredLang);
   }
 
-  // Simplified domain resolution without Firestore
-  // In production, this would be a call to a compatible data store
-  const propertySlug = DOMAIN_TO_PROPERTY_MAP[hostname] || null;
+  // Try to resolve domain - but fail gracefully
+  let propertySlug = DOMAIN_TO_PROPERTY_MAP[hostname] || null;
+  
+  // If we need dynamic resolution, do it safely
+  if (!propertySlug && process.env.USE_DYNAMIC_DOMAIN_RESOLUTION === 'true') {
+    try {
+      // Only attempt fetch if we have a proper hostname
+      if (hostname && !hostname.includes('0.0.0.0')) {
+        const resolveUrl = `${request.nextUrl.protocol}//${hostname}/api/resolve-domain?domain=${encodeURIComponent(hostname)}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+        
+        try {
+          const response = await fetch(resolveUrl, {
+            signal: controller.signal,
+            headers: {
+              'User-Agent': 'RentalSpot-Middleware/1.0',
+            },
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (response.ok) {
+            const data = await response.json();
+            propertySlug = data.slug;
+          }
+        } catch (error) {
+          // Silently fail and continue
+          console.error(`[Middleware] Failed to resolve domain ${hostname}:`, error);
+        }
+      }
+    } catch (error) {
+      // Silently fail and continue
+      console.error(`[Middleware] Error in domain resolution:`, error);
+    }
+  }
 
   if (!propertySlug) {
     // If no property found for this domain, continue normally
