@@ -1,16 +1,8 @@
-
 "use server";
 
 import type { Property, CurrencyCode } from '@/types'; // Added CurrencyCode
 import { headers } from 'next/headers';
 import Stripe from 'stripe';
-
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-if (!stripeSecretKey) {
-  throw new Error('STRIPE_SECRET_KEY is not set in environment variables.');
-}
-
-const stripe = new Stripe(stripeSecretKey);
 
 interface CreateCheckoutSessionInput {
   property: Property;
@@ -28,32 +20,43 @@ interface CreateCheckoutSessionInput {
   selectedCurrency?: CurrencyCode; // User's selected currency
 }
 
+interface CreateCheckoutSessionResult {
+  sessionId?: string;
+  sessionUrl?: string;
+  error?: string;
+}
+
+// Lazy initialization of Stripe
+let stripe: Stripe | null = null;
+
+function getStripe(): Stripe {
+  if (stripe) return stripe;
+  
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecretKey) {
+    throw new Error('STRIPE_SECRET_KEY is not set in environment variables.');
+  }
+  
+  stripe = new Stripe(stripeSecretKey);
+  return stripe;
+}
+
 export async function createCheckoutSession(
   input: CreateCheckoutSessionInput
-): Promise<{
-  sessionId?: string;
-  sessionUrl?: string | null;
-  error?: string;
-  errorType?: string;
-  retry?: boolean;
-  paymentProvider?: string;
-}> {
+): Promise<CreateCheckoutSessionResult> {
+  // console.log('[createCheckoutSession] Starting session creation with input:', {
+  //   ...input,
+  //   property: { id: input.property.id, name: input.property.name }
+  // });
+
   try {
-    // Input validation first
-    if (!input || !input.property || !input.checkInDate || !input.checkOutDate) {
-      console.error("[createCheckoutSession] Missing required input parameters:",
-        JSON.stringify({
-          hasProperty: !!input?.property,
-          hasCheckInDate: !!input?.checkInDate,
-          hasCheckOutDate: !!input?.checkOutDate,
-        }));
+    const stripeInstance = getStripe();
+    
+    // Get the origin from the current request
+    const headersList = headers();
+    const origin = headersList.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
 
-      return {
-        error: "Missing required booking information. Please fill in all required fields.",
-        errorType: "validation_error"
-      };
-    }
-
+    // Destructure the input
     const {
       property,
       checkInDate,
@@ -61,186 +64,116 @@ export async function createCheckoutSession(
       numberOfGuests,
       totalPrice,
       numberOfNights,
-      guestEmail,
       guestFirstName,
       guestLastName,
+      guestEmail,
       appliedCouponCode,
       discountPercentage,
       pendingBookingId,
-      selectedCurrency, // User's selected currency
+      selectedCurrency = 'EUR',
     } = input;
 
-    // Validate total price - must be greater than zero
-    if (!totalPrice || totalPrice <= 0) {
-      return {
-        error: "Invalid booking price. Please try again.",
-        errorType: "validation_error"
-      };
+    // console.log('[createCheckoutSession] Transaction currency:', selectedCurrency);
+
+    // Convert price to cents (Stripe requires smallest currency unit)
+    const priceInCents = Math.round(totalPrice * 100);
+    // console.log('[createCheckoutSession] Price conversion:', { totalPrice, priceInCents });
+    
+    let discountCoupon;
+    if (appliedCouponCode && discountPercentage) {
+        try {
+            const couponId = `discount_${Math.round(discountPercentage)}_percent_coupon`;
+            const existingCoupons = await stripeInstance.coupons.list({
+                limit: 100,
+            });
+            const existingCoupon = existingCoupons.data.find(c => c.id === couponId);
+            
+            if (existingCoupon) {
+                discountCoupon = existingCoupon.id;
+                console.log(`[createCheckoutSession] Using existing Stripe coupon: ${couponId}`);
+            } else {
+                const coupon = await stripeInstance.coupons.create({
+                    id: couponId,
+                    percent_off: discountPercentage,
+                    duration: 'once',
+                    name: `${discountPercentage}% Discount`,
+                });
+                discountCoupon = coupon.id;
+                console.log(`[createCheckoutSession] Created new Stripe coupon: ${couponId}`);
+            }
+        } catch (error) {
+            console.error('[createCheckoutSession] Error creating/checking coupon:', error);
+            // Continue without discount if coupon creation fails
+        }
     }
 
-    // Get origin for success/cancel URLs
-    const headersList = await headers();
-    const origin = headersList.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
-
-    const numberOfExtraGuests = Math.max(0, numberOfGuests - property.baseOccupancy);
-
-    // Use the user's selected currency or fall back to property's base currency
-    const stripeCurrency = (selectedCurrency || property.baseCurrency).toLowerCase() as Stripe.Checkout.SessionCreateParams.LineItem.PriceData.Currency;
-
-    // Create metadata for tracking booking details in Stripe
-    const metadata: Stripe.MetadataParam = {
-      propertyId: property.slug,
-      propertyName: property.name,
-      checkInDate: checkInDate,
-      checkOutDate: checkOutDate,
-      numberOfGuests: String(numberOfGuests),
-      numberOfNights: String(numberOfNights),
-      totalPrice: String(totalPrice),
-      priceCurrency: selectedCurrency || property.baseCurrency,
-      cleaningFee: String(property.cleaningFee || 0),
-      pricePerNight: String(property.pricePerNight || 0),
-      baseOccupancy: String(property.baseOccupancy || 1),
-      extraGuestFee: String(property.extraGuestFee || 0),
-      numberOfExtraGuests: String(numberOfExtraGuests),
-      guestFirstName: guestFirstName || '',
-      guestLastName: guestLastName || '',
-      pendingBookingId: pendingBookingId || '',
-      type: 'booking_full', // Explicitly set payment type for the webhook
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
+      payment_method_types: ['card'],
+      mode: 'payment',
+      success_url: `${origin}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/booking/cancel`,
+      automatic_tax: { enabled: false },
+      metadata: {
+        type: 'booking_full', // MUST be 'booking_full' or 'booking_hold'
+        propertyId: property.id,
+        propertyName: property.name || '',
+        checkInDate,
+        checkOutDate,
+        numberOfGuests: String(numberOfGuests),
+        numberOfNights: String(numberOfNights),
+        guestFirstName: guestFirstName || '',
+        guestLastName: guestLastName || '',
+        guestEmail: guestEmail || '',
+        pendingBookingId: pendingBookingId || '',
+        priceCurrency: selectedCurrency, // Critical for webhook to use correct currency
+      },
+      line_items: [{
+        price_data: {
+          currency: selectedCurrency.toLowerCase(),
+          product_data: {
+            name: property.name || 'Rental Booking',
+            description: `Stay from ${new Date(checkInDate).toLocaleDateString()} to ${new Date(checkOutDate).toLocaleDateString()} (${numberOfNights} nights)`,
+          },
+          unit_amount: priceInCents,
+        },
+        quantity: 1,
+      }],
     };
 
-    // Add coupon info to metadata if applicable
-    if (appliedCouponCode && discountPercentage !== undefined) {
-      metadata.appliedCouponCode = appliedCouponCode;
-      metadata.discountPercentage = String(discountPercentage);
+    // Apply discount if available
+    if (discountCoupon) {
+      sessionParams.discounts = [{
+        coupon: discountCoupon,
+      }];
     }
 
-    // Set up URLs for success and cancel pages
-    const success_url = `${origin}/booking/success?session_id={CHECKOUT_SESSION_ID}${pendingBookingId ? `&booking_id=${pendingBookingId}` : ''}`;
-    const cancel_url = `${origin}/booking/cancel?property_slug=${property.slug}${pendingBookingId ? `&booking_id=${pendingBookingId}` : ''}`;
-
-    // Check if Stripe is configured
-    if (!stripe) {
-      console.error('[createCheckoutSession] Stripe not initialized');
-      return {
-        error: "Payment system is currently unavailable. Please try again later.",
-        errorType: "service_unavailable",
-        retry: true
-      };
+    // Add guest email if provided
+    if (guestEmail) {
+      sessionParams.customer_email = guestEmail;
     }
 
-    // Set up a timeout to detect hanging operations
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
-        reject(new Error("Stripe connection timed out. Please try again."));
-      }, 15000); // 15 second timeout
-    });
+    // console.log('[createCheckoutSession] Creating Stripe session with params:', {
+    //   ...sessionParams,
+    //   metadata: sessionParams.metadata,
+    //   line_items: sessionParams.line_items,
+    // });
 
-    // Create Stripe session with timeout protection
-    const session = await Promise.race([
-      stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        line_items: [
-          {
-            price_data: {
-              currency: stripeCurrency,
-              product_data: {
-                name: `${property.name} (${numberOfNights} nights, ${numberOfGuests} guests)${appliedCouponCode ? ` - Coupon: ${appliedCouponCode}` : ''}`,
-                description: `Booking from ${new Date(checkInDate).toLocaleDateString()} to ${new Date(checkOutDate).toLocaleDateString()}. Ref: ${pendingBookingId || 'N/A'}`,
-                // Only include images if we have valid URLs
-                ...(property.images && property.images.length > 0 && property.images.some(img => !!img.url)
-                    ? { images: [property.images.find(img => img.isFeatured)?.url || property.images.find(img => !!img.url)?.url].filter(Boolean) }
-                    : {}),
-              },
-              unit_amount: Math.round(totalPrice * 100), // Amount in smallest currency unit (cents, bani, etc.)
-            },
-            quantity: 1,
-          },
-        ],
-        mode: 'payment',
-        success_url: success_url,
-        cancel_url: cancel_url,
-        customer_email: guestEmail,
-        phone_number_collection: { enabled: true },
-        metadata: metadata,
-        // Add expires_at for better UX - session expires after 30 minutes
-        expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
-      }),
-      timeoutPromise
-    ]);
+    const session = await stripeInstance.checkout.sessions.create(sessionParams);
 
-    // Verify session was created successfully
-    if (!session.id || !session.url) {
-      throw new Error('Failed to create Stripe session or missing session URL.');
-    }
+    console.log(`[createCheckoutSession] ✅ Successfully created session: ${session.id}`);
+    console.log(`[createCheckoutSession] Session URL: ${session.url}`);
 
-    // Log success
-    if (pendingBookingId && session.payment_intent) {
-      console.log(`[createCheckoutSession] Stripe session ${session.id} created, linked to pending booking ${pendingBookingId} via metadata. Payment Intent: ${session.payment_intent}`);
-    }
-
-    // Return successful result
     return {
       sessionId: session.id,
-      sessionUrl: session.url,
-      paymentProvider: 'stripe'
+      sessionUrl: session.url || undefined,
     };
   } catch (error) {
-    // Import error utilities for better error handling
-    const { logError, getErrorMessage, isNetworkError } = await import('@/lib/error-utils');
-
-    // Log the error
-    logError('createCheckoutSession', error, {
-      propertyId: input.property?.slug,
-      guestEmail: input.guestEmail,
-      pendingBookingId: input.pendingBookingId
-    });
-
-    const errorMessage = getErrorMessage(error);
-    const isNetwork = isNetworkError(error);
-
-    console.error('[createCheckoutSession] Error:', errorMessage);
-
-    // Handle specific error types
-    if (errorMessage.includes('timed out')) {
-      return {
-        error: "Connection to payment provider timed out. Please try again.",
-        errorType: "network_error",
-        retry: true
-      };
+    console.error('[createCheckoutSession] Error:', error);
+    
+    if (error instanceof Error) {
+      return { error: error.message };
     }
-
-    if (isNetwork) {
-      return {
-        error: "Network error connecting to payment provider. Please check your connection and try again.",
-        errorType: "network_error",
-        retry: true
-      };
-    }
-
-    // Handle Stripe-specific errors
-    if (errorMessage.includes('Stripe')) {
-      if (errorMessage.includes('card') || errorMessage.includes('payment_method')) {
-        return {
-          error: "There was an issue with the payment information. Please check your details and try again.",
-          errorType: "payment_error",
-          retry: true
-        };
-      }
-
-      if (errorMessage.includes('rate limit') || errorMessage.includes('rate_limit')) {
-        return {
-          error: "Too many payment requests. Please wait a moment and try again.",
-          errorType: "rate_limit_error",
-          retry: true
-        };
-      }
-    }
-
-    // Generic error message
-    return {
-      error: "We couldn't process your payment request. Please try again or contact support.",
-      errorType: "unknown_error",
-      retry: true
-    };
+    
+    return { error: 'An unknown error occurred while creating the checkout session.' };
   }
 }

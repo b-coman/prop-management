@@ -6,12 +6,20 @@ import { headers } from 'next/headers';
 import Stripe from 'stripe';
 import { getCurrencyRates } from '@/services/configService'; // Import to get currency rates
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-if (!stripeSecretKey) {
-  throw new Error('STRIPE_SECRET_KEY is not set in environment variables.');
-}
+// Lazy initialization of Stripe
+let stripe: Stripe | null = null;
 
-const stripe = new Stripe(stripeSecretKey);
+function getStripe(): Stripe {
+  if (stripe) return stripe;
+  
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecretKey) {
+    throw new Error('STRIPE_SECRET_KEY is not set in environment variables.');
+  }
+  
+  stripe = new Stripe(stripeSecretKey);
+  return stripe;
+}
 
 interface CreateHoldCheckoutSessionInput {
   property: Property; // Need property details like name, currency, slug
@@ -117,7 +125,8 @@ export async function createHoldCheckoutSession(input: CreateHoldCheckoutSession
       metadata: metadata,
     };
 
-    const session = await stripe.checkout.sessions.create(sessionParams);
+    const stripeInstance = getStripe();
+    const session = await stripeInstance.checkout.sessions.create(sessionParams);
 
     if (!session.id || !session.url) {
       throw new Error('Failed to create Stripe session or missing session URL.');

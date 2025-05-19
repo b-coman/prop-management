@@ -7,33 +7,41 @@ import { updateBookingPaymentInfo } from '@/services/bookingService';
 import type { Booking, CurrencyCode } from '@/types';
 import { SUPPORTED_CURRENCIES } from '@/types';
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+// Lazily initialize Stripe to avoid startup issues
+let stripe: Stripe | null = null;
 
-// Only log when the function is actually called, not at module level
-if (!stripeSecretKey) {
-  console.error('❌ FATAL: STRIPE_SECRET_KEY is not set.');
+function getStripe(): Stripe | null {
+  if (stripe) return stripe;
+  
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecretKey) {
+    console.warn('⚠️ STRIPE_SECRET_KEY is not set - Stripe functionality will be limited');
+    return null;
+  }
+  
+  stripe = new Stripe(stripeSecretKey);
+  return stripe;
 }
-// Allow skipping verification in dev if secret is missing, but log warning
-if (!stripeWebhookSecret && process.env.NODE_ENV === 'production') {
-  console.error("❌ FATAL: STRIPE_WEBHOOK_SECRET is not set in production. Verification required.");
-} else if (!stripeWebhookSecret && process.env.NODE_ENV !== 'production') {
-    console.warn("⚠️ STRIPE_WEBHOOK_SECRET is not set. Skipping verification (UNSAFE in prod).");
-}
-
-
-const stripe = new Stripe(stripeSecretKey || '');
 
 export async function POST(req: NextRequest) {
   console.log('--- [Webhook /api/webhooks/stripe] Initializing ---');
   console.log('--- [Webhook /api/webhooks/stripe] Received POST request ---');
+  
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  
+  if (!stripeSecretKey) {
+    console.error('❌ [Webhook Error] STRIPE_SECRET_KEY missing.');
+    return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 });
+  }
+  
+  const stripeInstance = getStripe();
+  if (!stripeInstance) {
+    return NextResponse.json({ error: 'Stripe initialization failed' }, { status: 500 });
+  }
+  
   const headersList = headers();
   const signature = headersList.get('stripe-signature');
-
-  if (!stripeSecretKey) {
-      console.error('❌ [Webhook Error] STRIPE_SECRET_KEY missing.');
-      return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 });
-  }
 
   let event: Stripe.Event;
   let body: string;
@@ -52,7 +60,7 @@ export async function POST(req: NextRequest) {
         console.error('❌ [Webhook Error] Missing stripe-signature header.');
         return NextResponse.json({ error: 'Missing Stripe signature' }, { status: 400 });
     } else {
-        event = stripe.webhooks.constructEvent(body, signature, stripeWebhookSecret);
+        event = stripeInstance.webhooks.constructEvent(body, signature, stripeWebhookSecret);
         console.log(`✅ [Webhook] Signature verified for event ID: ${event.id}`);
     }
   } catch (err) {
@@ -182,4 +190,13 @@ export async function POST(req: NextRequest) {
 
   console.log(`--- [Webhook] Finished processing event ID: ${event.id}. Responding 200 OK ---`);
   return NextResponse.json({ received: true }, { status: 200 });
+}
+
+// Add GET handler for health checks (in case Cloud Run hits this endpoint)
+export async function GET() {
+  return NextResponse.json({ 
+    status: 'ok',
+    message: 'Stripe webhook endpoint is ready',
+    configured: !!process.env.STRIPE_SECRET_KEY 
+  });
 }
