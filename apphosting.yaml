@@ -5,7 +5,7 @@ runConfig:
   maxInstances: 100
   concurrency: 80
   cpu: 1
-  memoryMiB: 512
+  memoryMiB: 1024
   startupTimeoutSeconds: 300
   # Health check configuration
   readinessCheckPath: /api/readiness

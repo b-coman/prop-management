@@ -6,6 +6,7 @@ export async function GET() {
     status: 200,
     headers: {
       'Content-Type': 'text/plain',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
     }
   });
 }
@@ -15,6 +16,17 @@ export async function POST() {
     status: 200,
     headers: {
       'Content-Type': 'text/plain',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    }
+  });
+}
+
+export async function HEAD() {
+  return new Response(null, { 
+    status: 200,
+    headers: {
+      'Content-Type': 'text/plain',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
     }
   });
 }
