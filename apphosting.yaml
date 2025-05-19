@@ -6,6 +6,7 @@ runConfig:
   concurrency: 80
   cpu: 1
   memoryMiB: 512
+  startupTimeoutSeconds: 300
 
 # Environment variables and secrets.
 # env:
@@ -58,9 +59,15 @@ env:
       - BUILD
       - RUNTIME
 
-  # Firebase Admin SDK Path (Server-side only)
+  # Firebase Admin SDK Service Account (Server-side only)
+  - variable: FIREBASE_SERVICE_ACCOUNT
+    secret: projects/1061532538391/secrets/FIREBASE_SERVICE_ACCOUNT/versions/1
+    availability:
+      - RUNTIME # Only needed at runtime
+  
+  # Firebase Admin SDK Path (Server-side only) - Legacy
   - variable: FIREBASE_ADMIN_SERVICE_ACCOUNT_PATH
-    secret: projects/1061532538391/secrets/FIREBASE_ADMIN_SERVICE_ACCOUNT_PATH/versions/1 # Assuming you created a secret for the path
+    secret: projects/1061532538391/secrets/FIREBASE_ADMIN_SERVICE_ACCOUNT_PATH/versions/1
     availability:
       - RUNTIME # Only needed at runtime
 

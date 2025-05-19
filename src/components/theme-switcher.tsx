@@ -12,12 +12,24 @@ export function ThemeSwitcher({ className = "" }: { className?: string }) {
   const [isOpen, setIsOpen] = useState(false);
   
   const themeOptions = [
-    { id: "airbnb", name: "Airbnb", color: "#FF385C" },
-    { id: "ocean", name: "Ocean Blue", color: "#00A0F0" },
-    { id: "forest", name: "Forest Green", color: "#3B9A63" },
-    { id: "modern", name: "Modern", color: "#0078FF" },
-    { id: "luxury", name: "Luxury", color: "#FFC000" }
+    { id: "airbnb", name: "Airbnb" },
+    { id: "ocean", name: "Ocean Blue" },
+    { id: "forest", name: "Forest Green" },
+    { id: "modern", name: "Modern" },
+    { id: "luxury", name: "Luxury" }
   ];
+  
+  // Map theme IDs to Tailwind color classes
+  const getColorClass = (themeId: string) => {
+    const colorMap: { [key: string]: string } = {
+      "airbnb": "bg-red-500",
+      "ocean": "bg-blue-500",
+      "forest": "bg-green-600",
+      "modern": "bg-blue-600",
+      "luxury": "bg-yellow-500"
+    };
+    return colorMap[themeId] || "bg-gray-500";
+  };
   
   // Toggle panel open/closed
   const togglePanel = () => setIsOpen(!isOpen);
@@ -28,7 +40,9 @@ export function ThemeSwitcher({ className = "" }: { className?: string }) {
       <button 
         onClick={togglePanel}
         className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-white shadow-lg hover:opacity-90"
-        title="Theme Switcher"
+        title="Toggle theme switcher"
+        aria-label="Toggle theme switcher"
+        aria-expanded={isOpen ? "true" : "false"}
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
@@ -43,6 +57,8 @@ export function ThemeSwitcher({ className = "" }: { className?: string }) {
             <button 
               onClick={togglePanel}
               className="text-gray-500 hover:text-gray-700"
+              title="Close theme switcher"
+              aria-label="Close theme switcher"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -61,10 +77,11 @@ export function ThemeSwitcher({ className = "" }: { className?: string }) {
                     ? 'bg-gray-100 font-medium' 
                     : 'hover:bg-gray-50'
                 }`}
+                aria-label={`Switch to ${option.name} theme`}
+                aria-pressed={theme.id === option.id ? "true" : "false"}
               >
                 <span 
-                  className="w-3 h-3 rounded-full mr-2"
-                  style={{ backgroundColor: option.color }}
+                  className={`w-3 h-3 rounded-full mr-2 ${getColorClass(option.id)}`}
                 />
                 {option.name}
                 {theme.id === option.id && (
