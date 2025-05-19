@@ -20,41 +20,6 @@ import { Separator } from '@/components/ui/separator';
 
 // Debug info
 console.log('🚀 Manage Pricing Page Component Loading');
-try {
-  // Force import the Firebase client to check it's working
-  import('@/lib/firebase').then(module => {
-    console.log('✅ Firebase Client Import Success:', {
-      db: !!module.db,
-      auth: !!module.auth,
-      firestore: typeof module.db?.collection === 'function'
-    });
-
-    // Check if we can access the properties collection
-    if (module.db) {
-      try {
-        const propertiesRef = module.db.collection('properties');
-        console.log('✅ Properties collection reference created successfully');
-
-        // Attempt to get a document count (limit 1 just to test the query)
-        propertiesRef.limit(1).get()
-          .then(snap => {
-            console.log(`✅ Test query successful: Found ${snap.size} documents`);
-          })
-          .catch(err => {
-            console.error('❌ Test query failed:', err.message);
-          });
-      } catch (err: any) {
-        console.error('❌ Failed to create collection reference:', err.message);
-      }
-    } else {
-      console.error('❌ Firebase db instance is not available');
-    }
-  }).catch(err => {
-    console.error('❌ Firebase Client Import Error:', err);
-  });
-} catch (err) {
-  console.error('❌ Firebase Import Error in page component:', err);
-}
 
 export default function ManagePricingPage() {
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);

@@ -3,6 +3,14 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+  return handleStartupCheck();
+}
+
+export async function POST() {
+  return handleStartupCheck();
+}
+
+async function handleStartupCheck() {
   const startupInfo = {
     timestamp: new Date().toISOString(),
     nodeVersion: process.version,
