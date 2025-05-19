@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     // Check each price calendar
     for (const { year, month } of months) {
       const monthStr = month.toString().padStart(2, '0');
-      const calendarId = `${propertyId}_${year}_${monthStr}`;
+      const calendarId = `${propertyId}_${year}-${monthStr}`;
       
       debug.logs.push(`Checking calendar: ${calendarId}`);
       
