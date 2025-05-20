@@ -101,6 +101,8 @@ overflow: visible;
 3. **Debounce Resize Handlers**: Use debounced functions for window resize events
 4. **Single Component Mount**: Ensure components mount once with proper dependency arrays
 5. **CSS Overflow Management**: Be careful with `overflow: hidden` on parent containers
+6. **State Management Optimization**: Implement deep equality checks before updating state
+7. **URL Parameter Processing**: Process URL parameters only once using refs to track processing state
 
 ## Component Mount Optimization
 
@@ -125,4 +127,45 @@ useEffect(() => {
     // Cleanup code
   };
 }, []); // Empty array ensures single execution
+```
+
+## State Management and Context Optimization
+
+To prevent infinite re-rendering loops when working with React Context:
+
+1. **Use equality checks before updating state**:
+```javascript
+const setValue = (newValue) => {
+  // Skip update if value hasn't changed
+  if (JSON.stringify(state) === JSON.stringify(newValue)) return;
+  setState(newValue);
+};
+```
+
+2. **Special handling for Date objects**:
+```javascript
+// Compare dates by timestamp, not object reference
+if (prevDate?.getTime() === newDate?.getTime()) return;
+```
+
+3. **Wrap state setters with memoization**:
+```javascript
+const setCheckInDate = useCallback((newDate) => {
+  // Skip if date is the same
+  if (newDate?.getTime() === checkInDate?.getTime()) return;
+  setCheckInDateInternal(newDate);
+}, [checkInDate, setCheckInDateInternal]);
+```
+
+4. **Track processed data with refs**:
+```javascript
+const processedUrlParams = useRef(false);
+
+useEffect(() => {
+  // Only process URL params once
+  if (params && !processedUrlParams.current) {
+    processedUrlParams.current = true;
+    // Process params here
+  }
+}, [params]);
 ```

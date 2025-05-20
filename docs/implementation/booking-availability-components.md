@@ -117,6 +117,13 @@ This endpoint returns unavailable dates in ISO string format, which must be conv
    - Check date comparison logic (time zones, date formats)
    - Ensure the unavailable dates array contains valid Date objects
 
+4. **Infinite re-rendering loops**:
+   - Use refs to track previous values and prevent unnecessary updates
+   - Add deep equality checks before updating state or context
+   - Limit URL parameter processing to happen only once
+   - Remove unnecessary dependencies from useEffect dependency arrays
+   - When working with dates, compare timestamps, not object references
+
 ## Future Improvements
 
 - Consider caching unavailable dates for better performance
