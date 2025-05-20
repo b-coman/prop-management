@@ -103,6 +103,7 @@ export function AvailabilityContainer({
   const [dynamicPricingDetails, setDynamicPricingDetails] = useState<any>(null);
   const [pricingError, setPricingError] = useState<string | null>(null);
   const [isPricingLoading, setIsPricingLoading] = useState(false);
+  const [pricingFetchKey, setPricingFetchKey] = useState<string | null>(null);
   
   // Effect to fetch pricing data from priceCalendar when dates or guests change
   React.useEffect(() => {
@@ -110,9 +111,23 @@ export function AvailabilityContainer({
     const fetchId = Date.now();
     console.log(`[AvailabilityContainer] 🔄 Pricing effect running: ID=${fetchId}`);
     
+    // Create a fetch key from current parameters
+    const currentFetchKey = `${property?.slug}_${checkInDate?.toISOString() || 'null'}_${checkOutDate?.toISOString() || 'null'}_${guestCount}`;
+    
+    // Skip the effect if we've already fetched successfully for these parameters
+    if (pricingFetchKey === currentFetchKey && dynamicPricingDetails) {
+      console.log(`[AvailabilityContainer] 🛑 Skipping redundant pricing fetch: Already have data for these parameters`);
+      return;
+    }
+    
     const fetchDynamicPricing = async () => {
+      // Double-check in case state was updated between the outer check and async function execution
+      if (pricingFetchKey === currentFetchKey && dynamicPricingDetails) {
+        console.log(`[AvailabilityContainer] 🛑 Fetch ID=${fetchId}: Using cached pricing data`);
+        return;
+      }
+      
       // Reset pricing state
-      setDynamicPricingDetails(null);
       setPricingError(null);
       setIsPricingLoading(true);
       
@@ -171,6 +186,9 @@ export function AvailabilityContainer({
                 discountAmount: (pricingData.pricing.subtotal * appliedCoupon.discountPercentage) / 100
               } : null
             });
+            
+            // Store the fetch key to prevent redundant fetches
+            setPricingFetchKey(currentFetchKey);
           } else {
             console.error(`[AvailabilityContainer] ❌ Fetch ID=${fetchId}: No valid pricing data available`);
             setPricingError("Pricing information is currently unavailable. Please try again later.");
@@ -189,12 +207,15 @@ export function AvailabilityContainer({
           hasProperty: !!property, 
           guests: guestCount 
         });
+        setIsPricingLoading(false);
       }
     };
     
     // Attempt to fetch dynamic pricing
     fetchDynamicPricing();
-  }, [property?.slug, checkInDate, checkOutDate, numberOfNights, guestCount, appliedCoupon]);
+    
+    // Clean up the dependencies list - we only need to trigger on relevant changes
+  }, [property?.slug, checkInDate, checkOutDate, numberOfNights, guestCount, appliedCoupon, pricingFetchKey, dynamicPricingDetails]);
   
   // State for unavailable dates (in a real implementation, this would come from a service)
   const [unavailableDates, setUnavailableDates] = useState<Date[]>([]);
