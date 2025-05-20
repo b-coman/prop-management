@@ -155,8 +155,11 @@ const pricingCache: Record<string, Record<string, DailyPrice>> = {};
 
 // Track API error count to prevent infinite calls
 const apiErrorCounts: Record<string, number> = {};
+const apiCallLimits: Record<string, number> = {}; // Track total API calls
 const MAX_API_ERRORS = 3; // Maximum allowed errors before blocking further calls for a property
+const MAX_API_CALLS = 10; // Maximum allowed calls per minute for a property
 const ERROR_RESET_TIME = 60000; // Reset error count after 1 minute
+const CALL_LIMIT_RESET_TIME = 60000; // Reset call limit after 1 minute
 
 // Store pricing data in the cache
 function storePricingData(propertySlug: string, pricingMap: Record<string, DailyPrice>): void {
@@ -189,8 +192,23 @@ export async function getPricingForDateRange(
       return null;
     }
     
-    // Check if we've exceeded error count for this property
+    // Check if we've exceeded error count or call limit for this property
     const propertyErrors = apiErrorCounts[propertySlug] || 0;
+    const propertyCallCount = apiCallLimits[propertySlug] || 0;
+    
+    // Increment call count for this property
+    apiCallLimits[propertySlug] = propertyCallCount + 1;
+    console.log(`[availabilityService] [${requestId}] 📊 API call count for ${propertySlug}: ${apiCallLimits[propertySlug]}/${MAX_API_CALLS}`);
+    
+    // Schedule call count reset after delay if this is the first call
+    if (propertyCallCount === 0) {
+      setTimeout(() => {
+        apiCallLimits[propertySlug] = 0;
+        console.log(`[availabilityService] Reset call limit for ${propertySlug}`);
+      }, CALL_LIMIT_RESET_TIME);
+    }
+    
+    // Check if we've exceeded any limits
     if (propertyErrors >= MAX_API_ERRORS) {
       console.warn(`[availabilityService] [${requestId}] ⚠️ Blocking request - too many errors (${propertyErrors}/${MAX_API_ERRORS})`);
       
@@ -204,6 +222,27 @@ export async function getPricingForDateRange(
       return {
         available: false,
         reason: 'service_unavailable',
+        unavailableDates: []
+      };
+    }
+    
+    // Check if we've exceeded call count
+    if (propertyCallCount > MAX_API_CALLS) {
+      console.warn(`[availabilityService] [${requestId}] ⚠️ Blocking request - too many calls (${propertyCallCount}/${MAX_API_CALLS})`);
+      
+      // Return cached data if available, empty response otherwise
+      return {
+        available: true,
+        reason: 'call_limit_exceeded',
+        pricing: {
+          dailyRates: {},
+          totalPrice: 200,
+          averageNightlyRate: 100,
+          subtotal: 200,
+          cleaningFee: 0,
+          currency: 'EUR',
+          accommodationTotal: 200
+        },
         unavailableDates: []
       };
     }
