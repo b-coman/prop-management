@@ -124,6 +124,9 @@ function AvailabilityCheck({
 
   // Move hasMounted to the top of other state declarations
   const [hasMounted, setHasMounted] = useState(false);
+  
+  // Use ref to track whether we've initialized the dates from context
+  const initializedFromContext = useRef(false);
 
   // Set mounted state on first render
   useEffect(() => {
@@ -133,6 +136,10 @@ function AvailabilityCheck({
   // Initialize booking context with property slug
   useEffect(() => {
     if (!hasMounted) return; // Don't run initialization until mounted
+    if (initializedFromContext.current) return; // Only initialize once to prevent loops
+    
+    // Mark as initialized to avoid re-entry
+    initializedFromContext.current = true;
 
     // Debug info - this will help diagnose issues
     console.log('[AvailabilityCheck] Initializing with:', {
@@ -152,57 +159,17 @@ function AvailabilityCheck({
       setGuestsDisplay(property.baseOccupancy || 1);
     }
 
-    // Determine if we need to process dates from URL params
-    const needToProcessDates = !checkInDate || !checkOutDate;
-    console.log(`[AvailabilityCheck] Need to process dates: ${needToProcessDates}`);
-
-    // Parse both dates from URL params - we'll do this even if we have dates in context
-    // to handle potential URL overrides, but we'll only use them if needed
-    const parsedCheckIn = initialCheckIn ? parseDateSafe(initialCheckIn) : null;
-    const parsedCheckOut = initialCheckOut ? parseDateSafe(initialCheckOut) : null;
-
-    console.log("[AvailabilityCheck] Parsed dates from URL:", {
-      parsedCheckIn: parsedCheckIn ? parsedCheckIn.toISOString() : 'null',
-      parsedCheckOut: parsedCheckOut ? parsedCheckOut.toISOString() : 'null',
-    });
-
-    // Only set dates if we need to (we don't have dates in context)
-    if (needToProcessDates) {
-      console.log('[AvailabilityCheck] No existing dates in context, using URL params');
-
-      // Set dates from URL params if they exist and are valid
-      if (parsedCheckIn) {
-        console.log(`[AvailabilityCheck] Setting check-in date to ${parsedCheckIn.toISOString()}`);
-        setCheckInDate(parsedCheckIn);
-      }
-
-      if (parsedCheckOut) {
-        console.log(`[AvailabilityCheck] Setting check-out date to ${parsedCheckOut.toISOString()}`);
-        setCheckOutDate(parsedCheckOut);
-      }
-    } else {
-      console.log('[AvailabilityCheck] Using existing dates from BookingContext:', {
-        checkInDate: checkInDate.toISOString(),
-        checkOutDate: checkOutDate.toISOString()
-      });
-    }
-
-    // Always validate date order, regardless of where dates came from
-    // This ensures dates always have correct chronological order
-    const currentCheckIn = needToProcessDates && parsedCheckIn ? parsedCheckIn : checkInDate;
-    const currentCheckOut = needToProcessDates && parsedCheckOut ? parsedCheckOut : checkOutDate;
-
-    if (currentCheckIn && currentCheckOut && currentCheckIn.getTime() >= currentCheckOut.getTime()) {
+    // We no longer need to parse dates from URL params here, as they are now handled by BookingClientInner
+    // We just need to validate that the dates in context are in the correct order
+    if (checkInDate && checkOutDate && checkInDate.getTime() >= checkOutDate.getTime()) {
       console.error("[AvailabilityCheck] Invalid date range - check-in not before check-out. Adjusting check-out date.");
-      const correctedCheckOut = new Date(currentCheckIn.getTime());
+      const correctedCheckOut = new Date(checkInDate.getTime());
       correctedCheckOut.setDate(correctedCheckOut.getDate() + 1); // Add one day to check-in
       setCheckOutDate(correctedCheckOut);
     }
 
   }, [
     hasMounted,
-    initialCheckIn,
-    initialCheckOut,
     propertySlug,
     setPropertySlug,
     checkInDate,
@@ -350,38 +317,37 @@ function AvailabilityCheck({
     return finalNightCount;
   }, [checkInDate, checkOutDate]);
 
-  // Apply the calculated night count using a stable effect
+  // Calculate nights once on mount to set initial value
   useEffect(() => {
-    // Only run when mounted and when we have both dates
-    if (!hasMounted || calculatingNightsRef.current) {
+    // Only run once when component has mounted and dates exist
+    if (!hasMounted || !checkInDate || !checkOutDate) {
       return;
     }
 
-    // Set flag to prevent multiple calculations in the same render cycle
-    calculatingNightsRef.current = true;
-
-    // Skip the calculation if we don't have dates
-    if (!checkInDate || !checkOutDate) {
-      calculatingNightsRef.current = false;
+    // If we already have a nights count, don't recalculate
+    if (clientNumberOfNights > 0) {
       return;
     }
 
-    // Calculate nights using our memoized function
-    const finalNightCount = calculateNightCount();
+    // Calculate nights directly - don't use the memoized function to avoid reference issues
+    const method1 = differenceInDays(checkOutDate, checkInDate);
+    const method2 = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Use the most reliable calculation method
+    let finalNightCount = 1; // Default fallback
+    if (method1 > 0) finalNightCount = method1;
+    else if (method2 > 0) finalNightCount = method2;
 
-    // Only update if the nights count has actually changed to avoid infinite loops
+    // Only update if needed
     if (finalNightCount > 0 && finalNightCount !== clientNumberOfNights) {
-      console.log(`[AvailabilityCheck] Setting nights from ${clientNumberOfNights} to ${finalNightCount}`);
+      console.log(`[AvailabilityCheck] Setting initial nights to ${finalNightCount}`);
       setClientNumberOfNights(finalNightCount);
     }
-
-    // Reset the calculation flag after a small delay
-    const timeoutId = setTimeout(() => {
-      calculatingNightsRef.current = false;
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
-  }, [hasMounted, calculateNightCount, clientNumberOfNights, setClientNumberOfNights, checkInDate, checkOutDate]);
+  }, [hasMounted, checkInDate, checkOutDate, clientNumberOfNights, setClientNumberOfNights]);
+  
+  // Use a dedicated component for ongoing night updates
+  // This FixNights component has its own refs and effects for handling updates
+  // This separates the initial setup from ongoing updates
 
 
   const pricingDetailsInBaseCurrency = useMemo(() => {
@@ -664,23 +630,30 @@ function AvailabilityCheck({
     if (!datesSelected || clientNumberOfNights <= 0) {
       setIsAvailable(null);
       setIsLoadingAvailability(false);
-      setUnavailableDates([]);
+      // DON'T clear unavailable dates - these should persist regardless of date selection
+      // setUnavailableDates([]);
       setSuggestedDates([]);
       setSelectedOption(null);
       return;
     }
 
+    // Use primitive values to check if date range has changed
+    const checkInTime = checkInDate?.getTime();
+    const checkOutTime = checkOutDate?.getTime();
+    const prevCheckInTime = prevCheckInRef.current?.getTime();
+    const prevCheckOutTime = prevCheckOutRef.current?.getTime();
+
     // Check if the date range has actually changed to avoid infinite loops
     const dateRangeChanged =
-      !prevCheckInRef.current ||
-      !prevCheckOutRef.current ||
-      prevCheckInRef.current.getTime() !== checkInDate?.getTime() ||
-      prevCheckOutRef.current.getTime() !== checkOutDate?.getTime();
+      !prevCheckInTime ||
+      !prevCheckOutTime ||
+      prevCheckInTime !== checkInTime ||
+      prevCheckOutTime !== checkOutTime;
 
     if (dateRangeChanged) {
       // Update refs with current values for tracking
-      prevCheckInRef.current = checkInDate;
-      prevCheckOutRef.current = checkOutDate;
+      if (checkInDate) prevCheckInRef.current = new Date(checkInDate.getTime());
+      if (checkOutDate) prevCheckOutRef.current = new Date(checkOutDate.getTime());
 
       console.log("==========================================");
       console.log("⚠️ [DATE-CHANGE] Dates changed - Reset availability state");
@@ -697,17 +670,16 @@ function AvailabilityCheck({
       // No auto-checking to prevent infinite loops
       console.log("⚠️ [DATE-CHANGE] Resetting availability state to null - waiting for user to check");
 
-      // Also clear any previously loaded unavailable dates to avoid confusion
-      setUnavailableDates([]);
+      // Don't clear unavailable dates since they're loaded just once on component mount
+      // Only clear suggested dates since they're no longer relevant
       setSuggestedDates([]);
     }
   }, [
     hasMounted,
     datesSelected,
     clientNumberOfNights,
-    // Use the stringified date values to prevent reference comparison issues
-    checkInDate?.toISOString(),
-    checkOutDate?.toISOString()
+    checkInDate,
+    checkOutDate
     // IMPORTANT: We removed checkPropertyAvailability from dependencies
     // This helps break the loop of auto-checking
   ]);
@@ -1144,11 +1116,17 @@ function AvailabilityCheck({
     }
   };
 
+  // Ref to track if we've already loaded unavailable dates
+  const loadedUnavailableDates = useRef(false);
+
   // New effect to load unavailable dates as soon as the component mounts
   useEffect(() => {
-    if (!hasMounted || !propertySlug) {
+    if (!hasMounted || !propertySlug || loadedUnavailableDates.current) {
       return;
     }
+
+    // Mark as loaded to prevent duplicate loading
+    loadedUnavailableDates.current = true;
 
     console.log("==========================================");
     console.log("🔍 [INITIAL-LOAD] Loading unavailable dates on mount");

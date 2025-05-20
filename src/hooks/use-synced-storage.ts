@@ -213,12 +213,56 @@ export function useSyncedStorage<T>(
     return initialValue;
   });
   
+  // Helper function for comparing values, with special handling for dates
+  const valueEquals = (a: any, b: any): boolean => {
+    // Handle null/undefined
+    if (a === b) return true;
+    if (a == null || b == null) return false;
+    
+    // Special handling for Date objects
+    if (a instanceof Date && b instanceof Date) {
+      return a.getTime() === b.getTime();
+    }
+    
+    // Handle primitive types
+    if (typeof a !== 'object' && typeof b !== 'object') {
+      return a === b;
+    }
+    
+    // For objects, do a simple shallow comparison
+    // This is a basic implementation - for deep equality you would need a more complex solution
+    if (typeof a === 'object' && typeof b === 'object') {
+      // Compare arrays
+      if (Array.isArray(a) && Array.isArray(b)) {
+        if (a.length !== b.length) return false;
+        return a.every((val, idx) => valueEquals(val, b[idx]));
+      }
+      
+      // Compare regular objects
+      const keysA = Object.keys(a);
+      const keysB = Object.keys(b);
+      if (keysA.length !== keysB.length) return false;
+      return keysA.every(key => valueEquals(a[key], b[key]));
+    }
+    
+    return false;
+  };
+  
   // Update local state and storage
   const setValue = useCallback((valueOrFn: T | ((val: T) => T)) => {
     if (!isMounted.current) return;
     
     try {
       const newValue = valueOrFn instanceof Function ? valueOrFn(state) : valueOrFn;
+      
+      // Skip update if the value hasn't changed
+      // This prevents unnecessary re-renders and storage operations
+      if (valueEquals(state, newValue)) {
+        if (opts.debug) {
+          console.log(`[useSyncedStorage] Skipped update for "${prefixedKey}" - value unchanged`);
+        }
+        return;
+      }
       
       // Update local state
       setState(newValue);

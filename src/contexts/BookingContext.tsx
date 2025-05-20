@@ -141,6 +141,10 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     }
   }, [contextVersion, setContextVersion, storagePrefix]);
 
+  // Track previous date values to prevent unnecessary updates
+  const prevCheckInDate = useRef<Date | null>(null);
+  const prevCheckOutDate = useRef<Date | null>(null);
+  
   // Set up synced storage hooks for each state piece
   const [storedPropertySlug, setStoredPropertySlug] = useSyncedSessionStorage<string | null>(
     `${storagePrefix}propertySlug`,
@@ -148,17 +152,42 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     { prefix: '' } // No additional prefix needed as we've included it in the key
   );
   
-  const [checkInDate, setCheckInDate] = useSyncedSessionStorage<Date | null>(
+  const [checkInDate, setCheckInDateInternal] = useSyncedSessionStorage<Date | null>(
     `${storagePrefix}checkInDate`, 
     null,
     { prefix: '' }
   );
   
-  const [checkOutDate, setCheckOutDate] = useSyncedSessionStorage<Date | null>(
+  const [checkOutDate, setCheckOutDateInternal] = useSyncedSessionStorage<Date | null>(
     `${storagePrefix}checkOutDate`, 
     null,
     { prefix: '' }
   );
+  
+  // Wrap date setters with deep equality check to prevent unnecessary updates
+  const setCheckInDate = useCallback((newDate: Date | null) => {
+    // Skip update if the date is the same to prevent loops
+    if (newDate === null && checkInDate === null) return;
+    if (newDate && checkInDate && newDate.getTime() === checkInDate.getTime()) return;
+    
+    // Update our ref to track this value
+    prevCheckInDate.current = newDate;
+    
+    // Now update the stored value
+    setCheckInDateInternal(newDate);
+  }, [checkInDate, setCheckInDateInternal]);
+  
+  const setCheckOutDate = useCallback((newDate: Date | null) => {
+    // Skip update if the date is the same to prevent loops
+    if (newDate === null && checkOutDate === null) return;
+    if (newDate && checkOutDate && newDate.getTime() === checkOutDate.getTime()) return;
+    
+    // Update our ref to track this value
+    prevCheckOutDate.current = newDate;
+    
+    // Now update the stored value
+    setCheckOutDateInternal(newDate);
+  }, [checkOutDate, setCheckOutDateInternal]);
   
   const [numberOfGuests, setNumberOfGuests] = useSyncedSessionStorage<number>(
     `${storagePrefix}numberOfGuests`, 
@@ -196,11 +225,20 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     { prefix: '' }
   );
   
-  const [numberOfNights, setNumberOfNights] = useSyncedSessionStorage<number>(
+  const [numberOfNights, setNumberOfNightsInternal] = useSyncedSessionStorage<number>(
     `${storagePrefix}numberOfNights`, 
     0,
     { prefix: '' }
   );
+  
+  // Wrap nights setter with value check to prevent unnecessary updates
+  const setNumberOfNights = useCallback((newNights: number) => {
+    // Skip update if the value is the same to prevent loops
+    if (newNights === numberOfNights) return;
+    
+    // Now update the stored value
+    setNumberOfNightsInternal(newNights);
+  }, [numberOfNights, setNumberOfNightsInternal]);
   
   const [totalPrice, setTotalPrice] = useSyncedSessionStorage<number | null>(
     `${storagePrefix}totalPrice`, 

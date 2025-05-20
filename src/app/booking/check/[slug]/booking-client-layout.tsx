@@ -16,20 +16,41 @@ interface BookingClientLayoutProps {
 }
 
 // Helper function for parsing date strings from URL params
+// Fixed to handle YYYY-MM-DD format strings correctly and preserve the specified day
 const parseDateSafe = (dateStr: string | undefined | null): Date | null => {
   if (!dateStr) return null;
 
   try {
-    // First, try using parseISO which handles ISO format strings like YYYY-MM-DD
+    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      // For YYYY-MM-DD format, create date with explicit UTC time to avoid timezone issues
+      const [year, month, day] = dateStr.split('-').map(Number);
+      // Create date using proper UTC values to ensure correct day is preserved
+      const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+      
+      console.log(`[BookingClient] Parsed "${dateStr}" with UTC approach:`, {
+        inputDate: dateStr,
+        resultDate: date.toISOString(),
+        resultLocalDate: date.toLocaleDateString()
+      });
+      
+      return date;
+    }
+    
+    // First, try using parseISO which handles ISO format strings
     const parsedISO = parseISO(dateStr);
     if (isValid(parsedISO)) {
-      return startOfDay(parsedISO);
+      // Set to noon on the same day to avoid timezone issues
+      const adjustedDate = new Date(parsedISO);
+      adjustedDate.setHours(12, 0, 0, 0);
+      return adjustedDate;
     }
 
     // If parseISO fails, try using standard Date constructor
     const parsed = new Date(dateStr);
     if (isValid(parsed)) {
-      return startOfDay(parsed);
+      const adjustedDate = new Date(parsed);
+      adjustedDate.setHours(12, 0, 0, 0);
+      return adjustedDate;
     }
 
     return null;
@@ -82,43 +103,52 @@ function BookingClientInner({
     setPropertySlug
   } = useBooking();
 
+  // Track whether we've already processed URL params
+  const processedUrlParams = useRef(false);
+
   // Set values in the context
   useEffect(() => {    
     // Set property slug in the context
     setPropertySlug(propertySlug);
     
-    // Set dates from URL params
-    if (checkIn || checkOut) {
+    // Set dates from URL params only once
+    if ((checkIn || checkOut) && !processedUrlParams.current) {
+      // Mark as processed to prevent multiple applications of the same URL params
+      processedUrlParams.current = true;
+      
       // Parse and set dates directly from URL params
       const parsedCheckIn = parseDateSafe(checkIn);
       const parsedCheckOut = parseDateSafe(checkOut);
       
       // Log the parsed dates for debugging
-      console.log(`[BookingClientInner] Parsed dates from URL:`, {
+      console.log(`[BookingClientInner] Parsed dates from URL - ONE TIME PROCESSING:`, {
         checkIn: checkIn,
         checkOut: checkOut,
         parsedCheckIn: parsedCheckIn?.toISOString() || 'null',
         parsedCheckOut: parsedCheckOut?.toISOString() || 'null'
       });
       
-      // Set dates in context with more specificity
+      // Set dates sequentially with timeouts to ensure proper state propagation
       if (parsedCheckIn) {
-        console.log(`[BookingClientInner] Setting checkInDate:`, parsedCheckIn.toISOString());
+        // Set a flag to prevent multiple applications during development double-mounting
+        sessionStorage.setItem('booking_url_params_applied', 'true');
+        
+        console.log(`[BookingClientInner] Setting checkInDate (ONE TIME):`, parsedCheckIn.toISOString());
         setCheckInDate(parsedCheckIn);
         
-        // Force a timeout to ensure the date is properly set before further processing
-        setTimeout(() => {
-          if (parsedCheckOut) {
-            console.log(`[BookingClientInner] Setting checkOutDate:`, parsedCheckOut.toISOString());
+        // Set check-out date with a delay to ensure proper sequencing
+        if (parsedCheckOut) {
+          setTimeout(() => {
+            console.log(`[BookingClientInner] Setting checkOutDate (ONE TIME):`, parsedCheckOut.toISOString());
             setCheckOutDate(parsedCheckOut);
-          }
-        }, 50);
+          }, 100);
+        }
       } else if (parsedCheckOut) {
-        console.log(`[BookingClientInner] Setting checkOutDate:`, parsedCheckOut.toISOString());
+        console.log(`[BookingClientInner] Setting checkOutDate only (ONE TIME):`, parsedCheckOut.toISOString());
         setCheckOutDate(parsedCheckOut);
       }
     }
-  }, [propertySlug, checkIn, checkOut, setCheckInDate, setCheckOutDate, setPropertySlug]);
+  }, [propertySlug, setPropertySlug]); // Removed dependency on checkIn, checkOut, setCheckInDate, setCheckOutDate to prevent loops
 
   return (
     <>
