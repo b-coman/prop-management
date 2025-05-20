@@ -120,6 +120,18 @@ export function AvailabilityContainer({
       return;
     }
     
+    // Only proceed if we have a valid reason to fetch
+    if (!checkInDate || !checkOutDate || numberOfNights <= 0 || !property || guestCount <= 0) {
+      console.log(`[AvailabilityContainer] ⚠️ Fetch ID=${fetchId}: Missing data for pricing fetch`, { 
+        hasCheckIn: !!checkInDate, 
+        hasCheckOut: !!checkOutDate, 
+        nights: numberOfNights, 
+        hasProperty: !!property, 
+        guests: guestCount 
+      });
+      return;
+    }
+    
     const fetchDynamicPricing = async () => {
       // Double-check in case state was updated between the outer check and async function execution
       if (pricingFetchKey === currentFetchKey && dynamicPricingDetails) {
@@ -131,82 +143,71 @@ export function AvailabilityContainer({
       setPricingError(null);
       setIsPricingLoading(true);
       
-      // Only fetch if we have valid dates and guest count
-      if (checkInDate && checkOutDate && numberOfNights > 0 && property && guestCount > 0) {
-        console.log(`[AvailabilityContainer] 🔍 Fetch ID=${fetchId}: Fetching dynamic pricing data for ${property.slug}`, {
-          checkIn: checkInDate.toISOString(),
-          checkOut: checkOutDate.toISOString(),
-          nights: numberOfNights,
-          guests: guestCount
-        });
+      console.log(`[AvailabilityContainer] 🔍 Fetch ID=${fetchId}: Fetching dynamic pricing data for ${property.slug}`, {
+        checkIn: checkInDate.toISOString(),
+        checkOut: checkOutDate.toISOString(),
+        nights: numberOfNights,
+        guests: guestCount
+      });
+      
+      try {
+        // Direct import with full path to make sure we get the correct module
+        const { getPricingForDateRange } = await import('@/services/availabilityService');
         
-        try {
-          // Direct import with full path to make sure we get the correct module
-          const { getPricingForDateRange } = await import('@/services/availabilityService');
-          
-          // Verify function exists
-          if (typeof getPricingForDateRange !== 'function') {
-            console.error(`[AvailabilityContainer] ❌ Fetch ID=${fetchId}: getPricingForDateRange function not found!`);
-            setPricingError("Pricing service unavailable. Please try again later.");
-            return;
-          }
-          
-          console.log(`[AvailabilityContainer] 🚀 Fetch ID=${fetchId}: Calling getPricingForDateRange now...`);
-          
-          // Call the pricing function with specific parameters
-          const pricingData = await getPricingForDateRange(
-            property.slug,
-            checkInDate,
-            checkOutDate,
-            guestCount
-          );
-          
-          // Log the raw response for debugging
-          console.log(`[AvailabilityContainer] 📦 Fetch ID=${fetchId}: Raw pricing response:`, pricingData);
-          
-          if (pricingData && pricingData.pricing) {
-            console.log(`[AvailabilityContainer] ✅ Fetch ID=${fetchId}: Received valid pricing data:`, {
-              dailyRates: Object.keys(pricingData.pricing.dailyRates || {}).length + " entries",
-              totalPrice: pricingData.pricing.totalPrice,
-              averageRate: pricingData.pricing.averageNightlyRate,
-              currency: pricingData.pricing.currency
-            });
-            
-            // Store the dynamic pricing data
-            setDynamicPricingDetails({
-              accommodationTotal: pricingData.pricing.subtotal - (pricingData.pricing.cleaningFee || 0),
-              cleaningFee: pricingData.pricing.cleaningFee || 0,
-              subtotal: pricingData.pricing.subtotal,
-              total: pricingData.pricing.totalPrice,
-              currency: pricingData.pricing.currency as any,
-              dailyRates: pricingData.pricing.dailyRates || {},
-              // Apply any discount from coupon if present
-              couponDiscount: appliedCoupon ? {
-                discountPercentage: appliedCoupon.discountPercentage,
-                discountAmount: (pricingData.pricing.subtotal * appliedCoupon.discountPercentage) / 100
-              } : null
-            });
-            
-            // Store the fetch key to prevent redundant fetches
-            setPricingFetchKey(currentFetchKey);
-          } else {
-            console.error(`[AvailabilityContainer] ❌ Fetch ID=${fetchId}: No valid pricing data available`);
-            setPricingError("Pricing information is currently unavailable. Please try again later.");
-          }
-        } catch (error) {
-          console.error(`[AvailabilityContainer] Error fetching dynamic pricing:`, error);
-          setPricingError("We're having trouble getting pricing information. Please try again later.");
-        } finally {
+        // Verify function exists
+        if (typeof getPricingForDateRange !== 'function') {
+          console.error(`[AvailabilityContainer] ❌ Fetch ID=${fetchId}: getPricingForDateRange function not found!`);
+          setPricingError("Pricing service unavailable. Please try again later.");
           setIsPricingLoading(false);
+          return;
         }
-      } else {
-        console.log(`[AvailabilityContainer] ⚠️ Fetch ID=${fetchId}: Missing data for pricing fetch`, { 
-          hasCheckIn: !!checkInDate, 
-          hasCheckOut: !!checkOutDate, 
-          nights: numberOfNights, 
-          hasProperty: !!property, 
-          guests: guestCount 
-        });
+        
+        console.log(`[AvailabilityContainer] 🚀 Fetch ID=${fetchId}: Calling getPricingForDateRange now...`);
+        
+        // Call the pricing function with specific parameters
+        const pricingData = await getPricingForDateRange(
+          property.slug,
+          checkInDate,
+          checkOutDate,
+          guestCount
+        );
+        
+        // Log the raw response for debugging
+        console.log(`[AvailabilityContainer] 📦 Fetch ID=${fetchId}: Raw pricing response:`, pricingData);
+        
+        if (pricingData && pricingData.pricing) {
+          console.log(`[AvailabilityContainer] ✅ Fetch ID=${fetchId}: Received valid pricing data:`, {
+            dailyRates: Object.keys(pricingData.pricing.dailyRates || {}).length + " entries",
+            totalPrice: pricingData.pricing.totalPrice,
+            averageRate: pricingData.pricing.averageNightlyRate,
+            currency: pricingData.pricing.currency
+          });
+          
+          // Store the dynamic pricing data
+          setDynamicPricingDetails({
+            accommodationTotal: pricingData.pricing.subtotal - (pricingData.pricing.cleaningFee || 0),
+            cleaningFee: pricingData.pricing.cleaningFee || 0,
+            subtotal: pricingData.pricing.subtotal,
+            total: pricingData.pricing.totalPrice,
+            currency: pricingData.pricing.currency as any,
+            dailyRates: pricingData.pricing.dailyRates || {},
+            // Apply any discount from coupon if present
+            couponDiscount: appliedCoupon ? {
+              discountPercentage: appliedCoupon.discountPercentage,
+              discountAmount: (pricingData.pricing.subtotal * appliedCoupon.discountPercentage) / 100
+            } : null
+          });
+          
+          // Store the fetch key to prevent redundant fetches
+          setPricingFetchKey(currentFetchKey);
+        } else {
+          console.error(`[AvailabilityContainer] ❌ Fetch ID=${fetchId}: No valid pricing data available`);
+          setPricingError("Pricing information is currently unavailable. Please try again later.");
+        }
+      } catch (error) {
+        console.error(`[AvailabilityContainer] Error fetching dynamic pricing:`, error);
+        setPricingError("We're having trouble getting pricing information. Please try again later.");
+      } finally {
         setIsPricingLoading(false);
       }
     };
@@ -214,8 +215,14 @@ export function AvailabilityContainer({
     // Attempt to fetch dynamic pricing
     fetchDynamicPricing();
     
-    // Clean up the dependencies list - we only need to trigger on relevant changes
-  }, [property?.slug, checkInDate, checkOutDate, numberOfNights, guestCount, appliedCoupon, pricingFetchKey, dynamicPricingDetails]);
+    // Use a more stable dependency array that won't cause infinite re-renders
+  }, [property?.slug, 
+      checkInDate?.toISOString(), // Only re-run if the actual date changes, not the object reference
+      checkOutDate?.toISOString(), // Only re-run if the actual date changes, not the object reference
+      numberOfNights, 
+      guestCount, 
+      appliedCoupon?.code, // Only re-run if the coupon code changes
+      pricingFetchKey]);
   
   // State for unavailable dates (in a real implementation, this would come from a service)
   const [unavailableDates, setUnavailableDates] = useState<Date[]>([]);
@@ -761,6 +768,27 @@ export function AvailabilityContainer({
     };
     
     testPricingAPI();
+    
+    // Clean up console logs in production to prevent spam
+    if (process.env.NODE_ENV === 'production') {
+      const originalConsoleLog = console.log;
+      console.log = (...args) => {
+        // Only log errors and warnings in production, filter out INFO level logs
+        if (typeof args[0] === 'string') {
+          if (args[0].includes('[availabilityService]') || 
+              args[0].includes('[AvailabilityContainer]')) {
+            // Skip verbose logs in production
+            return;
+          }
+        }
+        originalConsoleLog(...args);
+      };
+      
+      // Restore original console.log when component unmounts
+      return () => {
+        console.log = originalConsoleLog;
+      };
+    }
   }, []);
 
   // Sync session state back to context
