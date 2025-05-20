@@ -15,9 +15,10 @@ interface ClientBookingWrapperProps {
     checkIn?: string;
     checkOut?: string;
   };
+  heroImage?: string | null;
 }
 
-export function ClientBookingWrapper({ property, urlParams }: ClientBookingWrapperProps) {
+export function ClientBookingWrapper({ property, urlParams, heroImage }: ClientBookingWrapperProps) {
   const { tc } = useLanguage();
   const { checkInDate, checkOutDate, numberOfNights, numberOfGuests } = useBooking();
   const { formatPrice, selectedCurrency, convertToSelectedCurrency } = useCurrency();
@@ -90,6 +91,7 @@ export function ClientBookingWrapper({ property, urlParams }: ClientBookingWrapp
       numberOfNights={numberOfNights}
       totalPrice={totalPrice}
       selectedDates={selectedDates}
+      heroImage={heroImage}
     >
       <BookingContainer property={translatedProperty} />
     </BookingCheckLayout>

@@ -3,12 +3,12 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { ClientHeader } from '@/components/client-header'; // Use the client header wrapper
-import { ClientBookingWrapper } from '@/components/booking/client-booking-wrapper'; // Import the client wrapper
-// Import from the utility file
-import { getPropertyBySlug } from '@/lib/property-utils';
+import { ClientHeader } from '@/components/client-header'; 
+import { ClientBookingWrapper } from '@/components/booking/client-booking-wrapper';
+// Import all needed utilities
+import { getPropertyBySlug, getPropertyHeroImage } from '@/lib/property-utils';
 import { db } from '@/lib/firebase'; // Import db for data fetching
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import BookingClientLayout from './booking-client-layout';
 import { AvailabilityErrorHandler } from '../error-handler';
 import { serverTranslateContent } from '@/lib/server-language-utils';
@@ -107,6 +107,17 @@ export default async function AvailabilityCheckPage({ params, searchParams }: Av
 
   // Extract property name for display using server-side multilingual handling
   const propertyName = serverTranslateContent(property.name) || property.slug;
+  
+  // Pre-fetch hero image directly on the server side - this is more reliable
+  let heroImage = null;
+  try {
+    console.log("🖼️ [SERVER] Pre-fetching hero image for property:", property.slug);
+    heroImage = await getPropertyHeroImage(property.slug, true);
+    console.log("🖼️ [SERVER] Hero image result:", heroImage);
+  } catch (error) {
+    console.error("🖼️ [SERVER] Error pre-fetching hero image:", error);
+    // Continue without the hero image if it fails
+  }
 
   return (
     <Suspense fallback={<div>Loading availability...</div>}>
@@ -114,6 +125,7 @@ export default async function AvailabilityCheckPage({ params, searchParams }: Av
         <ClientBookingWrapper
           property={property}
           urlParams={{ checkIn, checkOut }}
+          heroImage={heroImage} // Directly pass the pre-fetched hero image
         />
       </BookingClientLayout>
     </Suspense>

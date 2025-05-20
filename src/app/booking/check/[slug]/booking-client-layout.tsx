@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { BookingProvider } from '@/contexts/BookingContext';
 import { useBooking } from '@/contexts/BookingContext';
 import { useSearchParams } from 'next/navigation';
@@ -19,24 +19,19 @@ interface BookingClientLayoutProps {
 const parseDateSafe = (dateStr: string | undefined | null): Date | null => {
   if (!dateStr) return null;
 
-  console.log(`[BookingClient] Parsing date string: "${dateStr}"`);
-
   try {
     // First, try using parseISO which handles ISO format strings like YYYY-MM-DD
     const parsedISO = parseISO(dateStr);
     if (isValid(parsedISO)) {
-      console.log(`[BookingClient] Successfully parsed ISO date: ${parsedISO.toISOString()}`);
       return startOfDay(parsedISO);
     }
 
     // If parseISO fails, try using standard Date constructor
     const parsed = new Date(dateStr);
     if (isValid(parsed)) {
-      console.log(`[BookingClient] Successfully parsed with Date constructor: ${parsed.toISOString()}`);
       return startOfDay(parsed);
     }
 
-    console.error(`[BookingClient] Failed to parse date string: "${dateStr}"`);
     return null;
   } catch (error) {
     console.error(`[BookingClient] Error parsing date string "${dateStr}":`, error);
@@ -55,18 +50,13 @@ function BookingStorageInitializer({ propertySlug }: { propertySlug: string }) {
     if (typeof window === 'undefined') return;
     
     if (checkIn || checkOut) {
-      console.log("[BookingStorageInitializer] URL params detected - preparing storage");
-
       // Clear any existing storage
       clearSyncedStorageByPrefix(`booking_${propertySlug}_`, { prefix: '' });
       clearSyncedStorageByPrefix('booking_', { prefix: '' });
       
       // Store session ID in sessionStorage so it can be accessed by other components
-      // This allows the AvailabilityCheck component to know if the storage has been initialized
       const storageInitMarker = `booking_url_params_processed_${Date.now()}`;
       sessionStorage.setItem('booking_url_params_processed', storageInitMarker);
-      
-      console.log(`[BookingStorageInitializer] Storage prepared, marker: ${storageInitMarker}`);
     }
   }, [propertySlug, checkIn, checkOut]);
 
@@ -74,7 +64,15 @@ function BookingStorageInitializer({ propertySlug }: { propertySlug: string }) {
 }
 
 // This component gets access to the context after it's been initialized
-function BookingClientInner({ children, propertySlug }: { children: React.ReactNode, propertySlug: string }) {
+function BookingClientInner({ 
+  children, 
+  propertySlug,
+  heroImage
+}: { 
+  children: React.ReactNode, 
+  propertySlug: string,
+  heroImage: string | null
+}) {
   const searchParams = useSearchParams();
   const checkIn = searchParams.get('checkIn');
   const checkOut = searchParams.get('checkOut');
@@ -84,10 +82,8 @@ function BookingClientInner({ children, propertySlug }: { children: React.ReactN
     setPropertySlug
   } = useBooking();
 
-  // After context is set up, set the values
-  useEffect(() => {
-    console.log("[BookingClientInner] Setting up context with property slug:", propertySlug);
-    
+  // Set values in the context
+  useEffect(() => {    
     // Set property slug in the context
     setPropertySlug(propertySlug);
     
@@ -96,11 +92,6 @@ function BookingClientInner({ children, propertySlug }: { children: React.ReactN
       // Parse and set dates directly from URL params
       const parsedCheckIn = parseDateSafe(checkIn);
       const parsedCheckOut = parseDateSafe(checkOut);
-      
-      console.log("[BookingClientInner] Setting dates in context from URL params:", {
-        checkIn: parsedCheckIn?.toISOString() || 'null',
-        checkOut: parsedCheckOut?.toISOString() || 'null'
-      });
       
       // Set dates in context
       if (parsedCheckIn) {
@@ -115,14 +106,31 @@ function BookingClientInner({ children, propertySlug }: { children: React.ReactN
 
   return (
     <>
-      {/* Debug components removed to prevent duplication with DebugPanel */}
-      {children}
+      {/* Pass heroImage to children */}
+      {React.Children.map(children, child => {
+        if (React.isValidElement(child)) {          
+          // Set heroImage with highest priority
+          const childProps = { 
+            ...child.props,
+            heroImage: heroImage 
+          };
+          
+          return React.cloneElement(child, childProps);
+        }
+        return child;
+      })}
     </>
   );
 }
 
+interface BookingClientLayoutProps {
+  children: React.ReactNode;
+  propertySlug: string;
+  heroImage?: string | null;
+}
+
 // Main layout component with React Strict Mode protection
-export default function BookingClientLayout({ children, propertySlug }: BookingClientLayoutProps) {
+export default function BookingClientLayout({ children, propertySlug, heroImage }: BookingClientLayoutProps) {
   // Track if this instance has already mounted a provider
   const [shouldMount, setShouldMount] = React.useState(false);
 
@@ -136,7 +144,6 @@ export default function BookingClientLayout({ children, propertySlug }: BookingC
       const isAlreadyMounted = window[mountKey as any];
 
       if (isAlreadyMounted) {
-        console.log('ℹ️ [CLIENT] BookingInitializer already ran - skipping initialization');
         setShouldMount(false);
       } else {
         setShouldMount(true);
@@ -147,7 +154,6 @@ export default function BookingClientLayout({ children, propertySlug }: BookingC
     }
   }, [propertySlug]);
 
-  // First initialize storage
   return (
     <>
       <BookingStorageInitializer propertySlug={propertySlug} />
@@ -176,7 +182,7 @@ export default function BookingClientLayout({ children, propertySlug }: BookingC
       >
         {shouldMount || process.env.NODE_ENV !== 'development' ? (
           <BookingProvider propertySlug={propertySlug}>
-            <BookingClientInner propertySlug={propertySlug}>
+            <BookingClientInner propertySlug={propertySlug} heroImage={heroImage}>
               {children}
             </BookingClientInner>
           </BookingProvider>

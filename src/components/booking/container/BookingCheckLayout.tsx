@@ -8,6 +8,7 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Property } from '@/types';
 import { TouchTarget } from '@/components/ui/touch-target';
+import { SafeImage } from '@/components/ui/safe-image';
 import { useScrollToElement, useScrollRestoration } from '@/hooks/useScrollToElement';
 
 interface BookingCheckLayoutProps {
@@ -18,6 +19,8 @@ interface BookingCheckLayoutProps {
   numberOfNights?: number;
   totalPrice?: string;
   selectedDates?: string;
+  heroImage?: string | null;
+  fallbackImageUrl?: string; // Optional fallback image if neither heroImage nor property.images are available
 }
 
 export function BookingCheckLayout({
@@ -27,16 +30,47 @@ export function BookingCheckLayout({
   checkOutDate,
   numberOfNights,
   totalPrice,
-  selectedDates
+  selectedDates,
+  heroImage,
+  fallbackImageUrl = '/images/templates/holiday-house/default-gallery-1.jpg' // Default fallback image
 }: BookingCheckLayoutProps) {
   const { tc } = useLanguage();
   const [isPropertyInfoExpanded, setIsPropertyInfoExpanded] = useState(false);
   const scrollToElement = useScrollToElement();
   const { saveScrollPosition, restoreScrollPosition } = useScrollRestoration();
   
-  // Get the primary image for property context
-  const primaryImage = property.images?.[0]?.url || '/images/placeholder.jpg';
-  const propertyName = tc(property.name);
+  // Process image source for component
+  const primaryImage = (() => {
+    // First priority: use hero image if available
+    if (heroImage) {
+      return !heroImage.startsWith('/') && !heroImage.startsWith('http') 
+        ? `/${heroImage}` 
+        : heroImage;
+    }
+    
+    // Second priority: use first property image if available
+    if (property.images && property.images.length > 0) {
+      const firstImage = property.images[0];
+      let imageUrl = null;
+      
+      if (typeof firstImage === 'string') {
+        imageUrl = firstImage;
+      } else if (typeof firstImage === 'object' && firstImage && 'url' in firstImage) {
+        imageUrl = firstImage.url;
+      }
+      
+      if (imageUrl) {
+        return !imageUrl.startsWith('/') && !imageUrl.startsWith('http')
+          ? `/${imageUrl}`
+          : imageUrl;
+      }
+    }
+    
+    // Fallback to default image
+    return fallbackImageUrl;
+  })();
+
+  const propertyName = typeof property.name === 'string' ? property.name : tc(property.name);
   
   // Smooth scroll to main content on accordion toggle
   useEffect(() => {
@@ -147,12 +181,17 @@ export function BookingCheckLayout({
               >
                 {/* Property Image */}
                 <div className="aspect-[4/3] overflow-hidden rounded-[var(--card-radius)] shadow-sm">
-              <img
-                src={primaryImage}
-                alt={propertyName}
-                className="h-full w-full object-cover"
-              />
-            </div>
+                  <SafeImage
+                    src={primaryImage}
+                    alt={`${propertyName} - Property Image`}
+                    className="h-full w-full object-cover"
+                    width={400}
+                    height={300}
+                    fallbackText={`${propertyName} - Image not available`}
+                    style={{ objectFit: 'cover' }}
+                    priority={true}
+                  />
+                </div>
             
             {/* Selected Dates */}
             {selectedDates && (
@@ -181,7 +220,7 @@ export function BookingCheckLayout({
       </div>
       
       {/* Main Content Area */}
-      <div className="container">
+      <div className="container px-4">
         <div className="grid grid-cols-1 md:grid-cols-[300px,1fr] lg:grid-cols-[350px,1fr] gap-0 md:gap-8 lg:gap-12">
           {/* Property Context Panel - Desktop Only */}
           <aside className="hidden md:block sticky top-24 h-fit py-8">
@@ -190,10 +229,15 @@ export function BookingCheckLayout({
               <div className="bg-card border border-border rounded-[var(--card-radius)] shadow-[var(--card-shadow)] overflow-hidden">
                 {/* Property Image */}
                 <div className="aspect-[4/3] overflow-hidden">
-                  <img
+                  <SafeImage
                     src={primaryImage}
-                    alt={propertyName}
+                    alt={`${propertyName} - Property Image`}
                     className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+                    width={400}
+                    height={300}
+                    fallbackText={`${propertyName} - Image not available`}
+                    style={{ objectFit: 'cover' }}
+                    priority={true}
                   />
                 </div>
                 

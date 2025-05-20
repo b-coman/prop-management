@@ -1,8 +1,8 @@
 
 // src/components/property/gallery-section.tsx
-import Image from 'next/image';
 import { Home } from 'lucide-react'; // Fallback icon
 import { useLanguage } from '@/hooks/useLanguage';
+import { SafeImage } from '@/components/ui/safe-image';
 
 interface ImageType {
     url: string;
@@ -50,7 +50,7 @@ export function GallerySection({ content, language = 'en' }: GallerySectionProps
         <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
           {images.map((image, index) => (
             <div key={index} className="relative aspect-[4/3] w-full overflow-hidden rounded-lg shadow-md bg-muted">
-              <Image
+              <SafeImage
                 src={image.url}
                 alt={tc(image.alt, language) || `${t('gallery.imageOf', { index: index + 1 })} ${tc(propertyName, language)}`}
                 fill
@@ -59,6 +59,7 @@ export function GallerySection({ content, language = 'en' }: GallerySectionProps
                 loading="lazy" // Lazy load gallery images
                 className="transition-transform duration-300 hover:scale-105"
                 data-ai-hint={image['data-ai-hint']}
+                fallbackText={`${t('gallery.imageUnavailable', { fallback: 'Image unavailable' })}`}
               />
             </div>
           ))}

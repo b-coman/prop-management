@@ -145,3 +145,119 @@ export function serializePropertyTimestamps(property: Property): Property {
   
   return result;
 }
+
+/**
+ * Retrieves hero image path from property overrides with enhanced path checking
+ * @param slug The property slug
+ * @param debugMode Enable additional debug logging
+ * @returns The hero image path or null if not found
+ */
+export async function getPropertyHeroImage(slug: string, debugMode = false): Promise<string | null> {
+  if (!slug) return null;
+  
+  try {
+    // First try to get the hero image from propertyOverrides
+    const overridesRef = doc(db, 'propertyOverrides', slug);
+    const docSnap = await getDoc(overridesRef);
+    
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      
+      if (debugMode) {
+        console.log(`[PropertyUtils:DEBUG] Override document structure for ${slug}:`, 
+          JSON.stringify({
+            hasHomepage: !!data.homepage,
+            hasHero: !!data.hero,
+            topLevelKeys: Object.keys(data)
+          })
+        );
+      }
+      
+      // All possible paths based on documentation and different formats
+      const possiblePaths = [
+        // Standard multipage architecture path
+        data?.homepage?.hero?.backgroundImage,
+        
+        // Alternative paths
+        data?.homepage?.hero?.imageUrl,
+        data?.homepage?.hero?.image?.url,
+        data?.homepage?.backgroundImage,
+        
+        // Legacy / alternative structure paths
+        data?.hero?.backgroundImage,
+        data?.hero?.imageUrl,
+        data?.hero?.image?.url,
+        
+        // Direct paths
+        data?.heroImage,
+        data?.backgroundImage,
+        data?.featuredImage
+      ];
+      
+      // Find the first non-null path
+      for (const path of possiblePaths) {
+        if (path) {
+          if (debugMode) {
+            console.log(`[PropertyUtils:DEBUG] Found hero image for ${slug}:`, path);
+          }
+          return path;
+        }
+      }
+      
+      if (debugMode) {
+        console.warn(`[PropertyUtils:DEBUG] No hero image found in propertyOverrides. Checking property document.`);
+      }
+    } else if (debugMode) {
+      console.warn(`[PropertyUtils:DEBUG] No propertyOverrides document found for ${slug}`);
+    }
+    
+    // If we can't find the hero image in overrides, try to get from the property
+    const propertyRef = doc(db, 'properties', slug);
+    const propertySnap = await getDoc(propertyRef);
+    
+    if (propertySnap.exists()) {
+      const propertyData = propertySnap.data();
+      
+      if (debugMode) {
+        console.log(`[PropertyUtils:DEBUG] Property document structure for ${slug}:`, 
+          JSON.stringify({
+            hasImages: !!propertyData.images && Array.isArray(propertyData.images),
+            imageCount: propertyData.images?.length || 0,
+            hasHeroImage: !!propertyData.heroImage
+          })
+        );
+      }
+      
+      // Check for heroImage field first
+      if (propertyData.heroImage) {
+        const heroImage = propertyData.heroImage;
+        if (typeof heroImage === 'string') {
+          return heroImage;
+        } else if (typeof heroImage === 'object' && heroImage !== null && 'url' in heroImage) {
+          return heroImage.url;
+        }
+      }
+      
+      // Try to get the first image from the property's images array
+      if (propertyData.images && Array.isArray(propertyData.images) && propertyData.images.length > 0) {
+        const firstImage = propertyData.images[0];
+        
+        // Image can be a string or an object with a url property
+        if (typeof firstImage === 'string') {
+          return firstImage;
+        } else if (typeof firstImage === 'object' && firstImage !== null && 'url' in firstImage) {
+          return firstImage.url;
+        }
+      }
+    } else if (debugMode) {
+      console.warn(`[PropertyUtils:DEBUG] No property document found for ${slug}`);
+    }
+    
+    // If all else fails, return null
+    console.warn(`[PropertyUtils] No hero image found for ${slug}`);
+    return null;
+  } catch (error) {
+    console.error(`[PropertyUtils] Error fetching property hero image for ${slug}:`, error);
+    return null;
+  }
+}

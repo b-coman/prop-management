@@ -9,6 +9,7 @@ import { Footer } from '@/components/footer';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { DEFAULT_THEME_ID, predefinedThemes } from '@/lib/themes/theme-definitions';
 import { ThemeSwitcher } from '@/components/theme-switcher';
+import { ErrorBoundary } from '@/components/error-boundary';
 
 // Import all the block components
 import { HeroSection } from '@/components/homepage/hero-section';
@@ -320,10 +321,33 @@ export function PropertyPageRenderer({
         };
       }
 
-      return <Component key={id} content={blockContent} language={language} />;
+      // Wrap each block in an error boundary to prevent one block from breaking entire page
+      return (
+        <div key={id} className="block-wrapper">
+          <ErrorBoundary 
+            fallback={
+              <div className="p-3 m-2 bg-amber-50 border border-amber-200 rounded-md">
+                <h3 className="text-amber-800 font-medium">Error rendering {type} component</h3>
+                <p className="text-amber-700 text-sm mt-1">
+                  This section encountered an error and could not be displayed.
+                </p>
+              </div>
+            }
+          >
+            <Component key={id} content={blockContent} language={language} />
+          </ErrorBoundary>
+        </div>
+      );
     } catch (error) {
-      console.error(`Error rendering block ${id} of type ${type}:`, error);
-      return null;
+      console.error(`Error preparing block ${id} of type ${type}:`, error);
+      return (
+        <div key={id} className="p-3 m-2 bg-red-50 border border-red-200 rounded-md">
+          <h3 className="text-red-800 font-medium">Component Error</h3>
+          <p className="text-red-700 text-sm mt-1">
+            {error instanceof Error ? error.message : "Failed to prepare component data"}
+          </p>
+        </div>
+      );
     }
   };
 

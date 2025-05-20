@@ -2,7 +2,6 @@
 "use client";
 
 import { useState } from 'react';
-import Image from 'next/image';
 import { GalleryGridBlock } from '@/lib/overridesSchemas-multipage';
 import { 
   Dialog, 
@@ -13,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { X, ArrowLeft, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SafeImage } from '@/components/ui/safe-image';
 
 interface GalleryGridProps {
   content: GalleryGridBlock;
@@ -72,12 +72,13 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                 }}
                 onClick={() => openLightbox(index)}
               >
-                <Image
+                <SafeImage
                   src={image.url}
                   alt={image.alt || `Property image ${index + 1}`}
                   fill
                   className="object-cover"
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  fallbackText="Property image not available"
                 />
               </div>
             ))}
@@ -93,12 +94,13 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                 className="relative cursor-pointer overflow-hidden rounded-lg break-inside-avoid"
                 onClick={() => openLightbox(index)}
               >
-                <Image
+                <SafeImage
                   src={image.url}
                   alt={image.alt || `Property image ${index + 1}`}
                   width={800}
                   height={600}
                   className="w-full h-auto object-cover hover:scale-[1.02] transition-transform"
+                  fallbackText="Property image not available"
                 />
               </div>
             ))}
@@ -136,11 +138,12 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                     index === currentImageIndex ? "opacity-100" : "opacity-0 pointer-events-none"
                   )}
                 >
-                  <Image
+                  <SafeImage
                     src={image.url}
                     alt={image.alt || `Property image ${index + 1}`}
                     fill
                     className="object-cover"
+                    fallbackText="Property image not available"
                   />
                 </div>
               ))}
@@ -179,11 +182,12 @@ export function GalleryGrid({ content }: GalleryGridProps) {
               
               {images.length > 0 && (
                 <div className="relative h-full w-full max-h-[80vh]">
-                  <Image
+                  <SafeImage
                     src={images[currentImageIndex].url}
                     alt={images[currentImageIndex].alt || `Property image ${currentImageIndex + 1}`}
                     fill
                     className="object-contain"
+                    fallbackText="Property image not available"
                   />
                   <div className="absolute bottom-4 left-0 right-0 text-center text-white bg-black/50 py-2">
                     {images[currentImageIndex].alt}
