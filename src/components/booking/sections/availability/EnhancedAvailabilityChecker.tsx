@@ -108,6 +108,8 @@ export function EnhancedAvailabilityChecker({
   // using the already loaded unavailable dates (no API call needed)
   const checkDatesAvailability = useCallback(() => {
     if (!localCheckInDate || !localCheckOutDate || unavailableDates.length === 0) {
+      // Mark as checked even when we skip to prevent infinite loop attempts
+      setWasChecked(true);
       return;
     }
     
@@ -151,6 +153,10 @@ export function EnhancedAvailabilityChecker({
     } catch (error) {
       console.error('[EnhancedAvailabilityChecker] Error checking dates:', error);
       setError('Error checking availability. Please try again.');
+      // Mark as checked even on error to prevent infinite loops
+      setWasChecked(true);
+      setIsAvailable(false);
+      
       toast({
         title: "Error",
         description: "There was an error checking availability.",
@@ -161,7 +167,11 @@ export function EnhancedAvailabilityChecker({
     }
   }, [localCheckInDate, localCheckOutDate, unavailableDates, toast, onAvailabilityResult]);
   
-  // Auto-check availability when data is loaded
+  // Keep track of auto-check attempts to prevent infinite loops
+  const autoCheckAttemptsRef = useRef(0);
+  const MAX_AUTO_CHECK_ATTEMPTS = 3;
+
+  // Auto-check availability when data is loaded - with safety limits
   useEffect(() => {
     // Skip if we're already checking or if we're still loading data
     if (isCheckingAvailability || isLoadingInitialData) {
@@ -173,11 +183,15 @@ export function EnhancedAvailabilityChecker({
       unavailableDates.length > 0 && 
       localCheckInDate && 
       localCheckOutDate && 
-      !wasChecked
+      !wasChecked &&
+      autoCheckAttemptsRef.current < MAX_AUTO_CHECK_ATTEMPTS // Prevent infinite loops
     ) {
       console.log('==========================================');
-      console.log('🔄 [EnhancedAvailabilityChecker] Auto-checking availability');
+      console.log(`🔄 [EnhancedAvailabilityChecker] Auto-checking availability (attempt ${autoCheckAttemptsRef.current + 1}/${MAX_AUTO_CHECK_ATTEMPTS})`);
       console.log('==========================================');
+      
+      // Increment attempt counter
+      autoCheckAttemptsRef.current++;
       
       // Small delay to ensure state updates are complete
       const timerId = setTimeout(checkDatesAvailability, 100);

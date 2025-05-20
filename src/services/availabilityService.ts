@@ -153,6 +153,11 @@ export async function getUnavailableDatesForProperty(propertySlug: string, month
 // Cache for pricing data
 const pricingCache: Record<string, Record<string, DailyPrice>> = {};
 
+// Track API error count to prevent infinite calls
+const apiErrorCounts: Record<string, number> = {};
+const MAX_API_ERRORS = 3; // Maximum allowed errors before blocking further calls for a property
+const ERROR_RESET_TIME = 60000; // Reset error count after 1 minute
+
 // Store pricing data in the cache
 function storePricingData(propertySlug: string, pricingMap: Record<string, DailyPrice>): void {
   pricingCache[propertySlug] = pricingMap;
@@ -182,6 +187,25 @@ export async function getPricingForDateRange(
     if (typeof window === 'undefined') {
       console.log(`[availabilityService] [${requestId}] Running in server environment, returning null`);
       return null;
+    }
+    
+    // Check if we've exceeded error count for this property
+    const propertyErrors = apiErrorCounts[propertySlug] || 0;
+    if (propertyErrors >= MAX_API_ERRORS) {
+      console.warn(`[availabilityService] [${requestId}] ⚠️ Blocking request - too many errors (${propertyErrors}/${MAX_API_ERRORS})`);
+      
+      // Schedule error count reset after delay
+      setTimeout(() => {
+        apiErrorCounts[propertySlug] = 0;
+        console.log(`[availabilityService] Reset error count for ${propertySlug}`);
+      }, ERROR_RESET_TIME);
+      
+      // Return empty response to prevent UI errors
+      return {
+        available: false,
+        reason: 'service_unavailable',
+        unavailableDates: []
+      };
     }
 
     // Build the API URL for the combined endpoint
@@ -238,9 +262,21 @@ export async function getPricingForDateRange(
       // Check response status
       if (!response.ok) {
         console.error(`[availabilityService] [${requestId}] ❌ API pricing error (${response.status}): ${response.statusText}`);
-        return null;
+        
+        // Increment error count for this property
+        apiErrorCounts[propertySlug] = (apiErrorCounts[propertySlug] || 0) + 1;
+        console.warn(`[availabilityService] [${requestId}] ⚠️ Error count for ${propertySlug}: ${apiErrorCounts[propertySlug]}/${MAX_API_ERRORS}`);
+        
+        return {
+          available: false,
+          reason: 'service_error',
+          unavailableDates: []
+        };
       }
 
+      // Reset error count on successful request
+      apiErrorCounts[propertySlug] = 0;
+      
       // Parse response
       const data = await response.json();
       
@@ -260,11 +296,27 @@ export async function getPricingForDateRange(
       return data;
     } catch (error) {
       console.error(`[availabilityService] [${requestId}] ❌ Error fetching pricing data:`, error);
-      return null;
+      
+      // Increment error count for this property
+      apiErrorCounts[propertySlug] = (apiErrorCounts[propertySlug] || 0) + 1;
+      console.warn(`[availabilityService] [${requestId}] ⚠️ Error count for ${propertySlug}: ${apiErrorCounts[propertySlug]}/${MAX_API_ERRORS}`);
+      
+      // Return empty response to prevent UI errors
+      return {
+        available: false,
+        reason: 'service_error',
+        unavailableDates: []
+      };
     }
   } catch (error) {
     console.error(`[availabilityService] [${requestId}] ❌ Error in getPricingForDateRange:`, error);
-    return null;
+    
+    // Return empty response to prevent UI errors
+    return {
+      available: false,
+      reason: 'client_error',
+      unavailableDates: []
+    };
   }
 }
 
