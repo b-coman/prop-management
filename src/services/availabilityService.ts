@@ -150,26 +150,116 @@ export async function getUnavailableDatesForProperty(propertySlug: string, month
   }
 }
 
-// Cache for pricing data
-const pricingCache: Record<string, Record<string, DailyPrice>> = {};
-
-// Track API error count to prevent infinite calls
-const apiErrorCounts: Record<string, number> = {};
-const apiCallLimits: Record<string, number> = {}; // Track total API calls
+// Constants for rate limiting and caching
 const MAX_API_ERRORS = 3; // Maximum allowed errors before blocking further calls for a property
-const MAX_API_CALLS = 10; // Maximum allowed calls per minute for a property
+const MAX_API_CALLS_PER_MINUTE = 3; // Much stricter limit - Maximum allowed calls per minute for a property
+const MAX_API_CALLS_PER_SESSION = 20; // Maximum allowed calls for the entire session
 const ERROR_RESET_TIME = 60000; // Reset error count after 1 minute
 const CALL_LIMIT_RESET_TIME = 60000; // Reset call limit after 1 minute
+const CACHE_EXPIRATION = 10 * 60 * 1000; // 10 minutes cache expiration
+
+// Helper functions for localStorage-based persistence
+// These functions make our caching and rate limiting work across page refreshes and Cloud Run instances
+function getFromStorage(key: string, defaultValue: any): any {
+  if (typeof window === 'undefined') return defaultValue;
+  try {
+    const item = localStorage.getItem(`booking_api_${key}`);
+    return item ? JSON.parse(item) : defaultValue;
+  } catch (e) {
+    console.error(`[availabilityService] Error reading from localStorage: ${e}`);
+    return defaultValue;
+  }
+}
+
+function saveToStorage(key: string, value: any): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(`booking_api_${key}`, JSON.stringify(value));
+  } catch (e) {
+    console.error(`[availabilityService] Error writing to localStorage: ${e}`);
+  }
+}
+
+// Functions to manage pricing cache (in-memory for performance, with localStorage backup)
+const pricingCache: Record<string, Record<string, DailyPrice>> = {};
+
+// Function to get API response cache
+function getApiResponseCache(): Record<string, {data: any; timestamp: number; expiresAt: number;}> {
+  return getFromStorage('response_cache', {});
+}
+
+// Function to save API response to cache
+function saveApiResponseCache(cacheKey: string, data: any, expiresAt: number): void {
+  const cache = getApiResponseCache();
+  cache[cacheKey] = {
+    data,
+    timestamp: Date.now(),
+    expiresAt
+  };
+  saveToStorage('response_cache', cache);
+}
+
+// Function to get error count for a property
+function getApiErrorCount(propertySlug: string): number {
+  return getFromStorage(`error_count_${propertySlug}`, 0);
+}
+
+// Function to save error count for a property
+function saveApiErrorCount(propertySlug: string, count: number): void {
+  saveToStorage(`error_count_${propertySlug}`, count);
+}
+
+// Function to get call count for a property
+function getApiCallCount(propertySlug: string): number {
+  return getFromStorage(`call_count_${propertySlug}`, 0);
+}
+
+// Function to save call count for a property
+function saveApiCallCount(propertySlug: string, count: number): void {
+  saveToStorage(`call_count_${propertySlug}`, count);
+}
+
+// Function to get call timestamps for a property
+function getApiCallTimestamps(propertySlug: string): number[] {
+  return getFromStorage(`call_timestamps_${propertySlug}`, []);
+}
+
+// Function to save call timestamps for a property
+function saveApiCallTimestamps(propertySlug: string, timestamps: number[]): void {
+  saveToStorage(`call_timestamps_${propertySlug}`, timestamps);
+}
 
 // Store pricing data in the cache
 function storePricingData(propertySlug: string, pricingMap: Record<string, DailyPrice>): void {
+  // Store in memory for fast access
   pricingCache[propertySlug] = pricingMap;
+  
+  // Also save to localStorage for persistence
+  try {
+    saveToStorage(`pricing_data_${propertySlug}`, pricingMap);
+  } catch (e) {
+    // If localStorage fails, just log the error but continue
+    console.error(`[availabilityService] Error saving pricing data to localStorage: ${e}`);
+  }
+  
   console.log(`[availabilityService] Stored pricing data for ${propertySlug} with ${Object.keys(pricingMap).length} dates`);
 }
 
 // Get pricing data from cache
 export function getPricingData(propertySlug: string): Record<string, DailyPrice> | null {
-  return pricingCache[propertySlug] || null;
+  // Try in-memory cache first for performance
+  if (pricingCache[propertySlug]) {
+    return pricingCache[propertySlug];
+  }
+  
+  // Try localStorage as fallback
+  const storedData = getFromStorage(`pricing_data_${propertySlug}`, null);
+  if (storedData) {
+    // Restore to in-memory cache
+    pricingCache[propertySlug] = storedData;
+  }
+  
+  return storedData;
 }
 
 /**
@@ -192,59 +282,104 @@ export async function getPricingForDateRange(
       return null;
     }
     
-    // Check if we've exceeded error count or call limit for this property
-    const propertyErrors = apiErrorCounts[propertySlug] || 0;
-    const propertyCallCount = apiCallLimits[propertySlug] || 0;
+    // Create a cache key from the request parameters
+    const cacheKey = `${propertySlug}_${startDate.toISOString()}_${endDate.toISOString()}_${guestCount}`;
     
-    // Increment call count for this property
-    apiCallLimits[propertySlug] = propertyCallCount + 1;
-    console.log(`[availabilityService] [${requestId}] 📊 API call count for ${propertySlug}: ${apiCallLimits[propertySlug]}/${MAX_API_CALLS}`);
+    // Get cache from localStorage
+    const apiCache = getApiResponseCache();
     
-    // Schedule call count reset after delay if this is the first call
-    if (propertyCallCount === 0) {
-      setTimeout(() => {
-        apiCallLimits[propertySlug] = 0;
-        console.log(`[availabilityService] Reset call limit for ${propertySlug}`);
-      }, CALL_LIMIT_RESET_TIME);
+    // Check the cache first
+    if (apiCache[cacheKey] && apiCache[cacheKey].expiresAt > Date.now()) {
+      console.log(`[availabilityService] [${requestId}] 🔄 Using cached response for ${cacheKey} (cache hit)`);
+      return apiCache[cacheKey].data;
     }
     
-    // Check if we've exceeded any limits
+    // Get call timestamps from localStorage and update them
+    const now = Date.now();
+    let timestamps = getApiCallTimestamps(propertySlug);
+    timestamps.push(now);
+    
+    // Clean up timestamps older than 1 minute
+    timestamps = timestamps.filter(timestamp => now - timestamp < CALL_LIMIT_RESET_TIME);
+    saveApiCallTimestamps(propertySlug, timestamps);
+    
+    // Count calls in the last minute
+    const callsInLastMinute = timestamps.length;
+    
+    // Get and update total call count for this property
+    const propertyTotalCalls = getApiCallCount(propertySlug);
+    saveApiCallCount(propertySlug, propertyTotalCalls + 1);
+    
+    // Get error count
+    const propertyErrors = getApiErrorCount(propertySlug);
+    
+    // Log detailed analytics
+    console.log(`[availabilityService] [${requestId}] 📊 API call stats for ${propertySlug}:
+      - Calls in last minute: ${callsInLastMinute}/${MAX_API_CALLS_PER_MINUTE}
+      - Total session calls: ${propertyTotalCalls + 1}/${MAX_API_CALLS_PER_SESSION}
+      - Error count: ${propertyErrors}/${MAX_API_ERRORS}
+    `);
+    
+    // Create a standard fallback response
+    const fallbackResponse = {
+      available: true,
+      pricing: {
+        dailyRates: {},
+        totalPrice: 200,
+        averageNightlyRate: 100,
+        subtotal: 200,
+        cleaningFee: 0,
+        currency: 'EUR',
+        accommodationTotal: 200
+      },
+      unavailableDates: []
+    };
+    
+    // Check all rate limiting conditions
+    
+    // 1. Error count check
     if (propertyErrors >= MAX_API_ERRORS) {
       console.warn(`[availabilityService] [${requestId}] ⚠️ Blocking request - too many errors (${propertyErrors}/${MAX_API_ERRORS})`);
       
-      // Schedule error count reset after delay
-      setTimeout(() => {
-        apiErrorCounts[propertySlug] = 0;
-        console.log(`[availabilityService] Reset error count for ${propertySlug}`);
-      }, ERROR_RESET_TIME);
-      
-      // Return empty response to prevent UI errors
-      return {
-        available: false,
-        reason: 'service_unavailable',
-        unavailableDates: []
+      const response = {
+        ...fallbackResponse,
+        reason: 'error_limit_exceeded'
       };
+      
+      // Cache this response for 1 minute
+      saveApiResponseCache(cacheKey, response, now + CALL_LIMIT_RESET_TIME);
+      
+      return response;
     }
     
-    // Check if we've exceeded call count
-    if (propertyCallCount > MAX_API_CALLS) {
-      console.warn(`[availabilityService] [${requestId}] ⚠️ Blocking request - too many calls (${propertyCallCount}/${MAX_API_CALLS})`);
+    // 2. Per-minute rate limit check
+    if (callsInLastMinute > MAX_API_CALLS_PER_MINUTE) {
+      console.warn(`[availabilityService] [${requestId}] ⚠️ Blocking request - rate limit exceeded (${callsInLastMinute}/${MAX_API_CALLS_PER_MINUTE} calls in last minute)`);
       
-      // Return cached data if available, empty response otherwise
-      return {
-        available: true,
-        reason: 'call_limit_exceeded',
-        pricing: {
-          dailyRates: {},
-          totalPrice: 200,
-          averageNightlyRate: 100,
-          subtotal: 200,
-          cleaningFee: 0,
-          currency: 'EUR',
-          accommodationTotal: 200
-        },
-        unavailableDates: []
+      const response = {
+        ...fallbackResponse,
+        reason: 'rate_limit_exceeded'
       };
+      
+      // Cache this response for 1 minute
+      saveApiResponseCache(cacheKey, response, now + CALL_LIMIT_RESET_TIME);
+      
+      return response;
+    }
+    
+    // 3. Total session calls limit check
+    if (propertyTotalCalls + 1 > MAX_API_CALLS_PER_SESSION) {
+      console.warn(`[availabilityService] [${requestId}] ⚠️ Blocking request - session limit exceeded (${propertyTotalCalls + 1}/${MAX_API_CALLS_PER_SESSION} total calls)`);
+      
+      const response = {
+        ...fallbackResponse,
+        reason: 'session_limit_exceeded'
+      };
+      
+      // Cache this response indefinitely for this session
+      saveApiResponseCache(cacheKey, response, now + (24 * 60 * 60 * 1000)); // 24 hours
+      
+      return response;
     }
 
     // Build the API URL for the combined endpoint
@@ -303,8 +438,9 @@ export async function getPricingForDateRange(
         console.error(`[availabilityService] [${requestId}] ❌ API pricing error (${response.status}): ${response.statusText}`);
         
         // Increment error count for this property
-        apiErrorCounts[propertySlug] = (apiErrorCounts[propertySlug] || 0) + 1;
-        console.warn(`[availabilityService] [${requestId}] ⚠️ Error count for ${propertySlug}: ${apiErrorCounts[propertySlug]}/${MAX_API_ERRORS}`);
+        const currentErrors = getApiErrorCount(propertySlug);
+        saveApiErrorCount(propertySlug, currentErrors + 1);
+        console.warn(`[availabilityService] [${requestId}] ⚠️ Error count for ${propertySlug}: ${currentErrors + 1}/${MAX_API_ERRORS}`);
         
         return {
           available: false,
@@ -314,7 +450,7 @@ export async function getPricingForDateRange(
       }
 
       // Reset error count on successful request
-      apiErrorCounts[propertySlug] = 0;
+      saveApiErrorCount(propertySlug, 0);
       
       // Parse response
       const data = await response.json();
@@ -331,21 +467,32 @@ export async function getPricingForDateRange(
         reason: data.reason || 'N/A',
         minimumStay: data.minimumStay
       });
+      
+      // Store successful response in the cache (expires in 10 minutes)
+      saveApiResponseCache(cacheKey, data, now + CACHE_EXPIRATION);
+      
+      console.log(`[availabilityService] [${requestId}] 💾 Cached response for ${cacheKey} (expires in 10 minutes)`);
 
       return data;
     } catch (error) {
       console.error(`[availabilityService] [${requestId}] ❌ Error fetching pricing data:`, error);
       
       // Increment error count for this property
-      apiErrorCounts[propertySlug] = (apiErrorCounts[propertySlug] || 0) + 1;
-      console.warn(`[availabilityService] [${requestId}] ⚠️ Error count for ${propertySlug}: ${apiErrorCounts[propertySlug]}/${MAX_API_ERRORS}`);
+      const currentErrors = getApiErrorCount(propertySlug);
+      saveApiErrorCount(propertySlug, currentErrors + 1);
+      console.warn(`[availabilityService] [${requestId}] ⚠️ Error count for ${propertySlug}: ${currentErrors + 1}/${MAX_API_ERRORS}`);
       
-      // Return empty response to prevent UI errors
-      return {
+      // Create error response
+      const errorResponse = {
         available: false,
         reason: 'service_error',
         unavailableDates: []
       };
+      
+      // Cache error responses for 30 seconds to prevent immediate retries
+      saveApiResponseCache(cacheKey, errorResponse, now + 30000);
+      
+      return errorResponse;
     }
   } catch (error) {
     console.error(`[availabilityService] [${requestId}] ❌ Error in getPricingForDateRange:`, error);
@@ -367,8 +514,53 @@ export function testPricingApi(): boolean {
   console.log(`[availabilityService] 📣 Export available: getPricingForDateRange is properly exported`);
   
   // Test service version 
-  console.log(`[availabilityService] 📣 Version: 1.2 (Dynamic Price Calendar Support)`);
+  console.log(`[availabilityService] 📣 Version: 1.3 (Dynamic Price Calendar Support with Persistent Caching)`);
   return true;
+}
+
+/**
+ * Reset all API caches and limits for a property
+ * This can be called if you suspect issues with the caching or rate limiting
+ */
+export function resetApiCache(propertySlug?: string): void {
+  console.log(`[availabilityService] 🧹 Resetting API cache${propertySlug ? ` for ${propertySlug}` : ' for all properties'}`);
+  
+  if (typeof window === 'undefined') {
+    console.log('[availabilityService] Running in server environment, cannot reset cache');
+    return;
+  }
+  
+  if (propertySlug) {
+    // Reset just for this property
+    saveApiErrorCount(propertySlug, 0);
+    saveApiCallCount(propertySlug, 0);
+    saveApiCallTimestamps(propertySlug, []);
+    
+    // Remove pricing data for this property
+    delete pricingCache[propertySlug];
+    localStorage.removeItem(`booking_api_pricing_data_${propertySlug}`);
+    
+    // Remove cached responses that match this property
+    const apiCache = getApiResponseCache();
+    const newCache: any = {};
+    for (const key in apiCache) {
+      if (!key.startsWith(propertySlug + '_')) {
+        newCache[key] = apiCache[key];
+      }
+    }
+    saveToStorage('response_cache', newCache);
+  } else {
+    // Reset all properties
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('booking_api_')) {
+        localStorage.removeItem(key);
+      }
+    }
+    // Clear in-memory cache too
+    Object.keys(pricingCache).forEach(key => delete pricingCache[key]);
+  }
+  
+  console.log(`[availabilityService] ✅ API cache reset complete`);
 }
 
 /**
