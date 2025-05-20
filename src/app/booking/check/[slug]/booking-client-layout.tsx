@@ -93,12 +93,28 @@ function BookingClientInner({
       const parsedCheckIn = parseDateSafe(checkIn);
       const parsedCheckOut = parseDateSafe(checkOut);
       
-      // Set dates in context
-      if (parsedCheckIn) {
-        setCheckInDate(parsedCheckIn);
-      }
+      // Log the parsed dates for debugging
+      console.log(`[BookingClientInner] Parsed dates from URL:`, {
+        checkIn: checkIn,
+        checkOut: checkOut,
+        parsedCheckIn: parsedCheckIn?.toISOString() || 'null',
+        parsedCheckOut: parsedCheckOut?.toISOString() || 'null'
+      });
       
-      if (parsedCheckOut) {
+      // Set dates in context with more specificity
+      if (parsedCheckIn) {
+        console.log(`[BookingClientInner] Setting checkInDate:`, parsedCheckIn.toISOString());
+        setCheckInDate(parsedCheckIn);
+        
+        // Force a timeout to ensure the date is properly set before further processing
+        setTimeout(() => {
+          if (parsedCheckOut) {
+            console.log(`[BookingClientInner] Setting checkOutDate:`, parsedCheckOut.toISOString());
+            setCheckOutDate(parsedCheckOut);
+          }
+        }, 50);
+      } else if (parsedCheckOut) {
+        console.log(`[BookingClientInner] Setting checkOutDate:`, parsedCheckOut.toISOString());
         setCheckOutDate(parsedCheckOut);
       }
     }

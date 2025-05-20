@@ -784,8 +784,10 @@ export function AvailabilityContainer({
               args[0].includes('[DEBUG]') ||
               args[0].includes('[EnhancedAvailabilityChecker]') ||
               args[0] === '==========================================') {
-            // Skip verbose logs
-            return;
+            // Skip verbose logs, but allow BookingClientInner logs to pass through
+            if (!args[0].includes('[BookingClientInner]')) {
+              return;
+            }
           }
         }
         originalConsoleLog(...args);
