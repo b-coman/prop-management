@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, CalendarIcon } from 'lucide-react';
+import { ChevronDown, ChevronUp, CalendarIcon, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -43,7 +43,8 @@ export function BookingSummary({
   propertyBaseCcy,
   appliedCoupon,
   dynamicPricing = null,
-}: BookingSummaryProps) {
+  isLoadingPricing = false, // Add loading state parameter
+}: BookingSummaryProps & { isLoadingPricing?: boolean }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const { selectedCurrency, convertToSelectedCurrency, formatPrice } = useCurrency();
 
@@ -165,8 +166,29 @@ export function BookingSummary({
     selectedCurrency
   ]);
 
+  // Check for loading state first
+  if (isLoadingPricing) {
+    return (
+      <Card className="bg-muted/50 border border-border/50">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-center space-x-2 py-2">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            <span className="text-muted-foreground">Loading pricing data...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  
+  // Then check if we have pricing details
   if (!pricingDetailsForDisplay) {
-    return <div className="text-muted-foreground">Calculating price...</div>;
+    return (
+      <Card className="bg-muted/50 border border-border/50">
+        <CardContent className="p-4">
+          <div className="text-muted-foreground text-center py-2">Calculating price...</div>
+        </CardContent>
+      </Card>
+    );
   }
 
   const formattedTotal = formatPrice(pricingDetailsForDisplay.total, selectedCurrency);

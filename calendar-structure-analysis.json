@@ -1,0 +1,609 @@
+{
+  "id": "prahova-mountain-chalet_2025-05",
+  "propertyId": "prahova-mountain-chalet",
+  "year": 2025,
+  "month": 5,
+  "monthStr": "May 2025",
+  "summary": {
+    "minPrice": 180,
+    "maxPrice": 216,
+    "avgPrice": 194.08695652173913,
+    "unavailableDays": 8,
+    "modifiedDays": 10,
+    "hasCustomPrices": false,
+    "hasSeasonalRates": false
+  },
+  "generatedAt": "2025-05-12T19:08:26.646Z",
+  "updatedAt": "2025-05-12T20:31:47.092Z",
+  "days": {
+    "1": {
+      "basePrice": 180,
+      "adjustedPrice": 180,
+      "prices": {
+        "4": 180,
+        "5": 205,
+        "6": 230,
+        "7": 255
+      },
+      "available": true,
+      "minimumStay": 1,
+      "isWeekend": false,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "base",
+      "baseOccupancyPrice": 180
+    },
+    "2": {
+      "basePrice": 180,
+      "adjustedPrice": 216,
+      "prices": {
+        "4": 216,
+        "5": 241,
+        "6": 266,
+        "7": 291
+      },
+      "available": true,
+      "minimumStay": 1,
+      "isWeekend": true,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "weekend",
+      "baseOccupancyPrice": 216
+    },
+    "3": {
+      "basePrice": 180,
+      "adjustedPrice": 216,
+      "prices": {
+        "4": 216,
+        "5": 241,
+        "6": 266,
+        "7": 291
+      },
+      "available": true,
+      "minimumStay": 1,
+      "isWeekend": true,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "weekend",
+      "baseOccupancyPrice": 216
+    },
+    "4": {
+      "basePrice": 180,
+      "adjustedPrice": 180,
+      "prices": {
+        "4": 180,
+        "5": 205,
+        "6": 230,
+        "7": 255
+      },
+      "available": true,
+      "minimumStay": 1,
+      "isWeekend": true,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "base",
+      "baseOccupancyPrice": 180
+    },
+    "5": {
+      "basePrice": 180,
+      "adjustedPrice": 180,
+      "prices": {
+        "4": 180,
+        "5": 205,
+        "6": 230,
+        "7": 255
+      },
+      "available": true,
+      "minimumStay": 1,
+      "isWeekend": false,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "base",
+      "baseOccupancyPrice": 180
+    },
+    "6": {
+      "basePrice": 180,
+      "adjustedPrice": 180,
+      "minimumStay": 1,
+      "isWeekend": false,
+      "seasonId": null,
+      "seasonName": null,
+      "reason": "",
+      "priceSource": "override",
+      "prices": {
+        "4": 180,
+        "5": 180,
+        "6": 180,
+        "7": 180
+      },
+      "overrideId": "fSA2BAs6ntJmNOl4DkgS",
+      "available": true,
+      "baseOccupancyPrice": 180
+    },
+    "7": {
+      "basePrice": 180,
+      "adjustedPrice": 180,
+      "prices": {
+        "4": 180,
+        "5": 205,
+        "6": 230,
+        "7": 255
+      },
+      "available": true,
+      "minimumStay": 1,
+      "isWeekend": false,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "base",
+      "baseOccupancyPrice": 180
+    },
+    "8": {
+      "basePrice": 180,
+      "adjustedPrice": 180,
+      "prices": {
+        "4": 180,
+        "5": 205,
+        "6": 230,
+        "7": 255
+      },
+      "available": true,
+      "minimumStay": 1,
+      "isWeekend": false,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "base",
+      "baseOccupancyPrice": 180
+    },
+    "9": {
+      "basePrice": 180,
+      "adjustedPrice": 216,
+      "prices": {
+        "4": 216,
+        "5": 241,
+        "6": 266,
+        "7": 291
+      },
+      "available": true,
+      "minimumStay": 1,
+      "isWeekend": true,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "weekend",
+      "baseOccupancyPrice": 216
+    },
+    "10": {
+      "basePrice": 180,
+      "adjustedPrice": 216,
+      "prices": {
+        "4": 216,
+        "5": 241,
+        "6": 266,
+        "7": 291
+      },
+      "available": true,
+      "minimumStay": 1,
+      "isWeekend": true,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "weekend",
+      "baseOccupancyPrice": 216
+    },
+    "11": {
+      "basePrice": 180,
+      "adjustedPrice": 180,
+      "prices": {
+        "4": 180,
+        "5": 205,
+        "6": 230,
+        "7": 255
+      },
+      "available": true,
+      "minimumStay": 1,
+      "isWeekend": true,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "base",
+      "baseOccupancyPrice": 180
+    },
+    "12": {
+      "basePrice": 180,
+      "adjustedPrice": 180,
+      "prices": {
+        "4": 180,
+        "5": 205,
+        "6": 230,
+        "7": 255
+      },
+      "available": true,
+      "minimumStay": 1,
+      "isWeekend": false,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "base",
+      "baseOccupancyPrice": 180
+    },
+    "13": {
+      "basePrice": 180,
+      "adjustedPrice": 180,
+      "prices": {
+        "4": 180,
+        "5": 205,
+        "6": 230,
+        "7": 255
+      },
+      "available": false,
+      "minimumStay": 1,
+      "isWeekend": false,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "base",
+      "baseOccupancyPrice": 180
+    },
+    "14": {
+      "basePrice": 180,
+      "adjustedPrice": 180,
+      "prices": {
+        "4": 180,
+        "5": 205,
+        "6": 230,
+        "7": 255
+      },
+      "available": false,
+      "minimumStay": 1,
+      "isWeekend": false,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "base",
+      "baseOccupancyPrice": 180
+    },
+    "15": {
+      "basePrice": 180,
+      "adjustedPrice": 180,
+      "prices": {
+        "4": 180,
+        "5": 205,
+        "6": 230,
+        "7": 255
+      },
+      "available": false,
+      "minimumStay": 1,
+      "isWeekend": false,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "base",
+      "baseOccupancyPrice": 180
+    },
+    "16": {
+      "basePrice": 180,
+      "adjustedPrice": 216,
+      "prices": {
+        "4": 216,
+        "5": 241,
+        "6": 266,
+        "7": 291
+      },
+      "available": false,
+      "minimumStay": 1,
+      "isWeekend": true,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "weekend",
+      "baseOccupancyPrice": 216
+    },
+    "17": {
+      "basePrice": 180,
+      "adjustedPrice": 216,
+      "prices": {
+        "4": 216,
+        "5": 241,
+        "6": 266,
+        "7": 291
+      },
+      "available": true,
+      "minimumStay": 1,
+      "isWeekend": true,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "weekend",
+      "baseOccupancyPrice": 216
+    },
+    "18": {
+      "basePrice": 180,
+      "adjustedPrice": 180,
+      "prices": {
+        "4": 180,
+        "5": 205,
+        "6": 230,
+        "7": 255
+      },
+      "available": true,
+      "minimumStay": 1,
+      "isWeekend": true,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "base",
+      "baseOccupancyPrice": 180
+    },
+    "19": {
+      "basePrice": 180,
+      "adjustedPrice": 180,
+      "prices": {
+        "4": 180,
+        "5": 205,
+        "6": 230,
+        "7": 255
+      },
+      "available": false,
+      "minimumStay": 1,
+      "isWeekend": false,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "base",
+      "baseOccupancyPrice": 180
+    },
+    "20": {
+      "basePrice": 180,
+      "adjustedPrice": 180,
+      "prices": {
+        "4": 180,
+        "5": 205,
+        "6": 230,
+        "7": 255
+      },
+      "available": false,
+      "minimumStay": 1,
+      "isWeekend": false,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "base",
+      "baseOccupancyPrice": 180
+    },
+    "21": {
+      "basePrice": 180,
+      "adjustedPrice": 180,
+      "prices": {
+        "4": 180,
+        "5": 205,
+        "6": 230,
+        "7": 255
+      },
+      "available": false,
+      "minimumStay": 1,
+      "isWeekend": false,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "base",
+      "baseOccupancyPrice": 180
+    },
+    "22": {
+      "basePrice": 180,
+      "adjustedPrice": 180,
+      "prices": {
+        "4": 180,
+        "5": 205,
+        "6": 230,
+        "7": 255
+      },
+      "available": false,
+      "minimumStay": 1,
+      "isWeekend": false,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "base",
+      "baseOccupancyPrice": 180
+    },
+    "23": {
+      "basePrice": 180,
+      "adjustedPrice": 216,
+      "prices": {
+        "4": 216,
+        "5": 241,
+        "6": 266,
+        "7": 291
+      },
+      "available": true,
+      "minimumStay": 1,
+      "isWeekend": true,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "weekend",
+      "baseOccupancyPrice": 216
+    },
+    "24": {
+      "basePrice": 180,
+      "adjustedPrice": 216,
+      "prices": {
+        "4": 216,
+        "5": 241,
+        "6": 266,
+        "7": 291
+      },
+      "available": true,
+      "minimumStay": 1,
+      "isWeekend": true,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "weekend",
+      "baseOccupancyPrice": 216
+    },
+    "25": {
+      "basePrice": 180,
+      "adjustedPrice": 180,
+      "prices": {
+        "4": 180,
+        "5": 205,
+        "6": 230,
+        "7": 255
+      },
+      "available": true,
+      "minimumStay": 1,
+      "isWeekend": true,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "base",
+      "baseOccupancyPrice": 180
+    },
+    "26": {
+      "basePrice": 180,
+      "adjustedPrice": 180,
+      "prices": {
+        "4": 180,
+        "5": 205,
+        "6": 230,
+        "7": 255
+      },
+      "available": true,
+      "minimumStay": 1,
+      "isWeekend": false,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "base",
+      "baseOccupancyPrice": 180
+    },
+    "27": {
+      "basePrice": 180,
+      "adjustedPrice": 180,
+      "prices": {
+        "4": 180,
+        "5": 205,
+        "6": 230,
+        "7": 255
+      },
+      "available": true,
+      "minimumStay": 1,
+      "isWeekend": false,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "base",
+      "baseOccupancyPrice": 180
+    },
+    "28": {
+      "adjustedPrice": 180,
+      "available": true,
+      "isWeekend": false,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "base",
+      "basePrice": 1800,
+      "prices": {
+        "4": 1800,
+        "5": 205,
+        "6": 230,
+        "7": 255
+      },
+      "minimumStay": 3,
+      "baseOccupancyPrice": 180
+    },
+    "29": {
+      "basePrice": 180,
+      "adjustedPrice": 180,
+      "prices": {
+        "4": 180,
+        "5": 205,
+        "6": 230,
+        "7": 255
+      },
+      "available": true,
+      "minimumStay": 1,
+      "isWeekend": false,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "base",
+      "baseOccupancyPrice": 180
+    },
+    "30": {
+      "basePrice": 180,
+      "prices": {
+        "4": 216,
+        "5": 241,
+        "6": 266,
+        "7": 291
+      },
+      "available": true,
+      "minimumStay": 1,
+      "isWeekend": true,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "weekend",
+      "adjustedPrice": 2160,
+      "baseOccupancyPrice": 2160
+    },
+    "31": {
+      "basePrice": 180,
+      "adjustedPrice": 216,
+      "prices": {
+        "4": 216,
+        "5": 241,
+        "6": 266,
+        "7": 291
+      },
+      "available": true,
+      "minimumStay": 1,
+      "isWeekend": true,
+      "seasonId": null,
+      "seasonName": null,
+      "overrideId": null,
+      "reason": null,
+      "priceSource": "weekend",
+      "baseOccupancyPrice": 216
+    }
+  }
+}

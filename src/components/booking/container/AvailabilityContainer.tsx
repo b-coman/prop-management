@@ -4,6 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useBooking } from '@/contexts/BookingContext';
 import { format, startOfDay } from 'date-fns';
+import { getFeatureFlag } from '@/config/featureFlags';
 import { Loader2, ArrowRight, Mail, Phone as PhoneIcon, Send } from 'lucide-react';
 import { EnhancedAvailabilityChecker } from '../sections/availability/EnhancedAvailabilityChecker';
 import { ErrorBoundary } from '../ErrorBoundary';
@@ -1047,6 +1048,7 @@ export function AvailabilityContainer({
                     propertyBaseCcy={property.currency || 'USD'}
                     appliedCoupon={appliedCoupon}
                     dynamicPricing={dynamicPricingDetails}
+                    isLoadingPricing={getFeatureFlag('useApiOnlyPricing') && isPricingLoading}
                   />
                   {/* Add a debug marker to show pricing source */}
                   <div className="text-xs text-right mt-1 text-slate-500">

@@ -1,5 +1,6 @@
 // src/lib/price-utils.ts
 import type { CurrencyCode } from '@/types';
+import { getFeatureFlag } from '@/config/featureFlags';
 
 export interface PriceCalculationResult {
   basePrice: number; 
@@ -35,7 +36,13 @@ export function calculatePrice(
   extraGuestFeePerNight: number,
   baseCurrency: CurrencyCode, // Property's base currency
   discountPercentage: number = 0
-): PriceCalculationResult {
+): PriceCalculationResult | null {
+  // Check if API-only pricing is enabled
+  if (getFeatureFlag('useApiOnlyPricing')) {
+    console.log('[price-utils] ⚠️ Client-side price calculation bypassed (API-only mode)');
+    return null;
+  }
+  
   if (numberOfNights <= 0) {
     return { 
       basePrice: 0, 
