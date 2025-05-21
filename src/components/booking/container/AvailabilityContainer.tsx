@@ -790,6 +790,8 @@ export function AvailabilityContainer({
           subtotal: data.pricing.subtotal,
           // Support both naming conventions for backward compatibility
           total: data.pricing.totalPrice !== undefined ? data.pricing.totalPrice : (data.pricing.total || 0),
+          // CRITICAL FIX: Add totalPrice field to maintain naming consistency with API
+          totalPrice: data.pricing.totalPrice !== undefined ? data.pricing.totalPrice : (data.pricing.total || 0),
           currency: data.pricing.currency as any,
           dailyRates: data.pricing.dailyRates || {},
           // Apply any discount from coupon if present
@@ -800,6 +802,7 @@ export function AvailabilityContainer({
         };
         
         console.log(`[AvailabilityContainer] 📋 SETTING NEW DETAILS:`, newPricingDetails);
+        console.log(`[AvailabilityContainer] 🏷️ FIELD NAMES CHECK: total=${newPricingDetails.total}, totalPrice=${newPricingDetails.totalPrice}`);
         
         // Store the dynamic pricing data directly from the API response
         setDynamicPricingDetails(newPricingDetails);
@@ -929,6 +932,8 @@ export function AvailabilityContainer({
                 subtotal: pricingData.pricing.subtotal, 
                 // Support both naming conventions for backward compatibility
                 total: pricingData.pricing.totalPrice !== undefined ? pricingData.pricing.totalPrice : (pricingData.pricing.total || 0),
+                // CRITICAL FIX: Add totalPrice field to maintain naming consistency with API
+                totalPrice: pricingData.pricing.totalPrice !== undefined ? pricingData.pricing.totalPrice : (pricingData.pricing.total || 0),
                 currency: pricingData.pricing.currency as any,
                 dailyRates: pricingData.pricing.dailyRates || {},
                 // No coupon discount initially
