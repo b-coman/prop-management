@@ -9,7 +9,8 @@ import { Check, Loader2, X, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBooking } from '@/contexts/BookingContext';
 import { useToast } from '@/hooks/use-toast';
-import { checkAvailability, getUnavailableDatesForProperty } from '@/services/availabilityService';
+// Removed API imports - this component now only reads from BookingContext
+// import { checkAvailability, getUnavailableDatesForProperty } from '@/services/availabilityService';
 import { GuestSelector } from '../common/GuestSelector';
 import { SimpleDateSelector } from './SimpleDateSelector';
 
@@ -36,7 +37,7 @@ export function EnhancedAvailabilityChecker({
   onGuestCountChange,
   onPricingDataReceived // New prop
 }: EnhancedAvailabilityCheckerProps) {
-  // Get values from booking context
+  // Get values from booking context - now includes availability data
   const {
     checkInDate,
     checkOutDate,
@@ -44,16 +45,18 @@ export function EnhancedAvailabilityChecker({
     numberOfGuests,
     setCheckInDate,
     setCheckOutDate,
-    setNumberOfGuests
+    setNumberOfGuests,
+    // Centralized availability state
+    unavailableDates,
+    isAvailabilityLoading,
+    availabilityError,
+    isAvailable,
+    // Centralized fetch function
+    fetchAvailabilityAndPricing
   } = useBooking();
 
-  // Local UI state
-  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
+  // Local UI state - SIMPLIFIED since availability comes from context
   const [wasChecked, setWasChecked] = useState(false);
-  const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [unavailableDates, setUnavailableDates] = useState<Date[]>([]);
-  const [isLoadingInitialData, setIsLoadingInitialData] = useState(true);
   
   // Dependencies
   const { toast } = useToast();
@@ -63,42 +66,22 @@ export function EnhancedAvailabilityChecker({
   const [localCheckOutDate, setLocalCheckOutDate] = useState<Date | null>(checkOutDate);
   const [localGuestCount, setLocalGuestCount] = useState<number>(numberOfGuests);
   
-  // Immediately load unavailable dates when the component mounts
+  // Trigger centralized data loading when component mounts
   useEffect(() => {
-    const loadUnavailableDates = async () => {
-      setIsLoadingInitialData(true);
-      console.log("==========================================");
-      console.log("🔍 [EnhancedAvailabilityChecker] Loading unavailable dates on mount");
-      console.log("==========================================");
-      
-      try {
-        const dates = await getUnavailableDatesForProperty(propertySlug);
-        console.log(`[EnhancedAvailabilityChecker] Loaded ${dates.length} unavailable dates for property ${propertySlug}`);
-        
-        if (dates.length > 0) {
-          // Log a few example dates
-          const sampleDates = dates.slice(0, 3);
-          console.log(`[EnhancedAvailabilityChecker] Sample unavailable dates:`, 
-            sampleDates.map(d => d.toISOString())
-          );
-        }
-        
-        // Store the unavailable dates
-        setUnavailableDates(dates);
-      } catch (error) {
-        console.error('[EnhancedAvailabilityChecker] Error loading unavailable dates:', error);
-        toast({
-          title: "Warning",
-          description: "Could not load all unavailable dates. Availability information may be incomplete.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoadingInitialData(false);
-      }
-    };
+    console.log("==========================================");
+    console.log("🔍 [EnhancedAvailabilityChecker] PURE UI COMPONENT - Triggering centralized data fetch");
+    console.log("==========================================");
     
-    loadUnavailableDates();
-  }, [propertySlug, toast]);
+    // Call the centralized fetch function from BookingContext
+    fetchAvailabilityAndPricing().catch(error => {
+      console.error('[EnhancedAvailabilityChecker] Error triggering centralized fetch:', error);
+      toast({
+        title: "Warning",
+        description: "Could not load availability data. Please try again.",
+        variant: "destructive",
+      });
+    });
+  }, [propertySlug, fetchAvailabilityAndPricing, toast]);
   
   // Sync from context to local state when component mounts or context changes
   useEffect(() => {
@@ -107,171 +90,16 @@ export function EnhancedAvailabilityChecker({
     setLocalGuestCount(numberOfGuests);
   }, [checkInDate, checkOutDate, numberOfGuests]);
 
-  // This function checks if the selected dates are available
-  // using the already loaded unavailable dates (no API call needed)
-  const checkDatesAvailability = useCallback(() => {
-    console.log(`[EnhancedAvailabilityChecker] 🔄 CHECK_DATES_AVAILABILITY CALLED with:`, {
-      hasCheckIn: !!localCheckInDate,
-      hasCheckOut: !!localCheckOutDate,
-      unavailableDatesCount: unavailableDates.length
-    });
-    
-    if (!localCheckInDate || !localCheckOutDate) {
-      console.log(`[EnhancedAvailabilityChecker] ⚠️ SKIPPING CHECK: Missing check-in or check-out date`);
-      // Mark as checked even when we skip to prevent infinite loop attempts
-      setWasChecked(true);
-      return;
-    }
-    
-    // CRITICAL FIX: Even if unavailableDates is empty, we should still proceed
-    // In cloud environment, unavailableDates may be empty or delayed in loading
-    if (unavailableDates.length === 0) {
-      console.log(`[EnhancedAvailabilityChecker] ⚠️ No unavailable dates loaded, assuming dates are available`);
-      setIsAvailable(true);
-      setWasChecked(true);
-      
-      if (onAvailabilityResult) {
-        onAvailabilityResult(true);
-      }
-      
-      return;
-    }
-    
-    console.log(`[EnhancedAvailabilityChecker] 🔍 Checking dates: ${localCheckInDate.toISOString()} to ${localCheckOutDate.toISOString()}`);
-    setIsCheckingAvailability(true);
-    setError(null);
-    
-    try {
-      // Check if any selected date is in the unavailable dates list
-      let current = new Date(localCheckInDate.getTime());
-      let conflict = false;
-      
-      while (current < localCheckOutDate) {
-        const currentDateStr = format(startOfDay(current), 'yyyy-MM-dd');
-        const isUnavailable = unavailableDates.some(d => 
-          format(startOfDay(d), 'yyyy-MM-dd') === currentDateStr
-        );
-        
-        if (isUnavailable) {
-          console.log(`[EnhancedAvailabilityChecker] ❌ Conflict on date: ${currentDateStr}`);
-          conflict = true;
-          break;
-        }
-        
-        // Move to the next day
-        current.setDate(current.getDate() + 1);
-      }
-      
-      const available = !conflict;
-      console.log(`[EnhancedAvailabilityChecker] ✅ AVAILABILITY RESULT: ${available ? 'AVAILABLE' : 'NOT AVAILABLE'}`);
-      
-      // Update state and notify parent
-      setIsAvailable(available);
-      setWasChecked(true);
-      
-      if (onAvailabilityResult) {
-        console.log(`[EnhancedAvailabilityChecker] 🔄 Notifying parent of availability result: ${available}`);
-        onAvailabilityResult(available);
-      }
-      
-      // No toast notification needed
-    } catch (error) {
-      console.error('[EnhancedAvailabilityChecker] ❌ Error checking dates:', error);
-      setError('Error checking availability. Please try again.');
-      // Mark as checked even on error to prevent infinite loops
-      setWasChecked(true);
-      setIsAvailable(true); // CHANGED: Default to available on error for cloud compatibility
-      
-      if (onAvailabilityResult) {
-        onAvailabilityResult(true); // CHANGED: Default to available on error
-      }
-      
-      toast({
-        title: "Warning",
-        description: "Could not verify availability. Proceeding as available.",
-        variant: "warning",
-      });
-    } finally {
-      setIsCheckingAvailability(false);
-    }
-  }, [localCheckInDate, localCheckOutDate, unavailableDates, toast, onAvailabilityResult]);
+  // Removed checkDatesAvailability function - availability checking now handled by BookingContext
   
-  // Keep track of auto-check attempts to prevent infinite loops
-  const autoCheckAttemptsRef = useRef(0);
-  const MAX_AUTO_CHECK_ATTEMPTS = 5; // Increased to handle more retries
-
-  // Auto-check availability when data is loaded - with safety limits
+  // Simplified availability monitoring - just notify parent when availability changes
   useEffect(() => {
-    // Skip if we're already checking or if we're still loading data
-    if (isCheckingAvailability || isLoadingInitialData) {
-      console.log(`[EnhancedAvailabilityChecker] 🕒 WAITING: Still loading data or already checking...`);
-      return;
+    if (onAvailabilityResult && isAvailable !== null) {
+      console.log(`[EnhancedAvailabilityChecker] 🔄 Notifying parent of availability result: ${isAvailable}`);
+      onAvailabilityResult(isAvailable);
+      setWasChecked(true);
     }
-    
-    // Log state for debugging
-    console.log(`[EnhancedAvailabilityChecker] 🔍 AUTO-CHECK STATE:`, {
-      hasUnavailableDates: unavailableDates.length > 0,
-      hasCheckIn: !!localCheckInDate,
-      hasCheckOut: !!localCheckOutDate,
-      wasChecked,
-      attemptsMade: autoCheckAttemptsRef.current,
-      maxAttempts: MAX_AUTO_CHECK_ATTEMPTS
-    });
-    
-    // CRITICAL FIX: Force check if we have dates but haven't checked yet
-    const shouldForceCheck = localCheckInDate && localCheckOutDate && !wasChecked;
-    
-    // Check if we have everything we need and haven't checked yet
-    if (
-      (unavailableDates.length > 0 || shouldForceCheck) && // Modified to proceed even if no unavailable dates
-      localCheckInDate && 
-      localCheckOutDate && 
-      !wasChecked &&
-      autoCheckAttemptsRef.current < MAX_AUTO_CHECK_ATTEMPTS // Prevent infinite loops
-    ) {
-      console.log('==========================================');
-      console.log(`🔄 [EnhancedAvailabilityChecker] Auto-checking availability (attempt ${autoCheckAttemptsRef.current + 1}/${MAX_AUTO_CHECK_ATTEMPTS})`);
-      if (shouldForceCheck) {
-        console.log(`🚨 [EnhancedAvailabilityChecker] FORCING CHECK: Dates present but not checked yet`);
-      }
-      console.log('==========================================');
-      
-      // Increment attempt counter
-      autoCheckAttemptsRef.current++;
-      
-      // Small delay to ensure state updates are complete
-      const timerId = setTimeout(() => {
-        console.log(`[EnhancedAvailabilityChecker] ⏱️ EXECUTING DELAYED CHECK`);
-        checkDatesAvailability();
-        
-        // Double check that wasChecked got set
-        if (!wasChecked) {
-          console.log(`[EnhancedAvailabilityChecker] 🛠️ FAILSAFE: Setting wasChecked=true and isAvailable=true`);
-          // Failsafe - force these values if they weren't set
-          setTimeout(() => {
-            if (!wasChecked) {
-              setWasChecked(true);
-              setIsAvailable(true);
-              if (onAvailabilityResult) {
-                onAvailabilityResult(true);
-              }
-            }
-          }, 500);
-        }
-      }, 250); // Increased delay to ensure everything is ready
-      
-      return () => clearTimeout(timerId);
-    }
-  }, [
-    unavailableDates.length, 
-    localCheckInDate, 
-    localCheckOutDate, 
-    wasChecked, 
-    isCheckingAvailability, 
-    isLoadingInitialData,
-    checkDatesAvailability,
-    onAvailabilityResult
-  ]);
+  }, [isAvailable, onAvailabilityResult]);
 
   // Handle check-in date changes
   const handleCheckInChange = useCallback((date: Date | null) => {
@@ -288,11 +116,14 @@ export function EnhancedAvailabilityChecker({
       setCheckOutDate(null);
     }
 
-    // Reset availability state
+    // Reset availability state and trigger new check via context
     setWasChecked(false);
-    setIsAvailable(null);
-    setError(null);
-  }, [localCheckOutDate, setCheckInDate, setCheckOutDate]);
+    
+    // Trigger centralized availability check when both dates are present
+    if (date && localCheckOutDate) {
+      fetchAvailabilityAndPricing().catch(console.error);
+    }
+  }, [localCheckOutDate, setCheckInDate, setCheckOutDate, fetchAvailabilityAndPricing]);
 
   // Handle check-out date changes
   const handleCheckOutChange = useCallback((date: Date | null) => {
@@ -302,19 +133,14 @@ export function EnhancedAvailabilityChecker({
     setLocalCheckOutDate(date);
     setCheckOutDate(date);
 
-    // Reset availability state
+    // Reset availability state and trigger new check via context
     setWasChecked(false);
-    setIsAvailable(null);
-    setError(null);
     
-    // Automatically check availability if both dates are selected
-    if (date !== null && localCheckInDate !== null) {
-      setTimeout(() => {
-        console.log('[EnhancedAvailabilityChecker] Auto-checking availability after date selection');
-        checkDatesAvailability();
-      }, 100);
+    // Trigger centralized availability check when both dates are present
+    if (date && localCheckInDate) {
+      fetchAvailabilityAndPricing().catch(console.error);
     }
-  }, [setCheckOutDate, localCheckInDate, checkDatesAvailability]);
+  }, [setCheckOutDate, localCheckInDate, fetchAvailabilityAndPricing]);
 
   // Handle guest count changes
   const handleGuestCountChange = useCallback((count: number) => {
@@ -390,12 +216,12 @@ export function EnhancedAvailabilityChecker({
   // Create a derived value for min checkout date (always day after check-in)
   const minCheckoutDate = localCheckInDate ? addDays(localCheckInDate, 1) : new Date();
 
-  // Show loading state while fetching initial data
-  if (isLoadingInitialData) {
+  // Show loading state while fetching data from context
+  if (isAvailabilityLoading) {
     return (
       <div className="p-4 border border-blue-200 bg-blue-50 rounded-md flex items-center justify-center py-8">
         <Loader2 className="h-6 w-6 animate-spin text-blue-600 mr-2" />
-        <p className="text-blue-700">Loading availability data...</p>
+        <p className="text-blue-700">Loading availability data... (v2.0 - Pure UI)</p>
       </div>
     );
   }
@@ -407,13 +233,13 @@ export function EnhancedAvailabilityChecker({
         isAvailable ? (
           <div className="p-2 bg-green-50 border border-green-200 rounded-md mb-3">
             <p className="text-xs text-green-700">
-              <span className="text-green-600 font-medium">✓</span> Selected dates are available! <span className="font-light">(v1.3.1)</span>
+              <span className="text-green-600 font-medium">✓</span> Selected dates are available! <span className="font-light">(v2.0 - Pure UI)</span>
             </p>
           </div>
         ) : (
           <div className="p-2 bg-red-50 border border-red-200 rounded-md mb-3">
             <p className="text-xs text-red-700">
-              <span className="text-red-600 font-medium">✗</span> Selected dates are not available. <span className="font-light">(v1.3.1)</span>
+              <span className="text-red-600 font-medium">✗</span> Selected dates are not available. <span className="font-light">(v2.0 - Pure UI)</span>
             </p>
           </div>
         )
@@ -431,7 +257,7 @@ export function EnhancedAvailabilityChecker({
           onChange={handleCheckInChange}
           label="Check-in Date"
           placeholder="Select check-in date"
-          disabled={isCheckingAvailability}
+          disabled={isAvailabilityLoading}
           unavailableDates={unavailableDates}
           className="h-full"
         />
@@ -442,7 +268,7 @@ export function EnhancedAvailabilityChecker({
           onChange={handleCheckOutChange}
           label="Check-out Date"
           placeholder="Select check-out date"
-          disabled={isCheckingAvailability}
+          disabled={isAvailabilityLoading}
           minDate={minCheckoutDate}
           unavailableDates={unavailableDates}
           className="h-full"
@@ -455,7 +281,7 @@ export function EnhancedAvailabilityChecker({
             onChange={handleGuestCountChange}
             onPricingDataReceived={handlePricingDataReceived} // Add the new prop
             maxGuests={maxGuests}
-            disabled={isCheckingAvailability}
+            disabled={isAvailabilityLoading}
             className="h-full"
           />
         </div>
@@ -476,10 +302,10 @@ export function EnhancedAvailabilityChecker({
         </div>
       )}
 
-      {/* Error message */}
-      {error && (
+      {/* Error message from centralized state */}
+      {availabilityError && (
         <div className="mt-4 p-3 rounded bg-amber-50 border border-amber-200">
-          <p className="text-amber-800">{error}</p>
+          <p className="text-amber-800">{availabilityError}</p>
         </div>
       )}
 
