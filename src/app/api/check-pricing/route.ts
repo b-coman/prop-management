@@ -161,15 +161,20 @@ export async function POST(request: NextRequest) {
         }
       };
       
+      // Log both naming conventions for debugging
       console.log(`[check-pricing] 📊 Final pricing response for ${guests} guests:`, {
         subtotal: finalResponse.pricing.subtotal,
         totalPrice: finalResponse.pricing.totalPrice,
+        total: finalResponse.pricing.total,
         averageNightlyRate: finalResponse.pricing.averageNightlyRate,
         numberOfGuests: guests,
         baseOccupancy: property.baseOccupancy,
         extraGuestFee: property.extraGuestFee,
         dailyRatesSample: Object.entries(dailyPrices).slice(0, 2)
       });
+      
+      // Log field names for debugging naming inconsistencies
+      console.log(`[check-pricing] 🏷️ API FIELD NAMES: pricingDetails fields = [${Object.keys(pricingDetails).join(', ')}]`);
       
       return NextResponse.json(finalResponse);
     } else if (!meetsMinimumStay) {

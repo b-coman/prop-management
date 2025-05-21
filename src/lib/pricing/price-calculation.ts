@@ -285,6 +285,9 @@ export function calculateBookingPrice(
   const totalDiscountAmount = discountAmount + couponDiscountAmount;
   const total = subtotal - totalDiscountAmount;
   
+  // IMPORTANT: Return both 'total' and 'totalPrice' for backward compatibility
+  // This ensures code that expects either name will work
+  // The long-term solution is to standardize on 'totalPrice' across the codebase
   return {
     numberOfNights,
     accommodationTotal,
@@ -304,6 +307,8 @@ export function calculateBookingPrice(
         }
       : null,
     totalDiscountAmount,
-    total
+    total,
+    // Add totalPrice as alias of total for consistent naming
+    totalPrice: total
   };
 }

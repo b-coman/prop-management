@@ -96,7 +96,13 @@ export function BookingSummary({
 
       // Calculate total price, ensuring it's a valid number
       // CRITICAL FIX: Check for NaN or null values and provide safe fallbacks
-      const rawTotal = dynamicPricing.total;
+      // Also support both naming conventions (total and totalPrice) for backward compatibility
+      
+      // Try totalPrice first (new standard), then fall back to total (old), then subtotal
+      const rawTotal = dynamicPricing.totalPrice !== undefined ? dynamicPricing.totalPrice : dynamicPricing.total;
+      
+      console.log(`[BookingSummary/details] 🧮 NAME CHECK: totalPrice=${dynamicPricing.totalPrice}, total=${dynamicPricing.total}`);
+      
       const safeTotal = isNaN(rawTotal) || rawTotal === null || rawTotal === undefined 
           ? dynamicPricing.subtotal // Fall back to subtotal if total is invalid
           : rawTotal;

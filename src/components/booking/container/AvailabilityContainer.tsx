@@ -777,6 +777,7 @@ export function AvailabilityContainer({
           subtotal: data.pricing.subtotal,
           cleaningFee: data.pricing.cleaningFee, 
           totalPrice: data.pricing.totalPrice,
+          total: data.pricing.total, // Log both naming conventions for debugging
           currency: data.pricing.currency,
           hasDailyRates: !!data.pricing.dailyRates,
           dailyRatesCount: data.pricing.dailyRates ? Object.keys(data.pricing.dailyRates).length : 0
@@ -787,7 +788,8 @@ export function AvailabilityContainer({
           accommodationTotal: data.pricing.subtotal - (data.pricing.cleaningFee || 0),
           cleaningFee: data.pricing.cleaningFee || 0,
           subtotal: data.pricing.subtotal,
-          total: data.pricing.totalPrice,
+          // Support both naming conventions for backward compatibility
+          total: data.pricing.totalPrice !== undefined ? data.pricing.totalPrice : (data.pricing.total || 0),
           currency: data.pricing.currency as any,
           dailyRates: data.pricing.dailyRates || {},
           // Apply any discount from coupon if present
@@ -925,7 +927,8 @@ export function AvailabilityContainer({
                 accommodationTotal: pricingData.pricing.subtotal - (pricingData.pricing.cleaningFee || 0),
                 cleaningFee: pricingData.pricing.cleaningFee || 0,
                 subtotal: pricingData.pricing.subtotal, 
-                total: pricingData.pricing.totalPrice,
+                // Support both naming conventions for backward compatibility
+                total: pricingData.pricing.totalPrice !== undefined ? pricingData.pricing.totalPrice : (pricingData.pricing.total || 0),
                 currency: pricingData.pricing.currency as any,
                 dailyRates: pricingData.pricing.dailyRates || {},
                 // No coupon discount initially
