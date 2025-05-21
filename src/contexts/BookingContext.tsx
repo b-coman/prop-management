@@ -199,6 +199,10 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
   const prevCheckInDate = useRef<Date | null>(null);
   const prevCheckOutDate = useRef<Date | null>(null);
   
+  // Prevent infinite fetch loops with timeout-based debouncing
+  const isFetchingRef = useRef(false);
+  const lastFetchTimeRef = useRef(0);
+  
   // Set up synced storage hooks for each state piece
   const [storedPropertySlug, setStoredPropertySlug] = useSyncedSessionStorage<string | null>(
     `${storagePrefix}propertySlug`,
@@ -604,12 +608,29 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     isAvailable,
   };
   
-  // Effect to auto-fetch pricing when dates or guests change
+  // Effect to auto-fetch BOTH availability and pricing when property/dates/guests change
   React.useEffect(() => {
-    // Only run if we have all required data and no pricing loading is in progress
-    if (storedPropertySlug && checkInDate && checkOutDate && numberOfNights > 0 && !isPricingLoading) {
-      // Check if we need to fetch pricing with more detailed logging
-      const needsFetch = (
+    // Simple debouncing - prevent excessive calls
+    const now = Date.now();
+    if (now - lastFetchTimeRef.current < 1000) { // Minimum 1 second between calls
+      console.log(`[BookingContext] Debouncing fetch call`);
+      return;
+    }
+    
+    // Prevent infinite loops
+    if (isFetchingRef.current) {
+      console.log(`[BookingContext] Skipping fetch: Already fetching`);
+      return;
+    }
+    
+    // Only run if we have property slug and no loading is in progress
+    if (storedPropertySlug && !isPricingLoading && !isAvailabilityLoading) {
+      
+      // Only fetch availability when property changes and we have no data yet
+      const needsAvailabilityFetch = unavailableDates.length === 0;
+      
+      // Check if we need to fetch pricing (only when we have dates)
+      const needsPricingFetch = checkInDate && checkOutDate && numberOfNights > 0 && (
         // If we have no pricing details yet
         !pricingDetails || 
         // Or if the dates have changed
@@ -620,30 +641,24 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
         ))
       );
       
-      if (needsFetch) {
-        // Log specific reason for fetch
-        if (!pricingDetails) {
-          console.log(`[BookingContext] Auto-fetching pricing: No existing pricing data`);
-        } else if (pricingDetails.datesFetched) {
-          console.log(`[BookingContext] Auto-fetching pricing: Data change detected`);
-          console.log(`[BookingContext] Date comparison:`);
-          console.log(`- Stored check-in: ${pricingDetails.datesFetched.checkIn}`);
-          console.log(`- Current check-in: ${checkInDate.toISOString()}`);
-          console.log(`- Stored check-out: ${pricingDetails.datesFetched.checkOut}`);
-          console.log(`- Current check-out: ${checkOutDate.toISOString()}`);
-          console.log(`- Stored guests: ${pricingDetails.datesFetched.guestCount}`);
-          console.log(`- Current guests: ${numberOfGuests}`);
-        }
+      if (needsAvailabilityFetch || needsPricingFetch) {
+        console.log(`[BookingContext] Auto-fetching: availability=${needsAvailabilityFetch}, pricing=${needsPricingFetch}`);
         
-        fetchPricing().catch(error => {
-          console.error(`[BookingContext] Auto-fetch pricing error:`, error);
-        });
+        lastFetchTimeRef.current = now;
+        isFetchingRef.current = true;
+        
+        fetchAvailabilityAndPricing()
+          .catch(error => {
+            console.error(`[BookingContext] Auto-fetch error:`, error);
+          })
+          .finally(() => {
+            isFetchingRef.current = false;
+          });
       } else {
-        console.log(`[BookingContext] Skipping price fetch: Using existing data with same parameters`);
+        console.log(`[BookingContext] Skipping fetch: Using existing data`);
       }
     }
-  }, [storedPropertySlug, checkInDate, checkOutDate, numberOfNights, numberOfGuests, 
-      pricingDetails, isPricingLoading, fetchPricing]);
+  }, [storedPropertySlug, checkInDate, checkOutDate, numberOfNights, numberOfGuests]);
 
   // Action to clear all booking data
   const clearBookingData = useCallback(() => {

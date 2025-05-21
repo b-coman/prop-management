@@ -66,22 +66,10 @@ export function EnhancedAvailabilityChecker({
   const [localCheckOutDate, setLocalCheckOutDate] = useState<Date | null>(checkOutDate);
   const [localGuestCount, setLocalGuestCount] = useState<number>(numberOfGuests);
   
-  // Trigger centralized data loading when component mounts
+  // Component mount effect - just log that we're ready, BookingContext handles fetching
   useEffect(() => {
-    console.log("==========================================");
-    console.log("🔍 [EnhancedAvailabilityChecker] PURE UI COMPONENT - Triggering centralized data fetch");
-    console.log("==========================================");
-    
-    // Call the centralized fetch function from BookingContext
-    fetchAvailabilityAndPricing().catch(error => {
-      console.error('[EnhancedAvailabilityChecker] Error triggering centralized fetch:', error);
-      toast({
-        title: "Warning",
-        description: "Could not load availability data. Please try again.",
-        variant: "destructive",
-      });
-    });
-  }, [propertySlug, fetchAvailabilityAndPricing, toast]);
+    console.log("🔍 [EnhancedAvailabilityChecker] PURE UI COMPONENT - Mounted (fetching handled by BookingContext)");
+  }, [propertySlug]);
   
   // Sync from context to local state when component mounts or context changes
   useEffect(() => {
@@ -116,14 +104,9 @@ export function EnhancedAvailabilityChecker({
       setCheckOutDate(null);
     }
 
-    // Reset availability state and trigger new check via context
+    // Reset availability state - auto-fetch will trigger from BookingContext
     setWasChecked(false);
-    
-    // Trigger centralized availability check when both dates are present
-    if (date && localCheckOutDate) {
-      fetchAvailabilityAndPricing().catch(console.error);
-    }
-  }, [localCheckOutDate, setCheckInDate, setCheckOutDate, fetchAvailabilityAndPricing]);
+  }, [localCheckOutDate, setCheckInDate, setCheckOutDate]);
 
   // Handle check-out date changes
   const handleCheckOutChange = useCallback((date: Date | null) => {
@@ -133,14 +116,9 @@ export function EnhancedAvailabilityChecker({
     setLocalCheckOutDate(date);
     setCheckOutDate(date);
 
-    // Reset availability state and trigger new check via context
+    // Reset availability state - auto-fetch will trigger from BookingContext
     setWasChecked(false);
-    
-    // Trigger centralized availability check when both dates are present
-    if (date && localCheckInDate) {
-      fetchAvailabilityAndPricing().catch(console.error);
-    }
-  }, [setCheckOutDate, localCheckInDate, fetchAvailabilityAndPricing]);
+  }, [setCheckOutDate, localCheckInDate]);
 
   // Handle guest count changes
   const handleGuestCountChange = useCallback((count: number) => {
