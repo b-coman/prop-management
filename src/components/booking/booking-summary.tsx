@@ -82,6 +82,7 @@ export function BookingSummary({
     // If dynamic pricing is provided, use it
     if (dynamicPricing) {
       console.log(`[BookingSummary/details] 🔢 Rendering with dynamicPricing:`, dynamicPricing);
+      console.log(`[BookingSummary/details] 🧮 Critical values: total=${dynamicPricing.total}, subtotal=${dynamicPricing.subtotal}`);
       
       const baseCurrency = dynamicPricing.currency || propertyBaseCcy;
 
@@ -93,21 +94,30 @@ export function BookingSummary({
           }, {} as Record<string, number>)
         : {};
 
+      // Calculate total price, ensuring it's a valid number
+      // CRITICAL FIX: Check for NaN or null values and provide safe fallbacks
+      const rawTotal = dynamicPricing.total;
+      const safeTotal = isNaN(rawTotal) || rawTotal === null || rawTotal === undefined 
+          ? dynamicPricing.subtotal // Fall back to subtotal if total is invalid
+          : rawTotal;
+          
+      console.log(`[BookingSummary/details] 🔢 Total price calculation: rawTotal=${rawTotal}, safeTotal=${safeTotal}`);
+
       return {
         useDynamicModel: true,
-        accommodationTotal: convertToSelectedCurrency(dynamicPricing.accommodationTotal, baseCurrency),
-        cleaningFee: convertToSelectedCurrency(dynamicPricing.cleaningFee, baseCurrency),
-        subtotal: convertToSelectedCurrency(dynamicPricing.subtotal, baseCurrency),
+        accommodationTotal: convertToSelectedCurrency(dynamicPricing.accommodationTotal || 0, baseCurrency),
+        cleaningFee: convertToSelectedCurrency(dynamicPricing.cleaningFee || 0, baseCurrency),
+        subtotal: convertToSelectedCurrency(dynamicPricing.subtotal || 0, baseCurrency),
         lengthOfStayDiscount: dynamicPricing.lengthOfStayDiscount
           ? {
               discountPercentage: dynamicPricing.lengthOfStayDiscount.discountPercentage,
-              discountAmount: convertToSelectedCurrency(dynamicPricing.lengthOfStayDiscount.discountAmount, baseCurrency)
+              discountAmount: convertToSelectedCurrency(dynamicPricing.lengthOfStayDiscount.discountAmount || 0, baseCurrency)
             }
           : null,
         couponDiscount: dynamicPricing.couponDiscount
           ? {
               discountPercentage: dynamicPricing.couponDiscount.discountPercentage,
-              discountAmount: convertToSelectedCurrency(dynamicPricing.couponDiscount.discountAmount, baseCurrency)
+              discountAmount: convertToSelectedCurrency(dynamicPricing.couponDiscount.discountAmount || 0, baseCurrency)
             }
           : null,
         totalDiscountAmount: convertToSelectedCurrency(
@@ -115,7 +125,8 @@ export function BookingSummary({
           (dynamicPricing.couponDiscount?.discountAmount || 0),
           baseCurrency
         ),
-        total: convertToSelectedCurrency(dynamicPricing.total, baseCurrency),
+        // Use the safe total to prevent NaN issues
+        total: convertToSelectedCurrency(safeTotal, baseCurrency),
         numberOfNights: numberOfNights,
         numberOfGuests: numberOfGuests,
         dailyRates: dailyRatesForDisplay
