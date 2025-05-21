@@ -19,6 +19,8 @@ interface EnhancedAvailabilityCheckerProps {
   maxGuests: number;
   onAvailabilityResult?: (isAvailable: boolean | null) => void;
   onGuestCountChange?: (count: number) => void;
+  // Add new prop for pricing data
+  onPricingDataReceived?: (pricingData: any) => void;
 }
 
 /**
@@ -31,7 +33,8 @@ export function EnhancedAvailabilityChecker({
   propertyName,
   maxGuests,
   onAvailabilityResult,
-  onGuestCountChange
+  onGuestCountChange,
+  onPricingDataReceived // New prop
 }: EnhancedAvailabilityCheckerProps) {
   // Get values from booking context
   const {
@@ -291,6 +294,16 @@ export function EnhancedAvailabilityChecker({
 
     console.log(`[EnhancedAvailabilityChecker] ✅ Guest count updated to: ${count}`);
   }, [setNumberOfGuests, localCheckInDate, localCheckOutDate, numberOfNights, onGuestCountChange]);
+  
+  // Add handler for pricing data from GuestSelector
+  const handlePricingDataReceived = useCallback((data: any) => {
+    console.log(`[EnhancedAvailabilityChecker] 💰 Received pricing data from GuestSelector:`, data);
+    
+    if (onPricingDataReceived) {
+      console.log(`[EnhancedAvailabilityChecker] 🔄 Passing pricing data to parent container`);
+      onPricingDataReceived(data);
+    }
+  }, [onPricingDataReceived]);
 
   // Create a derived value for min checkout date (always day after check-in)
   const minCheckoutDate = localCheckInDate ? addDays(localCheckInDate, 1) : new Date();
@@ -358,6 +371,7 @@ export function EnhancedAvailabilityChecker({
           <GuestSelector
             value={localGuestCount}
             onChange={handleGuestCountChange}
+            onPricingDataReceived={handlePricingDataReceived} // Add the new prop
             maxGuests={maxGuests}
             disabled={isCheckingAvailability}
             className="h-full"

@@ -8,6 +8,8 @@ import { Label } from '@/components/ui/label';
 interface GuestSelectorProps {
   value: number;
   onChange: (value: number) => void;
+  // Add new callback prop to pass pricing data
+  onPricingDataReceived?: (pricingData: any) => void;
   minGuests?: number;
   maxGuests: number;
   disabled?: boolean;
@@ -23,6 +25,7 @@ interface GuestSelectorProps {
 export function GuestSelector({
   value,
   onChange,
+  onPricingDataReceived, // New prop
   minGuests = 1,
   maxGuests,
   disabled = false,
@@ -87,6 +90,12 @@ export function GuestSelector({
         
         const data = await response.json();
         console.log(`[GuestSelector] ✅ Direct API call successful:`, data);
+        
+        // Pass the pricing data back to parent component
+        if (onPricingDataReceived && data.pricing) {
+          console.log(`[GuestSelector] 🔄 Passing pricing data to parent component`);
+          onPricingDataReceived(data);
+        }
         
         // Display a message to show the price updating
         const priceEl = document.querySelector('.booking-summary');
@@ -159,6 +168,12 @@ export function GuestSelector({
         
         const data = await response.json();
         console.log(`[GuestSelector] ✅ Direct API call successful:`, data);
+        
+        // Pass the pricing data back to parent component
+        if (onPricingDataReceived && data.pricing) {
+          console.log(`[GuestSelector] 🔄 Passing pricing data to parent component`);
+          onPricingDataReceived(data);
+        }
         
         // Display a message to show the price updating
         const priceEl = document.querySelector('.booking-summary');

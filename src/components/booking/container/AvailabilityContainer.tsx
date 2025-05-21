@@ -722,71 +722,40 @@ export function AvailabilityContainer({
     // Generate a unique key to force a fresh pricing fetch
     const newFetchKey = `${property?.slug}_${checkInDate?.toISOString() || 'null'}_${checkOutDate?.toISOString() || 'null'}_${count}_${Date.now()}`;
     console.log(`[AvailabilityContainer] 🔄 Forcing price refetch with new key: ${newFetchKey}`);
-    setPricingFetchKey(null); // First set to null
+    setPricingFetchKey(null); // First set to null to force a refetch
+  }, [setNumberOfGuests, property, checkInDate, checkOutDate]);
+  
+  // Add a new handler to receive pricing data directly from GuestSelector
+  const handlePricingDataReceived = useCallback((data: any) => {
+    console.log(`[AvailabilityContainer] 📊 Received direct pricing data for ${guestCount} guests:`, data);
     
-    // Make a direct call to fetch pricing with the updated guest count
-    if (checkInDate && checkOutDate && property?.slug) {
-      const fetchDirect = async () => {
-        try {
-          console.log(`[AvailabilityContainer] 🔄 Directly calling getPricingForDateRange with count=${count}`);
-          // Direct import with full path to make sure we get the correct module
-          const { getPricingForDateRange } = await import('@/services/availabilityService');
-          
-          // Verify function exists
-          if (typeof getPricingForDateRange !== 'function') {
-            console.error(`[AvailabilityContainer] ❌ getPricingForDateRange function not found!`);
-            return;
-          }
-          
-          // Call the pricing function with specific parameters
-          setIsPricingLoading(true);
-          const pricingData = await getPricingForDateRange(
-            property.slug,
-            checkInDate,
-            checkOutDate,
-            Number(count) // Ensure it's a number
-          );
-          
-          if (pricingData && pricingData.pricing) {
-            console.log(`[AvailabilityContainer] ✅ Received direct pricing data for ${count} guests:`, pricingData);
-            
-            // Store the dynamic pricing data
-            setDynamicPricingDetails({
-              accommodationTotal: pricingData.pricing.subtotal - (pricingData.pricing.cleaningFee || 0),
-              cleaningFee: pricingData.pricing.cleaningFee || 0,
-              subtotal: pricingData.pricing.subtotal,
-              total: pricingData.pricing.totalPrice,
-              currency: pricingData.pricing.currency as any,
-              dailyRates: pricingData.pricing.dailyRates || {},
-              // Apply any discount from coupon if present
-              couponDiscount: appliedCoupon ? {
-                discountPercentage: appliedCoupon.discountPercentage,
-                discountAmount: (pricingData.pricing.subtotal * appliedCoupon.discountPercentage) / 100
-              } : null
-            });
-            
-            // Store the fetch key to prevent redundant fetches
-            setPricingFetchKey(newFetchKey);
-          } else {
-            console.error(`[AvailabilityContainer] ❌ No valid pricing data available from direct call`);
-          }
-        } catch (error) {
-          console.error(`[AvailabilityContainer] Error in direct pricing fetch:`, error);
-        } finally {
-          setIsPricingLoading(false);
-        }
-      };
+    // Only process if we have valid pricing data
+    if (data && data.pricing) {
+      console.log(`[AvailabilityContainer] ✅ Setting dynamicPricingDetails with direct API response`);
       
-      // Execute the direct fetch
-      fetchDirect();
-    } else {
-      // Schedule setting the new fetch key to ensure React recognizes the change
-      setTimeout(() => {
-        console.log(`[AvailabilityContainer] 🔄 Setting new fetch key to trigger price API call`);
-        setPricingFetchKey(newFetchKey);
-      }, 50);
+      // Store the dynamic pricing data directly from the API response
+      setDynamicPricingDetails({
+        accommodationTotal: data.pricing.subtotal - (data.pricing.cleaningFee || 0),
+        cleaningFee: data.pricing.cleaningFee || 0,
+        subtotal: data.pricing.subtotal,
+        total: data.pricing.totalPrice,
+        currency: data.pricing.currency as any,
+        dailyRates: data.pricing.dailyRates || {},
+        // Apply any discount from coupon if present
+        couponDiscount: appliedCoupon ? {
+          discountPercentage: appliedCoupon.discountPercentage,
+          discountAmount: (data.pricing.subtotal * appliedCoupon.discountPercentage) / 100
+        } : null
+      });
+      
+      // Store the fetch key to prevent redundant fetches
+      const currentFetchKey = `${property?.slug}_${checkInDate?.toISOString() || 'null'}_${checkOutDate?.toISOString() || 'null'}_${guestCount}`;
+      setPricingFetchKey(currentFetchKey);
+      
+      // Set loading to false since we have the data
+      setIsPricingLoading(false);
     }
-  }, [setNumberOfGuests, property, checkInDate, checkOutDate, appliedCoupon, setIsPricingLoading]);
+  }, [guestCount, property, checkInDate, checkOutDate, appliedCoupon, setIsPricingLoading]);
 
   // Initialize local state from context and sync changes
   React.useEffect(() => {
@@ -963,6 +932,7 @@ export function AvailabilityContainer({
               setWasChecked(true);
             }}
             onGuestCountChange={handleGuestCountChange}
+            onPricingDataReceived={handlePricingDataReceived}
           />
         )}
       </ErrorBoundary>
