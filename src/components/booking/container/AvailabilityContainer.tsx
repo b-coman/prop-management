@@ -58,7 +58,7 @@ export function AvailabilityContainer({
   // Debug marker just once using a static reference to prevent repeated logs
   React.useRef(() => {
     // Only log once during component lifetime
-    console.log("[DEBUG] 🏆 AvailabilityContainer v1.3.0 with Centralized Pricing");
+    console.log("[DEBUG] 🏆 AvailabilityContainer v1.3.1 with Full Centralized Pricing");
   }).current();
   
   // Get language hook for translations
@@ -138,7 +138,7 @@ export function AvailabilityContainer({
     />
   );
   
-  // Handler for checking availability
+  // Handler for checking availability - simplified to sync with EnhancedAvailabilityChecker
   const handleCheckAvailability = useCallback(async () => {
     console.log(`[AvailabilityContainer] 🔄 HANDLE_CHECK_AVAILABILITY called:`, {
       hasCheckIn: !!checkInDate,
@@ -180,7 +180,8 @@ export function AvailabilityContainer({
       if (result.isAvailable) {
         console.log(`[AvailabilityContainer] 💰 Dates are available, fetching centralized pricing data`);
         
-        // Fetch pricing data using the context's centralized function
+        // Fetch pricing data using the context's centralized function ONLY
+        // No manual API call should be made here
         fetchPricing().catch(error => {
           console.error(`[AvailabilityContainer] ❌ Error fetching centralized pricing:`, error);
         });
@@ -639,7 +640,7 @@ export function AvailabilityContainer({
       numberOfNights, sessionFirstName, sessionLastName, sessionEmail, sessionPhone, selectedCurrency, 
       router, toast]);
   
-  // Handler for updating the guest count
+  // Handler for updating the guest count - with centralized pricing sync
   const handleGuestCountChange = useCallback((count: number) => {
     console.log(`[AvailabilityContainer] 🧑‍🤝‍🧑 Guest count changed to: ${count} - updating local state and context`);
     
@@ -648,19 +649,21 @@ export function AvailabilityContainer({
     setNumberOfGuests(count);
     
     // If dates are selected and availability was already checked, refetch pricing
+    // This is now the ONLY place that triggers pricing updates for guest count changes
     if (checkInDate && checkOutDate && wasChecked && isAvailable) {
       console.log(`[AvailabilityContainer] 🔄 Guest count changed with valid dates - refetching pricing`);
       
-      // Fetch pricing with new guest count
+      // Let BookingContext handle the pricing fetch - rely completely on centralized pricing
       fetchPricing().catch(error => {
         console.error(`[AvailabilityContainer] ❌ Error refetching pricing:`, error);
       });
     }
   }, [setNumberOfGuests, checkInDate, checkOutDate, wasChecked, isAvailable, fetchPricing]);
   
-  // No longer needed - pricing is now managed by the centralized context
-  const handlePricingDataReceived = useCallback((data: any) => {
-    console.log(`[AvailabilityContainer] 📊 External pricing data callback received - IGNORING since using centralized pricing`);
+  // Handler for external pricing data - completely ignored since we use centralized pricing
+  const handlePricingDataReceived = useCallback(() => {
+    console.log(`[AvailabilityContainer] 📊 External pricing data callback received - COMPLETELY IGNORED, using centralized pricing only`);
+    // Do nothing - the BookingContext will handle all pricing data management
   }, []);
 
   // Initialize local state from context and sync changes
@@ -673,41 +676,8 @@ export function AvailabilityContainer({
     if (contextMessage) setSessionMessage(contextMessage);
   }, [contextFirstName, contextLastName, contextEmail, contextPhone, contextMessage]);
 
-  // Calculate pricing when necessary values change - used only as a fallback
-  React.useEffect(() => {
-    if (checkInDate && checkOutDate && numberOfNights > 0 && guestCount > 0) {
-      // This is a simplified calculation, in a real app this would use the price utilities
-      const basePrice = property.pricePerNight || 100;
-      const cleaningFee = property.cleaningFee || 50;
-      const baseOccupancy = property.baseOccupancy || 2;
-      const extraGuestFee = property.extraGuestFee || 20;
-
-      const extraGuests = Math.max(0, guestCount - baseOccupancy);
-      const extraGuestTotal = extraGuests * extraGuestFee * numberOfNights;
-
-      const subtotal = (basePrice * numberOfNights) + cleaningFee + extraGuestTotal;
-
-      // Apply discount if coupon exists
-      const discountAmount = appliedCoupon ? (subtotal * (appliedCoupon.discountPercentage / 100)) : 0;
-      const total = subtotal - discountAmount;
-
-      // Update pricing details - this is now used only as a fallback
-      setPricingDetailsInBaseCurrency({
-        basePrice,
-        cleaningFee,
-        extraGuestFeeTotal: extraGuestTotal,
-        numberOfExtraGuests: extraGuests,
-        subtotal,
-        discountAmount,
-        total,
-        currency: propertyBaseCcy,
-        numberOfNights
-      });
-    } else {
-      // Reset pricing details if necessary data is missing
-      setPricingDetailsInBaseCurrency(null);
-    }
-  }, [checkInDate, checkOutDate, numberOfNights, guestCount, property, appliedCoupon, propertyBaseCcy]);
+  // We don't need a local pricing calculation anymore - completely rely on BookingContext
+  // This removes a source of duplicate API calls and pricing state inconsistencies
 
   // Sync session state back to context
   React.useEffect(() => {
@@ -745,7 +715,7 @@ export function AvailabilityContainer({
       {/* Content based on availability */}
       {/* Debug info for troubleshooting */}
       <div className="text-xs p-1 mt-2 bg-slate-100 border border-slate-200 text-slate-800 rounded">
-        <div>DEBUG: wasChecked={wasChecked ? 'true' : 'false'} | isAvailable={isAvailable ? 'true' : 'false'}</div>
+        <div>DEBUG (v1.3.1): wasChecked={wasChecked ? 'true' : 'false'} | isAvailable={isAvailable ? 'true' : 'false'}</div>
         <div>guestCount={guestCount} | hasPricing={pricingDetails ? 'true' : 'false'} | isPricingLoading={isPricingLoading ? 'true' : 'false'}</div>
       </div>
       
@@ -760,7 +730,7 @@ export function AvailabilityContainer({
               <>
               {/* Real booking summary component with centralized pricing */}
               <div className="text-xs p-1 mb-2 bg-green-50 text-green-700 rounded text-center">
-                Using Centralized Pricing v1.3.0
+                Using Centralized Pricing v1.3.1
               </div>
               
               {isPricingLoading ? (
@@ -780,7 +750,7 @@ export function AvailabilityContainer({
                   <div className="text-xs text-right mt-1 text-slate-500">
                     Source: {pricingDetails.dailyRates ? 
                       `Centralized API Pricing (${Object.keys(pricingDetails.dailyRates).length} days)` : 
-                      'Centralized Pricing'}
+                      'Centralized Pricing'} - v1.3.1
                   </div>
                 </>
               ) : (

@@ -407,13 +407,13 @@ export function EnhancedAvailabilityChecker({
         isAvailable ? (
           <div className="p-2 bg-green-50 border border-green-200 rounded-md mb-3">
             <p className="text-xs text-green-700">
-              <span className="text-green-600 font-medium">✓</span> Selected dates are available!
+              <span className="text-green-600 font-medium">✓</span> Selected dates are available! <span className="font-light">(v1.3.1)</span>
             </p>
           </div>
         ) : (
           <div className="p-2 bg-red-50 border border-red-200 rounded-md mb-3">
             <p className="text-xs text-red-700">
-              <span className="text-red-600 font-medium">✗</span> Selected dates are not available.
+              <span className="text-red-600 font-medium">✗</span> Selected dates are not available. <span className="font-light">(v1.3.1)</span>
             </p>
           </div>
         )
