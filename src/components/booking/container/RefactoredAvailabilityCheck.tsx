@@ -28,11 +28,15 @@ export function RefactoredAvailabilityCheck({
   onAvailabilityChecked,
   preloadedUnavailableDates = [] // Default to empty array if not provided
 }: RefactoredAvailabilityCheckProps) {
+  // Add PROMINENT debug log to see which component is rendered
+  console.log(`%c[TRACK_RENDERED_COMPONENT] REFACTORED AvailabilityCheck MOUNTED at ${new Date().toISOString()}`, 'color: red; font-weight: bold; font-size: 14px;');
+  console.log(`%c[TRACK_RENDERED_COMPONENT] property: ${property?.slug}, initialCheckIn: ${initialCheckIn}, initialCheckOut: ${initialCheckOut}`, 'color: red;');
+  
   // Log each render for debugging
   console.log(`[RefactoredAvailabilityCheck] Rendering with property: ${property.slug}, initialCheckIn: ${initialCheckIn}, initialCheckOut: ${initialCheckOut}`);
   
-  // Get translation function
-  const { tc } = useLanguage();
+  // Get translation functions
+  const { t, tc } = useLanguage();
   
   // Get values from booking context with error handling
   const bookingContext = React.useMemo(() => {
@@ -205,15 +209,21 @@ export function RefactoredAvailabilityCheck({
   
   return (
     <div className="max-w-2xl mx-auto w-full px-4 md:px-0">
-      <div className="p-4 border border-blue-200 bg-blue-50 rounded-md mb-4">
-        <h3 className="font-medium text-blue-800">Availability Checker</h3>
-        <p className="text-sm text-blue-700">Check if dates are available using the server-side API.</p>
+      <div className="p-4 border border-blue-300 bg-blue-50 rounded-md mb-4">
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mb-4 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+            <p className="text-xs text-yellow-700">REFACTORED COMPONENT - This is the new container-based version</p>
+          </div>
+        )}
+        
+        <h3 className="font-medium text-blue-800">{t('booking.checkAvailability')}</h3>
+        <p className="text-sm text-blue-700">{t('property.propertyDetails')}</p>
 
         <div className="mt-4 grid grid-cols-1 gap-4">
           <div className="bg-white p-3 rounded shadow-sm">
             <h4 className="font-medium flex items-center mb-2">
               <Calendar className="h-4 w-4 mr-1" />
-              Property
+              {t('property.propertyDetails')}
             </h4>
             <p className="text-sm">{tc(property.name) || property.slug}</p>
           </div>
@@ -233,7 +243,7 @@ export function RefactoredAvailabilityCheck({
             />
             {unavailableDates.length > 0 && (
               <p className="text-xs text-muted-foreground mt-2">
-                <span className="text-amber-600">•</span> Some dates are not available (marked with strikethrough)
+                <span className="text-amber-600">•</span> {t('booking.someUnavailableDates')}
               </p>
             )}
           </div>
@@ -247,16 +257,21 @@ export function RefactoredAvailabilityCheck({
                 <>
                   <Check className="h-5 w-5 text-green-600 mr-2" />
                   <div>
-                    <h4 className="font-medium text-green-800">Available!</h4>
-                    <p className="text-sm text-green-700">These dates are available for booking.</p>
+                    <h4 className="font-medium text-green-800">{t('booking.datesAvailable')}</h4>
+                    <p className="text-sm text-green-700">{t('booking.availabilitySuccess')
+                      .replace('{{checkIn}}', checkInDate ? format(checkInDate, 'MMM d, yyyy') : '')
+                      .replace('{{checkOut}}', checkOutDate ? format(checkOutDate, 'MMM d, yyyy') : '')
+                      .replace('{{nights}}', String(numberOfNights))}</p>
                   </div>
                 </>
               ) : (
                 <>
                   <X className="h-5 w-5 text-red-600 mr-2" />
                   <div>
-                    <h4 className="font-medium text-red-800">Not Available</h4>
-                    <p className="text-sm text-red-700">The selected dates are not available.</p>
+                    <h4 className="font-medium text-red-800">{t('booking.datesUnavailable')}</h4>
+                    <p className="text-sm text-red-700">{t('booking.datesUnavailableMessage')
+                      .replace('{{checkIn}}', checkInDate ? format(checkInDate, 'MMM d') : '')
+                      .replace('{{checkOut}}', checkOutDate ? format(checkOutDate, 'MMM d') : '')}</p>
                   </div>
                 </>
               )}
@@ -358,7 +373,7 @@ export function RefactoredAvailabilityCheck({
               disabled={isLoadingAvailability || !checkInDate || !checkOutDate} // Disable if loading or dates not selected
               data-auto-check="true"
             >
-              {isLoadingAvailability ? 'Checking...' : 'Check Availability'}
+              {isLoadingAvailability ? t('booking.checkingAvailability') : t('booking.checkAvailability')}
             </Button>
           </div>
         )}

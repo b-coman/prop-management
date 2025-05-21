@@ -1,4 +1,6 @@
 // src/components/booking/availability-check.tsx
+// OBSOLETE: This component is deprecated. Please use RefactoredAvailabilityCheck instead.
+// This file will be moved to /src/archive in a future cleanup.
 "use client";
 
 import *
@@ -60,6 +62,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useBooking } from '@/contexts/BookingContext';
 import { sanitizeEmail, sanitizePhone, sanitizeText } from '@/lib/sanitize';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useLanguage } from '@/hooks/useLanguage';
 import { calculatePrice } from '@/lib/price-utils';
 import { cn } from '@/lib/utils';
 import { Label } from "@/components/ui/label";
@@ -96,13 +99,19 @@ const inquiryFormSchema = z.object({
 
 
 function AvailabilityCheck({
+  // @deprecated Use RefactoredAvailabilityCheck from container/ instead
   property,
   initialCheckIn,
   initialCheckOut,
 }: AvailabilityCheckProps) {
+  // Add PROMINENT debug log to see which component is rendered
+  console.log(`%c[TRACK_RENDERED_COMPONENT] ORIGINAL AvailabilityCheck MOUNTED at ${new Date().toISOString()}`, 'color: blue; font-weight: bold; font-size: 14px;');
+  console.log(`%c[TRACK_RENDERED_COMPONENT] property: ${property?.slug}, initialCheckIn: ${initialCheckIn}, initialCheckOut: ${initialCheckOut}`, 'color: blue;');
+  
   const router = useRouter();
   const { toast } = useToast();
   const { selectedCurrency, baseCurrencyForProperty, convertToSelectedCurrency, formatPrice } = useCurrency();
+  const { t } = useLanguage();
   const propertySlug = property.slug;
   const propertyBaseCcy = baseCurrencyForProperty(property.baseCurrency);
 
@@ -141,15 +150,17 @@ function AvailabilityCheck({
     // Mark as initialized to avoid re-entry
     initializedFromContext.current = true;
 
-    // Debug info - this will help diagnose issues
-    console.log('[AvailabilityCheck] Initializing with:', {
-      propertySlug,
-      initialCheckIn,
-      initialCheckOut,
-      existingCheckInDate: checkInDate && checkInDate.toISOString(),
-      existingCheckOutDate: checkOutDate && checkOutDate.toISOString(),
-      hasDates: !!checkInDate && !!checkOutDate
-    });
+    // Only log debug info in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[AvailabilityCheck] Initializing with:', {
+        propertySlug,
+        initialCheckIn,
+        initialCheckOut,
+        existingCheckInDate: checkInDate && checkInDate.toISOString(),
+        existingCheckOutDate: checkOutDate && checkOutDate.toISOString(),
+        hasDates: !!checkInDate && !!checkOutDate
+      });
+    }
 
     // Set the property slug (should also be set by BookingClient, but ensure it's set)
     setPropertySlug(propertySlug);
@@ -368,16 +379,22 @@ function AvailabilityCheck({
 
   const checkPropertyAvailability = useCallback(async () => {
     // Force log the dates we're checking to help debug
-    console.log("==========================================");
-    console.log("🚨 MANUAL AVAILABILITY CHECK TRIGGERED 🚨");
-    console.log("==========================================");
+    // Only log debug info in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.log("==========================================");
+      console.log("🚨 MANUAL AVAILABILITY CHECK TRIGGERED 🚨");
+      console.log("==========================================");
+    }
 
-    console.log("🔍 [AvailabilityCheck] Starting availability check for property:" + propertySlug, {
-      from: checkInDate ? checkInDate.toISOString() : 'null',
-      to: checkOutDate ? checkOutDate.toISOString() : 'null',
-      numNights: clientNumberOfNights,
-      propertySlug: propertySlug
-    });
+    // Only log debug info in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.log("🔍 [AvailabilityCheck] Starting availability check for property:" + propertySlug, {
+        from: checkInDate ? checkInDate.toISOString() : 'null',
+        to: checkOutDate ? checkOutDate.toISOString() : 'null',
+        numNights: clientNumberOfNights,
+        propertySlug: propertySlug
+      });
+    }
 
     // Always reset the state first
     setIsAvailable(null);
@@ -386,7 +403,9 @@ function AvailabilityCheck({
     // Don't reset selectedOption when just checking availability
     // setSelectedOption(null);
 
-    console.log("🔄 [AvailabilityCheck] State reset, starting availability check flow");
+    if (process.env.NODE_ENV === 'development') {
+      console.log("🔄 [AvailabilityCheck] State reset, starting availability check flow");
+    }
 
     // Set a timeout to prevent infinite loading state
     const timeoutId = setTimeout(() => {
@@ -1198,60 +1217,15 @@ function AvailabilityCheck({
 
 
   return (
-    <div className="max-w-2xl mx-auto w-full px-4 md:px-0">
+    <div className="max-w-2xl mx-auto w-full px-4 md:px-0 border border-blue-300 bg-blue-50 rounded-md">
+      {/* OBSOLETE COMPONENT WARNING - This component is deprecated */}
       {/* Include the nights fixer component */}
       <FixNights />
 
-      {/* Add debug component - only visible in development */}
+      {/* Debug panel is only available in development mode */}
       {process.env.NODE_ENV === 'development' && (
-        <div className="mb-4 bg-gray-100 p-3 rounded-md text-xs">
-          <details open>
-            <summary className="cursor-pointer font-medium text-blue-600">Debug Info</summary>
-            <pre className="mt-2 whitespace-pre-wrap">
-              propertySlug: {propertySlug}
-              checkInDate: {checkInDate ? checkInDate.toISOString() : 'null'}
-              checkOutDate: {checkOutDate ? checkOutDate.toISOString() : 'null'}
-              datesSelected: {String(datesSelected)}
-              isAvailable: {String(isAvailable)}
-              isLoadingAvailability: {String(isLoadingAvailability)}
-              numberOfNights: {clientNumberOfNights}
-              selectedOption: {selectedOption || 'null'}
-            </pre>
-
-            <div className="mt-2 pt-2 border-t border-gray-300">
-              <button
-                onClick={() => {
-                  console.log('Force checking availability');
-                  setIsAvailable(true); // Try forcing availability for testing
-                }}
-                className="text-xs bg-blue-500 hover:bg-blue-700 text-white py-1 px-2 rounded mr-2"
-              >
-                Force Available
-              </button>
-
-              <button
-                onClick={checkPropertyAvailability}
-                className="text-xs bg-green-500 hover:bg-green-700 text-white py-1 px-2 rounded mr-2"
-              >
-                Check Availability
-              </button>
-
-              <button
-                onClick={() => {
-                  if (checkInDate && checkOutDate) {
-                    // Calculate using simple method
-                    const days = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
-                    const nightsToSet = days > 0 ? days : 4; // Default to 4 nights
-                    console.log(`[Manual] Setting nights to ${nightsToSet}`);
-                    setClientNumberOfNights(nightsToSet);
-                  }
-                }}
-                className="text-xs bg-yellow-500 hover:bg-yellow-700 text-white py-1 px-2 rounded"
-              >
-                Fix Nights
-              </button>
-            </div>
-          </details>
+        <div className="mb-4 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+          <p className="text-xs text-yellow-700">ORIGINAL COMPONENT - This version is now being used</p>
         </div>
       )}
 
@@ -1282,7 +1256,7 @@ function AvailabilityCheck({
             variant="default"
             disabled={isLoadingAvailability}
           >
-            {isAvailable === null ? "Check Availability for Selected Dates" : "Re-Check Availability"}
+            {isAvailable === null ? t('booking.checkAvailabilityForDates') : t('booking.recheckAvailability')}
           </Button>
         </div>
       )}
@@ -1355,7 +1329,7 @@ function AvailabilityCheck({
           )}
           {unavailableDates.length > 0 && (
             <p className="text-xs text-muted-foreground mt-1">
-              <span className="text-amber-600">•</span> Some dates are not available (marked with strikethrough)
+              <span className="text-amber-600">•</span> {t('booking.someUnavailableDates')}
             </p>
           )}
         </div>

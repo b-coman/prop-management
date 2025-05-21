@@ -1,5 +1,7 @@
 
 // src/components/booking/availability-status.tsx
+// OBSOLETE: This component is deprecated. Please use the version in sections/availability/ instead.
+// This file will be moved to /src/archive in a future cleanup.
 "use client";
 
 import * as React from 'react';
@@ -13,6 +15,7 @@ import {
   Phone,
   AlertTriangle,
 } from 'lucide-react';
+import { useLanguage } from '@/hooks/useLanguage';
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -46,6 +49,7 @@ interface AvailabilityStatusProps {
 }
 
 export function AvailabilityStatus({
+  // @deprecated Use the container-based implementation instead
   isLoadingAvailability,
   isAvailable,
   datesSelected,
@@ -62,6 +66,20 @@ export function AvailabilityStatus({
   setPhone,
   isProcessingBooking,
 }: AvailabilityStatusProps) {
+  // Add PROMINENT debug log to track component rendering
+  console.log(`%c[TRACK_RENDERED_COMPONENT] AvailabilityStatus RENDERED at ${new Date().toISOString()}`, 'color: purple; font-weight: bold; font-size: 14px;');
+  console.log(`%c[TRACK_RENDERED_COMPONENT] Props:`, 'color: purple;', {
+    isLoadingAvailability,
+    isAvailable,
+    datesSelected,
+    checkInDate: checkInDate?.toISOString(),
+    checkOutDate: checkOutDate?.toISOString(),
+    numberOfNights,
+    unavailableDates: unavailableDates?.length,
+    propertySlug
+  });
+  
+  const { t } = useLanguage();
 
   // Track loading time for better UX
   const [longLoading, setLongLoading] = React.useState(false);
@@ -91,11 +109,11 @@ export function AvailabilityStatus({
     if (!datesSelected || !checkInDate || !checkOutDate) return;
 
     if (notificationMethod === 'email' && !email) {
-      toast({ title: "Missing Information", description: "Please enter your email address.", variant: "destructive" });
+      toast({ title: t('errors.genericError'), description: t('forms.invalidEmail'), variant: "destructive" });
       return;
     }
     if (notificationMethod === 'sms' && !phone) {
-      toast({ title: "Missing Information", description: "Please enter your phone number.", variant: "destructive" });
+      toast({ title: t('errors.genericError'), description: t('forms.invalidPhone'), variant: "destructive" });
       return;
     }
 
@@ -133,12 +151,12 @@ export function AvailabilityStatus({
       return (
         <Alert variant="default" className="bg-blue-50 border-blue-200">
           <Loader2 className="h-4 w-4 animate-spin" />
-          <AlertTitle>Checking Availability...</AlertTitle>
+          <AlertTitle>{t('booking.checkingAvailability')}</AlertTitle>
           <AlertDescription className="flex flex-col space-y-2">
-            <span>Please wait while we check the dates.</span>
+            <span>{t('booking.checkingAvailabilityMessage')}</span>
             {longLoading && (
               <div className="mt-2 text-sm">
-                <p className="text-amber-700">This is taking longer than expected.</p>
+                <p className="text-amber-700">{t('booking.loadingTooLong')}</p>
                 <Button
                   variant="outline"
                   size="sm"
@@ -149,7 +167,7 @@ export function AvailabilityStatus({
                     window.location.reload();
                   }}
                 >
-                  Reload to try again
+                  {t('booking.reloadToTryAgain')}
                 </Button>
               </div>
             )}
@@ -161,20 +179,27 @@ export function AvailabilityStatus({
       // Force a specific date format to ensure consistency
       const formattedCheckIn = format(checkInDate, 'MMM d, yyyy');
       const formattedCheckOut = format(checkOutDate, 'MMM d, yyyy');
+      const nightsText = numberOfNights === 1 ? t('common.night') : t('common.nights');
 
-      console.log("Displaying available dates message:", {
-        checkIn: checkInDate.toISOString(),
-        checkOut: checkOutDate.toISOString(),
-        nights: numberOfNights,
-        formatted: `${formattedCheckIn} - ${formattedCheckOut}`
-      });
+      // Remove debug output in production
+      if (process.env.NODE_ENV === 'development') {
+        console.log("Displaying available dates message:", {
+          checkIn: checkInDate.toISOString(),
+          checkOut: checkOutDate.toISOString(),
+          nights: numberOfNights,
+          formatted: `${formattedCheckIn} - ${formattedCheckOut}`
+        });
+      }
 
       return (
         <Alert variant="default" className="bg-green-50 border-green-200 text-green-800">
           <CheckCircle className="h-4 w-4 text-green-600" />
-          <AlertTitle>Dates Available!</AlertTitle>
+          <AlertTitle>{t('booking.datesAvailable')}</AlertTitle>
           <AlertDescription>
-            Good news! The dates {`${formattedCheckIn} - ${formattedCheckOut} (${numberOfNights} nights)`} are available. Please fill in your details below to proceed.
+            {t('booking.availabilitySuccess')
+              .replace('{{checkIn}}', formattedCheckIn)
+              .replace('{{checkOut}}', formattedCheckOut)
+              .replace('{{nights}}', String(numberOfNights))}
           </AlertDescription>
         </Alert>
       );
@@ -183,9 +208,11 @@ export function AvailabilityStatus({
       return (
         <Alert variant="destructive">
           <XCircle className="h-4 w-4" />
-          <AlertTitle>Dates Unavailable</AlertTitle>
+          <AlertTitle>{t('booking.datesUnavailable')}</AlertTitle>
           <AlertDescription>
-            Unfortunately, the selected dates ({`${format(checkInDate, 'MMM d')} - ${format(checkOutDate, 'MMM d')}`}) are not available.
+            {t('booking.datesUnavailableMessage')
+              .replace('{{checkIn}}', format(checkInDate, 'MMM d'))
+              .replace('{{checkOut}}', format(checkOutDate, 'MMM d'))}
           </AlertDescription>
         </Alert>
       );
@@ -194,8 +221,8 @@ export function AvailabilityStatus({
       return (
         <Alert variant="default" className="border-yellow-300 bg-yellow-50 text-yellow-800">
           <Info className="h-4 w-4 text-yellow-600" />
-          <AlertTitle>Select Dates</AlertTitle>
-          <AlertDescription>Please select your check-in and check-out dates.</AlertDescription>
+          <AlertTitle>{t('booking.selectDates')}</AlertTitle>
+          <AlertDescription>{t('booking.selectDatesMessage')}</AlertDescription>
         </Alert>
       );
     }
@@ -209,9 +236,9 @@ export function AvailabilityStatus({
     return (
       <Card className="mt-6 bg-amber-50 border-amber-200">
         <CardHeader>
-          <CardTitle className="text-lg text-amber-900">Alternative Dates</CardTitle>
+          <CardTitle className="text-lg text-amber-900">{t('booking.alternativeDates')}</CardTitle>
           <CardDescription className="text-amber-800">
-            The dates you selected are unavailable. Here are some alternatives:
+            {t('booking.alternativeDatesMessage')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -239,9 +266,11 @@ export function AvailabilityStatus({
     return (
       <Card className="mt-6 bg-blue-50 border-blue-200">
         <CardHeader>
-          <CardTitle className="text-lg text-blue-900">Get Notified</CardTitle>
+          <CardTitle className="text-lg text-blue-900">{t('booking.getNotified')}</CardTitle>
           <CardDescription className="text-blue-800">
-            Want to know if {`${format(checkInDate, 'MMM d')} - ${format(checkOutDate, 'MMM d')}`} become available?
+            {t('booking.wantToKnowIfAvailable')
+              .replace('{{checkIn}}', format(checkInDate, 'MMM d'))
+              .replace('{{checkOut}}', format(checkOutDate, 'MMM d'))}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -253,13 +282,13 @@ export function AvailabilityStatus({
               disabled={isSubmittingNotification || isProcessingBooking} // Disable if submitting this form or main form
             />
             <Label htmlFor="notify-availability" className="font-medium">
-              Yes, notify me if these dates become available.
+              {t('booking.notifyIfAvailable')}
             </Label>
           </div>
           {notifyAvailability && (
             <>
               <Separator />
-              <p className="text-sm font-medium">How should we notify you?</p>
+              <p className="text-sm font-medium">{t('booking.howToNotify')}</p>
               <RadioGroup
                 value={notificationMethod}
                 onValueChange={(value) => setNotificationMethod(value as 'email' | 'sms')}
@@ -278,7 +307,7 @@ export function AvailabilityStatus({
               {notificationMethod === 'email' && (
                 <Input
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder={t('booking.enterYourEmail')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required={notificationMethod === 'email'}
@@ -289,7 +318,7 @@ export function AvailabilityStatus({
               {notificationMethod === 'sms' && (
                 <Input
                   type="tel"
-                  placeholder="Enter your phone number"
+                  placeholder={t('booking.enterYourPhone')}
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   required={notificationMethod === 'sms'}
@@ -303,7 +332,7 @@ export function AvailabilityStatus({
                 size="sm"
               >
                 {isSubmittingNotification ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                Request Notification
+                {t('booking.requestNotification')}
               </Button>
             </>
           )}
@@ -314,6 +343,7 @@ export function AvailabilityStatus({
 
   return (
     <div className="space-y-6 mb-8">
+      {/* OBSOLETE COMPONENT WARNING - This component is deprecated */}
       {renderAvailabilityStatusMessage()}
       {renderSuggestedDates()}
       {/* Calendar is rendered separately by the parent */}

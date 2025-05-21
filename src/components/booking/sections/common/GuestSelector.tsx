@@ -43,38 +43,37 @@ export function GuestSelector({
   };
 
   return (
-    <div className={`${className}`}>
+    <div className={`space-y-1 ${className}`}>
       <Label className="mb-1 block text-sm font-medium">Guests</Label>
-      <div className="flex items-center justify-between rounded-md border p-2 h-auto w-full md:w-auto bg-white">
+      <div className="flex items-center justify-between rounded-md border px-3 h-10 w-full bg-white mt-px">
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="icon"
-          className="h-11 w-11 min-h-[44px] min-w-[44px]"
+          className="h-8 w-8"
           onClick={decrementGuests}
           disabled={value <= minGuests || disabled}
           aria-label="Decrease guests"
         >
-          <Minus className="h-5 w-5" />
+          <Minus className="h-4 w-4" />
         </Button>
-        <span className="mx-4 font-medium w-10 text-center" id="guests">
+        <span className="mx-2 font-medium w-10 text-center" id="guests">
           {value}
         </span>
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="icon"
-          className="h-11 w-11 min-h-[44px] min-w-[44px]"
+          className="h-8 w-8"
           onClick={incrementGuests}
           disabled={value >= maxGuests || disabled}
           aria-label="Increase guests"
         >
-          <Plus className="h-5 w-5" />
+          <Plus className="h-4 w-4" />
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground mt-1">
-        Max {maxGuests}
-      </p>
+      {/* This invisible element ensures same spacing as date selectors */}
+      <div className="h-[21px] invisible">.</div>
     </div>
   );
 }

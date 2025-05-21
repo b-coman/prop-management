@@ -1,9 +1,7 @@
 "use client";
 
-// DEPRECATED: This component is now deprecated and should be archived.
-// Please use the RefactoredAvailabilityCheck component in /components/booking/container/
-// instead, which includes better error handling and support for pricing calendar.
-// This file will be moved to /src/archive in a future cleanup.
+// ACTIVE: This is the currently active component used by AvailabilityContainer.
+// DO NOT ARCHIVE THIS FILE - it is needed for the booking flow to work properly.
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { addDays, format, startOfDay } from 'date-fns';
@@ -240,7 +238,15 @@ export function EnhancedAvailabilityChecker({
     setWasChecked(false);
     setIsAvailable(null);
     setError(null);
-  }, [setCheckOutDate]);
+    
+    // Automatically check availability if both dates are selected
+    if (date !== null && localCheckInDate !== null) {
+      setTimeout(() => {
+        console.log('[EnhancedAvailabilityChecker] Auto-checking availability after date selection');
+        checkDatesAvailability();
+      }, 100);
+    }
+  }, [setCheckOutDate, localCheckInDate, checkDatesAvailability]);
 
   // Handle guest count changes
   const handleGuestCountChange = useCallback((count: number) => {
@@ -293,24 +299,30 @@ export function EnhancedAvailabilityChecker({
 
   return (
     <div className="p-4 border border-blue-200 bg-blue-50 rounded-md">
-      <h3 className="font-medium text-blue-800">Availability Checker</h3>
-      <p className="text-sm text-blue-700 mb-2">
-        Select your dates and check availability.
-      </p>
-      
-      {unavailableDates.length > 0 && (
+      {/* Status messages with appropriate styling */}
+      {wasChecked ? (
+        isAvailable ? (
+          <div className="p-2 bg-green-50 border border-green-200 rounded-md mb-3">
+            <p className="text-xs text-green-700">
+              <span className="text-green-600 font-medium">✓</span> Selected dates are available!
+            </p>
+          </div>
+        ) : (
+          <div className="p-2 bg-red-50 border border-red-200 rounded-md mb-3">
+            <p className="text-xs text-red-700">
+              <span className="text-red-600 font-medium">✗</span> Selected dates are not available.
+            </p>
+          </div>
+        )
+      ) : unavailableDates.length > 0 ? (
         <p className="text-xs text-amber-700 mb-3">
-          <span className="text-amber-600">•</span> {unavailableDates.length} unavailable dates loaded. Dates that are not available are marked with strikethrough.
+          <span className="text-amber-600">•</span> Some dates may be unavailable (marked with strikethrough).
         </p>
-      )}
+      ) : null}
 
-      <div className="flex items-center space-x-2 bg-white p-3 rounded shadow-sm">
-        <Calendar className="h-4 w-4 text-blue-600" />
-        <p>Property: {propertyName}</p>
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Date selector fields with unavailable dates */}
+      {/* Responsive grid container for all three form elements */}
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
+        {/* Check-in date selector */}
         <SimpleDateSelector 
           date={localCheckInDate}
           onChange={handleCheckInChange}
@@ -318,8 +330,10 @@ export function EnhancedAvailabilityChecker({
           placeholder="Select check-in date"
           disabled={isCheckingAvailability}
           unavailableDates={unavailableDates}
+          className="h-full"
         />
 
+        {/* Check-out date selector */}
         <SimpleDateSelector 
           date={localCheckOutDate}
           onChange={handleCheckOutChange}
@@ -328,7 +342,19 @@ export function EnhancedAvailabilityChecker({
           disabled={isCheckingAvailability}
           minDate={minCheckoutDate}
           unavailableDates={unavailableDates}
+          className="h-full"
         />
+        
+        {/* Guest Count Selector */}
+        <div className="translate-y-[4px]">
+          <GuestSelector
+            value={localGuestCount}
+            onChange={handleGuestCountChange}
+            maxGuests={maxGuests}
+            disabled={isCheckingAvailability}
+            className="h-full"
+          />
+        </div>
       </div>
 
       {/* Show nights count when both dates are selected */}
@@ -337,16 +363,6 @@ export function EnhancedAvailabilityChecker({
           Total stay: {numberOfNights} {numberOfNights === 1 ? 'night' : 'nights'}
         </p>
       )}
-
-      {/* Guest Count Selector */}
-      <div className="mt-4">
-        <GuestSelector
-          value={localGuestCount}
-          onChange={handleGuestCountChange}
-          maxGuests={maxGuests}
-          disabled={isCheckingAvailability}
-        />
-      </div>
 
       {/* Only show a warning if dates are not available */}
       {wasChecked && isAvailable === false && (

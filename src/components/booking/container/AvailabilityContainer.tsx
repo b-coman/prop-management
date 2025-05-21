@@ -784,8 +784,8 @@ export function AvailabilityContainer({
               args[0].includes('[DEBUG]') ||
               args[0].includes('[EnhancedAvailabilityChecker]') ||
               args[0] === '==========================================') {
-            // Skip verbose logs, but allow BookingClientInner logs to pass through
-            if (!args[0].includes('[BookingClientInner]')) {
+            // Skip verbose logs, but allow BookingClientInner and TRACK_RENDERED_COMPONENT logs to pass through
+            if (!args[0].includes('[BookingClientInner]') && !args[0].includes('[TRACK_RENDERED_COMPONENT]')) {
               return;
             }
           }
