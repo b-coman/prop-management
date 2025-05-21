@@ -89,12 +89,20 @@ export function GuestSelector({
         }
         
         const data = await response.json();
-        console.log(`[GuestSelector] ✅ Direct API call successful:`, data);
+        console.log(`[GuestSelector] ✅ DIRECT API SUCCESS: Response received for ${newCount} guests`);
+        console.log(`[GuestSelector] 🔍 DEBUG RESPONSE STRUCTURE:`, JSON.stringify(data, null, 2));
         
         // Pass the pricing data back to parent component
         if (onPricingDataReceived && data.pricing) {
-          console.log(`[GuestSelector] 🔄 Passing pricing data to parent component`);
-          onPricingDataReceived(data);
+          console.log(`[GuestSelector] 🔄 CALLBACK STATUS: Parent callback exists, passing data`);
+          try {
+            onPricingDataReceived(data);
+            console.log(`[GuestSelector] ✅ CALLBACK EXECUTED: Successfully passed data to parent`);
+          } catch (error) {
+            console.error(`[GuestSelector] ❌ CALLBACK ERROR: Failed to pass data to parent`, error);
+          }
+        } else {
+          console.warn(`[GuestSelector] ⚠️ CALLBACK ISSUE: ${!onPricingDataReceived ? 'Callback undefined' : 'No pricing data'}`);
         }
         
         // Display a message to show the price updating
@@ -167,12 +175,20 @@ export function GuestSelector({
         }
         
         const data = await response.json();
-        console.log(`[GuestSelector] ✅ Direct API call successful:`, data);
+        console.log(`[GuestSelector] ✅ DIRECT API SUCCESS: Response received for ${newCount} guests`);
+        console.log(`[GuestSelector] 🔍 DEBUG RESPONSE STRUCTURE:`, JSON.stringify(data, null, 2));
         
         // Pass the pricing data back to parent component
         if (onPricingDataReceived && data.pricing) {
-          console.log(`[GuestSelector] 🔄 Passing pricing data to parent component`);
-          onPricingDataReceived(data);
+          console.log(`[GuestSelector] 🔄 CALLBACK STATUS: Parent callback exists, passing data`);
+          try {
+            onPricingDataReceived(data);
+            console.log(`[GuestSelector] ✅ CALLBACK EXECUTED: Successfully passed data to parent`);
+          } catch (error) {
+            console.error(`[GuestSelector] ❌ CALLBACK ERROR: Failed to pass data to parent`, error);
+          }
+        } else {
+          console.warn(`[GuestSelector] ⚠️ CALLBACK ISSUE: ${!onPricingDataReceived ? 'Callback undefined' : 'No pricing data'}`);
         }
         
         // Display a message to show the price updating

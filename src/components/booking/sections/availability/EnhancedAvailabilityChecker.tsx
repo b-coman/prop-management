@@ -297,13 +297,32 @@ export function EnhancedAvailabilityChecker({
   
   // Add handler for pricing data from GuestSelector
   const handlePricingDataReceived = useCallback((data: any) => {
-    console.log(`[EnhancedAvailabilityChecker] 💰 Received pricing data from GuestSelector:`, data);
+    console.log(`[EnhancedAvailabilityChecker] 💰 RECEIVED: Pricing data from GuestSelector`);
+    console.log(`[EnhancedAvailabilityChecker] 🔍 DEBUG CALLBACK STATUS: Parent callback exists = ${!!onPricingDataReceived}`);
+    
+    // Current component state logging
+    console.log(`[EnhancedAvailabilityChecker] 📊 STATE SNAPSHOT:`, {
+      localCheckInDate: localCheckInDate?.toISOString(),
+      localCheckOutDate: localCheckOutDate?.toISOString(),
+      localGuestCount,
+      wasChecked,
+      isAvailable,
+      hasUnavailableDates: unavailableDates.length > 0
+    });
     
     if (onPricingDataReceived) {
-      console.log(`[EnhancedAvailabilityChecker] 🔄 Passing pricing data to parent container`);
-      onPricingDataReceived(data);
+      console.log(`[EnhancedAvailabilityChecker] 🔄 EXECUTING: Passing pricing data to parent container`);
+      try {
+        onPricingDataReceived(data);
+        console.log(`[EnhancedAvailabilityChecker] ✅ SUCCESS: Parent callback executed without errors`);
+      } catch (error) {
+        console.error(`[EnhancedAvailabilityChecker] ❌ ERROR: Failed to pass data to parent`, error);
+      }
+    } else {
+      console.error(`[EnhancedAvailabilityChecker] ⚠️ WARNING: onPricingDataReceived callback is undefined!`);
     }
-  }, [onPricingDataReceived]);
+  }, [onPricingDataReceived, localCheckInDate, localCheckOutDate, localGuestCount, 
+      wasChecked, isAvailable, unavailableDates.length]);
 
   // Create a derived value for min checkout date (always day after check-in)
   const minCheckoutDate = localCheckInDate ? addDays(localCheckInDate, 1) : new Date();

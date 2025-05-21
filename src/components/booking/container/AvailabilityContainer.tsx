@@ -727,35 +727,85 @@ export function AvailabilityContainer({
   
   // Add a new handler to receive pricing data directly from GuestSelector
   const handlePricingDataReceived = useCallback((data: any) => {
-    console.log(`[AvailabilityContainer] 📊 Received direct pricing data for ${guestCount} guests:`, data);
+    console.log(`[AvailabilityContainer] 📊 CALLBACK TRIGGERED: Received pricing data for ${guestCount} guests`);
+    console.log(`[AvailabilityContainer] 🔍 DEBUG DATA STRUCTURE:`, JSON.stringify(data, null, 2));
+    
+    // Detailed component state logging
+    console.log(`[AvailabilityContainer] 🔄 BEFORE UPDATE - Component State:`, {
+      isAvailable,
+      wasChecked,
+      guestCount,
+      hasCheckInDate: !!checkInDate,
+      hasCheckOutDate: !!checkOutDate,
+      numberOfNights,
+      isPricingLoading,
+      hasDynamicPricingDetails: !!dynamicPricingDetails,
+      selectedOption
+    });
     
     // Only process if we have valid pricing data
     if (data && data.pricing) {
-      console.log(`[AvailabilityContainer] ✅ Setting dynamicPricingDetails with direct API response`);
+      console.log(`[AvailabilityContainer] ✅ DATA VALIDATED: Valid pricing data received with fields:`, 
+        Object.keys(data.pricing).join(', '));
       
-      // Store the dynamic pricing data directly from the API response
-      setDynamicPricingDetails({
-        accommodationTotal: data.pricing.subtotal - (data.pricing.cleaningFee || 0),
-        cleaningFee: data.pricing.cleaningFee || 0,
-        subtotal: data.pricing.subtotal,
-        total: data.pricing.totalPrice,
-        currency: data.pricing.currency as any,
-        dailyRates: data.pricing.dailyRates || {},
-        // Apply any discount from coupon if present
-        couponDiscount: appliedCoupon ? {
-          discountPercentage: appliedCoupon.discountPercentage,
-          discountAmount: (data.pricing.subtotal * appliedCoupon.discountPercentage) / 100
-        } : null
-      });
-      
-      // Store the fetch key to prevent redundant fetches
-      const currentFetchKey = `${property?.slug}_${checkInDate?.toISOString() || 'null'}_${checkOutDate?.toISOString() || 'null'}_${guestCount}`;
-      setPricingFetchKey(currentFetchKey);
-      
-      // Set loading to false since we have the data
-      setIsPricingLoading(false);
+      try {
+        // Log individual pricing fields for debugging
+        console.log(`[AvailabilityContainer] 💲 PRICING BREAKDOWN:`, {
+          subtotal: data.pricing.subtotal,
+          cleaningFee: data.pricing.cleaningFee, 
+          totalPrice: data.pricing.totalPrice,
+          currency: data.pricing.currency,
+          hasDailyRates: !!data.pricing.dailyRates,
+          dailyRatesCount: data.pricing.dailyRates ? Object.keys(data.pricing.dailyRates).length : 0
+        });
+        
+        // Create new pricing details object with detailed logging
+        const newPricingDetails = {
+          accommodationTotal: data.pricing.subtotal - (data.pricing.cleaningFee || 0),
+          cleaningFee: data.pricing.cleaningFee || 0,
+          subtotal: data.pricing.subtotal,
+          total: data.pricing.totalPrice,
+          currency: data.pricing.currency as any,
+          dailyRates: data.pricing.dailyRates || {},
+          // Apply any discount from coupon if present
+          couponDiscount: appliedCoupon ? {
+            discountPercentage: appliedCoupon.discountPercentage,
+            discountAmount: (data.pricing.subtotal * appliedCoupon.discountPercentage) / 100
+          } : null
+        };
+        
+        console.log(`[AvailabilityContainer] 📋 SETTING NEW DETAILS:`, newPricingDetails);
+        
+        // Store the dynamic pricing data directly from the API response
+        setDynamicPricingDetails(newPricingDetails);
+        console.log(`[AvailabilityContainer] ✅ SET_DYNAMIC_PRICING_DETAILS called`);
+        
+        // Store the fetch key to prevent redundant fetches
+        const currentFetchKey = `${property?.slug}_${checkInDate?.toISOString() || 'null'}_${checkOutDate?.toISOString() || 'null'}_${guestCount}`;
+        setPricingFetchKey(currentFetchKey);
+        console.log(`[AvailabilityContainer] 🔑 SET_PRICING_FETCH_KEY called with: ${currentFetchKey}`);
+        
+        // Set loading to false since we have the data
+        setIsPricingLoading(false);
+        console.log(`[AvailabilityContainer] ⏱️ SET_IS_PRICING_LOADING(false) called`);
+        
+        // Force this to run outside the current execution context to ensure state updates
+        setTimeout(() => {
+          console.log(`[AvailabilityContainer] 🔄 AFTER UPDATE - Scheduled Check:`, {
+            guestCount,
+            hasDynamicPricing: !!dynamicPricingDetails,
+            dynamicPricingTotal: dynamicPricingDetails?.total,
+            isPricingLoading
+          });
+        }, 100);
+      } catch (error) {
+        console.error(`[AvailabilityContainer] ❌ ERROR HANDLING PRICING DATA:`, error);
+      }
+    } else {
+      console.error(`[AvailabilityContainer] ⚠️ INVALID DATA: Received invalid or missing pricing data`);
     }
-  }, [guestCount, property, checkInDate, checkOutDate, appliedCoupon, setIsPricingLoading]);
+  }, [guestCount, property, checkInDate, checkOutDate, appliedCoupon, setIsPricingLoading, 
+      isAvailable, wasChecked, numberOfNights, isPricingLoading, dynamicPricingDetails, selectedOption]);
 
   // Initialize local state from context and sync changes
   React.useEffect(() => {
@@ -938,6 +988,12 @@ export function AvailabilityContainer({
       </ErrorBoundary>
       
       {/* Content based on availability */}
+      {/* Debug info for troubleshooting */}
+      <div className="text-xs p-1 mt-2 bg-slate-100 border border-slate-200 text-slate-800 rounded">
+        <div>DEBUG: wasChecked={wasChecked ? 'true' : 'false'} | isAvailable={isAvailable ? 'true' : 'false'}</div>
+        <div>guestCount={guestCount} | hasPricing={dynamicPricingDetails ? 'true' : 'false'}</div>
+      </div>
+      
       {wasChecked && (
         <StateTransitionWrapper 
           transitionKey={isAvailable ? "available" : "unavailable"}
