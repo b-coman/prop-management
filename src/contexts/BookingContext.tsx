@@ -204,17 +204,26 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     { prefix: '' }
   );
   
-  // Wrap date setters with deep equality check to prevent unnecessary updates
+  // Wrap date setters with date normalization and deep equality check
   const setCheckInDate = useCallback((newDate: Date | null) => {
     // Skip update if the date is the same to prevent loops
     if (newDate === null && checkInDate === null) return;
     if (newDate && checkInDate && newDate.getTime() === checkInDate.getTime()) return;
     
+    // Normalize date to noon UTC to ensure consistent time across all date operations
+    // This prevents timezone conversion issues when dates are passed to the pricing API
+    const normalizedDate = newDate ? new Date(newDate) : null;
+    if (normalizedDate) {
+      // Always set time component to 12:00:00 UTC to ensure consistency
+      normalizedDate.setUTCHours(12, 0, 0, 0);
+      console.log(`[BookingContext] 📅 Normalized date: ${newDate.toISOString()} → ${normalizedDate.toISOString()}`); 
+    }
+    
     // Update our ref to track this value
-    prevCheckInDate.current = newDate;
+    prevCheckInDate.current = normalizedDate;
     
     // Now update the stored value
-    setCheckInDateInternal(newDate);
+    setCheckInDateInternal(normalizedDate);
   }, [checkInDate, setCheckInDateInternal]);
   
   const setCheckOutDate = useCallback((newDate: Date | null) => {
@@ -222,11 +231,20 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     if (newDate === null && checkOutDate === null) return;
     if (newDate && checkOutDate && newDate.getTime() === checkOutDate.getTime()) return;
     
+    // Normalize date to noon UTC to ensure consistent time across all date operations
+    // This prevents timezone conversion issues when dates are passed to the pricing API
+    const normalizedDate = newDate ? new Date(newDate) : null;
+    if (normalizedDate) {
+      // Always set time component to 12:00:00 UTC to ensure consistency
+      normalizedDate.setUTCHours(12, 0, 0, 0);
+      console.log(`[BookingContext] 📅 Normalized date: ${newDate.toISOString()} → ${normalizedDate.toISOString()}`);
+    }
+    
     // Update our ref to track this value
-    prevCheckOutDate.current = newDate;
+    prevCheckOutDate.current = normalizedDate;
     
     // Now update the stored value
-    setCheckOutDateInternal(newDate);
+    setCheckOutDateInternal(normalizedDate);
   }, [checkOutDate, setCheckOutDateInternal]);
   
   const [numberOfGuests, setNumberOfGuests] = useSyncedSessionStorage<number>(
@@ -323,7 +341,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     setIsPricingLoading(false);
   }, [setPricingDetailsInternal]);
   
-  // Fetch pricing data from API
+  // Fetch pricing data from API with date format debugging
   const fetchPricing = useCallback(async (): Promise<PricingDetails | null> => {
     // Generate a unique ID for this request for debugging purposes
     const requestId = Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
@@ -334,8 +352,13 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       return null;
     }
     
-    // Log the request details
+    // Log the request details with detailed date format information
     console.log(`[BookingContext] ${requestId} Fetching pricing for ${storedPropertySlug} with dates ${checkInDate.toISOString()} to ${checkOutDate.toISOString()} and ${numberOfGuests} guests`);
+    
+    // Added debug info for better date tracking
+    console.log(`[BookingContext] ${requestId} DATE DEBUG INFO:`);
+    console.log(`[BookingContext] ${requestId} - Check-in: ${checkInDate.toISOString()} (year=${checkInDate.getFullYear()}, month=${checkInDate.getMonth()+1}, day=${checkInDate.getDate()}, hours=${checkInDate.getUTCHours()})`);
+    console.log(`[BookingContext] ${requestId} - Check-out: ${checkOutDate.toISOString()} (year=${checkOutDate.getFullYear()}, month=${checkOutDate.getMonth()+1}, day=${checkOutDate.getDate()}, hours=${checkOutDate.getUTCHours()})`);
     
     try {
       setIsPricingLoading(true);
@@ -416,7 +439,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
   React.useEffect(() => {
     // Only run if we have all required data and no pricing loading is in progress
     if (storedPropertySlug && checkInDate && checkOutDate && numberOfNights > 0 && !isPricingLoading) {
-      // Check if we need to fetch pricing
+      // Check if we need to fetch pricing with more detailed logging
       const needsFetch = (
         // If we have no pricing details yet
         !pricingDetails || 
@@ -429,10 +452,25 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       );
       
       if (needsFetch) {
-        console.log(`[BookingContext] Auto-fetching pricing data due to data changes`);
+        // Log specific reason for fetch
+        if (!pricingDetails) {
+          console.log(`[BookingContext] Auto-fetching pricing: No existing pricing data`);
+        } else if (pricingDetails.datesFetched) {
+          console.log(`[BookingContext] Auto-fetching pricing: Data change detected`);
+          console.log(`[BookingContext] Date comparison:`);
+          console.log(`- Stored check-in: ${pricingDetails.datesFetched.checkIn}`);
+          console.log(`- Current check-in: ${checkInDate.toISOString()}`);
+          console.log(`- Stored check-out: ${pricingDetails.datesFetched.checkOut}`);
+          console.log(`- Current check-out: ${checkOutDate.toISOString()}`);
+          console.log(`- Stored guests: ${pricingDetails.datesFetched.guestCount}`);
+          console.log(`- Current guests: ${numberOfGuests}`);
+        }
+        
         fetchPricing().catch(error => {
           console.error(`[BookingContext] Auto-fetch pricing error:`, error);
         });
+      } else {
+        console.log(`[BookingContext] Skipping price fetch: Using existing data with same parameters`);
       }
     }
   }, [storedPropertySlug, checkInDate, checkOutDate, numberOfNights, numberOfGuests, 
