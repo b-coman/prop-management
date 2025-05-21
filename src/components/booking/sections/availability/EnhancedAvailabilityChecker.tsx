@@ -18,6 +18,7 @@ interface EnhancedAvailabilityCheckerProps {
   propertyName: string;
   maxGuests: number;
   onAvailabilityResult?: (isAvailable: boolean | null) => void;
+  onGuestCountChange?: (count: number) => void;
 }
 
 /**
@@ -29,7 +30,8 @@ export function EnhancedAvailabilityChecker({
   propertySlug,
   propertyName,
   maxGuests,
-  onAvailabilityResult
+  onAvailabilityResult,
+  onGuestCountChange
 }: EnhancedAvailabilityCheckerProps) {
   // Get values from booking context
   const {
@@ -258,6 +260,12 @@ export function EnhancedAvailabilityChecker({
     // Update context state with the new value
     setNumberOfGuests(count);
 
+    // Call the parent's handler if provided to sync with container state
+    if (onGuestCountChange) {
+      console.log(`[EnhancedAvailabilityChecker] 🔄 Calling parent's onGuestCountChange with count: ${count}`);
+      onGuestCountChange(count);
+    }
+
     // Explicitly trigger a price recalculation
     console.log(`[EnhancedAvailabilityChecker] 💰 EXPLICITLY recalculating prices after guest count change to: ${count}`);
 
@@ -282,7 +290,7 @@ export function EnhancedAvailabilityChecker({
     }
 
     console.log(`[EnhancedAvailabilityChecker] ✅ Guest count updated to: ${count}`);
-  }, [setNumberOfGuests, localCheckInDate, localCheckOutDate, numberOfNights]);
+  }, [setNumberOfGuests, localCheckInDate, localCheckOutDate, numberOfNights, onGuestCountChange]);
 
   // Create a derived value for min checkout date (always day after check-in)
   const minCheckoutDate = localCheckInDate ? addDays(localCheckInDate, 1) : new Date();

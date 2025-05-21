@@ -48,6 +48,13 @@ export async function POST(request: NextRequest) {
     // Get property details
     const property = await getPropertyWithDb(propertyId);
     
+    // Log property for debugging
+    console.log(`[check-pricing] 🏠 Property details for ${propertyId}:`, {
+      baseOccupancy: property.baseOccupancy,
+      extraGuestFee: property.extraGuestFee,
+      pricing: property.pricing
+    });
+    
     // Get number of nights
     const nights = differenceInDays(checkOutDate, checkInDate);
     
@@ -98,16 +105,26 @@ export async function POST(request: NextRequest) {
           unavailableDates.push(dateStr);
         } else {
           // Record price for this date
+          console.log(`[check-pricing] 🧮 Calculating price for ${dateStr} with ${guests} guests (baseOccupancy: ${property.baseOccupancy})`);
+          
           if (guests <= property.baseOccupancy) {
+            console.log(`[check-pricing] ✅ Using baseOccupancyPrice: ${dayPrice.baseOccupancyPrice}`);
             dailyPrices[dateStr] = dayPrice.baseOccupancyPrice;
           } else {
             const occupancyPrice = dayPrice.prices?.[guests.toString()];
+            console.log(`[check-pricing] 🔍 Checking for specific price for ${guests} guests:`, 
+              occupancyPrice ? `Found: ${occupancyPrice}` : 'Not found, using fallback');
+            
             if (occupancyPrice) {
               dailyPrices[dateStr] = occupancyPrice;
             } else {
               // Fallback to base price + extra guest fee
               const extraGuests = guests - property.baseOccupancy;
-              dailyPrices[dateStr] = dayPrice.baseOccupancyPrice + (extraGuests * (property.extraGuestFee || 0));
+              const extraGuestFee = property.extraGuestFee || 0;
+              const calculatedPrice = dayPrice.baseOccupancyPrice + (extraGuests * extraGuestFee);
+              
+              console.log(`[check-pricing] 📊 Fallback calculation: ${dayPrice.baseOccupancyPrice} + (${extraGuests} × ${extraGuestFee}) = ${calculatedPrice}`);
+              dailyPrices[dateStr] = calculatedPrice;
             }
           }
         }
@@ -134,14 +151,27 @@ export async function POST(request: NextRequest) {
         property.pricingConfig?.lengthOfStayDiscounts as LengthOfStayDiscount[]
       );
       
-      return NextResponse.json({
+      // Log the complete pricing response for debugging
+      const finalResponse = {
         available: true,
         pricing: {
           ...pricingDetails,
           dailyRates: dailyPrices,
           currency: property.baseCurrency
         }
+      };
+      
+      console.log(`[check-pricing] 📊 Final pricing response for ${guests} guests:`, {
+        subtotal: finalResponse.pricing.subtotal,
+        totalPrice: finalResponse.pricing.totalPrice,
+        averageNightlyRate: finalResponse.pricing.averageNightlyRate,
+        numberOfGuests: guests,
+        baseOccupancy: property.baseOccupancy,
+        extraGuestFee: property.extraGuestFee,
+        dailyRatesSample: Object.entries(dailyPrices).slice(0, 2)
       });
+      
+      return NextResponse.json(finalResponse);
     } else if (!meetsMinimumStay) {
       return NextResponse.json({
         available: false,

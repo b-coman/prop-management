@@ -150,10 +150,10 @@ export async function getUnavailableDatesForProperty(propertySlug: string, month
   }
 }
 
-// Constants for rate limiting and caching
-const MAX_API_ERRORS = 3; // Maximum allowed errors before blocking further calls for a property
-const MAX_API_CALLS_PER_MINUTE = 3; // Much stricter limit - Maximum allowed calls per minute for a property
-const MAX_API_CALLS_PER_SESSION = 20; // Maximum allowed calls for the entire session
+// Constants for rate limiting and caching - MODIFIED FOR TESTING
+const MAX_API_ERRORS = 100; // Maximum allowed errors before blocking further calls for a property
+const MAX_API_CALLS_PER_MINUTE = 100; // Much stricter limit - Maximum allowed calls per minute for a property
+const MAX_API_CALLS_PER_SESSION = 1000; // Maximum allowed calls for the entire session - INCREASED FOR TESTING
 const ERROR_RESET_TIME = 60000; // Reset error count after 1 minute
 const CALL_LIMIT_RESET_TIME = 60000; // Reset call limit after 1 minute
 const CACHE_EXPIRATION = 10 * 60 * 1000; // 10 minutes cache expiration
@@ -275,6 +275,14 @@ export async function getPricingForDateRange(
   // Generate a unique request ID for tracing
   const requestId = Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
   
+  // Always log this to see when the function is called - should appear in console
+  console.log(`======== [availabilityService] [DEBUG] 🚨 getPricingForDateRange called ========`);
+  console.log(`[availabilityService] [DEBUG] 👥 Guest count: ${guestCount}`);
+  console.log(`[availabilityService] [DEBUG] 📆 Dates: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+  console.log(`[availabilityService] [DEBUG] 🏠 Property: ${propertySlug}`);
+  console.log(`[availabilityService] [DEBUG] 🆔 Request ID: ${requestId}`);
+  console.log(`==================================================================`);
+  
   try {
     // Only run in browser environment
     if (typeof window === 'undefined') {
@@ -288,11 +296,23 @@ export async function getPricingForDateRange(
     // Get cache from localStorage
     const apiCache = getApiResponseCache();
     
-    // Check the cache first
-    if (apiCache[cacheKey] && apiCache[cacheKey].expiresAt > Date.now()) {
+    // Always log cache status
+    console.log(`[availabilityService] [${requestId}] 🔍 Checking cache for key: ${cacheKey}`);
+    console.log(`[availabilityService] [${requestId}] 📦 Cache entry exists: ${!!apiCache[cacheKey]}`);
+    if (apiCache[cacheKey]) {
+      const timeRemaining = apiCache[cacheKey].expiresAt - Date.now();
+      console.log(`[availabilityService] [${requestId}] ⏱️ Cache expiration: ${timeRemaining > 0 ? `${Math.round(timeRemaining/1000)}s remaining` : 'expired'}`);
+    }
+    
+    // TEMPORARILY DISABLE CACHE during debugging
+    if (false && apiCache[cacheKey] && apiCache[cacheKey].expiresAt > Date.now()) {
       console.log(`[availabilityService] [${requestId}] 🔄 Using cached response for ${cacheKey} (cache hit)`);
+      // Log the cached data to debug issues with stale pricing
+      console.log(`[availabilityService] [${requestId}] 📋 Cached response:`, apiCache[cacheKey].data);
       return apiCache[cacheKey].data;
     }
+    
+    console.log(`[availabilityService] [${requestId}] 🆕 Not using cache - forcing fresh API call with guestCount=${guestCount}`);
     
     // Get call timestamps from localStorage and update them
     const now = Date.now();
@@ -382,9 +402,9 @@ export async function getPricingForDateRange(
       return response;
     }
 
-    // Build the API URL for the combined endpoint
+    // Build the API URL for the correct pricing endpoint
     const baseUrl = window.location.origin;
-    const apiUrl = `${baseUrl}/api/check-pricing-availability`;
+    const apiUrl = `${baseUrl}/api/check-pricing`; // Use the actual pricing endpoint instead of the simplified version
     
     console.log(`[availabilityService] [${requestId}] 🔍 Fetching pricing and availability for ${propertySlug}`, {
       url: apiUrl,
@@ -414,9 +434,19 @@ export async function getPricingForDateRange(
         propertyId: propertySlug,
         checkIn: startDate.toISOString(),
         checkOut: endDate.toISOString(),
-        guests: guestCount
+        guests: Number(guestCount)  // Ensure it's a number
       };
-      console.log(`[availabilityService] [${requestId}] 📝 Request payload:`, JSON.stringify(requestBody));
+      
+      // Log more verbosely to ensure we see this in the console
+      console.log(`[availabilityService] [${requestId}] 📝 ==============================`);
+      console.log(`[availabilityService] [${requestId}] 📝 API REQUEST DETAILS:`);
+      console.log(`[availabilityService] [${requestId}] 📝 URL: ${apiUrl}`);
+      console.log(`[availabilityService] [${requestId}] 📝 Property: ${propertySlug}`);
+      console.log(`[availabilityService] [${requestId}] 📝 Guests: ${guestCount} (type: ${typeof guestCount})`);
+      console.log(`[availabilityService] [${requestId}] 📝 Check-in: ${startDate.toISOString()}`);
+      console.log(`[availabilityService] [${requestId}] 📝 Check-out: ${endDate.toISOString()}`);
+      console.log(`[availabilityService] [${requestId}] 📝 Full payload: ${JSON.stringify(requestBody)}`);
+      console.log(`[availabilityService] [${requestId}] 📝 ==============================`);
       
       // Make the fetch request
       const response = await fetch(apiUrl, {
@@ -455,18 +485,34 @@ export async function getPricingForDateRange(
       // Parse response
       const data = await response.json();
       
-      // Log response details
-      console.log(`[availabilityService] [${requestId}] ✅ Received pricing and availability data:`, {
-        available: data.available,
-        pricing: data.pricing ? {
-          totalPrice: data.pricing.totalPrice,
-          currency: data.pricing.currency,
-          hasRates: !!data.pricing.dailyRates,
-          rateCount: data.pricing.dailyRates ? Object.keys(data.pricing.dailyRates).length : 0
-        } : 'Not present',
-        reason: data.reason || 'N/A',
-        minimumStay: data.minimumStay
-      });
+      // Log response details more verbosely
+      console.log(`[availabilityService] [${requestId}] ✅ ==============================`);
+      console.log(`[availabilityService] [${requestId}] ✅ API RESPONSE DETAILS:`);
+      console.log(`[availabilityService] [${requestId}] ✅ Available: ${data.available}`);
+      
+      if (data.pricing) {
+        console.log(`[availabilityService] [${requestId}] ✅ Total Price: ${data.pricing.totalPrice}`);
+        console.log(`[availabilityService] [${requestId}] ✅ Currency: ${data.pricing.currency}`);
+        console.log(`[availabilityService] [${requestId}] ✅ Guest Count Used: ${guestCount}`);
+        
+        if (data.pricing.dailyRates) {
+          const rateCount = Object.keys(data.pricing.dailyRates).length;
+          console.log(`[availabilityService] [${requestId}] ✅ Daily Rates Count: ${rateCount}`);
+          
+          // Log a sample of the daily rates
+          if (rateCount > 0) {
+            const sampleDate = Object.keys(data.pricing.dailyRates)[0];
+            console.log(`[availabilityService] [${requestId}] ✅ Sample Rate (${sampleDate}): ${data.pricing.dailyRates[sampleDate]}`);
+          }
+        } else {
+          console.log(`[availabilityService] [${requestId}] ⚠️ No daily rates in response!`);
+        }
+      } else {
+        console.log(`[availabilityService] [${requestId}] ⚠️ No pricing data in response!`);
+      }
+      
+      console.log(`[availabilityService] [${requestId}] ✅ Complete Response: ${JSON.stringify(data)}`);
+      console.log(`[availabilityService] [${requestId}] ✅ ==============================`);
       
       // Store successful response in the cache (expires in 10 minutes)
       saveApiResponseCache(cacheKey, data, now + CACHE_EXPIRATION);
@@ -561,6 +607,14 @@ export function resetApiCache(propertySlug?: string): void {
   }
   
   console.log(`[availabilityService] ✅ API cache reset complete`);
+}
+
+// Automatically reset the API cache when the service is loaded
+// This ensures a fresh start for the current session
+if (typeof window !== 'undefined') {
+  console.log(`[availabilityService] 🔄 Auto-resetting API cache and rate limits on load`);
+  resetApiCache();
+  console.log(`[availabilityService] ✅ API cache and rate limits reset. Session counter reset to 0.`);
 }
 
 /**

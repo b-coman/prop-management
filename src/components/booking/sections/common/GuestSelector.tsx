@@ -29,16 +29,146 @@ export function GuestSelector({
   className = '',
 }: GuestSelectorProps) {
   // Handler for decrementing the guest count
-  const decrementGuests = () => {
+  const decrementGuests = async () => {
     if (value > minGuests) {
-      onChange(value - 1);
+      // Calculate the new guest count
+      const newCount = value - 1;
+      
+      // Call the onChange handler to update the UI
+      onChange(newCount);
+      
+      // Log that we're making a direct API call
+      console.log(`[GuestSelector] 👥 Making direct API call for ${newCount} guests`);
+      
+      try {
+        // Get the current property slug from URL
+        const url = window.location.pathname;
+        const match = url.match(/\/booking\/check\/([^\/\?]+)/);
+        const propertyId = match ? match[1] : null;
+        
+        if (!propertyId) {
+          console.error(`[GuestSelector] ❌ Cannot make API call: property ID not found in URL`);
+          return;
+        }
+        
+        // Get check-in and check-out dates from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const checkIn = urlParams.get('checkIn');
+        const checkOut = urlParams.get('checkOut');
+        
+        if (!checkIn || !checkOut) {
+          console.error(`[GuestSelector] ❌ Cannot make API call: dates not found in URL`);
+          return;
+        }
+        
+        // Prepare the API request
+        const apiUrl = `${window.location.origin}/api/check-pricing`;
+        const body = {
+          propertyId,
+          checkIn: new Date(checkIn).toISOString(),
+          checkOut: new Date(checkOut).toISOString(),
+          guests: newCount
+        };
+        
+        console.log(`[GuestSelector] 🚀 Direct API call to ${apiUrl}`, body);
+        
+        // Make the API call directly
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`API returned ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log(`[GuestSelector] ✅ Direct API call successful:`, data);
+        
+        // Display a message to show the price updating
+        const priceEl = document.querySelector('.booking-summary');
+        if (priceEl) {
+          priceEl.classList.add('updating');
+          setTimeout(() => priceEl.classList.remove('updating'), 1000);
+        }
+      } catch (error) {
+        console.error(`[GuestSelector] ❌ Error making direct API call:`, error);
+      }
     }
   };
 
   // Handler for incrementing the guest count
-  const incrementGuests = () => {
+  const incrementGuests = async () => {
     if (value < maxGuests) {
-      onChange(value + 1);
+      // Calculate the new guest count
+      const newCount = value + 1;
+      
+      // Call the onChange handler to update the UI
+      onChange(newCount);
+      
+      // Log that we're making a direct API call
+      console.log(`[GuestSelector] 👥 Making direct API call for ${newCount} guests`);
+      
+      try {
+        // Get the current property slug from URL
+        const url = window.location.pathname;
+        const match = url.match(/\/booking\/check\/([^\/\?]+)/);
+        const propertyId = match ? match[1] : null;
+        
+        if (!propertyId) {
+          console.error(`[GuestSelector] ❌ Cannot make API call: property ID not found in URL`);
+          return;
+        }
+        
+        // Get check-in and check-out dates from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const checkIn = urlParams.get('checkIn');
+        const checkOut = urlParams.get('checkOut');
+        
+        if (!checkIn || !checkOut) {
+          console.error(`[GuestSelector] ❌ Cannot make API call: dates not found in URL`);
+          return;
+        }
+        
+        // Prepare the API request
+        const apiUrl = `${window.location.origin}/api/check-pricing`;
+        const body = {
+          propertyId,
+          checkIn: new Date(checkIn).toISOString(),
+          checkOut: new Date(checkOut).toISOString(),
+          guests: newCount
+        };
+        
+        console.log(`[GuestSelector] 🚀 Direct API call to ${apiUrl}`, body);
+        
+        // Make the API call directly
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`API returned ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log(`[GuestSelector] ✅ Direct API call successful:`, data);
+        
+        // Display a message to show the price updating
+        const priceEl = document.querySelector('.booking-summary');
+        if (priceEl) {
+          priceEl.classList.add('updating');
+          setTimeout(() => priceEl.classList.remove('updating'), 1000);
+        }
+      } catch (error) {
+        console.error(`[GuestSelector] ❌ Error making direct API call:`, error);
+      }
     }
   };
 

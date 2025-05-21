@@ -251,9 +251,19 @@ export function calculateBookingPrice(
   lengthOfStayDiscounts?: LengthOfStayDiscount[],
   couponDiscountPercentage?: number
 ) {
+  // Log the daily prices for debugging
+  console.log(`[price-calculation] 📆 calculateBookingPrice received dailyPrices:`, {
+    daysCount: Object.keys(dailyPrices).length,
+    pricesSample: Object.entries(dailyPrices).slice(0, 3),
+    cleaningFee,
+    hasDiscounts: !!lengthOfStayDiscounts
+  });
+  
   // Calculate accommodation total
   const numberOfNights = Object.keys(dailyPrices).length;
   const accommodationTotal = Object.values(dailyPrices).reduce((sum, price) => sum + price, 0);
+  
+  console.log(`[price-calculation] 💰 Calculated accommodationTotal: ${accommodationTotal}`);
   
   // Add cleaning fee
   const subtotal = accommodationTotal + cleaningFee;
