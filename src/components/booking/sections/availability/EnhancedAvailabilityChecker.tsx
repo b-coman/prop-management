@@ -19,9 +19,6 @@ interface EnhancedAvailabilityCheckerProps {
   propertyName: string;
   maxGuests: number;
   onAvailabilityResult?: (isAvailable: boolean | null) => void;
-  onGuestCountChange?: (count: number) => void;
-  // Add new prop for pricing data
-  onPricingDataReceived?: (pricingData: any) => void;
 }
 
 /**
@@ -33,9 +30,7 @@ export function EnhancedAvailabilityChecker({
   propertySlug,
   propertyName,
   maxGuests,
-  onAvailabilityResult,
-  onGuestCountChange,
-  onPricingDataReceived // New prop
+  onAvailabilityResult
 }: EnhancedAvailabilityCheckerProps) {
   // Get values from booking context - now includes availability data
   const {
@@ -51,8 +46,9 @@ export function EnhancedAvailabilityChecker({
     isAvailabilityLoading,
     availabilityError,
     isAvailable,
-    // Centralized fetch function
-    fetchAvailabilityAndPricing
+    // Separated fetch functions - using new architecture
+    fetchAvailability,
+    fetchPricing
   } = useBooking();
 
   // Local UI state - SIMPLIFIED since availability comes from context
@@ -61,10 +57,9 @@ export function EnhancedAvailabilityChecker({
   // Dependencies
   const { toast } = useToast();
   
-  // Track local state of dates and guest count to prevent context sync issues
+  // Track local state of dates to prevent context sync issues
   const [localCheckInDate, setLocalCheckInDate] = useState<Date | null>(checkInDate);
   const [localCheckOutDate, setLocalCheckOutDate] = useState<Date | null>(checkOutDate);
-  const [localGuestCount, setLocalGuestCount] = useState<number>(numberOfGuests);
   
   // Component mount effect - just log that we're ready, BookingContext handles fetching
   useEffect(() => {
@@ -75,8 +70,7 @@ export function EnhancedAvailabilityChecker({
   useEffect(() => {
     setLocalCheckInDate(checkInDate);
     setLocalCheckOutDate(checkOutDate);
-    setLocalGuestCount(numberOfGuests);
-  }, [checkInDate, checkOutDate, numberOfGuests]);
+  }, [checkInDate, checkOutDate]);
 
   // Removed checkDatesAvailability function - availability checking now handled by BookingContext
   
@@ -120,76 +114,8 @@ export function EnhancedAvailabilityChecker({
     setWasChecked(false);
   }, [setCheckOutDate, localCheckInDate]);
 
-  // Handle guest count changes
-  const handleGuestCountChange = useCallback((count: number) => {
-    console.log(`[EnhancedAvailabilityChecker] 🧑‍🤝‍🧑 Guest count changed to: ${count}`);
-
-    // Update local state immediately for UI responsiveness
-    setLocalGuestCount(count);
-
-    // Update context state with the new value
-    setNumberOfGuests(count);
-
-    // Call the parent's handler if provided to sync with container state
-    if (onGuestCountChange) {
-      console.log(`[EnhancedAvailabilityChecker] 🔄 Calling parent's onGuestCountChange with count: ${count}`);
-      onGuestCountChange(count);
-    }
-
-    // Explicitly trigger a price recalculation
-    console.log(`[EnhancedAvailabilityChecker] 💰 EXPLICITLY recalculating prices after guest count change to: ${count}`);
-
-    // Import needed functions if not already available
-    try {
-      // This will recalculate prices in the context by triggering updates to components
-      // that depend on the numberOfGuests value in the BookingContext
-      if (localCheckInDate && localCheckOutDate && numberOfNights > 0) {
-        // Force a re-render of dependent components that calculate prices
-        console.log(`[EnhancedAvailabilityChecker] 💰 Price recalculation triggered with:`, {
-          checkInDate: localCheckInDate.toISOString(),
-          checkOutDate: localCheckOutDate.toISOString(),
-          numberOfNights,
-          numberOfGuests: count,
-          recalculationId: `gc-${Math.random().toString(36).substr(2, 9)}`
-        });
-      } else {
-        console.log(`[EnhancedAvailabilityChecker] ⚠️ Cannot trigger price recalculation - missing dates or nights count`);
-      }
-    } catch (error) {
-      console.error(`[EnhancedAvailabilityChecker] Error in price recalculation:`, error);
-    }
-
-    console.log(`[EnhancedAvailabilityChecker] ✅ Guest count updated to: ${count}`);
-  }, [setNumberOfGuests, localCheckInDate, localCheckOutDate, numberOfNights, onGuestCountChange]);
-  
-  // Add handler for pricing data from GuestSelector
-  const handlePricingDataReceived = useCallback((data: any) => {
-    console.log(`[EnhancedAvailabilityChecker] 💰 RECEIVED: Pricing data from GuestSelector`);
-    console.log(`[EnhancedAvailabilityChecker] 🔍 DEBUG CALLBACK STATUS: Parent callback exists = ${!!onPricingDataReceived}`);
-    
-    // Current component state logging
-    console.log(`[EnhancedAvailabilityChecker] 📊 STATE SNAPSHOT:`, {
-      localCheckInDate: localCheckInDate?.toISOString(),
-      localCheckOutDate: localCheckOutDate?.toISOString(),
-      localGuestCount,
-      wasChecked,
-      isAvailable,
-      hasUnavailableDates: unavailableDates.length > 0
-    });
-    
-    if (onPricingDataReceived) {
-      console.log(`[EnhancedAvailabilityChecker] 🔄 EXECUTING: Passing pricing data to parent container`);
-      try {
-        onPricingDataReceived(data);
-        console.log(`[EnhancedAvailabilityChecker] ✅ SUCCESS: Parent callback executed without errors`);
-      } catch (error) {
-        console.error(`[EnhancedAvailabilityChecker] ❌ ERROR: Failed to pass data to parent`, error);
-      }
-    } else {
-      console.error(`[EnhancedAvailabilityChecker] ⚠️ WARNING: onPricingDataReceived callback is undefined!`);
-    }
-  }, [onPricingDataReceived, localCheckInDate, localCheckOutDate, localGuestCount, 
-      wasChecked, isAvailable, unavailableDates.length]);
+  // Guest count changes are now handled directly by GuestSelector via BookingContext
+  // No need for manual handlers here since GuestSelector manages its own state
 
   // Create a derived value for min checkout date (always day after check-in)
   const minCheckoutDate = localCheckInDate ? addDays(localCheckInDate, 1) : new Date();
@@ -255,9 +181,6 @@ export function EnhancedAvailabilityChecker({
         {/* Guest Count Selector */}
         <div className="translate-y-[4px]">
           <GuestSelector
-            value={localGuestCount}
-            onChange={handleGuestCountChange}
-            onPricingDataReceived={handlePricingDataReceived} // Add the new prop
             maxGuests={maxGuests}
             disabled={isAvailabilityLoading}
             className="h-full"

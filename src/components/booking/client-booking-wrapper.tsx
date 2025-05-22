@@ -20,10 +20,8 @@ interface ClientBookingWrapperProps {
 
 export function ClientBookingWrapper({ property, urlParams, heroImage }: ClientBookingWrapperProps) {
   const { tc } = useLanguage();
-  const { checkInDate, checkOutDate, numberOfNights, numberOfGuests } = useBooking();
+  const { checkInDate, checkOutDate, numberOfNights, numberOfGuests, pricingDetails } = useBooking();
   const { formatPrice, selectedCurrency, convertToSelectedCurrency } = useCurrency();
-  
-  const [dynamicPricing, setDynamicPricing] = React.useState<any>(null);
   
   // Translate all multilingual fields in the property object
   const translatedProperty = {
@@ -46,38 +44,18 @@ export function ClientBookingWrapper({ property, urlParams, heroImage }: ClientB
     selectedDates = `${format(checkInDate, 'MMM d')} - ${format(checkOutDate, 'MMM d, yyyy')}`;
   }
   
-  // Fetch dynamic pricing when dates change
-  React.useEffect(() => {
-    const fetchPricing = async () => {
-      if (checkInDate && checkOutDate && numberOfGuests > 0) {
-        try {
-          const { getPricingForDateRange } = await import('@/services/availabilityService');
-          const pricing = await getPricingForDateRange(
-            property.slug,
-            checkInDate,
-            checkOutDate,
-            numberOfGuests
-          );
-          
-          if (pricing?.pricing) {
-            setDynamicPricing(pricing.pricing);
-          }
-        } catch (error) {
-          console.error('[ClientBookingWrapper] Error fetching pricing:', error);
-        }
-      }
-    };
-    
-    fetchPricing();
-  }, [property.slug, checkInDate, checkOutDate, numberOfGuests]);
+  // REFACTORED: Now uses centralized pricing from BookingContext instead of direct API calls
+  // No need for separate useEffect and API calls - pricing comes from BookingContext
   
-  // Calculate total price using dynamic pricing or fallback
+  // Calculate total price using centralized pricing from BookingContext
   let totalPrice = '';
-  if (dynamicPricing) {
-    const convertedAmount = convertToSelectedCurrency(dynamicPricing.totalPrice, dynamicPricing.currency);
+  if (pricingDetails) {
+    console.log('[ClientBookingWrapper] 💰 Using centralized pricing from BookingContext');
+    const convertedAmount = convertToSelectedCurrency(pricingDetails.totalPrice, pricingDetails.currency);
     totalPrice = formatPrice(convertedAmount, selectedCurrency);
   } else if (numberOfNights > 0) {
-    // Fallback to simple calculation
+    console.log('[ClientBookingWrapper] 💰 Using fallback pricing calculation');
+    // Fallback to simple calculation when no centralized pricing available
     const nightlyRate = property.advertisedRate || property.baseRate || 0;
     const totalAmount = nightlyRate * numberOfNights;
     totalPrice = totalAmount > 0 ? formatPrice(totalAmount, selectedCurrency) : '';
