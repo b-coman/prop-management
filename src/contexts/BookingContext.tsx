@@ -768,6 +768,8 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
         const globalFetchKey = `url_pricing_${storedPropertySlug}_${checkInDate?.toISOString()}_${checkOutDate?.toISOString()}_${numberOfGuests}`;
         const sessionStorage = window.sessionStorage;
         
+        console.log(`[BookingContext] 🔍 SESSION KEY CHECK: key="${globalFetchKey}", exists=${!!sessionStorage.getItem(globalFetchKey)}`);
+        
         if (sessionStorage.getItem(globalFetchKey)) {
           console.log(`[BookingContext] 🚫 SKIP: URL pricing already fetched by another instance`);
           return;
