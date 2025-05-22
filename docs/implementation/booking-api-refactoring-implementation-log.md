@@ -36,7 +36,15 @@ Each entry documents:
 **Issue**: Existing components may depend on the combined `fetchAvailabilityAndPricing()` function  
 **Decision**: Keep legacy function available but implement new separate functions, disable legacy auto-trigger by default  
 **Rationale**: Ensures backward compatibility during transition while implementing new architecture  
-**Plan Impact**: Added `legacyAutoFetchEnabled = false` flag - can be toggled if needed during testing  
+**Plan Impact**: Added `legacyAutoFetchEnabled = false` flag - can be toggled if needed during testing
+
+### Decision #3: Infinite Loop Issue Detected in Production
+**Date**: 2025-05-22  
+**Step Context**: Step 2 Testing - Separate BookingContext Fetch Functions  
+**Issue**: After deployment, infinite console logs and continuous loading state detected  
+**Problem**: New useEffect triggers may be causing infinite re-renders or fetch loops  
+**Immediate Action**: Need to fix useEffect dependencies and prevent infinite loops  
+**Plan Impact**: Requires emergency fix to useEffect logic before proceeding to Step 4  
 
 ---
 

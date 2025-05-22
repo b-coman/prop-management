@@ -725,19 +725,30 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
   };
   
   // NEW: Separate useEffect for availability - Session-persistent, only property changes
+  const hasTriggeredAvailabilityRef = useRef<string | null>(null);
+  
   React.useEffect(() => {
     // Only fetch availability when property changes and we have no data yet
     if (storedPropertySlug && unavailableDates.length === 0 && !isAvailabilityLoading) {
+      // Prevent duplicate calls for same property
+      if (hasTriggeredAvailabilityRef.current === storedPropertySlug) {
+        return;
+      }
+      
       console.log(`[BookingContext] 📅 Auto-fetching availability for property: ${storedPropertySlug}`);
+      hasTriggeredAvailabilityRef.current = storedPropertySlug;
       
       fetchAvailability()
         .catch(error => {
           console.error(`[BookingContext] Availability auto-fetch error:`, error);
+          hasTriggeredAvailabilityRef.current = null; // Reset on error
         });
     }
-  }, [storedPropertySlug, fetchAvailability, unavailableDates.length, isAvailabilityLoading]);
+  }, [storedPropertySlug, unavailableDates.length, isAvailabilityLoading]); // FIXED: Removed fetchAvailability from dependencies
 
-  // NEW: URL-based initial pricing fetch - Only if URL has both dates
+  // NEW: URL-based initial pricing fetch - Only if URL has both dates  
+  const hasTriggeredPricingRef = useRef<string | null>(null);
+  
   React.useEffect(() => {
     // Check if this is initial load with URL parameters
     if (typeof window !== 'undefined' && storedPropertySlug && checkInDate && checkOutDate && !pricingDetails) {
@@ -747,15 +758,23 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       
       // Only auto-fetch pricing if URL explicitly has both dates
       if (hasCheckIn && hasCheckOut && numberOfNights > 0) {
+        // Prevent duplicate calls for same dates/guests combination
+        const fetchKey = `${storedPropertySlug}-${checkInDate?.toISOString()}-${checkOutDate?.toISOString()}-${numberOfGuests}`;
+        if (hasTriggeredPricingRef.current === fetchKey) {
+          return;
+        }
+        
         console.log(`[BookingContext] 💰 Auto-fetching pricing from URL parameters`);
+        hasTriggeredPricingRef.current = fetchKey;
         
         fetchPricingWithDates(checkInDate, checkOutDate, numberOfGuests)
           .catch(error => {
             console.error(`[BookingContext] URL pricing auto-fetch error:`, error);
+            hasTriggeredPricingRef.current = null; // Reset on error
           });
       }
     }
-  }, [storedPropertySlug, checkInDate, checkOutDate, numberOfGuests, numberOfNights, pricingDetails, fetchPricingWithDates]);
+  }, [storedPropertySlug, checkInDate, checkOutDate, numberOfGuests, numberOfNights, pricingDetails]); // FIXED: Removed fetchPricingWithDates from dependencies
 
   // LEGACY: Keep existing combined trigger for backward compatibility (disabled by default)
   const legacyAutoFetchEnabled = false; // Set to true to re-enable legacy behavior
