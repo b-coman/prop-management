@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirestoreForPricing } from '@/lib/firebaseAdminPricing';
+import { collection, query, where, documentId, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase'; // Import your Firebase configuration
 import { format, isValid, startOfDay } from 'date-fns';
 
 /**
  * API route handler for checking property availability
- * Performs the Firestore query server-side using Admin SDK for cloud compatibility
+ * Performs the Firestore query server-side to improve security
  */
 export async function GET(request: NextRequest) {
   try {
@@ -33,17 +34,14 @@ export async function GET(request: NextRequest) {
     // Log the request for debugging
     console.log(`[API] Checking availability for property: ${propertySlug}, months: ${monthsToFetch}`);
 
-    // Implementation using Admin SDK for cloud compatibility
+    // Implementation directly from the previous getUnavailableDatesForProperty function
     const unavailableDates: string[] = []; // Return as ISO strings for consistent serialization
     
-    // Get Admin SDK Firestore instance
-    const db = await getFirestoreForPricing();
-    
     if (!db) {
-      console.error("[API] ❌ CRITICAL ERROR: Firestore Admin SDK (db) is not initialized.");
+      console.error("[API] ❌ CRITICAL ERROR: Firestore Client SDK (db) is not initialized.");
       return NextResponse.json(
         {
-          error: 'Database connection error - Firestore admin not initialized',
+          error: 'Database connection error - Firestore client not initialized',
           errorType: 'db_not_initialized',
           unavailableDates: []
         },
@@ -51,9 +49,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log("[API] ✅ Firestore Admin SDK is initialized, continuing with availability check");
+    console.log("[API] ✅ Firestore DB client is initialized, continuing with availability check");
 
-    const availabilityCollection = db.collection('availability');
+    const availabilityCollection = collection(db, 'availability');
     const today = new Date();
     const currentMonthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
 
@@ -77,13 +75,13 @@ export async function GET(request: NextRequest) {
       queryBatches.push(monthDocIds.slice(i, i + 30));
     }
 
-    // Execute all query batches in parallel using Admin SDK syntax
+    // Execute all query batches in parallel
     const allQuerySnapshots = await Promise.all(
       queryBatches.map(async (batchIds, index) => {
         if (batchIds.length === 0) return null;
         console.log(`[API] Executing query for batch ${index + 1}: ${batchIds.join(', ')}`);
-        const query = availabilityCollection.where('__name__', 'in', batchIds.map(id => availabilityCollection.doc(id)));
-        return query.get();
+        const q = query(availabilityCollection, where(documentId(), 'in', batchIds));
+        return getDocs(q);
       })
     );
 
@@ -99,7 +97,7 @@ export async function GET(request: NextRequest) {
       console.log(`[API] Processing batch ${batchIndex + 1}: Found ${querySnapshot.docs.length} documents.`);
       docCount += querySnapshot.docs.length;
       
-      querySnapshot.docs.forEach((doc) => {
+      querySnapshot.forEach((doc) => {
         const data = doc.data() as any;
         const docId = doc.id;
         
@@ -197,7 +195,7 @@ export async function GET(request: NextRequest) {
         months: monthsToFetch,
         docsProcessed: docCount,
         dateCount: unavailableDates.length,
-        version: "admin-sdk-migrated"
+        version: "debug-enhanced"
       }
     });
     

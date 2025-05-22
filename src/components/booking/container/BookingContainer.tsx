@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useContext } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { parseISO, isValid, differenceInDays } from 'date-fns';
 import { BookingProvider, useBooking } from '@/contexts/BookingContext';
@@ -422,8 +422,26 @@ export function BookingContainer({
   // Calculate nights if both dates are valid
 
 
+  // Conditional wrapper to prevent nested BookingProviders
+  const ConditionalBookingProvider = ({ children }: { children: React.ReactNode }) => {
+    try {
+      // Try to access existing BookingContext
+      useBooking();
+      console.log(`[BookingContainer] ✅ Using existing BookingProvider for property: ${property.slug}`);
+      return <>{children}</>;
+    } catch {
+      // No provider exists, create one
+      console.log(`[BookingContainer] 🆕 Creating new BookingProvider for property: ${property.slug}`);
+      return (
+        <BookingProvider propertySlug={property.slug}>
+          {children}
+        </BookingProvider>
+      );
+    }
+  };
+
   return (
-    <BookingProvider propertySlug={property.slug}>
+    <ConditionalBookingProvider>
       <div className={cn("w-full", className)}>
         <BookingInitializer
           property={property}
@@ -437,6 +455,6 @@ export function BookingContainer({
           className={className}
         />
       </div>
-    </BookingProvider>
+    </ConditionalBookingProvider>
   );
 }

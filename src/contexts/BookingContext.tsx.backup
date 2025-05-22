@@ -4,6 +4,34 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useCall
 import { useSyncedSessionStorage, clearSyncedStorageByPrefix } from '@/hooks/use-synced-storage';
 import type { CurrencyCode } from '@/types';
 
+// Import required services for API pricing and availability
+import { getPricingForDateRange, getUnavailableDatesForProperty } from '@/services/availabilityService';
+
+// Define interface for centralized pricing state
+export interface PricingDetails {
+  accommodationTotal: number;
+  cleaningFee: number;
+  subtotal: number;
+  total: number;
+  totalPrice: number;  // Duplicate of total for naming consistency
+  currency: CurrencyCode;
+  dailyRates?: Record<string, number>;
+  lengthOfStayDiscount?: {
+    discountPercentage: number;
+    discountAmount: number;
+  } | null;
+  couponDiscount?: {
+    discountPercentage: number;
+    discountAmount: number;
+  } | null;
+  datesFetched?: {
+    checkIn: string;
+    checkOut: string;
+    guestCount: number;
+  };
+  timestamp: number;
+}
+
 interface BookingContextState {
   propertySlug: string | null;
   checkInDate: Date | null;
@@ -18,6 +46,15 @@ interface BookingContextState {
   totalPrice: number | null;
   appliedCouponCode: string | null;
   selectedCurrency: CurrencyCode;
+  // Centralized pricing state
+  pricingDetails: PricingDetails | null;
+  isPricingLoading: boolean;
+  pricingError: string | null;
+  // Centralized availability state
+  unavailableDates: Date[];
+  isAvailabilityLoading: boolean;
+  availabilityError: string | null;
+  isAvailable: boolean | null;
 }
 
 interface BookingContextActions {
@@ -36,6 +73,14 @@ interface BookingContextActions {
   setSelectedCurrency: (currency: CurrencyCode) => void;
   clearBookingData: () => void;
   clearGuestData: () => void;
+  // Centralized pricing actions
+  fetchPricing: () => Promise<PricingDetails | null>;
+  setPricingDetails: (pricing: PricingDetails | null) => void;
+  resetPricing: () => void;
+  // Centralized availability actions
+  fetchAvailabilityAndPricing: () => Promise<{ pricing: PricingDetails | null; unavailableDates: Date[]; isAvailable: boolean }>;
+  setUnavailableDates: (dates: Date[]) => void;
+  setIsAvailable: (available: boolean | null) => void;
 }
 
 interface BookingProviderProps {
@@ -68,10 +113,19 @@ const getInitialState = (propertySlug?: string | null): BookingContextState => (
   totalPrice: null,
   appliedCouponCode: null,
   selectedCurrency: 'EUR',
+  // Initialize pricing state
+  pricingDetails: null,
+  isPricingLoading: false,
+  pricingError: null,
+  // Initialize availability state
+  unavailableDates: [],
+  isAvailabilityLoading: false,
+  availabilityError: null,
+  isAvailable: null,
 });
 
 // Version of the context - increment when making breaking changes
-const CONTEXT_VERSION = 1;
+const CONTEXT_VERSION = 2; // Incremented for pricing state addition
 
 // Singleton pattern for session IDs to prevent multiple initializations
 // This ensures we reuse the same session ID for the same property during a single page visit
@@ -145,6 +199,10 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
   const prevCheckInDate = useRef<Date | null>(null);
   const prevCheckOutDate = useRef<Date | null>(null);
   
+  // Prevent infinite fetch loops with timeout-based debouncing
+  const isFetchingRef = useRef(false);
+  const lastFetchTimeRef = useRef(0);
+  
   // Set up synced storage hooks for each state piece
   const [storedPropertySlug, setStoredPropertySlug] = useSyncedSessionStorage<string | null>(
     `${storagePrefix}propertySlug`,
@@ -164,17 +222,26 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     { prefix: '' }
   );
   
-  // Wrap date setters with deep equality check to prevent unnecessary updates
+  // Wrap date setters with date normalization and deep equality check
   const setCheckInDate = useCallback((newDate: Date | null) => {
     // Skip update if the date is the same to prevent loops
     if (newDate === null && checkInDate === null) return;
     if (newDate && checkInDate && newDate.getTime() === checkInDate.getTime()) return;
     
+    // Normalize date to noon UTC to ensure consistent time across all date operations
+    // This prevents timezone conversion issues when dates are passed to the pricing API
+    const normalizedDate = newDate ? new Date(newDate) : null;
+    if (normalizedDate) {
+      // Always set time component to 12:00:00 UTC to ensure consistency
+      normalizedDate.setUTCHours(12, 0, 0, 0);
+      console.log(`[BookingContext] 📅 Normalized date: ${newDate.toISOString()} → ${normalizedDate.toISOString()}`); 
+    }
+    
     // Update our ref to track this value
-    prevCheckInDate.current = newDate;
+    prevCheckInDate.current = normalizedDate;
     
     // Now update the stored value
-    setCheckInDateInternal(newDate);
+    setCheckInDateInternal(normalizedDate);
   }, [checkInDate, setCheckInDateInternal]);
   
   const setCheckOutDate = useCallback((newDate: Date | null) => {
@@ -182,11 +249,20 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     if (newDate === null && checkOutDate === null) return;
     if (newDate && checkOutDate && newDate.getTime() === checkOutDate.getTime()) return;
     
+    // Normalize date to noon UTC to ensure consistent time across all date operations
+    // This prevents timezone conversion issues when dates are passed to the pricing API
+    const normalizedDate = newDate ? new Date(newDate) : null;
+    if (normalizedDate) {
+      // Always set time component to 12:00:00 UTC to ensure consistency
+      normalizedDate.setUTCHours(12, 0, 0, 0);
+      console.log(`[BookingContext] 📅 Normalized date: ${newDate.toISOString()} → ${normalizedDate.toISOString()}`);
+    }
+    
     // Update our ref to track this value
-    prevCheckOutDate.current = newDate;
+    prevCheckOutDate.current = normalizedDate;
     
     // Now update the stored value
-    setCheckOutDateInternal(newDate);
+    setCheckOutDateInternal(normalizedDate);
   }, [checkOutDate, setCheckOutDateInternal]);
   
   const [numberOfGuests, setNumberOfGuests] = useSyncedSessionStorage<number>(
@@ -246,6 +322,27 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     { prefix: '' }
   );
   
+  // Add centralized pricing state
+  const [pricingDetails, setPricingDetailsInternal] = useSyncedSessionStorage<PricingDetails | null>(
+    `${storagePrefix}pricingDetails`, 
+    null,
+    { prefix: '' }
+  );
+  
+  const [isPricingLoading, setIsPricingLoading] = useState<boolean>(false);
+  const [pricingError, setPricingError] = useState<string | null>(null);
+
+  // Add centralized availability state
+  const [unavailableDates, setUnavailableDatesInternal] = useSyncedSessionStorage<Date[]>(
+    `${storagePrefix}unavailableDates`, 
+    [],
+    { prefix: '' }
+  );
+  
+  const [isAvailabilityLoading, setIsAvailabilityLoading] = useState<boolean>(false);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
+  const [isAvailable, setIsAvailableInternal] = useState<boolean | null>(null);
+  
   const [appliedCouponCode, setAppliedCouponCode] = useSyncedSessionStorage<string | null>(
     `${storagePrefix}appliedCouponCode`, 
     null,
@@ -257,6 +354,233 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     'EUR',
     { prefix: '' }
   );
+  
+  // Centralized pricing methods
+  const setPricingDetails = useCallback((pricing: PricingDetails | null) => {
+    setPricingDetailsInternal(pricing);
+    // If pricing contains a total price, also update the totalPrice field for backward compatibility
+    if (pricing?.total) {
+      setTotalPrice(pricing.total);
+    }
+  }, [setPricingDetailsInternal, setTotalPrice]);
+  
+  const resetPricing = useCallback(() => {
+    setPricingDetailsInternal(null);
+    setPricingError(null);
+    setIsPricingLoading(false);
+  }, [setPricingDetailsInternal]);
+
+  // Centralized availability methods
+  const setUnavailableDates = useCallback((dates: Date[]) => {
+    setUnavailableDatesInternal(dates);
+  }, [setUnavailableDatesInternal]);
+
+  const setIsAvailable = useCallback((available: boolean | null) => {
+    setIsAvailableInternal(available);
+  }, []);
+
+  const resetAvailability = useCallback(() => {
+    setUnavailableDatesInternal([]);
+    setAvailabilityError(null);
+    setIsAvailabilityLoading(false);
+    setIsAvailableInternal(null);
+  }, [setUnavailableDatesInternal]);
+  
+  // Fetch pricing data from API with date format debugging
+  const fetchPricing = useCallback(async (): Promise<PricingDetails | null> => {
+    // Generate a unique ID for this request for debugging purposes
+    const requestId = Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
+    
+    // Check if we have all the required data
+    if (!storedPropertySlug || !checkInDate || !checkOutDate || numberOfNights <= 0) {
+      console.log(`[BookingContext] ${requestId} Cannot fetch pricing - missing required data`);
+      return null;
+    }
+    
+    // Log the request details with detailed date format information
+    console.log(`[BookingContext] ${requestId} Fetching pricing for ${storedPropertySlug} with dates ${checkInDate.toISOString()} to ${checkOutDate.toISOString()} and ${numberOfGuests} guests`);
+    
+    // Added debug info for better date tracking
+    console.log(`[BookingContext] ${requestId} DATE DEBUG INFO:`);
+    console.log(`[BookingContext] ${requestId} - Check-in: ${checkInDate.toISOString()} (year=${checkInDate.getFullYear()}, month=${checkInDate.getMonth()+1}, day=${checkInDate.getDate()}, hours=${checkInDate.getUTCHours()})`);
+    console.log(`[BookingContext] ${requestId} - Check-out: ${checkOutDate.toISOString()} (year=${checkOutDate.getFullYear()}, month=${checkOutDate.getMonth()+1}, day=${checkOutDate.getDate()}, hours=${checkOutDate.getUTCHours()})`);
+    
+    try {
+      setIsPricingLoading(true);
+      setPricingError(null);
+      
+      // Call the pricing API
+      const result = await getPricingForDateRange(
+        storedPropertySlug,
+        checkInDate,
+        checkOutDate,
+        numberOfGuests
+      );
+      
+      // Check if we have valid pricing data
+      if (!result || !result.pricing) {
+        console.error(`[BookingContext] ${requestId} No valid pricing data received from API`);
+        setPricingError("Could not retrieve pricing information");
+        return null;
+      }
+      
+      console.log(`[BookingContext] ${requestId} Received pricing data:`, result.pricing);
+      
+      // Create standardized pricing details object
+      const pricingData: PricingDetails = {
+        accommodationTotal: result.pricing.subtotal - (result.pricing.cleaningFee || 0),
+        cleaningFee: result.pricing.cleaningFee || 0,
+        subtotal: result.pricing.subtotal,
+        // Support both naming conventions for backward compatibility
+        total: result.pricing.totalPrice !== undefined ? result.pricing.totalPrice : result.pricing.total || 0,
+        totalPrice: result.pricing.totalPrice !== undefined ? result.pricing.totalPrice : result.pricing.total || 0,
+        currency: result.pricing.currency as CurrencyCode,
+        dailyRates: result.pricing.dailyRates || {},
+        // Store date information for future reference
+        datesFetched: {
+          checkIn: checkInDate.toISOString(),
+          checkOut: checkOutDate.toISOString(),
+          guestCount: numberOfGuests
+        },
+        timestamp: Date.now()
+      };
+      
+      // Store the pricing data in state
+      setPricingDetails(pricingData);
+      console.log(`[BookingContext] ${requestId} Successfully updated pricing state`);
+      
+      return pricingData;
+    } catch (error) {
+      console.error(`[BookingContext] ${requestId} Error fetching pricing:`, error);
+      setPricingError("Error fetching pricing information. Please try again.");
+      return null;
+    } finally {
+      setIsPricingLoading(false);
+    }
+  }, [storedPropertySlug, checkInDate, checkOutDate, numberOfNights, numberOfGuests, setPricingDetails]);
+
+  // Combined fetch function for BOTH availability and pricing - SINGLE API ARCHITECTURE
+  const fetchAvailabilityAndPricing = useCallback(async (): Promise<{ 
+    pricing: PricingDetails | null; 
+    unavailableDates: Date[]; 
+    isAvailable: boolean;
+  }> => {
+    // Generate a unique ID for this request for debugging purposes
+    const requestId = Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
+    
+    console.log(`[BookingContext] ${requestId} 🚀 SINGLE API CALL: fetchAvailabilityAndPricing started`);
+    
+    // Check if we have all the required data
+    if (!storedPropertySlug) {
+      console.log(`[BookingContext] ${requestId} Cannot fetch data - missing property slug`);
+      return { pricing: null, unavailableDates: [], isAvailable: true };
+    }
+    
+    try {
+      setIsPricingLoading(true);
+      setIsAvailabilityLoading(true);
+      setPricingError(null);
+      setAvailabilityError(null);
+      
+      console.log(`[BookingContext] ${requestId} 🏠 Fetching data for property: ${storedPropertySlug}`);
+      
+      // STEP 1: Fetch unavailable dates (this loads the calendar data)
+      console.log(`[BookingContext] ${requestId} 📅 Fetching unavailable dates...`);
+      const unavailableDatesResult = await getUnavailableDatesForProperty(storedPropertySlug);
+      
+      console.log(`[BookingContext] ${requestId} ✅ Loaded ${unavailableDatesResult.length} unavailable dates`);
+      
+      // Store unavailable dates in state
+      setUnavailableDates(unavailableDatesResult);
+      
+      // STEP 2: If we have check-in/check-out dates, also fetch pricing
+      let pricingResult: PricingDetails | null = null;
+      let availabilityResult = true; // Default to available
+      
+      if (checkInDate && checkOutDate && numberOfNights > 0) {
+        console.log(`[BookingContext] ${requestId} 💰 Fetching pricing for dates ${checkInDate.toISOString()} to ${checkOutDate.toISOString()}`);
+        
+        // Fetch pricing
+        const pricingResponse = await getPricingForDateRange(
+          storedPropertySlug,
+          checkInDate,
+          checkOutDate,
+          numberOfGuests
+        );
+        
+        if (pricingResponse?.pricing) {
+          pricingResult = {
+            accommodationTotal: pricingResponse.pricing.subtotal - (pricingResponse.pricing.cleaningFee || 0),
+            cleaningFee: pricingResponse.pricing.cleaningFee || 0,
+            subtotal: pricingResponse.pricing.subtotal,
+            total: pricingResponse.pricing.totalPrice !== undefined ? pricingResponse.pricing.totalPrice : pricingResponse.pricing.total || 0,
+            totalPrice: pricingResponse.pricing.totalPrice !== undefined ? pricingResponse.pricing.totalPrice : pricingResponse.pricing.total || 0,
+            currency: pricingResponse.pricing.currency as CurrencyCode,
+            dailyRates: pricingResponse.pricing.dailyRates || {},
+            datesFetched: {
+              checkIn: checkInDate.toISOString(),
+              checkOut: checkOutDate.toISOString(),
+              guestCount: numberOfGuests
+            },
+            timestamp: Date.now()
+          };
+          
+          console.log(`[BookingContext] ${requestId} ✅ Pricing fetched: €${pricingResult.total}`);
+        }
+        
+        // Check availability for the selected dates
+        console.log(`[BookingContext] ${requestId} 🔍 Checking availability for selected dates...`);
+        
+        let current = new Date(checkInDate.getTime());
+        let conflict = false;
+        
+        while (current < checkOutDate) {
+          const currentDateStr = current.toISOString().split('T')[0];
+          const isUnavailable = unavailableDatesResult.some(d => 
+            d.toISOString().split('T')[0] === currentDateStr
+          );
+          
+          if (isUnavailable) {
+            console.log(`[BookingContext] ${requestId} ❌ Conflict found on date: ${currentDateStr}`);
+            conflict = true;
+            break;
+          }
+          
+          current.setDate(current.getDate() + 1);
+        }
+        
+        availabilityResult = !conflict;
+        console.log(`[BookingContext] ${requestId} ✅ Availability result: ${availabilityResult ? 'AVAILABLE' : 'NOT AVAILABLE'}`);
+      } else {
+        console.log(`[BookingContext] ${requestId} ⏭️ Skipping pricing - no dates selected`);
+      }
+      
+      // Update all states
+      if (pricingResult) {
+        setPricingDetails(pricingResult);
+      }
+      setIsAvailable(availabilityResult);
+      
+      console.log(`[BookingContext] ${requestId} ✅ SINGLE API CALL COMPLETE`);
+      
+      return { 
+        pricing: pricingResult, 
+        unavailableDates: unavailableDatesResult, 
+        isAvailable: availabilityResult 
+      };
+      
+    } catch (error) {
+      console.error(`[BookingContext] ${requestId} ❌ Error in fetchAvailabilityAndPricing:`, error);
+      setPricingError("Error fetching data. Please try again.");
+      setAvailabilityError("Error loading availability. Please try again.");
+      
+      return { pricing: null, unavailableDates: [], isAvailable: true };
+    } finally {
+      setIsPricingLoading(false);
+      setIsAvailabilityLoading(false);
+    }
+  }, [storedPropertySlug, checkInDate, checkOutDate, numberOfNights, numberOfGuests, 
+      setPricingDetails, setUnavailableDates, setIsAvailable]);
   
   // Create state object
   const state: BookingContextState = {
@@ -273,8 +597,69 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     totalPrice,
     appliedCouponCode,
     selectedCurrency,
+    // Include centralized pricing state
+    pricingDetails,
+    isPricingLoading,
+    pricingError,
+    // Include centralized availability state
+    unavailableDates,
+    isAvailabilityLoading,
+    availabilityError,
+    isAvailable,
   };
   
+  // Effect to auto-fetch BOTH availability and pricing when property/dates/guests change
+  React.useEffect(() => {
+    // Simple debouncing - prevent excessive calls
+    const now = Date.now();
+    if (now - lastFetchTimeRef.current < 1000) { // Minimum 1 second between calls
+      console.log(`[BookingContext] Debouncing fetch call`);
+      return;
+    }
+    
+    // Prevent infinite loops
+    if (isFetchingRef.current) {
+      console.log(`[BookingContext] Skipping fetch: Already fetching`);
+      return;
+    }
+    
+    // Only run if we have property slug and no loading is in progress
+    if (storedPropertySlug && !isPricingLoading && !isAvailabilityLoading) {
+      
+      // Only fetch availability when property changes and we have no data yet
+      const needsAvailabilityFetch = unavailableDates.length === 0;
+      
+      // Check if we need to fetch pricing (only when we have dates)
+      const needsPricingFetch = checkInDate && checkOutDate && numberOfNights > 0 && (
+        // If we have no pricing details yet
+        !pricingDetails || 
+        // Or if the dates have changed
+        (pricingDetails.datesFetched && (
+          pricingDetails.datesFetched.checkIn !== checkInDate.toISOString() ||
+          pricingDetails.datesFetched.checkOut !== checkOutDate.toISOString() ||
+          pricingDetails.datesFetched.guestCount !== numberOfGuests
+        ))
+      );
+      
+      if (needsAvailabilityFetch || needsPricingFetch) {
+        console.log(`[BookingContext] Auto-fetching: availability=${needsAvailabilityFetch}, pricing=${needsPricingFetch}`);
+        
+        lastFetchTimeRef.current = now;
+        isFetchingRef.current = true;
+        
+        fetchAvailabilityAndPricing()
+          .catch(error => {
+            console.error(`[BookingContext] Auto-fetch error:`, error);
+          })
+          .finally(() => {
+            isFetchingRef.current = false;
+          });
+      } else {
+        console.log(`[BookingContext] Skipping fetch: Using existing data`);
+      }
+    }
+  }, [storedPropertySlug, checkInDate, checkOutDate, numberOfNights, numberOfGuests]);
+
   // Action to clear all booking data
   const clearBookingData = useCallback(() => {
     if (propertySlug) {
@@ -289,6 +674,8 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       setNumberOfNights(0);
       setTotalPrice(null);
       setAppliedCouponCode(null);
+      resetPricing();
+      resetAvailability();
     } else {
       // Fallback to individual clearing if no property slug
       setCheckInDate(null);
@@ -297,8 +684,11 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       setNumberOfNights(0);
       setTotalPrice(null);
       setAppliedCouponCode(null);
+      resetPricing();
+      resetAvailability();
     }
-  }, [propertySlug, setCheckInDate, setCheckOutDate, setNumberOfGuests, setNumberOfNights, setTotalPrice, setAppliedCouponCode]);
+  }, [propertySlug, setCheckInDate, setCheckOutDate, setNumberOfGuests, setNumberOfNights, 
+      setTotalPrice, setAppliedCouponCode, resetPricing, resetAvailability]);
 
   // Action to clear just guest information
   const clearGuestData = useCallback(() => {
@@ -326,6 +716,14 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     setSelectedCurrency,
     clearBookingData,
     clearGuestData,
+    // Add centralized pricing actions
+    fetchPricing,
+    setPricingDetails,
+    resetPricing,
+    // Add centralized availability actions
+    fetchAvailabilityAndPricing,
+    setUnavailableDates,
+    setIsAvailable,
   };
   
   // Add a mountCount check to detect duplicate/nested providers in development mode
@@ -465,6 +863,14 @@ export const useBookingActions = () => {
           setSelectedCurrency: () => {},
           clearBookingData: () => {},
           clearGuestData: () => {},
+          // Add stubs for pricing methods
+          fetchPricing: async () => null,
+          setPricingDetails: () => {},
+          resetPricing: () => {},
+          // Add stubs for availability methods
+          fetchAvailabilityAndPricing: async () => ({ pricing: null, unavailableDates: [], isAvailable: true }),
+          setUnavailableDates: () => {},
+          setIsAvailable: () => {},
         };
       }
 

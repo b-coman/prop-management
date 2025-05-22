@@ -4,12 +4,9 @@ import React from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { useBooking } from '@/contexts/BookingContext';
 
 interface GuestSelectorProps {
-  value: number;
-  onChange: (value: number) => void;
-  // Add new callback prop to pass pricing data
-  onPricingDataReceived?: (pricingData: any) => void;
   minGuests?: number;
   maxGuests: number;
   disabled?: boolean;
@@ -21,185 +18,39 @@ interface GuestSelectorProps {
  * 
  * This component provides a simple interface with plus/minus buttons to 
  * increment or decrement the guest count within the allowed range.
+ * 
+ * REFACTORED: Now uses BookingContext only - no direct API calls.
+ * Users must click "Check Price" button to get updated pricing.
  */
 export function GuestSelector({
-  value,
-  onChange,
-  onPricingDataReceived, // New prop
   minGuests = 1,
   maxGuests,
   disabled = false,
   className = '',
 }: GuestSelectorProps) {
-  // Handler for decrementing the guest count
-  const decrementGuests = async () => {
-    if (value > minGuests) {
-      // Calculate the new guest count
-      const newCount = value - 1;
+  const { numberOfGuests, setNumberOfGuests } = useBooking();
+
+  // Handler for decrementing the guest count - CONTEXT ONLY
+  const decrementGuests = () => {
+    if (numberOfGuests > minGuests) {
+      const newCount = numberOfGuests - 1;
       
-      // Call the onChange handler to update the UI
-      onChange(newCount);
+      console.log(`[GuestSelector] 👥 CONTEXT ONLY: Updating guests to ${newCount} (no auto API call)`);
       
-      // Log that we're making a direct API call
-      console.log(`[GuestSelector] 👥 Making direct API call for ${newCount} guests`);
-      
-      try {
-        // Get the current property slug from URL
-        const url = window.location.pathname;
-        const match = url.match(/\/booking\/check\/([^\/\?]+)/);
-        const propertyId = match ? match[1] : null;
-        
-        if (!propertyId) {
-          console.error(`[GuestSelector] ❌ Cannot make API call: property ID not found in URL`);
-          return;
-        }
-        
-        // Get check-in and check-out dates from URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const checkIn = urlParams.get('checkIn');
-        const checkOut = urlParams.get('checkOut');
-        
-        if (!checkIn || !checkOut) {
-          console.error(`[GuestSelector] ❌ Cannot make API call: dates not found in URL`);
-          return;
-        }
-        
-        // Prepare the API request
-        const apiUrl = `${window.location.origin}/api/check-pricing`;
-        const body = {
-          propertyId,
-          checkIn: new Date(checkIn).toISOString(),
-          checkOut: new Date(checkOut).toISOString(),
-          guests: newCount
-        };
-        
-        console.log(`[GuestSelector] 🚀 Direct API call to ${apiUrl}`, body);
-        
-        // Make the API call directly
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(body)
-        });
-        
-        if (!response.ok) {
-          throw new Error(`API returned ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log(`[GuestSelector] ✅ DIRECT API SUCCESS: Response received for ${newCount} guests`);
-        console.log(`[GuestSelector] 🔍 DEBUG RESPONSE STRUCTURE:`, JSON.stringify(data, null, 2));
-        
-        // Pass the pricing data back to parent component
-        if (onPricingDataReceived && data.pricing) {
-          console.log(`[GuestSelector] 🔄 CALLBACK STATUS: Parent callback exists, passing data`);
-          try {
-            onPricingDataReceived(data);
-            console.log(`[GuestSelector] ✅ CALLBACK EXECUTED: Successfully passed data to parent`);
-          } catch (error) {
-            console.error(`[GuestSelector] ❌ CALLBACK ERROR: Failed to pass data to parent`, error);
-          }
-        } else {
-          console.warn(`[GuestSelector] ⚠️ CALLBACK ISSUE: ${!onPricingDataReceived ? 'Callback undefined' : 'No pricing data'}`);
-        }
-        
-        // Display a message to show the price updating
-        const priceEl = document.querySelector('.booking-summary');
-        if (priceEl) {
-          priceEl.classList.add('updating');
-          setTimeout(() => priceEl.classList.remove('updating'), 1000);
-        }
-      } catch (error) {
-        console.error(`[GuestSelector] ❌ Error making direct API call:`, error);
-      }
+      // Update context only - no direct API calls
+      setNumberOfGuests(newCount);
     }
   };
 
-  // Handler for incrementing the guest count
-  const incrementGuests = async () => {
-    if (value < maxGuests) {
-      // Calculate the new guest count
-      const newCount = value + 1;
+  // Handler for incrementing the guest count - CONTEXT ONLY
+  const incrementGuests = () => {
+    if (numberOfGuests < maxGuests) {
+      const newCount = numberOfGuests + 1;
       
-      // Call the onChange handler to update the UI
-      onChange(newCount);
+      console.log(`[GuestSelector] 👥 CONTEXT ONLY: Updating guests to ${newCount} (no auto API call)`);
       
-      // Log that we're making a direct API call
-      console.log(`[GuestSelector] 👥 Making direct API call for ${newCount} guests`);
-      
-      try {
-        // Get the current property slug from URL
-        const url = window.location.pathname;
-        const match = url.match(/\/booking\/check\/([^\/\?]+)/);
-        const propertyId = match ? match[1] : null;
-        
-        if (!propertyId) {
-          console.error(`[GuestSelector] ❌ Cannot make API call: property ID not found in URL`);
-          return;
-        }
-        
-        // Get check-in and check-out dates from URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const checkIn = urlParams.get('checkIn');
-        const checkOut = urlParams.get('checkOut');
-        
-        if (!checkIn || !checkOut) {
-          console.error(`[GuestSelector] ❌ Cannot make API call: dates not found in URL`);
-          return;
-        }
-        
-        // Prepare the API request
-        const apiUrl = `${window.location.origin}/api/check-pricing`;
-        const body = {
-          propertyId,
-          checkIn: new Date(checkIn).toISOString(),
-          checkOut: new Date(checkOut).toISOString(),
-          guests: newCount
-        };
-        
-        console.log(`[GuestSelector] 🚀 Direct API call to ${apiUrl}`, body);
-        
-        // Make the API call directly
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(body)
-        });
-        
-        if (!response.ok) {
-          throw new Error(`API returned ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log(`[GuestSelector] ✅ DIRECT API SUCCESS: Response received for ${newCount} guests`);
-        console.log(`[GuestSelector] 🔍 DEBUG RESPONSE STRUCTURE:`, JSON.stringify(data, null, 2));
-        
-        // Pass the pricing data back to parent component
-        if (onPricingDataReceived && data.pricing) {
-          console.log(`[GuestSelector] 🔄 CALLBACK STATUS: Parent callback exists, passing data`);
-          try {
-            onPricingDataReceived(data);
-            console.log(`[GuestSelector] ✅ CALLBACK EXECUTED: Successfully passed data to parent`);
-          } catch (error) {
-            console.error(`[GuestSelector] ❌ CALLBACK ERROR: Failed to pass data to parent`, error);
-          }
-        } else {
-          console.warn(`[GuestSelector] ⚠️ CALLBACK ISSUE: ${!onPricingDataReceived ? 'Callback undefined' : 'No pricing data'}`);
-        }
-        
-        // Display a message to show the price updating
-        const priceEl = document.querySelector('.booking-summary');
-        if (priceEl) {
-          priceEl.classList.add('updating');
-          setTimeout(() => priceEl.classList.remove('updating'), 1000);
-        }
-      } catch (error) {
-        console.error(`[GuestSelector] ❌ Error making direct API call:`, error);
-      }
+      // Update context only - no direct API calls
+      setNumberOfGuests(newCount);
     }
   };
 
@@ -213,13 +64,13 @@ export function GuestSelector({
           size="icon"
           className="h-8 w-8"
           onClick={decrementGuests}
-          disabled={value <= minGuests || disabled}
+          disabled={numberOfGuests <= minGuests || disabled}
           aria-label="Decrease guests"
         >
           <Minus className="h-4 w-4" />
         </Button>
         <span className="mx-2 font-medium w-10 text-center" id="guests">
-          {value}
+          {numberOfGuests}
         </span>
         <Button
           type="button"
@@ -227,7 +78,7 @@ export function GuestSelector({
           size="icon"
           className="h-8 w-8"
           onClick={incrementGuests}
-          disabled={value >= maxGuests || disabled}
+          disabled={numberOfGuests >= maxGuests || disabled}
           aria-label="Increase guests"
         >
           <Plus className="h-4 w-4" />
