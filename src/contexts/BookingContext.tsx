@@ -764,8 +764,18 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       if (hasCheckIn && hasCheckOut && numberOfNights > 0) {
         console.log(`[BookingContext] ✅ ALL CONDITIONS MET - proceeding with URL pricing fetch`);
         
-        // Global session-level prevention - check if ANY instance has already triggered this
-        const globalFetchKey = `url_pricing_${storedPropertySlug}_${checkInDate?.toISOString()}_${checkOutDate?.toISOString()}_${numberOfGuests}`;
+        // CRITICAL FIX: Use URL dates directly to avoid context state normalization inconsistencies
+        const urlCheckIn = urlParams.get('checkIn');
+        const urlCheckOut = urlParams.get('checkOut');
+        const urlGuests = parseInt(urlParams.get('guests') || '2', 10);
+        
+        if (!urlCheckIn || !urlCheckOut) {
+          console.log(`[BookingContext] ❌ URL dates missing: checkIn=${urlCheckIn}, checkOut=${urlCheckOut}`);
+          return;
+        }
+        
+        // Global session-level prevention using consistent URL-based dates
+        const globalFetchKey = `url_pricing_${storedPropertySlug}_${urlCheckIn}_${urlCheckOut}_${urlGuests}`;
         const sessionStorage = window.sessionStorage;
         
         console.log(`[BookingContext] 🔍 SESSION KEY CHECK: key="${globalFetchKey}", exists=${!!sessionStorage.getItem(globalFetchKey)}`);
@@ -775,9 +785,10 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
           return;
         }
         
-        // Prevent duplicate calls for same dates/guests combination
-        const fetchKey = `${storedPropertySlug}-${checkInDate?.toISOString()}-${checkOutDate?.toISOString()}-${numberOfGuests}`;
+        // Prevent duplicate calls for same dates/guests combination using URL dates
+        const fetchKey = `${storedPropertySlug}-${urlCheckIn}-${urlCheckOut}-${urlGuests}`;
         if (hasTriggeredPricingRef.current === fetchKey) {
+          console.log(`[BookingContext] 🚫 SKIP: Already triggered for this URL combination`);
           return;
         }
         
@@ -789,15 +800,23 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
           console.log(`[BookingContext] 🚀 Executing delayed URL pricing fetch`);
           // Set session flag right before fetch to ensure it only gets set if fetch actually happens
           sessionStorage.setItem(globalFetchKey, 'true');
-          fetchPricingWithDates(checkInDate, checkOutDate, numberOfGuests)
-            .then(() => {
-              console.log(`[BookingContext] ✅ URL pricing fetch completed successfully`);
-            })
-            .catch(error => {
-              console.error(`[BookingContext] URL pricing auto-fetch error:`, error);
-              hasTriggeredPricingRef.current = null; // Reset on error
-              sessionStorage.removeItem(globalFetchKey); // Reset session flag on error
-            });
+          
+          // Use context dates for actual API call (which are normalized), but URL dates for session coordination
+          if (checkInDate && checkOutDate) {
+            fetchPricingWithDates(checkInDate, checkOutDate, numberOfGuests)
+              .then(() => {
+                console.log(`[BookingContext] ✅ URL pricing fetch completed successfully`);
+              })
+              .catch(error => {
+                console.error(`[BookingContext] URL pricing auto-fetch error:`, error);
+                hasTriggeredPricingRef.current = null; // Reset on error
+                sessionStorage.removeItem(globalFetchKey); // Reset session flag on error
+              });
+          } else {
+            console.log(`[BookingContext] ❌ Context dates not ready for API call`);
+            hasTriggeredPricingRef.current = null;
+            sessionStorage.removeItem(globalFetchKey);
+          }
         }, 150); // Delay to ensure BookingClientInner has set all dates
       }
     }
