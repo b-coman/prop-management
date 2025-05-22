@@ -757,7 +757,6 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
   React.useEffect(() => {
     // Check if this is initial load with URL parameters
     console.log(`[BookingContext] 🔍 COMBINED FETCH CHECK: window=${typeof window !== 'undefined'}, slug=${!!storedPropertySlug}, checkIn=${!!checkInDate}, checkOut=${!!checkOutDate}, noPricing=${!pricingDetails}, nights=${numberOfNights}`);
-    console.log(`[BookingContext] 🔍 CURRENT STATE: isAvailable=${isAvailable}, isPricingLoading=${isPricingLoading}, isAvailabilityLoading=${isAvailabilityLoading}, unavailableDatesCount=${unavailableDates.length}`);
     
     if (typeof window !== 'undefined' && storedPropertySlug && checkInDate && checkOutDate && numberOfNights > 0) {
       const urlParams = new URLSearchParams(window.location.search);
@@ -765,7 +764,6 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       const hasCheckOut = urlParams.get('checkOut');
       
       console.log(`[BookingContext] 🔍 URL PARAMS CHECK: hasCheckIn=${!!hasCheckIn}, hasCheckOut=${!!hasCheckOut}, nights=${numberOfNights}`);
-      console.log(`[BookingContext] 🔍 DATA STATE: hasPricing=${!!pricingDetails}, hasUnavailableDates=${unavailableDates.length > 0}, isAvailable=${isAvailable}`);
       
       // Only auto-fetch if URL explicitly has both dates AND we don't have data yet
       if (hasCheckIn && hasCheckOut && (!pricingDetails || unavailableDates.length === 0)) {
@@ -790,7 +788,6 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
               isAvailable: result.isAvailable,
               totalPrice: result.pricing?.total
             });
-            console.log(`[BookingContext] 🎯 STATE AFTER FETCH: isAvailable=${isAvailable}, pricingDetails=${!!pricingDetails}`);
           })
           .catch(error => {
             console.error(`[BookingContext] ❌ Combined auto-fetch error:`, error);
