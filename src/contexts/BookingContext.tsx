@@ -781,11 +781,12 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
         
         console.log(`[BookingContext] 💰 Auto-fetching pricing from URL parameters (SINGLE INSTANCE)`);
         hasTriggeredPricingRef.current = fetchKey;
-        sessionStorage.setItem(globalFetchKey, 'true');
         
         // Small delay to ensure all state is properly set
         setTimeout(() => {
           console.log(`[BookingContext] 🚀 Executing delayed URL pricing fetch`);
+          // Set session flag right before fetch to ensure it only gets set if fetch actually happens
+          sessionStorage.setItem(globalFetchKey, 'true');
           fetchPricingWithDates(checkInDate, checkOutDate, numberOfGuests)
             .then(() => {
               console.log(`[BookingContext] ✅ URL pricing fetch completed successfully`);
