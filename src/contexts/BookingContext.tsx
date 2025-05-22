@@ -762,6 +762,8 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       
       // Only auto-fetch pricing if URL explicitly has both dates
       if (hasCheckIn && hasCheckOut && numberOfNights > 0) {
+        console.log(`[BookingContext] ✅ ALL CONDITIONS MET - proceeding with URL pricing fetch`);
+        
         // Global session-level prevention - check if ANY instance has already triggered this
         const globalFetchKey = `url_pricing_${storedPropertySlug}_${checkInDate?.toISOString()}_${checkOutDate?.toISOString()}_${numberOfGuests}`;
         const sessionStorage = window.sessionStorage;
@@ -781,12 +783,19 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
         hasTriggeredPricingRef.current = fetchKey;
         sessionStorage.setItem(globalFetchKey, 'true');
         
-        fetchPricingWithDates(checkInDate, checkOutDate, numberOfGuests)
-          .catch(error => {
-            console.error(`[BookingContext] URL pricing auto-fetch error:`, error);
-            hasTriggeredPricingRef.current = null; // Reset on error
-            sessionStorage.removeItem(globalFetchKey); // Reset session flag on error
-          });
+        // Small delay to ensure all state is properly set
+        setTimeout(() => {
+          console.log(`[BookingContext] 🚀 Executing delayed URL pricing fetch`);
+          fetchPricingWithDates(checkInDate, checkOutDate, numberOfGuests)
+            .then(() => {
+              console.log(`[BookingContext] ✅ URL pricing fetch completed successfully`);
+            })
+            .catch(error => {
+              console.error(`[BookingContext] URL pricing auto-fetch error:`, error);
+              hasTriggeredPricingRef.current = null; // Reset on error
+              sessionStorage.removeItem(globalFetchKey); // Reset session flag on error
+            });
+        }, 150); // Delay to ensure BookingClientInner has set all dates
       }
     }
   }, [storedPropertySlug, checkInDate, checkOutDate, numberOfGuests, numberOfNights, pricingDetails]); // FIXED: Removed fetchPricingWithDates from dependencies
