@@ -38,13 +38,13 @@ Each entry documents:
 **Rationale**: Ensures backward compatibility during transition while implementing new architecture  
 **Plan Impact**: Added `legacyAutoFetchEnabled = false` flag - can be toggled if needed during testing
 
-### Decision #3: Infinite Loop Issue Detected in Production
+### Decision #3: Multiple Component Instance Problem Discovered
 **Date**: 2025-05-22  
 **Step Context**: Step 2 Testing - Separate BookingContext Fetch Functions  
-**Issue**: After deployment, infinite console logs and continuous loading state detected  
-**Problem**: New useEffect triggers may be causing infinite re-renders or fetch loops  
-**Immediate Action**: Need to fix useEffect dependencies and prevent infinite loops  
-**Plan Impact**: Requires emergency fix to useEffect logic before proceeding to Step 4  
+**Issue**: After deployment, multiple component instances mounting and triggering duplicate API calls  
+**Root Cause**: Multiple BookingProvider instances mounting simultaneously, each triggering URL-based pricing fetch  
+**Solution**: Added session-scoped prevention using sessionStorage to ensure only one instance fetches pricing per session  
+**Plan Impact**: Added global session-level duplicate prevention for URL-based pricing fetches  
 
 ---
 

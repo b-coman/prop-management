@@ -746,7 +746,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     }
   }, [storedPropertySlug, unavailableDates.length, isAvailabilityLoading]); // FIXED: Removed fetchAvailability from dependencies
 
-  // NEW: URL-based initial pricing fetch - Only if URL has both dates  
+  // NEW: URL-based initial pricing fetch - Only if URL has both dates (SESSION-SCOPED)
   const hasTriggeredPricingRef = useRef<string | null>(null);
   
   React.useEffect(() => {
@@ -758,19 +758,30 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       
       // Only auto-fetch pricing if URL explicitly has both dates
       if (hasCheckIn && hasCheckOut && numberOfNights > 0) {
+        // Global session-level prevention - check if ANY instance has already triggered this
+        const globalFetchKey = `url_pricing_${storedPropertySlug}_${checkInDate?.toISOString()}_${checkOutDate?.toISOString()}_${numberOfGuests}`;
+        const sessionStorage = window.sessionStorage;
+        
+        if (sessionStorage.getItem(globalFetchKey)) {
+          console.log(`[BookingContext] 🚫 SKIP: URL pricing already fetched by another instance`);
+          return;
+        }
+        
         // Prevent duplicate calls for same dates/guests combination
         const fetchKey = `${storedPropertySlug}-${checkInDate?.toISOString()}-${checkOutDate?.toISOString()}-${numberOfGuests}`;
         if (hasTriggeredPricingRef.current === fetchKey) {
           return;
         }
         
-        console.log(`[BookingContext] 💰 Auto-fetching pricing from URL parameters`);
+        console.log(`[BookingContext] 💰 Auto-fetching pricing from URL parameters (SINGLE INSTANCE)`);
         hasTriggeredPricingRef.current = fetchKey;
+        sessionStorage.setItem(globalFetchKey, 'true');
         
         fetchPricingWithDates(checkInDate, checkOutDate, numberOfGuests)
           .catch(error => {
             console.error(`[BookingContext] URL pricing auto-fetch error:`, error);
             hasTriggeredPricingRef.current = null; // Reset on error
+            sessionStorage.removeItem(globalFetchKey); // Reset session flag on error
           });
       }
     }
