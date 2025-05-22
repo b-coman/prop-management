@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { addDays, format, startOfDay } from 'date-fns';
-import { Check, Loader2, X, Calendar } from 'lucide-react';
+import { Check, Loader2, X, Calendar, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBooking } from '@/contexts/BookingContext';
 import { useToast } from '@/hooks/use-toast';
@@ -51,7 +51,7 @@ export function EnhancedAvailabilityChecker({
     isPricingLoading,
     // Separated fetch functions - using new architecture
     fetchAvailability,
-    fetchPricing
+    fetchPricing: fetchPricingWithDates
   } = useBooking();
 
   // Local UI state - SIMPLIFIED since availability comes from context
@@ -79,14 +79,12 @@ export function EnhancedAvailabilityChecker({
   
   // Simplified availability monitoring - just notify parent when availability changes
   useEffect(() => {
-    console.log(`[EnhancedAvailabilityChecker] 🔍 AVAILABILITY MONITOR: isAvailable=${isAvailable}, wasChecked=${wasChecked}, onAvailabilityResult=${!!onAvailabilityResult}`);
-    
     if (onAvailabilityResult && isAvailable !== null) {
       console.log(`[EnhancedAvailabilityChecker] 🔄 Notifying parent of availability result: ${isAvailable}`);
       onAvailabilityResult(isAvailable);
       setWasChecked(true);
     }
-  }, [isAvailable, onAvailabilityResult, wasChecked]);
+  }, [isAvailable, onAvailabilityResult]);
 
   // Handle check-in date changes
   const handleCheckInChange = useCallback((date: Date | null) => {
@@ -138,6 +136,15 @@ export function EnhancedAvailabilityChecker({
   // Guest count changes are now handled directly by GuestSelector via BookingContext
   // No need for manual handlers here since GuestSelector manages its own state
 
+  // Check Price button handler
+  const handleCheckPrice = useCallback(() => {
+    if (checkInDate && checkOutDate && numberOfGuests > 0) {
+      console.log(`[EnhancedAvailabilityChecker] 💰 User clicked Check Price: ${checkInDate.toISOString()} to ${checkOutDate.toISOString()}, ${numberOfGuests} guests`);
+      fetchPricingWithDates(checkInDate, checkOutDate, numberOfGuests);
+      setWasChecked(false); // Reset to show fresh result
+    }
+  }, [checkInDate, checkOutDate, numberOfGuests, fetchPricingWithDates]);
+
   // Create a derived value for min checkout date (always day after check-in)
   const minCheckoutDate = localCheckInDate ? addDays(localCheckInDate, 1) : new Date();
 
@@ -153,12 +160,6 @@ export function EnhancedAvailabilityChecker({
 
   return (
     <div className="p-4 border border-blue-200 bg-blue-50 rounded-md">
-      {/* DEBUG INFO */}
-      <div className="mb-2 p-1 bg-gray-100 text-xs rounded">
-        DEBUG (v1.3.1): wasChecked={wasChecked.toString()} | isAvailable={isAvailable?.toString() || 'null'}<br/>
-        guestCount={numberOfGuests} | hasPricing={!!(pricingDetails && pricingDetails.total > 0)} | isPricingLoading={isPricingLoading.toString()}
-      </div>
-      
       {/* Status messages with appropriate styling */}
       {wasChecked ? (
         isAvailable ? (
@@ -213,6 +214,28 @@ export function EnhancedAvailabilityChecker({
             className="h-full"
           />
         </div>
+      </div>
+
+      {/* Check Price Button - Always Visible for User Control */}
+      <div className="mt-4 flex justify-center">
+        <Button 
+          onClick={handleCheckPrice}
+          disabled={isPricingLoading || !checkInDate || !checkOutDate || isAvailabilityLoading}
+          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          size="default"
+        >
+          {isPricingLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Calculating...
+            </>
+          ) : (
+            <>
+              <DollarSign className="h-4 w-4 mr-2" />
+              Check Price
+            </>
+          )}
+        </Button>
       </div>
 
       {/* Show nights count when both dates are selected */}
