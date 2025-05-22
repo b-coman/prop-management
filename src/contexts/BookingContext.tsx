@@ -229,9 +229,10 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     if (newDate === null && checkInDate === null) return;
     if (newDate && checkInDate && newDate.getTime() === checkInDate.getTime()) return;
     
-    // 🐛 DEBUG: Log what we receive BEFORE any processing
-    console.log(`[BookingContext] 🐛 setCheckInDate received:`, newDate);
-    console.log(`[BookingContext] 🐛 Current checkInDate in state:`, checkInDate);
+    // DEBUG: Track date setter calls for timezone debugging
+    if (process.env.NODE_ENV === 'development' && newDate) {
+      console.log(`[BookingContext] 📅 setCheckInDate called with:`, newDate.toISOString());
+    }
     
     // Normalize date to noon UTC to ensure consistent time across all date operations
     // This prevents timezone conversion issues when dates are passed to the pricing API

@@ -75,15 +75,21 @@ export function useDatePicker() {
   // Handler for date selection
   const handleDateSelect = useCallback((range: DateRange | undefined) => {
     if (range?.from) {
-      // Normalize dates to start of day
-      const checkIn = startOfDay(range.from);
+      // CRITICAL FIX: Use noon UTC instead of midnight local to prevent timezone day-shift issues
+      // This ensures consistency with URL parsing and prevents date transformation bugs
+      const checkIn = new Date(range.from);
+      checkIn.setUTCHours(12, 0, 0, 0); // Set to noon UTC
+      console.log(`[useDatePicker] 🔧 Fixed checkIn: ${range.from.toISOString()} → ${checkIn.toISOString()}`);
       setCheckInDate(checkIn);
     } else {
       setCheckInDate(null);
     }
     
     if (range?.to) {
-      const checkOut = startOfDay(range.to);
+      // CRITICAL FIX: Use noon UTC instead of midnight local to prevent timezone day-shift issues
+      const checkOut = new Date(range.to);
+      checkOut.setUTCHours(12, 0, 0, 0); // Set to noon UTC
+      console.log(`[useDatePicker] 🔧 Fixed checkOut: ${range.to.toISOString()} → ${checkOut.toISOString()}`);
       setCheckOutDate(checkOut);
     } else {
       setCheckOutDate(null);

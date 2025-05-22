@@ -128,10 +128,13 @@ function BookingClientInner({
         parsedCheckOut: parsedCheckOut?.toISOString() || 'null'
       });
       
-      // Additional debugging: what exactly are we setting in the context?
-      console.log(`[BookingClientInner] 🐛 DEBUG - Date objects we're about to set:`);
-      console.log(`[BookingClientInner] 🐛 checkIn object:`, parsedCheckIn);
-      console.log(`[BookingClientInner] 🐛 checkOut object:`, parsedCheckOut);
+      // DEBUG: Log parsed date objects for timezone verification
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[BookingClientInner] 📅 Parsed date objects:`, {
+          checkIn: parsedCheckIn?.toISOString(),
+          checkOut: parsedCheckOut?.toISOString()
+        });
+      }
       
       // Set dates sequentially with timeouts to ensure proper state propagation
       if (parsedCheckIn) {
