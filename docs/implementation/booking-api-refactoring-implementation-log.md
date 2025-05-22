@@ -78,6 +78,21 @@ Each entry documents:
 **Implementation**: Removed ~100 lines of client-side calculation code, simplified caching logic, eliminated feature flag infrastructure  
 **Plan Impact**: Cleaner codebase, single code path, clearer architectural intent  
 
+### Decision #8: Critical Date Timezone Issue Resolution
+**Date**: 2025-05-23  
+**Step Context**: Post-deployment testing revealed date transformation bug  
+**Issue**: URL dates `checkIn=2025-05-28&checkOut=2025-05-31` were being transformed to `2025-05-27` and `2025-05-30` (1 day shift)  
+**Root Cause**: Multiple date sources using inconsistent timezone handling - some creating midnight local time, others noon UTC  
+**Investigation**: Found 4 different date sources: BookingContainer (`parseISO`), useDatePicker (`startOfDay`), EnhancedAvailabilityChecker (calendar), URL parsing (working)  
+**Solution**: Implemented consistent **noon UTC normalization** across all date sources using `setUTCHours(12, 0, 0, 0)` pattern  
+**Files Changed**:
+- `/src/components/booking/container/BookingContainer.tsx` - Fixed `parseISO` to use UTC noon (main culprit)
+- `/src/components/booking/hooks/useDatePicker.ts` - Fixed `startOfDay` to use UTC noon  
+- `/src/components/booking/sections/availability/EnhancedAvailabilityChecker.tsx` - Added normalization to date handlers
+- `/src/app/booking/check/[slug]/booking-client-layout.tsx` - Already working correctly
+**Testing**: Verified dates now remain: URL `2025-05-28→2025-05-31` = Context `2025-05-28T12:00:00.000Z→2025-05-31T12:00:00.000Z` (3 nights)  
+**Plan Impact**: Critical bug fix that could have affected all date-based functionality
+
 ---
 
 ## Summary of Major Deviations
@@ -87,6 +102,7 @@ Each entry documents:
 ### API Architecture Changes
 - [x] **Session-Scoped Prevention**: Added global sessionStorage coordination to prevent multiple component instances from making duplicate URL-based pricing fetches (Decision #3)
 - [x] **Feature Flag Elimination**: Removed useApiOnlyPricing feature flag and made API-only architecture permanent (Decision #7)
+- [x] **Date Timezone Standardization**: Implemented consistent noon UTC normalization across all date sources to prevent timezone day-shift bugs (Decision #8)
 
 ### Component Structure Changes  
 - [x] **Interface Simplification**: EnhancedAvailabilityChecker interface simplified after GuestSelector refactoring (Decision #4)
@@ -99,6 +115,7 @@ Each entry documents:
 - [x] **Timing Coordination**: Added 150ms delay to resolve race condition between BookingContext and BookingClientInner URL parameter processing (Decision #6)
 - [x] **Code Cleanup**: Removed ~100 lines of dead client-side calculation code
 - [x] **Caching Simplification**: Removed feature flag conditional logic from availabilityService
+- [x] **Date Handling Robustness**: Fixed timezone issues across 4 different date sources ensuring consistent UTC noon format (Decision #8)
 
 ---
 
@@ -173,6 +190,16 @@ Each entry documents:
 - [x] **A.5** Clean up ~100 lines of dead client-side calculation code
 - [x] **A.6** Verify build integrity after feature flag removal
 
+#### Critical Bug Fix: Date Timezone Issues (Decision #8)
+- [x] **B.1** Investigate URL date transformation bug (28→27, 31→30)
+- [x] **B.2** Identify 4 different date sources with inconsistent timezone handling
+- [x] **B.3** Fix BookingContainer parseISO to use UTC noon normalization
+- [x] **B.4** Fix useDatePicker startOfDay to use UTC noon normalization  
+- [x] **B.5** Fix EnhancedAvailabilityChecker calendar date handlers
+- [x] **B.6** Verify URL parsing already working correctly
+- [x] **B.7** Test complete date consistency: URL→Context→API (3 nights preserved)
+- [x] **B.8** Add normalization debugging logs for production verification
+
 ### Implementation Tasks (Week 2 - Cleanup & Testing)
 
 #### Step 6: Consolidate Availability Services
@@ -197,29 +224,35 @@ Each entry documents:
 - [ ] **T.5** Test custom domain functionality
 - [x] **T.6** Verify API endpoints work correctly via curl testing
 - [x] **T.7** Confirm build integrity after feature flag removal
+- [x] **T.8** Test date consistency across all sources - ✅ URL dates preserved correctly
 
 #### Cross-Context Testing  
-- [ ] **T.8** Test language switching (EN/RO)
-- [ ] **T.9** Test currency switching (EUR/USD/RON)
-- [ ] **T.10** Test theme changes
-- [ ] **T.11** Test mobile vs desktop layouts
+- [ ] **T.9** Test language switching (EN/RO)
+- [ ] **T.10** Test currency switching (EUR/USD/RON)
+- [ ] **T.11** Test theme changes
+- [ ] **T.12** Test mobile vs desktop layouts
 
 #### Performance Validation
-- [x] **T.12** Measure API call reduction (before vs after) - ✅ 8+ calls → 1 call (87.5% reduction)
-- [x] **T.13** Test loading state consistency - ✅ Clean console logs
-- [x] **T.14** Verify no race conditions - ✅ Session-scoped prevention working
-- [x] **T.15** Test session persistence - ✅ Storage working correctly
+- [x] **T.13** Measure API call reduction (before vs after) - ✅ 8+ calls → 1 call (87.5% reduction)
+- [x] **T.14** Test loading state consistency - ✅ Clean console logs
+- [x] **T.15** Verify no race conditions - ✅ Session-scoped prevention working
+- [x] **T.16** Test session persistence - ✅ Storage working correctly
+- [x] **T.17** Verify date timezone robustness - ✅ All sources use consistent UTC noon format
 
 **Implementation Status:**
 - [x] **Week 1**: Core refactoring (Steps 1-5) - 4/5 complete (Step 4 pending)
 - [ ] **Week 2**: Cleanup & testing (Steps 6-7 + Testing) - 0/2 complete
 - [x] **Additional Work**: URL timing fix + feature flag cleanup - 6/6 complete
 - [x] **Emergency Fixes**: Multiple instance prevention + interface fixes - 3/3 complete
-- **Overall Progress**: 80% (24/30 tasks complete)
+- [x] **Critical Bug Fix**: Date timezone issues across 4 sources - 8/8 complete
+- **Overall Progress**: 85% (32/38 tasks complete)
 
 **Key Files to Track:**
-- `/src/app/api/check-availability/route.ts`
-- `/src/contexts/BookingContext.tsx`  
-- `/src/components/booking/sections/common/GuestSelector.tsx`
-- `/src/components/booking/sections/availability/EnhancedAvailabilityChecker.tsx`
-- `/src/components/booking/client-booking-wrapper.tsx`
+- `/src/app/api/check-availability/route.ts` - SDK migration
+- `/src/contexts/BookingContext.tsx` - Separated fetch functions + timing fixes
+- `/src/components/booking/sections/common/GuestSelector.tsx` - Context-only approach
+- `/src/components/booking/sections/availability/EnhancedAvailabilityChecker.tsx` - Interface fixes + date normalization
+- `/src/components/booking/client-booking-wrapper.tsx` - Independent fetch removal
+- `/src/components/booking/container/BookingContainer.tsx` - Date parsing normalization (critical fix)
+- `/src/components/booking/hooks/useDatePicker.ts` - Calendar date normalization
+- `/src/app/booking/check/[slug]/booking-client-layout.tsx` - URL parsing (working correctly)
