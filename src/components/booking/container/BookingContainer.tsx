@@ -397,23 +397,39 @@ export function BookingContainer({
   // Validate and parse check-in date
   let initialCheckIn: Date | undefined;
   if (checkInParam) {
-    const parsedDate = parseISO(checkInParam);
-    if (isValid(parsedDate)) {
-      initialCheckIn = parsedDate;
+    // CRITICAL FIX: Use same normalization as URL parsing to prevent timezone day-shift
+    if (checkInParam.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = checkInParam.split('-').map(Number);
+      const normalized = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+      console.log(`[BookingContainer] 🔧 Normalized checkIn: ${checkInParam} → ${normalized.toISOString()}`);
+      initialCheckIn = normalized;
     } else {
+      const parsedDate = parseISO(checkInParam);
+      if (isValid(parsedDate)) {
+        const normalized = new Date(parsedDate);
+        normalized.setUTCHours(12, 0, 0, 0);
+        initialCheckIn = normalized;
+      }
     }
-  } else {
   }
 
   // Validate and parse check-out date
   let initialCheckOut: Date | undefined;
   if (checkOutParam) {
-    const parsedDate = parseISO(checkOutParam);
-    if (isValid(parsedDate)) {
-      initialCheckOut = parsedDate;
+    // CRITICAL FIX: Use same normalization as URL parsing to prevent timezone day-shift
+    if (checkOutParam.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = checkOutParam.split('-').map(Number);
+      const normalized = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+      console.log(`[BookingContainer] 🔧 Normalized checkOut: ${checkOutParam} → ${normalized.toISOString()}`);
+      initialCheckOut = normalized;
     } else {
+      const parsedDate = parseISO(checkOutParam);
+      if (isValid(parsedDate)) {
+        const normalized = new Date(parsedDate);
+        normalized.setUTCHours(12, 0, 0, 0);
+        initialCheckOut = normalized;
+      }
     }
-  } else {
   }
 
   // Parse guests param
