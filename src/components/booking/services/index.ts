@@ -1,2 +1,2 @@
 // Export all services
-export * from './availabilityService';
+// Note: availabilityService has been consolidated to /s@/services/availabilityService.ts

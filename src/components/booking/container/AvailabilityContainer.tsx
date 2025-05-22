@@ -18,7 +18,7 @@ import { BookingForm } from '../sections/forms/BookingForm';
 import { HoldForm } from '../sections/forms/HoldForm';
 import { ContactHostForm } from '../sections/forms/ContactHostForm';
 import { useToast } from '@/hooks/use-toast';
-import { checkAvailability } from '../services/availabilityService';
+import { checkAvailability } from '@/services/availabilityService';
 import { BookingOptionsCards } from '../booking-options-cards';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
