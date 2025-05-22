@@ -34,7 +34,7 @@ export const featureFlags = {
    * - All components fall back to API pricing data exclusively
    * - Affects GuestSelector, AvailabilityContainer, and BookingSummary components
    */
-  useApiOnlyPricing: true
+  useApiOnlyPricing: false
 };
 
 /**
