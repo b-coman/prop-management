@@ -751,10 +751,14 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
   
   React.useEffect(() => {
     // Check if this is initial load with URL parameters
+    console.log(`[BookingContext] 🔍 URL FETCH CHECK: window=${typeof window !== 'undefined'}, slug=${!!storedPropertySlug}, checkIn=${!!checkInDate}, checkOut=${!!checkOutDate}, noPricing=${!pricingDetails}, nights=${numberOfNights}`);
+    
     if (typeof window !== 'undefined' && storedPropertySlug && checkInDate && checkOutDate && !pricingDetails) {
       const urlParams = new URLSearchParams(window.location.search);
       const hasCheckIn = urlParams.get('checkIn');
       const hasCheckOut = urlParams.get('checkOut');
+      
+      console.log(`[BookingContext] 🔍 URL PARAMS CHECK: hasCheckIn=${!!hasCheckIn}, hasCheckOut=${!!hasCheckOut}, nights=${numberOfNights}`);
       
       // Only auto-fetch pricing if URL explicitly has both dates
       if (hasCheckIn && hasCheckOut && numberOfNights > 0) {
