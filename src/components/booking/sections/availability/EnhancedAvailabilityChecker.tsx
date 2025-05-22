@@ -46,6 +46,9 @@ export function EnhancedAvailabilityChecker({
     isAvailabilityLoading,
     availabilityError,
     isAvailable,
+    // Centralized pricing state - added for debug display
+    pricingDetails,
+    isPricingLoading,
     // Separated fetch functions - using new architecture
     fetchAvailability,
     fetchPricing
@@ -76,12 +79,14 @@ export function EnhancedAvailabilityChecker({
   
   // Simplified availability monitoring - just notify parent when availability changes
   useEffect(() => {
+    console.log(`[EnhancedAvailabilityChecker] 🔍 AVAILABILITY MONITOR: isAvailable=${isAvailable}, wasChecked=${wasChecked}, onAvailabilityResult=${!!onAvailabilityResult}`);
+    
     if (onAvailabilityResult && isAvailable !== null) {
       console.log(`[EnhancedAvailabilityChecker] 🔄 Notifying parent of availability result: ${isAvailable}`);
       onAvailabilityResult(isAvailable);
       setWasChecked(true);
     }
-  }, [isAvailable, onAvailabilityResult]);
+  }, [isAvailable, onAvailabilityResult, wasChecked]);
 
   // Handle check-in date changes
   const handleCheckInChange = useCallback((date: Date | null) => {
@@ -148,6 +153,12 @@ export function EnhancedAvailabilityChecker({
 
   return (
     <div className="p-4 border border-blue-200 bg-blue-50 rounded-md">
+      {/* DEBUG INFO */}
+      <div className="mb-2 p-1 bg-gray-100 text-xs rounded">
+        DEBUG (v1.3.1): wasChecked={wasChecked.toString()} | isAvailable={isAvailable?.toString() || 'null'}<br/>
+        guestCount={numberOfGuests} | hasPricing={!!(pricingDetails && pricingDetails.total > 0)} | isPricingLoading={isPricingLoading.toString()}
+      </div>
+      
       {/* Status messages with appropriate styling */}
       {wasChecked ? (
         isAvailable ? (
