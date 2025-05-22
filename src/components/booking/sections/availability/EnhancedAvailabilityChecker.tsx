@@ -87,13 +87,21 @@ export function EnhancedAvailabilityChecker({
   const handleCheckInChange = useCallback((date: Date | null) => {
     console.log(`[EnhancedAvailabilityChecker] Check-in date changed to:`, date);
 
+    // CRITICAL FIX: Normalize to noon UTC to prevent timezone day-shift issues
+    const normalizedDate = date ? (() => {
+      const normalized = new Date(date);
+      normalized.setUTCHours(12, 0, 0, 0);
+      console.log(`[EnhancedAvailabilityChecker] 🔧 Normalized checkIn: ${date.toISOString()} → ${normalized.toISOString()}`);
+      return normalized;
+    })() : null;
+
     // Update both local state and context
-    setLocalCheckInDate(date);
-    setCheckInDate(date);
+    setLocalCheckInDate(normalizedDate);
+    setCheckInDate(normalizedDate);
 
     // If the current checkout date is invalid with this new check-in date,
     // clear the checkout date
-    if (date && localCheckOutDate && date >= localCheckOutDate) {
+    if (normalizedDate && localCheckOutDate && normalizedDate >= localCheckOutDate) {
       setLocalCheckOutDate(null);
       setCheckOutDate(null);
     }
@@ -106,9 +114,17 @@ export function EnhancedAvailabilityChecker({
   const handleCheckOutChange = useCallback((date: Date | null) => {
     console.log(`[EnhancedAvailabilityChecker] Check-out date changed to:`, date);
 
+    // CRITICAL FIX: Normalize to noon UTC to prevent timezone day-shift issues
+    const normalizedDate = date ? (() => {
+      const normalized = new Date(date);
+      normalized.setUTCHours(12, 0, 0, 0);
+      console.log(`[EnhancedAvailabilityChecker] 🔧 Normalized checkOut: ${date.toISOString()} → ${normalized.toISOString()}`);
+      return normalized;
+    })() : null;
+
     // Update both local state and context
-    setLocalCheckOutDate(date);
-    setCheckOutDate(date);
+    setLocalCheckOutDate(normalizedDate);
+    setCheckOutDate(normalizedDate);
 
     // Reset availability state - auto-fetch will trigger from BookingContext
     setWasChecked(false);
