@@ -1,6 +1,5 @@
 // src/lib/price-utils.ts
 import type { CurrencyCode } from '@/types';
-import { getFeatureFlag } from '@/config/featureFlags';
 
 export interface PriceCalculationResult {
   basePrice: number; 
@@ -37,46 +36,8 @@ export function calculatePrice(
   baseCurrency: CurrencyCode, // Property's base currency
   discountPercentage: number = 0
 ): PriceCalculationResult | null {
-  // Check if API-only pricing is enabled
-  if (getFeatureFlag('useApiOnlyPricing')) {
-    console.log('[price-utils] ⚠️ Client-side price calculation bypassed (API-only mode)');
-    return null;
-  }
-  
-  if (numberOfNights <= 0) {
-    return { 
-      basePrice: 0, 
-      extraGuestFeeTotal: 0, 
-      cleaningFee: 0, 
-      subtotal: 0, 
-      discountAmount: 0, 
-      total: 0, 
-      currency: baseCurrency,
-      numberOfNights: 0,
-      numberOfExtraGuests: 0,
-    };
-  }
-
-  const basePrice = pricePerNight * numberOfNights;
-
-  const numberOfExtraGuests = Math.max(0, numberOfGuests - baseOccupancy);
-  const extraGuestFeeTotal = numberOfExtraGuests * extraGuestFeePerNight * numberOfNights;
-
-  const subtotal = basePrice + extraGuestFeeTotal + cleaningFee;
-
-  const discountAmount = subtotal * (discountPercentage / 100);
-
-  const total = subtotal - discountAmount;
-
-  return {
-    basePrice: basePrice,
-    extraGuestFeeTotal: extraGuestFeeTotal,
-    cleaningFee: cleaningFee,
-    subtotal: subtotal,
-    discountAmount: discountAmount,
-    total: total,
-    currency: baseCurrency,
-    numberOfNights: numberOfNights,
-    numberOfExtraGuests: numberOfExtraGuests,
-  };
+  // Architecture Decision: Use API-only pricing (pre-calculated in Firestore)
+  // Client-side calculations are incomplete compared to full API business logic
+  console.log('[price-utils] ⚠️ Client-side price calculation bypassed (API-only architecture)');
+  return null;
 }

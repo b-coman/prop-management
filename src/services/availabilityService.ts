@@ -4,7 +4,6 @@
 console.log("[LOAD CHECK] ✅ Loading updated availabilityService.ts with pricing calendar support");
 
 import { format, startOfDay, differenceInDays } from 'date-fns';
-import { getFeatureFlag } from '@/config/featureFlags';
 
 // Interface for pricing data
 export interface DailyPrice {
@@ -305,18 +304,9 @@ export async function getPricingForDateRange(
       console.log(`[availabilityService] [${requestId}] ⏱️ Cache expiration: ${timeRemaining > 0 ? `${Math.round(timeRemaining/1000)}s remaining` : 'expired'}`);
     }
     
-    // Check if API-only pricing mode is enabled
-    const useApiOnly = getFeatureFlag('useApiOnlyPricing');
-    
-    // Respect cache unless API-only mode is enabled or cache is disabled
-    if (!useApiOnly && apiCache[cacheKey] && apiCache[cacheKey].expiresAt > Date.now()) {
-      console.log(`[availabilityService] [${requestId}] 🔄 Using cached response for ${cacheKey} (cache hit)`);
-      // Log the cached data to debug issues with stale pricing
-      console.log(`[availabilityService] [${requestId}] 📋 Cached response:`, apiCache[cacheKey].data);
-      return apiCache[cacheKey].data;
-    }
-    
-    console.log(`[availabilityService] [${requestId}] 🆕 Not using cache - ${useApiOnly ? 'API-only mode enabled' : 'forcing fresh API call'} with guestCount=${guestCount}`);
+    // Architecture Decision: API-only pricing - always fetch fresh pricing data
+    // Pricing needs to be current and accurate, cache would risk stale pricing
+    console.log(`[availabilityService] [${requestId}] 🆕 Not using cache - API-only mode enabled with guestCount=${guestCount}`);
     
     // Get call timestamps from localStorage and update them
     const now = Date.now();
