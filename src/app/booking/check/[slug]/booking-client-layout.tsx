@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { BookingProvider } from '@/contexts/BookingContext';
 import { useBooking } from '@/contexts/BookingContext';
 import { useCurrency } from '@/contexts/CurrencyContext';
@@ -89,15 +89,20 @@ function BookingStorageInitializer({ propertySlug }: { propertySlug: string }) {
 }
 
 // Theme applicator component to handle property theme application
-function BookingThemeApplicator({ themeId }: { themeId?: string }) {
+function BookingThemeApplicator({ themeId, onThemeReady }: { themeId?: string; onThemeReady: () => void }) {
   const { setTheme } = useTheme();
   
   useEffect(() => {
     if (themeId) {
       console.log(`🎨 [Booking] Applying property theme: ${themeId}`);
       setTheme(themeId);
+      // Small delay to ensure theme is applied before rendering
+      setTimeout(onThemeReady, 50);
+    } else {
+      // No theme to apply, ready immediately
+      onThemeReady();
     }
-  }, [themeId, setTheme]);
+  }, [themeId, setTheme, onThemeReady]);
   
   return null; // No render needed
 }
@@ -127,6 +132,9 @@ function BookingClientInner({
 
   // Track whether we've already processed URL params
   const processedUrlParams = useRef(false);
+  
+  // Track theme readiness to prevent flash
+  const [themeReady, setThemeReady] = useState(false);
 
   // Set values in the context
   useEffect(() => {    
@@ -195,11 +203,26 @@ function BookingClientInner({
     }
   }, [propertySlug, setPropertySlug, currency, setSelectedCurrencyTemporary]); // Added currency dependencies
 
+  // Show loading until theme is ready
+  if (!themeReady) {
+    return (
+      <>
+        {/* Apply property theme */}
+        <BookingThemeApplicator themeId={themeId} onThemeReady={() => setThemeReady(true)} />
+        
+        {/* Loading state to prevent theme flash */}
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-current mx-auto mb-4"></div>
+            <p className="text-sm text-muted-foreground">Loading booking page...</p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
-      {/* Apply property theme */}
-      <BookingThemeApplicator themeId={themeId} />
-      
       {/* Pass heroImage to children */}
       {React.Children.map(children, child => {
         if (React.isValidElement(child)) {          
