@@ -124,17 +124,15 @@ export default async function AvailabilityCheckPage({ params, searchParams }: Av
   const propertyThemeId = property.themeId;
   
   return (
-    <ThemeProvider initialThemeId={propertyThemeId}>
-      <Suspense fallback={<div>Loading availability...</div>}>
-        <BookingClientLayout propertySlug={property.slug}>
-          <ClientBookingWrapper
-            property={property}
-            urlParams={{ checkIn, checkOut }}
-            heroImage={heroImage} // Directly pass the pre-fetched hero image
-          />
-        </BookingClientLayout>
-      </Suspense>
-    </ThemeProvider>
+    <Suspense fallback={<div>Loading availability...</div>}>
+      <BookingClientLayout propertySlug={property.slug} themeId={propertyThemeId}>
+        <ClientBookingWrapper
+          property={property}
+          urlParams={{ checkIn, checkOut }}
+          heroImage={heroImage} // Directly pass the pre-fetched hero image
+        />
+      </BookingClientLayout>
+    </Suspense>
   );
 }
 

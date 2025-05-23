@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import { BookingProvider } from '@/contexts/BookingContext';
 import { useBooking } from '@/contexts/BookingContext';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useSearchParams } from 'next/navigation';
 import { clearSyncedStorageByPrefix } from '@/hooks/use-synced-storage';
 import { parseISO, isValid, startOfDay } from 'date-fns';
@@ -15,6 +16,7 @@ import type { CurrencyCode } from '@/types';
 interface BookingClientLayoutProps {
   children: React.ReactNode;
   propertySlug: string;
+  themeId?: string;
 }
 
 // Helper function for parsing date strings from URL params
@@ -86,15 +88,31 @@ function BookingStorageInitializer({ propertySlug }: { propertySlug: string }) {
   return null;
 }
 
+// Theme applicator component to handle property theme application
+function BookingThemeApplicator({ themeId }: { themeId?: string }) {
+  const { setTheme } = useTheme();
+  
+  useEffect(() => {
+    if (themeId) {
+      console.log(`🎨 [Booking] Applying property theme: ${themeId}`);
+      setTheme(themeId);
+    }
+  }, [themeId, setTheme]);
+  
+  return null; // No render needed
+}
+
 // This component gets access to the context after it's been initialized
 function BookingClientInner({ 
   children, 
   propertySlug,
-  heroImage
+  heroImage,
+  themeId
 }: { 
   children: React.ReactNode, 
   propertySlug: string,
-  heroImage: string | null
+  heroImage: string | null,
+  themeId?: string
 }) {
   const searchParams = useSearchParams();
   const checkIn = searchParams.get('checkIn');
@@ -179,6 +197,9 @@ function BookingClientInner({
 
   return (
     <>
+      {/* Apply property theme */}
+      <BookingThemeApplicator themeId={themeId} />
+      
       {/* Pass heroImage to children */}
       {React.Children.map(children, child => {
         if (React.isValidElement(child)) {          
@@ -200,10 +221,11 @@ interface BookingClientLayoutProps {
   children: React.ReactNode;
   propertySlug: string;
   heroImage?: string | null;
+  themeId?: string;
 }
 
 // Main layout component with React Strict Mode protection
-export default function BookingClientLayout({ children, propertySlug, heroImage }: BookingClientLayoutProps) {
+export default function BookingClientLayout({ children, propertySlug, heroImage, themeId }: BookingClientLayoutProps) {
   // Track if this instance has already mounted a provider
   const [shouldMount, setShouldMount] = React.useState(false);
 
@@ -255,7 +277,7 @@ export default function BookingClientLayout({ children, propertySlug, heroImage 
       >
         {shouldMount || process.env.NODE_ENV !== 'development' ? (
           <BookingProvider propertySlug={propertySlug}>
-            <BookingClientInner propertySlug={propertySlug} heroImage={heroImage}>
+            <BookingClientInner propertySlug={propertySlug} heroImage={heroImage} themeId={themeId}>
               {children}
             </BookingClientInner>
           </BookingProvider>
