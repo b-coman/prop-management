@@ -117,6 +117,13 @@ export default async function AvailabilityCheckPage({ params, searchParams }: Av
   const bookingTemplate = {
     id: "booking-template",
     name: "Booking Template",
+    header: {
+      menuItems: [], // Empty menu items for booking page
+      logo: {
+        src: null,
+        alt: propertyName
+      }
+    },
     pages: {
       booking: {
         blocks: [
