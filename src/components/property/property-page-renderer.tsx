@@ -37,9 +37,6 @@ import { FullBookingForm } from '@/components/property/full-booking-form';
 import { PoliciesList } from '@/components/property/policies-list';
 import { useLanguage } from '@/hooks/useLanguage';
 
-// Import booking components
-import { ClientBookingWrapper } from '@/components/booking/client-booking-wrapper';
-
 // Map of block types to their rendering components
 const blockComponents: Record<string, React.FC<{ content: any; language?: string }>> = {
   // Existing homepage components
@@ -67,17 +64,6 @@ const blockComponents: Record<string, React.FC<{ content: any; language?: string
   photoCategories: PhotoCategories,
   fullBookingForm: FullBookingForm,
   policiesList: PoliciesList,
-  
-  // Booking page components - reuse existing booking UI
-  bookingPage: ({ content }: { content: any }) => {
-    return (
-      <ClientBookingWrapper
-        property={content.property}
-        urlParams={content.urlParams}
-        heroImage={content.heroImage}
-      />
-    );
-  },
 };
 
 interface PropertyPageRendererProps {
