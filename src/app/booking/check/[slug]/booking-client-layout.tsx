@@ -105,7 +105,7 @@ function BookingClientInner({
     setCheckOutDate,
     setPropertySlug
   } = useBooking();
-  const { setSelectedCurrency } = useCurrency();
+  const { setSelectedCurrencyTemporary } = useCurrency();
 
   // Track whether we've already processed URL params
   const processedUrlParams = useRef(false);
@@ -121,8 +121,8 @@ function BookingClientInner({
       // Validate it's a supported currency
       const supportedCurrencies = ['USD', 'EUR', 'RON'];
       if (supportedCurrencies.includes(upperCurrency)) {
-        console.log(`[BookingClientInner] Setting currency from URL: ${upperCurrency}`);
-        setSelectedCurrency(upperCurrency);
+        console.log(`[BookingClientInner] Setting currency from URL (temporary): ${upperCurrency}`);
+        setSelectedCurrencyTemporary(upperCurrency);
       } else {
         console.warn(`[BookingClientInner] Invalid currency in URL: ${currency}, using default`);
       }
@@ -175,7 +175,7 @@ function BookingClientInner({
         setCheckOutDate(parsedCheckOut);
       }
     }
-  }, [propertySlug, setPropertySlug, currency, setSelectedCurrency]); // Added currency dependencies
+  }, [propertySlug, setPropertySlug, currency, setSelectedCurrencyTemporary]); // Added currency dependencies
 
   return (
     <>

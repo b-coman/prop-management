@@ -17,6 +17,7 @@ export interface ExchangeRates {
 interface CurrencyContextType {
   selectedCurrency: CurrencyCode;
   setSelectedCurrency: (currency: CurrencyCode) => void;
+  setSelectedCurrencyTemporary: (currency: CurrencyCode) => void; // Temporary override without saving
   exchangeRates: ExchangeRates;
   ratesLoading: boolean; // Add loading state
   ratesError: string | null; // Add error state
@@ -88,6 +89,11 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     setPersistedCurrency(currency); // Persist to session storage
   }, [setPersistedCurrency]);
 
+  const setSelectedCurrencyTemporary = useCallback((currency: CurrencyCode) => {
+    setSelectedCurrencyState(currency);
+    // Don't persist to session storage - this is a temporary override
+  }, []);
+
   const convertToSelectedCurrency = useCallback((amount: number, fromCurrency: CurrencyCode): number => {
      if (ratesLoading) return amount; // Return original amount if rates are loading
      if (fromCurrency === selectedCurrency) {
@@ -139,6 +145,7 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
       value={{
         selectedCurrency,
         setSelectedCurrency,
+        setSelectedCurrencyTemporary,
         exchangeRates,
         ratesLoading,
         ratesError,
@@ -160,6 +167,7 @@ export const useCurrency = (): CurrencyContextType => {
       return {
         selectedCurrency: 'USD' as CurrencyCode,
         setSelectedCurrency: () => {},
+        setSelectedCurrencyTemporary: () => {},
         exchangeRates: DEFAULT_EXCHANGE_RATES,
         ratesLoading: false,
         ratesError: null,
