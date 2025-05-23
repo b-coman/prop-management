@@ -3,15 +3,8 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { ClientHeader } from '@/components/client-header'; 
-import { ClientBookingWrapper } from '@/components/booking/client-booking-wrapper';
-import { ThemeProvider } from '@/contexts/ThemeContext';
-// Import all needed utilities
+import { PropertyPageRenderer } from '@/components/property/property-page-renderer';
 import { getPropertyBySlug, getPropertyHeroImage } from '@/lib/property-utils';
-import { db } from '@/lib/firebase'; // Import db for data fetching
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import BookingClientLayout from './booking-client-layout';
-import { AvailabilityErrorHandler } from '../error-handler';
 import { serverTranslateContent } from '@/lib/server-language-utils';
 
 interface AvailabilityCheckPageProps {
@@ -120,21 +113,44 @@ export default async function AvailabilityCheckPage({ params, searchParams }: Av
     // Continue without the hero image if it fails
   }
 
-  // Get property theme ID for consistent theming
-  const propertyThemeId = property.themeId;
-  
+  // Create a simple "template" for the booking page that uses PropertyPageRenderer
+  const bookingTemplate = {
+    id: "booking-template",
+    name: "Booking Template",
+    pages: {
+      booking: {
+        blocks: [
+          {
+            type: "bookingPage",
+            id: "booking-content",
+            content: {
+              property,
+              urlParams: { checkIn, checkOut },
+              heroImage
+            }
+          }
+        ]
+      }
+    }
+  };
+
+  // Create minimal overrides for the booking page
+  const bookingOverrides = {
+    id: property.slug + "-booking",
+    // No specific overrides needed for booking page
+  };
+
   return (
-    <ThemeProvider initialThemeId={propertyThemeId}>
-      <Suspense fallback={<div>Loading availability...</div>}>
-        <BookingClientLayout propertySlug={property.slug}>
-          <ClientBookingWrapper
-            property={property}
-            urlParams={{ checkIn, checkOut }}
-            heroImage={heroImage} // Directly pass the pre-fetched hero image
-          />
-        </BookingClientLayout>
-      </Suspense>
-    </ThemeProvider>
+    <Suspense fallback={<div>Loading availability...</div>}>
+      <PropertyPageRenderer
+        template={bookingTemplate}
+        overrides={bookingOverrides}
+        propertyName={propertyName}
+        propertySlug={property.slug}
+        pageName="booking"
+        themeId={property.themeId}
+      />
+    </Suspense>
   );
 }
 

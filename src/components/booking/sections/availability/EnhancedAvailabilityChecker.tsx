@@ -34,7 +34,7 @@ export function EnhancedAvailabilityChecker({
   onAvailabilityResult
 }: EnhancedAvailabilityCheckerProps) {
   // Get language support for translations
-  const { tc } = useLanguage();
+  const { t } = useLanguage();
   
   // Get values from booking context - now includes availability data
   const {
@@ -232,10 +232,10 @@ export function EnhancedAvailabilityChecker({
           {isPricingLoading ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              {tc('booking.calculating', 'Calculating...')}
+              {t('booking.calculating') || 'Calculating...'}
             </>
           ) : (
-            tc('booking.checkPrice', 'Check Price')
+            t('booking.checkPrice') || 'Check Price'
           )}
         </Button>
       </div>
