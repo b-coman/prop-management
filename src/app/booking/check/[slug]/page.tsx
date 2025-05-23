@@ -5,6 +5,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { ClientHeader } from '@/components/client-header'; 
 import { ClientBookingWrapper } from '@/components/booking/client-booking-wrapper';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 // Import all needed utilities
 import { getPropertyBySlug, getPropertyHeroImage } from '@/lib/property-utils';
 import { db } from '@/lib/firebase'; // Import db for data fetching
@@ -119,16 +120,21 @@ export default async function AvailabilityCheckPage({ params, searchParams }: Av
     // Continue without the hero image if it fails
   }
 
+  // Get property theme ID for consistent theming
+  const propertyThemeId = property.themeId;
+  
   return (
-    <Suspense fallback={<div>Loading availability...</div>}>
-      <BookingClientLayout propertySlug={property.slug}>
-        <ClientBookingWrapper
-          property={property}
-          urlParams={{ checkIn, checkOut }}
-          heroImage={heroImage} // Directly pass the pre-fetched hero image
-        />
-      </BookingClientLayout>
-    </Suspense>
+    <ThemeProvider initialThemeId={propertyThemeId}>
+      <Suspense fallback={<div>Loading availability...</div>}>
+        <BookingClientLayout propertySlug={property.slug}>
+          <ClientBookingWrapper
+            property={property}
+            urlParams={{ checkIn, checkOut }}
+            heroImage={heroImage} // Directly pass the pre-fetched hero image
+          />
+        </BookingClientLayout>
+      </Suspense>
+    </ThemeProvider>
   );
 }
 
