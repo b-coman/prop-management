@@ -3,12 +3,14 @@
 import React, { useEffect, useRef } from 'react';
 import { BookingProvider } from '@/contexts/BookingContext';
 import { useBooking } from '@/contexts/BookingContext';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { useSearchParams } from 'next/navigation';
 import { clearSyncedStorageByPrefix } from '@/hooks/use-synced-storage';
 import { parseISO, isValid, startOfDay } from 'date-fns';
 import { ErrorBoundary } from '@/components/error-boundary';
 import BookingErrorFallback from '../../ErrorFallback';
 import { AvailabilityErrorHandler } from '../error-handler';
+import type { CurrencyCode } from '@/types';
 
 interface BookingClientLayoutProps {
   children: React.ReactNode;
@@ -97,11 +99,13 @@ function BookingClientInner({
   const searchParams = useSearchParams();
   const checkIn = searchParams.get('checkIn');
   const checkOut = searchParams.get('checkOut');
+  const currency = searchParams.get('currency');
   const {
     setCheckInDate,
     setCheckOutDate,
     setPropertySlug
   } = useBooking();
+  const { setSelectedCurrency } = useCurrency();
 
   // Track whether we've already processed URL params
   const processedUrlParams = useRef(false);
@@ -110,6 +114,19 @@ function BookingClientInner({
   useEffect(() => {    
     // Set property slug in the context
     setPropertySlug(propertySlug);
+    
+    // Set currency from URL params once
+    if (currency && !processedUrlParams.current) {
+      const upperCurrency = currency.toUpperCase() as CurrencyCode;
+      // Validate it's a supported currency
+      const supportedCurrencies = ['USD', 'EUR', 'RON'];
+      if (supportedCurrencies.includes(upperCurrency)) {
+        console.log(`[BookingClientInner] Setting currency from URL: ${upperCurrency}`);
+        setSelectedCurrency(upperCurrency);
+      } else {
+        console.warn(`[BookingClientInner] Invalid currency in URL: ${currency}, using default`);
+      }
+    }
     
     // Set dates from URL params only once
     if ((checkIn || checkOut) && !processedUrlParams.current) {
@@ -125,14 +142,16 @@ function BookingClientInner({
         checkIn: checkIn,
         checkOut: checkOut,
         parsedCheckIn: parsedCheckIn?.toISOString() || 'null',
-        parsedCheckOut: parsedCheckOut?.toISOString() || 'null'
+        parsedCheckOut: parsedCheckOut?.toISOString() || 'null',
+        currency: currency
       });
       
       // DEBUG: Log parsed date objects for timezone verification
       if (process.env.NODE_ENV === 'development') {
         console.log(`[BookingClientInner] 📅 Parsed date objects:`, {
           checkIn: parsedCheckIn?.toISOString(),
-          checkOut: parsedCheckOut?.toISOString()
+          checkOut: parsedCheckOut?.toISOString(),
+          currency: currency
         });
       }
       
@@ -156,7 +175,7 @@ function BookingClientInner({
         setCheckOutDate(parsedCheckOut);
       }
     }
-  }, [propertySlug, setPropertySlug]); // Removed dependency on checkIn, checkOut, setCheckInDate, setCheckOutDate to prevent loops
+  }, [propertySlug, setPropertySlug, currency, setSelectedCurrency]); // Added currency dependencies
 
   return (
     <>
