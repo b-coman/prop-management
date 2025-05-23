@@ -74,7 +74,9 @@
     "enterYourEmail": "Enter your email",
     "enterYourPhone": "Enter your phone number",
     "requestNotification": "Request Notification",
-    "unavailableDatesLoaded": "{{count}} unavailable dates loaded. Dates that are not available are marked with strikethrough."
+    "unavailableDatesLoaded": "{{count}} unavailable dates loaded. Dates that are not available are marked with strikethrough.",
+    "checkPrice": "Check Price",
+    "calculating": "Calculating..."
   },
   "property": {
     "amenities": "Amenities",

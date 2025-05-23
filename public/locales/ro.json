@@ -74,7 +74,9 @@
     "enterYourEmail": "Introduceți adresa de email",
     "enterYourPhone": "Introduceți numărul de telefon",
     "requestNotification": "Solicitați Notificare",
-    "unavailableDatesLoaded": "{{count}} date indisponibile încărcate. Datele care nu sunt disponibile sunt marcate cu o linie tăiată."
+    "unavailableDatesLoaded": "{{count}} date indisponibile încărcate. Datele care nu sunt disponibile sunt marcate cu o linie tăiată.",
+    "checkPrice": "Verifică Prețul",
+    "calculating": "Se calculează..."
   },
   "property": {
     "amenities": "Facilități",

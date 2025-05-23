@@ -5,10 +5,11 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { addDays, format, startOfDay } from 'date-fns';
-import { Check, Loader2, X, Calendar, DollarSign } from 'lucide-react';
+import { Check, Loader2, X, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBooking } from '@/contexts/BookingContext';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/hooks/useLanguage';
 // Removed API imports - this component now only reads from BookingContext
 // import { checkAvailability, getUnavailableDatesForProperty } from '@/services/availabilityService';
 import { GuestSelector } from '../common/GuestSelector';
@@ -32,6 +33,9 @@ export function EnhancedAvailabilityChecker({
   maxGuests,
   onAvailabilityResult
 }: EnhancedAvailabilityCheckerProps) {
+  // Get language support for translations
+  const { tc } = useLanguage();
+  
   // Get values from booking context - now includes availability data
   const {
     checkInDate,
@@ -221,19 +225,17 @@ export function EnhancedAvailabilityChecker({
         <Button 
           onClick={handleCheckPrice}
           disabled={isPricingLoading || !checkInDate || !checkOutDate || isAvailabilityLoading}
-          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="px-6 py-2"
           size="default"
+          variant="default"
         >
           {isPricingLoading ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              Calculating...
+              {tc('booking.calculating', 'Calculating...')}
             </>
           ) : (
-            <>
-              <DollarSign className="h-4 w-4 mr-2" />
-              Check Price
-            </>
+            tc('booking.checkPrice', 'Check Price')
           )}
         </Button>
       </div>
