@@ -55,11 +55,7 @@ export function AvailabilityContainer({
   initialCheckOut,
   className
 }: AvailabilityContainerProps) {
-  // Debug marker just once using a static reference to prevent repeated logs
-  React.useRef(() => {
-    // Only log once during component lifetime
-    console.log("[DEBUG] 🏆 AvailabilityContainer v1.3.1 with Full Centralized Pricing");
-  }).current();
+  // Component initialized
   
   // Get language hook for translations
   const { tc } = useLanguage();
@@ -728,10 +724,7 @@ export function AvailabilityContainer({
             {isAvailable ? (
               // Booking options when dates are available
               <>
-              {/* Real booking summary component with centralized pricing */}
-              <div className="text-xs p-1 mb-2 bg-green-50 text-green-700 rounded text-center">
-                Using Centralized Pricing v1.3.1
-              </div>
+              {/* Booking summary component with centralized pricing */}
               
               {isPricingLoading ? (
                 <BookingSummarySkeleton />
@@ -746,12 +739,6 @@ export function AvailabilityContainer({
                     dynamicPricing={pricingDetails}
                     isLoadingPricing={isPricingLoading}
                   />
-                  {/* Add a debug marker to show pricing source */}
-                  <div className="text-xs text-right mt-1 text-slate-500">
-                    Source: {pricingDetails.dailyRates ? 
-                      `Centralized API Pricing (${Object.keys(pricingDetails.dailyRates).length} days)` : 
-                      'Centralized Pricing'} - v1.3.1
-                  </div>
                 </>
               ) : (
                 <div className="p-4 border border-orange-200 bg-orange-50 rounded text-orange-800">
