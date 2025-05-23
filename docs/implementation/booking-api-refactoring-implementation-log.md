@@ -131,6 +131,32 @@ Each entry documents:
 **Testing**: Build verified successful, theme inheritance working correctly
 **Plan Impact**: Enhanced Step 4 implementation with proper theme integration and international support
 
+### Decision #11: Theme Architecture Rejection & Booking Interface Preservation
+**Date**: 2025-05-23  
+**Step Context**: Theme loading consistency for direct URL access  
+**Issue**: Initial attempt to use PropertyPageRenderer for theme consistency would add unwanted header/footer to booking pages  
+**User Feedback**: Explicit rejection - booking pages must remain dedicated booking interfaces without property page elements  
+**Decision**: Reverted PropertyPageRenderer approach, maintained simple ThemeProvider wrapper around existing booking layout  
+**Rationale**: Booking pages are specialized interfaces that shouldn't inherit full property page layout structure  
+**Implementation**: Used `<ThemeProvider initialThemeId={property.themeId}>` wrapper around existing BookingClientLayout  
+**Plan Impact**: Preserved booking interface architecture while achieving theme consistency for direct URLs
+
+### Decision #12: Currency URL Parameter Implementation
+**Date**: 2025-05-23  
+**Step Context**: User request for currency parameter support in booking URLs  
+**Requirement**: "if currency parameter is present in url, it will take prevalence... if url currency is not present, use the session storage"  
+**Issue**: ?currency=ron parameter was being ignored, always showing USD regardless of URL parameter  
+**Solution Implementation**:
+- **Temporary Override Pattern**: Added `setSelectedCurrencyTemporary()` to CurrencyContext for non-persistent currency changes
+- **URL Parameter Parsing**: Implemented detection and validation of ?currency= parameter in booking-client-layout.tsx
+- **Precedence Logic**: URL currency takes precedence over session storage without overwriting saved preferences
+- **Supported Currencies**: USD, EUR, RON with uppercase normalization
+**Files Modified**:
+- `/src/contexts/CurrencyContext.tsx` - Added temporary override function
+- `/src/app/booking/check/[slug]/booking-client-layout.tsx` - URL parameter parsing and currency application  
+**Testing**: Verified ?currency=ron parameter correctly overrides session storage, displays RON prices
+**Plan Impact**: Enhanced booking system with flexible currency parameter support while preserving user preferences
+
 ---
 
 ## Summary of Major Deviations
@@ -148,7 +174,9 @@ Each entry documents:
 - [x] **Independent Fetch Elimination**: ClientBookingWrapper no longer makes independent API calls (Decision #5)
 
 ### UX/UI Adjustments
-- [ ] **Check Price Button**: Still pending (Step 4) - delayed due to timing issue resolution priority
+- [x] **Check Price Button**: Enhanced with theme inheritance, i18n support, and proper styling (Decision #10)
+- [x] **Theme Loading**: Fixed for direct URL access while preserving booking interface architecture (Decision #11)
+- [x] **Currency URL Parameters**: Implemented temporary override system with precedence logic (Decision #12)
 
 ### Technical Implementation Changes
 - [x] **Timing Coordination**: Added 150ms delay to resolve race condition between BookingContext and BookingClientInner URL parameter processing (Decision #6)
@@ -299,8 +327,8 @@ Each entry documents:
 - [x] **Emergency Fixes**: Multiple instance prevention + interface fixes - 3/3 complete
 - [x] **Critical Bug Fix**: Date timezone issues across 4 sources - 8/8 complete
 - [x] **Production Validation**: System health confirmation and debugging - 8/8 complete
-- [x] **UI/UX Enhancements**: Button styling, theme loading, and i18n fixes - 9/9 complete
-- **Overall Progress**: 96% (49/52 tasks complete)
+- [x] **UI/UX Enhancements**: Button styling, theme loading, i18n fixes, and currency URL parameters - 12/12 complete
+- **Overall Progress**: 98% (52/55 tasks complete)
 
 **Key Files to Track:**
 - `/src/app/api/check-availability/route.ts` - SDK migration
