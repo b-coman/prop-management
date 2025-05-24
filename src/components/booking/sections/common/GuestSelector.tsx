@@ -22,7 +22,7 @@ interface GuestSelectorProps {
  * REFACTORED: Now uses BookingContext only - no direct API calls.
  * Users must click "Check Price" button to get updated pricing.
  */
-export function GuestSelector({
+export const GuestSelector = React.memo(function GuestSelector({
   minGuests = 1,
   maxGuests,
   disabled = false,
@@ -88,4 +88,4 @@ export function GuestSelector({
       <div className="h-[21px] invisible">.</div>
     </div>
   );
-}
+});

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
 
@@ -59,16 +59,30 @@ export function LanguageProvider({ children, initialLanguage }: LanguageProvider
     setCurrentLang(detectedLang);
   }, [pathname]);
   
-  // Load translations
+  // Translation cache to prevent repeated requests
+  const translationCacheRef = useRef<Map<string, any>>(new Map());
+  
+  // Load translations with caching
   useEffect(() => {
     const loadTranslations = async () => {
+      // Check cache first
+      if (translationCacheRef.current.has(currentLang)) {
+        console.log(`[LanguageContext] 📦 Using cached translations for ${currentLang}`);
+        setTranslations(translationCacheRef.current.get(currentLang));
+        return;
+      }
+      
       setIsLoading(true);
       try {
+        console.log(`[LanguageContext] 🌐 Fetching translations for ${currentLang}`);
         const response = await fetch(`/locales/${currentLang}.json`);
         if (!response.ok) {
           throw new Error(`Failed to load translations for ${currentLang}`);
         }
         const data = await response.json();
+        
+        // Cache the translations
+        translationCacheRef.current.set(currentLang, data);
         setTranslations(data);
       } catch (error) {
         console.error(`Failed to load ${currentLang} translations:`, error);
@@ -76,9 +90,19 @@ export function LanguageProvider({ children, initialLanguage }: LanguageProvider
         // Try to load default language as fallback
         if (currentLang !== DEFAULT_LANGUAGE) {
           try {
-            const fallbackResponse = await fetch(`/locales/${DEFAULT_LANGUAGE}.json`);
-            const fallbackData = await fallbackResponse.json();
-            setTranslations(fallbackData);
+            // Check cache for default language first
+            if (translationCacheRef.current.has(DEFAULT_LANGUAGE)) {
+              console.log(`[LanguageContext] 📦 Using cached fallback translations for ${DEFAULT_LANGUAGE}`);
+              setTranslations(translationCacheRef.current.get(DEFAULT_LANGUAGE));
+            } else {
+              console.log(`[LanguageContext] 🌐 Fetching fallback translations for ${DEFAULT_LANGUAGE}`);
+              const fallbackResponse = await fetch(`/locales/${DEFAULT_LANGUAGE}.json`);
+              const fallbackData = await fallbackResponse.json();
+              
+              // Cache the fallback translations
+              translationCacheRef.current.set(DEFAULT_LANGUAGE, fallbackData);
+              setTranslations(fallbackData);
+            }
           } catch (fallbackError) {
             console.error(`Failed to load fallback translations:`, fallbackError);
           }

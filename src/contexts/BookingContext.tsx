@@ -753,50 +753,66 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
 
   // SIMPLIFIED: URL-based initial combined fetch - Fetch both availability and pricing
   const hasTriggeredCombinedFetchRef = useRef<string | null>(null);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   React.useEffect(() => {
-    // Check if this is initial load with URL parameters
-    console.log(`[BookingContext] 🔍 COMBINED FETCH CHECK: window=${typeof window !== 'undefined'}, slug=${!!storedPropertySlug}, checkIn=${!!checkInDate}, checkOut=${!!checkOutDate}, noPricing=${!pricingDetails}, nights=${numberOfNights}`);
-    
-    if (typeof window !== 'undefined' && storedPropertySlug && checkInDate && checkOutDate && numberOfNights > 0) {
-      const urlParams = new URLSearchParams(window.location.search);
-      const hasCheckIn = urlParams.get('checkIn');
-      const hasCheckOut = urlParams.get('checkOut');
-      
-      console.log(`[BookingContext] 🔍 URL PARAMS CHECK: hasCheckIn=${!!hasCheckIn}, hasCheckOut=${!!hasCheckOut}, nights=${numberOfNights}`);
-      
-      // Only auto-fetch if URL explicitly has both dates AND we don't have data yet
-      if (hasCheckIn && hasCheckOut && (!pricingDetails || unavailableDates.length === 0)) {
-        console.log(`[BookingContext] ✅ CONDITIONS MET - proceeding with combined fetch`);
-        
-        // Prevent duplicate calls using a simple key
-        const fetchKey = `${storedPropertySlug}-${checkInDate.toISOString()}-${checkOutDate.toISOString()}-${numberOfGuests}`;
-        if (hasTriggeredCombinedFetchRef.current === fetchKey) {
-          console.log(`[BookingContext] 🚫 SKIP: Already triggered for this combination`);
-          return;
-        }
-        
-        console.log(`[BookingContext] 🚀 Auto-fetching COMBINED availability and pricing from URL parameters`);
-        hasTriggeredCombinedFetchRef.current = fetchKey;
-        
-        // Use the combined fetch function which handles both availability and pricing
-        fetchAvailabilityAndPricing()
-          .then((result) => {
-            console.log(`[BookingContext] ✅ Combined fetch completed:`, {
-              hasUnavailableDates: result.unavailableDates.length > 0,
-              hasPricing: !!result.pricing,
-              isAvailable: result.isAvailable,
-              totalPrice: result.pricing?.total
-            });
-          })
-          .catch(error => {
-            console.error(`[BookingContext] ❌ Combined auto-fetch error:`, error);
-            hasTriggeredCombinedFetchRef.current = null; // Reset on error
-          });
-      } else {
-        console.log(`[BookingContext] ⏭️ SKIPPING FETCH: conditions not met or data already exists`);
-      }
+    // Clear existing timeout to prevent multiple triggers
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
     }
+    
+    // Debounce API calls to prevent multiple simultaneous triggers
+    debounceTimeoutRef.current = setTimeout(() => {
+      // Check if this is initial load with URL parameters
+      console.log(`[BookingContext] 🔍 COMBINED FETCH CHECK: window=${typeof window !== 'undefined'}, slug=${!!storedPropertySlug}, checkIn=${!!checkInDate}, checkOut=${!!checkOutDate}, noPricing=${!pricingDetails}, nights=${numberOfNights}`);
+      
+      if (typeof window !== 'undefined' && storedPropertySlug && checkInDate && checkOutDate && numberOfNights > 0) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasCheckIn = urlParams.get('checkIn');
+        const hasCheckOut = urlParams.get('checkOut');
+        
+        console.log(`[BookingContext] 🔍 URL PARAMS CHECK: hasCheckIn=${!!hasCheckIn}, hasCheckOut=${!!hasCheckOut}, nights=${numberOfNights}`);
+        
+        // Only auto-fetch if URL explicitly has both dates AND we don't have data yet
+        if (hasCheckIn && hasCheckOut && (!pricingDetails || unavailableDates.length === 0)) {
+          console.log(`[BookingContext] ✅ CONDITIONS MET - proceeding with combined fetch`);
+          
+          // Prevent duplicate calls using a simple key
+          const fetchKey = `${storedPropertySlug}-${checkInDate.toISOString()}-${checkOutDate.toISOString()}-${numberOfGuests}`;
+          if (hasTriggeredCombinedFetchRef.current === fetchKey) {
+            console.log(`[BookingContext] 🚫 SKIP: Already triggered for this combination`);
+            return;
+          }
+          
+          console.log(`[BookingContext] 🚀 Auto-fetching COMBINED availability and pricing from URL parameters`);
+          hasTriggeredCombinedFetchRef.current = fetchKey;
+          
+          // Use the combined fetch function which handles both availability and pricing
+          fetchAvailabilityAndPricing()
+            .then((result) => {
+              console.log(`[BookingContext] ✅ Combined fetch completed:`, {
+                hasUnavailableDates: result.unavailableDates.length > 0,
+                hasPricing: !!result.pricing,
+                isAvailable: result.isAvailable,
+                totalPrice: result.pricing?.total
+              });
+            })
+            .catch(error => {
+              console.error(`[BookingContext] ❌ Combined auto-fetch error:`, error);
+              hasTriggeredCombinedFetchRef.current = null; // Reset on error
+            });
+        } else {
+          console.log(`[BookingContext] ⏭️ SKIPPING FETCH: conditions not met or data already exists`);
+        }
+      }
+    }, 300); // 300ms debounce delay
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
   }, [storedPropertySlug, checkInDate, checkOutDate, numberOfGuests, numberOfNights, pricingDetails, unavailableDates.length, isAvailable, isPricingLoading, isAvailabilityLoading]); // FIXED: Don't include fetchAvailabilityAndPricing to avoid infinite loops
 
   // LEGACY: Keep existing combined trigger for backward compatibility (disabled by default)

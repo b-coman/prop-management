@@ -23,7 +23,7 @@ interface SimpleDateSelectorProps {
 /**
  * A simple date selector component with popover calendar
  */
-export function SimpleDateSelector({
+export const SimpleDateSelector = React.memo(function SimpleDateSelector({
   date,
   onChange,
   label,
@@ -90,4 +90,4 @@ export function SimpleDateSelector({
       </Popover>
     </div>
   );
-}
+});

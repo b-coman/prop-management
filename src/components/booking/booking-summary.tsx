@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useBooking } from '@/contexts/BookingContext';
 import type { PriceCalculationResult, CurrencyCode } from '@/types';
 
 // Updated interface to optionally support the new dynamic pricing model
@@ -36,7 +37,7 @@ interface BookingSummaryProps {
   } | null;
 }
 
-export function BookingSummary({
+export const BookingSummary = React.memo(function BookingSummary({
   numberOfNights,
   numberOfGuests,
   pricingDetails,
@@ -47,6 +48,9 @@ export function BookingSummary({
 }: BookingSummaryProps & { isLoadingPricing?: boolean }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const { selectedCurrency, convertToSelectedCurrency, formatPrice } = useCurrency();
+  
+  // Get current values from BookingContext for display (overrides props)
+  const { numberOfNights: contextNights, numberOfGuests: contextGuests } = useBooking();
 
   // Add identification log
   useEffect(() => {
@@ -198,7 +202,7 @@ export function BookingSummary({
       <CardContent className="p-4">
         <div className="flex justify-between items-center">
           <p className="text-sm font-medium text-foreground">
-            Booking Summary: {numberOfNights} {numberOfNights === 1 ? 'night' : 'nights'}, {numberOfGuests} {numberOfGuests === 1 ? 'guest' : 'guests'}, Total: <span className="font-bold">{formattedTotal}</span>
+            Booking Summary: {contextNights} {contextNights === 1 ? 'night' : 'nights'}, {contextGuests} {contextGuests === 1 ? 'guest' : 'guests'}, Total: <span className="font-bold">{formattedTotal}</span>
           </p>
           <Button variant="ghost" size="sm" onClick={toggleExpansion} className="text-muted-foreground hover:text-foreground">
             {isExpanded ? 'Hide Details' : 'View Details'}
@@ -300,4 +304,4 @@ export function BookingSummary({
       </CardContent>
     </Card>
   );
-}
+});

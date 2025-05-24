@@ -157,6 +157,86 @@ Each entry documents:
 **Testing**: Verified ?currency=ron parameter correctly overrides session storage, displays RON prices
 **Plan Impact**: Enhanced booking system with flexible currency parameter support while preserving user preferences
 
+### Decision #13: Theme Flash Elimination for Direct URL Access
+**Date**: 2025-05-23  
+**Step Context**: After implementing theme loading fix, discovered theme flash issue on direct URL access  
+**Issue**: When accessing booking pages via direct URL, page initially rendered with default "airbnb" theme, then flashed to correct property theme  
+**Root Cause**: Nested ThemeProvider conflict - root layout ThemeProvider defaulted to "airbnb", then BookingThemeApplicator changed theme after hydration  
+**Investigation Timeline**:
+1. User reported theme flash: airbnb → forest on direct URLs
+2. Logs confirmed: "[Theme Utils] Applying theme: airbnb" followed by "[Theme Utils] Applying theme: forest"  
+3. Root cause: Client hydration with default theme, then useEffect applying correct theme
+**Solution Options Evaluated**:
+- Option A: CSS transitions to smooth the change
+- Option B: Prevent initial render until correct theme is applied (chosen)
+**Implementation**: 
+- **Loading State Pattern**: Added themeReady state to BookingClientInner to prevent content rendering until theme is applied
+- **Callback System**: BookingThemeApplicator notifies parent when theme is ready via onThemeReady callback
+- **Professional Loading UI**: Added branded loading spinner with "Loading booking page..." message
+- **Smart Timing**: 50ms delay ensures theme CSS is fully applied before showing content
+**Files Modified**:
+- `/src/app/booking/check/[slug]/booking-client-layout.tsx` - Added theme loading state and loading UI
+**Testing**: Confirmed elimination of theme flash - users now see loading screen briefly, then correct theme with no flash
+**Plan Impact**: Achieved seamless direct URL theme loading experience while maintaining existing architecture
+
+### Post-Implementation Bug Discovery: Critical Booking System Issues
+**Date**: 2025-05-24  
+**Step Context**: User testing revealed 5 critical bugs affecting core booking functionality after theme implementation  
+**Discovery**: During testing of theme implementation, multiple critical UX and functionality issues identified
+
+#### Bug #1: Guest Count Not Updating in Summary Display
+**Issue**: When changing number of guests, BookingSummary header shows stale guest count  
+**Example**: Header shows "Booking Summary: 4 nights, 2 guests" even after changing to 5 guests  
+**Root Cause**: BookingSummary component uses prop values instead of BookingContext values for display  
+**Location**: `/src/components/booking/booking-summary.tsx` line 201 - displays prop values not context state  
+**Impact**: Users see incorrect information in booking summary
+
+#### Bug #2: Complete Component Re-rendering Performance Issue  
+**Issue**: Changing guest count or dates triggers complete re-render of all containers instead of targeted updates  
+**Manifestation**: All booking components remount causing noticeable UI lag and poor UX  
+**Root Cause Analysis**:
+- BookingContext useEffect dependencies include function references causing infinite loops
+- Child components (GuestSelector, SimpleDateSelector) lack React.memo optimization  
+- useMemo dependencies use object references instead of primitive values
+**Impact**: Poor performance, excessive API calls, laggy user interface
+
+#### Bug #3: Calendar Date Selection Not Persisting (Critical)
+**Issue**: Calendar accepts date clicks but selected dates don't update in form fields  
+**Example**: User clicks May 29, calendar registers selection, but check-in field stays May 27  
+**Log Evidence**:
+```
+[EnhancedAvailabilityChecker] Check-in date changed to: Thu May 29 2025
+[BookingContainer] Normalized checkIn: 2025-05-27 → 2025-05-27T12:00:00.000Z
+```
+**Root Cause**: EnhancedAvailabilityChecker maintains local state separate from BookingContext, creating state synchronization failure  
+**Location**: `/src/components/booking/sections/availability/EnhancedAvailabilityChecker.tsx` lines 68-69  
+**Impact**: **Booking system non-functional** - users cannot change dates
+
+#### Bug #4: Multiple API Calls on Single User Action
+**Issue**: Single date/guest change triggers multiple simultaneous pricing API calls  
+**Log Evidence**: Two API requests triggered for same date change (mb2fuhj1l08, mb2fuhj7sp1)  
+**Root Cause**: Multiple useEffect hooks in BookingContext can trigger simultaneously for same state change  
+**Impact**: Server overload, race conditions, potential pricing inconsistencies
+
+#### Bug #5: Excessive Language File Requests  
+**Issue**: Language files fetched repeatedly during user interactions, not cached client-side  
+**Example**: 10+ requests to `/locales/en.json` when changing check-in date without internet  
+**Root Cause**: LanguageContext reloads translations on every currentLang change without caching mechanism  
+**Location**: `/src/contexts/LanguageContext.tsx` lines 63-92 - no caching implemented  
+**Impact**: Unnecessary network traffic, poor offline experience
+
+#### Minimum Invasive Solution Strategy
+**Priority Order**: Bug #3 (blocking) → Bug #1 (UX) → Bug #2 (performance) → Bug #4 (efficiency) → Bug #5 (optimization)  
+**Approach**: Targeted fixes without architectural changes to preserve existing booking system structure  
+**Solutions Identified**:
+1. Fix BookingSummary to use BookingContext values directly
+2. Add React.memo to prevent unnecessary re-renders  
+3. Remove local state from date selectors, use context directly
+4. Add debouncing to API call triggers  
+5. Implement translation caching in LanguageContext
+
+**Plan Impact**: Critical bugs require immediate attention before system can be considered stable for production use
+
 ---
 
 ## Summary of Major Deviations
@@ -177,6 +257,7 @@ Each entry documents:
 - [x] **Check Price Button**: Enhanced with theme inheritance, i18n support, and proper styling (Decision #10)
 - [x] **Theme Loading**: Fixed for direct URL access while preserving booking interface architecture (Decision #11)
 - [x] **Currency URL Parameters**: Implemented temporary override system with precedence logic (Decision #12)
+- [x] **Theme Flash Elimination**: Implemented loading state to prevent theme flash on direct URL access (Decision #13)
 
 ### Technical Implementation Changes
 - [x] **Timing Coordination**: Added 150ms delay to resolve race condition between BookingContext and BookingClientInner URL parameter processing (Decision #6)
@@ -327,8 +408,9 @@ Each entry documents:
 - [x] **Emergency Fixes**: Multiple instance prevention + interface fixes - 3/3 complete
 - [x] **Critical Bug Fix**: Date timezone issues across 4 sources - 8/8 complete
 - [x] **Production Validation**: System health confirmation and debugging - 8/8 complete
-- [x] **UI/UX Enhancements**: Button styling, theme loading, i18n fixes, and currency URL parameters - 12/12 complete
-- **Overall Progress**: 98% (52/55 tasks complete)
+- [x] **UI/UX Enhancements**: Button styling, theme loading, i18n fixes, currency URL parameters, and theme flash elimination - 13/13 complete
+- [ ] **Critical Bug Resolution**: 5 post-implementation bugs discovered requiring immediate fixes - 0/5 complete
+- **Overall Progress**: 90% (53/61 tasks complete) - **REGRESSION: Critical bugs block production readiness**
 
 **Key Files to Track:**
 - `/src/app/api/check-availability/route.ts` - SDK migration
@@ -338,4 +420,6 @@ Each entry documents:
 - `/src/components/booking/client-booking-wrapper.tsx` - Independent fetch removal
 - `/src/components/booking/container/BookingContainer.tsx` - Date parsing normalization (critical fix)
 - `/src/components/booking/hooks/useDatePicker.ts` - Calendar date normalization
-- `/src/app/booking/check/[slug]/booking-client-layout.tsx` - URL parsing (working correctly)
+- `/src/app/booking/check/[slug]/booking-client-layout.tsx` - URL parsing, currency override, and theme loading with flash prevention
+- `/src/app/booking/check/[slug]/page.tsx` - Removed nested ThemeProvider, passes themeId to client layout
+- `/src/contexts/CurrencyContext.tsx` - Added temporary currency override function

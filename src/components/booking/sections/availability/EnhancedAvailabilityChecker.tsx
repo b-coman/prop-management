@@ -64,20 +64,10 @@ export function EnhancedAvailabilityChecker({
   // Dependencies
   const { toast } = useToast();
   
-  // Track local state of dates to prevent context sync issues
-  const [localCheckInDate, setLocalCheckInDate] = useState<Date | null>(checkInDate);
-  const [localCheckOutDate, setLocalCheckOutDate] = useState<Date | null>(checkOutDate);
-  
   // Component mount effect - just log that we're ready, BookingContext handles fetching
   useEffect(() => {
     console.log("🔍 [EnhancedAvailabilityChecker] PURE UI COMPONENT - Mounted (fetching handled by BookingContext)");
   }, [propertySlug]);
-  
-  // Sync from context to local state when component mounts or context changes
-  useEffect(() => {
-    setLocalCheckInDate(checkInDate);
-    setLocalCheckOutDate(checkOutDate);
-  }, [checkInDate, checkOutDate]);
 
   // Removed checkDatesAvailability function - availability checking now handled by BookingContext
   
@@ -102,20 +92,18 @@ export function EnhancedAvailabilityChecker({
       return normalized;
     })() : null;
 
-    // Update both local state and context
-    setLocalCheckInDate(normalizedDate);
+    // Update context only - no local state
     setCheckInDate(normalizedDate);
 
     // If the current checkout date is invalid with this new check-in date,
     // clear the checkout date
-    if (normalizedDate && localCheckOutDate && normalizedDate >= localCheckOutDate) {
-      setLocalCheckOutDate(null);
+    if (normalizedDate && checkOutDate && normalizedDate >= checkOutDate) {
       setCheckOutDate(null);
     }
 
     // Reset availability state - auto-fetch will trigger from BookingContext
     setWasChecked(false);
-  }, [localCheckOutDate, setCheckInDate, setCheckOutDate]);
+  }, [checkOutDate, setCheckInDate, setCheckOutDate]);
 
   // Handle check-out date changes
   const handleCheckOutChange = useCallback((date: Date | null) => {
@@ -129,13 +117,12 @@ export function EnhancedAvailabilityChecker({
       return normalized;
     })() : null;
 
-    // Update both local state and context
-    setLocalCheckOutDate(normalizedDate);
+    // Update context only - no local state
     setCheckOutDate(normalizedDate);
 
     // Reset availability state - auto-fetch will trigger from BookingContext
     setWasChecked(false);
-  }, [setCheckOutDate, localCheckInDate]);
+  }, [setCheckOutDate]);
 
   // Guest count changes are now handled directly by GuestSelector via BookingContext
   // No need for manual handlers here since GuestSelector manages its own state
@@ -150,7 +137,7 @@ export function EnhancedAvailabilityChecker({
   }, [checkInDate, checkOutDate, numberOfGuests, fetchPricingWithDates]);
 
   // Create a derived value for min checkout date (always day after check-in)
-  const minCheckoutDate = localCheckInDate ? addDays(localCheckInDate, 1) : new Date();
+  const minCheckoutDate = checkInDate ? addDays(checkInDate, 1) : new Date();
 
   // Show loading state while fetching data from context
   if (isAvailabilityLoading) {
@@ -189,7 +176,7 @@ export function EnhancedAvailabilityChecker({
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
         {/* Check-in date selector */}
         <SimpleDateSelector 
-          date={localCheckInDate}
+          date={checkInDate}
           onChange={handleCheckInChange}
           label="Check-in Date"
           placeholder="Select check-in date"
@@ -200,7 +187,7 @@ export function EnhancedAvailabilityChecker({
 
         {/* Check-out date selector */}
         <SimpleDateSelector 
-          date={localCheckOutDate}
+          date={checkOutDate}
           onChange={handleCheckOutChange}
           label="Check-out Date"
           placeholder="Select check-out date"
