@@ -63,8 +63,32 @@ function BookingInitializer({
   // Define ref outside the effect hook
   const hasInitialized = useRef(false);
 
-  // Initialize booking context with URL parameters - once only
+  // BUG #3 FIX: Only initialize if this BookingInitializer created a new provider
+  // If there's an existing provider (from booking-client-layout), skip initialization
+  const [shouldInitialize] = useState(() => {
+    try {
+      // Try to access existing BookingContext to see if it has data
+      const existingContext = useBooking();
+      if (existingContext.checkInDate || existingContext.checkOutDate || existingContext.propertySlug) {
+        console.log(`[BookingInitializer] 🔄 Existing provider has data, skipping initialization`);
+        return false; // Provider already has data, don't override
+      }
+      console.log(`[BookingInitializer] 🆕 Provider is empty, will initialize`);
+      return true; // Provider is empty, safe to initialize
+    } catch {
+      console.log(`[BookingInitializer] 🆕 No existing provider, will initialize`);
+      return true; // No provider exists, safe to initialize
+    }
+  });
+
+  // Initialize booking context with URL parameters - once only, and only if needed
   useEffect(() => {
+    // Skip initialization if there's already an existing provider with data
+    if (!shouldInitialize) {
+      console.log(`[BookingInitializer] ⏭️ Skipping initialization - existing provider has data`);
+      return;
+    }
+
     // Skip if already initialized
     if (hasInitialized.current) {
       return;
@@ -72,6 +96,8 @@ function BookingInitializer({
 
     // Mark as initialized
     hasInitialized.current = true;
+
+    console.log(`[BookingInitializer] 🔧 Initializing BookingContext with URL params`);
 
     // Set property slug
     setPropertySlug(property.slug);
@@ -96,12 +122,10 @@ function BookingInitializer({
       const nights = differenceInDays(initialCheckOut, initialCheckIn);
       if (nights > 0) {
         setNumberOfNights(nights);
-      } else {
       }
-    } else {
     }
 
-  }, []); // Empty dependency array = only run once
+  }, [shouldInitialize]); // Only run if initialization is needed
 
   // Import useLanguage hook for multilingual support (needs to be called unconditionally)
   const { tc } = useLanguage();
