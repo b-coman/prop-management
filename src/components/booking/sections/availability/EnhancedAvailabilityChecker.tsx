@@ -26,8 +26,9 @@ interface EnhancedAvailabilityCheckerProps {
  * EnhancedAvailabilityChecker component
  * 
  * Uses BookingContext for state management but with improved date selection
+ * PERFORMANCE FIX Bug #2: Added React.memo to prevent unnecessary re-renders
  */
-export function EnhancedAvailabilityChecker({
+export const EnhancedAvailabilityChecker = React.memo(function EnhancedAvailabilityChecker({
   propertySlug,
   propertyName,
   maxGuests,
@@ -251,4 +252,4 @@ export function EnhancedAvailabilityChecker({
 
     </div>
   );
-}
+});

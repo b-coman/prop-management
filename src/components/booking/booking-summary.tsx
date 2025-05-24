@@ -49,7 +49,7 @@ export const BookingSummary = React.memo(function BookingSummary({
   const [isExpanded, setIsExpanded] = useState(false);
   const { selectedCurrency, convertToSelectedCurrency, formatPrice } = useCurrency();
   
-  // Get current values from BookingContext for display (overrides props)
+  // CRITICAL FIX Bug #1: Use BookingContext values for display instead of props
   const { numberOfNights: contextNights, numberOfGuests: contextGuests } = useBooking();
 
   // Add identification log
