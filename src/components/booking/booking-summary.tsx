@@ -138,8 +138,8 @@ export const BookingSummary = React.memo(function BookingSummary({
         ),
         // Use the safe total to prevent NaN issues
         total: convertToSelectedCurrency(safeTotal, baseCurrency),
-        numberOfNights: numberOfNights,
-        numberOfGuests: numberOfGuests,
+        numberOfNights: contextNights,
+        numberOfGuests: contextGuests,
         dailyRates: dailyRatesForDisplay
       };
     }
@@ -158,15 +158,15 @@ export const BookingSummary = React.memo(function BookingSummary({
       discountAmount: convertToSelectedCurrency(pricingDetails.discountAmount, propertyBaseCcy),
       total: convertToSelectedCurrency(pricingDetails.total, propertyBaseCcy),
       numberOfNights: pricingDetails.numberOfNights,
-      numberOfGuests: numberOfGuests
+      numberOfGuests: contextGuests
     };
   }, [
     pricingDetails,
     dynamicPricing,
     convertToSelectedCurrency,
     propertyBaseCcy,
-    numberOfNights,
-    numberOfGuests,
+    contextNights,
+    contextGuests,
     selectedCurrency
   ]);
 

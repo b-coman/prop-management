@@ -803,6 +803,56 @@ This ensures booking data persists across page navigation and browser refreshes.
 - ✅ **Maintainability**: Centralized API call management
 - ✅ **Debugging**: Clear, traceable data flow
 
+## Critical Bug Fixes Required
+
+Based on user testing, the following 5 critical bugs were discovered that must be fixed before the system is production-ready:
+
+### Bug #1: Guest Count Not Updating in Summary Display
+**Priority**: High (UX Issue)  
+**Issue**: BookingSummary header shows stale guest count when users change number of guests  
+**Example**: Header shows "Booking Summary: 4 nights, 2 guests" even after changing to 5 guests  
+**Root Cause**: BookingSummary used prop values instead of BookingContext values in calculation logic  
+**Location**: `/src/components/booking/booking-summary.tsx` lines 141-142, 161, and useMemo dependencies  
+**Solution**: Replace prop usage with BookingContext values in all calculation logic  
+**Status**: ✅ **FIXED** - All prop references replaced with contextNights/contextGuests from BookingContext  
+
+### Bug #2: Complete Component Re-rendering Performance Issue  
+**Priority**: Medium (Performance Issue)  
+**Issue**: Changing guest count or dates triggers complete re-render of all containers  
+**Manifestation**: All booking components remount causing noticeable UI lag  
+**Root Cause**: Missing React.memo optimization on key components  
+**Impact**: Poor performance, excessive API calls, laggy user interface  
+**Solution**: Add React.memo to prevent unnecessary re-renders  
+**Status**: ⏳ To Fix  
+
+### Bug #3: Calendar Date Selection Not Persisting (CRITICAL)
+**Priority**: Critical (Blocking Issue)  
+**Issue**: Calendar accepts date clicks but selected dates don't update in form fields  
+**Example**: User clicks May 29, calendar registers selection, but check-in field stays May 27  
+**Root Cause**: Double normalization issue - EnhancedAvailabilityChecker normalized dates, then BookingContext normalized again, causing comparison failures  
+**Location**: `/src/components/booking/sections/availability/EnhancedAvailabilityChecker.tsx`  
+**Impact**: **Booking system non-functional** - users cannot change dates  
+**Solution**: Remove double normalization - let only BookingContext handle date normalization  
+**Status**: ✅ **FIXED** - Removed normalization from EnhancedAvailabilityChecker, pass raw dates to context  
+
+### Bug #4: Multiple API Calls on Single User Action
+**Priority**: Medium (Efficiency Issue)  
+**Issue**: Single date/guest change triggers multiple simultaneous pricing API calls  
+**Root Cause**: Multiple useEffect hooks in BookingContext trigger simultaneously  
+**Impact**: Server overload, race conditions, potential pricing inconsistencies  
+**Solution**: Add 300ms debouncing to API call triggers  
+**Status**: ⏳ To Fix  
+
+### Bug #5: Excessive Language File Requests  
+**Priority**: Low (Optimization Issue)  
+**Issue**: Language files fetched repeatedly during user interactions  
+**Example**: 10+ requests to `/locales/en.json` when changing check-in date  
+**Root Cause**: LanguageContext reloads translations without caching  
+**Location**: `/src/contexts/LanguageContext.tsx` lines 63-92  
+**Impact**: Unnecessary network traffic, poor offline experience  
+**Solution**: Implement Map-based translation caching  
+**Status**: ⏳ To Fix  
+
 ## Conclusion
 
 This refactoring plan addresses critical performance and architectural issues in the RentalSpot-Builder booking system. The multi-phase approach ensures minimal risk while delivering immediate performance improvements.

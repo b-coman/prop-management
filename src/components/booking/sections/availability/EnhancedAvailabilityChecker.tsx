@@ -85,20 +85,13 @@ export const EnhancedAvailabilityChecker = React.memo(function EnhancedAvailabil
   const handleCheckInChange = useCallback((date: Date | null) => {
     console.log(`[EnhancedAvailabilityChecker] Check-in date changed to:`, date);
 
-    // CRITICAL FIX: Normalize to noon UTC to prevent timezone day-shift issues
-    const normalizedDate = date ? (() => {
-      const normalized = new Date(date);
-      normalized.setUTCHours(12, 0, 0, 0);
-      console.log(`[EnhancedAvailabilityChecker] 🔧 Normalized checkIn: ${date.toISOString()} → ${normalized.toISOString()}`);
-      return normalized;
-    })() : null;
-
-    // Update context only - no local state
-    setCheckInDate(normalizedDate);
+    // BUG #3 FIX: Remove double normalization - let BookingContext handle normalization
+    // Pass raw date to context, BookingContext will normalize it properly
+    setCheckInDate(date);
 
     // If the current checkout date is invalid with this new check-in date,
     // clear the checkout date
-    if (normalizedDate && checkOutDate && normalizedDate >= checkOutDate) {
+    if (date && checkOutDate && date >= checkOutDate) {
       setCheckOutDate(null);
     }
 
@@ -110,16 +103,9 @@ export const EnhancedAvailabilityChecker = React.memo(function EnhancedAvailabil
   const handleCheckOutChange = useCallback((date: Date | null) => {
     console.log(`[EnhancedAvailabilityChecker] Check-out date changed to:`, date);
 
-    // CRITICAL FIX: Normalize to noon UTC to prevent timezone day-shift issues
-    const normalizedDate = date ? (() => {
-      const normalized = new Date(date);
-      normalized.setUTCHours(12, 0, 0, 0);
-      console.log(`[EnhancedAvailabilityChecker] 🔧 Normalized checkOut: ${date.toISOString()} → ${normalized.toISOString()}`);
-      return normalized;
-    })() : null;
-
-    // Update context only - no local state
-    setCheckOutDate(normalizedDate);
+    // BUG #3 FIX: Remove double normalization - let BookingContext handle normalization
+    // Pass raw date to context, BookingContext will normalize it properly
+    setCheckOutDate(date);
 
     // Reset availability state - auto-fetch will trigger from BookingContext
     setWasChecked(false);
