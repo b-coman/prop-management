@@ -70,26 +70,27 @@ function BookingInitializer({
     // Mark as initialized
     hasInitialized.current = true;
 
+    console.log(`[BookingInitializer] 🚀 Initializing context for ${property.slug} - checkIn=${!!initialCheckIn}, checkOut=${!!initialCheckOut}, guests=${initialGuests}`);
 
     // Set property slug
     setPropertySlug(property.slug);
 
-    // Set check-in date
-    if (initialCheckIn) {
+    // Set check-in date ONLY if context doesn't have a value and we have an initial value
+    if (initialCheckIn && !checkInDate) {
+      console.log(`[BookingInitializer] 📅 Setting initial checkIn: ${initialCheckIn.toISOString()}`);
       setCheckInDate(initialCheckIn);
-    } else {
     }
 
-    // Set check-out date
-    if (initialCheckOut) {
+    // Set check-out date ONLY if context doesn't have a value and we have an initial value
+    if (initialCheckOut && !checkOutDate) {
+      console.log(`[BookingInitializer] 📅 Setting initial checkOut: ${initialCheckOut.toISOString()}`);
       setCheckOutDate(initialCheckOut);
-    } else {
     }
 
-    // Set number of guests
-    if (initialGuests) {
+    // Set number of guests ONLY if context doesn't have a value and we have an initial value
+    if (initialGuests && numberOfGuests === 1) {
+      console.log(`[BookingInitializer] 👥 Setting initial guests: ${initialGuests}`);
       setNumberOfGuests(initialGuests);
-    } else {
     }
 
     // Calculate nights if both dates are provided
@@ -378,7 +379,7 @@ function BookingInitializer({
  * Main booking container component
  * Handles URL parameters and provides the booking context
  */
-export function BookingContainer({ 
+export const BookingContainer = React.memo(function BookingContainer({ 
   property, 
   position = 'bottom',
   size = 'compressed',
@@ -473,4 +474,4 @@ export function BookingContainer({
       </div>
     </ConditionalBookingProvider>
   );
-}
+});

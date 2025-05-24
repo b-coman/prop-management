@@ -49,7 +49,7 @@ interface AvailabilityContainerProps {
  * This container component manages the state and logic for checking availability
  * and showing the appropriate view based on the availability status.
  */
-export function AvailabilityContainer({
+export const AvailabilityContainer = React.memo(function AvailabilityContainer({
   property,
   initialCheckIn,
   initialCheckOut,
@@ -1109,4 +1109,4 @@ export function AvailabilityContainer({
       )}
     </div>
   );
-}
+});

@@ -18,7 +18,7 @@ interface ClientBookingWrapperProps {
   heroImage?: string | null;
 }
 
-export function ClientBookingWrapper({ property, urlParams, heroImage }: ClientBookingWrapperProps) {
+export const ClientBookingWrapper = React.memo(function ClientBookingWrapper({ property, urlParams, heroImage }: ClientBookingWrapperProps) {
   const { tc } = useLanguage();
   const { checkInDate, checkOutDate, numberOfNights, numberOfGuests, pricingDetails } = useBooking();
   const { formatPrice, selectedCurrency, convertToSelectedCurrency } = useCurrency();
@@ -74,4 +74,4 @@ export function ClientBookingWrapper({ property, urlParams, heroImage }: ClientB
       <BookingContainer property={translatedProperty} />
     </BookingCheckLayout>
   );
-}
+});
