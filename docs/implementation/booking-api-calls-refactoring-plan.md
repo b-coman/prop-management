@@ -829,11 +829,11 @@ Based on user testing, the following 5 critical bugs were discovered that must b
 **Priority**: Critical (Blocking Issue)  
 **Issue**: Calendar accepts date clicks but selected dates don't update in form fields  
 **Example**: User clicks May 29, calendar registers selection, but check-in field stays May 27  
-**Root Cause**: Double normalization issue - EnhancedAvailabilityChecker normalized dates, then BookingContext normalized again, causing comparison failures  
-**Location**: `/src/components/booking/sections/availability/EnhancedAvailabilityChecker.tsx`  
+**Root Cause**: BookingContainer was parsing URL parameters on every render, overriding user selections with old URL dates  
+**Location**: `/src/components/booking/container/BookingContainer.tsx` lines 390-435  
 **Impact**: **Booking system non-functional** - users cannot change dates  
-**Solution**: Remove double normalization - let only BookingContext handle date normalization  
-**Status**: ✅ **FIXED** - Removed normalization from EnhancedAvailabilityChecker, pass raw dates to context  
+**Solution**: Move URL parameter parsing to useState initializer to run only once on mount  
+**Status**: ✅ **FIXED** - URL parsing now happens once, user selections are preserved  
 
 ### Bug #4: Multiple API Calls on Single User Action
 **Priority**: Medium (Efficiency Issue)  

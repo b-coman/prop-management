@@ -387,52 +387,62 @@ export const BookingContainer = React.memo(function BookingContainer({
 }: BookingContainerProps) {
   const searchParams = useSearchParams();
 
-  // Parse date parameters from URL
-  const checkInParam = searchParams?.get('checkIn');
-  const checkOutParam = searchParams?.get('checkOut');
-  const guestsParam = searchParams?.get('guests');
+  // BUG #3 FIX: Parse URL parameters only once on mount, not on every render
+  // This prevents URL dates from overriding user's manual date selections
+  const [urlParsedData] = useState(() => {
+    console.log(`[BookingContainer] 🔧 PARSING URL PARAMETERS (one-time only)`);
+    
+    // Parse date parameters from URL
+    const checkInParam = searchParams?.get('checkIn');
+    const checkOutParam = searchParams?.get('checkOut');
+    const guestsParam = searchParams?.get('guests');
 
-
-  // Validate and parse check-in date
-  let initialCheckIn: Date | undefined;
-  if (checkInParam) {
-    // CRITICAL FIX: Use same normalization as URL parsing to prevent timezone day-shift
-    if (checkInParam.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      const [year, month, day] = checkInParam.split('-').map(Number);
-      const normalized = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-      console.log(`[BookingContainer] 🔧 Normalized checkIn: ${checkInParam} → ${normalized.toISOString()}`);
-      initialCheckIn = normalized;
-    } else {
-      const parsedDate = parseISO(checkInParam);
-      if (isValid(parsedDate)) {
-        const normalized = new Date(parsedDate);
-        normalized.setUTCHours(12, 0, 0, 0);
+    // Validate and parse check-in date
+    let initialCheckIn: Date | undefined;
+    if (checkInParam) {
+      // CRITICAL FIX: Use same normalization as URL parsing to prevent timezone day-shift
+      if (checkInParam.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = checkInParam.split('-').map(Number);
+        const normalized = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+        console.log(`[BookingContainer] 🔧 Normalized checkIn: ${checkInParam} → ${normalized.toISOString()}`);
         initialCheckIn = normalized;
+      } else {
+        const parsedDate = parseISO(checkInParam);
+        if (isValid(parsedDate)) {
+          const normalized = new Date(parsedDate);
+          normalized.setUTCHours(12, 0, 0, 0);
+          initialCheckIn = normalized;
+        }
       }
     }
-  }
 
-  // Validate and parse check-out date
-  let initialCheckOut: Date | undefined;
-  if (checkOutParam) {
-    // CRITICAL FIX: Use same normalization as URL parsing to prevent timezone day-shift
-    if (checkOutParam.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      const [year, month, day] = checkOutParam.split('-').map(Number);
-      const normalized = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-      console.log(`[BookingContainer] 🔧 Normalized checkOut: ${checkOutParam} → ${normalized.toISOString()}`);
-      initialCheckOut = normalized;
-    } else {
-      const parsedDate = parseISO(checkOutParam);
-      if (isValid(parsedDate)) {
-        const normalized = new Date(parsedDate);
-        normalized.setUTCHours(12, 0, 0, 0);
+    // Validate and parse check-out date
+    let initialCheckOut: Date | undefined;
+    if (checkOutParam) {
+      // CRITICAL FIX: Use same normalization as URL parsing to prevent timezone day-shift
+      if (checkOutParam.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = checkOutParam.split('-').map(Number);
+        const normalized = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+        console.log(`[BookingContainer] 🔧 Normalized checkOut: ${checkOutParam} → ${normalized.toISOString()}`);
         initialCheckOut = normalized;
+      } else {
+        const parsedDate = parseISO(checkOutParam);
+        if (isValid(parsedDate)) {
+          const normalized = new Date(parsedDate);
+          normalized.setUTCHours(12, 0, 0, 0);
+          initialCheckOut = normalized;
+        }
       }
     }
-  }
 
-  // Parse guests param
-  const initialGuests = guestsParam ? parseInt(guestsParam, 10) : undefined;
+    // Parse guests param
+    const initialGuests = guestsParam ? parseInt(guestsParam, 10) : undefined;
+    
+    return { initialCheckIn, initialCheckOut, initialGuests };
+  });
+
+  // Extract the parsed values
+  const { initialCheckIn, initialCheckOut, initialGuests } = urlParsedData;
 
   // Calculate nights if both dates are valid
 
