@@ -50,6 +50,9 @@ function BookingInitializer({
   className
 }: BookingInitializerProps) {
   const {
+    checkInDate,
+    checkOutDate,
+    numberOfGuests,
     setPropertySlug,
     setCheckInDate,
     setCheckOutDate,
@@ -70,26 +73,21 @@ function BookingInitializer({
     // Mark as initialized
     hasInitialized.current = true;
 
-    console.log(`[BookingInitializer] 🚀 Initializing context for ${property.slug} - checkIn=${!!initialCheckIn}, checkOut=${!!initialCheckOut}, guests=${initialGuests}`);
-
     // Set property slug
     setPropertySlug(property.slug);
 
-    // Set check-in date ONLY if context doesn't have a value and we have an initial value
-    if (initialCheckIn && !checkInDate) {
-      console.log(`[BookingInitializer] 📅 Setting initial checkIn: ${initialCheckIn.toISOString()}`);
+    // Set check-in date
+    if (initialCheckIn) {
       setCheckInDate(initialCheckIn);
     }
 
-    // Set check-out date ONLY if context doesn't have a value and we have an initial value
-    if (initialCheckOut && !checkOutDate) {
-      console.log(`[BookingInitializer] 📅 Setting initial checkOut: ${initialCheckOut.toISOString()}`);
+    // Set check-out date
+    if (initialCheckOut) {
       setCheckOutDate(initialCheckOut);
     }
 
-    // Set number of guests ONLY if context doesn't have a value and we have an initial value
-    if (initialGuests && numberOfGuests === 1) {
-      console.log(`[BookingInitializer] 👥 Setting initial guests: ${initialGuests}`);
+    // Set number of guests
+    if (initialGuests) {
       setNumberOfGuests(initialGuests);
     }
 
