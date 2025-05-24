@@ -57,7 +57,11 @@ function BookingInitializer({
     setCheckInDate,
     setCheckOutDate,
     setNumberOfGuests,
-    setNumberOfNights
+    setNumberOfNights,
+    // BUG #3 FIX: Use URL-specific setters for initialization
+    setCheckInDateFromURL,
+    setCheckOutDateFromURL,
+    setNumberOfGuestsFromURL
   } = useBooking();
   
   // Define ref outside the effect hook
@@ -76,19 +80,20 @@ function BookingInitializer({
     // Set property slug
     setPropertySlug(property.slug);
 
+    // BUG #3 FIX: Use URL-specific setters that won't override user interactions
     // Set check-in date
     if (initialCheckIn) {
-      setCheckInDate(initialCheckIn);
+      setCheckInDateFromURL(initialCheckIn);
     }
 
     // Set check-out date
     if (initialCheckOut) {
-      setCheckOutDate(initialCheckOut);
+      setCheckOutDateFromURL(initialCheckOut);
     }
 
     // Set number of guests
     if (initialGuests) {
-      setNumberOfGuests(initialGuests);
+      setNumberOfGuestsFromURL(initialGuests);
     }
 
     // Calculate nights if both dates are provided

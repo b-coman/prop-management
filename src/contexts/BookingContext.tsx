@@ -62,6 +62,10 @@ interface BookingContextActions {
   setCheckInDate: (date: Date | null) => void;
   setCheckOutDate: (date: Date | null) => void;
   setNumberOfGuests: (guests: number) => void;
+  // BUG #3 FIX: Source-based differentiation
+  setCheckInDateFromURL: (date: Date | null) => void;
+  setCheckOutDateFromURL: (date: Date | null) => void;
+  setNumberOfGuestsFromURL: (guests: number) => void;
   setFirstName: (firstName: string) => void;
   setLastName: (lastName: string) => void;
   setEmail: (email: string) => void;
@@ -200,6 +204,10 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
   const prevCheckInDate = useRef<Date | null>(null);
   const prevCheckOutDate = useRef<Date | null>(null);
   
+  // BUG #3 FIX: Track user interactions to prevent URL initialization from overriding user selections
+  const hasUserInteractedWithDates = useRef(false);
+  const hasUserInteractedWithGuests = useRef(false);
+  
   // Prevent infinite fetch loops with timeout-based debouncing
   const isFetchingRef = useRef(false);
   const lastFetchTimeRef = useRef(0);
@@ -223,59 +231,130 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     { prefix: '' }
   );
   
-  // Wrap date setters with date normalization and deep equality check
+  // BUG #3 FIX: User interaction date setter - marks user has interacted
   const setCheckInDate = useCallback((newDate: Date | null) => {
     // Skip update if the date is the same to prevent loops
     if (newDate === null && checkInDate === null) return;
     if (newDate && checkInDate && newDate.getTime() === checkInDate.getTime()) return;
     
-    // DEBUG: Track date setter calls for timezone debugging
-    if (process.env.NODE_ENV === 'development' && newDate) {
-      console.log(`[BookingContext] 📅 setCheckInDate called with:`, newDate.toISOString());
-    }
+    // Mark that user has interacted with dates
+    hasUserInteractedWithDates.current = true;
+    console.log(`[BookingContext] 👤 USER INTERACTION: setCheckInDate called with:`, newDate?.toISOString());
     
     // Normalize date to noon UTC to ensure consistent time across all date operations
-    // This prevents timezone conversion issues when dates are passed to the pricing API
     const normalizedDate = newDate ? new Date(newDate) : null;
     if (normalizedDate) {
-      // Always set time component to 12:00:00 UTC to ensure consistency
       normalizedDate.setUTCHours(12, 0, 0, 0);
       console.log(`[BookingContext] 📅 Normalized date: ${newDate.toISOString()} → ${normalizedDate.toISOString()}`); 
     }
     
-    // Update our ref to track this value
     prevCheckInDate.current = normalizedDate;
-    
-    // Now update the stored value
     setCheckInDateInternal(normalizedDate);
   }, [checkInDate, setCheckInDateInternal]);
+
+  // BUG #3 FIX: URL initialization date setter - does NOT override user interactions
+  const setCheckInDateFromURL = useCallback((newDate: Date | null) => {
+    // Skip if user has already interacted with dates
+    if (hasUserInteractedWithDates.current) {
+      console.log(`[BookingContext] 🚫 URL BLOCKED: User has interacted with dates, ignoring URL setCheckInDate`);
+      return;
+    }
+    
+    // Skip update if the date is the same to prevent loops
+    if (newDate === null && checkInDate === null) return;
+    if (newDate && checkInDate && newDate.getTime() === checkInDate.getTime()) return;
+    
+    console.log(`[BookingContext] 🔗 URL INIT: setCheckInDateFromURL called with:`, newDate?.toISOString());
+    
+    // Normalize date to noon UTC
+    const normalizedDate = newDate ? new Date(newDate) : null;
+    if (normalizedDate) {
+      normalizedDate.setUTCHours(12, 0, 0, 0);
+      console.log(`[BookingContext] 📅 Normalized URL date: ${newDate.toISOString()} → ${normalizedDate.toISOString()}`); 
+    }
+    
+    prevCheckInDate.current = normalizedDate;
+    setCheckInDateInternal(normalizedDate);
+  }, [checkInDate, setCheckInDateInternal, hasUserInteractedWithDates]);
   
+  // BUG #3 FIX: User interaction date setter - marks user has interacted
   const setCheckOutDate = useCallback((newDate: Date | null) => {
     // Skip update if the date is the same to prevent loops
     if (newDate === null && checkOutDate === null) return;
     if (newDate && checkOutDate && newDate.getTime() === checkOutDate.getTime()) return;
     
-    // Normalize date to noon UTC to ensure consistent time across all date operations
-    // This prevents timezone conversion issues when dates are passed to the pricing API
+    // Mark that user has interacted with dates
+    hasUserInteractedWithDates.current = true;
+    console.log(`[BookingContext] 👤 USER INTERACTION: setCheckOutDate called with:`, newDate?.toISOString());
+    
+    // Normalize date to noon UTC
     const normalizedDate = newDate ? new Date(newDate) : null;
     if (normalizedDate) {
-      // Always set time component to 12:00:00 UTC to ensure consistency
       normalizedDate.setUTCHours(12, 0, 0, 0);
       console.log(`[BookingContext] 📅 Normalized date: ${newDate.toISOString()} → ${normalizedDate.toISOString()}`);
     }
     
-    // Update our ref to track this value
     prevCheckOutDate.current = normalizedDate;
-    
-    // Now update the stored value
     setCheckOutDateInternal(normalizedDate);
   }, [checkOutDate, setCheckOutDateInternal]);
+
+  // BUG #3 FIX: URL initialization date setter - does NOT override user interactions
+  const setCheckOutDateFromURL = useCallback((newDate: Date | null) => {
+    // Skip if user has already interacted with dates
+    if (hasUserInteractedWithDates.current) {
+      console.log(`[BookingContext] 🚫 URL BLOCKED: User has interacted with dates, ignoring URL setCheckOutDate`);
+      return;
+    }
+    
+    // Skip update if the date is the same to prevent loops
+    if (newDate === null && checkOutDate === null) return;
+    if (newDate && checkOutDate && newDate.getTime() === checkOutDate.getTime()) return;
+    
+    console.log(`[BookingContext] 🔗 URL INIT: setCheckOutDateFromURL called with:`, newDate?.toISOString());
+    
+    // Normalize date to noon UTC
+    const normalizedDate = newDate ? new Date(newDate) : null;
+    if (normalizedDate) {
+      normalizedDate.setUTCHours(12, 0, 0, 0);
+      console.log(`[BookingContext] 📅 Normalized URL date: ${newDate.toISOString()} → ${normalizedDate.toISOString()}`);
+    }
+    
+    prevCheckOutDate.current = normalizedDate;
+    setCheckOutDateInternal(normalizedDate);
+  }, [checkOutDate, setCheckOutDateInternal, hasUserInteractedWithDates]);
   
-  const [numberOfGuests, setNumberOfGuests] = useSyncedSessionStorage<number>(
+  const [numberOfGuests, setNumberOfGuestsInternal] = useSyncedSessionStorage<number>(
     `${storagePrefix}numberOfGuests`, 
     2,
     { prefix: '' }
   );
+
+  // BUG #3 FIX: User interaction guest setter - marks user has interacted
+  const setNumberOfGuests = useCallback((newGuests: number) => {
+    // Skip update if the value is the same to prevent loops
+    if (newGuests === numberOfGuests) return;
+    
+    // Mark that user has interacted with guests
+    hasUserInteractedWithGuests.current = true;
+    console.log(`[BookingContext] 👤 USER INTERACTION: setNumberOfGuests called with:`, newGuests);
+    
+    setNumberOfGuestsInternal(newGuests);
+  }, [numberOfGuests, setNumberOfGuestsInternal]);
+
+  // BUG #3 FIX: URL initialization guest setter - does NOT override user interactions
+  const setNumberOfGuestsFromURL = useCallback((newGuests: number) => {
+    // Skip if user has already interacted with guests
+    if (hasUserInteractedWithGuests.current) {
+      console.log(`[BookingContext] 🚫 URL BLOCKED: User has interacted with guests, ignoring URL setNumberOfGuests`);
+      return;
+    }
+    
+    // Skip update if the value is the same to prevent loops
+    if (newGuests === numberOfGuests) return;
+    
+    console.log(`[BookingContext] 🔗 URL INIT: setNumberOfGuestsFromURL called with:`, newGuests);
+    setNumberOfGuestsInternal(newGuests);
+  }, [numberOfGuests, setNumberOfGuestsInternal, hasUserInteractedWithGuests]);
   
   const [firstName, setFirstName] = useSyncedSessionStorage<string>(
     `${storagePrefix}firstName`, 
@@ -916,6 +995,10 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     setCheckInDate,
     setCheckOutDate,
     setNumberOfGuests,
+    // BUG #3 FIX: URL-specific setters that don't override user interactions
+    setCheckInDateFromURL,
+    setCheckOutDateFromURL,
+    setNumberOfGuestsFromURL,
     setFirstName,
     setLastName,
     setEmail,
