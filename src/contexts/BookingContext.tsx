@@ -659,6 +659,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
         subtotal: pricingResponse.pricing.subtotal,
         total: pricingResponse.pricing.totalPrice !== undefined ? pricingResponse.pricing.totalPrice : pricingResponse.pricing.total || 0,
         totalPrice: pricingResponse.pricing.totalPrice !== undefined ? pricingResponse.pricing.totalPrice : pricingResponse.pricing.total || 0,
+        numberOfNights: pricingResponse.pricing.numberOfNights, // BUG #1 FIX: Include numberOfNights from API
         currency: pricingResponse.pricing.currency as CurrencyCode,
         dailyRates: pricingResponse.pricing.dailyRates || {},
         datesFetched: {
