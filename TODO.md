@@ -31,7 +31,7 @@ For additional details try to understand why those two logs happens:
 ### upper container, dates and guest selector - CASE: if dates are available
 - take this out, don't need it: "✓ Selected dates are available!"
 - put the "check price" button on the same line with dates elements and gust no selector / be sure they are well aligned
-- checkin and checkout date fields are a bit wider than guest no selector and check price button
+- checkin and checkout date fields should be a bit wider than guest number selector and check price button
 - on mobile and small screens the elements will be stacked, and having the labels on the same line like the field. E.g. label "Check-in Date" then imediatelly after the field (button) which displays the date. Same for the others. / the "check price" button will be the last element and it will have the same width as the other elements situated above it
 - under this line of input elements will come and informative part: "4 nights of summer delight for 2 guests at €796.00"
 - take out the current line that says like that: "Total stay: 4 nights"

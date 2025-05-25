@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Share2, CalendarIcon, Copy } from 'lucide-react';
 import Link from 'next/link';
 import { useLanguage } from '@/hooks/useLanguage';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,6 +10,11 @@ import type { Property } from '@/types';
 import { TouchTarget } from '@/components/ui/touch-target';
 import { SafeImage } from '@/components/ui/safe-image';
 import { useScrollToElement, useScrollRestoration } from '@/hooks/useScrollToElement';
+import { useBooking } from '@/contexts/BookingContext';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
 
 interface BookingCheckLayoutProps {
   property: Property;
@@ -36,16 +41,32 @@ export function BookingCheckLayout({
 }: BookingCheckLayoutProps) {
   const { tc } = useLanguage();
   const [isPropertyInfoExpanded, setIsPropertyInfoExpanded] = useState(false);
+  const [isPriceBreakdownExpanded, setIsPriceBreakdownExpanded] = useState(false);
   const scrollToElement = useScrollToElement();
   const { saveScrollPosition, restoreScrollPosition } = useScrollRestoration();
   
+  // Get pricing data from context
+  const { pricingDetails, numberOfGuests } = useBooking();
+  const { selectedCurrency, convertToSelectedCurrency, formatPrice } = useCurrency();
+  const { toast } = useToast();
+  
   // Process image source for component
   const primaryImage = (() => {
+    console.log(`[BookingCheckLayout] Image resolution for ${property.slug}:`, {
+      heroImage,
+      hasPropertyImages: property.images && property.images.length > 0,
+      propertyImagesCount: property.images?.length || 0,
+      firstPropertyImage: property.images?.[0],
+      fallbackImageUrl
+    });
+    
     // First priority: use hero image if available
     if (heroImage) {
-      return !heroImage.startsWith('/') && !heroImage.startsWith('http') 
+      const processedHeroImage = !heroImage.startsWith('/') && !heroImage.startsWith('http') 
         ? `/${heroImage}` 
         : heroImage;
+      console.log(`[BookingCheckLayout] Using hero image: ${processedHeroImage}`);
+      return processedHeroImage;
     }
     
     // Second priority: use first property image if available
@@ -60,17 +81,98 @@ export function BookingCheckLayout({
       }
       
       if (imageUrl) {
-        return !imageUrl.startsWith('/') && !imageUrl.startsWith('http')
+        const processedImageUrl = !imageUrl.startsWith('/') && !imageUrl.startsWith('http')
           ? `/${imageUrl}`
           : imageUrl;
+        console.log(`[BookingCheckLayout] Using property image: ${processedImageUrl}`);
+        return processedImageUrl;
       }
     }
     
     // Fallback to default image
+    console.log(`[BookingCheckLayout] Using fallback image: ${fallbackImageUrl}`);
     return fallbackImageUrl;
   })();
 
   const propertyName = typeof property.name === 'string' ? property.name : tc(property.name);
+  
+  // Share functionality
+  const handleShare = async () => {
+    try {
+      // Build URL with current context data
+      const urlParams = new URLSearchParams();
+      if (checkInDate) urlParams.set('checkIn', checkInDate.toISOString().split('T')[0]);
+      if (checkOutDate) urlParams.set('checkOut', checkOutDate.toISOString().split('T')[0]);
+      if (numberOfGuests) urlParams.set('guests', numberOfGuests.toString());
+      
+      const shareUrl = `${window.location.origin}/properties/${property.slug}/booking/check?${urlParams.toString()}`;
+      
+      if (typeof navigator !== 'undefined' && navigator.share && /Mobi|Android/i.test(navigator.userAgent)) {
+        // Mobile native share
+        await navigator.share({ 
+          url: shareUrl, 
+          title: `Book ${propertyName}`,
+          text: `Check out this booking for ${propertyName}` 
+        });
+      } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        // Desktop clipboard
+        await navigator.clipboard.writeText(shareUrl);
+        toast({
+          title: "Link copied!",
+          description: "Booking link has been copied to your clipboard.",
+          duration: 3000,
+        });
+      } else {
+        // Fallback for older browsers
+        console.log('Share URL:', shareUrl);
+        toast({
+          title: "Share URL",
+          description: "Please copy the URL from the browser address bar.",
+          duration: 5000,
+        });
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+      toast({
+        title: "Share failed",
+        description: "Unable to share the booking link. Please try again.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  };
+  
+  // Calculate pricing breakdown for display
+  const pricingBreakdown = React.useMemo(() => {
+    if (!pricingDetails) return null;
+    
+    const baseCurrency = pricingDetails.currency;
+    
+    return {
+      accommodationTotal: convertToSelectedCurrency(pricingDetails.accommodationTotal || 0, baseCurrency),
+      cleaningFee: convertToSelectedCurrency(pricingDetails.cleaningFee || 0, baseCurrency),
+      subtotal: convertToSelectedCurrency(pricingDetails.subtotal || 0, baseCurrency),
+      total: convertToSelectedCurrency(pricingDetails.totalPrice || pricingDetails.total || 0, baseCurrency),
+      dailyRates: pricingDetails.dailyRates 
+        ? Object.entries(pricingDetails.dailyRates).reduce((acc, [date, price]) => {
+            acc[date] = convertToSelectedCurrency(price, baseCurrency);
+            return acc;
+          }, {} as Record<string, number>)
+        : {},
+      lengthOfStayDiscount: pricingDetails.lengthOfStayDiscount 
+        ? {
+            discountPercentage: pricingDetails.lengthOfStayDiscount.discountPercentage,
+            discountAmount: convertToSelectedCurrency(pricingDetails.lengthOfStayDiscount.discountAmount || 0, baseCurrency)
+          }
+        : null,
+      couponDiscount: pricingDetails.couponDiscount 
+        ? {
+            discountPercentage: pricingDetails.couponDiscount.discountPercentage,
+            discountAmount: convertToSelectedCurrency(pricingDetails.couponDiscount.discountAmount || 0, baseCurrency)
+          }
+        : null,
+    };
+  }, [pricingDetails, convertToSelectedCurrency, selectedCurrency]);
   
   // Smooth scroll to main content on accordion toggle
   useEffect(() => {
@@ -193,14 +295,12 @@ export function BookingCheckLayout({
                   />
                 </div>
             
-            {/* Selected Dates */}
+            {/* Combined Dates and Nights */}
             {selectedDates && (
               <div className="space-y-1">
-                <h3 className="text-sm font-medium text-muted-foreground">Selected Dates</h3>
-                <p className="text-sm text-foreground">{selectedDates}</p>
-                {numberOfNights && (
-                  <p className="text-sm text-muted-foreground">{numberOfNights} nights</p>
-                )}
+                <p className="text-sm text-foreground font-medium">
+                  {selectedDates}{numberOfNights ? `, ${numberOfNights} nights` : ''}
+                </p>
               </div>
             )}
             
@@ -245,24 +345,133 @@ export function BookingCheckLayout({
                 <div className="p-[var(--card-padding)] space-y-4">
                   <h2 className="text-lg font-semibold text-foreground">{propertyName}</h2>
                   
-                  {/* Selected Dates */}
+                  {/* Combined Dates and Nights */}
                   {selectedDates && (
                     <div className="space-y-2">
-                      <h3 className="text-sm font-medium text-muted-foreground">Selected Dates</h3>
-                      <p className="text-sm text-foreground font-medium">{selectedDates}</p>
-                      {numberOfNights && (
-                        <p className="text-sm text-muted-foreground">{numberOfNights} nights</p>
-                      )}
+                      <p className="text-sm text-foreground font-medium">
+                        {selectedDates}{numberOfNights ? `, ${numberOfNights} nights` : ''}
+                      </p>
                     </div>
                   )}
                   
-                  {/* Total Price */}
+                  {/* Total Price with Details and Share */}
                   {totalPrice && (
-                    <div className="pt-4 border-t border-border">
+                    <div className="pt-4 border-t border-border space-y-3">
                       <div className="flex items-baseline justify-between">
-                        <span className="text-sm text-muted-foreground">Total</span>
                         <span className="text-xl font-semibold text-primary">{totalPrice}</span>
                       </div>
+                      
+                      {/* Control Buttons */}
+                      <div className="flex items-center gap-2">
+                        {pricingBreakdown && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsPriceBreakdownExpanded(!isPriceBreakdownExpanded)}
+                            className="flex-1 text-xs"
+                          >
+                            {isPriceBreakdownExpanded ? (
+                              <>
+                                <ChevronUp className="h-3 w-3 mr-1" />
+                                Hide Details
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="h-3 w-3 mr-1" />
+                                Show Details
+                              </>
+                            )}
+                          </Button>
+                        )}
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleShare}
+                          className="px-3"
+                        >
+                          <Share2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      
+                      {/* Expandable Price Breakdown */}
+                      <AnimatePresence initial={false}>
+                        {isPriceBreakdownExpanded && pricingBreakdown && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3, ease: "easeInOut" }}
+                            className="overflow-hidden"
+                          >
+                            <div className="pt-3 border-t border-border">
+                              <div className="space-y-2 text-xs">
+                                <h4 className="font-medium text-sm text-foreground mb-3">Price Breakdown</h4>
+                                
+                                {/* Accommodation */}
+                                <div className="flex justify-between">
+                                  <span>Accommodation ({numberOfNights} nights)</span>
+                                  <span>{formatPrice(pricingBreakdown.accommodationTotal, selectedCurrency)}</span>
+                                </div>
+
+                                {/* Daily rates if available */}
+                                {Object.keys(pricingBreakdown.dailyRates).length > 0 && (
+                                  <div className="pl-3 space-y-1 text-xs text-muted-foreground">
+                                    {Object.entries(pricingBreakdown.dailyRates)
+                                      .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+                                      .map(([date, price]) => (
+                                        <div key={date} className="flex justify-between">
+                                          <span className="flex items-center">
+                                            <CalendarIcon className="h-2.5 w-2.5 mr-1" /> {date}
+                                          </span>
+                                          <span>{formatPrice(price, selectedCurrency)}</span>
+                                        </div>
+                                      ))
+                                    }
+                                  </div>
+                                )}
+
+                                {/* Cleaning fee */}
+                                <div className="flex justify-between">
+                                  <span>Cleaning fee</span>
+                                  <span>+{formatPrice(pricingBreakdown.cleaningFee, selectedCurrency)}</span>
+                                </div>
+
+                                <Separator className="my-2" />
+
+                                {/* Subtotal */}
+                                <div className="flex justify-between font-medium">
+                                  <span>Subtotal</span>
+                                  <span>{formatPrice(pricingBreakdown.subtotal, selectedCurrency)}</span>
+                                </div>
+
+                                {/* Discounts */}
+                                {pricingBreakdown.lengthOfStayDiscount && (
+                                  <div className="flex justify-between text-green-600">
+                                    <span>Stay discount ({pricingBreakdown.lengthOfStayDiscount.discountPercentage}%)</span>
+                                    <span>-{formatPrice(pricingBreakdown.lengthOfStayDiscount.discountAmount, selectedCurrency)}</span>
+                                  </div>
+                                )}
+
+                                {pricingBreakdown.couponDiscount && (
+                                  <div className="flex justify-between text-green-600">
+                                    <span>Coupon discount ({pricingBreakdown.couponDiscount.discountPercentage}%)</span>
+                                    <span>-{formatPrice(pricingBreakdown.couponDiscount.discountAmount, selectedCurrency)}</span>
+                                  </div>
+                                )}
+
+                                <Separator className="my-2" />
+
+                                {/* Final Total */}
+                                <div className="flex justify-between font-bold text-sm">
+                                  <span>Total ({selectedCurrency})</span>
+                                  <span>{formatPrice(pricingBreakdown.total, selectedCurrency)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   )}
                 </div>

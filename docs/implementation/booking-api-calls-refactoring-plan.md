@@ -470,7 +470,7 @@ const { unavailableDates, isAvailabilityLoading } = useBooking();
 
 #### Race Condition Prevention
 
-**Critical Design Decision**: Prevent pricing updates from triggering availability re-fetches
+**Critical Design Decision**: Prevent pricing updates from triggering availability re-fetches AND eliminate circular dependencies
 
 **Problem Avoided**:
 ```typescript
@@ -482,11 +482,21 @@ const { unavailableDates, isAvailabilityLoading } = useBooking();
 → Calls /api/check-availability again (unnecessary!)
 ```
 
+**Circular Dependency Problem Discovered**:
+```typescript
+// Initial page load with URL dates
+→ Check if numberOfNights > 0 for API trigger ❌
+→ numberOfNights = 0 (no API call made yet)
+→ API call blocked (waiting for data it should provide)
+→ numberOfNights never gets set from server
+```
+
 **Solution Implemented**:
 - **Separate useEffect triggers**: Availability only triggers on property change
 - **No cross-triggering**: Pricing updates don't affect availability fetching
 - **Session persistence**: Availability loaded once per property, persisted throughout session
-- **User-controlled pricing**: Only triggered by button clicks or initial URL load
+- **Direct date validation**: Replace `numberOfNights > 0` with `checkOutDate > checkInDate`
+- **API-only numberOfNights**: Eliminate client-side calculations, use server business logic exclusively
 
 ```typescript
 // Availability: Property-scoped, session-persistent
@@ -496,7 +506,17 @@ useEffect(() => {
   }
 }, [propertySlug]); // Only property changes
 
-// Pricing: User-initiated only (no auto-triggers)
+// Combined fetch: URL-based initial load with fixed circular dependency
+useEffect(() => {
+  if (storedPropertySlug && checkInDate && checkOutDate && checkOutDate > checkInDate) {
+    // FIXED: Use date range validation instead of numberOfNights > 0
+    if (hasCheckIn && hasCheckOut && !pricingDetails) {
+      fetchAvailabilityAndPricing(); // Combined initial load
+    }
+  }
+}, [/* dependencies excluding numberOfNights */]);
+
+// Manual pricing: User-controlled updates
 const handleCheckPrice = () => {
   fetchPricing(checkInDate, checkOutDate, numberOfGuests);
 };
@@ -507,8 +527,58 @@ const handleCheckPrice = () => {
 - **Performance Improved**: No unnecessary re-fetching, faster response times
 - **User Experience Enhanced**: Always visible pricing control, consistent and predictable interface
 - **Interface Stability**: No layout shifts from dynamic button behavior
-- **Architecture Simplified**: Separate concerns, no race conditions
+- **Architecture Simplified**: Separate concerns, no race conditions, no circular dependencies
 - **Cloud Compatibility**: Admin SDK throughout server-side operations
+- **Accurate Pricing**: numberOfNights from server business logic, not client date calculations
+
+#### Post-Implementation Discovery: NumberOfNights Circular Dependency
+
+**Critical Architectural Issue Discovered During Implementation**
+
+**Problem**: The `numberOfNights > 0` validation checks created a circular dependency that prevented initial API calls:
+
+```typescript
+// PROBLEMATIC LOGIC PATTERN:
+if (propertySlug && checkInDate && checkOutDate && numberOfNights > 0) {
+  // Trigger API call that should SET numberOfNights
+  fetchAvailabilityAndPricing();
+}
+```
+
+**Circular Dependency Chain**:
+1. Page loads with URL dates (May 27-31)
+2. Context initializes numberOfNights = 0 (default)
+3. Trigger check: `numberOfNights > 0` = false
+4. API call blocked (can't proceed without numberOfNights)
+5. numberOfNights never gets set from API response
+6. System stuck in waiting state
+
+**Root Cause Analysis**:
+- **Client-side calculations**: BookingContainer was calculating numberOfNights = differenceInDays()
+- **API business logic**: Server calculates numberOfNights based on property-specific rules
+- **Conflict**: Client calculation overrode correct server values
+- **Validation dependency**: Trigger logic depended on data that comes FROM the API
+
+**Architectural Solution**:
+```typescript
+// BEFORE (Circular dependency):
+if (checkInDate && checkOutDate && numberOfNights > 0) {
+  fetchPricing(); // Blocked waiting for numberOfNights
+}
+
+// AFTER (Direct validation):
+if (checkInDate && checkOutDate && checkOutDate > checkInDate) {
+  fetchPricing(); // Triggers immediately for valid date ranges
+}
+```
+
+**Implementation Changes Required**:
+- Remove all client-side numberOfNights calculations
+- Replace `numberOfNights > 0` checks with direct date range validation
+- Ensure numberOfNights only comes from API responses
+- Remove numberOfNights from useEffect dependency arrays (it's an OUTPUT, not INPUT)
+
+**Impact**: This fix enables automatic pricing loads for URL dates and ensures numberOfNights accuracy based on server business logic rather than client date math.
 
 ### Phase 2: Enhanced API Response (Optional Optimization)
 
@@ -825,15 +895,15 @@ Based on user testing, the following 5 critical bugs were discovered that must b
 **Solution**: Add React.memo to prevent unnecessary re-renders  
 **Status**: ⏳ To Fix  
 
-### Bug #3: Calendar Date Selection Not Persisting (CRITICAL)
+### Bug #3: NumberOfNights Circular Dependency (CRITICAL)
 **Priority**: Critical (Blocking Issue)  
-**Issue**: Calendar accepts date clicks but selected dates don't update in form fields  
-**Example**: User clicks May 29, calendar registers selection, but check-in field stays May 27  
-**Root Cause**: BookingContainer was parsing URL parameters on every render, overriding user selections with old URL dates  
-**Location**: `/src/components/booking/container/BookingContainer.tsx` lines 390-435  
-**Impact**: **Booking system non-functional** - users cannot change dates  
-**Solution**: Move URL parameter parsing to useState initializer to run only once on mount  
-**Status**: ✅ **FIXED** - URL parsing now happens once, user selections are preserved  
+**Issue**: numberOfNights not updating from API response, preventing accurate pricing display  
+**Example**: URL dates May 27-31 should show "2 nights" but displays "4 nights" or "0 nights"  
+**Root Cause**: Circular dependency where `numberOfNights > 0` checks prevented API calls that should SET numberOfNights  
+**Location**: `/src/contexts/BookingContext.tsx` lines 890, 732 - trigger and internal function logic  
+**Impact**: **Booking system pricing inaccurate** - wrong night calculations affect total pricing  
+**Solution**: Replace `numberOfNights > 0` with direct date range validation `checkOutDate > checkInDate`  
+**Status**: ✅ **FIXED** - API calls now trigger automatically, numberOfNights comes from server business logic  
 
 ### Bug #4: Multiple API Calls on Single User Action
 **Priority**: Medium (Efficiency Issue)  

@@ -14,6 +14,7 @@ export interface PricingDetails {
   subtotal: number;
   total: number;
   totalPrice: number;  // Duplicate of total for naming consistency
+  numberOfNights?: number; // Added for API-only architecture
   currency: CurrencyCode;
   dailyRates?: Record<string, number>;
   lengthOfStayDiscount?: {
@@ -249,7 +250,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       const day = newDate.getDate();
       return new Date(Date.UTC(year, month, day, 12, 0, 0, 0));
     })() : null;
-    if (normalizedDate) {
+    if (normalizedDate && newDate) {
       console.log(`[BookingContext] 📅 Fixed timezone normalization: ${newDate.toISOString()} → ${normalizedDate.toISOString()}`);
     }
     
@@ -279,7 +280,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       const day = newDate.getDate();
       return new Date(Date.UTC(year, month, day, 12, 0, 0, 0));
     })() : null;
-    if (normalizedDate) {
+    if (normalizedDate && newDate) {
       console.log(`[BookingContext] 📅 Fixed timezone normalization: ${newDate.toISOString()} → ${normalizedDate.toISOString()}`);
     }
     
@@ -305,7 +306,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       const day = newDate.getDate();
       return new Date(Date.UTC(year, month, day, 12, 0, 0, 0));
     })() : null;
-    if (normalizedDate) {
+    if (normalizedDate && newDate) {
       console.log(`[BookingContext] 📅 Fixed timezone normalization: ${newDate.toISOString()} → ${normalizedDate.toISOString()}`);
     }
     
@@ -335,7 +336,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       const day = newDate.getDate();
       return new Date(Date.UTC(year, month, day, 12, 0, 0, 0));
     })() : null;
-    if (normalizedDate) {
+    if (normalizedDate && newDate) {
       console.log(`[BookingContext] 📅 Fixed timezone normalization: ${newDate.toISOString()} → ${normalizedDate.toISOString()}`);
     }
     
@@ -547,8 +548,8 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
         cleaningFee: result.pricing.cleaningFee || 0,
         subtotal: result.pricing.subtotal,
         // Support both naming conventions for backward compatibility
-        total: result.pricing.totalPrice !== undefined ? result.pricing.totalPrice : result.pricing.total || 0,
-        totalPrice: result.pricing.totalPrice !== undefined ? result.pricing.totalPrice : result.pricing.total || 0,
+        total: result.pricing.totalPrice || 0,
+        totalPrice: result.pricing.totalPrice || 0,
         currency: result.pricing.currency as CurrencyCode,
         dailyRates: result.pricing.dailyRates || {},
         // Store date information for future reference
@@ -656,16 +657,16 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       }
       
       console.log(`[BookingContext] ${requestId} Received pricing data:`, pricingResponse.pricing);
-      console.log(`[BookingContext] ${requestId} 🔍 numberOfNights in API response:`, pricingResponse.pricing.numberOfNights);
+      console.log(`[BookingContext] ${requestId} 🔍 numberOfNights in API response:`, (pricingResponse.pricing as any).numberOfNights);
       
       // Create standardized pricing details object
       const pricingData: PricingDetails = {
         accommodationTotal: pricingResponse.pricing.subtotal - (pricingResponse.pricing.cleaningFee || 0),
         cleaningFee: pricingResponse.pricing.cleaningFee || 0,
         subtotal: pricingResponse.pricing.subtotal,
-        total: pricingResponse.pricing.totalPrice !== undefined ? pricingResponse.pricing.totalPrice : pricingResponse.pricing.total || 0,
-        totalPrice: pricingResponse.pricing.totalPrice !== undefined ? pricingResponse.pricing.totalPrice : pricingResponse.pricing.total || 0,
-        numberOfNights: pricingResponse.pricing.numberOfNights, // BUG #1 FIX: Include numberOfNights from API
+        total: pricingResponse.pricing.totalPrice || 0,
+        totalPrice: pricingResponse.pricing.totalPrice || 0,
+        numberOfNights: (pricingResponse.pricing as any).numberOfNights, // BUG #1 FIX: Include numberOfNights from API
         currency: pricingResponse.pricing.currency as CurrencyCode,
         dailyRates: pricingResponse.pricing.dailyRates || {},
         datesFetched: {
@@ -745,9 +746,9 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
             accommodationTotal: pricingResponse.pricing.subtotal - (pricingResponse.pricing.cleaningFee || 0),
             cleaningFee: pricingResponse.pricing.cleaningFee || 0,
             subtotal: pricingResponse.pricing.subtotal,
-            total: pricingResponse.pricing.totalPrice !== undefined ? pricingResponse.pricing.totalPrice : pricingResponse.pricing.total || 0,
-            totalPrice: pricingResponse.pricing.totalPrice !== undefined ? pricingResponse.pricing.totalPrice : pricingResponse.pricing.total || 0,
-            numberOfNights: pricingResponse.pricing.numberOfNights, // BUG #1 FIX: Include numberOfNights from API
+            total: pricingResponse.pricing.totalPrice || 0,
+            totalPrice: pricingResponse.pricing.totalPrice || 0,
+            numberOfNights: (pricingResponse.pricing as any).numberOfNights, // BUG #1 FIX: Include numberOfNights from API
             currency: pricingResponse.pricing.currency as CurrencyCode,
             dailyRates: pricingResponse.pricing.dailyRates || {},
             datesFetched: {
@@ -1078,40 +1079,40 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
 
       if (typeof window !== 'undefined') {
         // Increment mount count for tracking
-        const currentCount = window[mountCountKey as any] || 0;
-        window[mountCountKey as any] = currentCount + 1;
+        const currentCount = (window as any)[mountCountKey] || 0;
+        (window as any)[mountCountKey] = currentCount + 1;
 
-        if (window[mountKey as any]) {
+        if ((window as any)[mountKey]) {
           console.warn(
-            `[BookingContext] ⚠️ Multiple BookingProvider instances detected for property "${propertySlug}" (count: ${window[mountCountKey as any]}). ` +
+            `[BookingContext] ⚠️ Multiple BookingProvider instances detected for property "${propertySlug}" (count: ${(window as any)[mountCountKey]}). ` +
             `This can cause state conflicts and performance issues. ` +
-            `Provider IDs may include: ${window[mountKey as any] || 'unknown'}, ${sessionId}. ` +
+            `Provider IDs may include: ${(window as any)[mountKey] || 'unknown'}, ${sessionId}. ` +
             `Ensure you only mount one BookingProvider per property.`
           );
 
           // Add this provider ID to the list for debugging
-          if (typeof window[mountKey as any] === 'string') {
-            window[mountKey as any] = `${window[mountKey as any]}, ${sessionId}`;
+          if (typeof (window as any)[mountKey] === 'string') {
+            (window as any)[mountKey] = `${(window as any)[mountKey]}, ${sessionId}`;
           } else {
-            window[mountKey as any] = sessionId;
+            (window as any)[mountKey] = sessionId;
           }
         } else {
           // Mark this provider as mounted
-          window[mountKey as any] = sessionId;
+          (window as any)[mountKey] = sessionId;
           console.log(`[BookingContext] Provider mounted for property "${propertySlug}" with session ID ${sessionId}`);
         }
 
         // Clean up on unmount
         return () => {
-          if (window[mountCountKey as any] > 0) {
-            window[mountCountKey as any] = window[mountCountKey as any] - 1;
+          if ((window as any)[mountCountKey] > 0) {
+            (window as any)[mountCountKey] = (window as any)[mountCountKey] - 1;
           }
 
-          if (window[mountCountKey as any] === 0) {
-            window[mountKey as any] = false;
+          if ((window as any)[mountCountKey] === 0) {
+            (window as any)[mountKey] = false;
             console.log(`[BookingContext] All providers unmounted for property "${propertySlug}"`);
           } else {
-            console.log(`[BookingContext] Provider unmounted for property "${propertySlug}", ${window[mountCountKey as any]} remaining`);
+            console.log(`[BookingContext] Provider unmounted for property "${propertySlug}", ${(window as any)[mountCountKey]} remaining`);
           }
         };
       }
@@ -1195,6 +1196,9 @@ export const useBookingActions = () => {
           setCheckInDate: () => {},
           setCheckOutDate: () => {},
           setNumberOfGuests: () => {},
+          setCheckInDateFromURL: () => {},
+          setCheckOutDateFromURL: () => {},
+          setNumberOfGuestsFromURL: () => {},
           setFirstName: () => {},
           setLastName: () => {},
           setEmail: () => {},
@@ -1207,6 +1211,7 @@ export const useBookingActions = () => {
           clearBookingData: () => {},
           clearGuestData: () => {},
           // Add stubs for pricing methods
+          fetchAvailability: async () => [],
           fetchPricing: async () => null,
           setPricingDetails: () => {},
           resetPricing: () => {},
