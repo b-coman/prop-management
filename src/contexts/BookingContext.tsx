@@ -468,9 +468,14 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       setTotalPrice(pricing.total);
     }
     // BUG #1 FIX: Update numberOfNights from API response (API is the source of truth)
+    console.log(`[BookingContext] 🔍 setPricingDetails called with numberOfNights:`, pricing?.numberOfNights);
+    console.log(`[BookingContext] 🔍 Current context numberOfNights:`, numberOfNights);
     if (pricing?.numberOfNights) {
       console.log(`[BookingContext] 🔢 Updating numberOfNights from API: ${numberOfNights} → ${pricing.numberOfNights}`);
       setNumberOfNightsInternal(pricing.numberOfNights);
+      console.log(`[BookingContext] 🔢 setNumberOfNightsInternal called with:`, pricing.numberOfNights);
+    } else {
+      console.log(`[BookingContext] ❌ No numberOfNights in pricing data:`, pricing);
     }
   }, [setPricingDetailsInternal, setTotalPrice, numberOfNights, setNumberOfNightsInternal]);
   
@@ -651,6 +656,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       }
       
       console.log(`[BookingContext] ${requestId} Received pricing data:`, pricingResponse.pricing);
+      console.log(`[BookingContext] ${requestId} 🔍 numberOfNights in API response:`, pricingResponse.pricing.numberOfNights);
       
       // Create standardized pricing details object
       const pricingData: PricingDetails = {

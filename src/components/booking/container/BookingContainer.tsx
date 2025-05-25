@@ -57,7 +57,6 @@ function BookingInitializer({
     setCheckInDate,
     setCheckOutDate,
     setNumberOfGuests,
-    setNumberOfNights,
     // BUG #3 FIX: Use URL-specific setters for initialization
     setCheckInDateFromURL,
     setCheckOutDateFromURL,
@@ -94,16 +93,6 @@ function BookingInitializer({
     // Set number of guests
     if (initialGuests) {
       setNumberOfGuestsFromURL(initialGuests);
-    }
-
-    // Calculate nights if both dates are provided
-    if (initialCheckIn && initialCheckOut) {
-      const nights = differenceInDays(initialCheckOut, initialCheckIn);
-      if (nights > 0) {
-        setNumberOfNights(nights);
-      } else {
-      }
-    } else {
     }
 
   }, []); // Empty dependency array = only run once
