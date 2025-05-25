@@ -932,40 +932,6 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     };
   }, [storedPropertySlug, checkInDate, checkOutDate, numberOfGuests, numberOfNights, pricingDetails, unavailableDates.length, isAvailable, isPricingLoading, isAvailabilityLoading]); // FIXED: Don't include fetchAvailabilityAndPricing to avoid infinite loops
 
-  // BUG #1 FIX: Auto-fetch pricing when user changes dates (with debouncing)
-  const userInteractionDebounceRef = useRef<NodeJS.Timeout | null>(null);
-  React.useEffect(() => {
-    // Only trigger for user interactions with complete date selection
-    if (!hasUserInteractedWithDates.current || !checkInDate || !checkOutDate || !storedPropertySlug) {
-      return;
-    }
-    
-    // Skip if already loading to prevent conflicts
-    if (isPricingLoading) {
-      return;
-    }
-    
-    // Clear existing timeout
-    if (userInteractionDebounceRef.current) {
-      clearTimeout(userInteractionDebounceRef.current);
-    }
-    
-    // Debounce user interactions to avoid excessive API calls
-    userInteractionDebounceRef.current = setTimeout(() => {
-      console.log(`[BookingContext] 🔄 USER DATE CHANGE: Auto-fetching pricing for updated dates`);
-      if (checkInDate && checkOutDate && numberOfGuests > 0) {
-        fetchPricing(checkInDate, checkOutDate, numberOfGuests);
-      }
-    }, 300); // 300ms debounce for user interactions
-    
-    // Cleanup
-    return () => {
-      if (userInteractionDebounceRef.current) {
-        clearTimeout(userInteractionDebounceRef.current);
-      }
-    };
-  }, [checkInDate, checkOutDate, hasUserInteractedWithDates.current, storedPropertySlug, numberOfGuests, isPricingLoading]);
-
   // LEGACY: Keep existing combined trigger for backward compatibility (disabled by default)
   const legacyAutoFetchEnabled = false; // Set to true to re-enable legacy behavior
   
