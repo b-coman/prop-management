@@ -65,6 +65,7 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
     checkInDate,
     checkOutDate,
     numberOfNights,
+    numberOfGuests, // BUG FIX: Add numberOfGuests from context
     setCheckInDate,
     setCheckOutDate,
     setNumberOfGuests,
@@ -286,7 +287,7 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
           propertySlug: property.slug,
           checkInDate: checkInDate.toISOString(),
           checkOutDate: checkOutDate.toISOString(),
-          guestCount: guestCount,
+          guestCount: numberOfGuests,
           guestInfo: {
             firstName: values.firstName || sessionFirstName,
             lastName: values.lastName || sessionLastName,
@@ -369,7 +370,7 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
         propertySlug: property.slug,
         checkInDate: checkInDate.toISOString(),
         checkOutDate: checkOutDate.toISOString(),
-        guestCount: guestCount,
+        guestCount: numberOfGuests,
         guestInfo: {
           firstName: sanitizeText(sessionFirstName),
           lastName: sanitizeText(sessionLastName),
@@ -464,7 +465,7 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
       setIsProcessingBooking(false);
     }
   }, [checkInDate, checkOutDate, property, sessionFirstName, sessionLastName, sessionEmail, sessionPhone,
-      guestCount, selectedCurrency, router, toast]);
+      numberOfGuests, selectedCurrency, router, toast]);
 
   // Handler for continuing to payment
   const handleContinueToPayment = useCallback(async () => {
@@ -520,7 +521,7 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
         },
         checkInDate: checkInDate.toISOString(),
         checkOutDate: checkOutDate.toISOString(),
-        numberOfGuests: guestCount,
+        numberOfGuests: numberOfGuests,
         pricing: {
           // Map fields with safe defaults
           baseRate: pricingData.accommodationTotal || pricingData.basePrice || 0,
@@ -568,7 +569,7 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
         property: property,
         checkInDate: checkInDate.toISOString(),
         checkOutDate: checkOutDate.toISOString(),
-        numberOfGuests: guestCount,
+        numberOfGuests: numberOfGuests,
         totalPrice: bookingInput.pricing.total,
         numberOfNights: numberOfNights,
         appliedCouponCode: null,
@@ -632,7 +633,7 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
     } finally {
       setIsProcessingBooking(false);
     }
-  }, [checkInDate, checkOutDate, property, guestCount, pricingDetails, pricingDetailsInBaseCurrency, 
+  }, [checkInDate, checkOutDate, property, numberOfGuests, pricingDetails, pricingDetailsInBaseCurrency, 
       numberOfNights, sessionFirstName, sessionLastName, sessionEmail, sessionPhone, selectedCurrency, 
       router, toast]);
   
@@ -712,7 +713,7 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
       {/* Debug info for troubleshooting */}
       <div className="text-xs p-1 mt-2 bg-slate-100 border border-slate-200 text-slate-800 rounded">
         <div>DEBUG (v1.3.1): wasChecked={wasChecked ? 'true' : 'false'} | isAvailable={isAvailable ? 'true' : 'false'}</div>
-        <div>guestCount={guestCount} | hasPricing={pricingDetails ? 'true' : 'false'} | isPricingLoading={isPricingLoading ? 'true' : 'false'}</div>
+        <div>guestCount={numberOfGuests} | hasPricing={pricingDetails ? 'true' : 'false'} | isPricingLoading={isPricingLoading ? 'true' : 'false'}</div>
       </div>
       
       {wasChecked && (
@@ -732,7 +733,7 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
                 <>
                   <BookingSummary 
                     numberOfNights={numberOfNights}
-                    numberOfGuests={guestCount}
+                    numberOfGuests={numberOfGuests}
                     pricingDetails={null}
                     propertyBaseCcy={property.currency || 'USD'}
                     appliedCoupon={appliedCoupon}

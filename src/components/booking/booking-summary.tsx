@@ -157,7 +157,7 @@ export const BookingSummary = React.memo(function BookingSummary({
       subtotal: convertToSelectedCurrency(pricingDetails.subtotal, propertyBaseCcy),
       discountAmount: convertToSelectedCurrency(pricingDetails.discountAmount, propertyBaseCcy),
       total: convertToSelectedCurrency(pricingDetails.total, propertyBaseCcy),
-      numberOfNights: pricingDetails.numberOfNights,
+      numberOfNights: contextNights, // BUG FIX: Use context nights (user selection) not API nights
       numberOfGuests: contextGuests
     };
   }, [
