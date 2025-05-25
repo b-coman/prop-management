@@ -447,7 +447,12 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     if (pricing?.total) {
       setTotalPrice(pricing.total);
     }
-  }, [setPricingDetailsInternal, setTotalPrice]);
+    // BUG #1 FIX: Update numberOfNights from API response (API is the source of truth)
+    if (pricing?.numberOfNights) {
+      console.log(`[BookingContext] 🔢 Updating numberOfNights from API: ${numberOfNights} → ${pricing.numberOfNights}`);
+      setNumberOfNightsInternal(pricing.numberOfNights);
+    }
+  }, [setPricingDetailsInternal, setTotalPrice, numberOfNights, setNumberOfNightsInternal]);
   
   const resetPricing = useCallback(() => {
     setPricingDetailsInternal(null);
