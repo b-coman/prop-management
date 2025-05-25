@@ -833,8 +833,16 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
   // SIMPLIFIED: URL-based initial combined fetch - Fetch both availability and pricing
   const hasTriggeredCombinedFetchRef = useRef<string | null>(null);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // BUG #3 FIX: Track if initial load is complete to prevent auto-fetch after user interactions
+  const isInitialLoadCompleteRef = useRef(false);
   
   React.useEffect(() => {
+    // BUG #3 FIX: Skip auto-fetch if user has interacted with dates OR initial load is complete
+    if (hasUserInteractedWithDates.current || hasUserInteractedWithGuests.current || isInitialLoadCompleteRef.current) {
+      console.log(`[BookingContext] 🚫 SKIPPING AUTO-FETCH: User has interacted (dates: ${hasUserInteractedWithDates.current}, guests: ${hasUserInteractedWithGuests.current}) or initial load complete: ${isInitialLoadCompleteRef.current}`);
+      return;
+    }
+    
     // Clear existing timeout to prevent multiple triggers
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
@@ -843,7 +851,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     // Debounce API calls to prevent multiple simultaneous triggers
     debounceTimeoutRef.current = setTimeout(() => {
       // Check if this is initial load with URL parameters
-      console.log(`[BookingContext] 🔍 COMBINED FETCH CHECK: window=${typeof window !== 'undefined'}, slug=${!!storedPropertySlug}, checkIn=${!!checkInDate}, checkOut=${!!checkOutDate}, noPricing=${!pricingDetails}, nights=${numberOfNights}`);
+      console.log(`[BookingContext] 🔍 INITIAL LOAD CHECK: window=${typeof window !== 'undefined'}, slug=${!!storedPropertySlug}, checkIn=${!!checkInDate}, checkOut=${!!checkOutDate}, noPricing=${!pricingDetails}, nights=${numberOfNights}`);
       
       if (typeof window !== 'undefined' && storedPropertySlug && checkInDate && checkOutDate && numberOfNights > 0) {
         const urlParams = new URLSearchParams(window.location.search);
@@ -854,7 +862,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
         
         // Only auto-fetch if URL explicitly has both dates AND we don't have data yet
         if (hasCheckIn && hasCheckOut && (!pricingDetails || unavailableDates.length === 0)) {
-          console.log(`[BookingContext] ✅ CONDITIONS MET - proceeding with combined fetch`);
+          console.log(`[BookingContext] ✅ INITIAL LOAD CONDITIONS MET - proceeding with combined fetch`);
           
           // Prevent duplicate calls using a simple key
           const fetchKey = `${storedPropertySlug}-${checkInDate.toISOString()}-${checkOutDate.toISOString()}-${numberOfGuests}`;
@@ -863,25 +871,30 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
             return;
           }
           
-          console.log(`[BookingContext] 🚀 Auto-fetching COMBINED availability and pricing from URL parameters`);
+          console.log(`[BookingContext] 🚀 Auto-fetching COMBINED availability and pricing from URL parameters (INITIAL LOAD ONLY)`);
           hasTriggeredCombinedFetchRef.current = fetchKey;
           
           // Use the combined fetch function which handles both availability and pricing
           fetchAvailabilityAndPricing()
             .then((result) => {
-              console.log(`[BookingContext] ✅ Combined fetch completed:`, {
+              console.log(`[BookingContext] ✅ Initial combined fetch completed:`, {
                 hasUnavailableDates: result.unavailableDates.length > 0,
                 hasPricing: !!result.pricing,
                 isAvailable: result.isAvailable,
                 totalPrice: result.pricing?.total
               });
+              // Mark initial load as complete
+              isInitialLoadCompleteRef.current = true;
+              console.log(`[BookingContext] 🏁 Initial load marked complete - future pricing updates must be user-controlled`);
             })
             .catch(error => {
               console.error(`[BookingContext] ❌ Combined auto-fetch error:`, error);
               hasTriggeredCombinedFetchRef.current = null; // Reset on error
             });
         } else {
-          console.log(`[BookingContext] ⏭️ SKIPPING FETCH: conditions not met or data already exists`);
+          console.log(`[BookingContext] ⏭️ SKIPPING INITIAL FETCH: conditions not met or data already exists`);
+          // Even if we skip, mark initial load as complete to prevent future auto-fetches
+          isInitialLoadCompleteRef.current = true;
         }
       }
     }, 300); // 300ms debounce delay
