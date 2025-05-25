@@ -885,14 +885,14 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     // Debounce API calls to prevent multiple simultaneous triggers
     debounceTimeoutRef.current = setTimeout(() => {
       // Check if this is initial load with URL parameters
-      console.log(`[BookingContext] 🔍 INITIAL LOAD CHECK: window=${typeof window !== 'undefined'}, slug=${!!storedPropertySlug}, checkIn=${!!checkInDate}, checkOut=${!!checkOutDate}, noPricing=${!pricingDetails}, nights=${numberOfNights}`);
+      console.log(`[BookingContext] 🔍 INITIAL LOAD CHECK: window=${typeof window !== 'undefined'}, slug=${!!storedPropertySlug}, checkIn=${!!checkInDate}, checkOut=${!!checkOutDate}, noPricing=${!pricingDetails}, validRange=${checkInDate && checkOutDate ? checkOutDate > checkInDate : false}`);
       
-      if (typeof window !== 'undefined' && storedPropertySlug && checkInDate && checkOutDate && numberOfNights > 0) {
+      if (typeof window !== 'undefined' && storedPropertySlug && checkInDate && checkOutDate && checkOutDate > checkInDate) {
         const urlParams = new URLSearchParams(window.location.search);
         const hasCheckIn = urlParams.get('checkIn');
         const hasCheckOut = urlParams.get('checkOut');
         
-        console.log(`[BookingContext] 🔍 URL PARAMS CHECK: hasCheckIn=${!!hasCheckIn}, hasCheckOut=${!!hasCheckOut}, nights=${numberOfNights}`);
+        console.log(`[BookingContext] 🔍 URL PARAMS CHECK: hasCheckIn=${!!hasCheckIn}, hasCheckOut=${!!hasCheckOut}, validDateRange=${checkOutDate > checkInDate}`);
         
         // Only auto-fetch if URL explicitly has both dates AND we don't have data yet
         if (hasCheckIn && hasCheckOut && (!pricingDetails || unavailableDates.length === 0)) {
@@ -939,7 +939,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
         clearTimeout(debounceTimeoutRef.current);
       }
     };
-  }, [storedPropertySlug, checkInDate, checkOutDate, numberOfGuests, numberOfNights, pricingDetails, unavailableDates.length, isAvailable, isPricingLoading, isAvailabilityLoading]); // FIXED: Don't include fetchAvailabilityAndPricing to avoid infinite loops
+  }, [storedPropertySlug, checkInDate, checkOutDate, numberOfGuests, pricingDetails, unavailableDates.length, isAvailable, isPricingLoading, isAvailabilityLoading]); // FIXED: Removed numberOfNights dependency (comes from API)
 
   // LEGACY: Keep existing combined trigger for backward compatibility (disabled by default)
   const legacyAutoFetchEnabled = false; // Set to true to re-enable legacy behavior
