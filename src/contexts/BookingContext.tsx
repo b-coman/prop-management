@@ -838,6 +838,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
   
   React.useEffect(() => {
     // Only fetch availability when property changes and we have no data yet
+    // PHASE 1: Keep this - availability is needed for calendar to show unavailable dates
     if (storedPropertySlug && unavailableDates.length === 0 && !isAvailabilityLoading) {
       // Prevent duplicate calls for same property
       if (hasTriggeredAvailabilityRef.current === storedPropertySlug) {
@@ -863,6 +864,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
   
   React.useEffect(() => {
     // BUG #3 FIX: Skip auto-fetch if user has interacted with dates OR initial load is complete
+    // PHASE 1: Keep this logic - it correctly allows URL loading but prevents user interaction auto-triggers
     if (hasUserInteractedWithDates.current || hasUserInteractedWithGuests.current || isInitialLoadCompleteRef.current) {
       console.log(`[BookingContext] 🚫 SKIPPING AUTO-FETCH: User has interacted (dates: ${hasUserInteractedWithDates.current}, guests: ${hasUserInteractedWithGuests.current}) or initial load complete: ${isInitialLoadCompleteRef.current}`);
       return;
