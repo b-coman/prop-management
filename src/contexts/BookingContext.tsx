@@ -241,11 +241,16 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     hasUserInteractedWithDates.current = true;
     console.log(`[BookingContext] 👤 USER INTERACTION: setCheckInDate called with:`, newDate?.toISOString());
     
-    // Normalize date to noon UTC to ensure consistent time across all date operations
-    const normalizedDate = newDate ? new Date(newDate) : null;
+    // CRITICAL FIX: Extract intended date and create clean UTC date
+    // Don't preserve timezone conversion artifacts from calendar midnight dates
+    const normalizedDate = newDate ? (() => {
+      const year = newDate.getFullYear();
+      const month = newDate.getMonth();
+      const day = newDate.getDate();
+      return new Date(Date.UTC(year, month, day, 12, 0, 0, 0));
+    })() : null;
     if (normalizedDate) {
-      normalizedDate.setUTCHours(12, 0, 0, 0);
-      console.log(`[BookingContext] 📅 Normalized date: ${newDate.toISOString()} → ${normalizedDate.toISOString()}`); 
+      console.log(`[BookingContext] 📅 Fixed timezone normalization: ${newDate.toISOString()} → ${normalizedDate.toISOString()}`);
     }
     
     prevCheckInDate.current = normalizedDate;
@@ -266,11 +271,16 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     
     console.log(`[BookingContext] 🔗 URL INIT: setCheckInDateFromURL called with:`, newDate?.toISOString());
     
-    // Normalize date to noon UTC
-    const normalizedDate = newDate ? new Date(newDate) : null;
+    // CRITICAL FIX: Extract intended date and create clean UTC date
+    // Don't preserve timezone conversion artifacts from calendar midnight dates
+    const normalizedDate = newDate ? (() => {
+      const year = newDate.getFullYear();
+      const month = newDate.getMonth();
+      const day = newDate.getDate();
+      return new Date(Date.UTC(year, month, day, 12, 0, 0, 0));
+    })() : null;
     if (normalizedDate) {
-      normalizedDate.setUTCHours(12, 0, 0, 0);
-      console.log(`[BookingContext] 📅 Normalized URL date: ${newDate.toISOString()} → ${normalizedDate.toISOString()}`); 
+      console.log(`[BookingContext] 📅 Fixed timezone normalization: ${newDate.toISOString()} → ${normalizedDate.toISOString()}`);
     }
     
     prevCheckInDate.current = normalizedDate;
@@ -287,11 +297,16 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     hasUserInteractedWithDates.current = true;
     console.log(`[BookingContext] 👤 USER INTERACTION: setCheckOutDate called with:`, newDate?.toISOString());
     
-    // Normalize date to noon UTC
-    const normalizedDate = newDate ? new Date(newDate) : null;
+    // CRITICAL FIX: Extract intended date and create clean UTC date
+    // Don't preserve timezone conversion artifacts from calendar midnight dates
+    const normalizedDate = newDate ? (() => {
+      const year = newDate.getFullYear();
+      const month = newDate.getMonth();
+      const day = newDate.getDate();
+      return new Date(Date.UTC(year, month, day, 12, 0, 0, 0));
+    })() : null;
     if (normalizedDate) {
-      normalizedDate.setUTCHours(12, 0, 0, 0);
-      console.log(`[BookingContext] 📅 Normalized date: ${newDate.toISOString()} → ${normalizedDate.toISOString()}`);
+      console.log(`[BookingContext] 📅 Fixed timezone normalization: ${newDate.toISOString()} → ${normalizedDate.toISOString()}`);
     }
     
     prevCheckOutDate.current = normalizedDate;
@@ -312,11 +327,16 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     
     console.log(`[BookingContext] 🔗 URL INIT: setCheckOutDateFromURL called with:`, newDate?.toISOString());
     
-    // Normalize date to noon UTC
-    const normalizedDate = newDate ? new Date(newDate) : null;
+    // CRITICAL FIX: Extract intended date and create clean UTC date
+    // Don't preserve timezone conversion artifacts from calendar midnight dates  
+    const normalizedDate = newDate ? (() => {
+      const year = newDate.getFullYear();
+      const month = newDate.getMonth();
+      const day = newDate.getDate();
+      return new Date(Date.UTC(year, month, day, 12, 0, 0, 0));
+    })() : null;
     if (normalizedDate) {
-      normalizedDate.setUTCHours(12, 0, 0, 0);
-      console.log(`[BookingContext] 📅 Normalized URL date: ${newDate.toISOString()} → ${normalizedDate.toISOString()}`);
+      console.log(`[BookingContext] 📅 Fixed timezone normalization: ${newDate.toISOString()} → ${normalizedDate.toISOString()}`);
     }
     
     prevCheckOutDate.current = normalizedDate;
@@ -911,6 +931,40 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       }
     };
   }, [storedPropertySlug, checkInDate, checkOutDate, numberOfGuests, numberOfNights, pricingDetails, unavailableDates.length, isAvailable, isPricingLoading, isAvailabilityLoading]); // FIXED: Don't include fetchAvailabilityAndPricing to avoid infinite loops
+
+  // BUG #1 FIX: Auto-fetch pricing when user changes dates (with debouncing)
+  const userInteractionDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  React.useEffect(() => {
+    // Only trigger for user interactions with complete date selection
+    if (!hasUserInteractedWithDates.current || !checkInDate || !checkOutDate || !storedPropertySlug) {
+      return;
+    }
+    
+    // Skip if already loading to prevent conflicts
+    if (isPricingLoading) {
+      return;
+    }
+    
+    // Clear existing timeout
+    if (userInteractionDebounceRef.current) {
+      clearTimeout(userInteractionDebounceRef.current);
+    }
+    
+    // Debounce user interactions to avoid excessive API calls
+    userInteractionDebounceRef.current = setTimeout(() => {
+      console.log(`[BookingContext] 🔄 USER DATE CHANGE: Auto-fetching pricing for updated dates`);
+      if (checkInDate && checkOutDate && numberOfGuests > 0) {
+        fetchPricing(checkInDate, checkOutDate, numberOfGuests);
+      }
+    }, 300); // 300ms debounce for user interactions
+    
+    // Cleanup
+    return () => {
+      if (userInteractionDebounceRef.current) {
+        clearTimeout(userInteractionDebounceRef.current);
+      }
+    };
+  }, [checkInDate, checkOutDate, hasUserInteractedWithDates.current, storedPropertySlug, numberOfGuests, isPricingLoading]);
 
   // LEGACY: Keep existing combined trigger for backward compatibility (disabled by default)
   const legacyAutoFetchEnabled = false; // Set to true to re-enable legacy behavior
