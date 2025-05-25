@@ -126,7 +126,10 @@ function BookingClientInner({
   const {
     setCheckInDate,
     setCheckOutDate,
-    setPropertySlug
+    setPropertySlug,
+    // BUG #3 FIX: Use URL-specific setters for initial load to allow pricing fetch
+    setCheckInDateFromURL,
+    setCheckOutDateFromURL
   } = useBooking();
   const { setSelectedCurrencyTemporary } = useCurrency();
 
@@ -186,19 +189,19 @@ function BookingClientInner({
         // Set a flag to prevent multiple applications during development double-mounting
         sessionStorage.setItem('booking_url_params_applied', 'true');
         
-        console.log(`[BookingClientInner] Setting checkInDate (ONE TIME):`, parsedCheckIn.toISOString());
-        setCheckInDate(parsedCheckIn);
+        console.log(`[BookingClientInner] Setting checkInDate from URL (ONE TIME):`, parsedCheckIn.toISOString());
+        setCheckInDateFromURL(parsedCheckIn);
         
         // Set check-out date with a delay to ensure proper sequencing
         if (parsedCheckOut) {
           setTimeout(() => {
-            console.log(`[BookingClientInner] Setting checkOutDate (ONE TIME):`, parsedCheckOut.toISOString());
-            setCheckOutDate(parsedCheckOut);
+            console.log(`[BookingClientInner] Setting checkOutDate from URL (ONE TIME):`, parsedCheckOut.toISOString());
+            setCheckOutDateFromURL(parsedCheckOut);
           }, 100);
         }
       } else if (parsedCheckOut) {
-        console.log(`[BookingClientInner] Setting checkOutDate only (ONE TIME):`, parsedCheckOut.toISOString());
-        setCheckOutDate(parsedCheckOut);
+        console.log(`[BookingClientInner] Setting checkOutDate only from URL (ONE TIME):`, parsedCheckOut.toISOString());
+        setCheckOutDateFromURL(parsedCheckOut);
       }
     }
   }, [propertySlug, setPropertySlug, currency, setSelectedCurrencyTemporary]); // Added currency dependencies
