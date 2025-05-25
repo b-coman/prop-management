@@ -729,7 +729,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       let pricingResult: PricingDetails | null = null;
       let availabilityResult = true; // Default to available
       
-      if (checkInDate && checkOutDate && numberOfNights > 0) {
+      if (checkInDate && checkOutDate && checkOutDate > checkInDate) {
         console.log(`[BookingContext] ${requestId} 💰 Fetching pricing for dates ${checkInDate.toISOString()} to ${checkOutDate.toISOString()}`);
         
         // Fetch pricing
@@ -747,6 +747,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
             subtotal: pricingResponse.pricing.subtotal,
             total: pricingResponse.pricing.totalPrice !== undefined ? pricingResponse.pricing.totalPrice : pricingResponse.pricing.total || 0,
             totalPrice: pricingResponse.pricing.totalPrice !== undefined ? pricingResponse.pricing.totalPrice : pricingResponse.pricing.total || 0,
+            numberOfNights: pricingResponse.pricing.numberOfNights, // BUG #1 FIX: Include numberOfNights from API
             currency: pricingResponse.pricing.currency as CurrencyCode,
             dailyRates: pricingResponse.pricing.dailyRates || {},
             datesFetched: {
@@ -784,7 +785,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
         availabilityResult = !conflict;
         console.log(`[BookingContext] ${requestId} ✅ Availability result: ${availabilityResult ? 'AVAILABLE' : 'NOT AVAILABLE'}`);
       } else {
-        console.log(`[BookingContext] ${requestId} ⏭️ Skipping pricing - no dates selected`);
+        console.log(`[BookingContext] ${requestId} ⏭️ Skipping pricing - no valid date range selected`);
       }
       
       // Update all states
