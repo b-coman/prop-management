@@ -1070,53 +1070,13 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     setIsAvailable,
   };
   
-  // Add a mountCount check to detect duplicate/nested providers in development mode
+  // Log provider mounting for debugging
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      // Use a property-specific key for this check
-      const mountKey = `booking_provider_mounted_${propertySlug || 'global'}`;
-      const mountCountKey = `booking_provider_mount_count_${propertySlug || 'global'}`;
-
-      if (typeof window !== 'undefined') {
-        // Increment mount count for tracking
-        const currentCount = (window as any)[mountCountKey] || 0;
-        (window as any)[mountCountKey] = currentCount + 1;
-
-        if ((window as any)[mountKey]) {
-          console.warn(
-            `[BookingContext] ⚠️ Multiple BookingProvider instances detected for property "${propertySlug}" (count: ${(window as any)[mountCountKey]}). ` +
-            `This can cause state conflicts and performance issues. ` +
-            `Provider IDs may include: ${(window as any)[mountKey] || 'unknown'}, ${sessionId}. ` +
-            `Ensure you only mount one BookingProvider per property.`
-          );
-
-          // Add this provider ID to the list for debugging
-          if (typeof (window as any)[mountKey] === 'string') {
-            (window as any)[mountKey] = `${(window as any)[mountKey]}, ${sessionId}`;
-          } else {
-            (window as any)[mountKey] = sessionId;
-          }
-        } else {
-          // Mark this provider as mounted
-          (window as any)[mountKey] = sessionId;
-          console.log(`[BookingContext] Provider mounted for property "${propertySlug}" with session ID ${sessionId}`);
-        }
-
-        // Clean up on unmount
-        return () => {
-          if ((window as any)[mountCountKey] > 0) {
-            (window as any)[mountCountKey] = (window as any)[mountCountKey] - 1;
-          }
-
-          if ((window as any)[mountCountKey] === 0) {
-            (window as any)[mountKey] = false;
-            console.log(`[BookingContext] All providers unmounted for property "${propertySlug}"`);
-          } else {
-            console.log(`[BookingContext] Provider unmounted for property "${propertySlug}", ${(window as any)[mountCountKey]} remaining`);
-          }
-        };
-      }
-    }
+    console.log(`[BookingContext] Provider mounted for property "${propertySlug}" with session ID ${sessionId}`);
+    
+    return () => {
+      console.log(`[BookingContext] Provider unmounted for property "${propertySlug}"`);
+    };
   }, [propertySlug, sessionId]);
 
   return (
@@ -1128,49 +1088,13 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
   );
 };
 
-// Global data shared between multiple provider instances
-// This helps prevent state conflicts when multiple providers mount due to React Strict Mode
-// We store references indexed by property slug to keep data separate between different properties
-interface GlobalContextCache {
-  states: Record<string, BookingContextState>;
-  actions: Record<string, BookingContextActions>;
-  initialized: boolean;
-}
 
-// Initialize the global cache object
-const globalContextCache: GlobalContextCache = {
-  states: {},
-  actions: {},
-  initialized: false
-};
 
-// Global fallback data to use when outside a provider
-// This helps prevent errors in development with hot reloading and strict mode
-let globalFallbackState: BookingContextState | null = null;
-let globalFallbackActions: BookingContextActions | null = null;
-
-// Hooks for consuming the context with improved error handling
+// Hooks for consuming the context - same behavior in dev and prod
 export const useBookingState = () => {
   const context = useContext(BookingStateContext);
 
-  // Instead of throwing, use fallback in development
   if (context === undefined) {
-    if (process.env.NODE_ENV === 'development') {
-      console.warn(
-        '[BookingContext] useBookingState called outside a BookingProvider. ' +
-        'This may happen during development with hot reloading, ' +
-        'but should be fixed in production.'
-      );
-
-      // Initialize fallback if needed
-      if (!globalFallbackState) {
-        globalFallbackState = getInitialState(null);
-      }
-
-      return globalFallbackState;
-    }
-
-    // In production, still throw the error
     throw new Error('useBookingState must be used within a BookingProvider');
   }
 
@@ -1180,52 +1104,7 @@ export const useBookingState = () => {
 export const useBookingActions = () => {
   const context = useContext(BookingActionsContext);
 
-  // Instead of throwing, use fallback in development
   if (context === undefined) {
-    if (process.env.NODE_ENV === 'development') {
-      console.warn(
-        '[BookingContext] useBookingActions called outside a BookingProvider. ' +
-        'This may happen during development with hot reloading, ' +
-        'but should be fixed in production.'
-      );
-
-      // Initialize fallback if needed - no-op functions
-      if (!globalFallbackActions) {
-        globalFallbackActions = {
-          setPropertySlug: () => {},
-          setCheckInDate: () => {},
-          setCheckOutDate: () => {},
-          setNumberOfGuests: () => {},
-          setCheckInDateFromURL: () => {},
-          setCheckOutDateFromURL: () => {},
-          setNumberOfGuestsFromURL: () => {},
-          setFirstName: () => {},
-          setLastName: () => {},
-          setEmail: () => {},
-          setPhone: () => {},
-          setMessage: () => {},
-          setNumberOfNights: () => {},
-          setTotalPrice: () => {},
-          setAppliedCouponCode: () => {},
-          setSelectedCurrency: () => {},
-          clearBookingData: () => {},
-          clearGuestData: () => {},
-          // Add stubs for pricing methods
-          fetchAvailability: async () => [],
-          fetchPricing: async () => null,
-          setPricingDetails: () => {},
-          resetPricing: () => {},
-          // Add stubs for availability methods
-          fetchAvailabilityAndPricing: async () => ({ pricing: null, unavailableDates: [], isAvailable: true }),
-          setUnavailableDates: () => {},
-          setIsAvailable: () => {},
-        };
-      }
-
-      return globalFallbackActions;
-    }
-
-    // In production, still throw the error
     throw new Error('useBookingActions must be used within a BookingProvider');
   }
 

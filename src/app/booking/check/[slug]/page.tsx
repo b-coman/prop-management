@@ -125,7 +125,7 @@ export default async function AvailabilityCheckPage({ params, searchParams }: Av
   
   return (
     <Suspense fallback={<div>Loading availability...</div>}>
-      <BookingClientLayout propertySlug={property.slug} themeId={propertyThemeId}>
+      <BookingClientLayout propertySlug={property.slug} themeId={propertyThemeId} heroImage={heroImage}>
         <ClientBookingWrapper
           property={property}
           urlParams={{ checkIn, checkOut }}

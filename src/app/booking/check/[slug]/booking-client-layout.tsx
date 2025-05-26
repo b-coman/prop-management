@@ -117,7 +117,7 @@ function BookingClientInner({
 }: { 
   children: React.ReactNode, 
   propertySlug: string,
-  heroImage: string | null,
+  heroImage: string | null | undefined,
   themeId?: string
 }) {
   const searchParams = useSearchParams();
@@ -228,13 +228,14 @@ function BookingClientInner({
   return (
     <>
       {/* Pass heroImage to children */}
-      {React.Children.map(children, child => {
+      {React.Children.map(children, (child, index) => {
         if (React.isValidElement(child)) {          
           // Set heroImage with highest priority
           const childProps = { 
             ...child.props,
             heroImage: heroImage 
           };
+          
           
           return React.cloneElement(child, childProps);
         }
@@ -247,6 +248,7 @@ function BookingClientInner({
 
 // Main layout component - same behavior in dev and prod
 export default function BookingClientLayout({ children, propertySlug, heroImage, themeId }: BookingClientLayoutProps) {
+  
   return (
     <>
       <BookingStorageInitializer propertySlug={propertySlug} />

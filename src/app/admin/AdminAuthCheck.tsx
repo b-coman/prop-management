@@ -20,7 +20,9 @@ export async function AdminAuthCheck({
 }: {
   children: React.ReactNode
 }) {
-  // Skip authentication in development mode
+  // IMPORTANT: Authentication is bypassed in development for convenience
+  // This is intentionally different from production where auth is strictly enforced
+  // Make sure to test authentication flows before deploying to production!
   if (process.env.NODE_ENV === 'development') {
     console.log('🔓 [AdminAuthCheck] Development mode - bypassing authentication');
     return <>{children}</>;
