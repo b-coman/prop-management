@@ -136,24 +136,17 @@ export const EnhancedAvailabilityChecker = React.memo(function EnhancedAvailabil
     );
   }
 
+
   return (
     <div className="p-4 border border-blue-200 bg-blue-50 rounded-md">
-      {/* Status messages with appropriate styling */}
-      {wasChecked ? (
-        isAvailable ? (
-          <div className="p-2 bg-green-50 border border-green-200 rounded-md mb-3">
-            <p className="text-xs text-green-700">
-              <span className="text-green-600 font-medium">✓</span> Selected dates are available!
-            </p>
-          </div>
-        ) : (
-          <div className="p-2 bg-red-50 border border-red-200 rounded-md mb-3">
-            <p className="text-xs text-red-700">
-              <span className="text-red-600 font-medium">✗</span> Selected dates are not available.
-            </p>
-          </div>
-        )
-      ) : unavailableDates.length > 0 ? (
+      {/* Status messages - only show problems */}
+      {wasChecked && !isAvailable ? (
+        <div className="p-2 bg-red-50 border border-red-200 rounded-md mb-3">
+          <p className="text-xs text-red-700">
+            <span className="text-red-600 font-medium">✗</span> Selected dates are not available.
+          </p>
+        </div>
+      ) : !wasChecked && unavailableDates.length > 0 ? (
         <p className="text-xs text-amber-700 mb-3">
           <span className="text-amber-600">•</span> Some dates may be unavailable (marked with strikethrough).
         </p>
@@ -214,12 +207,6 @@ export const EnhancedAvailabilityChecker = React.memo(function EnhancedAvailabil
         </Button>
       </div>
 
-      {/* Show nights count when both dates are selected */}
-      {checkInDate && checkOutDate && numberOfNights > 0 && (
-        <p className="text-sm text-blue-800 mt-2">
-          Total stay: {numberOfNights} {numberOfNights === 1 ? 'night' : 'nights'}
-        </p>
-      )}
 
       {/* Only show a warning if dates are not available */}
       {wasChecked && isAvailable === false && (

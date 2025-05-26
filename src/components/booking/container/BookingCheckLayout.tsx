@@ -224,7 +224,11 @@ export function BookingCheckLayout({
           <div className="container px-4 py-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">{selectedDates}</span>
-              {numberOfNights && <span className="text-foreground font-medium">{numberOfNights} nights</span>}
+              <span className="text-foreground font-medium">
+                {numberOfNights && `${numberOfNights} nights`}
+                {numberOfNights && numberOfGuests && ', '}
+                {numberOfGuests && `${numberOfGuests} ${numberOfGuests === 1 ? 'guest' : 'guests'}`}
+              </span>
               {totalPrice && <span className="font-semibold text-primary">{totalPrice}</span>}
             </div>
           </div>
@@ -299,7 +303,7 @@ export function BookingCheckLayout({
             {selectedDates && (
               <div className="space-y-1">
                 <p className="text-sm text-foreground font-medium">
-                  {selectedDates}{numberOfNights ? `, ${numberOfNights} nights` : ''}
+                  {selectedDates}{numberOfNights ? `, ${numberOfNights} nights` : ''}{numberOfGuests ? `, ${numberOfGuests} ${numberOfGuests === 1 ? 'guest' : 'guests'}` : ''}
                 </p>
               </div>
             )}
@@ -349,7 +353,7 @@ export function BookingCheckLayout({
                   {selectedDates && (
                     <div className="space-y-2">
                       <p className="text-sm text-foreground font-medium">
-                        {selectedDates}{numberOfNights ? `, ${numberOfNights} nights` : ''}
+                        {selectedDates}{numberOfNights ? `, ${numberOfNights} nights` : ''}{numberOfGuests ? `, ${numberOfGuests} ${numberOfGuests === 1 ? 'guest' : 'guests'}` : ''}
                       </p>
                     </div>
                   )}
