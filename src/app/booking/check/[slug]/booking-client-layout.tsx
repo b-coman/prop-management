@@ -17,6 +17,7 @@ interface BookingClientLayoutProps {
   children: React.ReactNode;
   propertySlug: string;
   themeId?: string;
+  heroImage?: string | null;
 }
 
 // Helper function for parsing date strings from URL params
@@ -243,38 +244,9 @@ function BookingClientInner({
   );
 }
 
-interface BookingClientLayoutProps {
-  children: React.ReactNode;
-  propertySlug: string;
-  heroImage?: string | null;
-  themeId?: string;
-}
 
-// Main layout component with React Strict Mode protection
+// Main layout component - same behavior in dev and prod
 export default function BookingClientLayout({ children, propertySlug, heroImage, themeId }: BookingClientLayoutProps) {
-  // Track if this instance has already mounted a provider
-  const [shouldMount, setShouldMount] = React.useState(false);
-
-  // Check if a provider is already mounted - this helps with React Strict Mode
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    // Only check in development mode
-    if (process.env.NODE_ENV === 'development') {
-      const mountKey = `booking_provider_mounted_${propertySlug || 'global'}`;
-      const isAlreadyMounted = window[mountKey as any];
-
-      if (isAlreadyMounted) {
-        setShouldMount(false);
-      } else {
-        setShouldMount(true);
-      }
-    } else {
-      // In production, always mount
-      setShouldMount(true);
-    }
-  }, [propertySlug]);
-
   return (
     <>
       <BookingStorageInitializer propertySlug={propertySlug} />
@@ -301,16 +273,11 @@ export default function BookingClientLayout({ children, propertySlug, heroImage,
           />
         )}
       >
-        {shouldMount || process.env.NODE_ENV !== 'development' ? (
-          <BookingProvider propertySlug={propertySlug}>
-            <BookingClientInner propertySlug={propertySlug} heroImage={heroImage} themeId={themeId}>
-              {children}
-            </BookingClientInner>
-          </BookingProvider>
-        ) : (
-          // Pass children through without a provider if we've determined a provider is already mounted
-          <>{children}</>
-        )}
+        <BookingProvider propertySlug={propertySlug}>
+          <BookingClientInner propertySlug={propertySlug} heroImage={heroImage} themeId={themeId}>
+            {children}
+          </BookingClientInner>
+        </BookingProvider>
       </ErrorBoundary>
     </>
   );
