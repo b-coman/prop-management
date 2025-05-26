@@ -438,12 +438,8 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
   const [isPricingLoading, setIsPricingLoading] = useState<boolean>(false);
   const [pricingError, setPricingError] = useState<string | null>(null);
 
-  // Add centralized availability state
-  const [unavailableDates, setUnavailableDatesInternal] = useSyncedSessionStorage<Date[]>(
-    `${storagePrefix}unavailableDates`, 
-    [],
-    { prefix: '' }
-  );
+  // Add centralized availability state - using useState for runtime state (re-fetched on each load)
+  const [unavailableDates, setUnavailableDatesInternal] = useState<Date[]>([]);
   
   const [isAvailabilityLoading, setIsAvailabilityLoading] = useState<boolean>(false);
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
@@ -488,8 +484,17 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
 
   // Centralized availability methods
   const setUnavailableDates = useCallback((dates: Date[]) => {
+    console.log(`[BookingContext] 🔍 setUnavailableDates called with ${dates.length} dates`);
+    console.log(`[BookingContext] 🔍 First 3 dates:`, dates.slice(0, 3).map(d => ({
+      type: typeof d,
+      constructor: d?.constructor?.name,
+      iso: d instanceof Date ? d.toISOString() : 'not a date',
+      value: d
+    })));
     setUnavailableDatesInternal(dates);
-  }, [setUnavailableDatesInternal]);
+    // Immediately check what was stored
+    console.log(`[BookingContext] 🔍 After setting, unavailableDates state has ${unavailableDates.length} dates`);
+  }, [setUnavailableDatesInternal, unavailableDates]);
 
   const setIsAvailable = useCallback((available: boolean | null) => {
     setIsAvailableInternal(available);
@@ -601,6 +606,15 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       
       // Store unavailable dates in state
       setUnavailableDates(unavailableDatesResult);
+      
+      // Debug: Check what was actually set
+      console.log(`[BookingContext] ${requestId} 🔍 DEBUG: unavailableDatesResult type:`, Array.isArray(unavailableDatesResult) ? 'array' : typeof unavailableDatesResult);
+      console.log(`[BookingContext] ${requestId} 🔍 DEBUG: First date details:`, unavailableDatesResult[0] ? {
+        type: typeof unavailableDatesResult[0],
+        constructor: unavailableDatesResult[0]?.constructor?.name,
+        iso: unavailableDatesResult[0] instanceof Date ? unavailableDatesResult[0].toISOString() : 'not a date',
+        value: unavailableDatesResult[0]
+      } : 'no dates');
       
       console.log(`[BookingContext] ${requestId} ✅ AVAILABILITY FETCH COMPLETE`);
       
@@ -816,7 +830,14 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
   }, [storedPropertySlug, checkInDate, checkOutDate, numberOfNights, numberOfGuests, 
       setPricingDetails, setUnavailableDates, setIsAvailable]);
   
+  // Debug: Log unavailableDates before creating state
+  if (unavailableDates.length > 0) {
+    console.log(`[BookingContext] 📊 Creating state object with ${unavailableDates.length} unavailable dates`);
+    console.log(`[BookingContext] 📊 First unavailable date:`, unavailableDates[0] instanceof Date ? unavailableDates[0].toISOString() : 'not a date');
+  }
+
   // Create state object
+  console.log('[BookingContext] Creating state object with unavailableDates:', unavailableDates.length, 'dates');
   const state: BookingContextState = {
     propertySlug: storedPropertySlug,
     checkInDate,

@@ -69,6 +69,17 @@ export const EnhancedAvailabilityChecker = React.memo(function EnhancedAvailabil
   useEffect(() => {
     console.log("🔍 [EnhancedAvailabilityChecker] PURE UI COMPONENT - Mounted (fetching handled by BookingContext)");
   }, [propertySlug]);
+  
+  // Debug: Log when unavailable dates change
+  useEffect(() => {
+    console.log("📅 [EnhancedAvailabilityChecker] Unavailable dates state:", {
+      isArray: Array.isArray(unavailableDates),
+      count: unavailableDates?.length || 0,
+      dates: unavailableDates,
+      firstDate: unavailableDates && unavailableDates.length > 0 ? unavailableDates[0] : null,
+      firstDateISO: unavailableDates && unavailableDates.length > 0 ? unavailableDates[0].toISOString() : null
+    });
+  }, [unavailableDates]);
 
   // Removed checkDatesAvailability function - availability checking now handled by BookingContext
   
@@ -147,9 +158,25 @@ export const EnhancedAvailabilityChecker = React.memo(function EnhancedAvailabil
           </p>
         </div>
       ) : !wasChecked && unavailableDates.length > 0 ? (
-        <p className="text-xs text-amber-700 mb-3">
-          <span className="text-amber-600">•</span> Some dates may be unavailable (marked with strikethrough).
-        </p>
+        <div className="mb-3">
+          <p className="text-xs text-amber-700">
+            <span className="text-amber-600">•</span> Some dates may be unavailable (marked with strikethrough).
+          </p>
+          {/* Debug info for development */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
+              <p className="font-semibold">Debug: {unavailableDates.length} unavailable dates loaded</p>
+              <p className="text-gray-600">First 3 dates:</p>
+              <ul className="ml-4">
+                {unavailableDates.slice(0, 3).map((date, idx) => (
+                  <li key={idx} className="font-mono">
+                    {date.toDateString()} (UTC: {date.getUTCHours()}h)
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       ) : null}
 
       {/* Responsive grid container for all three form elements */}
