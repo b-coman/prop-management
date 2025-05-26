@@ -731,6 +731,8 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
                 <BookingSummarySkeleton />
               ) : pricingDetails ? (
                 <>
+                  {/* COMMENTED OUT: BookingSummary component removed from UI per user request */}
+                  {/*
                   <BookingSummary 
                     numberOfNights={numberOfNights}
                     numberOfGuests={numberOfGuests}
@@ -740,6 +742,7 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
                     dynamicPricing={pricingDetails}
                     isLoadingPricing={isPricingLoading}
                   />
+                  */}
                 </>
               ) : (
                 <div className="p-4 border border-orange-200 bg-orange-50 rounded text-orange-800">
