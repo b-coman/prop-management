@@ -258,22 +258,20 @@ export default function BookingClientLayout({ children, propertySlug, heroImage,
 
       {/* Add an error boundary to catch any booking-related errors */}
       <ErrorBoundary
-        fallback={(error: Error) => (
-          <BookingErrorFallback
-            error={error}
-            reset={() => {
-              // Clear storage and reload on reset
-              if (typeof window !== 'undefined') {
-                Object.keys(sessionStorage).forEach(key => {
-                  if (key.startsWith('booking_')) {
-                    sessionStorage.removeItem(key);
-                  }
-                });
-                window.location.reload();
-              }
-            }}
-          />
-        )}
+        fallback={<BookingErrorFallback
+          error={new Error('Booking error occurred')}
+          reset={() => {
+            // Clear storage and reload on reset
+            if (typeof window !== 'undefined') {
+              Object.keys(sessionStorage).forEach(key => {
+                if (key.startsWith('booking_')) {
+                  sessionStorage.removeItem(key);
+                }
+              });
+              window.location.reload();
+            }
+          }}
+        />}
       >
         <BookingProvider propertySlug={propertySlug}>
           <BookingClientInner propertySlug={propertySlug} heroImage={heroImage} themeId={themeId}>

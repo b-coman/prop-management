@@ -3,20 +3,10 @@
 import React, { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useBooking } from '@/contexts/BookingContext';
-import { format, startOfDay } from 'date-fns';
-import { getFeatureFlag } from '@/config/featureFlags';
 import { Loader2, ArrowRight, Mail, Phone as PhoneIcon, Send } from 'lucide-react';
 import { EnhancedAvailabilityChecker } from '../sections/availability/EnhancedAvailabilityChecker';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { UnavailableDatesView } from '../sections/availability/UnavailableDatesView';
-// Import from the correct updated file
-import { BookingSummary } from '../booking-summary';
-// Add debug marker
-console.log("[DEBUG] ✅ Using updated BookingSummary component in AvailabilityContainer");
-import { BookingOptions } from '../sections/common/BookingOptions';
-import { BookingForm } from '../sections/forms/BookingForm';
-import { HoldForm } from '../sections/forms/HoldForm';
-import { ContactHostForm } from '../sections/forms/ContactHostForm';
 import { useToast } from '@/hooks/use-toast';
 import { checkAvailability } from '@/services/availabilityService';
 import { BookingOptionsCards } from '../booking-options-cards';
@@ -33,7 +23,7 @@ import { createInquiryAction } from '@/app/actions/createInquiryAction';
 import { sanitizeEmail, sanitizePhone, sanitizeText } from '@/lib/sanitize';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/hooks/useLanguage';
-import { AvailabilityCheckerSkeleton, BookingSummarySkeleton, BookingOptionsSkeleton, FormSkeleton } from './BookingCheckSkeleton';
+import { AvailabilityCheckerSkeleton, FormSkeleton } from './BookingCheckSkeleton';
 import { StateTransitionWrapper, transitionVariants } from './StateTransitionWrapper';
 
 interface AvailabilityContainerProps {
@@ -104,7 +94,6 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
   const [canRetryError, setCanRetryError] = useState<boolean>(false);
 
   // State for coupon and prices
-  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountPercentage: number } | null>(null);
   const [pricingDetailsInBaseCurrency, setPricingDetailsInBaseCurrency] = useState<any>(null);
   
   // State for unavailable dates (in a real implementation, this would come from a service)
@@ -179,7 +168,7 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
         
         // Fetch pricing data using the context's centralized function ONLY
         // No manual API call should be made here
-        fetchPricing().catch(error => {
+        fetchPricing(checkInDate, checkOutDate, numberOfGuests).catch(error => {
           console.error(`[AvailabilityContainer] ❌ Error fetching centralized pricing:`, error);
         });
       }
@@ -191,7 +180,7 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
       toast({
         title: "Warning",
         description: "Could not verify availability. Proceeding as available.",
-        variant: "warning"
+        variant: "destructive"
       });
     } finally {
       setIsCheckingAvailability(false);
@@ -387,13 +376,11 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
       // Handle errors from hold booking creation
       if (holdBookingResult.error || !holdBookingResult.bookingId) {
         const errorMsg = holdBookingResult.error || "Could not create hold booking";
-        const canRetry = holdBookingResult.retry === true;
-
         toast({
-          title: canRetry ? "Please Try Again" : "Hold Booking Error",
+          title: "Hold Booking Error",
           description: errorMsg,
           variant: "destructive",
-          duration: holdBookingResult.errorType === 'network_error' ? 8000 : 5000,
+          duration: 5000,
         });
 
         setFormError(errorMsg);
@@ -417,13 +404,11 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
       // Handle errors from checkout session creation
       if (stripeHoldResult.error || !stripeHoldResult.sessionUrl) {
         const errorMsg = stripeHoldResult.error || "Payment processing error";
-        const canRetry = stripeHoldResult.retry === true;
-
         toast({
-          title: canRetry ? "Payment Processing Issue" : "Payment Error",
+          title: "Payment Error",
           description: errorMsg,
           variant: "destructive",
-          duration: stripeHoldResult.errorType === 'network_error' ? 8000 : 5000,
+          duration: 5000,
         });
 
         setFormError(errorMsg);
@@ -548,14 +533,11 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
       // Handle errors from booking creation
       if (pendingBookingResult.error || !pendingBookingResult.bookingId) {
         const errorMsg = pendingBookingResult.error || "Could not create booking";
-        const canRetry = pendingBookingResult.retry === true;
-
         toast({
-          title: canRetry ? "Please Try Again" : "Booking Error",
+          title: "Booking Error",
           description: errorMsg,
           variant: "destructive",
-          // For network errors, make toast stay longer to give user time to read it
-          duration: pendingBookingResult.errorType === 'network_error' ? 8000 : 5000,
+          duration: 5000,
         });
 
         setFormError(errorMsg);
@@ -572,7 +554,7 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
         numberOfGuests: numberOfGuests,
         totalPrice: bookingInput.pricing.total,
         numberOfNights: numberOfNights,
-        appliedCouponCode: null,
+        appliedCouponCode: undefined,
         discountPercentage: 0,
         guestFirstName: sanitizeText(sessionFirstName),
         guestLastName: sanitizeText(sessionLastName),
@@ -586,13 +568,12 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
       // Handle errors from Stripe checkout creation
       if (stripeResult.error || !stripeResult.sessionUrl) {
         const errorMsg = stripeResult.error || "Payment processing error";
-        const canRetry = stripeResult.retry === true;
 
         toast({
-          title: canRetry ? "Payment Processing Issue" : "Payment Error",
+          title: "Payment Error",
           description: errorMsg,
           variant: "destructive",
-          duration: stripeResult.errorType === 'network_error' ? 8000 : 5000,
+          duration: 5000,
         });
 
         setFormError(errorMsg);
@@ -637,31 +618,6 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
       numberOfNights, sessionFirstName, sessionLastName, sessionEmail, sessionPhone, selectedCurrency, 
       router, toast]);
   
-  // Handler for updating the guest count - with centralized pricing sync
-  const handleGuestCountChange = useCallback((count: number) => {
-    console.log(`[AvailabilityContainer] 🧑‍🤝‍🧑 Guest count changed to: ${count} - updating local state and context`);
-    
-    // Update both local state and context state
-    setGuestCount(count);
-    setNumberOfGuests(count);
-    
-    // If dates are selected and availability was already checked, refetch pricing
-    // This is now the ONLY place that triggers pricing updates for guest count changes
-    if (checkInDate && checkOutDate && wasChecked && isAvailable) {
-      console.log(`[AvailabilityContainer] 🔄 Guest count changed with valid dates - refetching pricing`);
-      
-      // Let BookingContext handle the pricing fetch - rely completely on centralized pricing
-      fetchPricing().catch(error => {
-        console.error(`[AvailabilityContainer] ❌ Error refetching pricing:`, error);
-      });
-    }
-  }, [setNumberOfGuests, checkInDate, checkOutDate, wasChecked, isAvailable, fetchPricing]);
-  
-  // Handler for external pricing data - completely ignored since we use centralized pricing
-  const handlePricingDataReceived = useCallback(() => {
-    console.log(`[AvailabilityContainer] 📊 External pricing data callback received - COMPLETELY IGNORED, using centralized pricing only`);
-    // Do nothing - the BookingContext will handle all pricing data management
-  }, []);
 
   // Initialize local state from context and sync changes
   React.useEffect(() => {
@@ -703,8 +659,6 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
               setIsAvailable(result);
               setWasChecked(true);
             }}
-            onGuestCountChange={handleGuestCountChange}
-            onPricingDataReceived={handlePricingDataReceived}
           />
         )}
       </ErrorBoundary>
@@ -727,24 +681,7 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
               <>
               {/* Booking summary component with centralized pricing */}
               
-              {isPricingLoading ? (
-                <BookingSummarySkeleton />
-              ) : pricingDetails ? (
-                <>
-                  {/* COMMENTED OUT: BookingSummary component removed from UI per user request */}
-                  {/*
-                  <BookingSummary 
-                    numberOfNights={numberOfNights}
-                    numberOfGuests={numberOfGuests}
-                    pricingDetails={null}
-                    propertyBaseCcy={property.currency || 'USD'}
-                    appliedCoupon={appliedCoupon}
-                    dynamicPricing={pricingDetails}
-                    isLoadingPricing={isPricingLoading}
-                  />
-                  */}
-                </>
-              ) : (
+              {!isPricingLoading && !pricingDetails ? (
                 <div className="p-4 border border-orange-200 bg-orange-50 rounded text-orange-800">
                   <p className="text-sm font-medium">
                     {pricingError || "Retrieving pricing information..."}
@@ -756,16 +693,18 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
                       className="mt-2 text-xs"
                       onClick={() => {
                         // Retry fetching pricing data
-                        fetchPricing().catch(error => {
-                          console.error(`[AvailabilityContainer] ❌ Retry failed:`, error);
-                        });
+                        if (checkInDate && checkOutDate) {
+                          fetchPricing(checkInDate, checkOutDate, numberOfGuests).catch(error => {
+                            console.error(`[AvailabilityContainer] ❌ Retry failed:`, error);
+                          });
+                        }
                       }}
                     >
                       Retry
                     </Button>
                   )}
                 </div>
-              )}
+              ) : null}
               
               {/* Only show booking options when pricing is available */}
               {(pricingDetails || pricingDetailsInBaseCurrency) ? (
