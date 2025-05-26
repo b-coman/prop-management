@@ -29,3 +29,14 @@ Mount → Load Dates → Process Dates → Display Calendar → Auto-Check → S
 ```
 
 For more detailed technical information, see `docs/implementation/booking-availability-components.md`.
+
+## User Keywords and Commands
+
+The following keywords trigger specific behaviors when used:
+
+- **$nc** - No coding mode: Only investigate, research, analyze, and think through solutions. Do not write or modify any code until explicitly asked.
+- **$quick** - Give brief, concise answers without extensive explanation.
+- **$explain** - Provide detailed explanations with examples and context.
+- **$plan** - Create a detailed implementation plan before any coding work.
+
+When these keywords are used, follow the associated behavior pattern throughout the interaction.

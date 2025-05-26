@@ -1,7 +1,7 @@
 // Safe Firebase Admin initialization that handles missing env vars
 import * as admin from 'firebase-admin';
 
-let _adminApp: admin.app.App | undefined = undefined;
+let _adminApp: admin.app.App | null = null;
 
 export async function initializeFirebaseAdminSafe() {
   // Skip if already initialized
@@ -36,6 +36,10 @@ export async function initializeFirebaseAdminSafe() {
       console.log('[FIREBASE ADMIN SAFE] Using default initialization...');
       const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'rentalspot-fzwom';
       
+      // Use default initialization which will:
+      // - Use Application Default Credentials if available (from gcloud auth)
+      // - Use implicit credentials in Cloud Run
+      // - Fail gracefully if neither is available
       _adminApp = admin.initializeApp({
         projectId: projectId
       });
