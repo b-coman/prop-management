@@ -60,7 +60,10 @@ function BookingInitializer({
     // BUG #3 FIX: Use URL-specific setters for initialization
     setCheckInDateFromURL,
     setCheckOutDateFromURL,
-    setNumberOfGuestsFromURL
+    setNumberOfGuestsFromURL,
+    // Add availability fetch function
+    fetchAvailability,
+    calendarUnavailableDates
   } = useBooking();
   
   // Define ref outside the effect hook
@@ -96,6 +99,16 @@ function BookingInitializer({
     }
 
   }, []); // Empty dependency array = only run once
+
+  // Load availability data if not already loaded
+  useEffect(() => {
+    if (property.slug && calendarUnavailableDates.length === 0) {
+      console.log(`[BookingContainer] Loading availability for property: ${property.slug}`);
+      fetchAvailability().catch(error => {
+        console.error('[BookingContainer] Error loading availability:', error);
+      });
+    }
+  }, [property.slug]); // Only depend on property slug
 
   // Import useLanguage hook for multilingual support (needs to be called unconditionally)
   const { tc } = useLanguage();
@@ -326,7 +339,7 @@ function BookingInitializer({
               )}>
                 {hasMounted && formattedDisplayPrice !== null 
                   ? formattedDisplayPrice 
-                  : (property.baseRate ? formatPrice(property.baseRate, propertyBaseCcy) : "Loading price...")}
+                  : (property.advertisedRate ? formatPrice(property.advertisedRate, propertyBaseCcy) : "Loading price...")}
                 <span className={cn(
                   "font-normal text-muted-foreground ml-1",
                   size === 'large' ? "text-base" : "text-sm"

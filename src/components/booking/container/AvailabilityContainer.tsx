@@ -75,7 +75,10 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
     pricingError,
     // Get pricing actions
     fetchPricing,
-    resetPricing
+    resetPricing,
+    // Get availability state from context
+    calendarUnavailableDates,
+    isAvailabilityLoading
   } = useBooking();
   
   // Local state for the guest count
@@ -96,8 +99,8 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
   // State for coupon and prices
   const [pricingDetailsInBaseCurrency, setPricingDetailsInBaseCurrency] = useState<any>(null);
   
-  // State for unavailable dates (in a real implementation, this would come from a service)
-  const [unavailableDates, setUnavailableDates] = useState<Date[]>([]);
+  // Use unavailable dates from context instead of local state
+  const unavailableDates = calendarUnavailableDates;
 
   // State for storing user form data
   const [sessionFirstName, setSessionFirstName] = useState<string>('');
@@ -153,8 +156,7 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
       console.log(`[AvailabilityContainer] 🗓️ Checking dates: ${checkInDate.toDateString()} to ${checkOutDate.toDateString()}`);
       console.log(`[AvailabilityContainer] ✅ Availability result: ${result.isAvailable ? 'AVAILABLE' : 'NOT AVAILABLE'}`);
       
-      // Store the unavailable dates for the calendar view
-      setUnavailableDates(result.unavailableDates);
+      // Unavailable dates are now managed by BookingContext, no need to set locally
       
       // Set the availability state - CRITICAL for UI rendering
       setIsAvailable(result.isAvailable);
@@ -681,10 +683,10 @@ export const AvailabilityContainer = React.memo(function AvailabilityContainer({
               <>
               {/* Booking summary component with centralized pricing */}
               
-              {!isPricingLoading && !pricingDetails ? (
+              {isPricingLoading || (!pricingDetails && !pricingError) ? (
                 <div className="p-4 border border-orange-200 bg-orange-50 rounded text-orange-800">
                   <p className="text-sm font-medium">
-                    {pricingError || "Retrieving pricing information..."}
+                    {isPricingLoading ? "Retrieving pricing information..." : pricingError || "Loading pricing details..."}
                   </p>
                   {pricingError && (
                     <Button 

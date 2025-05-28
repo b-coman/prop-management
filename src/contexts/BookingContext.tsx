@@ -1,8 +1,18 @@
 "use client";
 
+/**
+ * BookingContext - Centralized booking state management
+ * 
+ * CLARITY IMPROVEMENTS:
+ * 1. Renamed 'unavailableDates' to 'calendarUnavailableDates' to clarify it's for calendar display
+ * 2. Added explicit 'bookingFlowStatus' to replace confusing boolean logic
+ * 3. Clear separation between calendar data (all unavailable dates) and validation (isAvailable for selected range)
+ */
+
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSyncedSessionStorage, clearSyncedStorageByPrefix } from '@/hooks/use-synced-storage';
 import type { CurrencyCode } from '@/types';
+import type { BookingFlowStatus } from '@/components/booking/types';
 
 // Import required services for API pricing and availability
 import { getPricingForDateRange, getUnavailableDatesForProperty } from '@/services/availabilityService';
@@ -51,11 +61,13 @@ interface BookingContextState {
   pricingDetails: PricingDetails | null;
   isPricingLoading: boolean;
   pricingError: string | null;
-  // Centralized availability state
-  unavailableDates: Date[];
+  // Centralized availability state - RENAMED FOR CLARITY
+  calendarUnavailableDates: Date[]; // For calendar display - all unavailable dates
   isAvailabilityLoading: boolean;
   availabilityError: string | null;
-  isAvailable: boolean | null;
+  isAvailable: boolean | null; // For selected date range validation
+  // NEW: Explicit booking flow status
+  bookingFlowStatus: BookingFlowStatus;
 }
 
 interface BookingContextActions {
@@ -85,8 +97,9 @@ interface BookingContextActions {
   resetPricing: () => void;
   // Legacy function kept for backward compatibility
   fetchAvailabilityAndPricing: () => Promise<{ pricing: PricingDetails | null; unavailableDates: Date[]; isAvailable: boolean }>;
-  setUnavailableDates: (dates: Date[]) => void;
+  setCalendarUnavailableDates: (dates: Date[]) => void;
   setIsAvailable: (available: boolean | null) => void;
+  setBookingFlowStatus: (status: BookingFlowStatus) => void;
 }
 
 interface BookingProviderProps {
@@ -124,10 +137,11 @@ const getInitialState = (propertySlug?: string | null): BookingContextState => (
   isPricingLoading: false,
   pricingError: null,
   // Initialize availability state
-  unavailableDates: [],
+  calendarUnavailableDates: [],
   isAvailabilityLoading: false,
   availabilityError: null,
   isAvailable: null,
+  bookingFlowStatus: 'initial',
 });
 
 // Version of the context - increment when making breaking changes
@@ -161,8 +175,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
   children,
   propertySlug = null
 }) => {
-  // Use a ref to track if this is the first mount
-  const isFirstMount = useRef(true);
+  // Simplified - no longer tracking first mount
 
   // Get or create a consistent session ID for this property
   const sessionId = useMemo(() => getOrCreateSessionId(propertySlug), [propertySlug]);
@@ -174,11 +187,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
         ? `${STORAGE_PREFIX}${propertySlug}_${sessionId}_`
         : `${STORAGE_PREFIX}${sessionId}_`;
 
-      // Only log on first render to reduce console noise
-      if (isFirstMount.current) {
-        console.log(`[BookingContext] Using storage prefix: ${prefix}`);
-        isFirstMount.current = false;
-      }
+      console.log(`[BookingContext] Using storage prefix: ${prefix}`);
 
       return prefix;
     },
@@ -256,7 +265,12 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     
     prevCheckInDate.current = normalizedDate;
     setCheckInDateInternal(normalizedDate);
-  }, [checkInDate, setCheckInDateInternal]);
+    
+    // Update booking flow status when dates change
+    if (normalizedDate && checkOutDate) {
+      setBookingFlowStatus('dates_selected');
+    }
+  }, [checkInDate, checkOutDate, setCheckInDateInternal]);
 
   // BUG #3 FIX: URL initialization date setter - does NOT override user interactions
   const setCheckInDateFromURL = useCallback((newDate: Date | null) => {
@@ -312,7 +326,12 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     
     prevCheckOutDate.current = normalizedDate;
     setCheckOutDateInternal(normalizedDate);
-  }, [checkOutDate, setCheckOutDateInternal]);
+    
+    // Update booking flow status when dates change
+    if (checkInDate && normalizedDate) {
+      setBookingFlowStatus('dates_selected');
+    }
+  }, [checkInDate, checkOutDate, setCheckOutDateInternal]);
 
   // BUG #3 FIX: URL initialization date setter - does NOT override user interactions
   const setCheckOutDateFromURL = useCallback((newDate: Date | null) => {
@@ -439,11 +458,15 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
   const [pricingError, setPricingError] = useState<string | null>(null);
 
   // Add centralized availability state - using useState for runtime state (re-fetched on each load)
-  const [unavailableDates, setUnavailableDatesInternal] = useState<Date[]>([]);
+  // RENAMED: calendarUnavailableDates to clarify this is for calendar display
+  const [calendarUnavailableDates, setCalendarUnavailableDatesInternal] = useState<Date[]>([]);
   
   const [isAvailabilityLoading, setIsAvailabilityLoading] = useState<boolean>(false);
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const [isAvailable, setIsAvailableInternal] = useState<boolean | null>(null);
+  
+  // NEW: Booking flow status state
+  const [bookingFlowStatus, setBookingFlowStatus] = useState<BookingFlowStatus>('initial');
   
   const [appliedCouponCode, setAppliedCouponCode] = useSyncedSessionStorage<string | null>(
     `${storagePrefix}appliedCouponCode`, 
@@ -483,29 +506,35 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
   }, [setPricingDetailsInternal]);
 
   // Centralized availability methods
-  const setUnavailableDates = useCallback((dates: Date[]) => {
-    console.log(`[BookingContext] 🔍 setUnavailableDates called with ${dates.length} dates`);
+  const setCalendarUnavailableDates = useCallback((dates: Date[]) => {
+    console.log(`[BookingContext] 🔍 setCalendarUnavailableDates called with ${dates.length} dates`);
     console.log(`[BookingContext] 🔍 First 3 dates:`, dates.slice(0, 3).map(d => ({
       type: typeof d,
       constructor: d?.constructor?.name,
       iso: d instanceof Date ? d.toISOString() : 'not a date',
       value: d
     })));
-    setUnavailableDatesInternal(dates);
-    // Immediately check what was stored
-    console.log(`[BookingContext] 🔍 After setting, unavailableDates state has ${unavailableDates.length} dates`);
-  }, [setUnavailableDatesInternal, unavailableDates]);
+    setCalendarUnavailableDatesInternal(dates);
+    // Note: State updates are asynchronous, so we can't check the value immediately
+    console.log(`[BookingContext] 🔍 State update queued for ${dates.length} dates`);
+  }, [setCalendarUnavailableDatesInternal]);
 
   const setIsAvailable = useCallback((available: boolean | null) => {
     setIsAvailableInternal(available);
+    // Update booking flow status based on availability
+    if (available === true) {
+      setBookingFlowStatus('available');
+    } else if (available === false) {
+      setBookingFlowStatus('unavailable');
+    }
   }, []);
 
   const resetAvailability = useCallback(() => {
-    setUnavailableDatesInternal([]);
+    setCalendarUnavailableDatesInternal([]);
     setAvailabilityError(null);
     setIsAvailabilityLoading(false);
     setIsAvailableInternal(null);
-  }, [setUnavailableDatesInternal]);
+  }, [setCalendarUnavailableDatesInternal]);
   
   // Fetch pricing data from API with date format debugging
   const fetchPricing = useCallback(async (): Promise<PricingDetails | null> => {
@@ -529,6 +558,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     try {
       setIsPricingLoading(true);
       setPricingError(null);
+      setBookingFlowStatus('checking');
       
       // Call the pricing API
       const result = await getPricingForDateRange(
@@ -574,6 +604,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     } catch (error) {
       console.error(`[BookingContext] ${requestId} Error fetching pricing:`, error);
       setPricingError("Error fetching pricing information. Please try again.");
+      setBookingFlowStatus('error');
       return null;
     } finally {
       setIsPricingLoading(false);
@@ -605,7 +636,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       console.log(`[BookingContext] ${requestId} ✅ Loaded ${unavailableDatesResult.length} unavailable dates`);
       
       // Store unavailable dates in state
-      setUnavailableDates(unavailableDatesResult);
+      setCalendarUnavailableDates(unavailableDatesResult);
       
       // Debug: Check what was actually set
       console.log(`[BookingContext] ${requestId} 🔍 DEBUG: unavailableDatesResult type:`, Array.isArray(unavailableDatesResult) ? 'array' : typeof unavailableDatesResult);
@@ -623,11 +654,12 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     } catch (error) {
       console.error(`[BookingContext] ${requestId} ❌ Error in fetchAvailability:`, error);
       setAvailabilityError("Error loading availability. Please try again.");
+      setBookingFlowStatus('error');
       return [];
     } finally {
       setIsAvailabilityLoading(false);
     }
-  }, [storedPropertySlug, setUnavailableDates]);
+  }, [storedPropertySlug, setCalendarUnavailableDates]);
 
   // NEW: Separate fetch function for pricing only - User-controlled
   const fetchPricingWithDates = useCallback(async (checkIn: Date, checkOut: Date, guests: number): Promise<PricingDetails | null> => {
@@ -651,6 +683,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     try {
       setIsPricingLoading(true);
       setPricingError(null);
+      setBookingFlowStatus('checking');
       
       console.log(`[BookingContext] ${requestId} 🏠 Fetching pricing for property: ${storedPropertySlug}`);
       console.log(`[BookingContext] ${requestId} 📅 Dates: ${checkIn.toISOString()} to ${checkOut.toISOString()}`);
@@ -700,6 +733,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     } catch (error) {
       console.error(`[BookingContext] ${requestId} ❌ Error in fetchPricing:`, error);
       setPricingError("Error fetching pricing information. Please try again.");
+      setBookingFlowStatus('error');
       return null;
     } finally {
       setIsPricingLoading(false);
@@ -728,6 +762,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       setIsAvailabilityLoading(true);
       setPricingError(null);
       setAvailabilityError(null);
+      setBookingFlowStatus('checking');
       
       console.log(`[BookingContext] ${requestId} 🏠 Fetching data for property: ${storedPropertySlug}`);
       
@@ -738,7 +773,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       console.log(`[BookingContext] ${requestId} ✅ Loaded ${unavailableDatesResult.length} unavailable dates`);
       
       // Store unavailable dates in state
-      setUnavailableDates(unavailableDatesResult);
+      setCalendarUnavailableDates(unavailableDatesResult);
       
       // STEP 2: If we have check-in/check-out dates, also fetch pricing
       let pricingResult: PricingDetails | null = null;
@@ -828,16 +863,16 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       setIsAvailabilityLoading(false);
     }
   }, [storedPropertySlug, checkInDate, checkOutDate, numberOfNights, numberOfGuests, 
-      setPricingDetails, setUnavailableDates, setIsAvailable]);
+      setPricingDetails, setCalendarUnavailableDates, setIsAvailable]);
   
-  // Debug: Log unavailableDates before creating state
-  if (unavailableDates.length > 0) {
-    console.log(`[BookingContext] 📊 Creating state object with ${unavailableDates.length} unavailable dates`);
-    console.log(`[BookingContext] 📊 First unavailable date:`, unavailableDates[0] instanceof Date ? unavailableDates[0].toISOString() : 'not a date');
+  // Debug: Log calendarUnavailableDates before creating state
+  if (calendarUnavailableDates.length > 0) {
+    console.log(`[BookingContext] 📊 Creating state object with ${calendarUnavailableDates.length} unavailable dates`);
+    console.log(`[BookingContext] 📊 First unavailable date:`, calendarUnavailableDates[0] instanceof Date ? calendarUnavailableDates[0].toISOString() : 'not a date');
   }
 
   // Create state object
-  console.log('[BookingContext] Creating state object with unavailableDates:', unavailableDates.length, 'dates');
+  console.log('[BookingContext] Creating state object with calendarUnavailableDates:', calendarUnavailableDates.length, 'dates');
   const state: BookingContextState = {
     propertySlug: storedPropertySlug,
     checkInDate,
@@ -857,112 +892,17 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     isPricingLoading,
     pricingError,
     // Include centralized availability state
-    unavailableDates,
+    calendarUnavailableDates,
     isAvailabilityLoading,
     availabilityError,
     isAvailable,
+    bookingFlowStatus,
   };
   
-  // NEW: Separate useEffect for availability - Session-persistent, only property changes
-  const hasTriggeredAvailabilityRef = useRef<string | null>(null);
-  
-  React.useEffect(() => {
-    // Only fetch availability when property changes and we have no data yet
-    // PHASE 1: Keep this - availability is needed for calendar to show unavailable dates
-    if (storedPropertySlug && unavailableDates.length === 0 && !isAvailabilityLoading) {
-      // Prevent duplicate calls for same property
-      if (hasTriggeredAvailabilityRef.current === storedPropertySlug) {
-        return;
-      }
-      
-      console.log(`[BookingContext] 📅 Auto-fetching availability for property: ${storedPropertySlug}`);
-      hasTriggeredAvailabilityRef.current = storedPropertySlug;
-      
-      fetchAvailability()
-        .catch(error => {
-          console.error(`[BookingContext] Availability auto-fetch error:`, error);
-          hasTriggeredAvailabilityRef.current = null; // Reset on error
-        });
-    }
-  }, [storedPropertySlug, unavailableDates.length, isAvailabilityLoading]); // FIXED: Removed fetchAvailability from dependencies
+  // Simplified availability loading - only fetch when explicitly needed
 
-  // SIMPLIFIED: URL-based initial combined fetch - Fetch both availability and pricing
-  const hasTriggeredCombinedFetchRef = useRef<string | null>(null);
-  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  // BUG #3 FIX: Track if initial load is complete to prevent auto-fetch after user interactions
-  const isInitialLoadCompleteRef = useRef(false);
-  
-  React.useEffect(() => {
-    // BUG #3 FIX: Skip auto-fetch if user has interacted with dates OR initial load is complete
-    // PHASE 1: Keep this logic - it correctly allows URL loading but prevents user interaction auto-triggers
-    if (hasUserInteractedWithDates.current || hasUserInteractedWithGuests.current || isInitialLoadCompleteRef.current) {
-      console.log(`[BookingContext] 🚫 SKIPPING AUTO-FETCH: User has interacted (dates: ${hasUserInteractedWithDates.current}, guests: ${hasUserInteractedWithGuests.current}) or initial load complete: ${isInitialLoadCompleteRef.current}`);
-      return;
-    }
-    
-    // Clear existing timeout to prevent multiple triggers
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
-    
-    // Debounce API calls to prevent multiple simultaneous triggers
-    debounceTimeoutRef.current = setTimeout(() => {
-      // Check if this is initial load with URL parameters
-      console.log(`[BookingContext] 🔍 INITIAL LOAD CHECK: window=${typeof window !== 'undefined'}, slug=${!!storedPropertySlug}, checkIn=${!!checkInDate}, checkOut=${!!checkOutDate}, noPricing=${!pricingDetails}, validRange=${checkInDate && checkOutDate ? checkOutDate > checkInDate : false}`);
-      
-      if (typeof window !== 'undefined' && storedPropertySlug && checkInDate && checkOutDate && checkOutDate > checkInDate) {
-        const urlParams = new URLSearchParams(window.location.search);
-        const hasCheckIn = urlParams.get('checkIn');
-        const hasCheckOut = urlParams.get('checkOut');
-        
-        console.log(`[BookingContext] 🔍 URL PARAMS CHECK: hasCheckIn=${!!hasCheckIn}, hasCheckOut=${!!hasCheckOut}, validDateRange=${checkOutDate > checkInDate}`);
-        
-        // Only auto-fetch if URL explicitly has both dates AND we don't have data yet
-        if (hasCheckIn && hasCheckOut && (!pricingDetails || unavailableDates.length === 0)) {
-          console.log(`[BookingContext] ✅ INITIAL LOAD CONDITIONS MET - proceeding with combined fetch`);
-          
-          // Prevent duplicate calls using a simple key
-          const fetchKey = `${storedPropertySlug}-${checkInDate.toISOString()}-${checkOutDate.toISOString()}-${numberOfGuests}`;
-          if (hasTriggeredCombinedFetchRef.current === fetchKey) {
-            console.log(`[BookingContext] 🚫 SKIP: Already triggered for this combination`);
-            return;
-          }
-          
-          console.log(`[BookingContext] 🚀 Auto-fetching COMBINED availability and pricing from URL parameters (INITIAL LOAD ONLY)`);
-          hasTriggeredCombinedFetchRef.current = fetchKey;
-          
-          // Use the combined fetch function which handles both availability and pricing
-          fetchAvailabilityAndPricing()
-            .then((result) => {
-              console.log(`[BookingContext] ✅ Initial combined fetch completed:`, {
-                hasUnavailableDates: result.unavailableDates.length > 0,
-                hasPricing: !!result.pricing,
-                isAvailable: result.isAvailable,
-                totalPrice: result.pricing?.total
-              });
-              // Mark initial load as complete
-              isInitialLoadCompleteRef.current = true;
-              console.log(`[BookingContext] 🏁 Initial load marked complete - future pricing updates must be user-controlled`);
-            })
-            .catch(error => {
-              console.error(`[BookingContext] ❌ Combined auto-fetch error:`, error);
-              hasTriggeredCombinedFetchRef.current = null; // Reset on error
-            });
-        } else {
-          console.log(`[BookingContext] ⏭️ SKIPPING INITIAL FETCH: conditions not met or data already exists`);
-          // Even if we skip, mark initial load as complete to prevent future auto-fetches
-          isInitialLoadCompleteRef.current = true;
-        }
-      }
-    }, 300); // 300ms debounce delay
-    
-    // Cleanup timeout on unmount
-    return () => {
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
-    };
-  }, [storedPropertySlug, checkInDate, checkOutDate, numberOfGuests, pricingDetails, unavailableDates.length, isAvailable, isPricingLoading, isAvailabilityLoading]); // FIXED: Removed numberOfNights dependency (comes from API)
+  // Simplified - no automatic fetching on mount or URL changes
+  // Fetching is now explicitly controlled by components
 
   // LEGACY: Keep existing combined trigger for backward compatibility (disabled by default)
   const legacyAutoFetchEnabled = false; // Set to true to re-enable legacy behavior
@@ -987,7 +927,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     if (storedPropertySlug && !isPricingLoading && !isAvailabilityLoading) {
       
       // Only fetch availability when property changes and we have no data yet
-      const needsAvailabilityFetch = unavailableDates.length === 0;
+      const needsAvailabilityFetch = calendarUnavailableDates.length === 0;
       
       // Check if we need to fetch pricing (only when we have dates)
       const needsPricingFetch = checkInDate && checkOutDate && numberOfNights > 0 && (
@@ -1087,8 +1027,9 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     resetPricing,
     // LEGACY: Combined function for backward compatibility
     fetchAvailabilityAndPricing,
-    setUnavailableDates,
+    setCalendarUnavailableDates,
     setIsAvailable,
+    setBookingFlowStatus,
   };
   
   // Log provider mounting for debugging

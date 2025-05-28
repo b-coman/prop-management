@@ -85,13 +85,32 @@ export function RefactoredAvailabilityCheck({
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
   const [unavailableDates, setUnavailableDates] = useState<Date[]>(preloadedUnavailableDates);
   const [error, setError] = useState<string | null>(null);
+  const [hasLoadedDates, setHasLoadedDates] = useState(false);
 
-  // Log if we have preloaded dates
+  // Load unavailable dates on mount if not preloaded
   useEffect(() => {
-    if (preloadedUnavailableDates && preloadedUnavailableDates.length > 0) {
+    if (!hasLoadedDates && preloadedUnavailableDates.length === 0) {
+      console.log(`[RefactoredAvailabilityCheck] Loading unavailable dates on mount for property: ${property.slug}`);
+      setIsLoadingAvailability(true);
+      setHasLoadedDates(true);
+      
+      getUnavailableDatesForProperty(property.slug)
+        .then(fetchedDates => {
+          console.log(`[RefactoredAvailabilityCheck] Loaded ${fetchedDates.length} unavailable dates`);
+          setUnavailableDates(fetchedDates);
+        })
+        .catch(error => {
+          console.error('[RefactoredAvailabilityCheck] Error loading unavailable dates:', error);
+          setError('Failed to load availability data');
+        })
+        .finally(() => {
+          setIsLoadingAvailability(false);
+        });
+    } else if (preloadedUnavailableDates.length > 0) {
       console.log(`[RefactoredAvailabilityCheck] Using ${preloadedUnavailableDates.length} pre-loaded unavailable dates`);
+      setHasLoadedDates(true);
     }
-  }, [preloadedUnavailableDates]);
+  }, [property.slug, preloadedUnavailableDates, hasLoadedDates]);
   
   // Handle date changes from the date picker
   const handleDateChange = useCallback((from: Date | null, to: Date | null) => {

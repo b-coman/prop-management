@@ -168,7 +168,7 @@ function BookingClientInner({
       const parsedCheckOut = parseDateSafe(checkOut);
       
       // Log the parsed dates for debugging
-      console.log(`[BookingClientInner] Parsed dates from URL - ONE TIME PROCESSING:`, {
+      console.log(`[BookingClientInner] Parsed dates from URL:`, {
         checkIn: checkIn,
         checkOut: checkOut,
         parsedCheckIn: parsedCheckIn?.toISOString() || 'null',
@@ -190,18 +190,17 @@ function BookingClientInner({
         // Set a flag to prevent multiple applications during development double-mounting
         sessionStorage.setItem('booking_url_params_applied', 'true');
         
-        console.log(`[BookingClientInner] Setting checkInDate from URL (ONE TIME):`, parsedCheckIn.toISOString());
+        console.log(`[BookingClientInner] Setting checkInDate from URL:`, parsedCheckIn.toISOString());
         setCheckInDateFromURL(parsedCheckIn);
         
-        // Set check-out date with a delay to ensure proper sequencing
+        // Set check-out date immediately after check-in
         if (parsedCheckOut) {
-          setTimeout(() => {
-            console.log(`[BookingClientInner] Setting checkOutDate from URL (ONE TIME):`, parsedCheckOut.toISOString());
-            setCheckOutDateFromURL(parsedCheckOut);
-          }, 100);
+          // No delay needed - set immediately
+          console.log(`[BookingClientInner] Setting checkOutDate from URL:`, parsedCheckOut.toISOString());
+          setCheckOutDateFromURL(parsedCheckOut);
         }
       } else if (parsedCheckOut) {
-        console.log(`[BookingClientInner] Setting checkOutDate only from URL (ONE TIME):`, parsedCheckOut.toISOString());
+        console.log(`[BookingClientInner] Setting checkOutDate only from URL:`, parsedCheckOut.toISOString());
         setCheckOutDateFromURL(parsedCheckOut);
       }
     }
