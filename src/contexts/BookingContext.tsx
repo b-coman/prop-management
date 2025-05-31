@@ -187,7 +187,12 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
         ? `${STORAGE_PREFIX}${propertySlug}_${sessionId}_`
         : `${STORAGE_PREFIX}${sessionId}_`;
 
-      console.log(`[BookingContext] Using storage prefix: ${prefix}`);
+      console.log(`[BookingContext] 🔑 Storage prefix calculation:`, {
+        propertySlug,
+        sessionId,
+        resultingPrefix: prefix,
+        timestamp: Date.now()
+      });
 
       return prefix;
     },
@@ -482,6 +487,18 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
   
   // Centralized pricing methods
   const setPricingDetails = useCallback((pricing: PricingDetails | null) => {
+    console.log(`[BookingContext] 💰 setPricingDetails called with:`, pricing ? {
+      total: pricing.total,
+      numberOfNights: pricing.numberOfNights,
+      timestamp: pricing.timestamp
+    } : 'null');
+    
+    // DEBUG: Log call stack to trace where this is being called from
+    if (pricing === null) {
+      console.trace(`[BookingContext] ⚠️ setPricingDetails called with NULL - call stack:`);
+    }
+    
+    console.log(`[BookingContext] 🔑 About to store pricing with storagePrefix: "${storagePrefix}"`);
     setPricingDetailsInternal(pricing);
     // If pricing contains a total price, also update the totalPrice field for backward compatibility
     if (pricing?.total) {
@@ -500,6 +517,8 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
   }, [setPricingDetailsInternal, setTotalPrice, numberOfNights, setNumberOfNightsInternal]);
   
   const resetPricing = useCallback(() => {
+    console.log(`[BookingContext] 🗑️ resetPricing called`);
+    console.trace(`[BookingContext] 🗑️ resetPricing call stack:`);
     setPricingDetailsInternal(null);
     setPricingError(null);
     setIsPricingLoading(false);
@@ -542,7 +561,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     const requestId = Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
     
     // Check if we have all the required data
-    if (!storedPropertySlug || !checkInDate || !checkOutDate || numberOfNights <= 0) {
+    if (!storedPropertySlug || !checkInDate || !checkOutDate) {
       console.log(`[BookingContext] ${requestId} Cannot fetch pricing - missing required data`);
       return null;
     }
@@ -585,6 +604,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
         // Support both naming conventions for backward compatibility
         total: result.pricing.totalPrice || 0,
         totalPrice: result.pricing.totalPrice || 0,
+        numberOfNights: (result.pricing as any).numberOfNights, // Include numberOfNights from API
         currency: result.pricing.currency as CurrencyCode,
         dailyRates: result.pricing.dailyRates || {},
         // Store date information for future reference
@@ -599,6 +619,21 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       // Store the pricing data in state
       setPricingDetails(pricingData);
       console.log(`[BookingContext] ${requestId} Successfully updated pricing state`);
+      
+      // DEBUG: Verify what's actually in storage after setting
+      setTimeout(() => {
+        const storageKey = `${storagePrefix}pricingDetails`;
+        const storedValue = sessionStorage.getItem(storageKey);
+        console.log(`[BookingContext] ${requestId} 🔍 VERIFICATION after 100ms: Storage key "${storageKey}" contains:`, storedValue ? 'DATA' : 'NULL');
+        if (storedValue) {
+          try {
+            const parsed = JSON.parse(storedValue);
+            console.log(`[BookingContext] ${requestId} 💰 Stored pricing verified:`, { total: parsed.total, nights: parsed.numberOfNights });
+          } catch (e) {
+            console.log(`[BookingContext] ${requestId} ⚠️ Could not parse stored pricing`);
+          }
+        }
+      }, 100);
       
       return pricingData;
     } catch (error) {
@@ -661,7 +696,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     }
   }, [storedPropertySlug, setCalendarUnavailableDates]);
 
-  // NEW: Separate fetch function for pricing only - User-controlled
+  // Alternative fetch function with explicit parameters (kept for potential future use)
   const fetchPricingWithDates = useCallback(async (checkIn: Date, checkOut: Date, guests: number): Promise<PricingDetails | null> => {
     // Generate a unique ID for this request for debugging purposes
     const requestId = Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
@@ -1022,7 +1057,7 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     clearGuestData,
     // NEW: Separated API functions
     fetchAvailability,
-    fetchPricing: fetchPricingWithDates,
+    fetchPricing,
     setPricingDetails,
     resetPricing,
     // LEGACY: Combined function for backward compatibility
@@ -1035,11 +1070,23 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
   // Log provider mounting for debugging
   useEffect(() => {
     console.log(`[BookingContext] Provider mounted for property "${propertySlug}" with session ID ${sessionId}`);
+    console.log(`[BookingContext] Storage prefix: ${storagePrefix}`);
+    
+    // DEBUG: Log all booking-related keys in sessionStorage
+    if (typeof window !== 'undefined') {
+      const bookingKeys = Object.keys(sessionStorage).filter(key => key.includes('booking'));
+      console.log(`[BookingContext] 🗂️ Existing booking keys in sessionStorage:`, bookingKeys);
+      
+      // Log pricing details key specifically
+      const pricingKey = `${storagePrefix}pricingDetails`;
+      const storedPricing = sessionStorage.getItem(pricingKey);
+      console.log(`[BookingContext] 💰 Stored pricing at key "${pricingKey}":`, storedPricing ? 'EXISTS' : 'NOT FOUND');
+    }
     
     return () => {
       console.log(`[BookingContext] Provider unmounted for property "${propertySlug}"`);
     };
-  }, [propertySlug, sessionId]);
+  }, [propertySlug, sessionId, storagePrefix]);
 
   return (
     <BookingStateContext.Provider value={state}>

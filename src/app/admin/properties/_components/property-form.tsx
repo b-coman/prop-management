@@ -65,6 +65,7 @@ const propertyFormSchema = z.object({
     cleaningFee: z.coerce.number().nonnegative("Cleaning fee cannot be negative.").optional().default(0),
     maxGuests: z.coerce.number().int().positive("Max guests must be a positive integer."),
     baseOccupancy: z.coerce.number().int().positive("Base occupancy must be a positive integer."),
+    defaultMinimumStay: z.coerce.number().int().positive("Default minimum stay must be a positive integer."),
     extraGuestFee: z.coerce.number().nonnegative("Extra guest fee cannot be negative.").optional().default(0),
     bedrooms: z.coerce.number().int().nonnegative("Bedrooms cannot be negative.").optional(),
     beds: z.coerce.number().int().nonnegative("Beds cannot be negative.").optional(),
@@ -146,6 +147,7 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
         cleaningFee: initialData?.cleaningFee ?? 0,
         maxGuests: initialData?.maxGuests ?? 1,
         baseOccupancy: initialData?.baseOccupancy ?? 1,
+        defaultMinimumStay: initialData?.defaultMinimumStay ?? 2,
         extraGuestFee: initialData?.extraGuestFee ?? 0,
         bedrooms: initialData?.bedrooms ?? undefined,
         beds: initialData?.beds ?? undefined,
@@ -300,9 +302,10 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
                )} />
              <FormField control={form.control} name="cleaningFee" render={({ field }) => ( <FormItem><FormLabel>Cleaning Fee</FormLabel><FormControl><Input type="number" step="0.01" placeholder="e.g., 50" {...field} /></FormControl><FormMessage /></FormItem> )} />
         </div>
-         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
              <FormField control={form.control} name="maxGuests" render={({ field }) => ( <FormItem><FormLabel>Max Guests *</FormLabel><FormControl><Input type="number" min="1" placeholder="e.g., 6" {...field} /></FormControl><FormMessage /></FormItem> )} />
              <FormField control={form.control} name="baseOccupancy" render={({ field }) => ( <FormItem><FormLabel>Base Occupancy *</FormLabel><FormControl><Input type="number" min="1" placeholder="Guests included in base price" {...field} /></FormControl><FormMessage /></FormItem> )} />
+             <FormField control={form.control} name="defaultMinimumStay" render={({ field }) => ( <FormItem><FormLabel>Minimum Stay *</FormLabel><FormControl><Input type="number" min="1" placeholder="e.g., 2" {...field} /></FormControl><FormDescription>Default minimum nights required</FormDescription><FormMessage /></FormItem> )} />
              <FormField control={form.control} name="extraGuestFee" render={({ field }) => ( <FormItem><FormLabel>Extra Guest Fee / Night</FormLabel><FormControl><Input type="number" step="0.01" placeholder="e.g., 25" {...field} /></FormControl><FormMessage /></FormItem> )} />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

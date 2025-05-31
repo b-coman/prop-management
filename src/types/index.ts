@@ -51,6 +51,7 @@ export interface Property {
   cleaningFee?: number;
   maxGuests: number;
   baseOccupancy: number; // Number of guests included in pricePerNight
+  defaultMinimumStay: number; // Required minimum nights for booking
   extraGuestFee?: number; // Fee per additional guest per night, in property's baseCurrency
   bedrooms?: number;
   beds?: number;

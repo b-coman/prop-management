@@ -70,19 +70,66 @@ function BookingStorageInitializer({ propertySlug }: { propertySlug: string }) {
   const searchParams = useSearchParams();
   const checkIn = searchParams.get('checkIn');
   const checkOut = searchParams.get('checkOut');
+  const initRef = useRef(false);
 
   // When URL parameters change, prepare storage for the BookingProvider
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
+    // Only run this once per mount to avoid clearing data after it's been fetched
+    if (initRef.current) return;
+    
     if (checkIn || checkOut) {
-      // Clear any existing storage
-      clearSyncedStorageByPrefix(`booking_${propertySlug}_`, { prefix: '' });
-      clearSyncedStorageByPrefix('booking_', { prefix: '' });
+      // Check if we already processed these exact URL params
+      const processedMarker = sessionStorage.getItem('booking_url_params_processed');
+      const currentParams = `${propertySlug}_${checkIn}_${checkOut}`;
       
-      // Store session ID in sessionStorage so it can be accessed by other components
-      const storageInitMarker = `booking_url_params_processed_${Date.now()}`;
-      sessionStorage.setItem('booking_url_params_processed', storageInitMarker);
+      if (processedMarker === currentParams) {
+        console.log(`[BookingStorageInitializer] ✅ Already processed URL params for: ${currentParams}`);
+        return;
+      }
+      
+      // Mark as initialized
+      initRef.current = true;
+      
+      // DEBUG: Log what's in storage before clearing
+      console.log(`[BookingStorageInitializer] 🚨 BEFORE CLEAR - Session storage keys:`, Object.keys(sessionStorage).filter(k => k.includes('booking')));
+      
+      // Clear only non-essential booking data, preserve pricing and critical data
+      const keysToPreserve = new Set<string>();
+      const allBookingKeys = Object.keys(sessionStorage).filter(k => k.includes('booking'));
+      
+      allBookingKeys.forEach(key => {
+        // Preserve pricing data, session IDs, and critical booking data
+        if (key.includes('pricingDetails') || 
+            key.includes('session_id') ||
+            key.includes('totalPrice') ||
+            key.includes('numberOfNights')) {
+          keysToPreserve.add(key);
+          const value = sessionStorage.getItem(key);
+          console.log(`[BookingStorageInitializer] 💰 PRESERVING key "${key}":`, value ? 'HAS DATA' : 'NULL');
+        }
+      });
+      
+      // Store preserved data
+      const preservedData: { [key: string]: string | null } = {};
+      keysToPreserve.forEach(key => {
+        preservedData[key] = sessionStorage.getItem(key);
+      });
+      
+      // Clear only non-preserved keys
+      console.log(`[BookingStorageInitializer] ⚠️ CLEARING non-essential booking storage`);
+      allBookingKeys.forEach(key => {
+        if (!keysToPreserve.has(key)) {
+          sessionStorage.removeItem(key);
+        }
+      });
+      
+      // Mark these URL params as processed
+      sessionStorage.setItem('booking_url_params_processed', currentParams);
+      
+      // DEBUG: Log what's left after selective clearing
+      console.log(`[BookingStorageInitializer] 🚨 AFTER CLEAR - Session storage keys:`, Object.keys(sessionStorage).filter(k => k.includes('booking')));
     }
   }, [propertySlug, checkIn, checkOut]);
 
@@ -130,7 +177,9 @@ function BookingClientInner({
     setPropertySlug,
     // BUG #3 FIX: Use URL-specific setters for initial load to allow pricing fetch
     setCheckInDateFromURL,
-    setCheckOutDateFromURL
+    setCheckOutDateFromURL,
+    fetchPricing,
+    pricingDetails
   } = useBooking();
   const { setSelectedCurrencyTemporary } = useCurrency();
 
@@ -205,6 +254,22 @@ function BookingClientInner({
       }
     }
   }, [propertySlug, setPropertySlug, currency, setSelectedCurrencyTemporary]); // Added currency dependencies
+
+  // Fetch pricing when we have dates from URL
+  useEffect(() => {
+    // Only fetch if we have both dates and haven't fetched pricing yet
+    if (checkIn && checkOut && !pricingDetails) {
+      // Small delay to ensure context state has been updated
+      const timer = setTimeout(() => {
+        console.log(`[BookingClientInner] Fetching pricing for dates from URL`);
+        fetchPricing().catch(error => {
+          console.error('[BookingClientInner] Error fetching pricing:', error);
+        });
+      }, 300); // 300ms delay to ensure dates are set in context
+
+      return () => clearTimeout(timer);
+    }
+  }, [checkIn, checkOut, pricingDetails, fetchPricing]);
 
   // Show loading until theme is ready
   if (!themeReady) {

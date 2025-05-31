@@ -66,6 +66,7 @@
   "cleaningFee": 25,
   "maxGuests": 3,
   "baseOccupancy": 2,
+  "defaultMinimumStay": 2,
   "extraGuestFee": 20,
   "bedrooms": 1,
   "beds": 2,

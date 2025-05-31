@@ -4,6 +4,7 @@
 
 1. Only update documentation files when explicitly requested by the user.
 2. Focus on code changes and avoid modifying documentation unless specifically asked.
+3. **Development Standards**: Always consult CLAUDE_DEVELOPMENT_STANDARDS.md for file headers, logging, documentation standards, and best practices.
 
 ## Coding Principles
 

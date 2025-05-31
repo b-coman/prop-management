@@ -37,6 +37,7 @@
   "advertisedRateType": "starting",
   "baseCurrency": "EUR",
   "maxGuests": 7,
+  "defaultMinimumStay": 2,
   "enableHoldOption": true,
   "enableContactOption": true,
   "pricingConfig": {

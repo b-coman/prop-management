@@ -110,6 +110,7 @@ function BookingInitializer({
     }
   }, [property.slug]); // Only depend on property slug
 
+
   // Import useLanguage hook for multilingual support (needs to be called unconditionally)
   const { tc } = useLanguage();
   

@@ -57,6 +57,7 @@
   "cleaningFee": 40,
   "maxGuests": 7,
   "baseOccupancy": 4,
+  "defaultMinimumStay": 2,
   "extraGuestFee": 25,
   "pricing": {
     "pricingTemplateId": "default",

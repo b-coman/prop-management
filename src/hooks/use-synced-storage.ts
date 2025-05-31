@@ -23,6 +23,11 @@ export const StorageEventBus = {
   },
   
   publish(key: string, newValue: any) {
+    // DEBUG: Track pricing events
+    if (key.includes('pricingDetails')) {
+      console.log(`[StorageEventBus] 📢 Publishing pricing event for key "${key}":`, newValue ? 'DATA' : 'NULL');
+    }
+    
     this.listeners.get(key)?.forEach(callback => {
       try {
         callback(newValue);
@@ -195,6 +200,13 @@ export function useSyncedStorage<T>(
     
     try {
       const storedItem = storageObj.getItem(prefixedKey);
+      
+      // DEBUG: Log key access for pricing details
+      if (prefixedKey.includes('pricingDetails')) {
+        console.log(`[useSyncedStorage] 🔍 Attempting to load pricing from key "${prefixedKey}"`);
+        console.log(`[useSyncedStorage] 🔍 Storage contains:`, storedItem ? 'DATA' : 'NULL');
+      }
+      
       if (storedItem) {
         const valueToUse = opts.deserializer 
           ? opts.deserializer(storedItem, initialValue)
@@ -204,7 +216,18 @@ export function useSyncedStorage<T>(
           console.log(`[useSyncedStorage] Loaded "${prefixedKey}":`, valueToUse);
         }
         
+        // DEBUG: Log when pricing details are loaded
+        if (prefixedKey.includes('pricingDetails')) {
+          console.log(`[useSyncedStorage] 💰 Successfully loaded pricing details from sessionStorage:`, {
+            key: prefixedKey,
+            value: valueToUse,
+            rawStoredItem: storedItem?.substring(0, 100) + '...'
+          });
+        }
+        
         return valueToUse;
+      } else if (prefixedKey.includes('pricingDetails')) {
+        console.log(`[useSyncedStorage] ⚠️ No pricing data found at key "${prefixedKey}", using initial value:`, initialValue);
       }
     } catch (error) {
       console.error(`[useSyncedStorage] Error loading "${prefixedKey}":`, error);
@@ -258,7 +281,7 @@ export function useSyncedStorage<T>(
       // Skip update if the value hasn't changed
       // This prevents unnecessary re-renders and storage operations
       if (valueEquals(state, newValue)) {
-        if (opts.debug) {
+        if (opts.debug || prefixedKey.includes('pricingDetails')) {
           console.log(`[useSyncedStorage] Skipped update for "${prefixedKey}" - value unchanged`);
         }
         return;
@@ -292,6 +315,15 @@ export function useSyncedStorage<T>(
       
       if (opts.debug) {
         console.log(`[useSyncedStorage] Updated "${prefixedKey}":`, newValue);
+      }
+      
+      // DEBUG: Log when pricing details are stored
+      if (prefixedKey.includes('pricingDetails')) {
+        console.log(`[useSyncedStorage] 💰 Stored pricing details in sessionStorage:`, {
+          key: prefixedKey,
+          value: newValue,
+          serialized: serialized?.substring(0, 100) + '...'
+        });
       }
     } catch (error) {
       console.error(`[useSyncedStorage] Error setting "${prefixedKey}":`, error);
@@ -535,6 +567,9 @@ export function clearSyncedStorageByPrefix(
 
   if (!storageObj) return;
 
+  // DEBUG: Log the clear operation
+  console.log(`[clearSyncedStorageByPrefix] 🗑️ Clearing storage with prefix: "${prefix}"`);
+
   // Get all keys that start with the prefix
   const keysToRemove: string[] = [];
   for (let i = 0; i < storageObj.length; i++) {
@@ -544,6 +579,17 @@ export function clearSyncedStorageByPrefix(
     }
   }
 
+  // DEBUG: Log which keys will be removed
+  console.log(`[clearSyncedStorageByPrefix] 🔍 Found ${keysToRemove.length} keys to remove:`, keysToRemove);
+  
+  // DEBUG: Show what pricing data is being removed
+  keysToRemove.forEach(key => {
+    if (key.includes('pricingDetails')) {
+      const value = storageObj.getItem(key);
+      console.log(`[clearSyncedStorageByPrefix] 💰 REMOVING pricing data at "${key}":`, value ? value.substring(0, 100) + '...' : 'NULL');
+    }
+  });
+
   // Remove all matching keys
   keysToRemove.forEach(key => {
     try {
@@ -552,11 +598,16 @@ export function clearSyncedStorageByPrefix(
       // Remove from storage
       storageObj.removeItem(key);
 
-      if (opts.debug) {
-        console.log(`[clearSyncedStorageByPrefix] Removed "${key}"`);
+      if (opts.debug || key.includes('pricingDetails')) {
+        console.log(`[clearSyncedStorageByPrefix] ✅ Removed "${key}"`);
       }
     } catch (error) {
       console.error(`[clearSyncedStorageByPrefix] Error removing "${key}":`, error);
     }
   });
+  
+  // DEBUG: Log final state
+  console.log(`[clearSyncedStorageByPrefix] 🏁 Clear complete. Remaining booking keys:`, 
+    Object.keys(storageObj).filter(k => k.includes('booking'))
+  );
 }

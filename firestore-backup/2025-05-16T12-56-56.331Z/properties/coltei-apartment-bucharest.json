@@ -63,6 +63,7 @@
   "checkOutTime": "12:00 PM",
   "extraGuestFee": 20,
   "maxGuests": 3,
+  "defaultMinimumStay": 2,
   "name": "Coltei Apartment Bucharest",
   "squareFeet": 550,
   "location": {

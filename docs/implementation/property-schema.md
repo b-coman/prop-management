@@ -41,6 +41,8 @@ The core property data structure (`properties/{propertyId}`):
   },
   "details": {
     "maxGuests": 8,
+    "baseOccupancy": 4,
+    "defaultMinimumStay": 2,
     "bedrooms": 3,
     "bathrooms": 2,
     "checkInTime": "15:00",
