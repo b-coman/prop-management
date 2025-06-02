@@ -107,6 +107,10 @@ export async function createCheckoutSession(
         }
     }
 
+    // Extract property name as string for Stripe metadata and display (Stripe only accepts strings)
+    const { getPropertyNameString } = await import('@/lib/multilingual-utils');
+    const propertyName = getPropertyNameString(property.name, 'en');
+
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       payment_method_types: ['card'],
       mode: 'payment',
@@ -116,7 +120,7 @@ export async function createCheckoutSession(
       metadata: {
         type: 'booking_full', // MUST be 'booking_full' or 'booking_hold'
         propertyId: property.id,
-        propertyName: property.name || '',
+        propertyName: propertyName,
         checkInDate,
         checkOutDate,
         numberOfGuests: String(numberOfGuests),
@@ -131,7 +135,7 @@ export async function createCheckoutSession(
         price_data: {
           currency: selectedCurrency.toLowerCase(),
           product_data: {
-            name: property.name || 'Rental Booking',
+            name: propertyName,
             description: `Stay from ${new Date(checkInDate).toLocaleDateString()} to ${new Date(checkOutDate).toLocaleDateString()} (${numberOfNights} nights)`,
           },
           unit_amount: priceInCents,

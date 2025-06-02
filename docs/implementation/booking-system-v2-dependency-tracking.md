@@ -1,5 +1,8 @@
 # Booking System v2 - Dependency Tracking Strategy
 
+**Last Updated**: May 31, 2025
+**Phase**: Phase 2 - Form Integration Starting
+
 ## Purpose
 Track all files used by v2 to clearly distinguish between:
 - ✅ Active v2 dependencies (keep)

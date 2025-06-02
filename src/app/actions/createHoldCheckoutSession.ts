@@ -77,10 +77,14 @@ export async function createHoldCheckoutSession(input: CreateHoldCheckoutSession
     }
   }
 
+  // Extract property name as string for Stripe metadata (Stripe only accepts strings)
+  const { getPropertyNameString } = await import('@/lib/multilingual-utils');
+  const propertyName = getPropertyNameString(property.name);
+
   const metadata: Stripe.MetadataParam = {
     type: 'booking_hold', // Differentiate from full booking
     propertyId: property.slug,
-    propertyName: property.name,
+    propertyName: propertyName,
     holdBookingId: holdBookingId, // Link session to the hold booking
     holdFeeAmount: String(holdFeeAmount),
     holdCurrency: selectedCurrency || property.baseCurrency, // Store the actual currency used
@@ -106,7 +110,7 @@ export async function createHoldCheckoutSession(input: CreateHoldCheckoutSession
           price_data: {
             currency: stripeCurrency,
             product_data: {
-              name: `Hold Fee - ${property.name}`,
+              name: `Hold Fee - ${propertyName}`,
               description: `24-hour hold reservation fee (Booking Ref: ${holdBookingId})`,
               // Add property image if desired
               // images: [property.images?.find(img => img.isFeatured)?.url || property.images?.[0]?.url || ''],

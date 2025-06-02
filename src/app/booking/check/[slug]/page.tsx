@@ -13,6 +13,8 @@ import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firesto
 import BookingClientLayout from './booking-client-layout';
 import { AvailabilityErrorHandler } from '../error-handler';
 import { serverTranslateContent } from '@/lib/server-language-utils';
+import { FEATURES } from '@/config/features';
+import { BookingPageV2 } from '@/components/booking-v2';
 
 interface AvailabilityCheckPageProps {
   params: { slug: string };
@@ -42,7 +44,7 @@ export async function generateMetadata({ params }: AvailabilityCheckPageProps): 
 export default async function AvailabilityCheckPage({ params, searchParams }: AvailabilityCheckPageProps) {
   // In Next.js 15, we need to await params and searchParams before accessing properties
   const { slug } = await params;
-  const { checkIn, checkOut } = await searchParams;
+  const { checkIn, checkOut, currency, language } = await searchParams;
 
   console.log("\n================================");
   console.log("🔍 [SERVER] Booking Check Page Requested");
@@ -123,6 +125,22 @@ export default async function AvailabilityCheckPage({ params, searchParams }: Av
   // Get property theme ID for consistent theming
   const propertyThemeId = property.themeId;
   
+  // Feature flag: V2 vs V1 booking system
+  if (FEATURES.BOOKING_V2) {
+    return (
+      <Suspense fallback={<div>Loading V2 booking system...</div>}>
+        <BookingClientLayout propertySlug={property.slug} themeId={propertyThemeId} heroImage={heroImage}>
+          <BookingPageV2
+            property={property}
+            initialCurrency={currency as any}
+            initialLanguage={language}
+          />
+        </BookingClientLayout>
+      </Suspense>
+    );
+  }
+
+  // V1 booking system (default)
   return (
     <Suspense fallback={<div>Loading availability...</div>}>
       <BookingClientLayout propertySlug={property.slug} themeId={propertyThemeId} heroImage={heroImage}>
