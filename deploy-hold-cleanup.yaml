@@ -1,0 +1,62 @@
+# Cloud Scheduler configuration for hold cleanup
+# This file contains the deployment commands and configuration for setting up
+# automated hold cleanup using Cloud Scheduler + Cloud Run API endpoint
+
+# To deploy this configuration:
+# 1. Deploy the API endpoint (already done via Next.js deployment)
+# 2. Create the Cloud Scheduler job using the commands below
+
+# Cloud Scheduler Job Configuration
+scheduler_job:
+  name: "release-expired-holds"
+  description: "Automatically release expired booking holds"
+  schedule: "0 * * * *"  # Every hour at minute 0
+  timezone: "UTC"
+  target:
+    uri: "https://YOUR_DOMAIN/api/cron/release-holds"
+    method: "GET"
+    headers:
+      Authorization: "Bearer YOUR_CRON_SECRET_TOKEN"
+      X-Appengine-Cron: "true"
+    timeout: "60s"
+    retry_config:
+      retry_count: 3
+      min_backoff_duration: "5s"
+      max_backoff_duration: "60s"
+
+# Deployment Commands:
+# 
+# 1. Set your project:
+#    gcloud config set project YOUR_PROJECT_ID
+#
+# 2. Create the scheduler job:
+#    gcloud scheduler jobs create http release-expired-holds \
+#      --schedule="0 * * * *" \
+#      --uri="https://YOUR_DOMAIN/api/cron/release-holds" \
+#      --http-method=GET \
+#      --headers="Authorization=Bearer YOUR_CRON_SECRET_TOKEN,X-Appengine-Cron=true" \
+#      --time-zone="UTC" \
+#      --description="Automatically release expired booking holds" \
+#      --attempt-deadline="60s" \
+#      --max-retry-attempts=3 \
+#      --min-backoff=5s \
+#      --max-backoff=60s
+#
+# 3. Verify the job was created:
+#    gcloud scheduler jobs list
+#
+# 4. Test the job manually:
+#    gcloud scheduler jobs run release-expired-holds
+#
+# 5. View job logs:
+#    gcloud scheduler jobs describe release-expired-holds
+#    gcloud logging read "resource.type=cloud_scheduler_job AND resource.labels.job_id=release-expired-holds"
+
+# Environment Variables Needed:
+# - CRON_SECRET_TOKEN: Secret token for authenticating cron requests
+# - Set in your deployment environment (Cloud Run, etc.)
+
+# Security Notes:
+# - The API endpoint checks for either X-Appengine-Cron header or Bearer token
+# - Use a strong, random token for CRON_SECRET_TOKEN
+# - Consider IP restrictions if additional security is needed

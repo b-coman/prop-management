@@ -1,12 +1,15 @@
 /**
- * MobilePriceDrawer V2.3 - Mobile Bottom Drawer for Price Breakdown
+ * MobilePriceDrawer V2.4 - Currency-Aware Mobile Price Breakdown
  * 
  * @file-status: ACTIVE
  * @v2-role: MOBILE - Mobile-specific price breakdown drawer
  * @created: 2025-06-02
+ * @updated: 2025-06-04 (V2.4 - Fixed currency conversion consistency)
  * @description: Airbnb-style bottom drawer for mobile price breakdown.
  *               Slides up from bottom with backdrop and smooth animations.
- * @dependencies: Sheet from shadcn/ui
+ *               V2.4 ensures all prices display in user's selected currency.
+ * @dependencies: Sheet from shadcn/ui, CurrencyContext
+ * @v2.4-changes: Fixed formatPrice calls to use convertToSelectedCurrency, removed misleading currency notice
  */
 
 "use client";
@@ -34,7 +37,7 @@ export function MobilePriceDrawer({
   guestCount,
   nights
 }: MobilePriceDrawerProps) {
-  const { formatPrice, selectedCurrency } = useCurrency();
+  const { formatPrice, selectedCurrency, convertToSelectedCurrency } = useCurrency();
 
   return (
     <Sheet>
@@ -57,9 +60,9 @@ export function MobilePriceDrawer({
             <h3 className="font-medium mb-2">Accommodation</h3>
             <div className="flex justify-between items-center">
               <span className="text-sm">
-                {formatPrice(pricing.accommodationTotal / nights, pricing.currency)} × {nights} {nights === 1 ? 'night' : 'nights'}
+                {formatPrice(convertToSelectedCurrency(pricing.accommodationTotal / nights, pricing.currency))} × {nights} {nights === 1 ? 'night' : 'nights'}
               </span>
-              <span className="text-sm font-medium">{formatPrice(pricing.accommodationTotal, pricing.currency)}</span>
+              <span className="text-sm font-medium">{formatPrice(convertToSelectedCurrency(pricing.accommodationTotal, pricing.currency))}</span>
             </div>
           </div>
 
@@ -70,13 +73,13 @@ export function MobilePriceDrawer({
               {pricing.cleaningFee > 0 && (
                 <div className="flex justify-between items-center">
                   <span className="text-sm">Cleaning fee</span>
-                  <span className="text-sm">{formatPrice(pricing.cleaningFee, pricing.currency)}</span>
+                  <span className="text-sm">{formatPrice(convertToSelectedCurrency(pricing.cleaningFee, pricing.currency))}</span>
                 </div>
               )}
               {pricing.taxes > 0 && (
                 <div className="flex justify-between items-center mt-2">
                   <span className="text-sm">Taxes</span>
-                  <span className="text-sm">{formatPrice(pricing.taxes, pricing.currency)}</span>
+                  <span className="text-sm">{formatPrice(convertToSelectedCurrency(pricing.taxes, pricing.currency))}</span>
                 </div>
               )}
             </div>
@@ -90,13 +93,13 @@ export function MobilePriceDrawer({
               {pricing.lengthOfStayDiscount && pricing.lengthOfStayDiscount.discountAmount > 0 && (
                 <div className="flex justify-between items-center text-green-600">
                   <span className="text-sm">Length of stay ({pricing.lengthOfStayDiscount.discountPercentage}%)</span>
-                  <span className="text-sm">-{formatPrice(pricing.lengthOfStayDiscount.discountAmount, pricing.currency)}</span>
+                  <span className="text-sm">-{formatPrice(convertToSelectedCurrency(pricing.lengthOfStayDiscount.discountAmount, pricing.currency))}</span>
                 </div>
               )}
               {pricing.couponDiscount && pricing.couponDiscount.discountAmount > 0 && (
                 <div className="flex justify-between items-center text-green-600 mt-2">
                   <span className="text-sm">Coupon ({pricing.couponDiscount.discountPercentage}%)</span>
-                  <span className="text-sm">-{formatPrice(pricing.couponDiscount.discountAmount, pricing.currency)}</span>
+                  <span className="text-sm">-{formatPrice(convertToSelectedCurrency(pricing.couponDiscount.discountAmount, pricing.currency))}</span>
                 </div>
               )}
             </div>
@@ -106,16 +109,10 @@ export function MobilePriceDrawer({
           <div className="border-t pt-4">
             <div className="flex justify-between items-center">
               <span className="text-lg font-semibold">Total</span>
-              <span className="text-lg font-semibold">{formatPrice(pricing.totalPrice || pricing.total, pricing.currency)}</span>
+              <span className="text-lg font-semibold">{formatPrice(convertToSelectedCurrency(pricing.totalPrice || pricing.total, pricing.currency))}</span>
             </div>
           </div>
 
-          {/* Currency Notice */}
-          {pricing.currency !== selectedCurrency && (
-            <p className="text-xs text-muted-foreground text-center pt-2">
-              Prices shown in {pricing.currency}. Will be converted to {selectedCurrency} at checkout.
-            </p>
-          )}
         </div>
       </SheetContent>
     </Sheet>

@@ -90,11 +90,14 @@ export async function createHoldCheckoutSession(input: CreateHoldCheckoutSession
     holdCurrency: selectedCurrency || property.baseCurrency, // Store the actual currency used
   };
 
-  // Define success/cancel URLs - These might need adjustment.
+  // Define success/cancel URLs - Updated for path-based language detection
   // Success could redirect back to the booking page showing hold confirmation,
   // or a dedicated "hold successful" page.
   const success_url = `${origin}/booking/hold-success?session_id={CHECKOUT_SESSION_ID}&booking_id=${holdBookingId}`;
-  const cancel_url = `${origin}/booking/check/${property.slug}?hold_cancelled=true&booking_id=${holdBookingId}`; // Go back to check page
+  
+  // Cancel URL now uses path-based language detection (no ?lang parameter needed)
+  // The booking page will detect language from the path automatically
+  const cancel_url = `${origin}/booking/check/${property.slug}?hold_cancelled=true&booking_id=${holdBookingId}`;
 
   try {
     // Validate essential fields to provide clearer error messages

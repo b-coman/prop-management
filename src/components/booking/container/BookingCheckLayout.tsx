@@ -15,6 +15,8 @@ import { useCurrency } from '@/contexts/CurrencyContext';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { CurrencySwitcherSimple } from '@/components/currency-switcher-simple';
+import { LanguageSelector } from '@/components/language-selector';
 
 interface BookingCheckLayoutProps {
   property: Property;
@@ -223,13 +225,21 @@ export function BookingCheckLayout({
         <div className="sticky top-[53px] z-30 bg-muted/50 backdrop-blur supports-[backdrop-filter]:bg-muted/30 border-b border-border md:hidden">
           <div className="container px-4 py-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">{selectedDates}</span>
-              <span className="text-foreground font-medium">
-                {numberOfNights && `${numberOfNights} nights`}
-                {numberOfNights && numberOfGuests && ', '}
-                {numberOfGuests && `${numberOfGuests} ${numberOfGuests === 1 ? 'guest' : 'guests'}`}
-              </span>
-              {totalPrice && <span className="font-semibold text-primary">{totalPrice}</span>}
+              <div className="flex-1 min-w-0">
+                <div className="text-muted-foreground truncate">{selectedDates}</div>
+                <div className="text-foreground font-medium text-xs">
+                  {numberOfNights && `${numberOfNights} nights`}
+                  {numberOfNights && numberOfGuests && ', '}
+                  {numberOfGuests && `${numberOfGuests} ${numberOfGuests === 1 ? 'guest' : 'guests'}`}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 ml-2">
+                <div className="flex items-center gap-1">
+                  <CurrencySwitcherSimple />
+                  <LanguageSelector />
+                </div>
+                {totalPrice && <span className="font-semibold text-primary whitespace-nowrap">{totalPrice}</span>}
+              </div>
             </div>
           </div>
         </div>
@@ -238,13 +248,19 @@ export function BookingCheckLayout({
       {/* Desktop Header */}
       <div className="hidden md:block border-b border-border bg-background">
         <div className="container py-4">
-          <Link 
-            href={`/properties/${property.slug}`}
-            className="group inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
-          >
-            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-            <span>Back to {propertyName}</span>
-          </Link>
+          <div className="flex items-center justify-between">
+            <Link 
+              href={`/properties/${property.slug}`}
+              className="group inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
+            >
+              <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+              <span>Back to {propertyName}</span>
+            </Link>
+            <div className="flex items-center gap-3">
+              <CurrencySwitcherSimple />
+              <LanguageSelector />
+            </div>
+          </div>
         </div>
       </div>
       

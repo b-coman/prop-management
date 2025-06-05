@@ -16,6 +16,15 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+console.log("[Firebase Client] Initializing with config:", {
+  apiKey: firebaseConfig.apiKey ? "***" + firebaseConfig.apiKey.slice(-4) : "MISSING",
+  authDomain: firebaseConfig.authDomain || "MISSING",
+  projectId: firebaseConfig.projectId || "MISSING",
+  storageBucket: firebaseConfig.storageBucket || "MISSING",
+  messagingSenderId: firebaseConfig.messagingSenderId || "MISSING",
+  appId: firebaseConfig.appId ? "***" + firebaseConfig.appId.slice(-4) : "MISSING"
+});
+
 // Initialize Firebase Client SDK
 let app: FirebaseApp | undefined;
 if (getApps().length === 0) {

@@ -1,16 +1,18 @@
 /**
- * PricingSummary V2.3 - Enhanced Collapsible Pricing Display
+ * PricingSummary V2.4 - Currency-Aware Pricing Display
  * 
  * @file-status: ACTIVE
  * @v2-role: CORE - Displays pricing information for V2 booking system
  * @created: 2025-05-31
- * @updated: 2025-06-02 (V2.3 - Updated collapsible UI for V2.3 design spec)
+ * @updated: 2025-06-04 (V2.4 - Fixed currency conversion consistency)
  * @description: Clean, simplified pricing summary that consumes V2 booking state
- *               and displays pricing information with currency conversion.
+ *               and displays pricing information with proper currency conversion.
  *               V2.1 prevents card flashing when state changes.
  *               V2.2 adds collapsible UI with simple summary and expandable details.
  *               V2.3 refines the UI to match the new design specification.
+ *               V2.4 fixes currency mismatch - converts all prices to selected currency.
  * @dependencies: BookingProvider, CurrencyContext
+ * @v2.4-changes: Fixed formatPrice calls to use convertToSelectedCurrency, removed misleading currency notice
  */
 
 "use client";
@@ -20,6 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { CalendarDays, Users, Receipt, ChevronDown, ChevronUp } from 'lucide-react';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useLanguage } from '@/hooks/useLanguage';
 import { formatDateRange } from '../utils';
 import { format } from 'date-fns';
 import type { Property, PricingResponse } from '@/types';
@@ -47,7 +50,8 @@ export function PricingSummary({
   className,
   show = true
 }: PricingSummaryProps) {
-  const { formatPrice, selectedCurrency } = useCurrency();
+  const { formatPrice, selectedCurrency, convertToSelectedCurrency } = useCurrency();
+  const { t } = useLanguage();
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Calculate nights
@@ -66,17 +70,17 @@ export function PricingSummary({
                     <TooltipTrigger asChild>
                       <div className="cursor-help">
                         <p className="text-2xl lg:text-3xl font-bold">
-                          Total: {formatPrice(pricing.totalPrice || pricing.total, pricing.currency)}
+                          {t('booking.total', 'Total')}: {formatPrice(convertToSelectedCurrency(pricing.totalPrice || pricing.total, pricing.currency))}
                         </p>
                         <p className="text-sm text-muted-foreground mt-1">
-                          <span className="hidden lg:inline">{nights} {nights === 1 ? 'night' : 'nights'} · {formatDateRange(checkInDate, checkOutDate)}</span>
-                          <span className="lg:hidden">{nights} {nights === 1 ? 'night' : 'nights'} · {checkInDate && checkOutDate && `${format(checkInDate, 'MMM d')} - ${format(checkOutDate, 'MMM d')}`}</span>
-                          <span className="block lg:hidden text-xs">Incl. all fees</span>
+                          <span className="hidden lg:inline">{nights} {t(nights === 1 ? 'common.night' : 'common.nights', nights === 1 ? 'night' : 'nights')} · {formatDateRange(checkInDate, checkOutDate)}</span>
+                          <span className="lg:hidden">{nights} {t(nights === 1 ? 'common.night' : 'common.nights', nights === 1 ? 'night' : 'nights')} · {checkInDate && checkOutDate && `${format(checkInDate, 'MMM d')} - ${format(checkOutDate, 'MMM d')}`}</span>
+                          <span className="block lg:hidden text-xs">{t('booking.inclAllFees', 'Incl. all fees')}</span>
                         </p>
                       </div>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Includes cleaning, service, and taxes</p>
+                      <p>{t('booking.includesFeesDescription', 'Includes cleaning, service, and taxes')}</p>
                     </TooltipContent>
                   </Tooltip>
                 </div>
@@ -89,9 +93,9 @@ export function PricingSummary({
                     onClick={() => setIsExpanded(!isExpanded)}
                   >
                     {isExpanded ? (
-                      <>Hide price breakdown <ChevronUp className="h-3 w-3" /></>
+                      <>{t('booking.hidePriceBreakdown', 'Hide price breakdown')} <ChevronUp className="h-3 w-3" /></>
                     ) : (
-                      <>Show full price breakdown <ChevronDown className="h-3 w-3" /></>
+                      <>{t('booking.showPriceBreakdown', 'Show full price breakdown')} <ChevronDown className="h-3 w-3" /></>
                     )}
                   </button>
                 </div>
@@ -120,9 +124,9 @@ export function PricingSummary({
                   {/* Accommodation */}
                   <div className="flex justify-between items-center">
                     <span className="text-sm">
-                      {formatPrice(pricing.accommodationTotal / nights, pricing.currency)} × {nights} {nights === 1 ? 'night' : 'nights'}
+                      {formatPrice(convertToSelectedCurrency(pricing.accommodationTotal / nights, pricing.currency))} × {nights} {t(nights === 1 ? 'common.night' : 'common.nights', nights === 1 ? 'night' : 'nights')}
                     </span>
-                    <span className="text-sm">{formatPrice(pricing.accommodationTotal, pricing.currency)}</span>
+                    <span className="text-sm">{formatPrice(convertToSelectedCurrency(pricing.accommodationTotal, pricing.currency))}</span>
                   </div>
 
                   {/* Cleaning Fee with tooltip */}
@@ -130,53 +134,46 @@ export function PricingSummary({
                     <div className="flex justify-between items-center">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <span className="text-sm cursor-help underline decoration-dotted">Cleaning Fee</span>
+                          <span className="text-sm cursor-help underline decoration-dotted">{t('booking.cleaningFee', 'Cleaning Fee')}</span>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>Covers professional turnover service</p>
+                          <p>{t('booking.cleaningFeeDescription', 'Covers professional turnover service')}</p>
                         </TooltipContent>
                       </Tooltip>
-                      <span className="text-sm">{formatPrice(pricing.cleaningFee, pricing.currency)}</span>
+                      <span className="text-sm">{formatPrice(convertToSelectedCurrency(pricing.cleaningFee, pricing.currency))}</span>
                     </div>
                   )}
 
                   {/* Taxes */}
                   {pricing.taxes > 0 && (
                     <div className="flex justify-between items-center">
-                      <span className="text-sm">Taxes</span>
-                      <span className="text-sm">{formatPrice(pricing.taxes, pricing.currency)}</span>
+                      <span className="text-sm">{t('booking.taxes', 'Taxes')}</span>
+                      <span className="text-sm">{formatPrice(convertToSelectedCurrency(pricing.taxes, pricing.currency))}</span>
                     </div>
                   )}
 
                   {/* Discounts */}
                   {pricing.lengthOfStayDiscount && pricing.lengthOfStayDiscount.discountAmount > 0 && (
                     <div className="flex justify-between items-center text-green-600">
-                      <span className="text-sm">Length of stay discount ({pricing.lengthOfStayDiscount.discountPercentage}%)</span>
-                      <span className="text-sm">-{formatPrice(pricing.lengthOfStayDiscount.discountAmount, pricing.currency)}</span>
+                      <span className="text-sm">{t('booking.lengthOfStayDiscount', 'Length of stay discount ({{percentage}}%)', { percentage: pricing.lengthOfStayDiscount.discountPercentage })}</span>
+                      <span className="text-sm">-{formatPrice(convertToSelectedCurrency(pricing.lengthOfStayDiscount.discountAmount, pricing.currency))}</span>
                     </div>
                   )}
 
                   {pricing.couponDiscount && pricing.couponDiscount.discountAmount > 0 && (
                     <div className="flex justify-between items-center text-green-600">
-                      <span className="text-sm">Coupon discount ({pricing.couponDiscount.discountPercentage}%)</span>
-                      <span className="text-sm">-{formatPrice(pricing.couponDiscount.discountAmount, pricing.currency)}</span>
+                      <span className="text-sm">{t('booking.couponDiscount', 'Coupon discount ({{percentage}}%)', { percentage: pricing.couponDiscount.discountPercentage })}</span>
+                      <span className="text-sm">-{formatPrice(convertToSelectedCurrency(pricing.couponDiscount.discountAmount, pricing.currency))}</span>
                     </div>
                   )}
 
                   {/* Separator before total */}
                   <div className="border-t pt-3">
                     <div className="flex justify-between items-center font-semibold">
-                      <span>Total</span>
-                      <span>{formatPrice(pricing.totalPrice || pricing.total, pricing.currency)}</span>
+                      <span>{t('booking.total', 'Total')}</span>
+                      <span>{formatPrice(convertToSelectedCurrency(pricing.totalPrice || pricing.total, pricing.currency))}</span>
                     </div>
                   </div>
-
-                  {/* Currency Notice */}
-                  {pricing.currency !== selectedCurrency && (
-                    <p className="text-xs text-muted-foreground text-center pt-2">
-                      Prices shown in {pricing.currency}. Will be converted to {selectedCurrency} at checkout.
-                    </p>
-                  )}
                 </div>
               </div>
             </>

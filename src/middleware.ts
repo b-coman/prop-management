@@ -195,7 +195,7 @@ function handleLanguageRouting(request: NextRequest, preferredLang: string): Nex
  */
 async function handleAdminRoute(request: NextRequest) {
   // Import Edge-compatible auth helpers
-  const { checkAuth, createLoginRedirect, createUnauthorizedRedirect } = await import('./lib/auth-helpers-edge');
+  const { checkAuth, createLoginRedirect, createUnauthorizedRedirect } = await import('./lib/simple-auth-edge');
 
   // Check authentication
   const authResult = await checkAuth(request);

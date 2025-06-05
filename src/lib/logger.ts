@@ -348,7 +348,8 @@ export const loggers = {
   stripe: createLogger('stripe'),
   email: createLogger('email'),
   performance: createLogger('performance'),
-  error: createLogger('error')
+  error: createLogger('error'),
+  languageSystem: createLogger('language:system')
 };
 
 // Type-safe logger categories

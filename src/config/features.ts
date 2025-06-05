@@ -22,7 +22,7 @@
  * @migration-notes
  * - Version: v2.3
  * - Status: V2 booking system is now standard (always enabled)
- * - V1 system remains as fallback but is no longer actively used
+ * - Availability system uses single source (availability collection only)
  * 
  * @example
  * ```typescript
@@ -35,7 +35,7 @@
  * 
  * @see {@link ../docs/implementation/booking-system-v2-migration-plan.md}
  * @since v2.0.0
- * @updated v2.3.0 - V2 system is now standard
+ * @updated v2.3.0 - V2 system is now standard, availability deduplication completed
  */
 
 export interface FeatureFlags {
@@ -47,6 +47,7 @@ export interface FeatureFlags {
  * Feature flag configuration
  * 
  * These flags control application features and debugging capabilities.
+ * Environment variables can override default values for production deployment.
  */
 export const FEATURES: FeatureFlags = {
   // Booking System v2 - Now the standard implementation (always enabled)

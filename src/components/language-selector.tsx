@@ -12,35 +12,42 @@ import { useLanguage } from "@/hooks/useLanguage";
 import { cn } from "@/lib/utils";
 
 const languages = [
-  { code: 'en', name: 'English', flag: '🇬🇧' },
-  { code: 'ro', name: 'Română', flag: '🇷🇴' }
+  { code: 'en', name: 'English', flag: 'EN' },
+  { code: 'ro', name: 'Română', flag: 'RO' }
 ];
 
 interface LanguageSelectorProps {
   className?: string;
-  variant?: 'default' | 'ghost' | 'outline';
+  variant?: 'default' | 'ghost' | 'outline' | 'booking';
   size?: 'default' | 'sm' | 'lg' | 'icon';
   showLabel?: boolean;
+  showIcon?: boolean;
 }
 
 export function LanguageSelector({ 
   className,
   variant = 'ghost',
   size = 'sm',
-  showLabel = true
+  showLabel = true,
+  showIcon = true
 }: LanguageSelectorProps) {
   const { currentLang, switchLanguage } = useLanguage();
   const currentLanguage = languages.find(lang => lang.code === currentLang);
+  
+  // Determine actual variant based on booking context
+  const actualVariant = variant === 'booking' ? 'ghost' : variant;
+  const actualSize = variant === 'booking' ? 'default' : size;
+  const actualShowIcon = variant === 'booking' ? false : showIcon;
   
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button 
-          variant={variant} 
-          size={size} 
+          variant={actualVariant} 
+          size={actualSize} 
           className={cn("gap-2", className)}
         >
-          <Globe className="h-4 w-4" />
+          {actualShowIcon && <Globe className="h-4 w-4" />}
           {showLabel && (
             <>
               <span className="hidden sm:inline">

@@ -1,15 +1,19 @@
 /**
- * BookingPageV2.3 - Redesigned Booking Page
+ * BookingPageV2.5 - Redesigned Booking Page with Header and Currency Integration
  * 
  * @file-status: ACTIVE
  * @v2-role: CORE - Main container for V2 booking page
  * @created: 2025-05-31
- * @updated: 2025-06-02 (V2.3 - Desktop layout restructure)
+ * @updated: 2025-06-04 (V2.5 - Fixed currency consistency and removed redundant title)
  * @description: Orchestrates the complete V2 booking experience with simplified
  *               state management and preserved working components.
  *               V2.3 adds two-column desktop layout with sticky summary.
- * @dependencies: BookingProvider, existing form components, pricing display
+ *               V2.4 adds simple booking header with back navigation, currency and language selectors.
+ *               V2.5 removes redundant property title, fixes hold fee currency conversion.
+ * @dependencies: BookingProvider, existing form components, pricing display, CurrencyContext
  * @replaces: src/app/booking/check/[slug]/booking-client-layout.tsx (partially)
+ * @v2.4-changes: Added mobile/desktop sticky headers with back button, currency/language selectors
+ * @v2.5-changes: Removed duplicate property title, fixed hardcoded EUR hold fees to respect selected currency
  */
 
 "use client";
@@ -20,8 +24,16 @@ import { DateAndGuestSelector, PricingSummary } from '../components';
 import { ContactFormV2, HoldFormV2, BookingFormV2 } from '../forms';
 import type { Property, CurrencyCode } from '@/types';
 import { loggers } from '@/lib/logger';
+import { ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
+import { CurrencySwitcherSimple } from '@/components/currency-switcher-simple';
+import { LanguageSelector } from '@/components/language-selector';
+import { useLanguage } from '@/hooks/useLanguage';
 
 import { useBooking } from '../contexts';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { format } from 'date-fns';
+import { ro } from 'date-fns/locale';
 
 interface BookingPageV2Props {
   property: Property;
@@ -41,6 +53,9 @@ function BookingPageContent({ className }: { className?: string }) {
     selectedAction,
     setSelectedAction
   } = useBooking();
+  
+  const { formatPrice, convertToSelectedCurrency } = useCurrency();
+  const { t, currentLang } = useLanguage();
 
   // Form state will be added when we create V2 forms
 
@@ -49,14 +64,70 @@ function BookingPageContent({ className }: { className?: string }) {
   const hasValidPricing = pricing && pricing.totalPrice > 0;
   const canShowBookingOptions = hasValidDates && hasValidPricing;
 
-  return (
-    <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${className}`}>
-      {/* Property Title - V2.3 moved to top */}
-      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-6 md:mb-8">
-        {typeof property.name === 'string' ? property.name : property.name.en}
-      </h1>
+  const propertyName = typeof property.name === 'string' ? property.name : property.name.en;
 
-      {/* V2.3 Responsive Layout: Desktop 60/40, Mobile single column */}
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Mobile Sticky Header - Clean Navigation Only */}
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border md:hidden">
+        <div className="container px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Link 
+              href={`/properties/${property.slug}`}
+              className="group flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
+            >
+              <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+              <span>{t('common.back', 'Back')}</span>
+            </Link>
+            <div className="flex-1 text-center">
+              <h1 className="text-sm font-medium truncate text-foreground">{propertyName}</h1>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Summary Bar - Shows when dates selected with currency/language controls */}
+      {hasValidDates && (
+        <div className="sticky top-16 z-30 bg-background/90 backdrop-blur border-b border-border/50 md:hidden">
+          <div className="container px-4 py-2">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                {checkInDate && checkOutDate && (
+                  <div className="text-xs text-muted-foreground">
+                    {format(checkInDate, 'MMM d', { locale: currentLang === 'ro' ? ro : undefined })} - {format(checkOutDate, 'MMM d', { locale: currentLang === 'ro' ? ro : undefined })} • {guestCount} {guestCount === 1 ? t('booking.guest', 'guest') : t('booking.guests', 'guests')}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-1">
+                <CurrencySwitcherSimple variant="booking" />
+                <LanguageSelector variant="booking" />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Header */}
+      <div className="hidden md:block border-b border-border bg-background">
+        <div className="container py-4">
+          <div className="flex items-center justify-between">
+            <Link 
+              href={`/properties/${property.slug}`}
+              className="group inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
+            >
+              <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+              <span>{t('navigation.backTo', 'Back to {{property}}', { property: propertyName })}</span>
+            </Link>
+            <div className="flex items-center gap-3">
+              <CurrencySwitcherSimple variant="booking" />
+              <LanguageSelector variant="booking" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 ${className}`}>
+        {/* V2.3 Responsive Layout: Desktop 60/40, Mobile single column */}
       <div className="grid lg:grid-cols-5 gap-6 lg:gap-8">
         {/* Left Column: 60% - Booking inputs and forms */}
         <div className="lg:col-span-3 space-y-6">
@@ -69,16 +140,16 @@ function BookingPageContent({ className }: { className?: string }) {
               {/* Form Header with Back Button */}
               <div className="flex items-center justify-between gap-4">
                 <h2 className="text-base sm:text-lg font-semibold">
-                  {selectedAction === 'contact' && 'Send a Message to the Host'}
-                  {selectedAction === 'hold' && 'Hold Your Stay'}
-                  {selectedAction === 'book' && 'Complete Your Booking'}
+                  {selectedAction === 'contact' && t('booking.sendMessageToHost', 'Send a Message to the Host')}
+                  {selectedAction === 'hold' && t('booking.holdYourStay', 'Hold Your Stay')}
+                  {selectedAction === 'book' && t('booking.completeYourBooking', 'Complete Your Booking')}
                 </h2>
                 <button 
                   type="button"
                   onClick={() => setSelectedAction(null)}
                   className="text-sm text-primary underline hover:no-underline whitespace-nowrap"
                 >
-                  Back to options
+                  {t('navigation.backToOptions', 'Back to options')}
                 </button>
               </div>
 
@@ -272,10 +343,10 @@ function BookingPageContent({ className }: { className?: string }) {
                   onClick={() => setSelectedAction('book')}
                   className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-6 rounded-md font-medium transition-colors text-base"
                 >
-                  Book Now
+                  {t('booking.bookNow', 'Book Now')}
                 </button>
                 <p className="text-xs text-center text-muted-foreground -mt-1">
-                  Secure your booking instantly
+                  {t('host.secureBookingInstantly', 'Secure your booking instantly')}
                 </p>
 
                 {/* Hold Dates - Secondary */}
@@ -284,10 +355,12 @@ function BookingPageContent({ className }: { className?: string }) {
                   onClick={() => setSelectedAction('hold')}
                   className="w-full border border-primary text-primary hover:bg-primary/10 h-12 px-6 rounded-md font-medium transition-colors text-base"
                 >
-                  Hold Dates
+                  {t('booking.holdDates', 'Hold Dates')}
                 </button>
                 <p className="text-xs text-center text-muted-foreground -mt-1">
-                  24h hold for {property.holdFeeAmount ? `€${property.holdFeeAmount}` : '€50'} – applied to your total if you book
+                  {t('booking.holdDescription', '24h hold for {{fee}} – applied to your total if you book', {
+                    fee: formatPrice(convertToSelectedCurrency(property.holdFeeAmount || 50, 'EUR'))
+                  })}
                 </p>
 
                 {/* Contact Host - Ghost */}
@@ -296,10 +369,10 @@ function BookingPageContent({ className }: { className?: string }) {
                   onClick={() => setSelectedAction('contact')}
                   className="w-full text-primary hover:text-primary/80 hover:bg-accent h-12 px-6 rounded-md font-medium transition-colors text-base"
                 >
-                  Contact Host
+                  {t('booking.contactHost', 'Contact Host')}
                 </button>
                 <p className="text-xs text-center text-muted-foreground -mt-1">
-                  Ask a question before booking
+                  {t('host.askQuestionBeforeBooking', 'Ask a question before booking')}
                 </p>
               </div>
             )}
@@ -326,10 +399,10 @@ function BookingPageContent({ className }: { className?: string }) {
                   onClick={() => setSelectedAction('book')}
                   className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-11 px-8 rounded-md font-medium transition-colors"
                 >
-                  Book Now
+                  {t('booking.bookNow', 'Book Now')}
                 </button>
                 <p className="text-xs text-center text-muted-foreground -mt-1">
-                  Secure your booking instantly
+                  {t('host.secureBookingInstantly', 'Secure your booking instantly')}
                 </p>
 
                 {/* Hold Dates - Secondary */}
@@ -338,10 +411,12 @@ function BookingPageContent({ className }: { className?: string }) {
                   onClick={() => setSelectedAction('hold')}
                   className="w-full border border-primary text-primary hover:bg-primary/10 h-11 px-8 rounded-md font-medium transition-colors"
                 >
-                  Hold Dates
+                  {t('booking.holdDates', 'Hold Dates')}
                 </button>
                 <p className="text-xs text-center text-muted-foreground -mt-1">
-                  24h hold for {property.holdFeeAmount ? `€${property.holdFeeAmount}` : '€50'} – applied to your total if you book
+                  {t('booking.holdDescription', '24h hold for {{fee}} – applied to your total if you book', {
+                    fee: formatPrice(convertToSelectedCurrency(property.holdFeeAmount || 50, 'EUR'))
+                  })}
                 </p>
 
                 {/* Contact Host - Ghost */}
@@ -350,10 +425,10 @@ function BookingPageContent({ className }: { className?: string }) {
                   onClick={() => setSelectedAction('contact')}
                   className="w-full text-primary hover:text-primary/80 hover:bg-accent h-11 px-8 rounded-md font-medium transition-colors"
                 >
-                  Contact Host
+                  {t('booking.contactHost', 'Contact Host')}
                 </button>
                 <p className="text-xs text-center text-muted-foreground -mt-1">
-                  Ask a question before booking
+                  {t('host.askQuestionBeforeBooking', 'Ask a question before booking')}
                 </p>
               </div>
             )}
@@ -361,11 +436,12 @@ function BookingPageContent({ className }: { className?: string }) {
             {/* Helper Text for Empty States */}
             {!hasValidDates && (
               <div className="text-center py-12 text-muted-foreground">
-                <p className="text-sm">Select your dates to see pricing and booking options</p>
+                <p className="text-sm">{t('booking.selectDatesForPricing', 'Select your dates to see pricing and booking options')}</p>
               </div>
             )}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
@@ -382,7 +458,6 @@ export function BookingPageV2({
     <BookingProvider
       property={property}
       initialCurrency={initialCurrency}
-      initialLanguage={initialLanguage}
     >
       <BookingPageContent className={className} />
     </BookingProvider>

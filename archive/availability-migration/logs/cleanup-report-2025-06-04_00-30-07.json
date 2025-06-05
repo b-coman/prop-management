@@ -1,0 +1,126 @@
+{
+  "timestamp": "2025-06-03T21:30:07.349Z",
+  "operations": [
+    {
+      "type": "initialize_availability",
+      "propertyId": "coltei-apartment-bucharest",
+      "month": "2025-05",
+      "details": {
+        "docId": "coltei-apartment-bucharest_2025-05",
+        "daysInitialized": 31,
+        "sourceDocument": "priceCalendars"
+      },
+      "executed": true
+    },
+    {
+      "type": "initialize_availability",
+      "propertyId": "coltei-apartment-bucharest",
+      "month": "2025-06",
+      "details": {
+        "docId": "coltei-apartment-bucharest_2025-06",
+        "daysInitialized": 30,
+        "sourceDocument": "priceCalendars"
+      },
+      "executed": true
+    },
+    {
+      "type": "initialize_availability",
+      "propertyId": "coltei-apartment-bucharest",
+      "month": "2025-07",
+      "details": {
+        "docId": "coltei-apartment-bucharest_2025-07",
+        "daysInitialized": 31,
+        "sourceDocument": "priceCalendars"
+      },
+      "executed": true
+    },
+    {
+      "type": "initialize_availability",
+      "propertyId": "coltei-apartment-bucharest",
+      "month": "2025-08",
+      "details": {
+        "docId": "coltei-apartment-bucharest_2025-08",
+        "daysInitialized": 31,
+        "sourceDocument": "priceCalendars"
+      },
+      "executed": true
+    },
+    {
+      "type": "initialize_availability",
+      "propertyId": "coltei-apartment-bucharest",
+      "month": "2025-09",
+      "details": {
+        "docId": "coltei-apartment-bucharest_2025-09",
+        "daysInitialized": 30,
+        "sourceDocument": "priceCalendars"
+      },
+      "executed": true
+    },
+    {
+      "type": "initialize_availability",
+      "propertyId": "coltei-apartment-bucharest",
+      "month": "2025-10",
+      "details": {
+        "docId": "coltei-apartment-bucharest_2025-10",
+        "daysInitialized": 31,
+        "sourceDocument": "priceCalendars"
+      },
+      "executed": true
+    },
+    {
+      "type": "initialize_availability",
+      "propertyId": "coltei-apartment-bucharest",
+      "month": "2025-11",
+      "details": {
+        "docId": "coltei-apartment-bucharest_2025-11",
+        "daysInitialized": 30,
+        "sourceDocument": "priceCalendars"
+      },
+      "executed": true
+    },
+    {
+      "type": "initialize_availability",
+      "propertyId": "coltei-apartment-bucharest",
+      "month": "2025-12",
+      "details": {
+        "docId": "coltei-apartment-bucharest_2025-12",
+        "daysInitialized": 31,
+        "sourceDocument": "priceCalendars"
+      },
+      "executed": true
+    },
+    {
+      "type": "sync_discrepancy",
+      "propertyId": "prahova-mountain-chalet",
+      "month": "2025-06",
+      "details": {
+        "day": "5",
+        "issue": "Hold in availability but available in priceCalendars",
+        "action": "Set priceCalendars day 5 to unavailable",
+        "priority": "critical"
+      },
+      "executed": true
+    },
+    {
+      "type": "sync_discrepancy",
+      "propertyId": "prahova-mountain-chalet",
+      "month": "2025-06",
+      "details": {
+        "day": "6",
+        "issue": "Available in availability but unavailable in priceCalendars",
+        "action": "Set priceCalendars day 6 to available",
+        "priority": "critical"
+      },
+      "executed": true
+    }
+  ],
+  "summary": {
+    "totalOperations": 10,
+    "successful": 10,
+    "failed": 0,
+    "propertiesAffected": [
+      "coltei-apartment-bucharest",
+      "prahova-mountain-chalet"
+    ]
+  }
+}

@@ -4,13 +4,15 @@
  * @file-status: ACTIVE
  * @v2-role: CORE - Primary state management for booking system V2
  * @created: 2025-05-31
- * @updated: 2025-06-02 (V2.1 - Automatic pricing enhancement)
+ * @updated: 2025-06-02 (V2.1.1 - Fixed error clearing on input changes)
  * @description: Provides clean, simplified state management for the booking flow.
  *               Replaces the complex BookingContext.tsx with circular dependencies.
  *               V2.1 adds automatic pricing when dates are available.
+ *               V2.1.1 fixes pricing error persistence by clearing errors on input changes.
  * @dependencies: Property type, session storage hooks, API services
  * @replaces: src/contexts/BookingContext.tsx
  * @v2.1-changes: Added debounced automatic pricing trigger, clear pricing on date/guest changes
+ * @v2.1.1-changes: Fixed condition to clear both pricing data AND errors when inputs change
  */
 
 "use client";
@@ -185,14 +187,12 @@ interface BookingProviderProps {
   children: React.ReactNode;
   property: Property;
   initialCurrency?: CurrencyCode;
-  initialLanguage?: string;
 }
 
 export function BookingProvider({ 
   children, 
   property,
-  initialCurrency,
-  initialLanguage
+  initialCurrency
 }: BookingProviderProps) {
   const propertySlug = property.slug;
   
@@ -334,8 +334,8 @@ export function BookingProvider({
     dispatch({ type: 'SET_CHECK_IN_DATE', payload: date });
     setStoredCheckIn(date);
     
-    // V2.1: Clear pricing only if we have existing pricing data
-    if (state.pricing) {
+    // V2.1: Clear pricing and errors when dates change
+    if (state.pricing || state.pricingError) {
       dispatch({ type: 'SET_PRICING', payload: { pricing: null, loading: false, error: null } });
     }
     
@@ -348,27 +348,27 @@ export function BookingProvider({
         dispatch({ type: 'SET_MIN_STAY_WARNING', payload: true });
       }
     }
-  }, [state.checkOutDate, state.pricing, property.defaultMinimumStay, setStoredCheckIn, setStoredCheckOut]);
+  }, [state.checkOutDate, state.pricing, state.pricingError, property.defaultMinimumStay, setStoredCheckIn, setStoredCheckOut]);
 
   const setCheckOutDate = useCallback((date: Date | null) => {
     dispatch({ type: 'SET_CHECK_OUT_DATE', payload: date });
     setStoredCheckOut(date);
     
-    // V2.1: Clear pricing only if we have existing pricing data
-    if (state.pricing) {
+    // V2.1: Clear pricing and errors when dates change
+    if (state.pricing || state.pricingError) {
       dispatch({ type: 'SET_PRICING', payload: { pricing: null, loading: false, error: null } });
     }
-  }, [state.pricing, setStoredCheckOut]);
+  }, [state.pricing, state.pricingError, setStoredCheckOut]);
 
   const setGuestCount = useCallback((count: number) => {
     dispatch({ type: 'SET_GUEST_COUNT', payload: count });
     setStoredGuestCount(count);
     
-    // V2.1: Clear pricing only if we have existing pricing data (most important for guest changes)
-    if (state.pricing) {
+    // V2.1: Clear pricing and errors when guest count changes
+    if (state.pricing || state.pricingError) {
       dispatch({ type: 'SET_PRICING', payload: { pricing: null, loading: false, error: null } });
     }
-  }, [state.pricing, setStoredGuestCount]);
+  }, [state.pricing, state.pricingError, setStoredGuestCount]);
 
   const fetchUnavailableDates = useCallback(async () => {
     dispatch({ type: 'SET_UNAVAILABLE_DATES', payload: { dates: [], loading: true, error: null } });
@@ -437,6 +437,24 @@ export function BookingProvider({
       const data = await response.json();
       
       if (!response.ok) {
+        // Handle validation errors (4xx) differently from server errors (5xx)
+        if (response.status >= 400 && response.status < 500) {
+          // Client error (validation failure) - log as warning
+          loggers.bookingContext.warn('Pricing validation failed', {
+            error: data.error,
+            status: response.status,
+            propertySlug,
+            dates: { checkIn: state.checkInDate, checkOut: state.checkOutDate },
+            guestCount: state.guestCount
+          });
+          dispatch({ type: 'SET_PRICING', payload: { 
+            pricing: null, 
+            loading: false, 
+            error: data.error || 'Invalid booking parameters'
+          } });
+          return;
+        }
+        // Server error - throw to be caught and logged as error
         throw new Error(data.error || `HTTP ${response.status}`);
       }
       

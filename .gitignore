@@ -7,3 +7,15 @@ node_modules
 .env.local
 
 **/.claude/settings.local.json
+
+# Archives and migration artifacts
+# Uncomment the line below to exclude archive from git
+# /archive/
+
+# Development logs and debug output
+dev.log
+*.log
+
+# Test output and reports
+test-results/
+coverage/

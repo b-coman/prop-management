@@ -34,7 +34,7 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
-  const { tc, t } = useLanguage();
+  const { tc, t, currentLanguage } = useLanguage();
 
   // Removed session storage clearing - now handled by navigation flow
 
@@ -59,7 +59,7 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
 
     setIsLoading(true);
 
-    // Construct the URL for the availability check page (only dates)
+    // Construct the URL for the availability check page (path-based language detection)
     const checkIn = format(date!.from!, 'yyyy-MM-dd');
     const checkOut = format(date!.to!, 'yyyy-MM-dd');
     const params = new URLSearchParams({
@@ -67,8 +67,16 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
       checkOut,
     });
 
-    // Navigate to the new availability check page
-    router.push(`/booking/check/${property.slug}?${params.toString()}`);
+    // Current language is now available from component-level hook
+    
+    // Build path-based URL: /booking/check/slug/[language]?params
+    let bookingPath = `/booking/check/${property.slug}`;
+    if (currentLanguage && currentLanguage !== 'en') {
+      bookingPath += `/${currentLanguage}`;
+    }
+    
+    // Navigate to the new availability check page with path-based language
+    router.push(`${bookingPath}?${params.toString()}`);
     // Note: setIsLoading(false) will happen implicitly when navigation occurs
   };
 

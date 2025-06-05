@@ -1,86 +1,98 @@
-// src/app/login/page.tsx
+/**
+ * @fileoverview Simple login page
+ * @module app/login-simple
+ * 
+ * @description
+ * Clean, simple login page that works universally across all browsers.
+ * Uses redirect-only flow to avoid popup issues.
+ */
+
 'use client';
 
 import { useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/SimpleAuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
-// Inline SVG for Google icon
+// Google icon component
 const GoogleIcon = () => (
-    <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
-        <path fill="currentColor" d="M488 261.8C488 403.3 381.5 512 244 512 110.5 512 0 401.5 0 265.5S110.5 19 244 19c70.5 0 132.5 29 176.5 76.5l-66 66C314.5 124.5 280.5 108 244 108c-54.5 0-103 42-115.5 96H24l22.5-66.5c29.5-80 105-133.5 197.5-133.5 50 0 93.5 16.5 126.5 46.5l66-66C390 25.5 320.5 0 244 0 109.5 0 0 111.5 0 257.5s109.5 257.5 244 257.5c129.5 0 227-84.5 241.5-198.5H244v-95h244z"></path>
-    </svg>
+  <svg className="mr-2 h-4 w-4" viewBox="0 0 488 512">
+    <path fill="currentColor" d="M488 261.8C488 403.3 381.5 512 244 512 110.5 512 0 401.5 0 265.5S110.5 19 244 19c70.5 0 132.5 29 176.5 76.5l-66 66C314.5 124.5 280.5 108 244 108c-54.5 0-103 42-115.5 96H24l22.5-66.5c29.5-80 105-133.5 197.5-133.5 50 0 93.5 16.5 126.5 46.5l66-66C390 25.5 320.5 0 244 0 109.5 0 0 111.5 0 257.5s109.5 257.5 244 257.5c129.5 0 227-84.5 241.5-198.5H244v-95h244z"/>
+  </svg>
 );
 
-
-export default function LoginPage() {
-  const { user, signInWithGoogle, loading } = useAuth();
+export default function SimpleLoginPage() {
+  const { user, loading, signInWithGoogle } = useAuth();
   const router = useRouter();
 
-  console.log(`[LoginPage] Render. Auth Loading: ${loading}, User: ${user ? user.uid : 'null'}`);
+  console.log('[SimpleLogin] Render - loading:', loading, 'user:', user?.email || 'null');
 
   useEffect(() => {
-    console.log(`[LoginPage] useEffect triggered. Auth Loading: ${loading}, User: ${user ? user.uid : 'null'}`);
-    if (!loading) {
-      if (user) {
-        console.log("[LoginPage] User authenticated, redirecting to /admin...");
-        router.replace('/admin');
-      } else {
-        console.log("[LoginPage] User not authenticated after loading complete. Displaying login form.");
-      }
-    } else {
-      console.log("[LoginPage] Still loading auth state (AuthContext loading is true)...");
+    if (!loading && user) {
+      console.log('[SimpleLogin] User authenticated, redirecting to admin');
+      router.push('/admin');
     }
-  }, [user, loading, router]);
+  }, [loading, user, router]);
 
   if (loading) {
-    console.log("[LoginPage] Rendering: Loading indicator (AuthContext loading is true).");
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="ml-3 text-muted-foreground">Authenticating, please wait...</p>
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
       </div>
     );
   }
 
-  if (!user) {
-    console.log("[LoginPage] Rendering: Login form (AuthContext loading false, user is null).");
+  if (user) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
-        <Card className="w-full max-w-sm shadow-xl">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold">Admin Login</CardTitle>
-            <CardDescription>Sign in to access the admin panel.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              onClick={signInWithGoogle}
-              className="w-full"
-              disabled={loading} 
-              variant="outline"
-            >
-              {loading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <GoogleIcon />
-              )}
-              Sign in with Google
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Redirecting to admin...</p>
+        </div>
       </div>
     );
   }
 
-  // Fallback for the brief moment user is set but redirect hasn't happened yet (should be rare with replace)
-  console.log("[LoginPage] Rendering: Redirecting indicator (AuthContext loading false, user exists, waiting for useEffect).");
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      <p className="ml-3 text-muted-foreground">Redirecting to admin panel...</p>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
+      <Card className="w-full max-w-sm shadow-xl">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold">Admin Login</CardTitle>
+          <CardDescription>
+            Sign in to access the admin panel.
+            <br />
+            <span className="text-xs text-muted-foreground mt-2 block">
+              You will be redirected to Google for authentication.
+            </span>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            onClick={signInWithGoogle}
+            className="w-full"
+            disabled={loading}
+            variant="outline"
+          >
+            {loading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <GoogleIcon />
+            )}
+            Sign in with Google
+          </Button>
+          
+          <div className="mt-4 text-center">
+            <p className="text-xs text-muted-foreground">
+              Universal authentication - works on all browsers
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

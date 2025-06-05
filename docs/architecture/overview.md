@@ -19,7 +19,8 @@ The system manages short-term rental properties through:
 - **Multi-step booking flow** with availability check, guest info collection, optional inquiry/hold paths, and Stripe payment processing.
 - **Booking data storage** in Firestore (`bookings` collection), including 'on-hold' status.
 - **Inquiry data storage** in Firestore (`inquiries` collection).
-- **Availability data storage** per property per month (`availability` collection), including hold tracking.
+- **Availability data storage** per property per month (`availability` collection) as single source of truth, including hold tracking.
+- **Pricing data storage** per property per month (`priceCalendars` collection) for rate management and pricing calculations.
 - **Coupon management** system with Firestore storage (`coupons` collection) and admin interface.
 - **Admin interface** for managing coupons, properties, bookings (including holds), and inquiries.
 - **Frontend & backend validation** using Zod schemas.
@@ -34,6 +35,13 @@ The system manages short-term rental properties through:
 - **Currency Conversion:** Uses exchange rates stored in Firestore (`appConfig/currencyRates`) to display prices in user-selected currencies (USD, EUR, RON).
 - **Edge Runtime optimization** for better performance and serverless deployment.
 - **Scheduled Tasks (Cron):** Placeholder scripts exist for releasing expired holds and updating currency rates (requires deployment and scheduling).
+
+### 🆕 Recent Architecture Updates (June 2025)
+
+- **Availability Deduplication Completed**: Successfully migrated from dual-storage (availability + priceCalendars) to single-source architecture where `availability` collection is the authoritative source for availability data.
+- **Legacy Code Cleanup**: Removed all feature flags and legacy code paths related to the availability migration.
+- **Performance Improvements**: Simplified availability checking with single-source queries, reducing complexity and improving response times.
+- **Data Consistency**: Eliminated sync issues between availability and pricing data through clear separation of concerns.
 
 Initial support: 2 properties (Prahova Mountain Chalet, Coltei Apartment Bucharest)
 Designed for scalability.

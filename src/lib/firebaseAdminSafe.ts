@@ -14,7 +14,7 @@ export async function initializeFirebaseAdminSafe() {
     // Log initialization attempt
     console.log('[FIREBASE ADMIN SAFE] Starting initialization...');
 
-    // Check for service account environment variable
+    // Check for service account environment variable or path
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       console.log('[FIREBASE ADMIN SAFE] Found FIREBASE_SERVICE_ACCOUNT, attempting parse...');
       
@@ -27,6 +27,24 @@ export async function initializeFirebaseAdminSafe() {
         console.log('[FIREBASE ADMIN SAFE] ✅ Initialized with service account');
       } catch (parseError) {
         console.error('[FIREBASE ADMIN SAFE] ❌ Failed to parse service account:', parseError);
+        // Fall through to default initialization
+      }
+    } else if (process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_PATH) {
+      console.log('[FIREBASE ADMIN SAFE] Found FIREBASE_ADMIN_SERVICE_ACCOUNT_PATH, attempting to load file...');
+      
+      try {
+        const fs = await import('fs');
+        const serviceAccountPath = process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_PATH;
+        const serviceAccountJson = fs.readFileSync(serviceAccountPath, 'utf8');
+        const serviceAccount = JSON.parse(serviceAccountJson);
+        
+        _adminApp = admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount),
+          projectId: serviceAccount.project_id
+        });
+        console.log('[FIREBASE ADMIN SAFE] ✅ Initialized with service account from file');
+      } catch (fileError) {
+        console.error('[FIREBASE ADMIN SAFE] ❌ Failed to load service account from file:', fileError);
         // Fall through to default initialization
       }
     }

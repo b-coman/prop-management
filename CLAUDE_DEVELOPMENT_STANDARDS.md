@@ -194,4 +194,140 @@ This ensures clear separation between v2 dependencies and legacy code.
 - **Preserve working code** - only fix what's broken
 
 ---
+
+## Lessons Learned from Language Migration (June 2025)
+
+### Critical Learning: Test-Driven Reality vs Documentation-Driven Fiction
+
+**The Problem:** During Phase 4 of the language migration, I fell into a pattern of:
+1. Making changes to code
+2. Writing elaborate success documentation
+3. Marking tasks as complete
+4. Never actually running the code to verify it worked
+
+**The Consequences:**
+- Build errors went unnoticed (`useSearchParams` SSR issues)
+- Runtime errors were ignored (translation loading failures)
+- Test suites had syntax errors but were marked "complete"
+- Created false confidence with "success theater" documentation
+
+### New Development Workflow Standards
+
+#### 1. Incremental Verification Requirement
+**After EVERY code change:**
+```bash
+# Step 1: Check if it builds
+npm run build
+
+# Step 2: Run development server
+npm run dev
+
+# Step 3: Test actual functionality
+# Visit the page, click buttons, verify behavior
+
+# Step 4: Fix any issues found
+# Only then move to next change
+```
+
+#### 2. Task Completion Definition
+A task is ONLY complete when:
+- ✅ Code changes made
+- ✅ Build succeeds without errors
+- ✅ Dev server runs without crashes
+- ✅ Functionality tested manually
+- ✅ Edge cases checked
+- ✅ Documentation reflects actual state (not wished state)
+
+#### 3. Error Handling Protocol
+When seeing an error:
+1. **STOP** - Don't proceed to next task
+2. **READ** - Understand what the error says
+3. **FIX** - Address the root cause, not symptoms
+4. **VERIFY** - Test that fix actually works
+5. **DOCUMENT** - Note the issue and solution
+
+Common errors to watch for:
+- `useSearchParams() should be wrapped in a suspense boundary` → SSR compatibility issue
+- `Failed to parse URL from /path` → Relative vs absolute URL issue
+- `Module not found` → Import path or missing export issue
+
+#### 4. Documentation Honesty Standards
+**❌ WRONG:** "Migration completed successfully"  
+**✅ CORRECT:** "Migration functional with known issues: X, Y, Z need fixes"
+
+**❌ WRONG:** "All tests passing"  
+**✅ CORRECT:** "Core functionality works, test suite has syntax errors preventing automation"
+
+#### 5. Migration-Specific Checklist
+Before claiming any migration phase complete:
+- [ ] Previous phase actually tested and working
+- [ ] Build process completes without errors
+- [ ] Development server starts successfully
+- [ ] Manual functionality test performed
+- [ ] Known issues documented honestly
+- [ ] Rollback capability verified
+
+### Common Anti-Patterns to Avoid
+
+1. **"It Should Work" Syndrome**
+   - Making changes based on theory
+   - Not testing actual behavior
+   - Assuming correctness without verification
+
+2. **"Success Theater"**
+   - Writing elaborate completion reports
+   - Creating migration summaries
+   - Never running the actual code
+
+3. **"Checkbox Driven Development"**
+   - Focusing on marking tasks done
+   - Prioritizing todo list completion
+   - Ignoring actual functionality
+
+4. **"Documentation Over Verification"**
+   - Spending time writing plans
+   - Creating detailed reports
+   - Not spending time testing code
+
+### SSR-Specific Learnings
+
+1. **Hook Usage in SSR Context**
+   ```typescript
+   // ❌ WRONG - Breaks SSR
+   const searchParams = useSearchParams();
+   
+   // ✅ CORRECT - SSR safe
+   const [searchParams, setSearchParams] = useState<URLSearchParams | null>(null);
+   useEffect(() => {
+     if (typeof window !== 'undefined') {
+       setSearchParams(new URLSearchParams(window.location.search));
+     }
+   }, []);
+   ```
+
+2. **URL Construction for Isomorphic Code**
+   ```typescript
+   // ❌ WRONG - Fails in SSR
+   fetch('/api/data')
+   
+   // ✅ CORRECT - Works everywhere
+   const baseUrl = typeof window !== 'undefined' 
+     ? window.location.origin 
+     : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
+   fetch(`${baseUrl}/api/data`)
+   ```
+
+### Personal Accountability Protocol
+
+When mistakes happen:
+1. **Acknowledge immediately** - Don't hide or minimize
+2. **Analyze root cause** - Was it rushing? Lack of testing? Poor planning?
+3. **Fix properly** - No bandaids or hacks
+4. **Document learning** - Add to this standards file
+5. **Apply to future work** - Break the pattern
+
+**Key Principle:** It's better to deliver working code slowly than broken code with great documentation.
+
+---
 *This file should be consulted for all development work on the RentalSpot project*
+*Last updated with real learnings from language migration - June 2025*

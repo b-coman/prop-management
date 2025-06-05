@@ -1,52 +1,57 @@
-// src/app/admin/layout.tsx
-// Force Node.js runtime for the entire admin section
-export const runtime = 'nodejs';
-import { type ReactNode, Suspense } from 'react';
-import Link from 'next/link';
-import { cookies } from 'next/headers';
-import { Button } from '@/components/ui/button';
-import { Loader2, LayoutDashboard, Building, Ticket, MessageSquare, CalendarCheck } from 'lucide-react';
-import { AdminAuthCheck } from './AdminAuthCheck';
-import { ClientAdminNavbar } from './_components/ClientAdminNavbar';
-
 /**
- * Server-side admin layout with authentication check
+ * @fileoverview Simple admin layout with authentication
+ * @module app/admin-simple/layout
+ * 
+ * @description
+ * Clean admin layout with simple authentication protection.
  */
-export default function AdminLayout({ children }: { children: ReactNode }) {
-  // Check if we're in development mode
-  const isDevelopment = process.env.NODE_ENV === 'development';
 
+import { ReactNode } from 'react';
+import { SimpleAdminAuth } from '@/components/SimpleAdminAuth';
+import { ClientAdminNavbar } from './_components/ClientAdminNavbar';
+import { checkAuthentication } from '@/lib/simple-auth-helpers';
+
+interface AdminLayoutProps {
+  children: ReactNode;
+}
+
+export default async function SimpleAdminLayout({ children }: AdminLayoutProps) {
+  // Get auth status for display
+  const authResult = await checkAuthentication();
+  
   return (
-    <AdminAuthCheck>
+    <SimpleAdminAuth>
       <div className="flex min-h-screen flex-col">
+        {/* Navigation */}
         <ClientAdminNavbar />
 
-        {isDevelopment && (
-          <div className="bg-amber-500 text-amber-950 text-xs text-center py-1">
-            Development Mode - Authentication Bypassed
+        {/* Environment indicator */}
+        <div className="bg-blue-50 border-b border-blue-200 px-4 py-2">
+          <div className="container mx-auto">
+            <p className="text-sm text-blue-800">
+              ✅ Simple Authentication Active
+              {authResult.environment && (
+                <span className="ml-2 text-xs">({authResult.environment})</span>
+              )}
+            </p>
           </div>
-        )}
+        </div>
 
+        {/* Main content */}
         <main className="flex-grow container mx-auto py-8">
-          <Suspense fallback={
-            <div className="flex min-h-screen items-center justify-center">
-              <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <p className="ml-3 text-muted-foreground">Loading...</p>
-            </div>
-          }>
-            {children}
-          </Suspense>
+          {children}
         </main>
 
+        {/* Footer */}
         <footer className="border-t bg-muted/50">
-          <div className="container py-4 text-center text-xs text-muted-foreground">
+          <div className="container mx-auto py-4 text-center text-xs text-muted-foreground">
             RentalSpot Admin Panel &copy; {new Date().getFullYear()}
-            {isDevelopment && (
-              <span className="ml-2 text-amber-600 font-medium">Development Mode</span>
-            )}
+            <span className="ml-2 text-green-600 font-medium">
+              Simple Auth v2.0
+            </span>
           </div>
         </footer>
       </div>
-    </AdminAuthCheck>
+    </SimpleAdminAuth>
   );
 }

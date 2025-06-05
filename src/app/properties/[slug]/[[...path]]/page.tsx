@@ -5,7 +5,7 @@ import { collection, doc, getDoc, getDocs, query, where, Timestamp } from 'fireb
 import { db } from '@/lib/firebase';
 import { PropertyPageRenderer } from '@/components/property/property-page-renderer';
 import { websiteTemplateSchema, propertyOverridesSchema } from '@/lib/overridesSchemas-multipage';
-import { LanguageProvider } from '@/contexts/LanguageContext';
+import { LanguageProvider } from '@/lib/language-system';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
 
 export const dynamic = 'force-dynamic'; // Ensures the page is always dynamically rendered

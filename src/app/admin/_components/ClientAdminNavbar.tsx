@@ -5,20 +5,20 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { LogOut, LayoutDashboard, Building, Ticket, MessageSquare, CalendarCheck, Sliders } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/SimpleAuthContext';
 
 /**
  * Client-side admin navbar component
  */
 export function ClientAdminNavbar() {
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Handle logout
   const handleLogout = async () => {
-    await logout();
+    await signOut();
     router.push('/login');
   };
 

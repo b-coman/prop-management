@@ -17,6 +17,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Loader2, ArrowRight, Mail, Phone as PhoneIcon, TicketPercent, X, CreditCard } from 'lucide-react';
 import { useBooking } from '../contexts';
+import { useLanguage } from '@/lib/language-system';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
@@ -29,17 +30,17 @@ import type { Property, PriceCalculationResult } from '@/types';
 import { TouchTarget } from '@/components/ui/touch-target';
 import { InteractionFeedback } from '@/components/ui/interaction-feedback';
 
-// Schema for the booking form (preserved from V1)
-const bookingFormSchema = z.object({
-  firstName: z.string().min(1, "First name is required.").transform(sanitizeText),
-  lastName: z.string().min(1, "Last name is required.").transform(sanitizeText),
-  email: z.string().email("Invalid email address.").transform(sanitizeEmail),
-  phone: z.string().min(1, "Phone number is required.").transform(sanitizePhone),
-  couponCode: z.string().optional(),
-});
+// Schema will be created inside component with translations
+type BookingFormValues = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  couponCode?: string;
+};
 
 interface BookingFormV2Props {
-  onSubmit: (values: z.infer<typeof bookingFormSchema>, pricingDetails: PriceCalculationResult | null, appliedCoupon: any | null, selectedCurrency: string) => Promise<void>;
+  onSubmit: (values: BookingFormValues, pricingDetails: PriceCalculationResult | null, appliedCoupon: any | null, selectedCurrency: string) => Promise<void>;
   isProcessing: boolean;
   isPending: boolean;
   formError?: string | null;
@@ -63,6 +64,17 @@ export function BookingFormV2({
   pricingDetails,
   selectedCurrency
 }: BookingFormV2Props) {
+  const { t } = useLanguage();
+  
+  // Create schema with translations
+  const bookingFormSchema = z.object({
+    firstName: z.string().min(1, t('booking.firstNameRequired', 'First name is required.')).transform(sanitizeText),
+    lastName: z.string().min(1, t('booking.lastNameRequired', 'Last name is required.')).transform(sanitizeText),
+    email: z.string().email(t('booking.invalidEmail', 'Invalid email address.')).transform(sanitizeEmail),
+    phone: z.string().min(1, t('booking.phoneRequired', 'Phone number is required.')).transform(sanitizePhone),
+    couponCode: z.string().optional(),
+  });
+  
   // Get data from V2 booking context
   const {
     property,
@@ -154,7 +166,7 @@ export function BookingFormV2({
           discountPercentage: result.discountPercentage 
         });
         toast({
-          title: "Coupon Applied!",
+          title: t('booking.couponApplied', 'Coupon Applied!'),
           description: `Successfully applied ${result.discountPercentage}% discount.`,
         });
       }
@@ -170,7 +182,7 @@ export function BookingFormV2({
     setAppliedCoupon(null);
     setCouponCode('');
     setCouponError(null);
-    toast({ title: "Coupon Removed" });
+    toast({ title: t('booking.couponRemoved', 'Coupon Removed') });
   };
 
   const handleSubmit = async (values: z.infer<typeof bookingFormSchema>) => {
@@ -202,11 +214,11 @@ export function BookingFormV2({
                   name="firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>First Name</FormLabel>
+                      <FormLabel>{t('booking.firstName', 'First Name')}</FormLabel>
                       <FormControl>
                         <TouchTarget>
                           <Input 
-                            placeholder="Enter your first name" 
+                            placeholder={t('booking.enterFirstName', 'Enter your first name')} 
                             {...field}
                             onChange={(e) => {
                               field.onChange(e);
@@ -226,11 +238,11 @@ export function BookingFormV2({
                   name="lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Last Name</FormLabel>
+                      <FormLabel>{t('booking.lastName', 'Last Name')}</FormLabel>
                       <FormControl>
                         <TouchTarget>
                           <Input 
-                            placeholder="Enter your last name" 
+                            placeholder={t('booking.enterLastName', 'Enter your last name')} 
                             {...field}
                             onChange={(e) => {
                               field.onChange(e);
@@ -253,14 +265,14 @@ export function BookingFormV2({
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email Address</FormLabel>
+                      <FormLabel>{t('booking.emailAddress', 'Email Address')}</FormLabel>
                       <FormControl>
                         <TouchTarget>
                           <div className="relative">
                             <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
                               type="email"
-                              placeholder="Enter your email address" 
+                              placeholder={t('booking.enterEmail', 'Enter your email address')} 
                               className="pl-10"
                               {...field}
                               onChange={(e) => {
@@ -282,14 +294,14 @@ export function BookingFormV2({
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone Number</FormLabel>
+                      <FormLabel>{t('booking.phoneNumber', 'Phone Number')}</FormLabel>
                       <FormControl>
                         <TouchTarget>
                           <div className="relative">
                             <PhoneIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
                               type="tel"
-                              placeholder="Enter your phone number" 
+                              placeholder={t('booking.enterPhone', 'Enter your phone number')} 
                               className="pl-10"
                               {...field}
                               onChange={(e) => {
@@ -314,7 +326,7 @@ export function BookingFormV2({
               
               <div className="flex gap-2">
                 <Input 
-                  placeholder="Enter coupon code" 
+                  placeholder={t('booking.enterCouponCode', 'Enter coupon code')} 
                   value={couponCode} 
                   onChange={(e) => setCouponCode(e.target.value)} 
                   disabled={isApplyingCoupon || !!appliedCoupon || isFormDisabled} 
