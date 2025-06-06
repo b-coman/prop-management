@@ -26,3 +26,81 @@ dev.log
 # Test output and reports
 test-results/
 coverage/
+*.lcov
+.nyc_output/
+
+# TypeScript build artifacts
+*.tsbuildinfo
+*.buildinfo
+
+# Backup and temporary files (your codebase has many .backup files)
+*.backup
+*.bak
+*.tmp
+*.temp
+*~
+
+# OS-specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Editor files
+*.swp
+*.swo
+*~
+.idea/
+*.sublime-*
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+
+# Environment files (beyond .env.local)
+.env
+.env.*.local
+.env.development
+.env.staging
+.env.production
+!.env.example
+!.env.local.example
+
+# Firebase specific
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Next.js specific enhancements
+.next/
+out/
+build/
+dist/
+
+# Vercel deployment
+.vercel/
+
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Playwright test artifacts
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Package manager lockfiles (keep your preferred one)
+# Uncomment to ignore yarn.lock if using npm
+# yarn.lock
+# Uncomment to ignore package-lock.json if using yarn
+# package-lock.json
+
+# Runtime and cache directories
+.cache/
+.parcel-cache/
+.turbo/
