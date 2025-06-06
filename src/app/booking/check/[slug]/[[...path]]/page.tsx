@@ -231,6 +231,7 @@ export default async function BookingCheckPage({ params, searchParams }: Booking
               property={property}
               initialCurrency={currency as any}
               initialLanguage={detectedLanguage}
+              themeId={propertyThemeId}
             />
           </BookingClientLayout>
         </Suspense>

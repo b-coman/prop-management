@@ -1,8 +1,65 @@
+/**
+ * @fileoverview Modern property page renderer supporting both multipage and homepage layouts
+ * @module components/property/property-page-renderer
+ * @description Unified rendering system for property pages with template-driven content,
+ *              theme support, and enhanced homepage integration with full property data
+ * 
+ * @author Claude AI Assistant
+ * @since 2025-06-06
+ * @lastModified 2025-06-06
+ * 
+ * @dependencies
+ * - React: Component architecture and hooks
+ * - Next.js: Client-side rendering
+ * - Theme system: Dynamic theme switching and preview
+ * - Component library: All homepage and multipage block components
+ * 
+ * @usage
+ * ```typescript
+ * // Multipage rendering
+ * <PropertyPageRenderer
+ *   template={template}
+ *   overrides={overrides}
+ *   propertyName="Property Name"
+ *   propertySlug="property-slug"
+ *   pageName="details"
+ * />
+ * 
+ * // Homepage rendering with full property integration
+ * <PropertyPageRenderer
+ *   template={template}
+ *   overrides={overrides}
+ *   propertyName="Property Name" 
+ *   propertySlug="property-slug"
+ *   pageName="homepage"
+ *   property={fullPropertyObject}
+ * />
+ * ```
+ * 
+ * @components
+ * Supports both modern and legacy component types:
+ * - Modern: hero, experience, host, features, location, testimonials, gallery, cta
+ * - Multipage: pageHeader, amenitiesList, roomsList, specificationsList, pricingTable, fullMap, etc.
+ * - Legacy aliases: propertyDetailsSection→SpecificationsList, amenitiesSection→AmenitiesList,
+ *   rulesSection→PoliciesList, mapSection→FullMap, contactSection→FullBookingForm
+ * 
+ * @performance
+ * - Client-side only rendering to avoid hydration issues
+ * - Error boundaries around each block to prevent cascading failures
+ * - Lazy theme loading and URL-based theme preview
+ * 
+ * @testing
+ * - Visual regression tests for consistent rendering
+ * - Homepage property data integration tests
+ * - Theme switching and preview functionality tests
+ */
+
 // src/components/property/property-page-renderer.tsx
 "use client";
 
 import { useEffect, useState } from 'react';
 import { WebsiteTemplate, PropertyOverrides, BlockReference } from '@/lib/overridesSchemas-multipage';
+import type { Property } from '@/types';
 import { blockSchemas } from '@/lib/overridesSchemas-multipage';
 import { Header } from '@/components/generic-header-multipage';
 import { Footer } from '@/components/footer';
@@ -64,6 +121,13 @@ const blockComponents: Record<string, React.FC<{ content: any; language?: string
   photoCategories: PhotoCategories,
   fullBookingForm: FullBookingForm,
   policiesList: PoliciesList,
+  
+  // Legacy component aliases for backward compatibility
+  propertyDetailsSection: SpecificationsList,
+  amenitiesSection: AmenitiesList,
+  rulesSection: PoliciesList,
+  mapSection: FullMap,
+  contactSection: FullBookingForm, // Legacy unused component
 };
 
 interface PropertyPageRendererProps {
@@ -74,6 +138,8 @@ interface PropertyPageRendererProps {
   pageName: string; // Which page to render (e.g., homepage, details, etc.)
   themeId?: string; // The theme ID to use for this property
   language?: string; // The current language
+  // Homepage-specific props for property data integration
+  property?: Property; // Full property object for homepage rendering
 }
 
 export function PropertyPageRenderer({
@@ -84,6 +150,7 @@ export function PropertyPageRenderer({
   pageName,
   themeId = DEFAULT_THEME_ID,
   language = 'en',
+  property, // Homepage-specific property data
 }: PropertyPageRendererProps) {
   const [isClient, setIsClient] = useState(false);
   const [effectiveThemeId, setEffectiveThemeId] = useState<string | null>(null);
@@ -270,27 +337,41 @@ export function PropertyPageRenderer({
 
       // For components that need property data, add it to the content
       if (type === 'hero') {
+        // Enhanced hero data for homepage with property integration
+        const isHomepage = pageName === 'homepage';
         
         // For hero component, add property data needed for booking form
         blockContent = {
           ...blockContent,
           propertySlug: propertySlug,
+          // Homepage-specific property data integration
+          ...(isHomepage && property && {
+            // Use property images for background if not explicitly overridden
+            backgroundImage: blockContent.backgroundImage || 
+                           property.images?.find(img => img.isFeatured)?.url || 
+                           property.images?.[0]?.url || 
+                           blockContent.backgroundImage,
+            'data-ai-hint': blockContent['data-ai-hint'] || 
+                          property.images?.find(img => img.isFeatured)?.['data-ai-hint'] || 
+                          property.images?.[0]?.['data-ai-hint'],
+          }),
           // Add property data if not already included
-          bookingFormProperty: blockContent.bookingFormProperty || {
+          bookingFormProperty: blockContent.bookingFormProperty || (property || {
             id: propertySlug,
             slug: propertySlug,
             name: propertyName,
             // Default values for booking form
-            baseCurrency: 'EUR',
-            baseRate: 150, // Default price per night
-            advertisedRate: 150, // Default advertised rate
-            advertisedRateType: "from",
-            minNights: 2,
+            baseCurrency: property?.baseCurrency || 'EUR',
+            baseRate: property?.pricePerNight || 150,
+            advertisedRate: property?.advertisedRate || property?.pricePerNight || 150,
+            advertisedRateType: property?.advertisedRateType || "from",
+            minNights: property?.defaultMinimumStay || 2,
             maxNights: 14,
-            maxGuests: 6
-          },
+            maxGuests: property?.maxGuests || 6,
+            ratings: property?.ratings
+          }),
           // Add price if not already set
-          price: blockContent.price !== undefined ? blockContent.price : 150,
+          price: blockContent.price !== undefined ? blockContent.price : (property?.pricePerNight || 150),
           // Only use showBookingForm value exactly as provided in Firestore
           showBookingForm: blockContent.showBookingForm, 
         };
@@ -319,6 +400,40 @@ export function PropertyPageRenderer({
           ...blockContent,
           propertySlug: propertySlug,
         };
+      } else if (pageName === 'homepage' && property) {
+        // Homepage-specific enhancements for other component types
+        if (type === 'experience') {
+          blockContent = {
+            title: blockContent?.title || "Experience Our Property",
+            description: blockContent?.description || "Discover the unique charm and comfort of your stay.",
+            highlights: blockContent?.highlights || [],
+            ...blockContent
+          };
+        } else if (type === 'host') {
+          blockContent = {
+            name: blockContent?.name || "Your Host",
+            imageUrl: blockContent?.imageUrl || blockContent?.image || null,
+            description: blockContent?.description || "We're delighted to welcome you!",
+            backstory: blockContent?.backstory || "We strive to make your stay exceptional.",
+            'data-ai-hint': blockContent?.['data-ai-hint'] || 'host portrait friendly',
+            ...blockContent
+          };
+        } else if (type === 'location') {
+          blockContent = {
+            title: blockContent?.title || "Explore the Surroundings",
+            propertyLocation: property.location,
+            attractions: blockContent?.attractions || [],
+            ...blockContent
+          };
+        } else if (type === 'testimonials') {
+          blockContent = {
+            title: blockContent?.title || "What Our Guests Say",
+            overallRating: property.ratings?.average || 0,
+            reviews: blockContent?.reviews || [],
+            showRating: blockContent?.showRating,
+            ...blockContent
+          };
+        }
       }
 
       // Wrap each block in an error boundary to prevent one block from breaking entire page

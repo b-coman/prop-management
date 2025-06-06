@@ -29,6 +29,8 @@ import Link from 'next/link';
 import { CurrencySwitcherSimple } from '@/components/currency-switcher-simple';
 import { LanguageSelector } from '@/components/language-selector';
 import { useLanguage } from '@/hooks/useLanguage';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useEffect, useState } from 'react';
 
 import { useBooking } from '../contexts';
 import { useCurrency } from '@/contexts/CurrencyContext';
@@ -39,6 +41,7 @@ interface BookingPageV2Props {
   property: Property;
   initialCurrency?: CurrencyCode;
   initialLanguage?: string;
+  themeId?: string;
   className?: string;
 }
 
@@ -451,9 +454,26 @@ function BookingPageContent({ className }: { className?: string }) {
 export function BookingPageV2({ 
   property, 
   initialCurrency, 
-  initialLanguage, 
+  initialLanguage,
+  themeId,
   className 
 }: BookingPageV2Props) {
+  const { setTheme } = useTheme();
+  const [isMounted, setIsMounted] = useState(false);
+  
+  // Prevent hydration issues by waiting for client mount
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  
+  // Apply property theme only after hydration is complete
+  useEffect(() => {
+    if (isMounted && themeId && themeId !== 'airbnb') {
+      console.log(`🎨 [V2] Applying property theme: ${themeId}`);
+      setTheme(themeId);
+    }
+  }, [isMounted, themeId, setTheme]);
+
   return (
     <BookingProvider
       property={property}

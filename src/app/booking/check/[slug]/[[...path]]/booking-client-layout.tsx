@@ -341,7 +341,7 @@ export default function BookingClientLayout({ children, propertySlug, heroImage,
         />}
       >
         {FEATURES.BOOKING_V2 ? (
-          // V2: Don't wrap with V1 BookingProvider, let BookingPageV2 handle its own provider
+          // V2: Theme handled directly in BookingPageV2 component
           children
         ) : (
           // V1: Use the original BookingProvider

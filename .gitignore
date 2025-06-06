@@ -5,12 +5,19 @@
 rentalspot-*-firebase-*.json
 node_modules
 .env.local
+CLAUDE.md
+CLAUDE_DEVELOPMENT_STANDARDS.md
+rentalspot-fzwom-firebase-adminsdk-fbsvc-501458abe7.json
+rentalspot-fzwom-firebase-adminsdk-fbsvc-1ec4294c56.json
 
 **/.claude/settings.local.json
 
 # Archives and migration artifacts
 # Uncomment the line below to exclude archive from git
-# /archive/
+/archive/
+
+# GitHub Project Manager - Development tool, exclude from builds and syncs
+/_github-pm-project/
 
 # Development logs and debug output
 dev.log

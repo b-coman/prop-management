@@ -2,7 +2,7 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import type { Property, WebsiteTemplate, PropertyOverrides } from '@/types';
-import { PropertyPageLayout } from '@/components/property/property-page-layout';
+import { PropertyPageRenderer } from '@/components/property/property-page-renderer';
 import { getWebsiteTemplate, getPropertyOverrides } from '@/app/properties/[slug]/[[...path]]/page'; // Import shared functions
 import { getPropertyBySlug } from '@/lib/property-utils';
 // AuthProvider removed, context will be consumed from root layout
@@ -91,10 +91,14 @@ export default async function HomePage() {
   return (
     // AuthProvider removed
     <Suspense fallback={<div>Loading homepage...</div>}>
-      <PropertyPageLayout
-        property={property}
+      <PropertyPageRenderer
         template={template}
         overrides={overrides}
+        propertyName={typeof property.name === 'string' ? property.name : (property.name.en || property.name.ro || 'Property')}
+        propertySlug={defaultPropertySlug}
+        pageName="homepage"
+        themeId={property.themeId}
+        property={property}
       />
     </Suspense>
   );
