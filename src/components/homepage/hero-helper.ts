@@ -571,17 +571,17 @@ export function setupHeroContentAdjustment(): () => void {
       // Apply styling based on the position+size combination
       if (handlerKey in positionStyleHandlers) {
         // Use the specific handler for this position+size
-        positionStyleHandlers[handlerKey](formWrapperElement, handlerParams);
+        (positionStyleHandlers as any)[handlerKey](formWrapperElement, handlerParams);
         console.log(`[HeroHelper] Applied styling via handler for "${handlerKey}"`);
       } else {
         // If specific handler not found, try to find a default for the position
         const positionHandler = `${positionAttribute}-default`;
         if (positionHandler in positionStyleHandlers) {
-          positionStyleHandlers[positionHandler](formWrapperElement, handlerParams);
+          (positionStyleHandlers as any)[positionHandler](formWrapperElement, handlerParams);
           console.log(`[HeroHelper] Applied default styling for position "${positionAttribute}"`);
         } else {
           // Fallback to the default handler
-          positionStyleHandlers['default'](formWrapperElement, handlerParams);
+          (positionStyleHandlers as any)['default'](formWrapperElement, handlerParams);
           console.log(`[HeroHelper] Applied default styling (no specific handler for "${handlerKey}")`);
         }
       }

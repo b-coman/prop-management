@@ -104,7 +104,7 @@ const createLargeTranslationObject = (size: number) => {
   return translations;
 };
 
-const measureExecutionTime = async <T>(
+const measureExecutionTime = async <T,>(
   fn: () => Promise<T> | T,
   iterations: number = 1
 ): Promise<{ result: T; averageTime: number; minTime: number; maxTime: number }> => {

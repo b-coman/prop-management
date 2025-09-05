@@ -45,7 +45,7 @@ try {
   const invalidDay = { ...dayData, basePrice: -100 };
   validatePriceCalendarDay(invalidDay); // This should throw an error
 } catch (error) {
-  console.error("Validation error:", error.message);
+  console.error("Validation error:", (error as Error).message);
 }
 
 // Example 2: Converting a Firestore data format to our schema format
@@ -93,7 +93,7 @@ try {
     sampleDay: normalized.days["1"]
   });
 } catch (error) {
-  console.error("Normalization error:", error.message);
+  console.error("Normalization error:", (error as Error).message);
 }
 
 // Example 3: Creating a new price calendar using the schema
@@ -151,5 +151,5 @@ try {
     days: Object.keys(validCalendar.days).length
   });
 } catch (error) {
-  console.error("Validation error:", error.message);
+  console.error("Validation error:", (error as Error).message);
 }

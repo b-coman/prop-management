@@ -15,7 +15,7 @@ function safeJsonParse<T>(value: string | null): T | string | boolean | number |
     if (trimmedValue.toLowerCase() === 'true') return true;
     if (trimmedValue.toLowerCase() === 'false') return false;
     if (trimmedValue === 'null') return null;
-    if (trimmedValue === 'undefined') return undefined; // Handle stored 'undefined' string
+    if (trimmedValue === 'undefined') return null; // Handle stored 'undefined' string
 
     // Check if it's a number string (handle potential leading/trailing spaces)
     // Ensure it's not an empty string before converting to number

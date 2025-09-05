@@ -64,8 +64,8 @@ function BookingPageContent({ className }: { className?: string }) {
 
   // Check if we have valid booking data
   const hasValidDates = checkInDate && checkOutDate;
-  const hasValidPricing = pricing && pricing.totalPrice > 0;
-  const canShowBookingOptions = hasValidDates && hasValidPricing;
+  const hasValidPricing = !!(pricing && pricing.totalPrice > 0);
+  const canShowBookingOptions = !!(hasValidDates && hasValidPricing);
 
   const propertyName = typeof property.name === 'string' ? property.name : property.name.en;
 
@@ -266,16 +266,16 @@ function BookingPageContent({ className }: { className?: string }) {
                       checkOutDate: checkOutDate!.toISOString(),
                       numberOfGuests: guestCount,
                       pricing: {
-                        baseRate: pricingDetails!.baseRate,
+                        baseRate: pricingDetails!.baseRate || pricingDetails!.basePrice || 0,
                         numberOfNights: pricingDetails!.numberOfNights,
                         cleaningFee: pricingDetails!.cleaningFee || 0,
-                        extraGuestFee: pricingDetails!.extraGuestFee,
+                        extraGuestFee: pricingDetails!.extraGuestFee || pricingDetails!.extraGuestFeeTotal || 0,
                         numberOfExtraGuests: pricingDetails!.numberOfExtraGuests,
-                        accommodationTotal: pricingDetails!.accommodationTotal,
+                        accommodationTotal: pricingDetails!.accommodationTotal || pricingDetails!.subtotal || 0,
                         subtotal: pricingDetails!.subtotal,
-                        taxes: pricingDetails!.taxes,
+                        taxes: pricingDetails!.taxes || 0,
                         discountAmount: pricingDetails!.discountAmount,
-                        total: pricingDetails!.totalPrice,
+                        total: pricingDetails!.totalPrice || pricingDetails!.total || 0,
                         currency: selectedCurrency as any
                       },
                       status: 'pending',
@@ -294,7 +294,7 @@ function BookingPageContent({ className }: { className?: string }) {
                       checkInDate: checkInDate!.toISOString(),
                       checkOutDate: checkOutDate!.toISOString(),
                       numberOfGuests: guestCount,
-                      totalPrice: pricingDetails!.totalPrice,
+                      totalPrice: pricingDetails!.totalPrice || pricingDetails!.total || 0,
                       numberOfNights: pricingDetails!.numberOfNights,
                       guestFirstName: values.firstName,
                       guestLastName: values.lastName,

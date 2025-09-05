@@ -6,3 +6,15 @@ export function isFirestoreAdminAvailable(): boolean {
 }
 
 export const dbAdmin = null;
+
+export async function getAdminProperties(): Promise<any[]> {
+  return [];
+}
+
+export async function getAdminSeasonalPricing(propertyId: string): Promise<any[]> {
+  return [];
+}
+
+export async function getAdminDateOverrides(propertyId: string): Promise<any[]> {
+  return [];
+}

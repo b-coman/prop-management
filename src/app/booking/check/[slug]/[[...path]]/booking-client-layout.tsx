@@ -264,9 +264,9 @@ function BookingClientInner({
       // Small delay to ensure context state has been updated
       const timer = setTimeout(() => {
         console.log(`[BookingClientInner] Fetching pricing for dates from URL`);
-        fetchPricing().catch(error => {
-          console.error('[BookingClientInner] Error fetching pricing:', error);
-        });
+        // fetchPricing().catch(error => {
+        //   console.error('[BookingClientInner] Error fetching pricing:', error);
+        // });
       }, 300); // 300ms delay to ensure dates are set in context
 
       return () => clearTimeout(timer);

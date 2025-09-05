@@ -222,13 +222,14 @@ export default function ClientPriceCalendarManager({ propertyId }: ClientPriceCa
         
         // Add days to the calendar
         const daysInMonth = new Date(year, month, 0).getDate();
+        const calendarDays: Record<string, PriceCalendarDay> = {};
         for (let day = 1; day <= daysInMonth; day++) {
           // Simple price calculation - base 100 + weekend adjustment
           const date = new Date(year, month - 1, day);
           const isWeekend = date.getDay() === 0 || date.getDay() === 6;
           const basePrice = isWeekend ? 120 : 100;
           
-          calendar.days[day.toString()] = {
+          calendarDays[day.toString()] = {
             baseOccupancyPrice: basePrice,
             prices: {
               '3': basePrice + 20,
@@ -239,6 +240,7 @@ export default function ClientPriceCalendarManager({ propertyId }: ClientPriceCa
             priceSource: isWeekend ? 'weekend' : 'base'
           };
         }
+        calendar.days = calendarDays;
         
         // Add to Firestore
         await addDoc(calendarCollection, calendar);

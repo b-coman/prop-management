@@ -58,6 +58,7 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
         checkInDate: null,
         checkOutDate: null,
         numberOfNights: 0,
+        numberOfGuests: 2,
         firstName: '',
         lastName: '',
         email: '',
@@ -70,6 +71,7 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
         setMessage: () => {},
         setCheckInDate: () => {},
         setCheckOutDate: () => {},
+        setNumberOfGuests: () => {},
       };
     }
   }, []);
@@ -268,9 +270,6 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
     }
     return null;
   })();
-  
-  // Only use dynamic pricing - no fallback
-  const pricingDetailsInBaseCurrency = null;
 
 
   // Set mounted flag and load unavailable dates on first render
@@ -509,8 +508,8 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
         },
         message: values.message,
         // Convert the price to the selected currency
-        totalPrice: pricingDetailsInBaseCurrency
-          ? convertToSelectedCurrency(pricingDetailsInBaseCurrency.total, pricingDetailsInBaseCurrency.currency)
+        totalPrice: dynamicPricingDetails
+          ? convertToSelectedCurrency(dynamicPricingDetails.total, dynamicPricingDetails.currency)
           : undefined,
         currency: selectedCurrency,
       };
@@ -900,14 +899,14 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
                     );
 
                     console.log(`[AvailabilityCheckContainer] 💰 RECALCULATED price details:`, {
-                      basePrice: recalculatedPrice.basePrice,
-                      extraGuestFee: recalculatedPrice.extraGuestFeeTotal,
-                      cleaningFee: recalculatedPrice.cleaningFee,
-                      subtotal: recalculatedPrice.subtotal,
-                      total: recalculatedPrice.total,
-                      currency: recalculatedPrice.currency,
+                      basePrice: recalculatedPrice?.basePrice,
+                      extraGuestFee: recalculatedPrice?.extraGuestFeeTotal,
+                      cleaningFee: recalculatedPrice?.cleaningFee,
+                      subtotal: recalculatedPrice?.subtotal,
+                      total: recalculatedPrice?.total,
+                      currency: recalculatedPrice?.currency,
                       numberOfGuests: newCount,
-                      extraGuests: recalculatedPrice.numberOfExtraGuests
+                      extraGuests: recalculatedPrice?.numberOfExtraGuests
                     });
                   } else {
                     console.log(`[AvailabilityCheckContainer] 💰 Cannot recalculate price - missing required inputs`);
@@ -959,14 +958,14 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
                     );
 
                     console.log(`[AvailabilityCheckContainer] 💰 RECALCULATED price details:`, {
-                      basePrice: recalculatedPrice.basePrice,
-                      extraGuestFee: recalculatedPrice.extraGuestFeeTotal,
-                      cleaningFee: recalculatedPrice.cleaningFee,
-                      subtotal: recalculatedPrice.subtotal,
-                      total: recalculatedPrice.total,
-                      currency: recalculatedPrice.currency,
+                      basePrice: recalculatedPrice?.basePrice,
+                      extraGuestFee: recalculatedPrice?.extraGuestFeeTotal,
+                      cleaningFee: recalculatedPrice?.cleaningFee,
+                      subtotal: recalculatedPrice?.subtotal,
+                      total: recalculatedPrice?.total,
+                      currency: recalculatedPrice?.currency,
                       numberOfGuests: newCount,
-                      extraGuests: recalculatedPrice.numberOfExtraGuests
+                      extraGuests: recalculatedPrice?.numberOfExtraGuests
                     });
                   } else {
                     console.log(`[AvailabilityCheckContainer] 💰 Cannot recalculate price - missing required inputs`);
@@ -1042,7 +1041,7 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
                     onSubmit={onInquirySubmit}
                     isProcessing={isProcessingBooking}
                     isPending={isPending}
-                    pricingDetails={pricingDetailsInBaseCurrency}
+                    pricingDetails={dynamicPricingDetails}
                     selectedCurrency={selectedCurrency}
                   />
                 </div>
@@ -1056,7 +1055,8 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
                     isProcessing={isProcessingBooking}
                     isPending={isPending}
                     formError={formError}
-                    pricingDetails={pricingDetailsInBaseCurrency}
+                    setFormError={setFormError}
+                    pricingDetails={dynamicPricingDetails}
                     selectedCurrency={selectedCurrency}
                     onSubmit={handleHoldDates}
                   />
@@ -1071,9 +1071,10 @@ function AvailabilityCheckContainer({ property, initialCheckIn, initialCheckOut 
                     isProcessing={isProcessingBooking}
                     isPending={isPending}
                     formError={formError}
+                    setFormError={setFormError}
                     lastErrorType={lastErrorType}
                     canRetryError={canRetryError}
-                    pricingDetails={pricingDetailsInBaseCurrency}
+                    pricingDetails={dynamicPricingDetails}
                     appliedCoupon={appliedCoupon}
                     setAppliedCoupon={setAppliedCoupon}
                     selectedCurrency={selectedCurrency}

@@ -145,7 +145,7 @@ export function PricingSummary({
                   )}
 
                   {/* Taxes */}
-                  {pricing.taxes > 0 && (
+                  {pricing.taxes && pricing.taxes > 0 && (
                     <div className="flex justify-between items-center">
                       <span className="text-sm">{t('booking.taxes', 'Taxes')}</span>
                       <span className="text-sm">{formatPrice(convertToSelectedCurrency(pricing.taxes, pricing.currency))}</span>
@@ -162,7 +162,7 @@ export function PricingSummary({
 
                   {pricing.couponDiscount && pricing.couponDiscount.discountAmount > 0 && (
                     <div className="flex justify-between items-center text-green-600">
-                      <span className="text-sm">{t('booking.couponDiscount', 'Coupon discount ({{percentage}}%)', { percentage: pricing.couponDiscount.discountPercentage })}</span>
+                      <span className="text-sm">{t('booking.couponDiscount', 'Coupon discount ({{code}})', { code: pricing.couponDiscount.code })}</span>
                       <span className="text-sm">-{formatPrice(convertToSelectedCurrency(pricing.couponDiscount.discountAmount, pricing.currency))}</span>
                     </div>
                   )}

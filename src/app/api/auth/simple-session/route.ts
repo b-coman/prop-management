@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       const sessionToken = Buffer.from(JSON.stringify(sessionData)).toString('base64');
       
       // Set session cookie
-      const cookieStore = cookies();
+      const cookieStore = await cookies();
       cookieStore.set('auth-session', sessionToken, {
         httpOnly: true,
         secure: false, // Development only
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
         
         const sessionToken = Buffer.from(JSON.stringify(sessionData)).toString('base64');
         
-        const cookieStore = cookies();
+        const cookieStore = await cookies();
         cookieStore.set('auth-session', sessionToken, {
           httpOnly: true,
           secure: true,
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Set Firebase session cookie
-      const cookieStore = cookies();
+      const cookieStore = await cookies();
       cookieStore.set('auth-session', sessionCookie, {
         httpOnly: true,
         secure: true,
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
       
       const sessionToken = Buffer.from(JSON.stringify(sessionData)).toString('base64');
       
-      const cookieStore = cookies();
+      const cookieStore = await cookies();
       cookieStore.set('auth-session', sessionToken, {
         httpOnly: true,
         secure: true,
@@ -191,7 +191,7 @@ export async function GET() {
   console.log('[SimpleSession] GET - Checking session');
   
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const sessionCookie = cookieStore.get('auth-session');
 
     if (!sessionCookie?.value) {
@@ -270,7 +270,7 @@ export async function DELETE() {
   console.log('[SimpleSession] DELETE - Clearing session');
   
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.delete('auth-session');
 
     return NextResponse.json({ success: true });

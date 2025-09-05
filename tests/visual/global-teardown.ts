@@ -8,17 +8,19 @@
  * @lastModified 2025-06-06
  */
 
-import { FullConfig } from '@playwright/test';
-import fs from 'fs/promises';
-import path from 'path';
+const fs = require('fs/promises');
+const path = require('path');
 
-async function globalTeardown(config: FullConfig) {
+async function globalTeardown(config) {
   console.log('🧹 Starting visual regression test cleanup...');
   
   try {
     // Generate test summary report
     const resultsDir = 'test-results/visual';
     const summaryPath = path.join(resultsDir, 'test-summary.json');
+    
+    // Ensure directory exists
+    await fs.mkdir(resultsDir, { recursive: true });
     
     const summary = {
       timestamp: new Date().toISOString(),
@@ -37,4 +39,4 @@ async function globalTeardown(config: FullConfig) {
   }
 }
 
-export default globalTeardown;
+module.exports = globalTeardown;

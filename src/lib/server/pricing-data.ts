@@ -168,8 +168,8 @@ export const getProperty = unstable_cache(
       return null;
     }
   },
-  [(propertyId) => `property-${propertyId}`],
-  { tags: ['property', `property-${propertyId}`] }
+  ['get-property'],
+  { tags: ['property'] }
 );
 
 /**
@@ -213,8 +213,8 @@ export const getSeasonalPricing = unstable_cache(
       return [];
     }
   },
-  [(propertyId) => `seasonalPricing-${propertyId}`],
-  { tags: ['seasonalPricing', `property-${propertyId}`] }
+  ['get-seasonal-pricing'],
+  { tags: ['seasonalPricing'] }
 );
 
 /**
@@ -257,8 +257,8 @@ export const getDateOverrides = unstable_cache(
       return [];
     }
   },
-  [(propertyId) => `dateOverrides-${propertyId}`],
-  { tags: ['dateOverrides', `property-${propertyId}`] }
+  ['get-date-overrides'],
+  { tags: ['dateOverrides'] }
 );
 
 /**
@@ -288,8 +288,8 @@ export const getPriceCalendars = unstable_cache(
       return [];
     }
   },
-  [(propertyId, year) => `priceCalendars-${propertyId}-${year}`],
-  { tags: ['priceCalendars', `property-${propertyId}`] }
+  ['get-price-calendars'],
+  { tags: ['priceCalendars'] }
 );
 
 /**

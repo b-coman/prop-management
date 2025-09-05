@@ -350,7 +350,7 @@ export function AvailabilityPreview({ propertySlug, onClose }: AvailabilityPrevi
                 <p className="text-sm text-gray-500 mb-4">
                   Save date ranges to compare availability across multiple periods
                 </p>
-                <Button variant="outline" onClick={() => document.querySelector('[data-value="date-picker"]')?.click()}>
+                <Button variant="outline" onClick={() => (document.querySelector('[data-value="date-picker"]') as HTMLElement)?.click()}>
                   Add Your First Date Range
                 </Button>
               </div>

@@ -381,7 +381,6 @@ export type CoreLanguageTypes = {
   DefaultLanguage: DefaultLanguage;
   LanguageDetectionSource: LanguageDetectionSource;
   PageType: PageType;
-  MigrationMode: MigrationMode;
 };
 
 /**

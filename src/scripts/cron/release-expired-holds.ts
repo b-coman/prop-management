@@ -57,7 +57,7 @@ async function releaseExpiredHolds() {
         }
 
         const batch = writeBatch(db);
-        const availabilityUpdates = []; // Store promises for availability updates
+        const availabilityUpdates: Promise<any>[] = []; // Store promises for availability updates
 
         querySnapshot.forEach((docSnap) => {
             const bookingId = docSnap.id;

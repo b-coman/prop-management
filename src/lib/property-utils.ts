@@ -64,8 +64,12 @@ export async function getPropertyWithDefaults(slug: string): Promise<Property> {
     bedrooms: 2,
     bathrooms: 1,
     beds: 3,
-    // Add other required properties
-  } as Property;
+    location: { city: 'Demo City', country: 'Demo Country' },
+    pricePerNight: 150,
+    baseOccupancy: 2,
+    defaultMinimumStay: 2,
+    templateId: 'default'
+  } as unknown as Property;
 }
 
 /**
@@ -135,12 +139,12 @@ export function serializePropertyTimestamps(property: Property): Property {
   };
   
   // Serialize specific timestamp fields
-  if (result.createdAt) result.createdAt = serializeTimestamp(result.createdAt);
-  if (result.updatedAt) result.updatedAt = serializeTimestamp(result.updatedAt);
+  if (result.createdAt) result.createdAt = serializeTimestamp(result.createdAt) || undefined;
+  if (result.updatedAt) result.updatedAt = serializeTimestamp(result.updatedAt) || undefined;
   
   // Handle _translationStatus field if it exists
-  if (result._translationStatus) {
-    result._translationStatus = serializeTimestampsInObject(result._translationStatus);
+  if ((result as any)._translationStatus) {
+    (result as any)._translationStatus = serializeTimestampsInObject((result as any)._translationStatus);
   }
   
   return result;

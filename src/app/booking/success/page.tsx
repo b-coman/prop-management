@@ -96,7 +96,7 @@ function BookingSuccessContent() {
   return (
     <div className="flex min-h-screen flex-col">
       <Header
-        propertyName={property?.name || (booking?.propertyId ? `Booking for ${booking.propertyId}` : "Booking Confirmation")}
+        propertyName={typeof property?.name === 'string' ? property.name : property?.name?.en || (booking?.propertyId ? `Booking for ${booking.propertyId}` : "Booking Confirmation")}
         propertySlug={booking?.propertyId || ""}
       />
 
@@ -128,7 +128,7 @@ function BookingSuccessContent() {
                         <div>
                           <h3 className="font-medium">Check-in</h3>
                           <p>{formatDate(booking.checkInDate)}</p>
-                          {booking.checkInTime && <p className="text-sm text-muted-foreground">After {booking.checkInTime}</p>}
+                          {(booking as any).checkInTime && <p className="text-sm text-muted-foreground">After {(booking as any).checkInTime}</p>}
                         </div>
                       </div>
 
@@ -137,7 +137,7 @@ function BookingSuccessContent() {
                         <div>
                           <h3 className="font-medium">Check-out</h3>
                           <p>{formatDate(booking.checkOutDate)}</p>
-                          {booking.checkOutTime && <p className="text-sm text-muted-foreground">Before {booking.checkOutTime}</p>}
+                          {(booking as any).checkOutTime && <p className="text-sm text-muted-foreground">Before {(booking as any).checkOutTime}</p>}
                         </div>
                       </div>
                     </div>
@@ -204,7 +204,7 @@ function BookingSuccessContent() {
                             {property.images && property.images.length > 0 && property.images[0].url ? (
                               <img
                                 src={property.images[0].url}
-                                alt={property.name}
+                                alt={typeof property.name === 'string' ? property.name : property.name.en}
                                 className="h-full w-full object-cover"
                               />
                             ) : (
@@ -214,7 +214,7 @@ function BookingSuccessContent() {
                             )}
                           </div>
                           <div>
-                            <h3 className="font-medium">{property.name}</h3>
+                            <h3 className="font-medium">{typeof property.name === 'string' ? property.name : property.name.en}</h3>
                             {property.location && (
                               <p className="text-sm text-muted-foreground">
                                 {property.location.city}{property.location.city && property.location.country && ", "}

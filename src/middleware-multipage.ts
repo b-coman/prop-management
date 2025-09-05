@@ -1,7 +1,7 @@
 // src/middleware-multipage.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { collection, doc, getDoc, query, where, getDocs } from 'firebase/firestore';
-import { init, getFirestore } from 'firebase-admin/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 
 // Create a reusable singleton db connection

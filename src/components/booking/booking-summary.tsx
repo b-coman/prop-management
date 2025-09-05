@@ -104,9 +104,9 @@ export const BookingSummary = React.memo(function BookingSummary({
       // Also support both naming conventions (total and totalPrice) for backward compatibility
       
       // Try totalPrice first (new standard), then fall back to total (old), then subtotal
-      const rawTotal = dynamicPricing.totalPrice !== undefined ? dynamicPricing.totalPrice : dynamicPricing.total;
+      const rawTotal = (dynamicPricing as any).totalPrice !== undefined ? (dynamicPricing as any).totalPrice : dynamicPricing.total;
       
-      console.log(`[BookingSummary/details] 🧮 NAME CHECK: totalPrice=${dynamicPricing.totalPrice}, total=${dynamicPricing.total}`);
+      console.log(`[BookingSummary/details] 🧮 NAME CHECK: totalPrice=${(dynamicPricing as any).totalPrice}, total=${dynamicPricing.total}`);
       
       const safeTotal = isNaN(rawTotal) || rawTotal === null || rawTotal === undefined 
           ? dynamicPricing.subtotal // Fall back to subtotal if total is invalid
@@ -218,7 +218,7 @@ export const BookingSummary = React.memo(function BookingSummary({
               <>
                 <div className="flex justify-between">
                   <span>Accommodation ({pricingDetailsForDisplay.numberOfNights} nights)</span>
-                  <span>{formatPrice(pricingDetailsForDisplay.accommodationTotal, selectedCurrency)}</span>
+                  <span>{formatPrice(pricingDetailsForDisplay.accommodationTotal || 0, selectedCurrency)}</span>
                 </div>
 
                 {Object.keys(pricingDetailsForDisplay.dailyRates || {}).length > 0 && (
@@ -239,14 +239,14 @@ export const BookingSummary = React.memo(function BookingSummary({
 
                 <div className="flex justify-between">
                   <span>Cleaning fee</span>
-                  <span>+{formatPrice(pricingDetailsForDisplay.cleaningFee, selectedCurrency)}</span>
+                  <span>+{formatPrice(pricingDetailsForDisplay.cleaningFee || 0, selectedCurrency)}</span>
                 </div>
 
                 <Separator className="my-1" />
 
                 <div className="flex justify-between font-medium">
                   <span>Subtotal</span>
-                  <span>{formatPrice(pricingDetailsForDisplay.subtotal, selectedCurrency)}</span>
+                  <span>{formatPrice(pricingDetailsForDisplay.subtotal || 0, selectedCurrency)}</span>
                 </div>
 
                 {pricingDetailsForDisplay.lengthOfStayDiscount && (
@@ -268,27 +268,27 @@ export const BookingSummary = React.memo(function BookingSummary({
               <>
                 <div className="flex justify-between">
                   <span>Base price ({pricingDetailsForDisplay.numberOfNights} nights)</span>
-                  <span>{formatPrice(pricingDetailsForDisplay.basePrice, selectedCurrency)}</span>
+                  <span>{formatPrice(pricingDetailsForDisplay.basePrice || 0, selectedCurrency)}</span>
                 </div>
-                {pricingDetailsForDisplay.extraGuestFee > 0 && (
+                {(pricingDetailsForDisplay.extraGuestFee || 0) > 0 && (
                   <div className="flex justify-between text-muted-foreground">
                     <span>Extra guest fee</span>
-                    <span>+{formatPrice(pricingDetailsForDisplay.extraGuestFee, selectedCurrency)}</span>
+                    <span>+{formatPrice(pricingDetailsForDisplay.extraGuestFee || 0, selectedCurrency)}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
                   <span>Cleaning fee</span>
-                  <span>+{formatPrice(pricingDetailsForDisplay.cleaningFee, selectedCurrency)}</span>
+                  <span>+{formatPrice(pricingDetailsForDisplay.cleaningFee || 0, selectedCurrency)}</span>
                 </div>
                 <Separator className="my-1" />
                 <div className="flex justify-between font-medium">
                   <span>Subtotal</span>
-                  <span>{formatPrice(pricingDetailsForDisplay.subtotal, selectedCurrency)}</span>
+                  <span>{formatPrice(pricingDetailsForDisplay.subtotal || 0, selectedCurrency)}</span>
                 </div>
                 {appliedCoupon && (
                   <div className="flex justify-between text-green-600">
                     <span>Discount ({appliedCoupon.code})</span>
-                    <span>-{formatPrice(pricingDetailsForDisplay.discountAmount, selectedCurrency)}</span>
+                    <span>-{formatPrice(pricingDetailsForDisplay.discountAmount || 0, selectedCurrency)}</span>
                   </div>
                 )}
               </>

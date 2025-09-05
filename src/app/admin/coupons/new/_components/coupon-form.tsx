@@ -116,7 +116,10 @@ export function CouponForm() {
     try {
       // The server action `createCouponAction` now handles sanitization via Zod transforms.
       // We pass the raw (but Zod-validated) form values.
-      const result = await createCouponAction(values);
+      const result = await createCouponAction({
+        ...values,
+        description: values.description || ''
+      });
 
       if (result.error) {
         toast({

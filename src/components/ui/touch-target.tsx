@@ -36,7 +36,7 @@ export function TouchTarget({
         'isolate', // Creates new stacking context
         className
       )}
-      {...props}
+      {...(props as any)}
     >
       <span className="relative z-10 w-full h-full flex items-center justify-center">
         {children}
@@ -63,7 +63,7 @@ export function TouchLink({
         'transition-colors',
         className
       )}
-      {...props}
+      {...(props as any)}
     >
       <span className="relative z-10">{children}</span>
     </a>
@@ -108,7 +108,7 @@ export function TouchButton({
         variantClasses[variant],
         className
       )}
-      {...props}
+      {...(props as any)}
     >
       {children}
     </button>
@@ -144,7 +144,7 @@ export function TouchIconButton({
         sizeClasses[size],
         className
       )}
-      {...props}
+      {...(props as any)}
     >
       {children}
     </button>

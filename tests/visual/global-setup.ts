@@ -8,9 +8,9 @@
  * @lastModified 2025-06-06
  */
 
-import { chromium, FullConfig } from '@playwright/test';
+const { chromium } = require('@playwright/test');
 
-async function globalSetup(config: FullConfig) {
+async function globalSetup(config) {
   console.log('🚀 Starting visual regression test setup...');
   
   // Create browser instance for setup
@@ -37,4 +37,4 @@ async function globalSetup(config: FullConfig) {
   }
 }
 
-export default globalSetup;
+module.exports = globalSetup;

@@ -121,7 +121,12 @@ export function LanguageProvider({
   enablePerformanceTracking = false,
   enableDebugMode = false,
   cacheConfig = {},
-  performanceConfig = {},
+  performanceConfig = {
+    enableTracking: false,
+    slowThreshold: 100,
+    enableWarnings: false,
+    sampleRate: 0.1
+  },
   onLanguageChange,
   onError
 }: LanguageProviderProps) {
@@ -624,7 +629,7 @@ export function LanguageProvider({
   // ===== Performance Monitoring =====
   
   useEffect(() => {
-    if (enablePerformanceTracking && performance.now) {
+    if (enablePerformanceTracking) {
       const interval = setInterval(() => {
         const metrics = getPerformanceMetrics();
         

@@ -215,8 +215,6 @@ export function IndependentAvailabilityChecker({
       {/* Guest Count Selector */}
       <div className="mt-4">
         <GuestSelector
-          value={guestCount}
-          onChange={handleGuestCountChange}
           maxGuests={maxGuests}
           disabled={isCheckingAvailability}
         />

@@ -1,0 +1,61 @@
+{
+  "project": {
+    "id": "PVT_kwHOCOLa384BCWSb",
+    "number": 86,
+    "repository": "b-coman/prop-management",
+    "title": "prop-management AI Management"
+  },
+  "fields": {
+    "dependencies_field_id": "PVTF_lAHOCOLa384BCWSbzg0lhHY",
+    "wave_field_id": "PVTF_lAHOCOLa384BCWSbzg0lhII",
+    "ai_context_field_id": "PVTF_lAHOCOLa384BCWSbzg0lhIM",
+    "ai_suitability_field_id": "PVTSSF_lAHOCOLa384BCWSbzg0lhIQ",
+    "risk_level_field_id": "PVTSSF_lAHOCOLa384BCWSbzg0lhIU",
+    "effort_field_id": "PVTSSF_lAHOCOLa384BCWSbzg0lhIY",
+    "task_type_field_id": "PVTSSF_lAHOCOLa384BCWSbzg0lhIc",
+    "status_field_id": "PVTSSF_lAHOCOLa384BCWSbzg0lhGQ"
+  },
+  "status_options": {
+    "BACKLOG": {
+      "name": "Backlog",
+      "id": "4f9099ab"
+    },
+    "IN_REFINEMENT": {
+      "name": "In Refinement",
+      "id": "d7c5f43d"
+    },
+    "READY_FOR_DEV": {
+      "name": "Ready for Dev",
+      "id": "5736b1a1"
+    },
+    "BLOCKED": {
+      "name": "Blocked",
+      "id": "7ff8c334"
+    },
+    "IN_PROGRESS": {
+      "name": "In Progress",
+      "id": "c8e4fba7"
+    },
+    "IN_REVIEW": {
+      "name": "In Review",
+      "id": "9d8a2a50"
+    },
+    "DONE": {
+      "name": "Done",
+      "id": "72005846"
+    }
+  },
+  "ai_suitability_options": {
+    "ai-only": "ai-only",
+    "ai-reviewed": "ai-reviewed",
+    "hybrid": "hybrid",
+    "human-only": "human-only"
+  },
+  "wave_config": {
+    "field_type": "text",
+    "format_pattern": "wave-\\d{3}-[a-z-]+",
+    "auto_detect": true,
+    "auto_assign": false,
+    "format_validation": true
+  }
+}

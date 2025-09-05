@@ -91,7 +91,7 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
   const property = bookingFormProperty || {
     id: propertySlug || 'default',
     slug: propertySlug || 'default',
-    name: tc(title, language) || 'Property',
+    name: tc(title) || 'Property',
     baseCurrency: 'EUR',
     baseRate: price || 150, // Use price from content or default
     advertisedRate: price || 150,
@@ -117,7 +117,7 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
       {backgroundImage && (
         <Image
           src={backgroundImage}
-          alt={tc(title, language) || property.name || t('common.heroBackgroundImage')}
+          alt={tc(title) || property.name || t('common.heroBackgroundImage')}
           fill
           style={{ objectFit: 'cover' }}
           priority
@@ -139,8 +139,8 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
           // Initial invisible state to prevent flicker
           if (el) setTimeout(() => el.classList.remove('opacity-0'), 350);
         }}> {/* Initially invisible, fades in after positioning */}
-          {title && <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 drop-shadow-md">{tc(title, language)}</h1>}
-          {subtitle && <p className="text-lg md:text-xl mb-6 drop-shadow-sm">{tc(subtitle, language)}</p>}
+          {title && <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 drop-shadow-md">{tc(title)}</h1>}
+          {subtitle && <p className="text-lg md:text-xl mb-6 drop-shadow-sm">{tc(subtitle)}</p>}
         </div>
 
         {/* Check if booking form should be displayed */}

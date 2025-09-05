@@ -801,10 +801,9 @@ function AvailabilityCheck({
   }, [setCheckInDate, setCheckOutDate, setSelectedOption]);
 
   const handleGuestChange = (change: number) => {
-    setGuestsDisplay((prev) => {
-      const newCount = prev + change;
-      return Math.max(1, Math.min(newCount, property.maxGuests));
-    });
+    const newCount = guestsDisplay + change;
+    const clampedCount = Math.max(1, Math.min(newCount, property.maxGuests));
+    setGuestsDisplay(clampedCount);
   };
 
 

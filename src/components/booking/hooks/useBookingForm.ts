@@ -100,7 +100,7 @@ export function useBookingForm(property: Property) {
           subtotal: pricingDetails.subtotal || 0,
           discountAmount: pricingDetails.discountAmount || 0,
           total: pricingDetails.total || 0,
-          currency: selectedCurrency,
+          currency: selectedCurrency as any,
           numberOfNights: pricingDetails.numberOfNights || 0,
         },
         status: 'pending' as const,
@@ -139,13 +139,13 @@ export function useBookingForm(property: Property) {
         numberOfGuests: numberOfGuests,
         totalPrice: bookingInput.pricing.total,
         numberOfNights: numberOfNights,
-        appliedCouponCode: appliedCouponCode,
-        discountPercentage: pricingDetails.discountPercentage,
+        appliedCouponCode: appliedCouponCode || undefined,
+        discountPercentage: 0, // Discount percentage not available in pricingDetails
         guestFirstName: sanitizeText(firstName),
         guestLastName: sanitizeText(lastName),
         guestEmail: sanitizeEmail(email),
         pendingBookingId: bookingId,
-        selectedCurrency: selectedCurrency,
+        selectedCurrency: selectedCurrency as any,
       };
 
       const stripeResult = await createCheckoutSession(checkoutInput);
@@ -304,7 +304,7 @@ export function useBookingForm(property: Property) {
         holdBookingId: holdBookingId,
         holdFeeAmount: property.holdFeeAmount,
         guestEmail: sanitizeEmail(currentEmail), // Use the currentEmail which might be from formData
-        selectedCurrency: selectedCurrency,
+        selectedCurrency: selectedCurrency as any,
       };
 
       // Create checkout session
@@ -404,7 +404,7 @@ export function useBookingForm(property: Property) {
         totalPrice: pricingDetails
           ? pricingDetails.total
           : undefined,
-        currency: selectedCurrency,
+        currency: selectedCurrency as any,
       };
 
       const result = await createInquiryAction(inquiryInput);

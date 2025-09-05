@@ -163,7 +163,7 @@ function HoldSuccessContent() {
   return (
     <div className="flex min-h-screen flex-col">
       <Header
-        propertyName={property?.name || (booking?.propertyId ? `Hold for ${booking.propertyId}` : "Hold Confirmation")}
+        propertyName={typeof property?.name === 'string' ? property.name : property?.name?.en || (booking?.propertyId ? `Hold for ${booking.propertyId}` : "Hold Confirmation")}
         propertySlug={booking?.propertyId || ""}
       />
 

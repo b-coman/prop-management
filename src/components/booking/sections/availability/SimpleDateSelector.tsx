@@ -70,7 +70,7 @@ export const SimpleDateSelector = React.memo(function SimpleDateSelector({
           <CalendarComponent
             mode="single"
             selected={date || undefined}
-            onSelect={onChange}
+            onSelect={(day) => onChange(day || null)}
             initialFocus
             defaultMonth={defaultMonth}
             disabled={minDate ? { before: minDate } : { before: new Date() }}

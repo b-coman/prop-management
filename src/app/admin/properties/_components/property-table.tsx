@@ -16,7 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Edit, Trash2, Eye } from "lucide-react"; // Import icons
 import { DeletePropertyButton } from './delete-property-button'; // Import delete button
-import { cn } from "@/lib/utils";
 
 interface PropertyTableProps {
   properties: Property[];

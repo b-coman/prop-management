@@ -12,6 +12,16 @@ import {
   PriceCalendarDay
 } from './pricing-schemas';
 
+// Re-export types that are used by other modules
+export type { 
+  LengthOfStayDiscount, 
+  SeasonType, 
+  PropertyPricing, 
+  SeasonalPricing, 
+  DateOverride, 
+  PriceCalendarDay 
+};
+
 // Predefined multipliers by season type
 export const SEASON_MULTIPLIERS: Record<SeasonType, number> = {
   'minimum': 0.7,
@@ -201,12 +211,17 @@ export function calculateDayPrice(
   
   // 7. Return the final price calendar day
   return {
-    baseOccupancyPrice: basePrice,
-    prices: occupancyPrices,
+    basePrice,
+    adjustedPrice: basePrice, // Same as base price after all adjustments
     available: isAvailable,
     minimumStay,
+    isWeekend: date.getDay() === 0 || date.getDay() === 6, // Sunday or Saturday
     priceSource,
-    sourceDetails
+    prices: occupancyPrices,
+    seasonId: (sourceDetails as any)?.seasonId || null,
+    seasonName: (sourceDetails as any)?.seasonName || null,
+    overrideId: (sourceDetails as any)?.overrideId || null,
+    reason: (sourceDetails as any)?.reason || null
   };
 }
 

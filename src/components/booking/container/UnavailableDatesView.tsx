@@ -236,7 +236,7 @@ export function UnavailableDatesView({
               new Date(new Date().getTime() + 14 * 24 * 60 * 60 * 1000),
               // Add more as needed
             ]}
-            selectedRange={{ from: checkInDate, to: checkOutDate }}
+            selectedRange={{ from: checkInDate || undefined, to: checkOutDate || undefined }}
             onDateClick={(date) => {
               if (!date || isProcessingBooking) return;
               

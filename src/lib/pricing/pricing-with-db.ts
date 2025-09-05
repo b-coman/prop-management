@@ -85,7 +85,7 @@ export async function getPriceCalendarWithDb(propertyId: string, year: number, m
       totalDays: dayKeys.length,
       sampleDayNumber: dayKeys[0],
       sampleDay: {
-        baseOccupancyPrice: sampleDay.baseOccupancyPrice,
+        baseOccupancyPrice: sampleDay.basePrice,
         hasPrices: !!sampleDay.prices,
         prices: sampleDay.prices,
         available: sampleDay.available,

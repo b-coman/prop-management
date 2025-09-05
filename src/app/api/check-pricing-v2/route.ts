@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     console.log(`[check-pricing-v2] 🏠 Property details for ${propertyId}:`, {
       baseOccupancy: property.baseOccupancy,
       extraGuestFee: property.extraGuestFee,
-      pricing: property.pricing
+      pricePerNight: property.pricePerNight
     });
 
     // Log availability service being used
@@ -134,8 +134,8 @@ export async function POST(request: NextRequest) {
       console.log(`[check-pricing-v2] 🧮 Calculating price for ${dateStr} with ${guests} guests`);
       
       if (guests <= property.baseOccupancy) {
-        console.log(`[check-pricing-v2] ✅ Using baseOccupancyPrice: ${dayPrice.baseOccupancyPrice}`);
-        dailyPrices[dateStr] = dayPrice.baseOccupancyPrice;
+        console.log(`[check-pricing-v2] ✅ Using basePrice: ${dayPrice.basePrice}`);
+        dailyPrices[dateStr] = dayPrice.basePrice;
       } else {
         const occupancyPrice = dayPrice.prices?.[guests.toString()];
         console.log(`[check-pricing-v2] 🔍 Checking for specific price for ${guests} guests:`, 
@@ -147,9 +147,9 @@ export async function POST(request: NextRequest) {
           // Fallback to base price + extra guest fee
           const extraGuests = guests - property.baseOccupancy;
           const extraGuestFee = property.extraGuestFee || 0;
-          const calculatedPrice = dayPrice.baseOccupancyPrice + (extraGuests * extraGuestFee);
+          const calculatedPrice = dayPrice.basePrice + (extraGuests * extraGuestFee);
           
-          console.log(`[check-pricing-v2] 📊 Fallback calculation: ${dayPrice.baseOccupancyPrice} + (${extraGuests} × ${extraGuestFee}) = ${calculatedPrice}`);
+          console.log(`[check-pricing-v2] 📊 Fallback calculation: ${dayPrice.basePrice} + (${extraGuests} × ${extraGuestFee}) = ${calculatedPrice}`);
           dailyPrices[dateStr] = calculatedPrice;
         }
       }
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
     // Calculate booking price with any applicable discounts
     const pricingDetails = calculateBookingPrice(
       dailyPrices,
-      property.cleaningFee || 0,
+      (property as any).cleaningFee || 0,
       property.pricingConfig?.lengthOfStayDiscounts as LengthOfStayDiscount[]
     );
     
@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
       subtotal: finalResponse.pricing.subtotal,
       totalPrice: finalResponse.pricing.totalPrice,
       total: finalResponse.pricing.total,
-      averageNightlyRate: finalResponse.pricing.averageNightlyRate,
+      averageNightlyRate: finalResponse.pricing.accommodationTotal / finalResponse.pricing.numberOfNights,
       source: finalResponse.meta.source
     });
     

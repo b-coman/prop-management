@@ -77,12 +77,12 @@ export default function NewDateOverridePage() {
         minimumStay: minimumStayValue,
         available,
         flatRate
-      });
+      } as any) as any;
       
-      if (result.success) {
+      if (result?.success) {
         router.push('/admin/pricing');
       } else {
-        setError(result.error || 'Failed to create date override');
+        setError(result?.error || 'Failed to create date override');
       }
     } catch (err) {
       console.error('Error creating date override:', err);

@@ -1,5 +1,5 @@
-import * as admin from 'firebase-admin';
-import { Timestamp } from 'firebase-admin/firestore';
+import { collection, doc, getDoc, setDoc, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 // The db instance will be passed as a parameter to functions that need it
 import { 
@@ -20,23 +20,28 @@ import {
 /**
  * Fetches a property document by ID
  */
-export async function getProperty(propertyId: string, db: admin.firestore.Firestore): Promise<PropertyPricing> {
+export async function getProperty(propertyId: string): Promise<PropertyPricing> {
   // Check if db is provided
   if (!db) {
     console.error('Firestore instance not provided');
     throw new Error('Firestore instance not provided');
   }
 
-  const doc = await db.collection('properties').doc(propertyId).get();
+  const docRef = doc(db, 'properties', propertyId);
+  const docSnap = await getDoc(docRef);
 
-  if (!doc.exists) {
+  if (!docSnap.exists()) {
     throw new Error(`Property ${propertyId} not found`);
   }
 
-  const data = doc.data();
+  const data = docSnap.data();
+  
+  if (!data) {
+    throw new Error(`Property document ${docSnap.id} has no data`);
+  }
 
   return {
-    id: doc.id,
+    id: docSnap.id,
     pricePerNight: data.pricePerNight || 0,
     baseCurrency: data.baseCurrency || 'USD',
     baseOccupancy: data.baseOccupancy || 2,
@@ -60,10 +65,12 @@ export async function getSeasonalPricing(propertyId: string): Promise<SeasonalPr
     throw new Error('Firebase Admin is not properly initialized');
   }
 
-  const snapshot = await db.collection('seasonalPricing')
-    .where('propertyId', '==', propertyId)
-    .where('enabled', '==', true)
-    .get();
+  const q = query(
+    collection(db, 'seasonalPricing'),
+    where('propertyId', '==', propertyId),
+    where('enabled', '==', true)
+  );
+  const snapshot = await getDocs(q);
 
   return snapshot.docs.map(doc => {
     const data = doc.data();
@@ -101,11 +108,13 @@ export async function getDateOverrides(
   const nextYear = month === 12 ? year + 1 : year;
   const endDate = `${nextYear}-${nextMonth.toString().padStart(2, '0')}-01`;
 
-  const snapshot = await db.collection('dateOverrides')
-    .where('propertyId', '==', propertyId)
-    .where('date', '>=', startDate)
-    .where('date', '<', endDate)
-    .get();
+  const q = query(
+    collection(db, 'dateOverrides'),
+    where('propertyId', '==', propertyId),
+    where('date', '>=', startDate),
+    where('date', '<', endDate)
+  );
+  const snapshot = await getDocs(q);
 
   return snapshot.docs.map(doc => {
     const data = doc.data();
@@ -132,10 +141,12 @@ export async function getMinimumStayRules(propertyId: string): Promise<MinimumSt
     throw new Error('Firebase Admin is not properly initialized');
   }
 
-  const snapshot = await db.collection('minimumStayRules')
-    .where('propertyId', '==', propertyId)
-    .where('enabled', '==', true)
-    .get();
+  const q = query(
+    collection(db, 'minimumStayRules'),
+    where('propertyId', '==', propertyId),
+    where('enabled', '==', true)
+  );
+  const snapshot = await getDocs(q);
 
   return snapshot.docs.map(doc => {
     const data = doc.data();
@@ -170,12 +181,14 @@ export async function getBookedDates(
   const endDate = new Date(year, month, 0); // Last day of the month
 
   // Get bookings that overlap with this month
-  const snapshot = await db.collection('bookings')
-    .where('propertyId', '==', propertyId)
-    .where('status', 'in', ['confirmed', 'on-hold'])
-    .where('checkInDate', '<=', Timestamp.fromDate(endDate)) // Starts before or on month end
-    .where('checkOutDate', '>=', Timestamp.fromDate(startDate)) // Ends on or after month start
-    .get();
+  const q = query(
+    collection(db, 'bookings'),
+    where('propertyId', '==', propertyId),
+    where('status', 'in', ['confirmed', 'on-hold']),
+    where('checkInDate', '<=', Timestamp.fromDate(endDate)), // Starts before or on month end
+    where('checkOutDate', '>=', Timestamp.fromDate(startDate)) // Ends on or after month start
+  );
+  const snapshot = await getDocs(q);
 
   // Collect all booked dates in this month
   const bookedDates = new Set<string>();
@@ -269,9 +282,9 @@ export async function generatePriceCalendar(
       hasSeasonalRates = true;
     }
     
-    minPrice = Math.min(minPrice, dayPrice.baseOccupancyPrice);
-    maxPrice = Math.max(maxPrice, dayPrice.baseOccupancyPrice);
-    totalPrice += dayPrice.baseOccupancyPrice;
+    minPrice = Math.min(minPrice, dayPrice.basePrice);
+    maxPrice = Math.max(maxPrice, dayPrice.basePrice);
+    totalPrice += dayPrice.basePrice;
     
     // Add to days collection
     days[day.toString()] = dayPrice;
@@ -302,11 +315,11 @@ export async function generatePriceCalendar(
   return {
     id: `${propertyId}_${year}-${monthStr}`,
     propertyId,
-    month: `${year}-${monthStr}`,
+    month,
     year,
     days,
     summary,
-    generatedAt: Timestamp.now()
+    generatedAt: new Date()
   };
 }
 
@@ -320,7 +333,7 @@ export async function savePriceCalendar(calendar: PriceCalendar): Promise<void> 
     throw new Error('Firebase Admin is not properly initialized');
   }
 
-  await db.collection('priceCalendars').doc(calendar.id).set(calendar);
+  await setDoc(doc(db, 'priceCalendars', calendar.id), calendar);
 }
 
 /**
@@ -340,13 +353,14 @@ export async function getPriceCalendar(
   const monthStr = month.toString().padStart(2, '0');
   const docId = `${propertyId}_${year}-${monthStr}`;
 
-  const doc = await db.collection('priceCalendars').doc(docId).get();
+  const docRef = doc(db, 'priceCalendars', docId);
+  const docSnap = await getDoc(docRef);
 
-  if (!doc.exists) {
+  if (!docSnap.exists()) {
     return null;
   }
 
-  return doc.data() as PriceCalendar;
+  return docSnap.data() as PriceCalendar;
 }
 
 /**
@@ -412,9 +426,11 @@ export async function updateAllPriceCalendars(numberOfMonths: number = 12): Prom
   console.log(`Starting price calendar update for all properties (${numberOfMonths} months)`);
   
   // Get all active properties
-  const snapshot = await db.collection('properties')
-    .where('status', '==', 'active')
-    .get();
+  const q = query(
+    collection(db, 'properties'),
+    where('status', '==', 'active')
+  );
+  const snapshot = await getDocs(q);
   
   console.log(`Found ${snapshot.size} active properties`);
   

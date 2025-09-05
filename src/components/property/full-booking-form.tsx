@@ -72,9 +72,6 @@ export function FullBookingForm({ content, property }: FullBookingFormProps) {
               {property ? (
                 <AvailabilityCheck 
                   property={property} 
-                  showCalendar={showCalendar}
-                  showSummary={showSummary}
-                  enableCoupons={enableCoupons}
                 />
               ) : hasError ? (
                 <Alert variant="destructive" className="mb-6">

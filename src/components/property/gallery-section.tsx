@@ -45,21 +45,21 @@ export function GallerySection({ content, language = 'en' }: GallerySectionProps
   return (
     <section className="py-8 md:py-12" id="gallery">
       <div className="container mx-auto px-4">
-        <h2 className="text-2xl font-semibold text-foreground mb-6">{tc(title, language)}</h2>
+        <h2 className="text-2xl font-semibold text-foreground mb-6">{tc(title)}</h2>
          {/* Use a fluid grid layout */}
         <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
           {images.map((image, index) => (
             <div key={index} className="relative aspect-[4/3] w-full overflow-hidden rounded-lg shadow-md bg-muted">
               <SafeImage
                 src={image.url}
-                alt={tc(image.alt, language) || `${t('gallery.imageOf', { index: index + 1 })} ${tc(propertyName, language)}`}
+                alt={tc(image.alt) || `${t('gallery.imageOf', undefined, { index: index + 1 })} ${tc(propertyName)}`}
                 fill
                 style={{ objectFit: "cover" }}
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" // Adjust sizes for better fit
                 loading="lazy" // Lazy load gallery images
                 className="transition-transform duration-300 hover:scale-105"
                 data-ai-hint={image['data-ai-hint']}
-                fallbackText={`${t('gallery.imageUnavailable', { fallback: 'Image unavailable' })}`}
+                fallbackText={`${t('gallery.imageUnavailable', 'Image unavailable')}`}
               />
             </div>
           ))}

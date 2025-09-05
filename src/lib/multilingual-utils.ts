@@ -42,7 +42,7 @@ export function getLocalizedString(
   // Fallback to first available language
   const availableLanguages = Object.keys(value);
   if (availableLanguages.length > 0) {
-    return value[availableLanguages[0]];
+    return value[availableLanguages[0]] || fallback;
   }
   
   // Return fallback if nothing found

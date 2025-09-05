@@ -3,7 +3,7 @@
 import { getBookingById, updateBookingPaymentInfo } from '@/services/bookingService';
 import type { Booking } from '@/types';
 import Stripe from 'stripe';
-import { ClientTimestamp } from 'firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 
 /**
  * Fetches hold booking details by ID for the success page

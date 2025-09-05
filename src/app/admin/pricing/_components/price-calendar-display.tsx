@@ -158,7 +158,7 @@ export function PriceCalendarDisplay({ priceCalendars: initialCalendars }: Price
     if (!selectedCalendar) return [];
     
     // Find the first day that has defined prices to determine possible guest counts
-    const firstDay = Object.values(selectedCalendar.days)[0];
+    const firstDay = Object.values(selectedCalendar.days)[0] as any;
     if (!firstDay || !firstDay.prices) return [];
     
     return Object.keys(firstDay.prices);

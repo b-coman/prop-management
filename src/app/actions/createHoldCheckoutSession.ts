@@ -29,7 +29,7 @@ interface CreateHoldCheckoutSessionInput {
   selectedCurrency?: CurrencyCode; // User's selected currency from the header dropdown
 }
 
-export async function createHoldCheckoutSession(input: CreateHoldCheckoutSessionInput): Promise<{ sessionId?: string; sessionUrl?: string | null; error?: string }> {
+export async function createHoldCheckoutSession(input: CreateHoldCheckoutSessionInput): Promise<{ sessionId?: string; sessionUrl?: string | null; error?: string; retry?: boolean; errorType?: string }> {
   const {
     property,
     holdBookingId,
@@ -47,7 +47,7 @@ export async function createHoldCheckoutSession(input: CreateHoldCheckoutSession
   }
 
   // Get the selected currency for Stripe (lowercase for Stripe's API)
-  const stripeCurrency = (selectedCurrency || property.baseCurrency).toLowerCase() as Stripe.Checkout.SessionCreateParams.LineItem.PriceData.Currency;
+  const stripeCurrency = (selectedCurrency || property.baseCurrency).toLowerCase() as string;
 
   // We need to convert the holdFeeAmount to the selected currency
   let convertedHoldFeeAmount = holdFeeAmount;

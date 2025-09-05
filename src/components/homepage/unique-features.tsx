@@ -50,10 +50,10 @@ export function UniqueFeatures({ content, language = 'en' }: UniqueFeaturesProps
       <div className="container mx-auto px-4">
         <div className="max-w-3xl mx-auto text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
-            {tc(title, language)}
+            {tc(title)}
           </h2>
           <p className="text-lg text-muted-foreground">
-            {tc(description, language)}
+            {tc(description)}
           </p>
         </div>
 
@@ -67,7 +67,7 @@ export function UniqueFeatures({ content, language = 'en' }: UniqueFeaturesProps
                  {feature.image ? (
                      <Image
                          src={feature.image}
-                         alt={tc(feature.title, language)}
+                         alt={tc(feature.title)}
                          fill
                          style={{objectFit: 'cover'}}
                          className="rounded-lg"
@@ -80,9 +80,9 @@ export function UniqueFeatures({ content, language = 'en' }: UniqueFeaturesProps
                      </div>
                  )}
               </div>
-              <h3 className="text-xl font-semibold text-foreground mb-2">{tc(feature.title, language)}</h3>
+              <h3 className="text-xl font-semibold text-foreground mb-2">{tc(feature.title)}</h3>
               <p className="text-muted-foreground text-sm">
-                {tc(feature.description, language)}
+                {tc(feature.description)}
               </p>
             </div>
           ))}

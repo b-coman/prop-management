@@ -245,7 +245,7 @@ export function useLanguageValidation() {
     }
     
     // Check primary language code (e.g., 'en' from 'en-US')
-    const primaryLang = normalized.split('-')[0];
+    const primaryLang = (normalized as string).split('-')[0];
     if (isLanguageSupported(primaryLang)) {
       return primaryLang as SupportedLanguage;
     }

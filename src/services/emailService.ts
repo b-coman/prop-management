@@ -127,7 +127,7 @@ export async function sendBookingConfirmationEmail(
     const { text, html } = createBookingConfirmationTemplate({
       guestName: `${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''}`.trim(),
       bookingId: booking.id,
-      propertyName: property?.name || booking.propertyId,
+      propertyName: (typeof property?.name === 'string' ? property.name : (property?.name as any)?.en || property?.name) || booking.propertyId,
       checkInDate,
       checkOutDate,
       checkInTime: property?.checkInTime,
@@ -139,11 +139,11 @@ export async function sendBookingConfirmationEmail(
       extraGuestFee: booking.pricing.extraGuestFee ? formatCurrency(booking.pricing.extraGuestFee, booking.pricing.currency) : undefined,
       totalAmount: formatCurrency(booking.pricing.total, booking.pricing.currency),
       currency: booking.pricing.currency,
-      cancellationPolicy: property?.cancellationPolicy,
+      cancellationPolicy: (typeof property?.cancellationPolicy === 'string' ? property.cancellationPolicy : (property?.cancellationPolicy as any)?.en || property?.cancellationPolicy) || undefined,
       propertyAddress: property?.location ? `${property.location.address}, ${property.location.city}, ${property.location.state}, ${property.location.country}` : undefined,
-      hostName: property?.hostInfo?.name,
-      hostPhone: property?.hostInfo?.phone,
-      specialRequests: booking.specialRequests
+      hostName: (property as any)?.hostInfo?.name,
+      hostPhone: (property as any)?.hostInfo?.phone,
+      specialRequests: (booking as any).specialRequests
     });
     
     // Format message
@@ -382,7 +382,7 @@ export async function sendInquiryConfirmationEmail(
     const { text, html } = createInquiryConfirmationTemplate({
       guestName: `${inquiry.guestInfo.firstName} ${inquiry.guestInfo.lastName || ''}`.trim(),
       inquiryId: inquiry.id,
-      propertyName: property?.name || inquiry.propertySlug,
+      propertyName: (typeof property?.name === 'string' ? property.name : (property?.name as any)?.en || property?.name) || inquiry.propertySlug,
       message: inquiry.message
     });
     
@@ -598,7 +598,7 @@ export async function sendHoldConfirmationEmail(
     const { text, html } = createHoldConfirmationTemplate({
       guestName: `${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''}`.trim(),
       holdId: booking.id,
-      propertyName: property?.name || booking.propertyId,
+      propertyName: (typeof property?.name === 'string' ? property.name : (property?.name as any)?.en || property?.name) || booking.propertyId,
       checkInDate,
       checkOutDate,
       numberOfGuests: booking.numberOfGuests,
@@ -667,10 +667,10 @@ export async function sendInquiryResponseEmail(
     const { text, html } = createInquiryResponseTemplate({
       guestName: `${inquiry.guestInfo.firstName} ${inquiry.guestInfo.lastName || ''}`.trim(),
       inquiryId: inquiry.id,
-      propertyName: property?.name || inquiry.propertySlug,
+      propertyName: (typeof property?.name === 'string' ? property.name : (property?.name as any)?.en || property?.name) || inquiry.propertySlug,
       message: inquiry.message,
       responseMessage,
-      hostName: property?.hostInfo?.name
+      hostName: (property as any)?.hostInfo?.name
     });
     
     // Format message
@@ -745,7 +745,7 @@ export async function sendBookingCancellationEmail(
     const { text, html } = createBookingCancellationTemplate({
       guestName: `${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''}`.trim(),
       bookingId: booking.id,
-      propertyName: property?.name || booking.propertyId,
+      propertyName: (typeof property?.name === 'string' ? property.name : (property?.name as any)?.en || property?.name) || booking.propertyId,
       checkInDate,
       checkOutDate,
       checkInTime: property?.checkInTime,

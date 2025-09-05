@@ -299,7 +299,7 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
          externalId: bookingData.externalId,
          holdFee: bookingData.holdFee,
          // holdUntil calculation should ideally happen in createHoldBookingAction
-         holdUntil: bookingData.holdUntil ? ClientTimestamp.fromDate(new Date(bookingData.holdUntil as any)) : undefined,
+         holdUntil: (bookingData as any).holdUntil ? ClientTimestamp.fromDate(new Date((bookingData as any).holdUntil as any)) : undefined,
          holdPaymentId: bookingData.holdPaymentId,
          convertedFromHold: bookingData.convertedFromHold ?? false,
          convertedFromInquiry: bookingData.convertedFromInquiry ?? null,
@@ -807,6 +807,7 @@ export async function getUnavailableDatesForProperty(propertySlug: string, month
 
     let docCount = 0;
     let docsWithDataCount = 0;
+    const unavailableDates: Date[] = [];
 
     allQuerySnapshots.forEach((querySnapshot, batchIndex) => {
          if (!querySnapshot) {

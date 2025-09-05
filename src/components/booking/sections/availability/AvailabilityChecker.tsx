@@ -73,8 +73,6 @@ export function AvailabilityChecker({
 
         {/* Guest Count Selector */}
         <GuestSelector
-          value={guestCount}
-          onChange={onGuestCountChange}
           maxGuests={maxGuests}
           disabled={isCheckingAvailability}
           className="md:w-auto md:shrink-0"

@@ -85,6 +85,14 @@ interface BookingActions {
   setPhone: (phone: string) => void;
   setMessage: (message: string) => void;
   
+  // V1 compatibility - expose individual fields directly
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  message: string;
+  pricingDetails: PricingResponse | null;
+  
   // Coupon Management
   setAppliedCoupon: (coupon: any | null) => void;
   

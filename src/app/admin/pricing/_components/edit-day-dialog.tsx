@@ -73,7 +73,7 @@ export function EditDayDialog({
       setIsSubmitting(true);
       
       // Prepare the update data
-      const updateData = {
+      const updateData: any = {
         date: dateStr,
         customPrice: parseFloat(price),
         available,

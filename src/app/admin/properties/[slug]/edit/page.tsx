@@ -25,7 +25,7 @@ export default async function EditPropertyPage({ params }: EditPropertyPageProps
     <div className="container mx-auto py-10">
       <Card className="max-w-4xl mx-auto"> {/* Increased max-width */}
         <CardHeader>
-          <CardTitle>Edit Property: {property.name}</CardTitle>
+          <CardTitle>Edit Property: {typeof property.name === 'string' ? property.name : property.name.en}</CardTitle>
           <CardDescription>
             Update the details for this property listing. Slug: {property.slug}
           </CardDescription>

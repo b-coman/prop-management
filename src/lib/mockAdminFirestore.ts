@@ -120,7 +120,7 @@ export async function getAdminProperties() {
  */
 export async function getAdminSeasonalPricing(propertyId: string) {
   console.log(`[MockFirestore] Using simulated seasonal pricing data for ${propertyId}`);
-  return SAMPLE_SEASONAL_PRICING[propertyId] || [];
+  return (SAMPLE_SEASONAL_PRICING as any)[propertyId] || [];
 }
 
 /**
@@ -128,7 +128,7 @@ export async function getAdminSeasonalPricing(propertyId: string) {
  */
 export async function getAdminDateOverrides(propertyId: string) {
   console.log(`[MockFirestore] Using simulated date overrides data for ${propertyId}`);
-  return SAMPLE_DATE_OVERRIDES[propertyId] || [];
+  return (SAMPLE_DATE_OVERRIDES as any)[propertyId] || [];
 }
 
 /**

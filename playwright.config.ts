@@ -105,14 +105,13 @@ export default defineConfig({
   },
 
   // Global setup and teardown
-  globalSetup: require.resolve('./tests/visual/global-setup.ts'),
-  globalTeardown: require.resolve('./tests/visual/global-teardown.ts'),
+  globalSetup: require.resolve('./tests/visual/global-setup'),
+  globalTeardown: require.resolve('./tests/visual/global-teardown'),
 
   // Test configuration
   timeout: 60 * 1000, // 60 seconds per test
   expect: {
     // Screenshot comparison settings
-    threshold: 0.1, // Allow 0.1% pixel difference
     toMatchSnapshot: {
       threshold: 0.1,
       maxDiffPixels: 1000, // Allow up to 1000 different pixels

@@ -21,7 +21,6 @@ export * from './sections/availability';
 export * from './sections/common';
 export * from './sections/forms';
 export * from './hooks';
-export * from './services';
 
 // Also export the existing components for backward compatibility
 export { AvailabilityCalendar } from './availability-calendar';

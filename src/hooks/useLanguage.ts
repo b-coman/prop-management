@@ -8,7 +8,7 @@ interface LanguageHook {
   currentLanguage: string; // alias for compatibility
   switchLanguage: (lang: string) => void;
   changeLanguage: (lang: string) => void; // alias for compatibility
-  t: (key: string) => string;
+  t: (key: string, fallback?: string, variables?: Record<string, string | number>) => string;
   tc: (content: any) => string;
   getLocalizedPath: (path: string, lang?: string) => string;
   isLanguageSupported: (lang: string) => boolean;

@@ -3,7 +3,7 @@ import { Inter } from 'next/font/google'; // Import Inter font
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster'; // Import Toaster
 import { AuthProvider } from '@/contexts/SimpleAuthContext'; // Import SimpleAuthContext
-import { OptimizedCurrencyProvider } from '@/contexts/OptimizedCurrencyContext'; // Import OptimizedCurrencyProvider
+import { CurrencyProvider } from '@/contexts/CurrencyContext'; // Import CurrencyProvider directly
 import { ThemeProvider } from '@/contexts/ThemeContext'; // Import ThemeProvider
 import { ErrorBoundary } from '@/components/error-boundary'; // Import ErrorBoundary
 import { LanguageProvider } from '@/lib/language-system'; // Import unified language system
@@ -30,7 +30,7 @@ export default function RootLayout({
       <body className={`${inter.variable} font-sans antialiased`}>
         <ErrorBoundary>
           <AuthProvider> {/* Wrap children with AuthProvider */}
-            <OptimizedCurrencyProvider> {/* Wrap with OptimizedCurrencyProvider */}
+            <CurrencyProvider> {/* Wrap with CurrencyProvider */}
               <ThemeProvider> {/* Wrap with ThemeProvider */}
                 <LanguageProvider 
                   enablePerformanceTracking={true}
@@ -40,7 +40,7 @@ export default function RootLayout({
                   <Toaster /> {/* Add Toaster here */}
                 </LanguageProvider>
               </ThemeProvider>
-            </OptimizedCurrencyProvider>
+            </CurrencyProvider>
           </AuthProvider>
         </ErrorBoundary>
       </body>

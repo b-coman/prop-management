@@ -24,8 +24,8 @@ export function SafeImage({
   const [loaded, setLoaded] = useState(false);
   
   // Calculate default dimensions based on props
-  const defaultHeight = props.height || 300;
-  const defaultWidth = props.width || 400;
+  const defaultHeight = typeof props.height === 'number' ? props.height : 300;
+  const defaultWidth = typeof props.width === 'number' ? props.width : 400;
 
   // If there's an error or the src is invalid, show fallback
   if (error || !src) {

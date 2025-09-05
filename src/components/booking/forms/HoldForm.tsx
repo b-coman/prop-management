@@ -31,6 +31,7 @@ interface HoldFormProps {
   isProcessing: boolean;
   isPending: boolean;
   formError: string | null;
+  setFormError: (error: string | null) => void;
   pricingDetails: PriceCalculationResult;
   selectedCurrency: string;
   // Pass form values directly along with selectedCurrency
@@ -47,6 +48,7 @@ export function HoldForm({
   isProcessing = false,
   isPending = false,
   formError,
+  setFormError,
   pricingDetails,
   selectedCurrency,
   onSubmit
@@ -69,7 +71,7 @@ export function HoldForm({
   const holdFeeAmount = property.holdFeeAmount || 0;
   const displayHoldFee = formatPrice(
     convertToSelectedCurrency(holdFeeAmount, property.baseCurrency || 'EUR'),
-    selectedCurrency
+    selectedCurrency as any
   );
 
   // Initialize form with react-hook-form

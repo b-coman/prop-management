@@ -24,6 +24,8 @@ interface CreateCheckoutSessionResult {
   sessionId?: string;
   sessionUrl?: string;
   error?: string;
+  retry?: boolean;
+  errorType?: string;
 }
 
 // Lazy initialization of Stripe
@@ -53,7 +55,7 @@ export async function createCheckoutSession(
     const stripeInstance = getStripe();
     
     // Get the origin from the current request
-    const headersList = headers();
+    const headersList = await headers();
     const origin = headersList.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
 
     // Destructure the input

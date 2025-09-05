@@ -57,7 +57,7 @@ export function Header({
     // If label is an object with language keys, get the current language
     label: typeof item.label === 'object' && item.label[currentLang] 
       ? item.label[currentLang] 
-      : (typeof item.label === 'object' && item.label.en ? item.label.en : item.label)
+      : (typeof item.label === 'object' && (item.label as any).en ? (item.label as any).en : item.label)
   }));
 
   // Find button items (if any)
@@ -247,7 +247,6 @@ export function Header({
           {/* Currency Switcher */}
           <CurrencySwitcherSimple 
             className={currencySwitcherClasses} 
-            isHeaderScrolled={hasMounted && isScrolled}
           />
           
           {/* Button Items (usually Book Now) */}
@@ -357,7 +356,6 @@ export function Header({
               <div className="px-2.5">
                 <CurrencySwitcherSimple 
                   className="text-muted-foreground border-border hover:bg-accent/10"
-                  isHeaderScrolled={true} // Always use light theme in mobile sheet
                 />
               </div>
             </nav>

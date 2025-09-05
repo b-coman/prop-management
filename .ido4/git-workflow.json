@@ -1,0 +1,6 @@
+{
+  "enabled": false,
+  "require_pr_for_review": false,
+  "show_git_suggestions": false,
+  "detect_git_context": false
+}

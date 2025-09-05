@@ -249,7 +249,10 @@ export function RefactoredAvailabilityCheck({
 
           <div className="bg-white p-3 rounded shadow-sm">
             {/* Debug log to check unavailable dates */}
-            {console.log(`[RefactoredAvailabilityCheck] Passing ${unavailableDates.length} unavailable dates to DatePicker`)}
+            {(() => {
+              console.log(`[RefactoredAvailabilityCheck] Passing ${unavailableDates.length} unavailable dates to DatePicker`);
+              return null;
+            })()}
 
             <CustomDateRangePicker
               checkInDate={checkInDate}

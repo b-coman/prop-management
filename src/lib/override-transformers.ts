@@ -226,7 +226,7 @@ export function transformToHierarchical(
     // Convert visibleBlocks to visiblePages by inferring page from blocks
     const pages = new Set<string>();
     legacyOverrides.visibleBlocks.forEach(blockName => {
-      const hierarchicalPath = TRANSFORM_CONFIG.flatToHierarchical[blockName];
+      const hierarchicalPath = (TRANSFORM_CONFIG.flatToHierarchical as any)[blockName];
       if (hierarchicalPath) {
         const [pageName] = hierarchicalPath.split('.');
         pages.add(pageName);
@@ -248,7 +248,7 @@ export function transformToHierarchical(
       return;
     }
     
-    const hierarchicalPath = TRANSFORM_CONFIG.flatToHierarchical[key];
+    const hierarchicalPath = (TRANSFORM_CONFIG.flatToHierarchical as any)[key];
     
     if (hierarchicalPath) {
       // Map to hierarchical structure

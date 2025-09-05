@@ -69,11 +69,11 @@ export function LocationHighlights({ content, language = 'en' }: LocationHighlig
             <div className="container mx-auto px-4">
                  <div className="max-w-3xl mx-auto text-center mb-12">
                     <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
-                        {tc(title, language)}
+                        {tc(title)}
                     </h2>
                     {propertyLocation.city && propertyLocation.state && (
                         <p className="text-lg text-muted-foreground mb-4">
-                        {t('location.nestledIn', { city: propertyLocation.city, state: propertyLocation.state })}
+                        {t('location.nestledIn', undefined, { city: propertyLocation.city, state: propertyLocation.state })}
                         </p>
                     )}
                      {/* Actual map embed using apiKey */}
@@ -113,7 +113,7 @@ export function LocationHighlights({ content, language = 'en' }: LocationHighlig
                                 {attraction.image ? (
                                     <Image
                                         src={attraction.image}
-                                        alt={tc(attraction.name, language)}
+                                        alt={tc(attraction.name)}
                                         fill
                                         style={{objectFit: 'cover'}}
                                         className="rounded-lg"
@@ -125,12 +125,12 @@ export function LocationHighlights({ content, language = 'en' }: LocationHighlig
                                      </div>
                                 )}
                              </div>
-                            <h3 className="text-lg font-semibold text-foreground mb-1">{tc(attraction.name, language)}</h3>
+                            <h3 className="text-lg font-semibold text-foreground mb-1">{tc(attraction.name)}</h3>
                              {attraction.distance && (
                                  <p className="text-xs text-muted-foreground mb-2">{attraction.distance}</p>
                              )}
                             <p className="text-muted-foreground text-sm flex-grow">
-                                {tc(attraction.description, language)}
+                                {tc(attraction.description)}
                             </p>
                         </div>
                     ))}

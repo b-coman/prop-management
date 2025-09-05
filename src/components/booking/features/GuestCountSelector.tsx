@@ -25,10 +25,9 @@ export function GuestCountSelector({
    * Handle changing the guest count
    */
   const handleGuestChange = (change: number) => {
-    setNumberOfGuests((prev) => {
-      const newCount = prev + change;
-      return Math.max(1, Math.min(newCount, property.maxGuests));
-    });
+    const newCount = numberOfGuests + change;
+    const clampedCount = Math.max(1, Math.min(newCount, property.maxGuests));
+    setNumberOfGuests(clampedCount);
   };
   
   return (

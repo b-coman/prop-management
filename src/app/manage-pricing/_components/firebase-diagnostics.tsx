@@ -40,14 +40,19 @@ export default function FirebaseDiagnostics() {
           try {
             setDiagnostics(prev => ({ ...prev, collectionAccess: 'pending' }));
             
-            const propertiesRef = firebaseModule.db.collection('properties');
+            // Import the collection function for v9 SDK
+            const { collection } = await import('firebase/firestore');
+            const propertiesRef = collection(firebaseModule.db, 'properties');
             setDiagnostics(prev => ({ ...prev, collectionAccess: 'success' }));
             
             // Step 4: Try to execute a query
             try {
               setDiagnostics(prev => ({ ...prev, queryExecution: 'pending' }));
               
-              const snapshot = await propertiesRef.limit(5).get();
+              // Import the v9 query functions
+              const { query, limit, getDocs } = await import('firebase/firestore');
+              const q = query(propertiesRef, limit(5));
+              const snapshot = await getDocs(q);
               setDiagnostics(prev => ({ 
                 ...prev, 
                 queryExecution: 'success',

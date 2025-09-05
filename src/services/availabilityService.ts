@@ -16,6 +16,8 @@ export interface DailyPrice {
 
 export interface PriceAvailabilityResponse {
   unavailableDates: string[];
+  available?: boolean;
+  reason?: string;
   pricing?: {
     dailyRates: Record<string, number>;
     totalPrice: number;

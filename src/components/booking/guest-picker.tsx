@@ -30,11 +30,10 @@ export function GuestPicker({
   }, [numberOfGuests, setNumberOfGuests, baseOccupancy]);
   
   const handleGuestChange = React.useCallback((change: number) => {
-    setNumberOfGuests((prev) => {
-      const newCount = prev + change;
-      return Math.max(1, Math.min(newCount, maxGuests));
-    });
-  }, [setNumberOfGuests, maxGuests]);
+    const newCount = numberOfGuests + change;
+    const clampedCount = Math.max(1, Math.min(newCount, maxGuests));
+    setNumberOfGuests(clampedCount);
+  }, [numberOfGuests, setNumberOfGuests, maxGuests]);
   
   return (
     <div className={cn("space-y-1", className)}>

@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
           return;
         }
 
-        const [year, monthIndex] = monthStr.split('-').map(num => parseInt(num, 10));
+        const [year, monthIndex] = monthStr.split('-').map((num: string) => parseInt(num, 10));
         const month = monthIndex - 1; // JS month is 0-indexed
         
         docsWithDataCount++;

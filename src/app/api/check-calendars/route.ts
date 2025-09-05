@@ -13,7 +13,7 @@ export async function GET() {
     // Get all price calendars
     const snapshot = await db.collection('priceCalendars').get();
     
-    const calendars = [];
+    const calendars: any[] = [];
     snapshot.forEach(doc => {
       calendars.push({
         id: doc.id,
@@ -23,7 +23,7 @@ export async function GET() {
     
     // Get first calendar to show sample data
     const sampleCalendar = calendars[0];
-    let sampleDays = {};
+    let sampleDays: any = {};
     if (sampleCalendar && sampleCalendar.data.days) {
       // Get first 5 days as sample
       const days = Object.entries(sampleCalendar.data.days).slice(0, 5);

@@ -1,16 +1,16 @@
 'use client';
 
 import React from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, VariantLabels, TargetAndTransition } from 'framer-motion';
 
 interface StateTransitionWrapperProps {
   children: React.ReactNode;
   transitionKey: string;
   mode?: 'wait' | 'sync' | 'popLayout';
-  initial?: object;
-  animate?: object;
-  exit?: object;
-  transition?: object;
+  initial?: boolean | VariantLabels | TargetAndTransition;
+  animate?: boolean | VariantLabels | TargetAndTransition;
+  exit?: VariantLabels | TargetAndTransition;
+  transition?: any;
 }
 
 export function StateTransitionWrapper({

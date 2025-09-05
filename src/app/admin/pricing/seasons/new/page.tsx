@@ -95,12 +95,12 @@ export default function NewSeasonPage() {
         priceMultiplier,
         minimumStay,
         enabled: true
-      });
+      } as any) as any;
       
-      if (result.success) {
+      if (result?.success) {
         router.push('/admin/pricing');
       } else {
-        setError(result.error || 'Failed to create seasonal pricing rule');
+        setError(result?.error || 'Failed to create seasonal pricing rule');
       }
     } catch (err) {
       console.error('Error creating seasonal pricing:', err);

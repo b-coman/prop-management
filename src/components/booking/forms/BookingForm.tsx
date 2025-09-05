@@ -32,6 +32,7 @@ interface BookingFormProps {
   isProcessing: boolean;
   isPending: boolean;
   formError: string | null;
+  setFormError: (error: string | null) => void;
   lastErrorType?: string;
   canRetryError: boolean;
   pricingDetails: PriceCalculationResult;
@@ -46,6 +47,7 @@ export function BookingForm({
   isProcessing = false,
   isPending = false,
   formError,
+  setFormError,
   lastErrorType,
   canRetryError,
   pricingDetails,

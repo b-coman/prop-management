@@ -32,7 +32,8 @@ async function handleStartupCheck() {
   let firebaseStatus = 'not tested';
   try {
     // Dynamic import to avoid blocking startup
-    const { isFirestoreAdminAvailable, getDbAdmin } = await import('@/lib/firebaseAdmin');
+    const { isFirestoreAdminAvailable } = await import('@/lib/firebaseAdminNew');
+    const { getDbAdmin } = await import('@/lib/firebaseAdmin');
     // Try to get the admin instance - this will trigger initialization if needed
     const db = await getDbAdmin();
     firebaseStatus = db ? 'initialized and available' : 'not available';

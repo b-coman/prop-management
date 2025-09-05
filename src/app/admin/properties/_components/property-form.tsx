@@ -125,10 +125,10 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
   const form = useForm<PropertyFormValues>({
     resolver: zodResolver(propertyFormSchema),
     defaultValues: {
-        name: initialData?.name ?? '',
+        name: typeof initialData?.name === 'string' ? initialData.name : initialData?.name?.en ?? '',
         slug: defaultSlug,
-        description: initialData?.description ?? '',
-        shortDescription: initialData?.shortDescription ?? '',
+        description: typeof initialData?.description === 'string' ? initialData.description : initialData?.description?.en ?? '',
+        shortDescription: typeof initialData?.shortDescription === 'string' ? initialData.shortDescription : initialData?.shortDescription?.en ?? '',
         templateId: initialData?.templateId ?? 'holiday-house', // Default or fetch options
         themeId: initialData?.themeId ?? DEFAULT_THEME_ID,
         location: {
@@ -155,7 +155,7 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
         squareFeet: initialData?.squareFeet ?? undefined,
         checkInTime: initialData?.checkInTime ?? '',
         checkOutTime: initialData?.checkOutTime ?? '',
-        cancellationPolicy: initialData?.cancellationPolicy ?? '',
+        cancellationPolicy: typeof initialData?.cancellationPolicy === 'string' ? initialData.cancellationPolicy : initialData?.cancellationPolicy?.en ?? '',
         status: initialData?.status ?? 'draft',
         ownerId: initialData?.ownerId ?? '', // Handle owner ID logic
         customDomain: initialData?.customDomain ?? null,
@@ -251,7 +251,7 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
               <FormLabel>Choose a design theme for your property website</FormLabel>
               <FormControl>
                 <ThemeSelector
-                  selectedThemeId={field.value}
+                  selectedThemeId={field.value || ''}
                   onThemeChange={field.onChange}
                 />
               </FormControl>

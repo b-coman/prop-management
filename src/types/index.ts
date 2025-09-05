@@ -5,13 +5,14 @@ export const SUPPORTED_CURRENCIES = ['USD', 'EUR', 'RON'] as const;
 export type CurrencyCode = typeof SUPPORTED_CURRENCIES[number];
 
 // Representing Firestore Timestamps for client-side (can be Date, string, or Firestore Timestamp)
-export type SerializableTimestamp = Timestamp | Date | string;
+import type { FieldValue } from 'firebase/firestore';
+export type SerializableTimestamp = Timestamp | Date | string | FieldValue;
 
 // Multilingual string type for i18n support
 export type MultilingualString = {
-  [languageCode: string]: string;
   en: string; // English is required as default
   ro?: string; // Romanian is optional
+  [languageCode: string]: string | undefined;
 };
 
 export interface PropertyImage {
@@ -384,3 +385,41 @@ export interface Coupon {
   updatedAt?: SerializableTimestamp;
   // Potentially add usageLimits, minSpend, etc. in the future
 }
+
+// Pricing response interface for booking API calls
+export interface PricingResponse {
+  dailyRates: Record<string, number>;
+  totalPrice: number;
+  total: number; // Alternative total field
+  averageNightlyRate: number;
+  subtotal: number;
+  cleaningFee: number;
+  accommodationTotal: number; // Accommodation subtotal
+  currency: CurrencyCode;
+  minimumStay?: number;
+  requiredNights?: number;
+  numberOfNights: number;
+  taxes?: number;
+  // Additional properties to match PriceCalculationResult
+  basePrice: number;
+  baseRate?: number; // Alternative base rate field
+  extraGuestFeeTotal: number;
+  extraGuestFee?: number; // Alternative extra guest fee field
+  discountAmount: number;
+  numberOfExtraGuests: number;
+  lengthOfStayDiscount?: {
+    amount: number;
+    percentage: number;
+    discountAmount: number;
+    discountPercentage: number;
+  };
+  couponDiscount?: {
+    amount: number;
+    code: string;
+    discountAmount: number;
+    discountPercentage?: number;
+  };
+}
+
+// Re-export from price-utils
+export type { PriceCalculationResult } from '@/lib/price-utils';

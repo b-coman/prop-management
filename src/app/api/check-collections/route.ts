@@ -51,7 +51,7 @@ export async function GET() {
         calendarChecks.push({
           collection: collName,
           exists: false,
-          error: error.message
+          error: (error as Error).message
         });
       }
     }

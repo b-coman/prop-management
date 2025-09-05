@@ -36,7 +36,7 @@ export function ConsolidatedInfoCard({
     try {
       const holdUntilDate = booking.holdUntil instanceof Date 
         ? booking.holdUntil 
-        : new Date(booking.holdUntil);
+        : (booking.holdUntil as any)?.toDate ? (booking.holdUntil as any).toDate() : new Date(booking.holdUntil as string);
       
       return format(holdUntilDate, 'MMM d, yyyy h:mm a');
     } catch (e) {
@@ -62,7 +62,7 @@ export function ConsolidatedInfoCard({
               {property.images && property.images.length > 0 && property.images[0].url ? (
                 <img
                   src={property.images[0].url}
-                  alt={property.name}
+                  alt={typeof property.name === 'string' ? property.name : property.name.en}
                   className="h-full w-full object-cover"
                 />
               ) : (
@@ -72,7 +72,7 @@ export function ConsolidatedInfoCard({
               )}
             </div>
             <div>
-              <h3 className="font-semibold text-slate-800">{property.name}</h3>
+              <h3 className="font-semibold text-slate-800">{typeof property.name === 'string' ? property.name : property.name.en}</h3>
               {property.location && (
                 <p className="text-sm text-slate-600">
                   {property.location.city}{property.location.city && property.location.country && ", "}
@@ -229,7 +229,7 @@ export function ConsolidatedInfoCard({
                 )}
                 
                 <p className="text-xs text-amber-600 mt-1">
-                  Your hold fee {booking.holdFeeRefundable ? 'is refundable when you complete your booking' : 'is non-refundable'}
+                  Your hold fee {(booking as any).holdFeeRefundable ? 'is refundable when you complete your booking' : 'is non-refundable'}
                 </p>
               </div>
             </div>

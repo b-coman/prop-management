@@ -90,7 +90,7 @@ export function UnavailableDatesView({
           <AvailabilityCalendar 
             currentMonth={checkInDate || new Date()}
             unavailableDates={unavailableDates}
-            selectedRange={{ from: checkInDate, to: checkOutDate }}
+            selectedRange={{ from: checkInDate || undefined, to: checkOutDate || undefined }}
             onDateClick={handleCalendarDateClick}
           />
         </CardContent>

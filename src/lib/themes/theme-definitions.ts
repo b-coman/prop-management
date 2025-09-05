@@ -6,6 +6,7 @@
  */
 
 import { Theme } from './theme-types';
+export type { Theme };
 
 /**
  * The default Airbnb-inspired theme with signature pink accents

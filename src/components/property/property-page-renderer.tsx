@@ -361,17 +361,17 @@ export function PropertyPageRenderer({
             slug: propertySlug,
             name: propertyName,
             // Default values for booking form
-            baseCurrency: property?.baseCurrency || 'EUR',
-            baseRate: property?.pricePerNight || 150,
-            advertisedRate: property?.advertisedRate || property?.pricePerNight || 150,
-            advertisedRateType: property?.advertisedRateType || "from",
-            minNights: property?.defaultMinimumStay || 2,
+            baseCurrency: (property as any)?.baseCurrency || 'EUR',
+            baseRate: (property as any)?.pricePerNight || 150,
+            advertisedRate: (property as any)?.advertisedRate || (property as any)?.pricePerNight || 150,
+            advertisedRateType: (property as any)?.advertisedRateType || "from",
+            minNights: (property as any)?.defaultMinimumStay || 2,
             maxNights: 14,
-            maxGuests: property?.maxGuests || 6,
-            ratings: property?.ratings
+            maxGuests: (property as any)?.maxGuests || 6,
+            ratings: (property as any)?.ratings
           }),
           // Add price if not already set
-          price: blockContent.price !== undefined ? blockContent.price : (property?.pricePerNight || 150),
+          price: blockContent.price !== undefined ? blockContent.price : ((property as any)?.pricePerNight || 150),
           // Only use showBookingForm value exactly as provided in Firestore
           showBookingForm: blockContent.showBookingForm, 
         };

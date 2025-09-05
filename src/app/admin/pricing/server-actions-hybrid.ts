@@ -195,7 +195,7 @@ export async function updateDay(dayData: any) {
     }
 
     // Extract year, month, and day from the date string
-    const [year, month, day] = dayData.date.split('-').map(part => parseInt(part, 10));
+    const [year, month, day] = dayData.date.split('-').map((part: string) => parseInt(part, 10));
 
     // Format the calendar ID (propertyId_YYYY-MM)
     const calendarId = `${dayData.propertyId}_${year}-${month.toString().padStart(2, '0')}`;
@@ -233,7 +233,7 @@ export async function updateDay(dayData: any) {
           [`days.${day}.overrideId`]: overrideId,
           // Also update prices for different guest counts if present
           ...(calendarDoc.data().days[day]?.prices ? {
-            [`days.${day}.prices`]: Object.keys(calendarDoc.data().days[day].prices).reduce((acc, guestCount) => {
+            [`days.${day}.prices`]: Object.keys(calendarDoc.data().days[day].prices).reduce((acc: any, guestCount) => {
               acc[guestCount] = dayData.customPrice;
               return acc;
             }, {})

@@ -3,11 +3,16 @@ import type { CurrencyCode } from '@/types';
 
 export interface PriceCalculationResult {
   basePrice: number; 
+  baseRate?: number; // Alternative base rate field
   extraGuestFeeTotal: number; 
+  extraGuestFee?: number; // Alternative extra guest fee field
   cleaningFee: number;
   subtotal: number; 
+  accommodationTotal?: number; // Accommodation subtotal
   discountAmount: number;
-  total: number; 
+  total: number;
+  totalPrice?: number; // Alternative total price field
+  taxes?: number;
   currency: CurrencyCode; // The currency in which these prices are calculated
   numberOfNights: number;
   numberOfExtraGuests: number;

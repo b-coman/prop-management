@@ -16,7 +16,7 @@ export async function ServerSeasonalPricingForm({ propertyId }: ServerSeasonalPr
   let property = null;
   let error = null;
   
-  if (isFirestoreAdminAvailable()) {
+  if (await isFirestoreAdminAvailable()) {
     try {
       property = await getProperty(propertyId);
     } catch (err) {

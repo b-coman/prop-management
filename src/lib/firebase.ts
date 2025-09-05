@@ -47,8 +47,8 @@ if (getApps().length === 0) {
 }
 
 // Properly type the Firestore database
-let db: Firestore | undefined;
-let auth: Auth | undefined; // Declare auth with type
+let db: Firestore;
+let auth: Auth;
 
 if (app) {
   try {
@@ -57,9 +57,11 @@ if (app) {
     // console.log("✅ Firestore and Auth Client SDKs initialized successfully.");
   } catch (sdkError) {
     console.error("❌ Firestore or Auth Client SDK initialization failed:", sdkError);
+    throw new Error("Failed to initialize Firebase Client SDKs");
   }
 } else {
   console.error("❌ Cannot initialize Firestore/Auth Client SDKs because Firebase app is not available.");
+  throw new Error("Firebase app is not initialized. Check your environment variables.");
 }
 
 export { app, db, auth }; // Export auth

@@ -26,7 +26,7 @@ export interface AuthResult {
  */
 export async function checkAuthentication(): Promise<AuthResult> {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const sessionCookie = cookieStore.get('auth-session');
 
     if (!sessionCookie?.value) {

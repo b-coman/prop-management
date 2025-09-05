@@ -67,7 +67,7 @@ export function MobilePriceDrawer({
           </div>
 
           {/* Additional Fees */}
-          {(pricing.cleaningFee > 0 || pricing.taxes > 0) && (
+          {(pricing.cleaningFee > 0 || (pricing.taxes && pricing.taxes > 0)) && (
             <div>
               <h3 className="font-medium mb-2">Additional Fees</h3>
               {pricing.cleaningFee > 0 && (
@@ -76,7 +76,7 @@ export function MobilePriceDrawer({
                   <span className="text-sm">{formatPrice(convertToSelectedCurrency(pricing.cleaningFee, pricing.currency))}</span>
                 </div>
               )}
-              {pricing.taxes > 0 && (
+              {pricing.taxes && pricing.taxes > 0 && (
                 <div className="flex justify-between items-center mt-2">
                   <span className="text-sm">Taxes</span>
                   <span className="text-sm">{formatPrice(convertToSelectedCurrency(pricing.taxes, pricing.currency))}</span>

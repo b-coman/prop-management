@@ -74,7 +74,7 @@ export function TestimonialsSection({ content, language = 'en' }: TestimonialsSe
       <div className="container mx-auto px-4">
         <div className="max-w-3xl mx-auto text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
-             {tc(title, language)}
+             {tc(title)}
           </h2>
           {overallRating > 0 && (
              <div className="flex items-center justify-center gap-2">
@@ -120,7 +120,7 @@ export function TestimonialsSection({ content, language = 'en' }: TestimonialsSe
                   </div>
                 </div>
                 <p className="text-muted-foreground text-sm italic flex-grow">
-                  "{tc(review.text, language)}"
+                  "{tc(review.text)}"
                 </p>
               </CardContent>
             </Card>
