@@ -13,6 +13,7 @@ A property rental website builder and management system built with Next.js and F
 - Admin panel for managing properties, bookings, and inquiries
 - Multi-currency support
 - Custom domain support
+- Nothing else
 
 ## Documentation
 
