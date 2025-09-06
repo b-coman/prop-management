@@ -1,41 +1,89 @@
 /**
- * BookingPageV2.5 - Redesigned Booking Page with Header and Currency Integration
+ * BookingPageV2.6 - Enhanced UX with Tab-Based Forms and Improved Visual Hierarchy
  * 
  * @file-status: ACTIVE
  * @v2-role: CORE - Main container for V2 booking page
  * @created: 2025-05-31
- * @updated: 2025-06-04 (V2.5 - Fixed currency consistency and removed redundant title)
+ * @updated: 2025-09-06 (V2.6 - Tab-based forms, improved layout, fixed language consistency)
  * @description: Orchestrates the complete V2 booking experience with simplified
  *               state management and preserved working components.
  *               V2.3 adds two-column desktop layout with sticky summary.
  *               V2.4 adds simple booking header with back navigation, currency and language selectors.
  *               V2.5 removes redundant property title, fixes hold fee currency conversion.
+ *               V2.6 implements tab-based form navigation, better visual hierarchy, and language consistency.
  * @dependencies: BookingProvider, existing form components, pricing display, CurrencyContext
  * @replaces: src/app/booking/check/[slug]/booking-client-layout.tsx (partially)
- * @v2.4-changes: Added mobile/desktop sticky headers with back button, currency/language selectors
- * @v2.5-changes: Removed duplicate property title, fixed hardcoded EUR hold fees to respect selected currency
+ * @v2.6-changes: Tab-based forms, compact date/guest selector, enhanced pricing summary, smooth transitions
  */
 
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState, memo } from 'react';
 import { BookingProvider } from '../contexts';
 import { DateAndGuestSelector, PricingSummary } from '../components';
 import { ContactFormV2, HoldFormV2, BookingFormV2 } from '../forms';
 import type { Property, CurrencyCode } from '@/types';
 import { loggers } from '@/lib/logger';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Calendar, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { CurrencySwitcherSimple } from '@/components/currency-switcher-simple';
 import { LanguageSelector } from '@/components/language-selector';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useEffect, useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 import { useBooking } from '../contexts';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
+import { RenderTracker } from '@/components/debug/RenderTracker';
+
+// Memoized components for dynamic booking summary (copied from DateAndGuestSelector)
+const BookingSummaryText = memo(function BookingSummaryText({ 
+  nights, 
+  guests,
+  t 
+}: { 
+  nights: number; 
+  guests: number;
+  t: (key: string, fallback: string, options?: any) => string;
+}) {
+  return (
+    <h3 className="text-lg font-semibold">
+      {t('booking.bookingSummary', "You're booking a {{nights}}-night stay for {{guests}} {{guestLabel}}", {
+        nights,
+        guests,
+        guestLabel: guests === 1 ? t('booking.guest', 'guest') : t('booking.guests', 'guests')
+      })}
+    </h3>
+  );
+});
+
+const DateRangeDisplay = memo(function DateRangeDisplay({ 
+  checkInDate, 
+  checkOutDate,
+  t,
+  currentLang 
+}: { 
+  checkInDate: Date | null; 
+  checkOutDate: Date | null; 
+  t: (key: string, fallback: string, options?: any) => string;
+  currentLang: string;
+}) {
+  if (!checkInDate || !checkOutDate) return null;
+  
+  const locale = currentLang === 'ro' ? ro : undefined;
+  
+  return (
+    <p className="text-sm text-muted-foreground">
+      {t('booking.arrivingLeaving', 'Arriving {{arrivalDate}} and leaving {{departureDate}}', {
+        arrivalDate: format(checkInDate, "EEEE, MMMM d", { locale }),
+        departureDate: format(checkOutDate, "EEEE, MMMM d", { locale })
+      })}
+    </p>
+  );
+});
 
 interface BookingPageV2Props {
   property: Property;
@@ -57,10 +105,9 @@ function BookingPageContent({ className }: { className?: string }) {
     setSelectedAction
   } = useBooking();
   
-  const { formatPrice, convertToSelectedCurrency } = useCurrency();
+  const { formatPrice, convertToSelectedCurrency, selectedCurrency } = useCurrency();
   const { t, currentLang } = useLanguage();
-
-  // Form state will be added when we create V2 forms
+  const [activeTab, setActiveTab] = useState<'book' | 'hold' | 'contact'>('book');
 
   // Check if we have valid booking data
   const hasValidDates = checkInDate && checkOutDate;
@@ -68,9 +115,30 @@ function BookingPageContent({ className }: { className?: string }) {
   const canShowBookingOptions = !!(hasValidDates && hasValidPricing);
 
   const propertyName = typeof property.name === 'string' ? property.name : property.name.en;
+  
+  // Calculate nights for display
+  const numberOfNights = checkInDate && checkOutDate 
+    ? Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+
+  // Handle tab click and set selected action
+  const handleTabClick = (tab: 'book' | 'hold' | 'contact') => {
+    setActiveTab(tab);
+    setSelectedAction(tab);
+  };
+
+  // Auto-select Book Now when pricing becomes available
+  useEffect(() => {
+    if (canShowBookingOptions && !selectedAction) {
+      setSelectedAction('book');
+      setActiveTab('book');
+    }
+  }, [canShowBookingOptions, selectedAction, setSelectedAction]);
 
   return (
     <div className="min-h-screen bg-background">
+      {/* 🔍 DIAGNOSTIC COMPONENT - Track re-renders */}
+      <RenderTracker name="BookingPageV2-Content" data={{ currentLang, propertyName }} />
       {/* Mobile Sticky Header - Clean Navigation Only */}
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border md:hidden">
         <div className="container px-4 py-3">
@@ -130,31 +198,147 @@ function BookingPageContent({ className }: { className?: string }) {
       </div>
 
       <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 ${className}`}>
-        {/* V2.3 Responsive Layout: Desktop 60/40, Mobile single column */}
+        {/* V2.7 Reorganized Layout: Control Panel (Left) + Workspace (Right) */}
       <div className="grid lg:grid-cols-5 gap-6 lg:gap-8">
-        {/* Left Column: 60% - Booking inputs and forms */}
-        <div className="lg:col-span-3 space-y-6">
+        {/* Left Column: 40% - Control Panel (Date/Guest + Price + Actions) */}
+        <div className="lg:col-span-2">
           {/* Date & Guest Selection */}
           <DateAndGuestSelector />
           
-          {/* Inline Form Container - V2.3 */}
+          {/* Mobile: Compact pricing summary */}
+          <div className="lg:hidden mt-4">
+            {hasValidPricing && pricing && (
+              <Card className="overflow-hidden">
+                <CardContent className="p-4 space-y-3">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-foreground">
+                      {formatPrice(convertToSelectedCurrency(pricing.totalPrice || pricing.total, pricing.currency))}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {numberOfNights} {numberOfNights === 1 ? t('booking.night', 'night') : t('booking.nights', 'nights')} • {t('booking.totalIncludesFees', 'Total (includes all fees)')}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Desktop: Control Panel - Sticky */}
+          <div className="hidden lg:block lg:sticky lg:top-4 mt-6">
+            {hasValidPricing && pricing ? (
+              <Card className="overflow-hidden">
+                <CardContent className="p-6 space-y-4">
+                  {/* Booking Summary Text - Using original dynamic components */}
+                  <div className="text-center pb-3 border-b">
+                    <BookingSummaryText nights={numberOfNights} guests={guestCount} t={t} />
+                    <div className="mt-1">
+                      <DateRangeDisplay checkInDate={checkInDate} checkOutDate={checkOutDate} t={t} currentLang={currentLang} />
+                    </div>
+                  </div>
+                  
+                  {/* Total Price Display */}
+                  <div className="text-center py-2">
+                    <div className="text-3xl font-bold text-foreground">
+                      {formatPrice(convertToSelectedCurrency(pricing.totalPrice || pricing.total, pricing.currency))}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {t('booking.totalIncludesFees', 'Total (includes all fees)')}
+                    </p>
+                  </div>
+
+                  {/* Action Buttons - Control Panel */}
+                  <div className="pt-3 border-t space-y-3">
+                    <button
+                      type="button"
+                      onClick={() => handleTabClick('book')}
+                      className={`w-full px-4 py-3 rounded-md font-medium text-sm transition-all duration-200 ${
+                        (selectedAction === 'book' || (!selectedAction && activeTab === 'book'))
+                          ? 'bg-primary text-primary-foreground shadow-sm' 
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                      }`}
+                    >
+                      {t('booking.bookNow', 'Book Now')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleTabClick('hold')}
+                      className={`w-full px-4 py-3 rounded-md font-medium text-sm transition-all duration-200 ${
+                        selectedAction === 'hold'
+                          ? 'bg-primary text-primary-foreground shadow-sm' 
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                      }`}
+                    >
+                      {t('booking.holdDates', 'Hold Dates')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleTabClick('contact')}
+                      className={`w-full px-4 py-3 rounded-md font-medium text-sm transition-all duration-200 ${
+                        selectedAction === 'contact'
+                          ? 'bg-primary text-primary-foreground shadow-sm' 
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                      }`}
+                    >
+                      {t('booking.contactHost', 'Contact Host')}
+                    </button>
+                  </div>
+
+                  {/* Price Breakdown - Moved to bottom */}
+                  <details className="group mt-6">
+                    <summary className="flex items-center justify-between cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors p-2 rounded-md hover:bg-muted/50">
+                      <span>{t('booking.viewPriceBreakdown', 'View price breakdown')}</span>
+                      <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+                    </summary>
+                    <div className="mt-3 space-y-3 px-2">
+                      <div className="flex justify-between text-sm">
+                        <span>{t('booking.basePrice', `Base price (${numberOfNights} ${numberOfNights === 1 ? 'night' : 'nights'})`)}</span>
+                        <span>{formatPrice(convertToSelectedCurrency(pricing.basePrice || pricing.baseRate || 0, pricing.currency))}</span>
+                      </div>
+                      {pricing.cleaningFee > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span>{t('booking.cleaningFee', 'Cleaning fee')}</span>
+                          <span>{formatPrice(convertToSelectedCurrency(pricing.cleaningFee, pricing.currency))}</span>
+                        </div>
+                      )}
+                      {pricing.extraGuestFeeTotal && pricing.extraGuestFeeTotal > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span>{t('booking.extraGuestFee', 'Extra guest fee')}</span>
+                          <span>{formatPrice(convertToSelectedCurrency(pricing.extraGuestFeeTotal, pricing.currency))}</span>
+                        </div>
+                      )}
+                      {pricing.taxes && pricing.taxes > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span>{t('booking.taxes', 'Taxes')}</span>
+                          <span>{formatPrice(convertToSelectedCurrency(pricing.taxes, pricing.currency))}</span>
+                        </div>
+                      )}
+                      <div className="border-t pt-3">
+                        <div className="flex justify-between font-semibold">
+                          <span>{t('booking.total', 'Total')}</span>
+                          <span>{formatPrice(convertToSelectedCurrency(pricing.totalPrice || pricing.total, pricing.currency))}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </details>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Calendar className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                  <p className="text-sm text-muted-foreground">
+                    {t('booking.selectDatesToSeePricing', 'Select your dates to see pricing')}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+
+        {/* Right Column: 60% - Dedicated Form Workspace */}
+        <div className="lg:col-span-3">
           {selectedAction && pricing && (
-            <div className="space-y-4">
-              {/* Form Header with Back Button */}
-              <div className="flex items-center justify-between gap-4">
-                <h2 className="text-base sm:text-lg font-semibold">
-                  {selectedAction === 'contact' && t('booking.sendMessageToHost', 'Send a Message to the Host')}
-                  {selectedAction === 'hold' && t('booking.holdYourStay', 'Hold Your Stay')}
-                  {selectedAction === 'book' && t('booking.completeYourBooking', 'Complete Your Booking')}
-                </h2>
-                <button 
-                  type="button"
-                  onClick={() => setSelectedAction(null)}
-                  className="text-sm text-primary underline hover:no-underline whitespace-nowrap"
-                >
-                  {t('navigation.backToOptions', 'Back to options')}
-                </button>
-              </div>
+            <div className="space-y-6">
 
               {/* Form Content */}
               {selectedAction === 'contact' && (
@@ -191,7 +375,7 @@ function BookingPageContent({ className }: { className?: string }) {
                   isProcessing={false}
                   isPending={false}
                   pricingDetails={pricing}
-                  selectedCurrency="USD" // TODO: Get from currency context
+                  selectedCurrency={selectedCurrency}
                 />
               )}
 
@@ -243,7 +427,7 @@ function BookingPageContent({ className }: { className?: string }) {
                   isProcessing={false}
                   isPending={false}
                   pricingDetails={pricing}
-                  selectedCurrency="USD"
+                  selectedCurrency={selectedCurrency}
                 />
               )}
 
@@ -316,133 +500,49 @@ function BookingPageContent({ className }: { className?: string }) {
                   isProcessing={false}
                   isPending={false}
                   pricingDetails={pricing}
-                  selectedCurrency="USD"
+                  selectedCurrency={selectedCurrency}
                 />
               )}
             </div>
           )}
-        </div>
 
-        {/* Right Column: 40% Desktop - Full width Mobile */}
-        <div className="lg:col-span-2">
-          {/* Mobile: Summary and actions in order */}
-          <div className="lg:hidden space-y-4">
-            {/* Mobile Summary - Above actions */}
-            <PricingSummary
-              pricing={pricing}
-              checkInDate={checkInDate}
-              checkOutDate={checkOutDate}
-              guestCount={guestCount}
-              property={property}
-              show={hasValidPricing}
-            />
+          {/* Empty state for right column when no action selected */}
+          {!selectedAction && canShowBookingOptions && (
+            <div className="flex items-center justify-center min-h-96">
+              <Card className="w-full max-w-md">
+                <CardContent className="py-12 text-center">
+                  <div className="mb-4">
+                    <Calendar className="h-16 w-16 mx-auto text-muted-foreground/30" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">
+                    {t('booking.readyToBook', 'Ready to Book?')}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {t('booking.selectActionInControlPanel', 'Select an action from the control panel on the left to continue')}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
-            {/* Mobile Action Buttons - Full width */}
-            {canShowBookingOptions && pricing && !selectedAction && (
-              <div className="space-y-3">
-                {/* Book Now - Primary */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedAction('book')}
-                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-6 rounded-md font-medium transition-colors text-base"
-                >
-                  {t('booking.bookNow', 'Book Now')}
-                </button>
-                <p className="text-xs text-center text-muted-foreground -mt-1">
-                  {t('host.secureBookingInstantly', 'Secure your booking instantly')}
-                </p>
-
-                {/* Hold Dates - Secondary */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedAction('hold')}
-                  className="w-full border border-primary text-primary hover:bg-primary/10 h-12 px-6 rounded-md font-medium transition-colors text-base"
-                >
-                  {t('booking.holdDates', 'Hold Dates')}
-                </button>
-                <p className="text-xs text-center text-muted-foreground -mt-1">
-                  {t('booking.holdDescription', '24h hold for {{fee}} – applied to your total if you book', {
-                    fee: formatPrice(convertToSelectedCurrency(property.holdFeeAmount || 50, 'EUR'))
-                  })}
-                </p>
-
-                {/* Contact Host - Ghost */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedAction('contact')}
-                  className="w-full text-primary hover:text-primary/80 hover:bg-accent h-12 px-6 rounded-md font-medium transition-colors text-base"
-                >
-                  {t('booking.contactHost', 'Contact Host')}
-                </button>
-                <p className="text-xs text-center text-muted-foreground -mt-1">
-                  {t('host.askQuestionBeforeBooking', 'Ask a question before booking')}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Desktop: Sticky sidebar */}
-          <div className="hidden lg:block lg:sticky lg:top-4 space-y-6">
-            {/* Desktop Summary */}
-            <PricingSummary
-              pricing={pricing}
-              checkInDate={checkInDate}
-              checkOutDate={checkOutDate}
-              guestCount={guestCount}
-              property={property}
-              show={hasValidPricing}
-            />
-
-            {/* Desktop Action Buttons - V2.3 vertical stack */}
-            {canShowBookingOptions && pricing && !selectedAction && (
-              <div className="space-y-3">
-                {/* Book Now - Primary */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedAction('book')}
-                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-11 px-8 rounded-md font-medium transition-colors"
-                >
-                  {t('booking.bookNow', 'Book Now')}
-                </button>
-                <p className="text-xs text-center text-muted-foreground -mt-1">
-                  {t('host.secureBookingInstantly', 'Secure your booking instantly')}
-                </p>
-
-                {/* Hold Dates - Secondary */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedAction('hold')}
-                  className="w-full border border-primary text-primary hover:bg-primary/10 h-11 px-8 rounded-md font-medium transition-colors"
-                >
-                  {t('booking.holdDates', 'Hold Dates')}
-                </button>
-                <p className="text-xs text-center text-muted-foreground -mt-1">
-                  {t('booking.holdDescription', '24h hold for {{fee}} – applied to your total if you book', {
-                    fee: formatPrice(convertToSelectedCurrency(property.holdFeeAmount || 50, 'EUR'))
-                  })}
-                </p>
-
-                {/* Contact Host - Ghost */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedAction('contact')}
-                  className="w-full text-primary hover:text-primary/80 hover:bg-accent h-11 px-8 rounded-md font-medium transition-colors"
-                >
-                  {t('booking.contactHost', 'Contact Host')}
-                </button>
-                <p className="text-xs text-center text-muted-foreground -mt-1">
-                  {t('host.askQuestionBeforeBooking', 'Ask a question before booking')}
-                </p>
-              </div>
-            )}
-
-            {/* Helper Text for Empty States */}
-            {!hasValidDates && (
-              <div className="text-center py-12 text-muted-foreground">
-                <p className="text-sm">{t('booking.selectDatesForPricing', 'Select your dates to see pricing and booking options')}</p>
-              </div>
-            )}
-          </div>
+          {/* No pricing available state */}
+          {!canShowBookingOptions && (
+            <div className="flex items-center justify-center min-h-96">
+              <Card className="w-full max-w-md">
+                <CardContent className="py-12 text-center">
+                  <div className="mb-4">
+                    <Calendar className="h-16 w-16 mx-auto text-muted-foreground/30" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">
+                    {t('booking.selectDates', 'Select Your Dates')}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {t('booking.selectDatesMessage', 'Choose your check-in and check-out dates in the control panel to view pricing and booking options')}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </div>
       </div>

@@ -45,7 +45,6 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { ClientBookingWrapper } from '@/components/booking/client-booking-wrapper';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 // Import all needed utilities
 import { getPropertyBySlug, getPropertyHeroImage } from '@/lib/property-utils';
@@ -54,7 +53,6 @@ import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firesto
 import BookingClientLayout from './booking-client-layout';
 import { AvailabilityErrorHandler } from '../../error-handler';
 import { serverTranslateContent } from '@/lib/server-language-utils';
-import { FEATURES } from '@/config/features';
 import { BookingPageV2 } from '@/components/booking-v2';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
 import { LanguageHtmlUpdater } from '@/components/language-html-updater';
@@ -215,40 +213,25 @@ export default async function BookingCheckPage({ params, searchParams }: Booking
   // Get property theme ID for consistent theming
   const propertyThemeId = property.themeId;
   
-  // Feature flag: V2 vs V1 booking system
-  if (FEATURES.BOOKING_V2) {
-    return (
-      <>
-        <LanguageHtmlUpdater initialLanguage={detectedLanguage} />
-        <Suspense fallback={<div>Loading V2 booking system...</div>}>
-          <BookingClientLayout 
-            propertySlug={property.slug} 
-            themeId={propertyThemeId} 
-            heroImage={heroImage}
-            initialLanguage={detectedLanguage}
-          >
-            <BookingPageV2
-              property={property}
-              initialCurrency={currency as any}
-              initialLanguage={detectedLanguage}
-              themeId={propertyThemeId}
-            />
-          </BookingClientLayout>
-        </Suspense>
-      </>
-    );
-  }
-
-  // V1 booking system (default)
+  // V2 booking system is now the standard
   return (
-    <Suspense fallback={<div>Loading availability...</div>}>
-      <BookingClientLayout propertySlug={property.slug} themeId={propertyThemeId} heroImage={heroImage}>
-        <ClientBookingWrapper
-          property={property}
-          urlParams={{ checkIn, checkOut }}
-          heroImage={heroImage} // Directly pass the pre-fetched hero image
-        />
-      </BookingClientLayout>
-    </Suspense>
+    <>
+      <LanguageHtmlUpdater initialLanguage={detectedLanguage} />
+      <Suspense fallback={<div>Loading booking system...</div>}>
+        <BookingClientLayout 
+          propertySlug={property.slug} 
+          themeId={propertyThemeId} 
+          heroImage={heroImage}
+          initialLanguage={detectedLanguage}
+        >
+          <BookingPageV2
+            property={property}
+            initialCurrency={currency as any}
+            initialLanguage={detectedLanguage}
+            themeId={propertyThemeId}
+          />
+        </BookingClientLayout>
+      </Suspense>
+    </>
   );
 }

@@ -15,11 +15,12 @@ import React, { useEffect } from 'react';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Loader2, Mail, Phone as PhoneIcon, Send } from 'lucide-react';
+import { Loader2, Send, Mail } from 'lucide-react';
 import { useBooking } from '../contexts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
+import { IconInputField } from '@/components/ui/icon-input-field';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -129,7 +130,7 @@ export function ContactFormV2({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
             {/* Name Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
                 name="firstName"
@@ -137,17 +138,15 @@ export function ContactFormV2({
                   <FormItem>
                     <FormLabel>First Name</FormLabel>
                     <FormControl>
-                      <TouchTarget>
-                        <Input 
-                          placeholder="Enter your first name" 
-                          {...field}
-                          onChange={(e) => {
-                            field.onChange(e);
-                            handleFieldChange('firstName', e.target.value);
-                          }}
-                          disabled={isLoading}
-                        />
-                      </TouchTarget>
+                      <IconInputField
+                        placeholder="Enter your first name" 
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          handleFieldChange('firstName', e.target.value);
+                        }}
+                        disabled={isLoading}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -161,26 +160,21 @@ export function ContactFormV2({
                   <FormItem>
                     <FormLabel>Last Name</FormLabel>
                     <FormControl>
-                      <TouchTarget>
-                        <Input 
-                          placeholder="Enter your last name" 
-                          {...field}
-                          onChange={(e) => {
-                            field.onChange(e);
-                            handleFieldChange('lastName', e.target.value);
-                          }}
-                          disabled={isLoading}
-                        />
-                      </TouchTarget>
+                      <IconInputField
+                        placeholder="Enter your last name" 
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          handleFieldChange('lastName', e.target.value);
+                        }}
+                        disabled={isLoading}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            </div>
 
-            {/* Contact Fields */}
-            <div className="space-y-4">
               <FormField
                 control={form.control}
                 name="email"
@@ -188,22 +182,16 @@ export function ContactFormV2({
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <TouchTarget>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input 
-                            type="email"
-                            placeholder="Enter your email address" 
-                            className="pl-10"
-                            {...field}
-                            onChange={(e) => {
-                              field.onChange(e);
-                              handleFieldChange('email', e.target.value);
-                            }}
-                            disabled={isLoading}
-                          />
-                        </div>
-                      </TouchTarget>
+                      <IconInputField
+                        type="email"
+                        placeholder="Enter your email address" 
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          handleFieldChange('email', e.target.value);
+                        }}
+                        disabled={isLoading}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -217,22 +205,16 @@ export function ContactFormV2({
                   <FormItem>
                     <FormLabel>Phone (Optional)</FormLabel>
                     <FormControl>
-                      <TouchTarget>
-                        <div className="relative">
-                          <PhoneIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input 
-                            type="tel"
-                            placeholder="Enter your phone number" 
-                            className="pl-10"
-                            {...field}
-                            onChange={(e) => {
-                              field.onChange(e);
-                              handleFieldChange('phone', e.target.value);
-                            }}
-                            disabled={isLoading}
-                          />
-                        </div>
-                      </TouchTarget>
+                      <IconInputField
+                        type="tel"
+                        placeholder="Enter your phone number" 
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          handleFieldChange('phone', e.target.value);
+                        }}
+                        disabled={isLoading}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

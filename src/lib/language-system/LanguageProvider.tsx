@@ -143,6 +143,31 @@ export function LanguageProvider({
   const [error, setError] = useState<string | null>(null);
   const [translations, setTranslations] = useState<Record<string, any>>({});
   
+  // ===== PROGRESSIVE LOADING STATE =====
+  // Track which languages are loaded for instant switching
+  const [allTranslations, setAllTranslations] = useState<Record<SupportedLanguage, Record<string, any>>>({});
+  const [backgroundLoadingStatus, setBackgroundLoadingStatus] = useState<Record<SupportedLanguage, 'loading' | 'loaded' | 'failed'>>({});
+  
+  // ===== STABLE TRANSLATION REFERENCE =====
+  // Use a ref to store current translations to avoid context recreation
+  const currentTranslationsRef = useRef<Record<string, any>>({});
+  
+  // Update ref whenever current language translations change
+  useEffect(() => {
+    const currentLangTranslations = allTranslations[currentLang] || translations;
+    if (Object.keys(currentLangTranslations).length > 0) {
+      currentTranslationsRef.current = currentLangTranslations;
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('\ud83d\udd27 [DIAGNOSTIC] Updated translation ref', {
+          currentLang,
+          translationCount: Object.keys(currentLangTranslations).length,
+          source: allTranslations[currentLang] ? 'allTranslations' : 'fallback'
+        });
+      }
+    }
+  }, [currentLang, allTranslations, translations]);
+  
   // ===== Configuration and References =====
   
   const performanceMetricsRef = useRef<LanguagePerformanceMetrics>({
@@ -180,7 +205,7 @@ export function LanguageProvider({
           });
 
           setCurrentLang(initialLanguage);
-          await loadTranslationsForLanguage(initialLanguage);
+          await loadTranslationsForLanguage(initialLanguage, true); // Initial load
           
           performanceMetricsRef.current.detectionTime = performance.now() - detectionStartTime;
           return;
@@ -224,7 +249,7 @@ export function LanguageProvider({
         setCurrentLang(detectionResult.language);
 
         // Load initial translations
-        await loadTranslationsForLanguage(detectionResult.language);
+        await loadTranslationsForLanguage(detectionResult.language, true); // Initial load
 
       } catch (error) {
         logger.error('Initial language detection failed', error);
@@ -237,22 +262,28 @@ export function LanguageProvider({
         setCurrentLang(DEFAULT_LANGUAGE as SupportedLanguage);
         
         // Load default language translations as fallback
-        await loadTranslationsForLanguage(DEFAULT_LANGUAGE as SupportedLanguage);
+        await loadTranslationsForLanguage(DEFAULT_LANGUAGE as SupportedLanguage, true); // Initial load
       }
     };
 
     performInitialDetection();
   }, [pathname, pageType, onError, initialLanguage]);
 
-  // ===== Translation Loading =====
+  // ===== PROGRESSIVE TRANSLATION LOADING =====
   
-  const loadTranslationsForLanguage = useCallback(async (language: SupportedLanguage) => {
+  const loadTranslationsForLanguage = useCallback(async (language: SupportedLanguage, isInitialLoad = true) => {
     const loadStartTime = performance.now();
-    setIsLoading(true);
-    setError(null);
+    
+    if (isInitialLoad) {
+      setIsLoading(true);
+      setError(null);
+    } else {
+      // Background loading - update status
+      setBackgroundLoadingStatus(prev => ({ ...prev, [language]: 'loading' }));
+    }
 
     try {
-      logger.debug('Loading translations', { language });
+      logger.debug(`${isInitialLoad ? 'Initial' : 'Background'} loading translations`, { language });
       
       const cachedTranslation = await translationCache.getTranslations(language);
       const loadEndTime = performance.now();
@@ -263,43 +294,130 @@ export function LanguageProvider({
       const cacheStats = translationCache.getStats();
       performanceMetricsRef.current.cacheHitRate = cacheStats.hitRate;
 
-      setTranslations(cachedTranslation.content);
+      // Update allTranslations with the loaded language
+      setAllTranslations(prev => ({
+        ...prev,
+        [language]: cachedTranslation.content
+      }));
+
+      if (isInitialLoad) {
+        // For initial load, also update the current translations
+        setTranslations(cachedTranslation.content);
+      }
+      
+      // Update background loading status
+      setBackgroundLoadingStatus(prev => ({ ...prev, [language]: 'loaded' }));
+      
       performanceMetricsRef.current.totalTranslations = Object.keys(cachedTranslation.content).length;
 
-      logger.debug('Translations loaded successfully', {
+      logger.debug(`${isInitialLoad ? 'Initial' : 'Background'} translations loaded successfully`, {
         language,
         fromCache: cachedTranslation.fromCache,
         loadTime: performanceMetricsRef.current.translationLoadTime,
-        translationCount: performanceMetricsRef.current.totalTranslations
+        translationCount: performanceMetricsRef.current.totalTranslations,
+        isBackground: !isInitialLoad
       });
 
     } catch (error) {
       const loadEndTime = performance.now();
       performanceMetricsRef.current.translationLoadTime = loadEndTime - loadStartTime;
       
-      logger.error('Translation loading failed', error, { language });
+      logger.error(`${isInitialLoad ? 'Initial' : 'Background'} translation loading failed`, error, { language });
       
-      if (onError) {
+      if (isInitialLoad && onError) {
         onError(error as Error, 'translation-loading');
       }
       
-      setError(`Failed to load translations for ${language}`);
-      setTranslations({});
+      // Update background loading status
+      setBackgroundLoadingStatus(prev => ({ ...prev, [language]: 'failed' }));
+      
+      if (isInitialLoad) {
+        setError(`Failed to load translations for ${language}`);
+        setTranslations({});
+      }
     } finally {
-      setIsLoading(false);
+      if (isInitialLoad) {
+        setIsLoading(false);
+      }
     }
   }, [translationCache, onError]);
 
-  // ===== Translation Functions =====
+  // ===== BACKGROUND LANGUAGE LOADING =====
+  // Load remaining languages after initial render for instant switching
+  
+  useEffect(() => {
+    // Only start background loading after initial language is loaded and component has mounted
+    if (isLoading || !currentLang) return;
+    
+    const backgroundLoadTimer = setTimeout(async () => {
+      const availableLanguages = getAvailableLanguages();
+      const languagesToPreload = availableLanguages.filter(lang => 
+        lang !== currentLang && // Skip current language (already loaded)
+        !allTranslations[lang] && // Skip already loaded languages
+        backgroundLoadingStatus[lang] !== 'loaded' && // Skip successful loads
+        backgroundLoadingStatus[lang] !== 'loading' // Skip currently loading
+      );
+      
+      if (languagesToPreload.length === 0) {
+        logger.debug('🎯 All languages already loaded or loading');
+        return;
+      }
+      
+      logger.info('🔄 Starting background loading of languages', { 
+        currentLang,
+        languagesToPreload,
+        totalAvailable: availableLanguages.length
+      });
+      
+      // Load languages in parallel for faster completion
+      const loadPromises = languagesToPreload.map(async (lang) => {
+        try {
+          await loadTranslationsForLanguage(lang, false); // Background load
+          logger.debug(`✅ Background loaded: ${lang}`);
+        } catch (error) {
+          logger.warn(`❌ Background loading failed for ${lang}:`, { error });
+        }
+      });
+      
+      await Promise.allSettled(loadPromises);
+      
+      const successCount = languagesToPreload.filter(lang => 
+        backgroundLoadingStatus[lang] === 'loaded' || allTranslations[lang]
+      ).length;
+      
+      logger.info('🎯 Background loading completed', {
+        successful: successCount,
+        total: languagesToPreload.length,
+        languages: languagesToPreload
+      });
+      
+    }, 150); // Small delay to ensure initial render is complete and smooth
+    
+    return () => clearTimeout(backgroundLoadTimer);
+  }, [currentLang, isLoading, allTranslations, backgroundLoadingStatus, loadTranslationsForLanguage]);
+
+  // ===== OPTIMIZED TRANSLATION FUNCTIONS =====
+  // Use allTranslations for current language to ensure consistency
   
   const t: TranslationFunction = useCallback((key: string, fallback?: string, variables?: Record<string, string | number>) => {
+    // 🔍 DIAGNOSTIC LOG - Track translation function recreation
+    if (process.env.NODE_ENV === 'development' && Math.random() < 0.1) {
+      console.log('🔧 [DIAGNOSTIC] t() function called (STABLE REF)', { 
+        key, 
+        currentLang, 
+        hasTranslations: Object.keys(currentTranslationsRef.current).length > 0,
+        timestamp: performance.now()
+      });
+    }
+    
     if (!key) return fallback || '';
     
     const performanceStart = enablePerformanceTracking ? performance.now() : 0;
     
     try {
       const keys = key.split('.');
-      let value: any = translations;
+      // Use STABLE REF instead of dependency-tracked translations
+      let value: any = currentTranslationsRef.current;
       
       for (const k of keys) {
         value = value?.[k];
@@ -335,7 +453,13 @@ export function LanguageProvider({
       logger.warn('Translation function error', { key, error });
       return fallback || key;
     }
-  }, [translations, currentLang, enablePerformanceTracking]);
+  }, [
+    // ===== ULTRA-STABLE DEPENDENCIES =====
+    // Only currentLang to trigger function recreation when language actually changes
+    // Translation data comes from ref, avoiding dependency chain
+    currentLang                    // ✅ Only language changes matter
+    // Removed all translation object dependencies!
+  ]);
 
   const tc: ContentTranslationFunction = useCallback((content, fallback?: string) => {
     if (!content) return fallback || '';
@@ -419,14 +543,68 @@ export function LanguageProvider({
         }
       }
 
-      // Load translations for new language (unless skipped)
+      // ===== PROGRESSIVE LANGUAGE SWITCHING LOGIC =====
+      // Check if language is already loaded from background loading
       if (!skipTranslationLoad) {
-        await loadTranslationsForLanguage(language);
+        if (allTranslations[language] && Object.keys(allTranslations[language]).length > 0) {
+          // 🚀 INSTANT SWITCH - Language already loaded in background
+          logger.info(`🚀 Instant language switch to ${language} (pre-loaded)`, {
+            from: currentLang,
+            to: language,
+            translationsCount: Object.keys(allTranslations[language]).length,
+            backgroundLoaded: true
+          });
+          
+          // 🔍 DIAGNOSTIC LOG - Track what changes during instant switch
+          if (process.env.NODE_ENV === 'development') {
+            console.log('🔧 [DIAGNOSTIC] Before instant switch state:', {
+              currentLang,
+              currentTranslationsCount: Object.keys(translations).length,
+              targetLanguage: language,
+              targetTranslationsCount: Object.keys(allTranslations[language]).length,
+              willUpdateRef: true,
+              willSkipSetTranslations: 'using ref instead'
+            });
+          }
+          
+          // ❌ REMOVED: setTranslations(allTranslations[language]); 
+          // The ref will be updated by useEffect automatically
+        } else {
+          // ⏳ FALLBACK - Load on demand (only happens if background loading failed or wasn't completed)
+          logger.info(`⏳ Loading ${language} on demand (not pre-loaded)`, {
+            from: currentLang,
+            to: language,
+            reason: 'background-loading-incomplete',
+            backgroundStatus: backgroundLoadingStatus[language] || 'not-started'
+          });
+          
+          await loadTranslationsForLanguage(language, true); // Load synchronously
+        }
       }
 
       // Update current language
       const previousLang = currentLang;
+      
+      // 🔍 DIAGNOSTIC LOG - Track language state change
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔧 [DIAGNOSTIC] About to change currentLang state', {
+          from: previousLang,
+          to: language,
+          thisWillTriggerReRender: 'currentLang is in context dependencies'
+        });
+      }
+      
       setCurrentLang(language);
+      
+      // 🔍 DIAGNOSTIC LOG - After language change
+      if (process.env.NODE_ENV === 'development') {
+        setTimeout(() => {
+          console.log('🔧 [DIAGNOSTIC] After language change effects', {
+            newCurrentLang: language,
+            contextShouldRecreate: 'due to currentLang dependency'
+          });
+        }, 0);
+      }
 
       // Call change callback
       if (onLanguageChange) {
@@ -567,6 +745,16 @@ export function LanguageProvider({
   // ===== Context Value Memoization =====
   
   const contextValue: UnifiedLanguageContextType = useMemo(() => {
+    // 🔍 DIAGNOSTIC LOG - Track context value recreation (should be minimal now)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔧 [DIAGNOSTIC] Context value being recreated (OPTIMIZED)', {
+        currentLang,
+        isLoading,
+        reason: 'expected for language changes',
+        timestamp: performance.now()
+      });
+    }
+    
     const renderStartTime = performance.now();
     
     const value: UnifiedLanguageContextType = {
@@ -609,21 +797,24 @@ export function LanguageProvider({
 
     return value;
   }, [
-    currentLang,
-    isLoading,
-    error,
-    translations,
-    t,
-    tc,
-    switchLanguage,
-    preloadLanguage,
-    clearCache,
-    getPerformanceMetrics,
-    isLanguageSupportedCheck,
-    getAvailableLanguagesArray,
-    getLocalizedPath,
-    enableDebugMode,
-    translationCache
+    // ===== ULTRA-STABLE DEPENDENCIES =====
+    // Minimal dependencies to prevent context recreation cascade
+    currentLang,              // ✅ Language changes should update context (but t() now uses ref)
+    isLoading,                // ✅ Loading state changes matter
+    error,                    // ✅ Error state changes matter  
+    // ALL TRANSLATION DEPENDENCIES REMOVED - using refs instead!
+    t,                        // ✅ Translation function changes (now ultra-stable)
+    tc,                       // ✅ Content translation function changes
+    switchLanguage,           // ✅ Switch function changes
+    preloadLanguage,          // ✅ Preload function changes
+    clearCache,               // ✅ Cache function changes
+    getPerformanceMetrics,    // ✅ Performance function changes
+    isLanguageSupportedCheck, // ✅ Validation function changes
+    getAvailableLanguagesArray, // ✅ Languages array function changes
+    getLocalizedPath,         // ✅ Path function changes
+    enableDebugMode,          // ✅ Debug mode changes
+    translationCache          // ✅ Cache instance changes
+    // translations, allTranslations, allTranslations[currentLang] - ALL REMOVED!
   ]);
 
   // ===== Performance Monitoring =====

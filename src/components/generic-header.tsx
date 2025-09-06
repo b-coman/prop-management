@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu, Home, MapPin, Image as ImageIcon, ListChecks } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { CurrencySwitcher } from '@/components/currency-switcher'; // Import CurrencySwitcher
+import { CurrencySwitcherSimple as CurrencySwitcher } from '@/components/currency-switcher-simple'; // Import modern CurrencySwitcher
 
 interface HeaderProps {
   propertyName: string;

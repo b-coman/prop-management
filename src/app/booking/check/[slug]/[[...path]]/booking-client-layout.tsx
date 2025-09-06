@@ -12,7 +12,6 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import BookingErrorFallback from '../../../ErrorFallback';
 import { AvailabilityErrorHandler } from '../../error-handler';
 import type { CurrencyCode } from '@/types';
-import { FEATURES } from '@/config/features';
 
 interface BookingClientLayoutProps {
   children: React.ReactNode;
@@ -317,8 +316,7 @@ export default function BookingClientLayout({ children, propertySlug, heroImage,
   
   return (
     <>
-      {/* V1 only: Storage initializer that clears data */}
-      {!FEATURES.BOOKING_V2 && <BookingStorageInitializer propertySlug={propertySlug} />}
+      {/* V2 booking system doesn't need storage initializer */}
 
       {/* Add global error handler for fetch abort errors */}
       <AvailabilityErrorHandler />
@@ -340,17 +338,8 @@ export default function BookingClientLayout({ children, propertySlug, heroImage,
           }}
         />}
       >
-        {FEATURES.BOOKING_V2 ? (
-          // V2: Theme handled directly in BookingPageV2 component
-          children
-        ) : (
-          // V1: Use the original BookingProvider
-          <BookingProvider propertySlug={propertySlug}>
-            <BookingClientInner propertySlug={propertySlug} heroImage={heroImage} themeId={themeId}>
-              {children}
-            </BookingClientInner>
-          </BookingProvider>
-        )}
+        {/* V2: Theme handled directly in BookingPageV2 component */}
+        {children}
       </ErrorBoundary>
     </>
   );

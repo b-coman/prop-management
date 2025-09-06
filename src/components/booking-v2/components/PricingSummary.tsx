@@ -30,6 +30,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { MobilePriceDrawer } from './MobilePriceDrawer';
+import { RenderTracker } from '@/components/debug/RenderTracker';
 
 interface PricingSummaryProps {
   property: Property;
@@ -59,6 +60,7 @@ export function PricingSummary({
 
   return (
     <TooltipProvider>
+      <RenderTracker name="PricingSummary" data={{ selectedCurrency, pricing: pricing?.total, show }} />
       <Card className={className}>
         <CardContent className="pt-6">
           {show && pricing && checkInDate && checkOutDate ? (

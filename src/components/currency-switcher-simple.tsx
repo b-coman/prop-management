@@ -12,6 +12,7 @@ import { DollarSign, Check } from "lucide-react";
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { SUPPORTED_CURRENCIES, type CurrencyCode } from '@/types';
 import { cn } from '@/lib/utils';
+import { RenderTracker } from '@/components/debug/RenderTracker';
 
 // Use text-based currency codes for consistency with language selector
 const currencyLabels: { [key in CurrencyCode]: { code: string; name: string; symbol: string } } = {
@@ -43,8 +44,10 @@ export function CurrencySwitcherSimple({
   const actualSize = variant === 'booking' ? 'default' : size;
   
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <>
+      <RenderTracker name="CurrencySwitcher" data={{ selectedCurrency, variant, showLabel }} />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
         <Button 
           variant={actualVariant} 
           size={actualSize} 
@@ -89,5 +92,6 @@ export function CurrencySwitcherSimple({
         })}
       </DropdownMenuContent>
     </DropdownMenu>
+    </>
   );
 }

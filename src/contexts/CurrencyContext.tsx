@@ -2,7 +2,7 @@
 "use client";
 
 import type { ReactNode } from 'react';
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import type { CurrencyCode } from '@/types';
 import { SUPPORTED_CURRENCIES } from '@/types';
 import { useSessionStorage } from '@/hooks/use-session-storage'; // For persisting selection
@@ -140,20 +140,31 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
   //   return <div className="text-center text-red-500 p-4">Error loading currency rates: {ratesError}</div>;
   // }
 
+  // Memoize the context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    selectedCurrency,
+    setSelectedCurrency,
+    setSelectedCurrencyTemporary,
+    exchangeRates,
+    ratesLoading,
+    ratesError,
+    convertToSelectedCurrency,
+    formatPrice,
+    baseCurrencyForProperty,
+  }), [
+    selectedCurrency,
+    setSelectedCurrency,
+    setSelectedCurrencyTemporary,
+    exchangeRates,
+    ratesLoading,
+    ratesError,
+    convertToSelectedCurrency,
+    formatPrice,
+    baseCurrencyForProperty,
+  ]);
+
   return (
-    <CurrencyContext.Provider
-      value={{
-        selectedCurrency,
-        setSelectedCurrency,
-        setSelectedCurrencyTemporary,
-        exchangeRates,
-        ratesLoading,
-        ratesError,
-        convertToSelectedCurrency,
-        formatPrice,
-        baseCurrencyForProperty,
-      }}
-    >
+    <CurrencyContext.Provider value={contextValue}>
       {children}
     </CurrencyContext.Provider>
   );

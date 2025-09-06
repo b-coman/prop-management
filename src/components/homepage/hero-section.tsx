@@ -6,8 +6,8 @@ import type { Property } from '@/types';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import { setupHeroContentAdjustment } from './hero-helper';
-import { BookingContainer } from '@/components/booking';
 import { useLanguage } from '@/hooks/useLanguage';
+import { BookingContainer } from '@/components/booking';
 
 export interface HeroData {
   backgroundImage?: string | null;
@@ -143,38 +143,39 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
           {subtitle && <p className="text-lg md:text-xl mb-6 drop-shadow-sm">{tc(subtitle)}</p>}
         </div>
 
-        {/* Check if booking form should be displayed */}
-        {showBookingForm ? (
-              <div className="transition-opacity duration-300 opacity-0" 
-                ref={(el) => {
-                  // Start invisible and fade in after positioning for smoother appearance
-                  if (el) {
-                    setTimeout(() => {
-                      el.classList.remove('opacity-0');
-                      el.style.opacity = '1';
-                    }, 400);
-                  }
-                }}
-                style={{ 
-                  zIndex: 10,
-                  position: 'absolute',
-                  bottom: '20px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: formSize === 'large' ? '840px' : 'auto',
-                  maxWidth: '90%'
-                }} // Apply positioning and size based on configuration
-              >
-                <BookingContainer 
-                  property={property}
-                  position={formPosition}
-                  size={formSize}
-                  showRating={showRating}
-                  variant="embedded"
-                  className="min-w-[320px]" // Ensure minimum width for better display
-                />
-              </div>
-        ) : null}
+        {/* V2 Booking Widget for Hero Section */}
+        {showBookingForm && property && (
+          <div className="transition-opacity duration-300 opacity-0" 
+            ref={(el) => {
+              // Start invisible and fade in after positioning for smoother appearance
+              if (el) {
+                setTimeout(() => {
+                  el.classList.remove('opacity-0');
+                  el.style.opacity = '1';
+                }, 400);
+              }
+            }}
+            style={{ 
+              zIndex: 10,
+              position: 'absolute',
+              bottom: '20px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: formSize === 'large' ? '840px' : 'auto',
+              maxWidth: '90%',
+              minWidth: '320px'
+            }}
+          >
+            <BookingContainer 
+              property={property}
+              position={formPosition}
+              size={formSize}
+              showRating={showRating}
+              variant="embedded"
+              className="min-w-[320px]"
+            />
+          </div>
+        )}
       </div>
     </section>
   );

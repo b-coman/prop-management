@@ -12,7 +12,8 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSyncedSessionStorage, clearSyncedStorageByPrefix } from '@/hooks/use-synced-storage';
 import type { CurrencyCode } from '@/types';
-import type { BookingFlowStatus } from '@/components/booking/types';
+// V1 booking types removed, define locally
+type BookingFlowStatus = 'initial' | 'dates_selected' | 'checking' | 'available' | 'unavailable' | 'error' | 'booking' | 'confirmed';
 
 // Import required services for API pricing and availability
 import { getPricingForDateRange, getUnavailableDatesForProperty } from '@/services/availabilityService';

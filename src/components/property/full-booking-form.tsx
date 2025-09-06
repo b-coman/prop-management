@@ -3,7 +3,8 @@
 
 import { useEffect, useState } from 'react';
 import { FullBookingFormBlock } from '@/lib/overridesSchemas-multipage';
-import { AvailabilityCheck } from '@/components/booking/availability-check';
+// V1 AvailabilityCheck removed - V2 uses dedicated booking pages
+// import { AvailabilityCheck } from '@/components/booking/availability-check';
 import { Property } from '@/types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CalendarX } from 'lucide-react';
@@ -70,9 +71,15 @@ export function FullBookingForm({ content, property }: FullBookingFormProps) {
           {isClient ? (
             <>
               {property ? (
-                <AvailabilityCheck 
-                  property={property} 
-                />
+                <div className="p-8 bg-muted/50 rounded-lg text-center">
+                  <p className="text-lg font-medium mb-4">Ready to book your stay?</p>
+                  <a 
+                    href={`/booking/check/${property.slug}`}
+                    className="inline-block px-6 py-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                  >
+                    Check Availability & Book
+                  </a>
+                </div>
               ) : hasError ? (
                 <Alert variant="destructive" className="mb-6">
                   <CalendarX className="h-4 w-4 mr-2" />

@@ -234,14 +234,14 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
   }, [property.maxGuests, property.baseOccupancy, t]);
 
   return (
-    <div className={`space-y-6 ${className}`}>
-      {/* Date Selection */}
+    <div className={`space-y-4 ${className}`}>
+      {/* Combined Date and Guest Selection - Compact */}
       <TooltipProvider>
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CalendarDays className="h-5 w-5" />
-              {t('booking.selectDates', 'Select Dates')}
+              {t('booking.selectDatesAndGuests', 'Selectează datele și oaspeții')}
             </CardTitle>
             <div className="space-y-1">
               {property.defaultMinimumStay > 1 && (
@@ -286,7 +286,7 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-full justify-start text-left font-normal h-10 sm:h-9",
+                          "w-full justify-start text-left font-normal h-11 px-4",
                           !checkInDate && "text-muted-foreground"
                         )}
                       >
@@ -357,13 +357,15 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
 
                 {/* Check-out Date Picker */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">{t('booking.checkOutDate', 'Check-out Date')}</label>
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium">{t('booking.checkOutDate', 'Check-out Date')}</label>
+                  </div>
                   <Popover open={checkOutOpen} onOpenChange={setCheckOutOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-full justify-start text-left font-normal h-10 sm:h-9",
+                          "w-full justify-start text-left font-normal h-11 px-4",
                           !checkOutDate && "text-muted-foreground"
                         )}
                         disabled={!checkInDate}
@@ -446,6 +448,36 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
             </div>
           )}
 
+          {/* Visual Separator */}
+          <div className="border-t border-border my-4" />
+          
+          {/* Guest Selection Row - Below dates with visual separation */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <label className="text-sm font-medium">{t('booking.numberOfGuests', 'Number of Guests')}</label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-xs text-muted-foreground cursor-help">ⓘ</span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className="space-y-1">
+                    <p>{t('booking.maxGuests', 'Max {{guests}} guests', { guests: property.maxGuests })}</p>
+                    <p className="text-xs opacity-80">{t('booking.extraGuestsNotAllowed', 'Extra guests are not allowed without approval')}</p>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <Select value={guestCount.toString()} onValueChange={handleGuestCountChange}>
+              <SelectTrigger className="w-full h-11">
+                <SelectValue placeholder={t('booking.selectNumberOfGuests', 'Select number of guests')} />
+              </SelectTrigger>
+              <SelectContent>
+                {guestOptions}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Minimum Stay Warning */}
           {showMinStayWarning && (
             <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -458,78 +490,36 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
       </Card>
       </TooltipProvider>
 
-      {/* Guest Selection */}
-      <TooltipProvider>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            <span>{t('booking.numberOfGuests', 'Number of Guests')}</span>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="text-xs text-muted-foreground cursor-help">ⓘ</span>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{t('booking.extraGuestsNotAllowed', 'Extra guests are not allowed without approval')}</p>
-              </TooltipContent>
-            </Tooltip>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Select value={guestCount.toString()} onValueChange={handleGuestCountChange}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder={t('booking.selectNumberOfGuests', 'Select number of guests')} />
-            </SelectTrigger>
-            <SelectContent>
-              {guestOptions}
-            </SelectContent>
-          </Select>
-          <p className="text-sm text-muted-foreground mt-2">
-            {t('booking.maxGuests', 'Max {{guests}} guests', { guests: property.maxGuests })}
-          </p>
-        </CardContent>
-      </Card>
-      </TooltipProvider>
-
-      {/* V2.1: Automatic Pricing Status Display */}
-      <Card>
-        <CardContent className="pt-6">
-          {/* Selection Summary - V2.3.1 Only show when we have confirmed valid pricing */}
-          {checkInDate && checkOutDate && !isLoadingPricing && !pricingError && pricing && (
-            <>
-              {/* Selection Summary - V2.1.1 Surgical Updates */}
-              <div className="text-center mb-4">
-                <BookingSummaryText nights={numberOfNights} guests={guestCount} t={t} />
-                <DateRangeDisplay checkInDate={checkInDate} checkOutDate={checkOutDate} t={t} currentLang={currentLang} />
+      {/* V2.6: Minimal Status Display - Summary moved to pricing sidebar */}
+      {checkInDate && checkOutDate && (isLoadingPricing || pricingError) && (
+        <Card>
+          <CardContent className="py-4">
+            {/* Loading State - Show while checking pricing */}
+            {isLoadingPricing && (
+              <div className="text-center">
+                <PricingStatusDisplay 
+                  isLoadingPricing={isLoadingPricing} 
+                  pricingError={pricingError} 
+                  fetchPricing={fetchPricing}
+                  t={t} 
+                />
               </div>
-            </>
-          )}
+            )}
 
-          {/* Loading State - Show while checking pricing */}
-          {checkInDate && checkOutDate && isLoadingPricing && (
-            <div className="text-center">
-              <PricingStatusDisplay 
-                isLoadingPricing={isLoadingPricing} 
-                pricingError={pricingError} 
-                fetchPricing={fetchPricing}
-                t={t} 
-              />
-            </div>
-          )}
-
-          {/* Error State - Show pricing errors without conflicting summary */}
-          {checkInDate && checkOutDate && !isLoadingPricing && pricingError && (
-            <div className="text-center">
-              <PricingStatusDisplay 
-                isLoadingPricing={isLoadingPricing} 
-                pricingError={pricingError} 
-                fetchPricing={fetchPricing}
-                t={t} 
-              />
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            {/* Error State - Show pricing errors */}
+            {!isLoadingPricing && pricingError && (
+              <div className="text-center">
+                <PricingStatusDisplay 
+                  isLoadingPricing={isLoadingPricing} 
+                  pricingError={pricingError} 
+                  fetchPricing={fetchPricing}
+                  t={t} 
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
