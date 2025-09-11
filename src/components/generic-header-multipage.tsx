@@ -60,8 +60,12 @@ export function Header({
       : (typeof item.label === 'object' && (item.label as any).en ? (item.label as any).en : item.label)
   }));
 
-  // Find button items (if any)
-  const buttonItems = processedMenuItems.filter(item => item.isButton);
+  // Find button items (if any) - filter out "Book Now" buttons
+  const buttonItems = processedMenuItems.filter(item => 
+    item.isButton && 
+    !item.label.toLowerCase().includes('book now') && 
+    !item.label.toLowerCase().includes('book')
+  );
   const regularMenuItems = processedMenuItems.filter(item => !item.isButton);
 
   useEffect(() => {

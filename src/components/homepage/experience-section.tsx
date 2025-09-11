@@ -15,7 +15,7 @@ interface Highlight {
 
 interface ExperienceContent {
   title: string | { [key: string]: string };
-  welcomeText: string | { [key: string]: string };
+  description: string | { [key: string]: string };
   highlights: Highlight[];
   'data-ai-hint'?: string;
 }
@@ -46,12 +46,12 @@ export function ExperienceSection({ content, language = 'en' }: ExperienceSectio
   // Extract properties with defaults to prevent destructuring errors
   const {
     title = "",
-    welcomeText = "",
+    description = "",
     highlights = []
   } = content;
 
   // Don't render if required content is missing
-  if (!title || !welcomeText || !highlights || highlights.length === 0) {
+  if (!title || !description || !highlights || highlights.length === 0) {
     return null;
   }
 
@@ -63,7 +63,7 @@ export function ExperienceSection({ content, language = 'en' }: ExperienceSectio
             {tc(title)}
           </h2>
           <p className="text-lg text-muted-foreground">
-            {tc(welcomeText)}
+            {tc(description)}
           </p>
         </div>
 

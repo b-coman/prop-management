@@ -128,44 +128,54 @@
       "backstory": "I'm passionate about sharing the beauty of the Carpathian Mountains with visitors. This chalet has been in my family for generations, and we've lovingly restored it to provide authentic mountain experiences with modern comforts.",
       "data-ai-hint": "friendly male host mountain background"
     },
-    "features": [
-      {
-        "icon": "firepit",
-        "title": {
-          "en": "Traditional Fireplace",
-          "ro": "Traditional Fireplace"
-        },
-        "description": {
-          "en": "Cozy up by the authentic Romanian fireplace during cold evenings.",
-          "ro": "Cozy up by the authentic Romanian fireplace during cold evenings."
-        },
-        "image": "/images/properties/prahova-mountain-chalet/IMG_3864.jpg"
+    "features": {
+      "title": {
+        "en": "Unique Features",
+        "ro": "Caracteristici Unice"
       },
-      {
-        "icon": "bbq",
-        "title": {
-          "en": "Outdoor BBQ Area",
-          "ro": "Outdoor BBQ Area"
-        },
-        "description": {
-          "en": "Enjoy traditional Romanian grilled specialties on our dedicated outdoor BBQ.",
-          "ro": "Enjoy traditional Romanian grilled specialties on our dedicated outdoor BBQ."
-        },
-        "image": "/images/properties/prahova-mountain-chalet/IMG_3868.jpg"
+      "description": {
+        "en": "Discover what makes this chalet special",
+        "ro": "Descoperă ce face această cabană specială"
       },
-      {
-        "icon": "view",
-        "title": {
-          "en": "Panoramic Terrace",
-          "ro": "Panoramic Terrace"
+      "features": [
+        {
+          "icon": "firepit",
+          "title": {
+            "en": "Traditional Fireplace",
+            "ro": "Semineu"
+          },
+          "description": {
+            "en": "Cozy up by the authentic Romanian fireplace during cold evenings.",
+            "ro": "Încălzește-te lângă șemineul autentic românesc în serile răcoroase."
+          },
+          "image": "/images/properties/prahova-mountain-chalet/IMG_3864.jpg"
         },
-        "description": {
-          "en": "Take in breathtaking views of the Carpathian Mountains from our spacious terrace.",
-          "ro": "Take in breathtaking views of the Carpathian Mountains from our spacious terrace."
+        {
+          "icon": "bbq",
+          "title": {
+            "en": "Outdoor BBQ Area",
+            "ro": "Grătar exterior"
+          },
+          "description": {
+            "en": "Enjoy traditional Romanian grilled specialties on our dedicated outdoor BBQ.",
+            "ro": "Bucură-te de specialități tradiționale românești la grătar, pregătite pe BBQ-ul nostru în aer liber."
+          },
+          "image": "/images/properties/prahova-mountain-chalet/IMG_3868.jpg"
         },
-        "image": "/images/properties/prahova-mountain-chalet/IMG_3889.jpg"
-      }
-    ],
+        {
+          "icon": "view",
+          "title": {
+            "en": "Panoramic Terrace",
+            "ro": "Terasă Panoramică"
+          },
+          "description": {
+            "en": "Take in breathtaking views of the Carpathian Mountains from our spacious terrace.",
+            "ro": "Admiră privelițile spectaculoase ale Munților Carpați de pe terasa noastră spațioasă."
+          },
+          "image": "/images/properties/prahova-mountain-chalet/IMG_3889.jpg"
+        }
+      ]
+    },
     "location": {
       "title": {
         "en": "Explore Comarnic & Beyond",

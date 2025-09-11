@@ -111,19 +111,26 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     currencyCode: CurrencyCode = selectedCurrency,
     options?: Intl.NumberFormatOptions
   ): string => {
+    const roundedAmount = Math.round(amount);
+    
+    // Special formatting for RON - display as "747 lei" instead of "RON 747"
+    if (currencyCode === 'RON') {
+      return `${roundedAmount} lei`;
+    }
+    
     const defaultOptions: Intl.NumberFormatOptions = {
       style: 'currency',
       currency: currencyCode,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     };
     try {
        // If rates are still loading, maybe indicate that? Or just format with potentially default rates.
        // For now, it will format using the current `exchangeRates` state.
-      return new Intl.NumberFormat(undefined, { ...defaultOptions, ...options }).format(amount);
+      return new Intl.NumberFormat(undefined, { ...defaultOptions, ...options }).format(roundedAmount);
     } catch (e) {
       console.warn(`Error formatting price for currency ${currencyCode}:`, e);
-      return `${amount.toFixed(2)} ${currencyCode}`;
+      return `${roundedAmount} ${currencyCode}`;
     }
   }, [selectedCurrency]);
 
@@ -185,12 +192,19 @@ export const useCurrency = (): CurrencyContextType => {
         convertToSelectedCurrency: (amount: number) => amount,
         formatPrice: (amount: number, currencyCode?: CurrencyCode) => {
           const currency = currencyCode || 'USD';
+          const roundedAmount = Math.round(amount);
+          
+          // Special formatting for RON
+          if (currency === 'RON') {
+            return `${roundedAmount} lei`;
+          }
+          
           return new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency,
             minimumFractionDigits: 0,
             maximumFractionDigits: 0,
-          }).format(amount);
+          }).format(roundedAmount);
         },
         baseCurrencyForProperty: (currency: CurrencyCode) => currency,
       };

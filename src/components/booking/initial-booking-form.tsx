@@ -168,9 +168,9 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
   // No need for direct inline styles with our simplified layout approach
   
   return (
-    <div className="flex flex-col md:flex-row md:items-end md:space-x-3 lg:space-x-6 w-full InitialBookingForm">
+    <div className="w-full InitialBookingForm">
       {/* Date Range Picker */}
-      <div className="w-full md:flex-1 lg:max-w-[65%] md:max-w-[60%]">
+      <div>
          {/* Hide this label completely with aggressive styling */}
          <Label htmlFor="date" className="sr-only" style={{ 
            position: 'absolute', 
@@ -192,7 +192,7 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
                 id="date"
                 variant={'outline'}
                 className={cn(
-                  'w-full h-full justify-start text-left font-normal min-h-[46px]', // Taller minimum height
+                  'w-full h-full justify-center text-center font-normal min-h-[46px]', // Always center content
                   !date && 'text-muted-foreground', // Placeholder text styling
                   isBottomLarge() && 'md:px-6 md:py-3 md:border-2 md:text-base md:font-medium md:rounded-md md:bg-background/50 hover:md:bg-background/80' // Larger input appearance for bottom-large with subtle background effect
                 )}
@@ -230,7 +230,7 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
       </div>
 
       {/* Check Availability Button */}
-      <div className="w-full md:w-[110px] lg:w-[120px] md:flex-shrink-0 mt-4 md:mt-0 md:mr-1 lg:mr-2">
+      <div>
           <TouchTarget>
             <Button
               id="check-availability-btn"
@@ -238,7 +238,7 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
               variant="cta"
               size="compact"
               onClick={handleCheckAvailability}
-              className="w-full h-full whitespace-nowrap text-xs md:text-xs lg:text-sm"
+              className="w-full h-full whitespace-nowrap"
               disabled={isButtonDisabled}
             >
               {isLoading ? (

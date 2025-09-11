@@ -112,7 +112,7 @@ function BookingInitializer({
 
 
   // Import useLanguage hook for multilingual support (needs to be called unconditionally)
-  const { tc } = useLanguage();
+  const { tc, t } = useLanguage();
   
   // For embedded variant, show the initial booking form
   if (variant === 'embedded') {
@@ -135,8 +135,15 @@ function BookingInitializer({
 
     const currencyToDisplay = !hasMounted || ratesLoading ? propertyBaseCcy : selectedCurrency;
 
-    const formattedDisplayPrice = displayPriceAmount !== null && displayPriceAmount !== undefined
-      ? formatPrice(displayPriceAmount, currencyToDisplay)
+    // Force integer rounding and debug
+    const roundedPrice = displayPriceAmount !== null && displayPriceAmount !== undefined 
+      ? Math.round(displayPriceAmount) 
+      : null;
+    
+    console.log('[Price Debug] Original:', displayPriceAmount, 'Rounded:', roundedPrice, 'Currency:', currencyToDisplay);
+    
+    const formattedDisplayPrice = roundedPrice !== null
+      ? formatPrice(roundedPrice, currencyToDisplay)
       : null;
 
     // Use property ratings if available
@@ -203,114 +210,249 @@ function BookingInitializer({
           
           /* Force horizontal layout for large size on all screens */
           ${size === 'large' ? `
-            /* Main content container */
+            /* Mobile First - Stack vertically even for large with consistent alignment */
             .booking-form-flex-container {
               display: flex !important;
-              flex-direction: row !important;
-              flex-wrap: nowrap !important;
-              align-items: flex-end !important;
-              gap: 20px !important;
+              flex-direction: column !important;
+              align-items: center !important;
+              gap: 16px !important;
               width: 100% !important;
+            }
+            
+            @media (min-width: 768px) {
+              /* Tablet+ - Horizontal layout for large */
+              .booking-form-flex-container {
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+                align-items: flex-end !important;
+                justify-content: flex-start !important;
+                gap: 24px !important;
+              }
             }`
           : `
+            /* Mobile First - Stack vertically with consistent alignment */
+            .booking-form-flex-container {
+              display: flex !important;
+              flex-direction: column !important;
+              align-items: center !important;
+              gap: 12px !important;
+              width: 100% !important;
+            }
+            
             @media (min-width: 768px) {
-              /* Main content container */
+              /* Tablet+ - Horizontal layout */
               .booking-form-flex-container {
-                display: flex !important;
                 flex-direction: row !important;
                 flex-wrap: wrap !important;
                 align-items: flex-end !important;
-                gap: 12px !important;
-                width: 100% !important;
+                justify-content: flex-start !important;
+                gap: ${size === 'large' ? '8px' : '6px'} !important;
               }
             }
           `}
             
-            /* Common styles for all layouts */
+            /* Common styles for all layouts - Mobile First Unified Width */
             .booking-price-container {
               flex-shrink: 0 !important;
-              margin-right: ${size === 'large' ? '16px' : '8px'} !important;
+              width: 100% !important;
+              max-width: 280px !important;
+              margin: 0 auto !important;
+              text-align: center !important;
             }
             
-            /* Booking form container */
+            @media (min-width: 768px) {
+              .booking-price-container {
+                width: auto !important;
+                max-width: none !important;
+                margin: 0 !important;
+                margin-right: ${size === 'large' ? '20px' : '12px'} !important;
+                text-align: left !important;
+              }
+            }
+            
+            /* Booking form container - Mobile First Unified Width */
             .booking-form-wrapper {
-              flex: 1 !important;
-              min-width: ${size === 'large' ? '400px' : '200px'} !important;
-              overflow: visible !important;
+              width: 100% !important;
+              max-width: 280px !important;
+              margin: 0 auto !important;
+              overflow: hidden !important;
             }
             
-            /* InitialBookingForm container */
+            @media (min-width: 768px) {
+              .booking-form-wrapper {
+                flex: 1 !important;
+                min-width: 280px !important;
+                max-width: none !important;
+                margin: 0 !important;
+              }
+            }
+            
+            /* InitialBookingForm container - Mobile First with Center Alignment */
             .InitialBookingForm {
               display: flex !important;
-              flex-direction: row !important;
-              align-items: flex-end !important;
-              gap: ${size === 'large' ? '16px' : '10px'} !important;
+              flex-direction: column !important;
+              align-items: center !important;
+              gap: 16px !important;
               width: 100% !important;
+              max-width: 100% !important;
+              overflow: hidden !important;
+              box-sizing: border-box !important;
             }
             
-            /* Date picker container */
-            .InitialBookingForm > div:first-child {
-              flex: 1 !important;
-              min-width: 210px !important;
-              max-width: calc(100% - 130px) !important;
-              width: auto !important;
+            /* Tablet and up - Horizontal layout */
+            @media (min-width: 768px) {
+              .InitialBookingForm {
+                flex-direction: row !important;
+                align-items: flex-end !important;
+                gap: ${size === 'large' ? '8px' : '6px'} !important;
+              }
             }
             
-            /* Button container */
+            /* Form elements - Mobile First Unified Width */
+            .InitialBookingForm > div:first-child,
             .InitialBookingForm > div:last-child {
-              flex-shrink: 0 !important;
-              width: auto !important;
-              min-width: ${size === 'large' ? '140px' : '110px'} !important;
+              width: 100% !important;
+              max-width: 280px !important;
+              margin: 0 auto !important;
+            }
+            
+            /* Mobile-specific content alignment overrides */
+            @media (max-width: 767px) {
+              .booking-price-container * {
+                text-align: center !important;
+              }
+              
+              /* Force both date picker and button containers to exact same width */
+              .InitialBookingForm > div:first-child,
+              .InitialBookingForm > div:last-child {
+                width: 280px !important;
+                max-width: 280px !important;
+              }
+              
+              /* TouchTarget and Button width enforcement for date picker */
+              .InitialBookingForm > div:first-child > div,
+              .InitialBookingForm > div:first-child > div > button,
+              #date {
+                width: 280px !important;
+                max-width: 280px !important;
+                justify-content: center !important;
+                text-align: center !important;
+              }
+              
+              /* TouchTarget and Button width enforcement for green button */
+              .InitialBookingForm > div:last-child > div,
+              .InitialBookingForm > div:last-child > div > button,
+              #check-availability-btn {
+                width: 280px !important;
+                max-width: 280px !important;
+              }
+              
+              #date span {
+                text-align: center !important;
+              }
+            }
+            
+            /* Tablet and up - Horizontal layout adjustments */
+            @media (min-width: 768px) {
+              .InitialBookingForm > div:first-child,
+              .InitialBookingForm > div:last-child {
+                flex: 1 !important;
+                width: 50% !important;
+                max-width: 50% !important;
+                min-width: 0 !important;
+                margin: 0 !important;
+              }
             }
             
             /* Ensure button stays within container */
             #check-availability-btn {
               width: 100% !important;
-              padding-left: ${size === 'large' ? '16px' : '8px'} !important;
-              padding-right: ${size === 'large' ? '16px' : '8px'} !important;
-              font-size: ${size === 'large' ? '14px' : '11px'} !important;
-              height: ${size === 'large' ? '44px' : '38px'} !important; /* Match date picker height */
+              padding-left: ${size === 'large' ? '24px' : '12px'} !important;
+              padding-right: ${size === 'large' ? '24px' : '12px'} !important;
+              font-size: ${size === 'large' ? '13px' : '11px'} !important;
+              height: ${size === 'large' ? '44px' : '38px'} !important;
               white-space: nowrap !important;
+              overflow: hidden !important;
+              text-overflow: ellipsis !important;
             }
             
-            /* Date button - make it keep consistent width */
-            #date {
+            /* Force date picker wrapper elements to full width */
+            .InitialBookingForm > div:first-child > div,
+            .InitialBookingForm > div:first-child > div > *,
+            .InitialBookingForm > div:last-child > div,
+            .InitialBookingForm > div:last-child > div > * {
               width: 100% !important;
-              transition: none !important;
+            }
+            
+            /* Force both buttons to identical styling */
+            #date,
+            #check-availability-btn {
+              width: 100% !important;
               height: ${size === 'large' ? '44px' : '38px'} !important;
+              padding-left: 16px !important;
+              padding-right: 16px !important;
+              border-width: 1px !important;
+              box-sizing: border-box !important;
+              display: flex !important;
+              align-items: center !important;
+              justify-content: center !important;
               font-size: ${size === 'large' ? '14px' : '13px'} !important;
+            }
+            
+            #date {
+              border-color: hsl(var(--border)) !important;
+              background-color: hsl(var(--background)) !important;
+            }
+            
+            #check-availability-btn {
+              border-color: transparent !important;
+              background-color: hsl(var(--primary)) !important;
+              color: hsl(var(--primary-foreground)) !important;
             }
           }
           
           /* Larger screens get slightly more size */
           @media (min-width: 1024px) {
             .booking-form-flex-container {
-              gap: 16px !important;
+              gap: 20px !important;
             }
             
             .booking-price-container {
-              margin-right: 12px !important;
+              margin-right: 16px !important;
             }
             
             .InitialBookingForm {
-              gap: 16px !important;
+              gap: 20px !important;
             }
             
+            .InitialBookingForm > div:first-child,
             .InitialBookingForm > div:last-child {
-              min-width: 120px !important;
+              flex: 1 !important;
+              width: 50% !important;
+              max-width: 50% !important;
+              min-width: 0 !important;
+            }
+            
+            #date {
+              padding-left: 20px !important;
+              padding-right: 20px !important;
             }
             
             #check-availability-btn {
               font-size: 12px !important;
-              padding-left: 10px !important;
-              padding-right: 10px !important;
+              padding-left: 20px !important;
+              padding-right: 20px !important;
             }
           }
           
           /* Very large screens */
           @media (min-width: 1280px) {
+            .InitialBookingForm > div:first-child,
             .InitialBookingForm > div:last-child {
-              min-width: 130px !important;
+              flex: 1 !important;
+              width: 50% !important;
+              max-width: 50% !important;
+              min-width: 0 !important;
             }
             
             #check-availability-btn {
@@ -322,17 +464,17 @@ function BookingInitializer({
         `}} />
 
         {/* Flex container for price and form */}
-        <div className="booking-form-flex-container flex flex-col items-start md:w-full">
+        <div className="booking-form-flex-container w-full">
           {/* Price Section */}
-          <div className="booking-price-container mb-4 md:mb-0 md:mr-3 lg:mr-6 md:flex-shrink-0 self-end">
-            <div className="flex flex-col items-start justify-end">
+          <div className="booking-price-container">
+            <div className="flex flex-col items-center justify-end">
               <p className={cn(
                 "text-muted-foreground uppercase tracking-wider mb-1",
                 size === 'large' ? "text-sm" : "text-xs"
               )}>
                 {typeof property.advertisedRateType === 'string' 
-                  ? property.advertisedRateType 
-                  : (tc(property.advertisedRateType) || "from")}
+                  ? (property.advertisedRateType === 'from' ? t('common.from') : property.advertisedRateType)
+                  : (tc(property.advertisedRateType) || t('common.from'))}
               </p>
               <p className={cn(
                 "font-bold text-foreground leading-none",
@@ -340,17 +482,17 @@ function BookingInitializer({
               )}>
                 {hasMounted && formattedDisplayPrice !== null 
                   ? formattedDisplayPrice 
-                  : (property.advertisedRate ? formatPrice(property.advertisedRate, propertyBaseCcy) : "Loading price...")}
+                  : (property.advertisedRate ? formatPrice(Math.round(property.advertisedRate), propertyBaseCcy) : "Loading price...")}
                 <span className={cn(
                   "font-normal text-muted-foreground ml-1",
                   size === 'large' ? "text-base" : "text-sm"
-                )}>/night</span>
+                )}>/{t('common.night')}</span>
               </p>
             </div>
           </div>
           
           {/* Booking Form */}
-          <div className="booking-form-wrapper flex-1 self-end max-w-full md:max-w-[calc(100%-3rem)]">
+          <div className="booking-form-wrapper max-w-full overflow-hidden">
             <InitialBookingForm 
               property={property} 
               size={size as 'compressed' | 'large'} 

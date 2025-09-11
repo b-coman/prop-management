@@ -152,16 +152,6 @@ export function Header({
           ))}
           {/* Pass dynamic text color class to CurrencySwitcher */}
           <CurrencySwitcher className={currencySwitcherClasses} />
-          <Button
-            size="sm"
-            variant={buttonVariant}
-            className={cn(buttonExtraClasses)}
-            asChild
-          >
-            <Link href={`${basePath}#booking`}>
-              Book Now
-            </Link>
-          </Button>
         </nav>
 
         {/* Mobile Navigation Sheet */}

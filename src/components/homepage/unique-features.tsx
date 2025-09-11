@@ -20,7 +20,7 @@ interface UniqueFeaturesContent {
 }
 
 interface UniqueFeaturesProps {
-  content: UniqueFeaturesContent; // Use content prop for consistency
+  content: UniqueFeaturesContent | Feature[]; // Handle both object with features array and direct array
   language?: string;
 }
 
@@ -33,12 +33,22 @@ export function UniqueFeatures({ content, language = 'en' }: UniqueFeaturesProps
     return null;
   }
 
-  // Extract properties with defaults to prevent destructuring errors
-  const {
-    title = t('features.defaultTitle'),
-    description = t('features.defaultDescription'),
-    features = []
-  } = content;
+  // Handle both content structures: direct array or object with features property
+  let title: string | { [key: string]: string };
+  let description: string | { [key: string]: string };
+  let features: Feature[];
+
+  if (Array.isArray(content)) {
+    // Content is a direct array of features
+    title = 'Unique Features';
+    description = 'Discover what makes this place special';
+    features = content;
+  } else {
+    // Content is an object with title, description, and features properties
+    title = content.title || 'Unique Features';
+    description = content.description || 'Discover what makes this place special';
+    features = content.features || [];
+  }
 
   // Don't render if no features are provided
   if (!features || features.length === 0) {

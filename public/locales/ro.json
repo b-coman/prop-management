@@ -30,6 +30,7 @@
   },
   "booking": {
     "checkAvailability": "Verifică Disponibilitatea",
+    "checkDates": "Verifică Datele",
     "selectDates": "Selectează datele",
     "selectGuests": "Selectează numărul de oaspeți",
     "confirmBooking": "Confirmă Rezervarea",

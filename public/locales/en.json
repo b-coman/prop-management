@@ -30,6 +30,7 @@
   },
   "booking": {
     "checkAvailability": "Check Availability",
+    "checkDates": "Check Dates",
     "selectDates": "Select Dates",
     "selectGuests": "Select number of guests",
     "confirmBooking": "Confirm Booking",
