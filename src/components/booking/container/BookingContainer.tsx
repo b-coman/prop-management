@@ -467,10 +467,10 @@ function BookingInitializer({
         <div className="booking-form-flex-container w-full">
           {/* Price Section */}
           <div className="booking-price-container">
-            <div className="flex flex-col items-center justify-end">
-              {/* Desktop: FROM on separate line */}
+            <div className="flex flex-col items-start justify-end">
+              {/* Desktop: FROM on separate line - left aligned */}
               <p className={cn(
-                "text-muted-foreground uppercase tracking-wider mb-1 hidden md:block",
+                "text-muted-foreground uppercase tracking-wider mb-1 hidden md:block text-left",
                 size === 'large' ? "text-sm" : "text-xs"
               )}>
                 {typeof property.advertisedRateType === 'object' 

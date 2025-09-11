@@ -238,10 +238,10 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
       {/* Combined Date and Guest Selection - Compact */}
       <TooltipProvider>
         <Card>
-          <CardHeader>
+          <CardHeader className="hidden md:block">
             <CardTitle className="flex items-center gap-2">
               <CalendarDays className="h-5 w-5" />
-              {t('booking.selectDatesAndGuests', 'Selectează datele și oaspeții')}
+              {t('booking.selectDatesAndGuests', 'Select dates and guests')}
             </CardTitle>
             <div className="space-y-1">
               {property.defaultMinimumStay > 1 && (
@@ -251,7 +251,7 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
               )}
             </div>
           </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6 md:pt-6">
           {isLoadingUnavailable ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin" />

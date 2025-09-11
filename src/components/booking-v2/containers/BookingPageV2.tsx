@@ -150,7 +150,7 @@ function BookingPageContent({ className }: { className?: string }) {
               <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
               <span>{t('common.back', 'Back')}</span>
             </Link>
-            <div className="flex-1 text-center">
+            <div className="flex-1 text-right">
               <h1 className="text-sm font-medium truncate text-foreground">{propertyName}</h1>
             </div>
           </div>
@@ -159,7 +159,7 @@ function BookingPageContent({ className }: { className?: string }) {
 
       {/* Mobile Summary Bar - Shows when dates selected with currency/language controls */}
       {hasValidDates && (
-        <div className="sticky top-16 z-30 bg-background/90 backdrop-blur border-b border-border/50 md:hidden">
+        <div className="sticky top-[2.5rem] z-30 bg-background/90 backdrop-blur border-b border-border/50 md:hidden">
           <div className="container px-4 py-2">
             <div className="flex items-center justify-between">
               <div className="flex-1">

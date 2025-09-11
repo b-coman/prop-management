@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { DollarSign, Check } from "lucide-react";
+import { DollarSign, Check, ChevronDown } from "lucide-react";
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { SUPPORTED_CURRENCIES, type CurrencyCode } from '@/types';
 import { cn } from '@/lib/utils';
@@ -66,6 +66,7 @@ export function CurrencySwitcherSimple({
             </>
           )}
           {!showLabel && currentCurrency?.code}
+          {variant === 'booking' && <ChevronDown className="h-3 w-3 ml-1" />}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[160px]">

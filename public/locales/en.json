@@ -32,6 +32,7 @@
     "checkAvailability": "Check Availability",
     "checkDates": "Check Dates",
     "selectDates": "Select Dates",
+    "selectDatesAndGuests": "Select dates and guests",
     "selectGuests": "Select number of guests",
     "confirmBooking": "Confirm Booking",
     "bookingDetails": "Booking Details",

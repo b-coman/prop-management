@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Globe, Check } from "lucide-react";
+import { Globe, Check, ChevronDown } from "lucide-react";
 import { useLanguage } from "@/hooks/useLanguage";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +57,7 @@ export function LanguageSelector({
             </>
           )}
           {!showLabel && currentLanguage?.flag}
+          {variant === 'booking' && <ChevronDown className="h-3 w-3 ml-1" />}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[160px]">
