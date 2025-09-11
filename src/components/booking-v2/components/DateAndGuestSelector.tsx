@@ -39,7 +39,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { HelpTooltip } from '@/components/ui/help-tooltip';
 import { CalendarDays, Users, Loader2, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { loggers } from '@/lib/logger';
@@ -236,8 +236,7 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
   return (
     <div className={`space-y-4 ${className}`}>
       {/* Combined Date and Guest Selection - Compact */}
-      <TooltipProvider>
-        <Card>
+      <Card>
           <CardHeader className="hidden md:block">
             <CardTitle className="flex items-center gap-2">
               <CalendarDays className="h-5 w-5" />
@@ -270,17 +269,11 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Check-in Date Picker */}
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2">
+                  <HelpTooltip 
+                    content={t('booking.checkInOutTime', 'Check-in after 3 PM, check-out by 11 AM')}
+                  >
                     <label className="text-sm font-medium">{t('booking.checkInDate', 'Check-in Date')}</label>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="text-xs text-muted-foreground cursor-help">ⓘ</span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{t('booking.checkInOutTime', 'Check-in after 3 PM, check-out by 11 AM')}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
+                  </HelpTooltip>
                   <Popover open={checkInOpen} onOpenChange={setCheckInOpen}>
                     <PopoverTrigger asChild>
                       <Button
@@ -455,18 +448,11 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4" />
-              <label className="text-sm font-medium">{t('booking.numberOfGuests', 'Number of Guests')}</label>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="text-xs text-muted-foreground cursor-help">ⓘ</span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <div className="space-y-1">
-                    <p>{t('booking.maxGuests', 'Max {{guests}} guests', { guests: property.maxGuests })}</p>
-                    <p className="text-xs opacity-80">{t('booking.extraGuestsNotAllowed', 'Extra guests are not allowed without approval')}</p>
-                  </div>
-                </TooltipContent>
-              </Tooltip>
+              <HelpTooltip 
+                content={`${t('booking.maxGuests', 'Max {{guests}} guests', { guests: property.maxGuests })}. ${t('booking.extraGuestsNotAllowed', 'Extra guests are not allowed without approval')}`}
+              >
+                <label className="text-sm font-medium">{t('booking.numberOfGuests', 'Number of Guests')}</label>
+              </HelpTooltip>
             </div>
             <Select value={guestCount.toString()} onValueChange={handleGuestCountChange}>
               <SelectTrigger className="w-full h-11">
@@ -488,7 +474,6 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
           )}
         </CardContent>
       </Card>
-      </TooltipProvider>
 
       {/* V2.6: Minimal Status Display - Summary moved to pricing sidebar */}
       {checkInDate && checkOutDate && (isLoadingPricing || pricingError) && (
