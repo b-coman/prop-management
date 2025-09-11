@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import { Menu, Home, MapPin, Image as ImageIcon, ListChecks } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CurrencySwitcherSimple as CurrencySwitcher } from '@/components/currency-switcher-simple'; // Import modern CurrencySwitcher
@@ -167,6 +167,7 @@ export function Header({
             </Button>
           </SheetTrigger>
           <SheetContent side="right" className="bg-background text-foreground">
+            <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
             <Link href={basePath} className="flex items-center gap-2 mb-8">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-primary">
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>

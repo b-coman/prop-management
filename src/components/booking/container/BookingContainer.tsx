@@ -468,16 +468,41 @@ function BookingInitializer({
           {/* Price Section */}
           <div className="booking-price-container">
             <div className="flex flex-col items-center justify-end">
+              {/* Desktop: FROM on separate line */}
               <p className={cn(
-                "text-muted-foreground uppercase tracking-wider mb-1",
+                "text-muted-foreground uppercase tracking-wider mb-1 hidden md:block",
                 size === 'large' ? "text-sm" : "text-xs"
               )}>
-                {typeof property.advertisedRateType === 'string' 
-                  ? property.advertisedRateType
-                  : (tc(property.advertisedRateType) || t('common.from'))}
+                {typeof property.advertisedRateType === 'object' 
+                  ? tc(property.advertisedRateType) 
+                  : t('common.from')}
               </p>
+              
+              {/* Mobile: FROM → price with visual balance */}
+              <div className={cn(
+                "flex items-center justify-between w-full md:hidden px-2",
+                size === 'large' ? "text-xl" : "text-lg"
+              )}>
+                <span className="text-muted-foreground uppercase tracking-wider font-normal text-sm opacity-70">
+                  {typeof property.advertisedRateType === 'object' 
+                    ? tc(property.advertisedRateType) 
+                    : t('common.from')}
+                </span>
+                <span className="text-muted-foreground mx-2">→</span>
+                <div className="font-bold text-foreground leading-none">
+                  {hasMounted && formattedDisplayPrice !== null 
+                    ? formattedDisplayPrice 
+                    : (property.advertisedRate ? formatPrice(Math.round(property.advertisedRate), propertyBaseCcy) : "Loading price...")}
+                  <span className={cn(
+                    "font-normal text-muted-foreground ml-1",
+                    size === 'large' ? "text-base" : "text-sm"
+                  )}>/{t('common.night')}</span>
+                </div>
+              </div>
+              
+              {/* Desktop: price on separate line */}
               <p className={cn(
-                "font-bold text-foreground leading-none",
+                "font-bold text-foreground leading-none hidden md:block",
                 size === 'large' ? "text-3xl md:text-4xl" : "text-2xl md:text-2xl lg:text-3xl"
               )}>
                 {hasMounted && formattedDisplayPrice !== null 

@@ -134,12 +134,12 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
         - Vertical alignment starts from top (justify-start)
         - This layout works with our JS positioning in hero-helper.ts
       */}
-      <div className="container mx-auto px-4 flex flex-col h-full w-full justify-start items-center py-8 md:py-12 relative" style={{ position: 'relative', overflow: 'visible' }}>
+      <div className="container mx-auto px-4 flex flex-col h-full w-full justify-start items-center py-6 md:py-12 relative" style={{ position: 'relative', overflow: 'visible' }}>
         <div className="text-center max-w-2xl mx-auto opacity-0 transition-opacity duration-300" ref={(el) => {
           // Initial invisible state to prevent flicker
           if (el) setTimeout(() => el.classList.remove('opacity-0'), 350);
         }}> {/* Initially invisible, fades in after positioning */}
-          {title && <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 drop-shadow-md">{tc(title)}</h1>}
+          {title && <h1 className="text-2xl md:text-5xl lg:text-6xl font-bold mb-4 drop-shadow-md">{tc(title)}</h1>}
           {subtitle && <p className="text-lg md:text-xl mb-6 drop-shadow-sm">{tc(subtitle)}</p>}
         </div>
 

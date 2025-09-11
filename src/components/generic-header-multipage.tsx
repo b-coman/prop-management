@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import { Menu, Home, MapPin, Image as ImageIcon, ListChecks } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CurrencySwitcherSimple } from '@/components/currency-switcher-simple';
@@ -283,6 +283,7 @@ export function Header({
             </Button>
           </SheetTrigger>
           <SheetContent side="right" className="bg-background text-foreground">
+            <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
             <Link href={getLocalizedPath(basePath)} className="flex items-center gap-2 mb-8">
               {logoSrc ? (
                 <div className="h-8 w-auto relative">
