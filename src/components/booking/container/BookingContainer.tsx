@@ -473,7 +473,7 @@ function BookingInitializer({
                 size === 'large' ? "text-sm" : "text-xs"
               )}>
                 {typeof property.advertisedRateType === 'string' 
-                  ? (property.advertisedRateType === 'from' ? t('common.from') : property.advertisedRateType)
+                  ? property.advertisedRateType
                   : (tc(property.advertisedRateType) || t('common.from'))}
               </p>
               <p className={cn(
