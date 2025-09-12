@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
     
     // Calculate pricing for each date
     const dailyPrices: Record<string, number> = {};
-    let minimumStay = 1;
+    let minimumStay = property.defaultMinimumStay || 1;
     
     // Check each day for pricing
     const currentDate = new Date(checkInDate);
@@ -154,8 +154,8 @@ export async function POST(request: NextRequest) {
         }
       }
       
-      // Check minimum stay (only for the first night)
-      if (night === 0 && dayPrice.minimumStay > minimumStay) {
+      // Check minimum stay for all nights - use the highest value found
+      if (dayPrice.minimumStay && dayPrice.minimumStay > minimumStay) {
         minimumStay = dayPrice.minimumStay;
       }
       
@@ -164,6 +164,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if minimum stay requirement is met
+    console.log(`[check-pricing-v2] 🏗️ Minimum stay validation: ${nights} nights >= ${minimumStay} minimum = ${nights >= minimumStay}`);
     const meetsMinimumStay = nights >= minimumStay;
     
     if (!meetsMinimumStay) {

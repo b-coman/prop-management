@@ -27,6 +27,7 @@ export async function getPropertyWithDb(propertyId: string): Promise<PropertyPri
     baseOccupancy: data.baseOccupancy || 2,
     extraGuestFee: data.extraGuestFee || 0,
     maxGuests: data.maxGuests || 10,
+    defaultMinimumStay: data.defaultMinimumStay || 1,
     pricingConfig: data.pricingConfig || {
       weekendAdjustment: 1.2,
       weekendDays: ['friday', 'saturday'],
@@ -45,9 +46,11 @@ export async function getPropertyWithDb(propertyId: string): Promise<PropertyPri
     baseOccupancy: property.baseOccupancy,
     extraGuestFee: property.extraGuestFee,
     maxGuests: property.maxGuests,
+    defaultMinimumStay: property.defaultMinimumStay,
     cleaningFee: property.cleaningFee,
     rawExtraGuestFee: data.extraGuestFee, // Raw value from Firestore
     rawBaseOccupancy: data.baseOccupancy, // Raw value from Firestore
+    rawDefaultMinimumStay: data.defaultMinimumStay, // Raw value from Firestore
     pricing: data.pricing // Check if this contains any relevant info
   });
   
