@@ -18,6 +18,7 @@ import React from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { ChevronDown } from 'lucide-react';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useLanguage } from '@/lib/language-system';
 import type { Property, PricingResponse } from '@/types';
 
 interface MobilePriceDrawerProps {
@@ -38,20 +39,21 @@ export function MobilePriceDrawer({
   nights
 }: MobilePriceDrawerProps) {
   const { formatPrice, selectedCurrency, convertToSelectedCurrency } = useCurrency();
+  const { t } = useLanguage();
 
   return (
     <Sheet>
       <SheetTrigger asChild>
         <button
           type="button"
-          className="w-full text-sm text-primary hover:text-primary/80 transition-colors flex items-center justify-center gap-2 py-2"
+          className="text-sm text-primary hover:text-primary/80 transition-colors flex items-center gap-1 py-1 px-2 -mr-2"
         >
-          Show price details <ChevronDown className="h-3 w-3" />
+{t('booking.showPriceDetails', 'Show price details')} <ChevronDown className="h-3 w-3" />
         </button>
       </SheetTrigger>
       <SheetContent side="bottom" className="h-[70vh] overflow-y-auto">
         <SheetHeader className="text-left pb-4">
-          <SheetTitle>Price Details</SheetTitle>
+          <SheetTitle>{t('booking.priceDetails', 'Price Details')}</SheetTitle>
         </SheetHeader>
         
         <div className="space-y-4">

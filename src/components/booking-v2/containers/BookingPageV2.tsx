@@ -20,7 +20,7 @@
 
 import React, { useEffect, useState, memo } from 'react';
 import { BookingProvider } from '../contexts';
-import { DateAndGuestSelector, PricingSummary } from '../components';
+import { DateAndGuestSelector, PricingSummary, MobilePriceDrawer } from '../components';
 import { ContactFormV2, HoldFormV2, BookingFormV2 } from '../forms';
 import type { Property, CurrencyCode } from '@/types';
 import { loggers } from '@/lib/logger';
@@ -197,7 +197,7 @@ function BookingPageContent({ className }: { className?: string }) {
         </div>
       </div>
 
-      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 ${className}`}>
+      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 pb-32 lg:pb-8 ${className}`}>
         {/* V2.7 Reorganized Layout: Control Panel (Left) + Workspace (Right) */}
       <div className="grid lg:grid-cols-5 gap-6 lg:gap-8">
         {/* Left Column: 40% - Control Panel (Date/Guest + Price + Actions) */}
@@ -205,23 +205,7 @@ function BookingPageContent({ className }: { className?: string }) {
           {/* Date & Guest Selection */}
           <DateAndGuestSelector />
           
-          {/* Mobile: Compact pricing summary */}
-          <div className="lg:hidden mt-4">
-            {hasValidPricing && pricing && (
-              <Card className="overflow-hidden">
-                <CardContent className="p-4 space-y-3">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-foreground">
-                      {formatPrice(convertToSelectedCurrency(pricing.totalPrice || pricing.total, pricing.currency))}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {numberOfNights} {numberOfNights === 1 ? t('booking.night', 'night') : t('booking.nights', 'nights')} • {t('booking.totalIncludesFees', 'Total (includes all fees)')}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+          {/* Mobile: Pricing will be shown in sticky bottom bar */}
 
           {/* Desktop: Control Panel - Sticky */}
           <div className="hidden lg:block lg:sticky lg:top-4 mt-6">
@@ -546,6 +530,70 @@ function BookingPageContent({ className }: { className?: string }) {
         </div>
       </div>
       </div>
+
+      {/* Mobile Sticky Bottom Bar - Professional Design */}
+      {hasValidPricing && pricing && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border/50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] lg:hidden">
+          <div className="container px-4 py-3">
+            {/* Compact Price Header with Details Link */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-baseline gap-2 min-w-0">
+                <span className="text-2xl font-bold text-foreground whitespace-nowrap">
+                  {formatPrice(convertToSelectedCurrency(pricing.totalPrice || pricing.total, pricing.currency))}
+                </span>
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                  {numberOfNights} {numberOfNights === 1 ? t('common.night', 'night') : t('common.nights', 'nights')}
+                </span>
+              </div>
+              <MobilePriceDrawer
+                property={property}
+                pricing={pricing}
+                checkInDate={checkInDate!}
+                checkOutDate={checkOutDate!}
+                guestCount={guestCount}
+                nights={numberOfNights}
+              />
+            </div>
+            
+            {/* Action Buttons - Clean Segmented Design */}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => handleTabClick('book')}
+                className={`flex-1 py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 ${
+                  selectedAction === 'book' || (!selectedAction && activeTab === 'book')
+                    ? 'bg-primary text-primary-foreground shadow-md' 
+                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                }`}
+              >
+                {t('booking.bookNow', 'Book Now')}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTabClick('hold')}
+                className={`flex-1 py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 ${
+                  selectedAction === 'hold'
+                    ? 'bg-primary text-primary-foreground shadow-md' 
+                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                }`}
+              >
+                {t('booking.holdDates', 'Hold Dates')}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTabClick('contact')}
+                className={`flex-1 py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 ${
+                  selectedAction === 'contact'
+                    ? 'bg-primary text-primary-foreground shadow-md' 
+                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                }`}
+              >
+                {t('common.contact', 'Contact')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

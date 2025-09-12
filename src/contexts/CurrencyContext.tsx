@@ -113,9 +113,11 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
   ): string => {
     const roundedAmount = Math.round(amount);
     
-    // Special formatting for RON - display as "747 lei" instead of "RON 747"
+    // Special formatting for RON - display as "1,747 lei" instead of "RON 1,747"
     if (currencyCode === 'RON') {
-      return `${roundedAmount} lei`;
+      // Use toLocaleString to add thousand separators
+      const formattedNumber = roundedAmount.toLocaleString('en-US');
+      return `${formattedNumber} lei`;
     }
     
     const defaultOptions: Intl.NumberFormatOptions = {
@@ -130,7 +132,9 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
       return new Intl.NumberFormat(undefined, { ...defaultOptions, ...options }).format(roundedAmount);
     } catch (e) {
       console.warn(`Error formatting price for currency ${currencyCode}:`, e);
-      return `${roundedAmount} ${currencyCode}`;
+      // Also add thousand separators to fallback
+      const formattedNumber = roundedAmount.toLocaleString('en-US');
+      return `${formattedNumber} ${currencyCode}`;
     }
   }, [selectedCurrency]);
 
@@ -194,9 +198,10 @@ export const useCurrency = (): CurrencyContextType => {
           const currency = currencyCode || 'USD';
           const roundedAmount = Math.round(amount);
           
-          // Special formatting for RON
+          // Special formatting for RON with thousand separators
           if (currency === 'RON') {
-            return `${roundedAmount} lei`;
+            const formattedNumber = roundedAmount.toLocaleString('en-US');
+            return `${formattedNumber} lei`;
           }
           
           return new Intl.NumberFormat('en-US', {
