@@ -20,7 +20,7 @@
 
 import React, { useEffect, useState, memo } from 'react';
 import { BookingProvider } from '../contexts';
-import { DateAndGuestSelector, PricingSummary, MobilePriceDrawer } from '../components';
+import { DateAndGuestSelector, PricingSummary, MobilePriceDrawer, MobileDateSelectorWrapper } from '../components';
 import { ContactFormV2, HoldFormV2, BookingFormV2 } from '../forms';
 import type { Property, CurrencyCode } from '@/types';
 import { loggers } from '@/lib/logger';
@@ -139,44 +139,30 @@ function BookingPageContent({ className }: { className?: string }) {
     <div className="min-h-screen bg-background">
       {/* 🔍 DIAGNOSTIC COMPONENT - Track re-renders */}
       <RenderTracker name="BookingPageV2-Content" data={{ currentLang, propertyName }} />
-      {/* Mobile Sticky Header - Clean Navigation Only */}
+      {/* Mobile Header - Arrow + Property + Currency/Language */}
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border md:hidden">
         <div className="container px-4 py-3">
-          <div className="flex items-center gap-3">
-            <Link 
-              href={`/properties/${property.slug}`}
-              className="group flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
-            >
-              <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-              <span>{t('common.back', 'Back')}</span>
-            </Link>
-            <div className="flex-1 text-right">
-              <h1 className="text-sm font-medium truncate text-foreground">{propertyName}</h1>
+          <div className="flex items-center justify-between">
+            {/* Left: Arrow + Property Name */}
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <Link 
+                href={`/properties/${property.slug}`}
+                className="group flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
+              >
+                <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1 flex-shrink-0" />
+                <span className="text-sm font-medium truncate text-foreground">{propertyName}</span>
+              </Link>
+            </div>
+            
+            {/* Right: Currency + Language Selectors */}
+            <div className="flex items-center gap-1 ml-2">
+              <CurrencySwitcherSimple variant="booking" />
+              <LanguageSelector variant="booking" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Mobile Summary Bar - Shows when dates selected with currency/language controls */}
-      {hasValidDates && (
-        <div className="sticky top-[2.5rem] z-30 bg-background/90 backdrop-blur border-b border-border/50 md:hidden">
-          <div className="container px-4 py-2">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                {checkInDate && checkOutDate && (
-                  <div className="text-xs text-muted-foreground">
-                    {format(checkInDate, 'MMM d', { locale: currentLang === 'ro' ? ro : undefined })} - {format(checkOutDate, 'MMM d', { locale: currentLang === 'ro' ? ro : undefined })} • {guestCount} {guestCount === 1 ? t('booking.guest', 'guest') : t('booking.guests', 'guests')}
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center gap-1">
-                <CurrencySwitcherSimple variant="booking" />
-                <LanguageSelector variant="booking" />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Desktop Header */}
       <div className="hidden md:block border-b border-border bg-background">
@@ -203,7 +189,7 @@ function BookingPageContent({ className }: { className?: string }) {
         {/* Left Column: 40% - Control Panel (Date/Guest + Price + Actions) */}
         <div className="lg:col-span-2">
           {/* Date & Guest Selection */}
-          <DateAndGuestSelector />
+          <MobileDateSelectorWrapper />
           
           {/* Mobile: Pricing will be shown in sticky bottom bar */}
 

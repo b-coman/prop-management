@@ -158,6 +158,10 @@
     "accommodation": "Accommodation",
     "additionalFees": "Additional Fees",
     "discounts": "Discounts",
+    "night": "night",
+    "nights": "nights",
+    "tapToChange": "Change",
+    "changeDatesAndGuests": "Change dates and guests",
     
     "firstName": "First Name",
     "lastName": "Last Name",
