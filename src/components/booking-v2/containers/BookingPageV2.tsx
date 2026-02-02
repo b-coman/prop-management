@@ -481,6 +481,11 @@ function BookingPageContent({ className }: { className?: string }) {
                     try {
                       const { createPendingBookingAction } = await import('@/app/actions/booking-actions');
 
+                      // Convert all pricing values from property's base currency to selected currency
+                      const baseCurrency = pricingDetails!.currency;
+                      const convertPrice = (price: number | undefined) =>
+                        price ? convertToSelectedCurrency(price, baseCurrency) : 0;
+
                       const bookingResult = await createPendingBookingAction({
                         propertyId: property.slug,
                         guestInfo: {
@@ -493,16 +498,16 @@ function BookingPageContent({ className }: { className?: string }) {
                         checkOutDate: checkOutDate!.toISOString(),
                         numberOfGuests: guestCount,
                         pricing: {
-                          baseRate: pricingDetails!.baseRate || pricingDetails!.basePrice || 0,
+                          baseRate: convertPrice(pricingDetails!.baseRate || pricingDetails!.basePrice),
                           numberOfNights: pricingDetails!.numberOfNights,
-                          cleaningFee: pricingDetails!.cleaningFee || 0,
-                          extraGuestFee: pricingDetails!.extraGuestFee || pricingDetails!.extraGuestFeeTotal || 0,
+                          cleaningFee: convertPrice(pricingDetails!.cleaningFee),
+                          extraGuestFee: convertPrice(pricingDetails!.extraGuestFee || pricingDetails!.extraGuestFeeTotal),
                           numberOfExtraGuests: pricingDetails!.numberOfExtraGuests,
-                          accommodationTotal: pricingDetails!.accommodationTotal || pricingDetails!.subtotal || 0,
-                          subtotal: pricingDetails!.subtotal,
-                          taxes: pricingDetails!.taxes || 0,
-                          discountAmount: pricingDetails!.discountAmount,
-                          total: pricingDetails!.totalPrice || pricingDetails!.total || 0,
+                          accommodationTotal: convertPrice(pricingDetails!.accommodationTotal || pricingDetails!.subtotal),
+                          subtotal: convertPrice(pricingDetails!.subtotal),
+                          taxes: convertPrice(pricingDetails!.taxes),
+                          discountAmount: convertPrice(pricingDetails!.discountAmount),
+                          total: convertPrice(pricingDetails!.totalPrice || pricingDetails!.total),
                           currency: selectedCurrency as any
                         },
                         status: 'pending',
@@ -521,12 +526,18 @@ function BookingPageContent({ className }: { className?: string }) {
 
                       const { createCheckoutSession } = await import('@/app/actions/create-checkout-session');
 
+                      // Convert price to selected currency (pricing API returns in property's base currency)
+                      const totalInSelectedCurrency = convertToSelectedCurrency(
+                        pricingDetails!.totalPrice || pricingDetails!.total || 0,
+                        pricingDetails!.currency
+                      );
+
                       const checkoutResult = await createCheckoutSession({
                         property,
                         checkInDate: checkInDate!.toISOString(),
                         checkOutDate: checkOutDate!.toISOString(),
                         numberOfGuests: guestCount,
-                        totalPrice: pricingDetails!.totalPrice || pricingDetails!.total || 0,
+                        totalPrice: totalInSelectedCurrency,
                         numberOfNights: pricingDetails!.numberOfNights,
                         guestFirstName: values.firstName,
                         guestLastName: values.lastName,
