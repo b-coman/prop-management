@@ -14,16 +14,26 @@ import { Separator } from '@/components/ui/separator';
 import { getBookingDetails, sendBookingConfirmationEmail } from './actions';
 import type { Booking, Property } from '@/types';
 import { getPropertyBySlug } from '@/lib/property-utils';
+import { useTheme } from '@/contexts/ThemeContext';
 
 function BookingSuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
   const bookingId = searchParams.get('booking_id');
+  const { setTheme } = useTheme();
 
   const [booking, setBooking] = useState<Booking | null>(null);
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Apply property theme when property is loaded
+  useEffect(() => {
+    if (property?.themeId) {
+      console.log(`🎨 [BookingSuccess] Applying property theme: ${property.themeId}`);
+      setTheme(property.themeId);
+    }
+  }, [property, setTheme]);
 
   useEffect(() => {
     async function loadBookingDetails() {
