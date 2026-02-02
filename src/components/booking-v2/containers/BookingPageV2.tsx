@@ -498,7 +498,14 @@ function BookingPageContent({ className }: { className?: string }) {
                         checkOutDate: checkOutDate!.toISOString(),
                         numberOfGuests: guestCount,
                         pricing: {
-                          baseRate: convertPrice(pricingDetails!.baseRate || pricingDetails!.basePrice),
+                          // Calculate baseRate from accommodationTotal / nights (pricing API doesn't return baseRate directly)
+                          baseRate: convertPrice(
+                            pricingDetails!.baseRate ||
+                            pricingDetails!.basePrice ||
+                            (pricingDetails!.accommodationTotal && pricingDetails!.numberOfNights
+                              ? pricingDetails!.accommodationTotal / pricingDetails!.numberOfNights
+                              : 0)
+                          ),
                           numberOfNights: pricingDetails!.numberOfNights,
                           cleaningFee: convertPrice(pricingDetails!.cleaningFee),
                           extraGuestFee: convertPrice(pricingDetails!.extraGuestFee || pricingDetails!.extraGuestFeeTotal),
