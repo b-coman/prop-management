@@ -1,10 +1,10 @@
 /**
- * DateAndGuestSelector V2.4.2 - Enhanced Date Selection with Smart Unavailability Handling
+ * DateAndGuestSelector V2.4.3 - Enhanced Date Selection with Smart Unavailability Handling
  * 
  * @file-status: ACTIVE
  * @v2-role: CORE - Primary date and guest selection component
  * @created: 2025-05-31
- * @updated: 2025-06-04 (V2.4.2 - Added distinction between hard and light unavailable dates)
+ * @updated: 2025-09-26 (V2.4.3 - CRITICAL: Fixed timezone date-shift bug with UTC normalization)
  * @description: Calendar with unavailable dates, back-to-back booking support,
  *               property-level minimum stay validation, guest count picker,
  *               automatic pricing when dates are available (V2.1), and visual
@@ -15,6 +15,7 @@
  *               V2.4 adds range highlighting with rounded corners for start/end dates.
  *               V2.4.1 fixes flickering and applies uniform light theme coloring.
  *               V2.4.2 distinguishes between Firestore-blocked dates (hard) and minimum stay dates (light).
+ *               V2.4.3 applies UTC noon normalization to prevent timezone day-shift issues.
  * @dependencies: BookingProvider, date-fns, react-day-picker
  * @replaces: Multiple date selector components from V1
  * @v2.1-changes: Removed manual "Check Price" button, added automatic pricing trigger
@@ -24,6 +25,7 @@
  * @v2.4-changes: Added rangeModifiers calculation and range highlighting CSS classes for visual feedback
  * @v2.4.1-changes: Removed selected prop conflicts, removed CSS class overrides, uniform light coloring
  * @v2.4.2-changes: Added range_blocked modifier for Firestore unavailable dates with red warning styling
+ * @v2.4.3-changes: CRITICAL FIX - Added setUTCHours(12, 0, 0, 0) to both date handlers to prevent timezone day-shift bugs
  */
 
 "use client";
@@ -43,6 +45,7 @@ import { HelpTooltip } from '@/components/ui/help-tooltip';
 import { CalendarDays, Users, Loader2, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { loggers } from '@/lib/logger';
+// Removed import - we'll implement locally for translation support
 
 interface DateAndGuestSelectorProps {
   className?: string;
@@ -73,6 +76,22 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
   // Popover state management
   const [checkInOpen, setCheckInOpen] = useState(false);
   const [checkOutOpen, setCheckOutOpen] = useState(false);
+
+  // Date formatting functions for different screen sizes
+  const formatDateFull = useCallback((date: Date) => {
+    const locale = currentLang === 'ro' ? ro : undefined;
+    return format(date, "PPP", { locale });
+  }, [currentLang]);
+
+  const formatDateMedium = useCallback((date: Date) => {
+    const locale = currentLang === 'ro' ? ro : undefined;
+    return format(date, "MMM d, yyyy", { locale });
+  }, [currentLang]);
+
+  const formatDateShort = useCallback((date: Date) => {
+    const locale = currentLang === 'ro' ? ro : undefined;
+    return format(date, "MMM d", { locale });
+  }, [currentLang]);
 
   // Utility functions for date calculations
   const getDaysBetween = useCallback((startDate: Date, endDate: Date): number => {
@@ -132,11 +151,52 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
 
   // Handle check-in date selection
   const handleCheckInChange = useCallback((date: Date | undefined) => {
-    const newCheckIn = date || null;
+    console.log('🔍 [DateSelector] RAW DATE FROM PICKER:', {
+      rawDate: date?.toISOString(),
+      rawDateString: date?.toString(),
+      getDate: date?.getDate(),
+      getMonth: date?.getMonth(),
+      getFullYear: date?.getFullYear(),
+      timestamp: new Date().toISOString()
+    });
+
+    let newCheckIn = date || null;
+    
+    // CRITICAL FIX: Apply UTC noon normalization to prevent timezone day-shift issues
+    // Create a new date with the same year/month/day but at noon UTC
+    if (newCheckIn) {
+      const originalDate = new Date(newCheckIn);
+      const year = originalDate.getFullYear();
+      const month = originalDate.getMonth();
+      const day = originalDate.getDate();
+      
+      // Create new date at noon UTC with the same calendar date
+      newCheckIn = new Date(Date.UTC(year, month, day, 12, 0, 0, 0));
+      
+      console.log('🔧 [DateSelector] UTC normalization applied:', {
+        original: originalDate.toISOString(),
+        normalized: newCheckIn.toISOString(),
+        originalGetDate: originalDate.getDate(),
+        normalizedGetDate: newCheckIn.getDate(),
+        preservedDate: day
+      });
+    }
+    
+    console.log('🔍 [DateSelector] CHECK-IN CHANGE:', {
+      newCheckIn: newCheckIn?.toISOString(),
+      currentCheckOut: checkOutDate?.toISOString(),
+      timestamp: new Date().toISOString()
+    });
     
     if (newCheckIn && checkOutDate) {
       const nightsBetween = getDaysBetween(newCheckIn, checkOutDate);
       const minStay = property.defaultMinimumStay || 1;
+      
+      console.log('🔍 [DateSelector] Minimum stay check:', {
+        nightsBetween,
+        minStay,
+        willClearCheckOut: nightsBetween < minStay
+      });
       
       if (nightsBetween < minStay) {
         setCheckOutDate(null);
@@ -149,6 +209,7 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
       }
     }
     
+    console.log('🔍 [DateSelector] Setting check-in date:', newCheckIn?.toISOString());
     setCheckInDate(newCheckIn);
     setCheckInOpen(false); // Close popover after selection
     
@@ -164,9 +225,37 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
 
   // Handle check-out date selection
   const handleCheckOutChange = useCallback((date: Date | undefined) => {
-    setCheckOutDate(date || null);
+    let newCheckOut = date || null;
+    
+    // CRITICAL FIX: Apply UTC noon normalization to prevent timezone day-shift issues
+    // Create a new date with the same year/month/day but at noon UTC
+    if (newCheckOut) {
+      const originalDate = new Date(newCheckOut);
+      const year = originalDate.getFullYear();
+      const month = originalDate.getMonth();
+      const day = originalDate.getDate();
+      
+      // Create new date at noon UTC with the same calendar date
+      newCheckOut = new Date(Date.UTC(year, month, day, 12, 0, 0, 0));
+      
+      console.log('🔧 [DateSelector] UTC normalization applied:', {
+        original: originalDate.toISOString(),
+        normalized: newCheckOut.toISOString(),
+        originalGetDate: originalDate.getDate(),
+        normalizedGetDate: newCheckOut.getDate(),
+        preservedDate: day
+      });
+    }
+    
+    console.log('🔍 [DateSelector] CHECK-OUT CHANGE:', {
+      currentCheckIn: checkInDate?.toISOString(),
+      newCheckOut: newCheckOut?.toISOString(),
+      timestamp: new Date().toISOString()
+    });
+    
+    setCheckOutDate(newCheckOut);
     setCheckOutOpen(false); // Close popover after selection
-  }, [setCheckOutDate]);
+  }, [setCheckOutDate, checkInDate]);
 
   // Handle guest count change
   const handleGuestCountChange = useCallback((value: string) => {
@@ -269,22 +358,30 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Check-in Date Picker */}
                 <div className="space-y-2">
-                  <HelpTooltip 
-                    content={t('booking.checkInOutTime', 'Check-in after 3 PM, check-out by 11 AM')}
-                  >
-                    <label className="text-sm font-medium">{t('booking.checkInDate', 'Check-in Date')}</label>
-                  </HelpTooltip>
+                  <div className="flex items-center gap-2">
+                    <HelpTooltip 
+                      content={t('booking.checkInOutTime', 'Check-in after 3 PM, check-out by 11 AM')}
+                    >
+                      <label className="text-sm font-medium">{t('booking.checkInDate', 'Check-in Date')}</label>
+                    </HelpTooltip>
+                  </div>
                   <Popover open={checkInOpen} onOpenChange={setCheckInOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-full justify-start text-left font-normal h-11 px-4",
+                          "w-full justify-start text-left font-normal h-11 px-4 md:min-w-[200px] lg:min-w-[180px]",
                           !checkInDate && "text-muted-foreground"
                         )}
                       >
                         <Calendar className="mr-2 h-4 w-4" />
-                        {checkInDate ? format(checkInDate, "PPP", { locale: currentLang === 'ro' ? ro : undefined }) : t('booking.selectYourDates', 'Select your dates')}
+                        {checkInDate ? (
+                          <>
+                            <span className="block sm:hidden">{formatDateShort(checkInDate)}</span>
+                            <span className="hidden sm:block xl:hidden">{formatDateMedium(checkInDate)}</span>
+                            <span className="hidden xl:block">{formatDateFull(checkInDate)}</span>
+                          </>
+                        ) : t('booking.selectYourDates', 'Select your dates')}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -358,13 +455,19 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-full justify-start text-left font-normal h-11 px-4",
+                          "w-full justify-start text-left font-normal h-11 px-4 md:min-w-[200px] lg:min-w-[180px]",
                           !checkOutDate && "text-muted-foreground"
                         )}
                         disabled={!checkInDate}
                       >
                         <Calendar className="mr-2 h-4 w-4" />
-                        {checkOutDate ? format(checkOutDate, "PPP", { locale: currentLang === 'ro' ? ro : undefined }) : t('booking.selectDate', 'Select date')}
+                        {checkOutDate ? (
+                          <>
+                            <span className="block sm:hidden">{formatDateShort(checkOutDate)}</span>
+                            <span className="hidden sm:block xl:hidden">{formatDateMedium(checkOutDate)}</span>
+                            <span className="hidden xl:block">{formatDateFull(checkOutDate)}</span>
+                          </>
+                        ) : t('booking.selectDate', 'Select date')}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -433,9 +536,6 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
                       />
                     </PopoverContent>
                   </Popover>
-                  {!checkInDate && (
-                    <p className="text-xs text-muted-foreground">{t('booking.selectCheckInFirst', 'Select check-in date first')}</p>
-                  )}
                 </div>
               </div>
             </div>
@@ -486,6 +586,10 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
                   isLoadingPricing={isLoadingPricing} 
                   pricingError={pricingError} 
                   fetchPricing={fetchPricing}
+                  checkInDate={checkInDate}
+                  checkOutDate={checkOutDate}
+                  unavailableDates={unavailableDates}
+                  property={property}
                   t={t} 
                 />
               </div>
@@ -498,6 +602,10 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
                   isLoadingPricing={isLoadingPricing} 
                   pricingError={pricingError} 
                   fetchPricing={fetchPricing}
+                  checkInDate={checkInDate}
+                  checkOutDate={checkOutDate}
+                  unavailableDates={unavailableDates}
+                  property={property}
                   t={t} 
                 />
               </div>
@@ -557,15 +665,67 @@ const DateRangeDisplay = memo(function DateRangeDisplay({
   );
 });
 
+// Helper functions for availability checking
+function isDateRangeAvailable(startDate: Date, endDate: Date, unavailableDates: Date[]): boolean {
+  const currentDate = new Date(startDate);
+  
+  while (currentDate < endDate) {
+    const isUnavailable = unavailableDates.some(unavailableDate => 
+      unavailableDate.getFullYear() === currentDate.getFullYear() &&
+      unavailableDate.getMonth() === currentDate.getMonth() &&
+      unavailableDate.getDate() === currentDate.getDate()
+    );
+    
+    if (isUnavailable) {
+      return false;
+    }
+    
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  return true;
+}
+
+function findNextAvailablePeriod(
+  fromDate: Date, 
+  nights: number, 
+  unavailableDates: Date[], 
+  minStay: number
+): Date | null {
+  const actualNights = Math.max(nights, minStay);
+  const maxSearchDays = 90;
+  let searchDate = new Date(fromDate);
+  
+  for (let i = 0; i < maxSearchDays; i++) {
+    const endDate = addDays(searchDate, actualNights);
+    
+    if (isDateRangeAvailable(searchDate, endDate, unavailableDates)) {
+      return searchDate;
+    }
+    
+    searchDate.setDate(searchDate.getDate() + 1);
+  }
+  
+  return null;
+}
+
 const PricingStatusDisplay = memo(function PricingStatusDisplay({ 
   isLoadingPricing, 
   pricingError, 
   fetchPricing,
+  checkInDate,
+  checkOutDate,
+  unavailableDates,
+  property,
   t 
 }: { 
   isLoadingPricing: boolean; 
   pricingError: string | null; 
   fetchPricing: () => void;
+  checkInDate: Date | null;
+  checkOutDate: Date | null;
+  unavailableDates: Date[];
+  property: any;
   t: (key: string, fallback: string, options?: any) => string; 
 }) {
   if (isLoadingPricing) {
@@ -578,22 +738,91 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
   }
 
   if (pricingError) {
+    // Parse error message format (e.g., "booking.minimumStayRequiredFromDate:2")
+    let errorKey = pricingError;
+    let errorParams: any = {};
+    
+    if (pricingError.includes(':')) {
+      const [key, param] = pricingError.split(':');
+      errorKey = key;
+      
+      // Extract parameters based on error type
+      if (key === 'booking.minimumStayRequiredFromDate') {
+        errorParams = { nights: parseInt(param) };
+      } else if (key === 'booking.unavailableDatesEnhanced') {
+        errorParams = { count: parseInt(param) };
+      }
+    }
+    
+    // Translate the error message
+    const translatedError = errorKey.startsWith('booking.') 
+      ? t(errorKey, pricingError, errorParams)
+      : pricingError;
+    
+    // Generate smart date suggestions
+    const suggestions: string[] = [];
+    const nights = checkInDate && checkOutDate ? 
+      Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+    const minimumStay = property?.defaultMinimumStay || 1;
+    
+    if (checkInDate && checkOutDate) {
+      // For minimum stay violations, suggest extending current dates
+      if (errorKey === 'booking.minimumStayRequiredFromDate' || nights < minimumStay) {
+        const extendedCheckout = addDays(checkInDate, minimumStay);
+        if (isDateRangeAvailable(checkInDate, extendedCheckout, unavailableDates || [])) {
+          suggestions.push(
+            t('booking.extendStay', `Extend your stay to ${format(extendedCheckout, 'MMM d')} (${minimumStay} nights minimum)`, {
+              date: format(extendedCheckout, 'MMM d'),
+              nights: minimumStay
+            })
+          );
+        }
+      }
+      
+      // Find next available period
+      const nextAvailable = findNextAvailablePeriod(
+        addDays(checkInDate, 1),
+        nights,
+        unavailableDates || [],
+        minimumStay
+      );
+      
+      if (nextAvailable) {
+        const actualNights = Math.max(nights, minimumStay);
+        const endDate = addDays(nextAvailable, actualNights);
+        suggestions.push(
+          t('booking.nextAvailable', `Next available: ${format(nextAvailable, 'MMM d')} - ${format(endDate, 'MMM d')}`, {
+            startDate: format(nextAvailable, 'MMM d'),
+            endDate: format(endDate, 'MMM d')
+          })
+        );
+      }
+    }
+
     return (
       <div className="text-center py-4">
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg space-y-2">
-          <p className="text-red-800 text-sm font-medium">{pricingError}</p>
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg space-y-3">
+          <p className="text-red-800 text-sm font-medium">{translatedError}</p>
+          
+          {suggestions.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-red-700 text-xs font-medium">
+                {t('booking.tryAlternatives', 'Try these alternatives:')}
+              </p>
+              <div className="space-y-1">
+                {suggestions.map((suggestion, index) => (
+                  <p key={index} className="text-red-600 text-xs">
+                    • {suggestion}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+          
           <p className="text-red-700 text-xs">
             {t('booking.unavailableDatesNote', 'Unavailable dates are marked with strikethrough in the calendar')}
           </p>
         </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="mt-3"
-          onClick={fetchPricing}
-        >
-          {t('booking.retryPricing', 'Retry Pricing')}
-        </Button>
       </div>
     );
   }

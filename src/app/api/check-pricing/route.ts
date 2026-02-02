@@ -38,6 +38,16 @@ export async function POST(request: NextRequest) {
     const checkInDate = parseISO(checkIn);
     const checkOutDate = parseISO(checkOut);
     
+    console.log('🔍 [API check-pricing] REQUEST RECEIVED:', {
+      propertyId,
+      checkIn,
+      checkOut,
+      parsedCheckIn: checkInDate.toISOString(),
+      parsedCheckOut: checkOutDate.toISOString(),
+      guests,
+      timestamp: new Date().toISOString()
+    });
+    
     // Validate past dates
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Set to beginning of today
@@ -81,6 +91,13 @@ export async function POST(request: NextRequest) {
     
     // If dates are not available, return early
     if (!availabilityResult.isAvailable) {
+      console.log('🔍 [API check-pricing] UNAVAILABLE DATES FOUND:', {
+        unavailableDates: availabilityResult.unavailableDates,
+        checkIn,
+        checkOut,
+        timestamp: new Date().toISOString()
+      });
+      
       return NextResponse.json({
         available: false,
         reason: 'unavailable_dates',
@@ -107,7 +124,7 @@ export async function POST(request: NextRequest) {
     
     // Now we only need to calculate pricing (availability already checked)
     const dailyPrices: Record<string, number> = {};
-    let minimumStay = property.defaultMinimumStay || 1;
+    let minimumStay = (property as any).defaultMinimumStay || 1;
     
     // Calculate pricing for each day (availability already checked)
     const currentDate = new Date(checkInDate);

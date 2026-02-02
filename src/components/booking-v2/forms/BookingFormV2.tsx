@@ -1,12 +1,14 @@
 /**
- * Booking Form V2 - Complete booking form for V2 booking system
+ * Booking Form V2.1 - Enhanced UI with Visual Grouping and Collapsible Sections
  * 
  * @file-status: ACTIVE
  * @v2-role: FORMS - Main booking form for V2 booking system
  * @created: 2025-05-31
- * @description: V2-native booking form with preserved functionality from V1
+ * @updated: 2025-09-26 (V2.1 - Enhanced visual organization and form grouping)
+ * @description: V2-native booking form with preserved functionality from V1 and enhanced UX
  * @dependencies: V2 BookingProvider, form validation, sanitization, Stripe integration
  * @preserves: All V1 functionality, validation, error handling, coupon system, Stripe
+ * @v2.1-changes: Added visual field grouping, collapsible coupon section, enhanced typography hierarchy
  */
 
 "use client";
@@ -142,11 +144,11 @@ export function BookingFormV2({
   // Handle coupon application (preserved from V1)
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
-      setCouponError('Please enter a coupon code.');
+      setCouponError(t('booking.pleaseEnterCoupon', 'Please enter a coupon code.'));
       return;
     }
     if (!checkInDate || !checkOutDate) {
-      setCouponError('Please select valid booking dates first.');
+      setCouponError(t('booking.selectDatesFirst', 'Please select valid booking dates first.'));
       return;
     }
 
@@ -173,7 +175,7 @@ export function BookingFormV2({
       }
     } catch (error) {
       console.error('[V2] Error applying coupon:', error);
-      setCouponError('Could not apply coupon. Please try again.');
+      setCouponError(t('booking.couponError', 'Could not apply coupon. Please try again.'));
     } finally {
       setIsApplyingCoupon(false);
     }
@@ -204,109 +206,129 @@ export function BookingFormV2({
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
-            {/* Guest Information Section */}
-            <div>
-              <h3 className="font-semibold text-base mb-4">{t('booking.guestInformation', 'Guest Information')}</h3>
+            {/* Guest Information Section - Vertical Layout */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="w-1 h-6 bg-primary rounded-full"></div>
+                <h3 className="font-semibold text-lg">{t('booking.guestInformation', 'Guest Information')}</h3>
+              </div>
               
-              {/* All Fields in Single Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="firstName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('booking.firstName', 'First Name')}</FormLabel>
-                      <FormControl>
-                        <IconInputField
-                          placeholder={t('booking.enterFirstName', 'Enter your first name')} 
-                          {...field}
-                          onChange={(e) => {
-                            field.onChange(e);
-                            handleFieldChange('firstName', e.target.value);
-                          }}
-                          disabled={isLoading}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+              {/* Personal Information Group */}
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-6">
+                <div className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col space-y-3">
+                        <FormLabel className="text-sm font-medium text-slate-700">{t('booking.firstName', 'First Name')}</FormLabel>
+                        <FormControl>
+                          <IconInputField
+                            placeholder={t('booking.enterFirstName', 'Enter your first name')} 
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              handleFieldChange('firstName', e.target.value);
+                            }}
+                            disabled={isLoading}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                
-                <FormField
-                  control={form.control}
-                  name="lastName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('booking.lastName', 'Last Name')}</FormLabel>
-                      <FormControl>
-                        <IconInputField
-                          placeholder={t('booking.enterLastName', 'Enter your last name')} 
-                          {...field}
-                          onChange={(e) => {
-                            field.onChange(e);
-                            handleFieldChange('lastName', e.target.value);
-                          }}
-                          disabled={isLoading}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  
+                  <FormField
+                    control={form.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col space-y-3">
+                        <FormLabel className="text-sm font-medium text-slate-700">{t('booking.lastName', 'Last Name')}</FormLabel>
+                        <FormControl>
+                          <IconInputField
+                            placeholder={t('booking.enterLastName', 'Enter your last name')} 
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              handleFieldChange('lastName', e.target.value);
+                            }}
+                            disabled={isLoading}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-
-                <FormField
+                </div>
+              </div>
+              
+              {/* Contact Information Group */}
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-6">
+                <div className="space-y-6">
+                  <FormField
                     control={form.control}
                     name="email"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('booking.email', 'Email')}</FormLabel>
-                      <FormControl>
-                        <IconInputField
-                          type="email"
-                          placeholder={t('booking.enterEmail', 'Enter your email address')} 
-                          {...field}
-                          onChange={(e) => {
-                            field.onChange(e);
-                            handleFieldChange('email', e.target.value);
-                          }}
-                          disabled={isLoading}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
+                      <FormItem className="flex flex-col space-y-3">
+                        <FormLabel className="text-sm font-medium text-slate-700">{t('booking.email', 'Email')}</FormLabel>
+                        <FormControl>
+                          <IconInputField
+                            type="email"
+                            placeholder={t('booking.enterEmail', 'Enter your email address')} 
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              handleFieldChange('email', e.target.value);
+                            }}
+                            disabled={isLoading}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
                     control={form.control}
                     name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('booking.phone', 'Phone')}</FormLabel>
-                      <FormControl>
-                        <IconInputField
-                          type="tel"
-                          placeholder={t('booking.enterPhone', 'Enter your phone number')} 
-                          {...field}
-                          onChange={(e) => {
-                            field.onChange(e);
-                            handleFieldChange('phone', e.target.value);
-                          }}
-                          disabled={isLoading}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col space-y-3">
+                        <FormLabel className="text-sm font-medium text-slate-700">{t('booking.phone', 'Phone')}</FormLabel>
+                        <FormControl>
+                          <IconInputField
+                            type="tel"
+                            placeholder={t('booking.enterPhone', 'Enter your phone number')} 
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              handleFieldChange('phone', e.target.value);
+                            }}
+                            disabled={isLoading}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
+                </div>
               </div>
             </div>
 
-            {/* Coupon Section (preserved from V1) */}
+            {/* Coupon Section - Enhanced with collapsible design */}
             <div className="space-y-6">
-              <h3 className="font-semibold text-base">{t('booking.discountCoupon', 'Discount Coupon (Optional)')}</h3>
+              <details className="group" open={!!appliedCoupon || couponCode.length > 0}>
+                <summary className="flex items-center gap-2 cursor-pointer p-3 rounded-lg border border-dashed border-muted-foreground/30 hover:border-muted-foreground/50 transition-colors">
+                  <TicketPercent className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                    {t('booking.discountCoupon', 'Discount Coupon (Optional)')}
+                  </span>
+                  <div className="ml-auto text-xs text-muted-foreground">
+                    {appliedCoupon ? t('booking.couponAppliedStatus', '✓ Applied') : t('booking.clickToExpand', 'Click to expand')}
+                  </div>
+                </summary>
+                <div className="mt-4 p-4 bg-muted/10 rounded-lg border border-muted/30">
               
-              <div className="grid grid-cols-[1fr,auto] gap-6 items-end">
+              <div className="grid grid-cols-[1fr,auto] gap-4 items-end">
                 <IconInputField 
                   placeholder={t('booking.enterCouponCode', 'Enter coupon code')} 
                   value={couponCode} 
@@ -354,7 +376,7 @@ export function BookingFormV2({
               </div>
 
               {/* Coupon Status */}
-              <div>
+              <div className="mt-3">
                 {couponError && (
                   <div className="flex items-center gap-2 text-destructive text-sm">
                     <div className="h-4 w-4 rounded-full bg-red-100 flex items-center justify-center">
@@ -374,6 +396,8 @@ export function BookingFormV2({
                   </div>
                 )}
               </div>
+              </div>
+            </details>
             </div>
 
             {/* Error Display */}
@@ -397,7 +421,7 @@ export function BookingFormV2({
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing Payment...
+                    {t('booking.processingPayment', 'Processing Payment...')}
                   </>
                 ) : (
                   <>

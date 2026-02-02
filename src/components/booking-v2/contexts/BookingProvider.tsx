@@ -470,9 +470,13 @@ export function BookingProvider({
         dispatch({ type: 'SET_PRICING', payload: { 
           pricing: null, 
           loading: false, 
-          error: data.reason === 'minimum_stay' 
-            ? `Minimum ${data.minimumStay} nights required from this date`
-            : 'Selected dates are not available'
+          error: data.reason === 'minimum_stay' && data.minimumStay
+            ? `booking.minimumStayRequiredFromDate:${data.minimumStay}`
+            : data.reason === 'unavailable_dates' && data.unavailableDates?.length > 1
+            ? `booking.unavailableDatesEnhanced:${data.unavailableDates.length}`
+            : data.reason === 'unavailable_dates'
+            ? 'booking.oneUnavailableDate'
+            : 'booking.datesUnavailable'
         } });
         return;
       }

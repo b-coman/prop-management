@@ -17,6 +17,7 @@ type BookingFlowStatus = 'initial' | 'dates_selected' | 'checking' | 'available'
 
 // Import required services for API pricing and availability
 import { getPricingForDateRange, getUnavailableDatesForProperty } from '@/services/availabilityService';
+// Removed - error messages now handled with translation system
 
 // Define interface for centralized pricing state
 export interface PricingDetails {
@@ -568,7 +569,14 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
     }
     
     // Log the request details with detailed date format information
-    console.log(`[BookingContext] ${requestId} Fetching pricing for ${storedPropertySlug} with dates ${checkInDate.toISOString()} to ${checkOutDate.toISOString()} and ${numberOfGuests} guests`);
+    console.log(`[BookingContext] ${requestId} 🔍 PRICING REQUEST TRIGGERED:`, {
+      propertySlug: storedPropertySlug,
+      checkIn: checkInDate.toISOString(),
+      checkOut: checkOutDate.toISOString(), 
+      nights: numberOfNights,
+      guests: numberOfGuests,
+      timestamp: new Date().toISOString()
+    });
     
     // Added debug info for better date tracking
     console.log(`[BookingContext] ${requestId} DATE DEBUG INFO:`);
@@ -588,8 +596,31 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
         numberOfGuests
       );
       
+      // Check if we have valid pricing data OR if it's an availability error
+      if (!result) {
+        console.error(`[BookingContext] ${requestId} No result received from API`);
+        setPricingError("Could not retrieve pricing information");
+        return null;
+      }
+      
+      // Check if the result indicates unavailability
+      if (result.available === false) {
+        console.log(`[BookingContext] ${requestId} Dates not available:`, result.reason);
+        // Pass raw error structure for component to translate
+        const errorMessage = result.reason === 'minimum_stay' && result.minimumStay
+          ? `booking.minimumStayRequiredFromDate:${result.minimumStay}`
+          : result.reason === 'unavailable_dates' && result.unavailableDates?.length > 1
+          ? `booking.unavailableDatesEnhanced:${result.unavailableDates.length}`
+          : result.reason === 'unavailable_dates'
+          ? 'booking.oneUnavailableDate'
+          : 'booking.datesUnavailable';
+        
+        setPricingError(errorMessage);
+        return null;
+      }
+      
       // Check if we have valid pricing data
-      if (!result || !result.pricing) {
+      if (!result.pricing) {
         console.error(`[BookingContext] ${requestId} No valid pricing data received from API`);
         setPricingError("Could not retrieve pricing information");
         return null;
@@ -639,7 +670,24 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
       return pricingData;
     } catch (error) {
       console.error(`[BookingContext] ${requestId} Error fetching pricing:`, error);
-      setPricingError("Error fetching pricing information. Please try again.");
+      
+      // Enhanced error handling - check if it's a structured API error response
+      if (error && typeof error === 'object' && 'available' in error && error.available === false) {
+        // Pass structured error for translation
+        const errorData = error as any;
+        const errorMessage = errorData.reason === 'minimum_stay' && errorData.minimumStay
+          ? `booking.minimumStayRequiredFromDate:${errorData.minimumStay}`
+          : errorData.reason === 'unavailable_dates' && errorData.unavailableDates?.length > 1
+          ? `booking.unavailableDatesEnhanced:${errorData.unavailableDates.length}`
+          : errorData.reason === 'unavailable_dates'
+          ? 'booking.oneUnavailableDate'
+          : 'booking.datesUnavailable';
+        setPricingError(errorMessage);
+      } else {
+        // Generic error fallback - use translation key
+        setPricingError("booking.pricingError");
+      }
+      
       setBookingFlowStatus('error');
       return null;
     } finally {

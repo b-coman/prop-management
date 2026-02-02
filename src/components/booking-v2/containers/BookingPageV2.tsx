@@ -108,6 +108,12 @@ function BookingPageContent({ className }: { className?: string }) {
   const { formatPrice, convertToSelectedCurrency, selectedCurrency } = useCurrency();
   const { t, currentLang } = useLanguage();
   const [activeTab, setActiveTab] = useState<'book' | 'hold' | 'contact'>('book');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formStatus, setFormStatus] = useState<{
+    show: boolean;
+    type: 'success' | 'error';
+    message: string;
+  }>({ show: false, type: 'success', message: '' });
 
   // Check if we have valid booking data
   const hasValidDates = checkInDate && checkOutDate;
@@ -262,7 +268,7 @@ function BookingPageContent({ className }: { className?: string }) {
                     <div className="mt-3 space-y-3 px-2">
                       <div className="flex justify-between text-sm">
                         <span>{t('booking.basePrice', `Base price (${numberOfNights} ${numberOfNights === 1 ? 'night' : 'nights'})`)}</span>
-                        <span>{formatPrice(convertToSelectedCurrency(pricing.basePrice || pricing.baseRate || 0, pricing.currency))}</span>
+                        <span>{formatPrice(convertToSelectedCurrency(pricing.accommodationTotal || pricing.basePrice || pricing.baseRate || 0, pricing.currency))}</span>
                       </div>
                       {pricing.cleaningFee > 0 && (
                         <div className="flex justify-between text-sm">
@@ -307,43 +313,84 @@ function BookingPageContent({ className }: { className?: string }) {
 
         {/* Right Column: 60% - Dedicated Form Workspace */}
         <div className="lg:col-span-3">
+          {/* Success/Error Messages */}
+          {formStatus.show && (
+            <div className={`mb-6 p-4 rounded-lg border ${
+              formStatus.type === 'success' 
+                ? 'bg-green-50 border-green-200 text-green-800' 
+                : 'bg-red-50 border-red-200 text-red-800'
+            }`}>
+              <div className="flex items-center justify-between">
+                <p className="font-medium">{formStatus.message}</p>
+                <button 
+                  onClick={() => setFormStatus({ show: false, type: 'success', message: '' })}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
+          
           {selectedAction && pricing && (
             <div className="space-y-6">
-
               {/* Form Content */}
               {selectedAction === 'contact' && (
                 <ContactFormV2
                   onSubmit={async (values, pricingDetails, selectedCurrency) => {
+                    setIsSubmitting(true);
+                    setFormStatus({ show: false, type: 'success', message: '' });
                     loggers.bookingContext.debug('[V2] Contact form submission started', { values });
                     
-                    const { createInquiryAction } = await import('@/app/actions/createInquiryAction');
-                    
-                    const result = await createInquiryAction({
-                      propertySlug: property.slug,
-                      checkInDate: checkInDate!.toISOString(),
-                      checkOutDate: checkOutDate!.toISOString(),
-                      guestCount,
-                      guestInfo: {
-                        firstName: values.firstName,
-                        lastName: values.lastName,
-                        email: values.email,
-                        phone: values.phone
-                      },
-                      message: values.message,
-                      totalPrice: pricingDetails?.totalPrice,
-                      currency: selectedCurrency as any
-                    });
-                    
-                    if (result.error) {
-                      loggers.bookingContext.error('[V2] Contact form submission failed', { error: result.error });
-                      // TODO: Show error to user
-                    } else {
-                      loggers.bookingContext.info('[V2] Contact form submitted successfully', { inquiryId: result.inquiryId });
-                      // TODO: Show success message or redirect
+                    try {
+                      const { createInquiryAction } = await import('@/app/actions/createInquiryAction');
+                      
+                      const result = await createInquiryAction({
+                        propertySlug: property.slug,
+                        checkInDate: checkInDate!.toISOString(),
+                        checkOutDate: checkOutDate!.toISOString(),
+                        guestCount,
+                        guestInfo: {
+                          firstName: values.firstName,
+                          lastName: values.lastName,
+                          email: values.email,
+                          phone: values.phone
+                        },
+                        message: values.message,
+                        totalPrice: pricingDetails?.totalPrice,
+                        currency: selectedCurrency as any
+                      });
+                      
+                      if (result.error) {
+                        loggers.bookingContext.error('[V2] Contact form submission failed', { error: result.error });
+                        setFormStatus({
+                          show: true,
+                          type: 'error',
+                          message: t('booking.inquiryError', 'Failed to send inquiry. Please try again.')
+                        });
+                      } else {
+                        loggers.bookingContext.info('[V2] Contact form submitted successfully', { inquiryId: result.inquiryId });
+                        setFormStatus({
+                          show: true,
+                          type: 'success',
+                          message: t('booking.inquirySuccess', 'Your inquiry has been sent successfully! We will respond within 24-48 hours.')
+                        });
+                        // Optionally clear the form or reset selected action
+                        // setSelectedAction(null);
+                      }
+                    } catch (error) {
+                      loggers.bookingContext.error('[V2] Contact form submission error', { error });
+                      setFormStatus({
+                        show: true,
+                        type: 'error',
+                        message: t('booking.unexpectedError', 'An unexpected error occurred. Please try again.')
+                      });
+                    } finally {
+                      setIsSubmitting(false);
                     }
                   }}
-                  isProcessing={false}
-                  isPending={false}
+                  isProcessing={isSubmitting}
+                  isPending={isSubmitting}
                   pricingDetails={pricing}
                   selectedCurrency={selectedCurrency}
                 />
