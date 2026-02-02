@@ -156,6 +156,10 @@
     "inquiryError": "Nu s-a putut trimite solicitarea. Vă rugăm să încercați din nou.",
     "inquirySuccess": "Solicitarea dvs. a fost trimisă cu succes! Vom răspunde în 24-48 de ore.",
     "unexpectedError": "A apărut o eroare neașteptată. Vă rugăm să încercați din nou.",
+    "holdError": "Nu s-a putut crea rezervarea temporară. Vă rugăm să încercați din nou.",
+    "holdCheckoutError": "Nu s-a putut crea sesiunea de plată. Vă rugăm să încercați din nou.",
+    "bookingError": "Nu s-a putut crea rezervarea. Vă rugăm să încercați din nou.",
+    "checkoutError": "Nu s-a putut crea sesiunea de plată. Vă rugăm să încercați din nou.",
     
     "contactPropertyOwner": "Contactează Proprietarul",
     "holdTheseDates": "Rezervă Aceste Date",

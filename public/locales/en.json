@@ -155,6 +155,10 @@
     "inquiryError": "Failed to send inquiry. Please try again.",
     "inquirySuccess": "Your inquiry has been sent successfully! We will respond within 24-48 hours.",
     "unexpectedError": "An unexpected error occurred. Please try again.",
+    "holdError": "Failed to create hold. Please try again.",
+    "holdCheckoutError": "Failed to create payment session. Please try again.",
+    "bookingError": "Failed to create booking. Please try again.",
+    "checkoutError": "Failed to create payment session. Please try again.",
     
     "contactPropertyOwner": "Contact Property Owner",
     "holdTheseDates": "Hold These Dates",

@@ -399,50 +399,73 @@ function BookingPageContent({ className }: { className?: string }) {
               {selectedAction === 'hold' && (
                 <HoldFormV2
                   onSubmit={async (values, _pricingDetails, selectedCurrency) => {
+                    setIsSubmitting(true);
+                    setFormStatus({ show: false, type: 'success', message: '' });
                     loggers.bookingContext.debug('[V2] Hold form submission started', { values });
-                    
-                    const { createHoldBookingAction } = await import('@/app/actions/createHoldBookingAction');
-                    
-                    const holdResult = await createHoldBookingAction({
-                      propertySlug: property.slug,
-                      checkInDate: checkInDate!.toISOString(),
-                      checkOutDate: checkOutDate!.toISOString(),
-                      guestCount,
-                      guestInfo: {
-                        firstName: values.firstName,
-                        lastName: values.lastName,
-                        email: values.email,
-                        phone: values.phone
-                      },
-                      holdFeeAmount: property.holdFeeAmount || 50,
-                      selectedCurrency
-                    });
-                    
-                    if (holdResult.error || !holdResult.bookingId) {
-                      loggers.bookingContext.error('[V2] Hold booking creation failed', { error: holdResult.error });
-                      return;
+
+                    try {
+                      const { createHoldBookingAction } = await import('@/app/actions/createHoldBookingAction');
+
+                      const holdResult = await createHoldBookingAction({
+                        propertySlug: property.slug,
+                        checkInDate: checkInDate!.toISOString(),
+                        checkOutDate: checkOutDate!.toISOString(),
+                        guestCount,
+                        guestInfo: {
+                          firstName: values.firstName,
+                          lastName: values.lastName,
+                          email: values.email,
+                          phone: values.phone
+                        },
+                        holdFeeAmount: property.holdFeeAmount || 50,
+                        selectedCurrency
+                      });
+
+                      if (holdResult.error || !holdResult.bookingId) {
+                        loggers.bookingContext.error('[V2] Hold booking creation failed', { error: holdResult.error });
+                        setFormStatus({
+                          show: true,
+                          type: 'error',
+                          message: t('booking.holdError', 'Failed to create hold. Please try again.')
+                        });
+                        return;
+                      }
+
+                      const { createHoldCheckoutSession } = await import('@/app/actions/createHoldCheckoutSession');
+
+                      const checkoutResult = await createHoldCheckoutSession({
+                        property,
+                        holdBookingId: holdResult.bookingId,
+                        holdFeeAmount: property.holdFeeAmount || 50,
+                        guestEmail: values.email,
+                        selectedCurrency: selectedCurrency as any
+                      });
+
+                      if (checkoutResult.error || !checkoutResult.sessionUrl) {
+                        loggers.bookingContext.error('[V2] Hold checkout session creation failed', { error: checkoutResult.error });
+                        setFormStatus({
+                          show: true,
+                          type: 'error',
+                          message: t('booking.holdCheckoutError', 'Failed to create payment session. Please try again.')
+                        });
+                        return;
+                      }
+
+                      loggers.bookingContext.info('[V2] Redirecting to Stripe for hold payment', { sessionId: checkoutResult.sessionId });
+                      window.location.href = checkoutResult.sessionUrl;
+                    } catch (error) {
+                      loggers.bookingContext.error('[V2] Hold form submission error', { error });
+                      setFormStatus({
+                        show: true,
+                        type: 'error',
+                        message: t('booking.unexpectedError', 'An unexpected error occurred. Please try again.')
+                      });
+                    } finally {
+                      setIsSubmitting(false);
                     }
-                    
-                    const { createHoldCheckoutSession } = await import('@/app/actions/createHoldCheckoutSession');
-                    
-                    const checkoutResult = await createHoldCheckoutSession({
-                      property,
-                      holdBookingId: holdResult.bookingId,
-                      holdFeeAmount: property.holdFeeAmount || 50,
-                      guestEmail: values.email,
-                      selectedCurrency: selectedCurrency as any
-                    });
-                    
-                    if (checkoutResult.error || !checkoutResult.sessionUrl) {
-                      loggers.bookingContext.error('[V2] Hold checkout session creation failed', { error: checkoutResult.error });
-                      return;
-                    }
-                    
-                    loggers.bookingContext.info('[V2] Redirecting to Stripe for hold payment', { sessionId: checkoutResult.sessionId });
-                    window.location.href = checkoutResult.sessionUrl;
                   }}
-                  isProcessing={false}
-                  isPending={false}
+                  isProcessing={isSubmitting}
+                  isPending={isSubmitting}
                   pricingDetails={pricing}
                   selectedCurrency={selectedCurrency}
                 />
@@ -451,71 +474,94 @@ function BookingPageContent({ className }: { className?: string }) {
               {selectedAction === 'book' && (
                 <BookingFormV2
                   onSubmit={async (values, pricingDetails, appliedCoupon, selectedCurrency) => {
+                    setIsSubmitting(true);
+                    setFormStatus({ show: false, type: 'success', message: '' });
                     loggers.bookingContext.debug('[V2] Booking form submission started', { values });
-                    
-                    const { createPendingBookingAction } = await import('@/app/actions/booking-actions');
-                    
-                    const bookingResult = await createPendingBookingAction({
-                      propertyId: property.slug,
-                      guestInfo: {
-                        firstName: values.firstName,
-                        lastName: values.lastName,
-                        email: values.email,
-                        phone: values.phone
-                      },
-                      checkInDate: checkInDate!.toISOString(),
-                      checkOutDate: checkOutDate!.toISOString(),
-                      numberOfGuests: guestCount,
-                      pricing: {
-                        baseRate: pricingDetails!.baseRate || pricingDetails!.basePrice || 0,
+
+                    try {
+                      const { createPendingBookingAction } = await import('@/app/actions/booking-actions');
+
+                      const bookingResult = await createPendingBookingAction({
+                        propertyId: property.slug,
+                        guestInfo: {
+                          firstName: values.firstName,
+                          lastName: values.lastName,
+                          email: values.email,
+                          phone: values.phone
+                        },
+                        checkInDate: checkInDate!.toISOString(),
+                        checkOutDate: checkOutDate!.toISOString(),
+                        numberOfGuests: guestCount,
+                        pricing: {
+                          baseRate: pricingDetails!.baseRate || pricingDetails!.basePrice || 0,
+                          numberOfNights: pricingDetails!.numberOfNights,
+                          cleaningFee: pricingDetails!.cleaningFee || 0,
+                          extraGuestFee: pricingDetails!.extraGuestFee || pricingDetails!.extraGuestFeeTotal || 0,
+                          numberOfExtraGuests: pricingDetails!.numberOfExtraGuests,
+                          accommodationTotal: pricingDetails!.accommodationTotal || pricingDetails!.subtotal || 0,
+                          subtotal: pricingDetails!.subtotal,
+                          taxes: pricingDetails!.taxes || 0,
+                          discountAmount: pricingDetails!.discountAmount,
+                          total: pricingDetails!.totalPrice || pricingDetails!.total || 0,
+                          currency: selectedCurrency as any
+                        },
+                        status: 'pending',
+                        appliedCouponCode: appliedCoupon?.code || null
+                      });
+
+                      if (bookingResult.error || !bookingResult.bookingId) {
+                        loggers.bookingContext.error('[V2] Pending booking creation failed', { error: bookingResult.error });
+                        setFormStatus({
+                          show: true,
+                          type: 'error',
+                          message: t('booking.bookingError', 'Failed to create booking. Please try again.')
+                        });
+                        return;
+                      }
+
+                      const { createCheckoutSession } = await import('@/app/actions/create-checkout-session');
+
+                      const checkoutResult = await createCheckoutSession({
+                        property,
+                        checkInDate: checkInDate!.toISOString(),
+                        checkOutDate: checkOutDate!.toISOString(),
+                        numberOfGuests: guestCount,
+                        totalPrice: pricingDetails!.totalPrice || pricingDetails!.total || 0,
                         numberOfNights: pricingDetails!.numberOfNights,
-                        cleaningFee: pricingDetails!.cleaningFee || 0,
-                        extraGuestFee: pricingDetails!.extraGuestFee || pricingDetails!.extraGuestFeeTotal || 0,
-                        numberOfExtraGuests: pricingDetails!.numberOfExtraGuests,
-                        accommodationTotal: pricingDetails!.accommodationTotal || pricingDetails!.subtotal || 0,
-                        subtotal: pricingDetails!.subtotal,
-                        taxes: pricingDetails!.taxes || 0,
-                        discountAmount: pricingDetails!.discountAmount,
-                        total: pricingDetails!.totalPrice || pricingDetails!.total || 0,
-                        currency: selectedCurrency as any
-                      },
-                      status: 'pending',
-                      appliedCouponCode: appliedCoupon?.code || null
-                    });
-                    
-                    if (bookingResult.error || !bookingResult.bookingId) {
-                      loggers.bookingContext.error('[V2] Pending booking creation failed', { error: bookingResult.error });
-                      return;
+                        guestFirstName: values.firstName,
+                        guestLastName: values.lastName,
+                        guestEmail: values.email,
+                        appliedCouponCode: appliedCoupon?.code,
+                        discountPercentage: appliedCoupon?.discountPercentage,
+                        pendingBookingId: bookingResult.bookingId,
+                        selectedCurrency: selectedCurrency as any
+                      });
+
+                      if (checkoutResult.error || !checkoutResult.sessionUrl) {
+                        loggers.bookingContext.error('[V2] Booking checkout session creation failed', { error: checkoutResult.error });
+                        setFormStatus({
+                          show: true,
+                          type: 'error',
+                          message: t('booking.checkoutError', 'Failed to create payment session. Please try again.')
+                        });
+                        return;
+                      }
+
+                      loggers.bookingContext.info('[V2] Redirecting to Stripe for booking payment', { sessionId: checkoutResult.sessionId });
+                      window.location.href = checkoutResult.sessionUrl;
+                    } catch (error) {
+                      loggers.bookingContext.error('[V2] Booking form submission error', { error });
+                      setFormStatus({
+                        show: true,
+                        type: 'error',
+                        message: t('booking.unexpectedError', 'An unexpected error occurred. Please try again.')
+                      });
+                    } finally {
+                      setIsSubmitting(false);
                     }
-                    
-                    const { createCheckoutSession } = await import('@/app/actions/create-checkout-session');
-                    
-                    const checkoutResult = await createCheckoutSession({
-                      property,
-                      checkInDate: checkInDate!.toISOString(),
-                      checkOutDate: checkOutDate!.toISOString(),
-                      numberOfGuests: guestCount,
-                      totalPrice: pricingDetails!.totalPrice || pricingDetails!.total || 0,
-                      numberOfNights: pricingDetails!.numberOfNights,
-                      guestFirstName: values.firstName,
-                      guestLastName: values.lastName,
-                      guestEmail: values.email,
-                      appliedCouponCode: appliedCoupon?.code,
-                      discountPercentage: appliedCoupon?.discountPercentage,
-                      pendingBookingId: bookingResult.bookingId,
-                      selectedCurrency: selectedCurrency as any
-                    });
-                    
-                    if (checkoutResult.error || !checkoutResult.sessionUrl) {
-                      loggers.bookingContext.error('[V2] Booking checkout session creation failed', { error: checkoutResult.error });
-                      return;
-                    }
-                    
-                    loggers.bookingContext.info('[V2] Redirecting to Stripe for booking payment', { sessionId: checkoutResult.sessionId });
-                    window.location.href = checkoutResult.sessionUrl;
                   }}
-                  isProcessing={false}
-                  isPending={false}
+                  isProcessing={isSubmitting}
+                  isPending={isSubmitting}
                   pricingDetails={pricing}
                   selectedCurrency={selectedCurrency}
                 />
