@@ -116,7 +116,7 @@ export async function createCheckoutSession(
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       payment_method_types: ['card'],
       mode: 'payment',
-      success_url: `${origin}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${origin}/booking/success?session_id={CHECKOUT_SESSION_ID}${pendingBookingId ? `&booking_id=${pendingBookingId}` : ''}`,
       cancel_url: `${origin}/booking/cancel`,
       automatic_tax: { enabled: false },
       metadata: {
