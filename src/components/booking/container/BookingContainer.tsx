@@ -4,7 +4,6 @@ import React, { useEffect, useRef, useState, useContext } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { parseISO, isValid, differenceInDays } from 'date-fns';
 import { BookingProvider, useBooking } from '@/contexts/BookingContext';
-import { AvailabilityContainer } from './AvailabilityContainer';
 import { InitialBookingForm } from '@/components/booking/initial-booking-form';
 import { Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -537,27 +536,21 @@ function BookingInitializer({
     );
   }
 
-  // For standalone variant, use the AvailabilityContainer
-  return (
-    <AvailabilityContainer
-      property={property}
-      initialCheckIn={initialCheckIn?.toISOString()}
-      initialCheckOut={initialCheckOut?.toISOString()}
-      className={className}
-    />
-  );
+  // Embedded variant is the only supported variant
+  // Return null if somehow called without embedded variant (shouldn't happen)
+  return null;
 }
 
 /**
  * Main booking container component
  * Handles URL parameters and provides the booking context
  */
-export const BookingContainer = React.memo(function BookingContainer({ 
-  property, 
+export const BookingContainer = React.memo(function BookingContainer({
+  property,
   position = 'bottom',
   size = 'compressed',
   showRating = false,
-  variant = 'standalone',
+  variant = 'embedded',
   className
 }: BookingContainerProps) {
   const searchParams = useSearchParams();

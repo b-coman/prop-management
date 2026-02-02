@@ -1,7 +1,2 @@
-// Export container components
-export { AvailabilityContainer } from './AvailabilityContainer';
-export { AvailabilityCheckContainer } from './AvailabilityCheckContainer';
+// Export container components - simplified after V1 cleanup
 export { BookingContainer } from './BookingContainer';
-export { RefactoredAvailabilityCheck } from './RefactoredAvailabilityCheck';
-export { UnavailableDatesView } from './UnavailableDatesView';
-export { TemporaryFallback } from './TemporaryFallback';
