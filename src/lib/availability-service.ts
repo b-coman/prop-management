@@ -56,10 +56,9 @@ export async function checkAvailabilityWithFlags(
     const doc = await db.collection('availability').doc(docId).get();
     
     if (!doc.exists) {
-      console.warn(`[AvailabilityService] No availability document for ${docId}, considering all dates unavailable`);
-      dates.forEach(date => {
-        unavailableDates.push(format(date, 'yyyy-MM-dd'));
-      });
+      // No document = dates are considered available (consistent with /api/check-availability)
+      // This is the expected state for future months that haven't been configured yet
+      console.log(`[AvailabilityService] No availability document for ${docId}, considering dates available`);
       continue;
     }
 
