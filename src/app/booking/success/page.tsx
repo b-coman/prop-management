@@ -176,24 +176,24 @@ function BookingSuccessContent() {
                           <span>{formatCurrency(booking.pricing.cleaningFee, booking.pricing.currency)}</span>
                         </div>
 
-                        {booking.pricing.extraGuestFee && booking.pricing.extraGuestFee > 0 && (
+                        {(booking.pricing.extraGuestFee ?? 0) > 0 && (
                           <div className="flex justify-between">
                             <span>Extra guest fee ({booking.pricing.numberOfExtraGuests || 0} guests)</span>
-                            <span>{formatCurrency(booking.pricing.extraGuestFee, booking.pricing.currency)}</span>
+                            <span>{formatCurrency(booking.pricing.extraGuestFee!, booking.pricing.currency)}</span>
                           </div>
                         )}
 
-                        {booking.pricing.taxes && booking.pricing.taxes > 0 && (
+                        {(booking.pricing.taxes ?? 0) > 0 && (
                           <div className="flex justify-between">
                             <span>Taxes</span>
-                            <span>{formatCurrency(booking.pricing.taxes, booking.pricing.currency)}</span>
+                            <span>{formatCurrency(booking.pricing.taxes!, booking.pricing.currency)}</span>
                           </div>
                         )}
 
-                        {booking.pricing.discountAmount && booking.pricing.discountAmount > 0 && (
+                        {(booking.pricing.discountAmount ?? 0) > 0 && (
                           <div className="flex justify-between text-green-600">
                             <span>Discount {booking.appliedCouponCode && `(${booking.appliedCouponCode})`}</span>
-                            <span>-{formatCurrency(booking.pricing.discountAmount, booking.pricing.currency)}</span>
+                            <span>-{formatCurrency(booking.pricing.discountAmount!, booking.pricing.currency)}</span>
                           </div>
                         )}
 
