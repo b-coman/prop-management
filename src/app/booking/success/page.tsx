@@ -1,31 +1,59 @@
+/**
+ * @fileoverview Consolidated booking success page
+ * @module app/booking/success/page
+ * @description Handles both confirmed bookings and holds with unified design and theming
+ */
 
-'use client'; // Needed for searchParams
+'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import { CheckCircle, Loader2, Calendar, Users, Info, MessageCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Loader2 } from 'lucide-react';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { SuccessAnimation } from '@/components/ui/interaction-feedback';
 import { Header } from '@/components/generic-header';
-import { format } from 'date-fns';
-import { Separator } from '@/components/ui/separator';
-import { getBookingDetails, sendBookingConfirmationEmail } from './actions';
-import type { Booking, Property } from '@/types';
-import { getPropertyBySlug } from '@/lib/property-utils';
+import { BookingProvider } from '@/contexts/BookingContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useLanguage } from '@/hooks/useLanguage';
+import { getPropertyBySlug } from '@/lib/property-utils';
+import {
+  getBookingDetails,
+  sendBookingConfirmationEmail,
+  sendHoldConfirmationEmail,
+  verifyAndUpdateBooking
+} from './actions';
+import type { Booking, Property } from '@/types';
+import {
+  SuccessHeader,
+  StatusMessage,
+  BookingInfoCard,
+  ActionButtons,
+  type StatusMessageData
+} from './components';
+import BookingSuccessClient from './booking-success-client';
 
 function BookingSuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
   const bookingId = searchParams.get('booking_id');
+  const typeParam = searchParams.get('type'); // Optional type hint from redirect
   const { setTheme } = useTheme();
+  const { t, tc } = useLanguage();
 
   const [booking, setBooking] = useState<Booking | null>(null);
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<StatusMessageData | null>(null);
+
+  // Determine booking type from status field or holdUntil presence
+  const bookingType = useMemo(() => {
+    if (typeParam === 'hold') return 'on-hold';
+    if (booking?.status === 'on-hold' || booking?.holdUntil) return 'on-hold';
+    return 'confirmed';
+  }, [booking, typeParam]);
 
   // Apply property theme when property is loaded
   useEffect(() => {
@@ -35,11 +63,64 @@ function BookingSuccessContent() {
     }
   }, [property, setTheme]);
 
+  // Verify booking status with Stripe
+  const verifyBookingStatus = useCallback(async () => {
+    if (!sessionId || !bookingId) {
+      setStatusMessage({
+        type: 'error',
+        message: t('booking.successPage.missingSessionInfo')
+      });
+      return;
+    }
+
+    setVerifying(true);
+    try {
+      const result = await verifyAndUpdateBooking(sessionId, bookingId);
+
+      if (result.success) {
+        if (result.updated) {
+          setStatusMessage({
+            type: 'success',
+            message: t('booking.successPage.bookingVerifiedSuccess')
+          });
+
+          if (result.booking) {
+            setBooking(result.booking);
+          } else {
+            const refreshedBooking = await getBookingDetails(bookingId);
+            if (refreshedBooking) {
+              setBooking(refreshedBooking);
+            }
+          }
+        } else {
+          setStatusMessage({
+            type: 'success',
+            message: result.message
+          });
+        }
+      } else {
+        setStatusMessage({
+          type: 'error',
+          message: result.message
+        });
+      }
+    } catch (err) {
+      console.error('Error verifying booking status:', err);
+      setStatusMessage({
+        type: 'error',
+        message: t('booking.successPage.verificationError')
+      });
+    } finally {
+      setVerifying(false);
+    }
+  }, [sessionId, bookingId, t]);
+
+  // Load booking and property details
   useEffect(() => {
     async function loadBookingDetails() {
       if (!bookingId) {
         setLoading(false);
-        setError("No booking ID found");
+        setError(t('booking.successPage.noBookingIdError'));
         return;
       }
 
@@ -49,79 +130,124 @@ function BookingSuccessContent() {
         if (bookingData) {
           setBooking(bookingData);
 
-          // If we have booking data with a property ID, fetch property details
+          // Fetch property details if available
           if (bookingData.propertyId) {
             try {
               const propertyData = await getPropertyBySlug(bookingData.propertyId);
               setProperty(propertyData);
             } catch (propErr) {
-              console.error("Error fetching property details:", propErr);
-              // Don't set an error - we can still show booking info without property details
+              console.error('Error fetching property details:', propErr);
             }
           }
+
+          // Auto-verify if payment not yet confirmed and we have session ID
+          const isHold = bookingData.status === 'on-hold' || !!bookingData.holdUntil;
+          const needsVerification = isHold
+            ? (!bookingData.holdPaymentId || bookingData.paymentInfo?.status !== 'succeeded')
+            : bookingData.paymentInfo?.status !== 'succeeded';
+
+          if (sessionId && needsVerification) {
+            console.log('🔄 Automatically verifying booking payment status...');
+            await verifyBookingStatus();
+          }
         } else {
-          // If booking data is null (could be due to permissions or not found)
           console.warn(`No booking data found for ID: ${bookingId}`);
-          setError("Limited booking information available");
+          setError(t('booking.successPage.limitedInfoAvailable'));
         }
       } catch (err) {
-        console.error("Error fetching booking details:", err);
-        setError("Could not load booking details. Please contact support.");
+        console.error('Error fetching booking details:', err);
+        setError(t('booking.successPage.loadError'));
       } finally {
         setLoading(false);
       }
     }
 
     loadBookingDetails();
-  }, [bookingId]);
+  }, [bookingId, sessionId, verifyBookingStatus, t]);
 
-  // Format dates for display
-  const formatDate = (date: any) => {
-    if (!date) return 'N/A';
+  // Handle sending confirmation email
+  const handleSendEmail = async () => {
+    if (!booking) return;
+
+    setSendingEmail(true);
     try {
-      const dateObj = date instanceof Date ? date : new Date(date);
-      return format(dateObj, 'MMM d, yyyy');
-    } catch (e) {
-      return 'Invalid date';
-    }
-  };
+      const sendFn = bookingType === 'on-hold'
+        ? sendHoldConfirmationEmail
+        : sendBookingConfirmationEmail;
 
-  // Format currency for display
-  const formatCurrency = (amount: number, currency: string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency || 'USD',
-    }).format(amount);
+      const result = await sendFn(booking.id);
+
+      if (result.success) {
+        if (result.previewUrl) {
+          window.open(result.previewUrl, '_blank');
+        }
+        setStatusMessage({
+          type: 'success',
+          message: t('booking.successPage.emailSentSuccess')
+        });
+      } else {
+        setStatusMessage({
+          type: 'error',
+          message: t('booking.successPage.emailSentError', '', { error: result.message })
+        });
+      }
+    } catch (err) {
+      console.error('Error sending confirmation email:', err);
+      setStatusMessage({
+        type: 'error',
+        message: t('booking.successPage.emailSendError')
+      });
+    } finally {
+      setSendingEmail(false);
+    }
   };
 
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="mt-4 text-muted-foreground">Loading booking details...</p>
+        <p className="mt-4 text-muted-foreground">
+          {bookingType === 'on-hold'
+            ? t('booking.successPage.loadingHoldDetails')
+            : t('booking.successPage.loadingBookingDetails')}
+        </p>
       </div>
     );
   }
 
+  // Get property name with multilanguage support
+  const getPropertyName = () => {
+    if (!property?.name) {
+      if (booking?.propertyId) {
+        const typeLabel = bookingType === 'on-hold'
+          ? t('booking.successPage.holdInformation')
+          : t('booking.successPage.bookingInformation');
+        return `${typeLabel} - ${booking.propertyId}`;
+      }
+      return bookingType === 'on-hold'
+        ? t('booking.successPage.datesOnHoldTitle')
+        : t('booking.successPage.bookingConfirmedTitle');
+    }
+    if (typeof property.name === 'string') return property.name;
+    return tc(property.name) || property.name.en || '';
+  };
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header
-        propertyName={typeof property?.name === 'string' ? property.name : property?.name?.en || (booking?.propertyId ? `Booking for ${booking.propertyId}` : "Booking Confirmation")}
-        propertySlug={booking?.propertyId || ""}
+        propertyName={getPropertyName()}
+        propertySlug={booking?.propertyId || ''}
       />
 
       <main className="flex-grow container py-12 md:py-16 lg:py-20 flex items-center justify-center">
         <SuccessAnimation show={true} />
         <Card className="w-full max-w-2xl shadow-xl">
-          <CardHeader>
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-600">
-              <CheckCircle className="h-10 w-10" />
-            </div>
-            <CardTitle className="text-3xl font-bold text-center">Booking Confirmed!</CardTitle>
-            <CardDescription className="text-center">
-              Thank you for your booking. Your payment was successful.
-            </CardDescription>
-          </CardHeader>
+          <SuccessHeader bookingType={bookingType} />
+
+          <StatusMessage
+            statusMessage={statusMessage}
+            onDismiss={() => setStatusMessage(null)}
+          />
 
           <CardContent className="space-y-6">
             {error ? (
@@ -131,207 +257,35 @@ function BookingSuccessContent() {
             ) : (
               <>
                 {booking && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="flex items-start space-x-3">
-                        <Calendar className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                        <div>
-                          <h3 className="font-medium">Check-in</h3>
-                          <p>{formatDate(booking.checkInDate)}</p>
-                          {(booking as any).checkInTime && <p className="text-sm text-muted-foreground">After {(booking as any).checkInTime}</p>}
-                        </div>
-                      </div>
-
-                      <div className="flex items-start space-x-3">
-                        <Calendar className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                        <div>
-                          <h3 className="font-medium">Check-out</h3>
-                          <p>{formatDate(booking.checkOutDate)}</p>
-                          {(booking as any).checkOutTime && <p className="text-sm text-muted-foreground">Before {(booking as any).checkOutTime}</p>}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start space-x-3">
-                      <Users className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                      <div>
-                        <h3 className="font-medium">Guest Information</h3>
-                        <p>{booking.guestInfo.firstName} {booking.guestInfo.lastName}</p>
-                        <p className="text-sm">{booking.numberOfGuests} {booking.numberOfGuests === 1 ? 'guest' : 'guests'}</p>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    <div>
-                      <h3 className="font-medium mb-2">Booking Summary</h3>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span>Base rate ({booking.pricing.numberOfNights} {booking.pricing.numberOfNights === 1 ? 'night' : 'nights'})</span>
-                          <span>{formatCurrency(booking.pricing.baseRate * booking.pricing.numberOfNights, booking.pricing.currency)}</span>
-                        </div>
-
-                        <div className="flex justify-between">
-                          <span>Cleaning fee</span>
-                          <span>{formatCurrency(booking.pricing.cleaningFee, booking.pricing.currency)}</span>
-                        </div>
-
-                        {(booking.pricing.extraGuestFee ?? 0) > 0 && (
-                          <div className="flex justify-between">
-                            <span>Extra guest fee ({booking.pricing.numberOfExtraGuests || 0} guests)</span>
-                            <span>{formatCurrency(booking.pricing.extraGuestFee!, booking.pricing.currency)}</span>
-                          </div>
-                        )}
-
-                        {(booking.pricing.taxes ?? 0) > 0 && (
-                          <div className="flex justify-between">
-                            <span>Taxes</span>
-                            <span>{formatCurrency(booking.pricing.taxes!, booking.pricing.currency)}</span>
-                          </div>
-                        )}
-
-                        {(booking.pricing.discountAmount ?? 0) > 0 && (
-                          <div className="flex justify-between text-green-600">
-                            <span>Discount {booking.appliedCouponCode && `(${booking.appliedCouponCode})`}</span>
-                            <span>-{formatCurrency(booking.pricing.discountAmount!, booking.pricing.currency)}</span>
-                          </div>
-                        )}
-
-                        <Separator />
-
-                        <div className="flex justify-between font-medium">
-                          <span>Total</span>
-                          <span>{formatCurrency(booking.pricing.total, booking.pricing.currency)}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Property information card */}
-                    {property && (
-                      <div className="p-4 bg-gray-50 border border-gray-100 rounded-md">
-                        <div className="flex items-start space-x-3">
-                          <div className="h-12 w-12 rounded overflow-hidden flex-shrink-0">
-                            {property.images && property.images.length > 0 && property.images[0].url ? (
-                              <img
-                                src={property.images[0].url}
-                                alt={typeof property.name === 'string' ? property.name : property.name.en}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="h-full w-full bg-gray-200 flex items-center justify-center text-xs text-gray-500">
-                                No image
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <h3 className="font-medium">{typeof property.name === 'string' ? property.name : property.name.en}</h3>
-                            {property.location && (
-                              <p className="text-sm text-muted-foreground">
-                                {property.location.city}{property.location.city && property.location.country && ", "}
-                                {property.location.country}
-                              </p>
-                            )}
-                            {property.checkInTime && property.checkOutTime && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Check-in: {property.checkInTime} · Check-out: {property.checkOutTime}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-md">
-                      <div className="flex items-start space-x-3">
-                        <Info className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <h3 className="font-medium text-blue-700">Booking Information</h3>
-                          <p className="text-sm text-blue-600">Your booking ID: <span className="font-medium">{booking.id}</span></p>
-                          {sessionId && (
-                            <p className="text-xs text-blue-600 mt-1">
-                              Payment Reference: {sessionId.substring(0, 15)}...
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {booking.notes && (
-                      <div className="flex items-start space-x-3">
-                        <MessageCircle className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                        <div>
-                          <h3 className="font-medium">Notes</h3>
-                          <p className="text-sm">{booking.notes}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <BookingInfoCard
+                    booking={booking}
+                    property={property}
+                    bookingType={bookingType}
+                    sessionId={sessionId}
+                    verifying={verifying}
+                    onVerify={verifyBookingStatus}
+                  />
                 )}
 
                 {!booking && !error && (
                   <p className="text-center text-muted-foreground">
-                    Your booking (ID: {bookingId || 'N/A'}) has been processed. You should receive a confirmation email shortly.
+                    {t('booking.successPage.bookingProcessed', '', {
+                      type: bookingType === 'on-hold' ? 'hold' : 'booking',
+                      id: bookingId || 'N/A'
+                    })}
                   </p>
-                )}
-
-                {error && (
-                  <div className="space-y-4">
-                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-md">
-                      <div className="flex items-start space-x-3">
-                        <Info className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <h3 className="font-medium text-amber-700">Booking Confirmation</h3>
-                          <p className="text-sm text-amber-600">
-                            Your booking (ID: {bookingId || 'N/A'}) has been processed successfully!
-                            We're unable to display full details at this moment, but your reservation is confirmed.
-                            A confirmation email with all details will be sent to you shortly.
-                          </p>
-                          {sessionId && (
-                            <p className="text-xs text-amber-600 mt-1">
-                              Payment Reference: {sessionId.substring(0, 15)}...
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                 )}
               </>
             )}
           </CardContent>
 
-          <CardFooter className="flex flex-col space-y-3">
-            <Link href={booking?.propertyId ? `/properties/${booking.propertyId}` : "/properties"} className="w-full">
-              <Button className="w-full">
-                {booking?.propertyId ? 'Back to Property' : 'Explore Properties'}
-              </Button>
-            </Link>
-
-            {booking && (
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={async () => {
-                  try {
-                    const result = await sendBookingConfirmationEmail(booking.id);
-                    if (result.success) {
-                      // We can use window.open to show email preview in dev environments
-                      if (result.previewUrl) {
-                        window.open(result.previewUrl, '_blank');
-                      }
-                      alert("Confirmation email sent successfully!");
-                    } else {
-                      alert(`Failed to send email: ${result.message}`);
-                    }
-                  } catch (err) {
-                    console.error("Error sending confirmation email:", err);
-                    alert("Error sending confirmation email. Please try again.");
-                  }
-                }}
-              >
-                Send Confirmation Email
-              </Button>
-            )}
+          <CardFooter className="pt-2">
+            <ActionButtons
+              booking={booking}
+              bookingType={bookingType}
+              onSendEmail={handleSendEmail}
+              sendingEmail={sendingEmail}
+            />
           </CardFooter>
         </Card>
       </main>
@@ -345,11 +299,6 @@ function BookingSuccessContent() {
   );
 }
 
-// Import BookingProvider and our client component
-import { BookingProvider } from '@/contexts/BookingContext';
-import BookingSuccessClient from './booking-success-client';
-
-// Wrap the component in Suspense to handle searchParams
 export default function BookingSuccessPage() {
   return (
     <Suspense fallback={<BookingSuccessLoading />}>
@@ -359,11 +308,11 @@ export default function BookingSuccessPage() {
         </BookingSuccessClient>
       </BookingProvider>
     </Suspense>
-  )
+  );
 }
 
-// Basic loading state
 function BookingSuccessLoading() {
+  // Can't use hooks here as it's outside providers, so use a simple fallback
   return (
     <div className="flex min-h-screen flex-col items-center justify-center">
       <Loader2 className="h-12 w-12 animate-spin text-primary" />
