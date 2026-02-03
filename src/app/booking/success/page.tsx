@@ -17,8 +17,6 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { getPropertyBySlug } from '@/lib/property-utils';
 import {
   getBookingDetails,
-  sendBookingConfirmationEmail,
-  sendHoldConfirmationEmail,
   verifyAndUpdateBooking
 } from './actions';
 import type { Booking, Property } from '@/types';
@@ -44,7 +42,6 @@ function BookingSuccessContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
-  const [sendingEmail, setSendingEmail] = useState(false);
   const [statusMessage, setStatusMessage] = useState<StatusMessageData | null>(null);
 
   // Determine booking type from status field or holdUntil presence
@@ -164,43 +161,6 @@ function BookingSuccessContent() {
     loadBookingDetails();
   }, [bookingId, sessionId, verifyBookingStatus, t]);
 
-  // Handle sending confirmation email
-  const handleSendEmail = async () => {
-    if (!booking) return;
-
-    setSendingEmail(true);
-    try {
-      const sendFn = bookingType === 'on-hold'
-        ? sendHoldConfirmationEmail
-        : sendBookingConfirmationEmail;
-
-      const result = await sendFn(booking.id);
-
-      if (result.success) {
-        if (result.previewUrl) {
-          window.open(result.previewUrl, '_blank');
-        }
-        setStatusMessage({
-          type: 'success',
-          message: t('booking.successPage.emailSentSuccess')
-        });
-      } else {
-        setStatusMessage({
-          type: 'error',
-          message: t('booking.successPage.emailSentError', '', { error: result.message })
-        });
-      }
-    } catch (err) {
-      console.error('Error sending confirmation email:', err);
-      setStatusMessage({
-        type: 'error',
-        message: t('booking.successPage.emailSendError')
-      });
-    } finally {
-      setSendingEmail(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center">
@@ -281,8 +241,6 @@ function BookingSuccessContent() {
             <ActionButtons
               booking={booking}
               bookingType={bookingType}
-              onSendEmail={handleSendEmail}
-              sendingEmail={sendingEmail}
             />
           </CardFooter>
         </Card>
