@@ -10,7 +10,6 @@ import { Suspense, useEffect, useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import { SuccessAnimation } from '@/components/ui/interaction-feedback';
 import { Header } from '@/components/generic-header';
 import { BookingProvider } from '@/contexts/BookingContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -240,7 +239,6 @@ function BookingSuccessContent() {
       />
 
       <main className="flex-grow container py-12 md:py-16 lg:py-20 flex items-center justify-center">
-        <SuccessAnimation show={true} />
         <Card className="w-full max-w-2xl shadow-xl">
           <SuccessHeader bookingType={bookingType} />
 
