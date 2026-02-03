@@ -75,10 +75,18 @@ export async function GET(request: NextRequest) {
 
       // Prepare availability update
       const propertyId = bookingData.propertyId;
-      const checkInDate = bookingData.checkInDate?.toDate?.() || 
-                         (bookingData.checkInDate ? parseISO(bookingData.checkInDate as string) : null);
-      const checkOutDate = bookingData.checkOutDate?.toDate?.() || 
-                          (bookingData.checkOutDate ? parseISO(bookingData.checkOutDate as string) : null);
+      const rawCheckIn = bookingData.checkInDate;
+      const rawCheckOut = bookingData.checkOutDate;
+
+      // Debug logging for date parsing
+      console.log(`[Cron API] Raw dates for ${bookingId}: checkIn=${JSON.stringify(rawCheckIn)}, checkOut=${JSON.stringify(rawCheckOut)}`);
+
+      const checkInDate = rawCheckIn?.toDate?.() ||
+                         (rawCheckIn ? parseISO(rawCheckIn as string) : null);
+      const checkOutDate = rawCheckOut?.toDate?.() ||
+                          (rawCheckOut ? parseISO(rawCheckOut as string) : null);
+
+      console.log(`[Cron API] Parsed dates: checkIn=${checkInDate}, checkOut=${checkOutDate}, valid=${checkInDate && checkOutDate ? isValid(checkInDate) && isValid(checkOutDate) : 'N/A'}`);
 
       if (propertyId && checkInDate && checkOutDate && isValid(checkInDate) && isValid(checkOutDate)) {
         console.log(`[Cron API] Scheduling availability release for property ${propertyId}`);

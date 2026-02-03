@@ -397,990 +397,401 @@ Transform string-based errors into structured, actionable error objects with Typ
 
 ## 🔄 PRE-IMPLEMENTATION REQUIREMENTS - MANDATORY
 
-**CRITICAL:** Before writing ANY code for this task, you MUST:
+**What to achieve:** Transform string-based errors into structured, actionable error objects with TypeScript safety and recovery actions.
 
-### Context Gathering Phase
-1. **Read and understand current error handling:**
-   - `src/contexts/BookingContext.tsx:464` - Current `pricingError` state management
-   - `src/components/booking-v2/components/DateAndGuestSelector.tsx:580-598` - Current error display
-   - `src/app/api/check-pricing/route.ts` - Current error API responses
-   
-2. **Analyze ALL dependencies:**
-   ```bash
-   # Commands for AI assistants to execute:
-   grep -r "pricingError" src/ --include="*.tsx" --include="*.ts"
-   grep -r "BookingContext" src/ --include="*.tsx" --include="*.ts"
-   grep -r "fetchPricing" src/ --include="*.tsx" --include="*.ts"
-   ```
-   
-3. **Document current behavior:**
-   - How are errors currently generated from API responses?
-   - Where is `pricingError` consumed throughout the app?
-   - What components depend on current error structure?
+**Why this approach:** Current string errors work but provide no context for smart recovery. Structured errors enable intelligent suggestions while keeping existing functionality intact.
 
-### Preservation Strategy
-- ✅ **MUST PRESERVE:** All existing `pricingError` functionality
-- ✅ **ADD ALONGSIDE:** V3 error system as optional enhancement
-- ✅ **FEATURE FLAG:** Use flags for gradual rollout
-- ❌ **NEVER REMOVE:** Existing error handling logic
-- ❌ **NEVER MODIFY:** Existing TypeScript interfaces (only extend)
+**Key insight:** The current `pricingError: string | null` is consumed by multiple components - don't replace it, complement it with structured data alongside.
 
-### Implementation Approach
-```typescript
-// ✅ CORRECT: Extend existing interface
-interface BookingContextType {
-  // EXISTING V2 (preserve completely)
-  pricingError: string | null;
-  
-  // NEW V3 (add as optional)
-  bookingErrors?: BookingErrorV3[];
-  useV3ErrorSystem?: boolean;
-}
+### Context Gathering - Understanding Current System
+**Study these files to understand current patterns:**
+- `src/contexts/BookingContext.tsx` - How errors are currently managed
+- `src/components/booking-v2/components/DateAndGuestSelector.tsx` - How errors are displayed  
+- `src/app/api/check-pricing/route.ts` - How errors are generated from API
 
-// ❌ WRONG: Replace existing interface
-interface BookingContextType {
-  bookingErrors: BookingErrorV3[]; // BREAKING CHANGE!
-}
-```
+**Critical analysis questions:**
+- How does current error flow work end-to-end?
+- What components consume `pricingError`?
+- What API response shapes generate errors?
 
-#### Complete Implementation Guide
+### Architectural Principles
 
-**Step 1: Create Error Type Definitions**
-File: `src/types/booking-errors.ts` (NEW FILE)
-```typescript
-/**
- * V3 Booking Error System Types
- * These interfaces define the structure for all booking-related errors
- */
+**Preservation Strategy:** Never break existing functionality
+- Current V2 error handling must continue working unchanged
+- Add V3 as optional enhancement, not replacement
+- Use conditional rendering: `bookingErrors.length > 0 ? V3Display : V2Display`
 
-export enum ErrorSeverity {
-  BLOCKING = 'blocking',
-  WARNING = 'warning',
-  INFO = 'info'
-}
+**Integration Pattern:** Follow codebase's optional feature approach
+- Look at how mobile vs desktop rendering is handled - use similar pattern
+- Add optional properties to interfaces, never remove existing ones
+- Maintain dual state: both `pricingError` and `bookingErrors` stay synchronized
 
-export enum ErrorType {
-  AVAILABILITY = 'availability',
-  MINIMUM_STAY = 'minimum_stay',
-  PRICING = 'pricing',
-  VALIDATION = 'validation'
-}
+### Implementation Guidance
 
-export enum RecoveryActionType {
-  AUTO_FIX = 'auto_fix',
-  SUGGESTION = 'suggestion',
-  MANUAL = 'manual'
-}
+**Core Structure Design:**
+Create error interfaces that capture:
+- **Error Identity:** Unique ID, timestamp, source (api/frontend)
+- **Error Classification:** Type (availability/minimum_stay/pricing/validation) and severity (blocking/warning/info)  
+- **User Context:** What the user was trying to do when error occurred
+- **Recovery Options:** Available actions with confidence scores for auto-application
 
-export interface BookingErrorV3 {
-  id: string;                    // Unique error identifier
-  type: ErrorType;                // Error category
-  severity: ErrorSeverity;        // Blocking/warning/info
-  code: string;                   // Specific error code (e.g., 'MIN_STAY_2_NIGHTS')
-  message: string;                // User-facing message
-  technicalMessage?: string;      // Developer-facing details
-  context: ErrorContext;          // Booking state when error occurred
-  recoveryActions: RecoveryAction[]; // Available recovery options
-  timestamp: Date;                // When error occurred
-  source: 'api' | 'frontend';    // Where error originated
-}
+**Key Design Decisions:**
+- **Severity levels:** Blocking errors prevent booking, warnings allow continuation, info provides guidance
+- **Recovery actions:** Each error should suggest specific fixes (extend checkout, try different dates, etc.)
+- **Context preservation:** Capture booking state when error occurred for intelligent suggestions
 
-export interface ErrorContext {
-  propertyId: string;
-  checkInDate?: Date;
-  checkOutDate?: Date;
-  guestCount?: number;
-  unavailableDates?: Date[];
-  minimumStay?: number;
-  missingPricingDates?: string[];
-  priceRange?: [number, number];
-}
+**File Organization:**
+- Create `src/types/booking-errors.ts` for all error-related TypeScript interfaces
+- Follow existing project patterns for type definitions
+- Use enums for controlled vocabularies (ErrorType, ErrorSeverity, etc.)
 
-export interface RecoveryAction {
-  id: string;
-  label: string;                 // Button text
-  description: string;            // Explanation of what action does
-  type: RecoveryActionType;
-  confidence: number;             // 0-1 score for auto-application
-  action: () => Promise<RecoveryResult>;
-  estimatedOutcome?: {
-    newCheckIn?: Date;
-    newCheckOut?: Date;
-    newGuestCount?: number;
-    priceChange?: number;
-  };
-}
+**Error Factory Pattern:**
 
-export interface RecoveryResult {
-  success: boolean;
-  newState?: Partial<BookingState>;
-  newError?: BookingErrorV3;
-  message?: string;
-}
+**What to build:** Factory functions that convert API responses into structured V3 error objects
 
-export interface BookingState {
-  checkInDate: Date | null;
-  checkOutDate: Date | null;
-  guestCount: number;
-  propertyId: string;
-}
-```
+**Why factory pattern:** API responses have different shapes for different errors - factory normalizes them into consistent structure
 
-**Step 2: Create Error Factory Functions**
-File: `src/lib/booking-v3/error-factory.ts` (NEW FILE)
-```typescript
-import { BookingErrorV3, ErrorType, ErrorSeverity, ErrorContext, RecoveryAction } from '@/types/booking-errors';
-import { v4 as uuidv4 } from 'uuid';
+**Key insight:** Study current API error responses in `check-pricing/route.ts` - your factory needs to handle all existing response formats
 
-/**
- * Factory functions to create BookingErrorV3 objects from API responses
- * Reference existing error handling: src/contexts/BookingContext.tsx:580-644
- */
+**Implementation approach:**
+- Create `src/lib/booking-v3/error-factory.ts` with `BookingErrorFactory` class  
+- Map API response shapes to V3 error objects
+- Generate appropriate recovery actions based on error type
 
-export class BookingErrorFactory {
-  /**
-   * Create error from API response
-   * Maps API error shapes to V3 error objects
-   */
-  static fromApiResponse(
-    response: any,
-    context: Partial<ErrorContext>
-  ): BookingErrorV3 | null {
-    if (response.available !== false) return null;
+**Recovery Action Generation:**
+- **Minimum stay errors:** Suggest extending checkout date (high confidence) or finding earlier dates (lower confidence)
+- **Unavailable date errors:** Suggest alternative date ranges with similar duration
+- **Pricing errors:** Suggest dates with complete pricing data
 
-    const baseError: Partial<BookingErrorV3> = {
-      id: uuidv4(),
-      timestamp: new Date(),
-      source: 'api',
-      context: context as ErrorContext
-    };
+**Common mistake to avoid:** Don't hardcode recovery actions - generate them dynamically based on context and availability
 
-    switch (response.reason) {
-      case 'minimum_stay':
-        return this.createMinimumStayError(response, baseError);
-      
-      case 'unavailable_dates':
-        return this.createUnavailabilityError(response, baseError);
-      
-      default:
-        return this.createGenericError(response, baseError);
-    }
-  }
+**Integration with existing code:** Look at existing date suggestion patterns in `src/components/booking/hooks/useDateSuggestions.ts` for inspiration
 
-  private static createMinimumStayError(
-    response: any,
-    baseError: Partial<BookingErrorV3>
-  ): BookingErrorV3 {
-    const requiredNights = response.minimumStay || response.requiredNights;
-    
-    return {
-      ...baseError,
-      type: ErrorType.MINIMUM_STAY,
-      severity: ErrorSeverity.BLOCKING,
-      code: `MIN_STAY_${requiredNights}_NIGHTS`,
-      message: `Minimum ${requiredNights} nights required from this date`,
-      technicalMessage: `Property requires minimum stay of ${requiredNights} nights`,
-      context: {
-        ...baseError.context!,
-        minimumStay: requiredNights
-      },
-      recoveryActions: this.generateMinimumStayRecoveryActions(
-        baseError.context!,
-        requiredNights
-      )
-    } as BookingErrorV3;
-  }
+### Success Criteria
+**How to know you've succeeded:**
+- TypeScript error interfaces provide type safety for all error scenarios
+- Error factory handles all existing API response formats without breaking
+- V2 components continue working unchanged while V3 components get rich error data
+- Recovery actions are generated dynamically based on actual booking context and availability
 
-  private static createUnavailabilityError(
-    response: any,
-    baseError: Partial<BookingErrorV3>
-  ): BookingErrorV3 {
-    return {
-      ...baseError,
-      type: ErrorType.AVAILABILITY,
-      severity: ErrorSeverity.BLOCKING,
-      code: 'DATES_UNAVAILABLE',
-      message: 'Selected dates are not available',
-      technicalMessage: `${response.unavailableDates?.length || 0} dates unavailable`,
-      context: {
-        ...baseError.context!,
-        unavailableDates: response.unavailableDates?.map((d: string) => new Date(d))
-      },
-      recoveryActions: this.generateAvailabilityRecoveryActions(
-        baseError.context!,
-        response.unavailableDates
-      )
-    } as BookingErrorV3;
-  }
-
-  /**
-   * Generate recovery actions for minimum stay errors
-   * Reference pattern: src/components/booking/hooks/useDateSuggestions.ts
-   */
-  private static generateMinimumStayRecoveryActions(
-    context: ErrorContext,
-    requiredNights: number
-  ): RecoveryAction[] {
-    const actions: RecoveryAction[] = [];
-
-    // Auto-fix: Extend checkout date
-    if (context.checkInDate) {
-      const newCheckOut = new Date(context.checkInDate);
-      newCheckOut.setDate(newCheckOut.getDate() + requiredNights);
-
-      actions.push({
-        id: 'extend-checkout',
-        label: `Extend to ${requiredNights} nights`,
-        description: `Change checkout to ${newCheckOut.toLocaleDateString()}`,
-        type: RecoveryActionType.AUTO_FIX,
-        confidence: 0.9,
-        action: async () => {
-          // Implementation will update BookingContext
-          return {
-            success: true,
-            newState: {
-              checkOutDate: newCheckOut
-            }
-          };
-        },
-        estimatedOutcome: {
-          newCheckOut
-        }
-      });
-    }
-
-    // Suggestion: Move dates earlier
-    actions.push({
-      id: 'move-earlier',
-      label: 'Find earlier dates',
-      description: 'Search for available dates before your selected check-in',
-      type: RecoveryActionType.SUGGESTION,
-      confidence: 0.6,
-      action: async () => {
-        // Call suggestion API
-        return { success: true };
-      }
-    });
-
-    return actions;
-  }
-
-  private static generateAvailabilityRecoveryActions(
-    context: ErrorContext,
-    unavailableDates: string[]
-  ): RecoveryAction[] {
-    // Similar pattern for availability recovery actions
-    return [
-      {
-        id: 'find-alternatives',
-        label: 'Show available dates',
-        description: 'Find similar dates that are available',
-        type: RecoveryActionType.SUGGESTION,
-        confidence: 0.7,
-        action: async () => {
-          // Call date suggestions API
-          return { success: true };
-        }
-      }
-    ];
-  }
-}
-```
-
-**Step 3: Extend BookingContext**
-File: `src/contexts/BookingContext.tsx` (MODIFY EXISTING)
-
-Add new error state alongside existing `pricingError`:
-```typescript
-// Line ~61: Add to BookingContextType interface
-interface BookingContextType {
-  // ... existing properties ...
-  
-  // V2 compatibility (keep existing)
-  pricingError: string | null;
-  
-  // V3 error system (NEW)
-  bookingErrors: BookingErrorV3[];
-  addBookingError: (error: BookingErrorV3) => void;
-  removeBookingError: (errorId: string) => void;
-  clearBookingErrors: () => void;
-  executeRecoveryAction: (action: RecoveryAction) => Promise<RecoveryResult>;
-}
-
-// Line ~464: Add new state variables
-const [bookingErrors, setBookingErrors] = useState<BookingErrorV3[]>([]);
-
-// Line ~520: Add error management functions
-const addBookingError = useCallback((error: BookingErrorV3) => {
-  setBookingErrors(prev => [...prev, error]);
-  // Maintain V2 compatibility
-  setPricingError(error.message);
-}, []);
-
-const removeBookingError = useCallback((errorId: string) => {
-  setBookingErrors(prev => prev.filter(e => e.id !== errorId));
-  // Clear V2 error if no V3 errors remain
-  setBookingErrors(errors => {
-    if (errors.length === 0) setPricingError(null);
-    return errors;
-  });
-}, []);
-
-const clearBookingErrors = useCallback(() => {
-  setBookingErrors([]);
-  setPricingError(null);
-}, []);
-
-const executeRecoveryAction = useCallback(async (
-  action: RecoveryAction
-): Promise<RecoveryResult> => {
-  try {
-    const result = await action.action();
-    
-    if (result.success && result.newState) {
-      // Update booking state based on recovery result
-      if (result.newState.checkInDate) setCheckInDate(result.newState.checkInDate);
-      if (result.newState.checkOutDate) setCheckOutDate(result.newState.checkOutDate);
-      if (result.newState.guestCount) setGuestCount(result.newState.guestCount);
-      
-      // Trigger new pricing check
-      await fetchPricing();
-    }
-    
-    return result;
-  } catch (error) {
-    return {
-      success: false,
-      message: 'Recovery action failed'
-    };
-  }
-}, [fetchPricing, setCheckInDate, setCheckOutDate, setGuestCount]);
-```
-
-#### Acceptance Criteria Verification
-- [ ] TypeScript compiles without errors when importing new types
-- [ ] Existing V2 components continue to work with `pricingError`
-- [ ] Error factory correctly converts all API response shapes
-- [ ] Recovery actions execute and update context state
-- [ ] V2 and V3 error states stay synchronized
-
-#### Test Scenarios
-```typescript
-// Test file: src/lib/booking-v3/__tests__/error-factory.test.ts
-describe('BookingErrorFactory', () => {
-  describe('fromApiResponse', () => {
-    it('should create minimum stay error from API response', () => {
-      const apiResponse = {
-        available: false,
-        reason: 'minimum_stay',
-        minimumStay: 3,
-        requiredNights: 3
-      };
-      
-      const context = {
-        propertyId: 'test-property',
-        checkInDate: new Date('2025-09-23'),
-        checkOutDate: new Date('2025-09-24'),
-        guestCount: 2
-      };
-      
-      const error = BookingErrorFactory.fromApiResponse(apiResponse, context);
-      
-      expect(error?.type).toBe(ErrorType.MINIMUM_STAY);
-      expect(error?.severity).toBe(ErrorSeverity.BLOCKING);
-      expect(error?.code).toBe('MIN_STAY_3_NIGHTS');
-      expect(error?.message).toBe('Minimum 3 nights required from this date');
-      expect(error?.recoveryActions).toHaveLength(2);
-    });
-
-    it('should create unavailability error from API response', () => {
-      const apiResponse = {
-        available: false,
-        reason: 'unavailable_dates',
-        unavailableDates: [
-          '2025-09-23T00:00:00.000Z',
-          '2025-09-24T00:00:00.000Z'
-        ]
-      };
-      
-      const error = BookingErrorFactory.fromApiResponse(apiResponse, {});
-      
-      expect(error?.type).toBe(ErrorType.AVAILABILITY);
-      expect(error?.context.unavailableDates).toHaveLength(2);
-    });
-  });
-
-  describe('Recovery Actions', () => {
-    it('should generate auto-fix action for minimum stay', () => {
-      const apiResponse = {
-        available: false,
-        reason: 'minimum_stay',
-        minimumStay: 2
-      };
-      
-      const context = {
-        propertyId: 'test',
-        checkInDate: new Date('2025-09-23'),
-        checkOutDate: new Date('2025-09-24')
-      };
-      
-      const error = BookingErrorFactory.fromApiResponse(apiResponse, context);
-      const autoFixAction = error?.recoveryActions.find(
-        a => a.type === RecoveryActionType.AUTO_FIX
-      );
-      
-      expect(autoFixAction).toBeDefined();
-      expect(autoFixAction?.confidence).toBeGreaterThan(0.8);
-      expect(autoFixAction?.estimatedOutcome?.newCheckOut).toEqual(
-        new Date('2025-09-25')
-      );
-    });
-  });
-});
-```
+**Testing approach:** Focus on error conversion accuracy and backward compatibility - ensure your factory transforms every existing API error response into a valid V3 error object with appropriate recovery actions.
 
 ### Task 1.2: V3 Error Display Components
 
-#### Complete Implementation Guide
+**What to achieve:** Create rich error display components that show structured errors with recovery actions while preserving all existing error display functionality
 
-**Step 1: Create Desktop Error Display Component**
-File: `src/components/booking-v3/components/BookingErrorDisplay.tsx` (NEW FILE)
-```typescript
-import React from 'react';
-import { AlertCircle, Calendar, Users, Clock, ChevronDown, ChevronUp } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
-import { BookingErrorV3, ErrorSeverity, RecoveryAction } from '@/types/booking-errors';
-import { useLanguage } from '@/hooks/useLanguage';
+**Why rich components:** Current `PricingStatusDisplay` only shows string messages with retry button. V3 components should show error context, suggest specific actions, and guide users toward resolution.
 
-interface BookingErrorDisplayProps {
-  errors: BookingErrorV3[];
-  onRecoveryAction: (action: RecoveryAction) => Promise<void>;
-  onDismissError: (errorId: string) => void;
-  viewport: 'desktop' | 'mobile';
-  className?: string;
-}
+**Key insight:** UI components are the most visible change to users - they must be rock-solid and never break existing functionality. Conditional rendering is your safety net.
 
-/**
- * V3 Error Display Component
- * Replaces PricingStatusDisplay from DateAndGuestSelector.tsx:580-598
- * 
- * Design patterns:
- * - Desktop: Expandable error cards with recovery actions
- * - Mobile: Bottom sheet display (handled separately)
- */
-export function BookingErrorDisplay({
-  errors,
-  onRecoveryAction,
-  onDismissError,
-  viewport,
-  className
-}: BookingErrorDisplayProps) {
-  const { t } = useLanguage();
-  const [expandedErrors, setExpandedErrors] = React.useState<Set<string>>(new Set());
-  const [processingActions, setProcessingActions] = React.useState<Set<string>>(new Set());
+### Context Gathering - Component Integration
+**Study these UI patterns:**
+- `src/components/booking-v2/components/DateAndGuestSelector.tsx` - Current error display patterns and styling
+- `src/components/booking-v2/components/MobileDateSelectorWrapper.tsx` - Mobile wrapper logic and responsive behavior  
+- Look for existing expandable component patterns in the codebase for recovery action design
 
-  // Sort errors by severity (blocking > warning > info)
-  const sortedErrors = React.useMemo(() => {
-    const severityOrder = {
-      [ErrorSeverity.BLOCKING]: 0,
-      [ErrorSeverity.WARNING]: 1,
-      [ErrorSeverity.INFO]: 2
-    };
-    return [...errors].sort((a, b) => 
-      severityOrder[a.severity] - severityOrder[b.severity]
-    );
-  }, [errors]);
+**Critical understanding needed:**
+- How does current mobile/desktop responsive switching work?
+- What determines `isGreenState` calculation (affects mobile wrapper behavior)?
+- Which components import and use `PricingStatusDisplay`?
 
-  if (errors.length === 0) return null;
+### Architectural Principles
 
-  const handleRecoveryAction = async (action: RecoveryAction, errorId: string) => {
-    setProcessingActions(prev => new Set(prev).add(action.id));
-    
-    try {
-      await onRecoveryAction(action);
-      // Auto-dismiss error if action succeeds
-      if (action.confidence > 0.8) {
-        onDismissError(errorId);
-      }
-    } finally {
-      setProcessingActions(prev => {
-        const next = new Set(prev);
-        next.delete(action.id);
-        return next;
-      });
-    }
-  };
+**Conditional Enhancement Strategy:** V3 alongside V2, never replacing
+- Use feature flag or error type detection to choose display component
+- Always provide V2 fallback: `bookingErrors.length > 0 ? V3Display : V2Display`  
+- Ensure V3 components receive same styling patterns as existing error displays
 
-  const toggleErrorExpansion = (errorId: string) => {
-    setExpandedErrors(prev => {
-      const next = new Set(prev);
-      if (next.has(errorId)) {
-        next.delete(errorId);
-      } else {
-        next.add(errorId);
-      }
-      return next;
-    });
-  };
+**Mobile-First Design Considerations:**
+- Desktop: Expandable error cards with inline recovery actions
+- Mobile: Bottom sheet or drawer pattern for recovery flows
+- Touch targets: Minimum 44px height for all interactive elements
+- Preserve existing mobile auto-expand behavior for blocking errors
 
-  const getErrorIcon = (error: BookingErrorV3) => {
-    switch (error.type) {
-      case 'availability':
-        return <Calendar className="h-4 w-4" />;
-      case 'minimum_stay':
-        return <Clock className="h-4 w-4" />;
-      case 'validation':
-        return <AlertCircle className="h-4 w-4" />;
-      default:
-        return <AlertCircle className="h-4 w-4" />;
-    }
-  };
+**Component Architecture:**
+- Create `src/components/booking-v3/components/` directory structure
+- Build separate desktop and mobile error components (different UX needs)
+- Use same UI primitives as existing components (Button, Card, Sheet, etc.)
+- Follow existing component naming and file organization patterns
 
-  const getErrorStyle = (severity: ErrorSeverity) => {
-    switch (severity) {
-      case ErrorSeverity.BLOCKING:
-        return 'bg-red-50 border-red-200 text-red-800';
-      case ErrorSeverity.WARNING:
-        return 'bg-yellow-50 border-yellow-200 text-yellow-800';
-      case ErrorSeverity.INFO:
-        return 'bg-blue-50 border-blue-200 text-blue-800';
-    }
-  };
+**Recovery Action UI Patterns:**
+- High confidence actions: Prominent primary buttons
+- Lower confidence actions: Secondary buttons or expandable sections
+- Multiple actions: Prioritize by confidence score, progressive disclosure
+- Loading states: Show progress during action execution
 
-  // Desktop display
-  if (viewport === 'desktop') {
-    return (
-      <div className={cn('space-y-3', className)}>
-        {sortedErrors.map(error => {
-          const isExpanded = expandedErrors.has(error.id);
-          const hasRecoveryActions = error.recoveryActions.length > 0;
-          
-          return (
-            <Card
-              key={error.id}
-              className={cn(
-                'p-4 border transition-all duration-200',
-                getErrorStyle(error.severity)
-              )}
-            >
-              {/* Error Header */}
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-3 flex-1">
-                  <div className="mt-0.5">{getErrorIcon(error)}</div>
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">{error.message}</p>
-                    {error.context.unavailableDates && (
-                      <p className="text-xs mt-1 opacity-75">
-                        {t('booking.unavailableDatesNote', 
-                          'Unavailable dates are marked with strikethrough in the calendar')}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                
-                {hasRecoveryActions && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => toggleErrorExpansion(error.id)}
-                    className="ml-2"
-                  >
-                    {isExpanded ? <ChevronUp /> : <ChevronDown />}
-                  </Button>
-                )}
-              </div>
+### Success Criteria
+**How to know you've succeeded:**
+- V3 error components display rich error information with actionable recovery options
+- Existing V2 error display continues working unchanged for backward compatibility
+- Mobile error UI provides touch-friendly recovery flows without breaking responsive behavior
+- Component architecture follows existing patterns and integrates seamlessly
 
-              {/* Recovery Actions (Expandable) */}
-              {isExpanded && hasRecoveryActions && (
-                <div className="mt-4 pt-4 border-t border-current/10 space-y-2">
-                  <p className="text-xs font-medium mb-2">
-                    {t('booking.suggestedActions', 'Suggested Actions:')}
-                  </p>
-                  {error.recoveryActions.map(action => (
-                    <div key={action.id} className="flex items-center gap-2">
-                      <Button
-                        variant={action.confidence > 0.8 ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleRecoveryAction(action, error.id)}
-                        disabled={processingActions.has(action.id)}
-                        className="flex-1"
-                      >
-                        {processingActions.has(action.id) ? (
-                          <span className="flex items-center gap-2">
-                            <span className="animate-spin h-3 w-3 border-2 border-current border-t-transparent rounded-full" />
-                            Processing...
-                          </span>
-                        ) : (
-                          action.label
-                        )}
-                      </Button>
-                      {action.confidence > 0.8 && (
-                        <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">
-                          Recommended
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Quick Actions for High-Confidence Fixes */}
-              {!isExpanded && hasRecoveryActions && (
-                <>
-                  {error.recoveryActions
-                    .filter(a => a.confidence > 0.8)
-                    .slice(0, 1)
-                    .map(action => (
-                      <div key={action.id} className="mt-3">
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => handleRecoveryAction(action, error.id)}
-                          disabled={processingActions.has(action.id)}
-                          className="w-full"
-                        >
-                          {action.label}
-                        </Button>
-                      </div>
-                    ))}
-                </>
-              )}
-            </Card>
-          );
-        })}
-      </div>
-    );
-  }
-
-  // Mobile display handled by MobileErrorDisplay component
-  return null;
-}
-```
-
-**Step 2: Create Mobile Error Display Component**
-File: `src/components/booking-v3/mobile/MobileErrorDisplay.tsx` (NEW FILE)
-```typescript
-import React from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
-import { BookingErrorV3, RecoveryAction } from '@/types/booking-errors';
-import { useLanguage } from '@/hooks/useLanguage';
-import { X } from 'lucide-react';
-
-interface MobileErrorDisplayProps {
-  errors: BookingErrorV3[];
-  onRecoveryAction: (action: RecoveryAction) => Promise<void>;
-  onDismissError: (errorId: string) => void;
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-/**
- * Mobile-specific error display using bottom sheet pattern
- * Reference: src/components/ui/sheet.tsx for Sheet component
- * Touch targets: Minimum 44px height for all interactive elements
- */
-export function MobileErrorDisplay({
-  errors,
-  onRecoveryAction,
-  onDismissError,
-  isOpen,
-  onClose
-}: MobileErrorDisplayProps) {
-  const { t } = useLanguage();
-  const [processingAction, setProcessingAction] = React.useState<string | null>(null);
-
-  // Get highest priority error
-  const primaryError = errors[0];
-  if (!primaryError) return null;
-
-  const handleRecoveryAction = async (action: RecoveryAction) => {
-    setProcessingAction(action.id);
-    try {
-      await onRecoveryAction(action);
-      // Close sheet on successful action
-      if (action.confidence > 0.8) {
-        onClose();
-        onDismissError(primaryError.id);
-      }
-    } finally {
-      setProcessingAction(null);
-    }
-  };
-
-  return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent 
-        side="bottom" 
-        className="h-auto max-h-[80vh] rounded-t-2xl"
-      >
-        <SheetHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <SheetTitle className="text-lg">
-              {t('booking.issueFound', 'Issue Found')}
-            </SheetTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              className="h-10 w-10" // 40px for close button
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-        </SheetHeader>
-
-        <div className="space-y-4 pb-safe"> {/* pb-safe for iPhone safe area */}
-          {/* Error Message */}
-          <div className="p-4 bg-red-50 rounded-lg">
-            <p className="text-red-800 font-medium">
-              {primaryError.message}
-            </p>
-            {primaryError.context.minimumStay && (
-              <p className="text-red-700 text-sm mt-2">
-                This property requires a minimum stay of {primaryError.context.minimumStay} nights
-              </p>
-            )}
-          </div>
-
-          {/* Recovery Actions */}
-          {primaryError.recoveryActions.length > 0 && (
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-gray-700">
-                {t('booking.howToResolve', 'How would you like to resolve this?')}
-              </p>
-              
-              {primaryError.recoveryActions.map(action => (
-                <Button
-                  key={action.id}
-                  variant={action.confidence > 0.8 ? 'default' : 'outline'}
-                  size="lg" // Large size for mobile (min 44px height)
-                  onClick={() => handleRecoveryAction(action)}
-                  disabled={processingAction === action.id}
-                  className="w-full min-h-[44px] justify-start text-left"
-                >
-                  <div className="flex flex-col items-start">
-                    <span className="font-medium">
-                      {processingAction === action.id ? 'Applying...' : action.label}
-                    </span>
-                    {action.description && (
-                      <span className="text-xs opacity-75 mt-0.5">
-                        {action.description}
-                      </span>
-                    )}
-                  </div>
-                </Button>
-              ))}
-            </div>
-          )}
-
-          {/* Manual Retry Option */}
-          <div className="pt-4 border-t">
-            <Button
-              variant="ghost"
-              size="lg"
-              onClick={onClose}
-              className="w-full min-h-[44px]"
-            >
-              {t('booking.fixManually', "I'll fix this myself")}
-            </Button>
-          </div>
-
-          {/* Multiple Errors Indicator */}
-          {errors.length > 1 && (
-            <p className="text-xs text-center text-gray-500">
-              {t('booking.multipleIssues', '{{count}} issues found. Fixing the first one.', 
-                { count: errors.length })}
-            </p>
-          )}
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-}
-```
-
-**Step 3: Integration with DateAndGuestSelector**
-File: `src/components/booking-v2/components/DateAndGuestSelector.tsx` (MODIFY)
-
-Replace existing PricingStatusDisplay with V3 error display:
-```typescript
-// Line ~580: Replace PricingStatusDisplay component
-import { BookingErrorDisplay } from '@/components/booking-v3/components/BookingErrorDisplay';
-import { MobileErrorDisplay } from '@/components/booking-v3/mobile/MobileErrorDisplay';
-import { BookingErrorFactory } from '@/lib/booking-v3/error-factory';
-
-// Inside DateAndGuestSelector component, around line 495
-// Replace existing error display with:
-{bookingErrors.length > 0 ? (
-  <>
-    {/* Desktop Error Display */}
-    <div className="hidden md:block">
-      <BookingErrorDisplay
-        errors={bookingErrors}
-        onRecoveryAction={executeRecoveryAction}
-        onDismissError={removeBookingError}
-        viewport="desktop"
-      />
-    </div>
-    
-    {/* Mobile Error Display */}
-    <div className="md:hidden">
-      <MobileErrorDisplay
-        errors={bookingErrors}
-        onRecoveryAction={executeRecoveryAction}
-        onDismissError={removeBookingError}
-        isOpen={bookingErrors.some(e => e.severity === 'blocking')}
-        onClose={() => {
-          // Allow manual close for non-blocking errors
-          const nonBlockingErrors = bookingErrors.filter(e => e.severity !== 'blocking');
-          if (nonBlockingErrors.length === bookingErrors.length) {
-            clearBookingErrors();
-          }
-        }}
-      />
-    </div>
-  </>
-) : (
-  // Fallback to V2 error display for compatibility
-  pricingError && (
-    <PricingStatusDisplay
-      isLoadingPricing={isLoadingPricing}
-      pricingError={pricingError}
-      fetchPricing={fetchPricing}
-      t={t}
-    />
-  )
-)}
-```
-
-#### Test Scenarios
-```typescript
-// Test file: src/components/booking-v3/__tests__/BookingErrorDisplay.test.tsx
-describe('BookingErrorDisplay', () => {
-  const mockErrors: BookingErrorV3[] = [
-    {
-      id: '1',
-      type: ErrorType.MINIMUM_STAY,
-      severity: ErrorSeverity.BLOCKING,
-      code: 'MIN_STAY_2_NIGHTS',
-      message: 'Minimum 2 nights required from this date',
-      context: { propertyId: 'test', minimumStay: 2 },
-      recoveryActions: [
-        {
-          id: 'extend',
-          label: 'Extend to 2 nights',
-          description: 'Change checkout to meet minimum stay',
-          type: RecoveryActionType.AUTO_FIX,
-          confidence: 0.9,
-          action: async () => ({ success: true })
-        }
-      ],
-      timestamp: new Date(),
-      source: 'api'
-    }
-  ];
-
-  it('should display errors sorted by severity', () => {
-    const { getByText } = render(
-      <BookingErrorDisplay
-        errors={mockErrors}
-        onRecoveryAction={jest.fn()}
-        onDismissError={jest.fn()}
-        viewport="desktop"
-      />
-    );
-    
-    expect(getByText('Minimum 2 nights required from this date')).toBeInTheDocument();
-  });
-
-  it('should show recommended label for high-confidence actions', () => {
-    const { getByText } = render(
-      <BookingErrorDisplay
-        errors={mockErrors}
-        onRecoveryAction={jest.fn()}
-        onDismissError={jest.fn()}
-        viewport="desktop"
-      />
-    );
-    
-    fireEvent.click(getByText('Extend to 2 nights'));
-    expect(getByText('Recommended')).toBeInTheDocument();
-  });
-
-  it('should handle recovery action execution', async () => {
-    const mockRecoveryAction = jest.fn().mockResolvedValue({ success: true });
-    const { getByText } = render(
-      <BookingErrorDisplay
-        errors={mockErrors}
-        onRecoveryAction={mockRecoveryAction}
-        onDismissError={jest.fn()}
-        viewport="desktop"
-      />
-    );
-    
-    fireEvent.click(getByText('Extend to 2 nights'));
-    await waitFor(() => {
-      expect(mockRecoveryAction).toHaveBeenCalled();
-    });
-  });
-});
-```
+**Component Integration Wisdom:** Study how mobile/desktop conditional rendering works in the codebase - apply the same pattern for V2/V3 error display switching. The key is making V3 enhancement optional, never required.
 
 ---
 
 ## EPIC 2: Smart Recommendation Engine V3
 
+### Overview
+Transform static "dates unavailable" errors into intelligent suggestions that help users find alternatives that work for their needs.
+
 ### Task 2.1: Date Suggestion Algorithm Engine
 
-#### Complete Implementation Guide
+**What to achieve:** Build intelligent algorithms that generate alternative date suggestions based on real availability and booking context
 
-**Step 1: Create Availability-Aware Suggestion Engine**
-File: `src/lib/booking-v3/date-suggestion-engine.ts` (NEW FILE)
-```typescript
-import { addDays, differenceInDays, format, isBefore, isAfter } from 'date-fns';
-import { checkAvailabilityWithFlags } from '@/lib/availability-service';
-import { getPropertyWithDb, getPriceCalendarWithDb } from '@/lib/pricing/pricing-with-db';
+**Why intelligent suggestions:** Static suggestions (like "try next week") don't help users - smart suggestions consider actual availability, property constraints, and user preferences to find dates that will actually work.
 
-export interface DateSuggestion {
-  id: string;
-  checkIn: Date;
-  checkOut: Date;
-  nights: number;
-  confidence: number;
-  reason: string;
-  estimatedPrice?: number;
-  benefits: string[];
-  algorithmUsed: 'rule_based' | 'ai_enhanced';
-}
+**Key insight:** There's existing V1 suggestion logic that can be studied for patterns, but it's not integrated with V2 system. Learn from it but don't try to modify it.
 
-export interface SuggestionContext {
-  propertyId: string;
-  originalCheckIn: Date;
-  originalCheckOut: Date;
-  guestCount: number;
-  errorType: 'minimum_stay' | 'unavailable_dates' | 'pricing_gap';
-  errorDetails?: {
-    minimumStay?: number;
-    unavailableDates?: Date[];
-  };
-}
+### Context Gathering - Learning from Existing Systems
+**Study these existing patterns:**
+- `src/components/booking/hooks/useDateSuggestions.ts` - Current static suggestion logic and patterns
+- `src/components/booking/sections/availability/DateAlternatives.tsx` - How suggestions are currently displayed
+- `src/lib/availability-service.ts` - How to safely query availability without breaking existing functionality
 
-/**
- * Intelligent date suggestion engine
- * Combines rule-based logic with optional AI enhancement
- * Reference existing static implementation: src/components/booking/hooks/useDateSuggestions.ts
- */
-export class DateSuggestionEngine {
-  /**
-   * Generate suggestions based on error type and availability
-   */
-  static async generateSuggestions(
-    context: SuggestionContext
-  ): Promise<DateSuggestion[]> {
-    const startTime = Date.now();
+**Critical understanding needed:**
+- How does `checkAvailabilityWithFlags` work? (This is your primary availability checking tool)
+- What are the current limitation patterns that cause booking errors?
+- How do minimum stay rules work across different properties?
+
+### Architectural Principles
+
+**Service Integration Safety:** Never modify existing services, only consume them
+- Use existing `availability-service.ts` functions as-is (they're tested and working)
+- Don't change existing API response structures
+- Build new algorithms that query existing services safely
+
+**Algorithm Strategy:** Rule-based primary + AI enhancement with fallbacks
+- **Rule-based core:** Fast, deterministic suggestions based on availability data 
+- **AI enhancement:** Optional layer that can provide smarter suggestions when available
+- **Fallback hierarchy:** AI fails → rule-based → static suggestions → no suggestions
+
+**Performance Philosophy:** Suggestions should enhance, never slow booking
+- Run suggestion generation asynchronously where possible
+- Set timeouts on AI calls (max 3 seconds)
+- Cache availability results to avoid duplicate queries
+- Don't let suggestion failures block normal booking flow
+
+### Success Criteria
+**How to know you've succeeded:**
+- Suggestion algorithms generate contextually relevant date alternatives based on actual availability
+- Rule-based suggestions work reliably and fast as primary system
+- AI enhancements provide valuable improvements when available but don't break system when unavailable
+- Integration with existing availability service happens safely without modifying core booking functionality
+
+**Algorithm Design Wisdom:** Start with simple rule-based logic that covers 80% of cases well, then add AI enhancement for the complex edge cases. The rule-based system is your foundation - make it solid before adding complexity.
+
+---
+
+### Task 2.2: Date Suggestions API Endpoint
+
+**What to achieve:** Create a new API endpoint that provides intelligent date suggestions when booking errors occur
+
+**Why new endpoint:** Current booking flow needs suggestions without breaking existing API contracts. A dedicated endpoint allows suggestions to fail gracefully without affecting core booking functionality.
+
+**Key insight:** Study existing API patterns (`check-pricing/route.ts`) - follow the same validation, error handling, and response structure patterns to maintain consistency.
+
+### Context Gathering - API Integration Patterns
+**Study these API patterns:**
+- `src/app/api/check-pricing/route.ts` - Current API structure, validation patterns, and error handling
+- `src/app/api/check-pricing-v2/route.ts` - API versioning and evolution patterns
+- How other APIs in the project handle timeouts, failures, and graceful degradation
+
+### Architectural Principles
+
+**Isolated Endpoint Strategy:** New functionality that doesn't break existing systems
+- Create `/api/date-suggestions` as completely separate endpoint
+- Existing booking APIs continue working unchanged even if suggestions fail
+- New endpoint can be called optionally - no dependency on it for core booking
+
+**Graceful Degradation Philosophy:** Suggestions enhance but never block
+- Timeout protection for AI calls (max 3-4 seconds)  
+- Always return partial results rather than failing completely
+- Fallback to simpler suggestions if complex algorithms fail
+- Empty suggestions array is a valid response (UI handles this gracefully)
+
+**Consistency with Existing APIs:** Follow established patterns
+- Same request/response structure patterns as other booking APIs
+- Same validation approach for dates, properties, guest counts
+- Same error response format for client consistency
+- Same security and rate limiting considerations
+
+---
+
+## EPIC 3: Mobile-First Error Experience
+
+### Overview
+Create mobile-optimized error handling that works well on small screens with touch interactions, while preserving all existing mobile functionality.
+
+### Task 3.1: Mobile Error Components Architecture
+
+**What to achieve:** Build mobile-specific error handling components that provide touch-friendly interactions without breaking existing mobile responsive behavior
+
+**Why mobile-specific:** Desktop error patterns don't work well on mobile - small screens need different UX patterns like bottom sheets, larger touch targets, and simplified interactions.
+
+**Key insight:** The current mobile wrapper has complex logic for collapsed/expanded states that must be preserved. Study `MobileDateSelectorWrapper.tsx` thoroughly - it's the heart of mobile UX.
+
+### Context Gathering - Mobile Component Patterns
+**Study these mobile-specific systems:**
+- `src/components/booking-v2/components/MobileDateSelectorWrapper.tsx` - Critical mobile state logic
+- How current mobile breakpoints work (`md:hidden`, `lg:hidden` classes)
+- Touch target patterns in existing mobile components (minimum 44px heights)
+
+### Architectural Principles
+
+**Mobile Component Safety:** Preserve all existing mobile functionality
+- Never break the `isGreenState` calculation logic
+- Maintain existing auto-expand/collapse behavior  
+- Keep all current touch target sizes and navigation patterns
+- Don't interfere with existing mobile booking flow
+
+**Touch-First Design:** Optimize for thumb navigation
+- Minimum 44px height for all interactive elements
+- Large primary action buttons for key recovery actions
+- Simple, single-tap interactions over complex gestures
+- Clear visual feedback for touch interactions
+
+**Progressive Enhancement:** Mobile V3 alongside V2
+- Use same conditional rendering pattern as desktop
+- Mobile V3 components only when V3 errors exist
+- Fallback to existing mobile error display for compatibility
+
+### Success Criteria
+**How to know you've succeeded:**
+- Mobile error handling provides touch-optimized recovery flows
+- All existing mobile responsive behavior continues working unchanged
+- New mobile components integrate seamlessly with existing mobile wrapper logic
+- Touch targets meet accessibility standards (44px minimum)
+
+**Mobile Integration Wisdom:** The `isGreenState` logic determines when the mobile wrapper shows collapsed banner vs expanded form. Any changes to error handling must consider how they affect this critical mobile UX feature.
+
+---
+
+### Task 3.2: Collapsed Banner Error States
+
+**What to achieve:** Show error indicators in mobile collapsed banner without forcing expansion
+
+**Why this matters:** Currently, any error forces mobile wrapper to expand, losing the UX benefit of collapsed state. Users should see error hints while maintaining compact view.
+
+**Key insight:** The `isGreenState` calculation in MobileDateSelectorWrapper determines collapsed vs expanded. Study this logic - it's the heart of mobile UX optimization.
+
+### Context Gathering - Mobile State Logic
+**Study these mobile patterns:**
+- `src/components/booking-v2/components/MobileDateSelectorWrapper.tsx` - How collapsed/expanded transitions work
+- Current banner content structure and available space for indicators
+- Look at other mobile components that show status indicators in compact views
+
+### Architectural Principles
+
+**Graceful Degradation:** Not all errors should force expansion
+- **Blocking errors:** Auto-expand immediately (preserve current behavior)
+- **Warning/info errors:** Show indicator in collapsed state, expand on tap
+- **Multiple errors:** Show most severe indicator with count
+
+**Visual Integration:** Subtle indicators that don't break existing design
+- Small badges or dots that fit existing banner layout
+- Color coding that matches error severity (red for blocking, amber for warnings)
+- Position indicators where they don't interfere with current functionality
+
+**State Management Logic:** Extend `isGreenState` calculation
+- Current logic: `checkInDate && checkOutDate && pricing && !pricingError`
+- Enhanced logic: Consider error severity in state determination
+- Maintain backward compatibility for components depending on green state
+
+**UX Philosophy:** Progressive disclosure - show just enough information to guide without overwhelming
+
+---
+
+### Task 3.3: Progressive Error Recovery
+
+**What to achieve:** Guide users through error resolution with step-by-step assistance instead of showing complex recovery options all at once
+
+**Why progressive approach:** Mobile screens are small and cognitive load is high during errors. Breaking recovery into simple steps reduces overwhelm and increases success rates.
+
+**Key insight:** Users experiencing errors are often frustrated - simplify their path to success with clear, sequential guidance.
+
+### Context Gathering - Flow Patterns
+**Study these user flow patterns:**
+- Look for multi-step processes in the codebase (onboarding, checkout flows, etc.)
+- Current mobile navigation patterns and how users move between states
+- How progress is typically indicated in existing components
+
+### Architectural Principles
+
+**Cognitive Load Reduction:** One decision at a time
+- Present one clear action per step rather than multiple recovery options
+- Use wizard-like flow: "Step 1 of 3: Extend your stay"
+- Provide context for each step: why this action helps
+
+**Mobile-First Design:** Touch-friendly interactions
+- Large touch targets (minimum 44px height)
+- Clear primary action buttons with secondary "skip" options
+- Swipe gestures or simple taps for navigation
+
+**Progress Communication:** Keep users oriented
+- Visual progress indicators (step counter, progress bar)
+- Clear explanation of what each step accomplishes
+- Option to see all steps at once for users who prefer overview
+
+**Adaptive Guidance:** Tailor steps to error type
+- **Minimum stay errors:** Guide through date extension or alternative date selection
+- **Availability errors:** Walk through flexible date exploration
+- **Pricing errors:** Help find dates with complete pricing data
+
+**Recovery Philosophy:** Make success feel inevitable through guided assistance
+
+---
+
+## EPIC 4: Error Recovery Intelligence
+
+### Overview
+Guide users to successful bookings instead of showing static errors by implementing intelligent auto-correction and alternative suggestions.
+
+### Task 4.1: Auto-Correction Engine
+
+**What to achieve:** Automatically fix common booking errors with high-confidence corrections while giving users control over the process
+
+**Why auto-correction:** Many booking errors have obvious fixes (extend checkout by 1 night for minimum stay). Smart corrections reduce friction and guide users toward successful bookings.
+
+**Key insight:** The difference between helpful automation and annoying interference is confidence scoring. High-confidence fixes can be auto-applied; lower confidence should be suggested.
+
+### Context Gathering - Booking Logic Patterns
+**Study these correction opportunities:**
+- `src/contexts/BookingContext.tsx` - How date and guest updates currently work
+- Common error patterns from existing API responses
+- Look for existing "smart" behavior in date selectors or validation
+
+### Architectural Principles
+
+**Confidence-Based Actions:** Different behaviors for different certainty levels
+- **High confidence (>0.8):** Auto-apply with notification ("Fixed: Extended to 2 nights")
+- **Medium confidence (0.5-0.8):** Suggest with prominent button ("Extend to 2 nights?")
+- **Low confidence (<0.5):** Show as option alongside others
+
+**Context-Aware Corrections:** Smart fixes based on error type and user intent
+- **Minimum stay violations:** Extend checkout if dates are available, or suggest earlier check-in
+- **Guest capacity issues:** Suggest reducing guest count to property maximum
+- **Date order problems:** Auto-swap check-in/checkout if user likely made mistake
+
+**Integration with Existing Logic:** Use current BookingContext methods
+- Don't duplicate date/guest update logic - use existing context functions
+- Trigger existing validation flows after corrections
+- Respect existing booking state management patterns
+
+**User Control Philosophy:** Always provide escape hatches and transparency
+- Show what was changed and why
+- Provide undo option for auto-applied corrections
+- Allow users to override or modify suggested fixes
+
+**Common mistake to avoid:** Don't make corrections that could surprise users - transparency is key
+
+---
+
+## EPIC 5: Analytics & Optimization
+
+### Overview
+Data-driven error reduction and UX improvement through systematic analysis of error patterns and recovery effectiveness.
     
     try {
       // Try AI-enhanced suggestions first (with timeout)
@@ -1603,6 +1014,59 @@ export class DateSuggestionEngine {
 
 ### Task 2.2: Date Suggestions API Endpoint
 
+## 🔄 PRE-IMPLEMENTATION REQUIREMENTS - MANDATORY
+
+**CRITICAL:** This task creates a new API endpoint. Before ANY implementation:
+
+### Context Gathering Phase
+1. **Study existing API patterns:**
+   - `src/app/api/check-pricing/route.ts` - Current API structure and validation
+   - `src/app/api/check-pricing-v2/route.ts` - API versioning patterns
+   - `src/app/api/check-availability/route.ts` - Availability API patterns
+   
+2. **Understand API ecosystem:**
+   - Current request/response formats
+   - Error handling patterns
+   - Input validation approaches
+   - Rate limiting and security measures
+   
+3. **Analyze integration points:**
+   ```bash
+   # Understanding API consumption:
+   grep -r "/api/check-pricing" src/ --include="*.tsx" --include="*.ts"
+   grep -r "fetch.*api" src/ --include="*.tsx" --include="*.ts"
+   ```
+
+### Preservation Strategy (API Development)
+- ✅ **NEW ENDPOINT:** Create `/api/date-suggestions` without modifying existing
+- ✅ **SAME PATTERNS:** Follow existing API structure and validation
+- ✅ **NO BREAKING:** Don't modify existing API contracts
+- ✅ **ISOLATED:** New endpoint failures don't affect existing booking flow
+- ❌ **NEVER CHANGE:** Existing API endpoints or responses
+- ❌ **NO DEPENDENCIES:** Don't make existing APIs depend on new one
+
+### Implementation Approach (API Safety)
+```typescript
+// ✅ CORRECT: New isolated endpoint
+// File: src/app/api/date-suggestions/route.ts (NEW FILE)
+export async function POST(request: NextRequest) {
+  // New functionality that doesn't interfere with existing APIs
+}
+
+// ✅ CORRECT: Optional integration
+const suggestions = await fetch('/api/date-suggestions', {...}).catch(() => []);
+// Existing booking flow continues even if suggestions fail
+
+// ❌ WRONG: Modify existing API
+// Don't change check-pricing/route.ts!
+```
+
+**API DESIGN SAFETY:**
+- Timeout protection for AI calls
+- Graceful degradation when services unavailable
+- Comprehensive input validation
+- Consistent error response format
+
 #### Complete Implementation Guide
 
 **Step 1: Create API Endpoint**
@@ -1816,68 +1280,382 @@ describe('Date Suggestions API', () => {
 
 ### Task 3.1: Mobile Error Components Architecture
 
-Continues with same detailed pattern...
+## 🔄 PRE-IMPLEMENTATION REQUIREMENTS - MANDATORY
 
-[Note: Due to length constraints, I'm showing the pattern for the first 2 epics. The remaining epics (3-5) would follow the same comprehensive pattern with:
-- Complete file paths
-- Full code examples
-- Detailed test scenarios
-- Integration instructions
-- Before/after comparisons
-- Common pitfalls
-- etc.]
+**CRITICAL:** This task modifies mobile-specific UI components. Before ANY implementation:
+
+### Context Gathering Phase
+1. **Study current mobile behavior:**
+   - `src/components/booking-v2/components/MobileDateSelectorWrapper.tsx:45-65` - Mobile wrapper logic
+   - `src/components/booking-v2/containers/BookingPageV2.tsx` - Mobile vs desktop rendering
+   - `src/components/ui/touch-target.tsx` - Touch interaction patterns
+   
+2. **Understand mobile responsive system:**
+   - How are mobile breakpoints defined? (Tailwind `md:`, `lg:` classes)
+   - What determines mobile vs desktop component rendering?
+   - How do touch interactions currently work?
+   
+3. **Analyze mobile-specific state management:**
+   ```bash
+   # Mobile-specific analysis commands:
+   grep -r "md:hidden\|lg:hidden\|sm:hidden" src/ --include="*.tsx"
+   grep -r "useMediaQuery\|mobile\|Mobile" src/ --include="*.tsx" --include="*.ts"
+   grep -r "touch\|Touch\|44px" src/ --include="*.tsx" --include="*.ts"
+   ```
+
+### Preservation Strategy (Mobile Components)
+- ✅ **PRESERVE:** All current mobile responsive behavior
+- ✅ **MAINTAIN:** Existing touch target sizes (minimum 44px)
+- ✅ **KEEP WORKING:** Current mobile navigation and gestures
+- ✅ **PERFORMANCE:** Don't slow down mobile devices
+- ❌ **NEVER BREAK:** Existing mobile booking flow
+- ❌ **NO REGRESSION:** Performance on lower-end mobile devices
+
+### Implementation Approach (Mobile Safety)
+```typescript
+// ✅ CORRECT: Add mobile error features conditionally
+const isMobile = useMediaQuery('(max-width: 768px)');
+const useMobileV3 = FEATURE_FLAGS.useMobileV3ErrorSystem;
+
+{isMobile && useMobileV3 ? (
+  <MobileErrorSystem />  // NEW V3
+) : isMobile ? (
+  // EXISTING mobile behavior (PRESERVE)
+  <div className="md:hidden">
+    {pricingError && <PricingStatusDisplay />}
+  </div>
+) : (
+  // Desktop behavior
+  <DesktopErrorDisplay />
+)}
+```
 
 ---
 
-# Testing Specifications
+### Task 1.3: BookingContext V3 Integration
 
-## Unit Test Coverage Requirements
+**What to achieve:** Extend BookingContext to handle structured errors alongside current string-based errors
 
-### Error System Tests
-```typescript
-// src/lib/booking-v3/__tests__/error-factory.test.ts
-describe('BookingErrorFactory', () => {
-  // Test all error type generation
-  // Test recovery action generation
-  // Test error context enrichment
-  // Test edge cases and malformed responses
-});
+**Why this approach:** BookingContext is consumed by many components - changes must be additive, not destructive. The current `pricingError: string | null` works well for existing components.
 
-// src/lib/booking-v3/__tests__/date-suggestion-engine.test.ts
-describe('DateSuggestionEngine', () => {
-  // Test each suggestion strategy
-  // Test availability checking integration
-  // Test AI timeout and fallback
-  // Test edge cases (no availability, etc.)
-});
-```
+**Key insight:** React contexts are like APIs - breaking changes ripple through the entire application. The safest approach is dual-state management where V2 and V3 coexist.
 
-### Component Tests
-```typescript
-// src/components/booking-v3/__tests__/BookingErrorDisplay.test.tsx
-describe('BookingErrorDisplay', () => {
-  // Test error rendering by severity
-  // Test recovery action execution
-  // Test expansion/collapse behavior
-  // Test mobile vs desktop rendering
-  // Test accessibility compliance
-});
-```
+### Context Gathering - Understanding Dependencies
+**Study these integration patterns:**
+- `src/contexts/BookingContext.tsx` - Current interface structure and state management
+- Find all components using `useBookingContext()` to understand impact scope
+- Look at how other optional features are added to contexts in this codebase
 
-### Integration Tests
-```typescript
-// src/__tests__/integration/error-flow.test.ts
-describe('Error Recovery Flow', () => {
-  it('should recover from minimum stay error', async () => {
-    // 1. Trigger minimum stay error
-    // 2. Display error with recovery actions
-    // 3. Execute auto-fix action
-    // 4. Verify booking state updated
-    // 5. Verify new pricing fetched
-    // 6. Verify error cleared
-  });
-});
-```
+### Architectural Principles
+
+**Dual-State Strategy:** Maintain compatibility while enabling enhancement
+- Keep existing `pricingError: string | null` unchanged
+- Add optional `bookingErrors: BookingErrorV3[]` array alongside it
+- Synchronize both states: when V3 error added, update V2 string for compatibility
+
+**Interface Extension Pattern:**
+- Add optional properties to `BookingContextType` interface
+- Provide default implementations that don't break existing consumers
+- Use conditional logic: components can choose V2 or V3 error handling
+
+**State Management Approach:**
+- V3 errors are the source of truth for rich functionality
+- V2 string errors are derived from V3 for backward compatibility
+- Recovery actions update context state through existing methods
+
+**Integration wisdom:** Look at mobile vs desktop rendering patterns in the codebase - apply similar conditional approach for V2 vs V3 error handling
+
+---
+
+### Task 3.2: Collapsed Banner Error States
+
+**What to achieve:** Show error indicators in mobile collapsed banner without forcing expansion
+
+**Why this matters:** Currently, any error forces mobile wrapper to expand, losing the UX benefit of collapsed state. Users should see error hints while maintaining compact view.
+
+**Key insight:** The `isGreenState` calculation in MobileDateSelectorWrapper determines collapsed vs expanded. Study this logic - it's the heart of mobile UX optimization.
+
+### Context Gathering - Mobile State Logic
+**Study these mobile patterns:**
+- `src/components/booking-v2/components/MobileDateSelectorWrapper.tsx` - How collapsed/expanded transitions work
+- Current banner content structure and available space for indicators
+- Look at other mobile components that show status indicators in compact views
+
+### Architectural Principles
+
+**Graceful Degradation:** Not all errors should force expansion
+- **Blocking errors:** Auto-expand immediately (preserve current behavior)
+- **Warning/info errors:** Show indicator in collapsed state, expand on tap
+- **Multiple errors:** Show most severe indicator with count
+
+**Visual Integration:** Subtle indicators that don't break existing design
+- Small badges or dots that fit existing banner layout
+- Color coding that matches error severity (red for blocking, amber for warnings)
+- Position indicators where they don't interfere with current functionality
+
+**State Management Logic:** Extend `isGreenState` calculation
+- Current logic: `checkInDate && checkOutDate && pricing && !pricingError`
+- Enhanced logic: Consider error severity in state determination
+- Maintain backward compatibility for components depending on green state
+
+**UX Philosophy:** Progressive disclosure - show just enough information to guide without overwhelming
+
+---
+
+### Task 3.3: Progressive Error Recovery
+
+**What to achieve:** Guide users through error resolution with step-by-step assistance instead of showing complex recovery options all at once
+
+**Why progressive approach:** Mobile screens are small and cognitive load is high during errors. Breaking recovery into simple steps reduces overwhelm and increases success rates.
+
+**Key insight:** Users experiencing errors are often frustrated - simplify their path to success with clear, sequential guidance.
+
+### Context Gathering - Flow Patterns
+**Study these user flow patterns:**
+- Look for multi-step processes in the codebase (onboarding, checkout flows, etc.)
+- Current mobile navigation patterns and how users move between states
+- How progress is typically indicated in existing components
+
+### Architectural Principles
+
+**Cognitive Load Reduction:** One decision at a time
+- Present one clear action per step rather than multiple recovery options
+- Use wizard-like flow: "Step 1 of 3: Extend your stay"
+- Provide context for each step: why this action helps
+
+**Mobile-First Design:** Touch-friendly interactions
+- Large touch targets (minimum 44px height)
+- Clear primary action buttons with secondary "skip" options
+- Swipe gestures or simple taps for navigation
+
+**Progress Communication:** Keep users oriented
+- Visual progress indicators (step counter, progress bar)
+- Clear explanation of what each step accomplishes
+- Option to see all steps at once for users who prefer overview
+
+**Adaptive Guidance:** Tailor steps to error type
+- **Minimum stay errors:** Guide through date extension or alternative date selection
+- **Availability errors:** Walk through flexible date exploration
+- **Pricing errors:** Help find dates with complete pricing data
+
+**Recovery Philosophy:** Make success feel inevitable through guided assistance
+
+---
+
+### Task 4.1: Auto-Correction Engine
+
+**What to achieve:** Automatically fix common booking errors with high-confidence corrections while giving users control over the process
+
+**Why auto-correction:** Many booking errors have obvious fixes (extend checkout by 1 night for minimum stay). Smart corrections reduce friction and guide users toward successful bookings.
+
+**Key insight:** The difference between helpful automation and annoying interference is confidence scoring. High-confidence fixes can be auto-applied; lower confidence should be suggested.
+
+### Context Gathering - Booking Logic Patterns
+**Study these correction opportunities:**
+- `src/contexts/BookingContext.tsx` - How date and guest updates currently work
+- Common error patterns from existing API responses
+- Look for existing "smart" behavior in date selectors or validation
+
+### Architectural Principles
+
+**Confidence-Based Actions:** Different behaviors for different certainty levels
+- **High confidence (>0.8):** Auto-apply with notification ("Fixed: Extended to 2 nights")
+- **Medium confidence (0.5-0.8):** Suggest with prominent button ("Extend to 2 nights?")
+- **Low confidence (<0.5):** Show as option alongside others
+
+**Context-Aware Corrections:** Smart fixes based on error type and user intent
+- **Minimum stay violations:** Extend checkout if dates are available, or suggest earlier check-in
+- **Guest capacity issues:** Suggest reducing guest count to property maximum
+- **Date order problems:** Auto-swap check-in/checkout if user likely made mistake
+
+**Integration with Existing Logic:** Use current BookingContext methods
+- Don't duplicate date/guest update logic - use existing context functions
+- Trigger existing validation flows after corrections
+- Respect existing booking state management patterns
+
+**User Control Philosophy:** Always provide escape hatches and transparency
+- Show what was changed and why
+- Provide undo option for auto-applied corrections
+- Allow users to override or modify suggested fixes
+
+**Common mistake to avoid:** Don't make corrections that could surprise users - transparency is key
+
+---
+
+### Task 4.2: Alternative Flow Suggestions
+
+**What to achieve:** Transform booking errors into opportunities by showing visual alternatives that help users find what they're looking for
+
+**Why visual alternatives:** When dates don't work, showing a calendar heatmap with availability and pricing helps users make informed decisions rather than just telling them "no."
+
+**Key insight:** Users often have flexibility they don't realize - alternative durations or nearby dates might work perfectly for their needs.
+
+### Context Gathering - Calendar Patterns
+**Study these visual interfaces:**
+- Current React-day-picker implementation patterns
+- How availability is currently displayed in calendars
+- Look for existing heatmap or color-coding patterns in the UI
+
+### Architectural Principles
+
+**Visual Decision Making:** Help users see their options
+- **Availability heatmap:** Color-code dates by availability (green=available, red=blocked, yellow=limited)
+- **Pricing indicators:** Show relative pricing with visual cues ($ symbols, color gradients)
+- **Duration flexibility:** Highlight date ranges that work for different stay lengths
+
+**Alternative Exploration:** Guide users toward feasible options
+- **Shorter stays:** If 5 nights doesn't work, show 3-4 night options
+- **Longer stays:** Sometimes extending a stay avoids weekend premiums
+- **Seasonal timing:** "These dates are popular, but week after is 20% cheaper"
+
+**One-Tap Application:** Make selection effortless
+- Click any suggested date range to apply immediately
+- Preview pricing and availability before confirming
+- Maintain context of original preferences while exploring alternatives
+
+---
+
+### Task 4.3: Booking Assistance Integration
+
+**What to achieve:** Connect users with human help when automated suggestions aren't sufficient, using context from their booking attempt
+
+**Why assisted booking:** Some date/pricing situations are complex - connecting users with knowledgeable assistance turns frustration into successful bookings.
+
+**Key insight:** Frustrated users provided with personalized human help become loyal customers - the error becomes an opportunity for exceptional service.
+
+### Context Gathering - Communication Patterns
+**Study existing support systems:**
+- Current contact forms, chat systems, or inquiry processes
+- How property managers or hosts currently communicate with guests
+- Look at support ticket systems or CRM integration patterns
+
+### Architectural Principles
+
+**Context-Aware Assistance:** Pre-populate support requests with booking details
+- Include attempted dates, guest count, specific errors encountered
+- Attach property details and user preferences for personalized responses
+- Show booking history for returning users
+
+**Smart Matching Philosophy:** Connect users with properties that might work
+- "Help me find dates" wizard that captures flexibility and priorities
+- Match user preferences against property calendars automatically
+- Present curated options rather than overwhelming choices
+
+**Proactive Communication:** Reach out before users give up
+- "Notify when available" system for desired dates
+- Alert system when pricing changes or availability opens up
+- Follow-up on abandoned bookings with personalized suggestions
+
+---
+
+### Task 5.1: Error Analytics Implementation
+
+**What to achieve:** Understand error patterns to improve the booking system and reduce future errors
+
+**Why analytics matter:** Data-driven error reduction prevents problems at the source rather than just handling them better after they occur.
+
+**Key insight:** Error analytics should drive product improvements, not just reporting - look for actionable patterns that suggest system changes.
+
+### Context Gathering - Current Tracking
+**Study existing measurement systems:**
+- Current Google Analytics or tracking implementations
+- Event tracking patterns used elsewhere in the application
+- Privacy policies and compliance requirements for user data
+
+### Architectural Principles
+
+**Actionable Insights:** Track metrics that drive improvements
+- **Error frequency by type:** Which errors happen most often?
+- **Resolution success rates:** Which recovery methods work best?
+- **Property-specific patterns:** Do certain properties have recurring issues?
+- **User journey mapping:** Where in the booking flow do errors cluster?
+
+**Privacy-First Design:** Anonymous and compliance-focused
+- Track error patterns without storing personal information
+- Aggregate data to protect individual user privacy
+- Focus on system behavior rather than user identification
+
+---
+
+### Task 5.2: Recommendation Effectiveness Tracking
+
+**What to achieve:** Measure how well smart suggestions work to continuously improve the recommendation algorithms
+
+**Why effectiveness tracking:** Smart suggestions are only valuable if they actually help users complete bookings - measure success to optimize the system.
+
+**Key insight:** Track the full funnel from suggestion to successful booking, not just suggestion acceptance rates.
+
+### Architectural Principles
+
+**Full-Funnel Measurement:** Track complete user journey
+- **Suggestion acceptance:** Which recommendations do users try?
+- **Booking completion:** Do accepted suggestions lead to successful bookings?
+- **User satisfaction:** Are users happy with suggested alternatives?
+
+**Algorithm Optimization:** Compare different approaches
+- Rule-based vs AI-enhanced suggestions performance
+- Confidence scoring accuracy (were high-confidence suggestions actually good?)
+- Seasonal and property-specific effectiveness patterns
+
+---
+
+### Task 5.3: Continuous Improvement System
+
+**What to achieve:** Automatically identify opportunities to improve error handling and booking success
+
+**Why continuous improvement:** Booking systems are complex - automated monitoring helps catch issues before they become widespread problems.
+
+**Key insight:** The best improvements often come from identifying patterns humans miss - automate the analysis of error data to surface optimization opportunities.
+
+### Architectural Principles
+
+**Pattern Recognition:** Identify systematic issues
+- **Recurring error clusters:** Same errors happening across multiple properties or time periods
+- **Performance degradation:** When error rates increase or resolution rates decrease
+- **Seasonal optimization:** Timing patterns that suggest calendar or pricing improvements
+
+**Proactive Alerts:** Surface issues before they impact users
+- **Error spike detection:** Unusual increases in specific error types
+- **Success rate drops:** When fewer users successfully complete bookings after errors
+- **Suggestion effectiveness decline:** When recommendations stop working well
+
+**Simple Reporting:** Actionable summaries for decision makers
+- Weekly error pattern summaries with specific improvement recommendations
+- Monthly effectiveness reports showing system performance trends
+- Property-specific insights for hosts and property managers
+
+---
+
+# Testing Strategy
+
+## What to Test
+
+### Core Error System
+- **Error Factory:** Test conversion from API responses to structured errors
+- **Error Display:** Test error rendering with different severities  
+- **Recovery Actions:** Test action execution and context updates
+- **Backward Compatibility:** Test that V2 error handling still works
+
+### Smart Recommendations  
+- **Suggestion Generation:** Test algorithms produce valid suggestions
+- **API Integration:** Test new endpoint handles requests correctly
+- **Availability Integration:** Test suggestions use real availability data
+
+### Mobile Experience
+- **Responsive Behavior:** Test error handling on mobile vs desktop
+- **Touch Interactions:** Test mobile error recovery flows
+- **Auto-Expand Logic:** Test when mobile wrapper expands for errors
+
+### Integration Points
+- **Context Updates:** Test BookingContext changes don't break existing components
+- **API Compatibility:** Test new features don't break existing booking flow
+- **Error Recovery Flow:** Test complete user journey from error to successful booking
+
+## Testing Approach
+- **Unit Tests:** Test individual functions and components in isolation
+- **Integration Tests:** Test component interactions and data flow
+- **Manual Testing:** Test actual user scenarios on real devices
+- **Regression Testing:** Verify existing booking flow remains functional
 
 ---
 
@@ -1969,36 +1747,33 @@ action: (): Promise<RecoveryResult> => {
 
 ---
 
-## Final Implementation Checklist
+## Implementation Guidelines
 
-### Pre-Implementation
-- [ ] Review current V2 booking flow end-to-end
-- [ ] Backup current error handling code
-- [ ] Set up feature flags for V3 rollout
-- [ ] Create test property for development
+### Getting Started
+1. **Review Current System:** Understand existing V2 booking flow thoroughly
+2. **Start with Foundation:** Implement error types and BookingContext extensions first  
+3. **Build Incrementally:** Add each feature alongside existing functionality
+4. **Test Continuously:** Verify V2 compatibility after each change
 
-### During Implementation
-- [ ] Implement error types and factories first
-- [ ] Test V2 compatibility at each step
-- [ ] Add comprehensive logging for debugging
-- [ ] Document any deviations from spec
+### Development Process
+- **Preserve V2 Functionality:** Always maintain backward compatibility
+- **Add V3 Conditionally:** Use simple toggles to switch between V2 and V3
+- **Test on Real Devices:** Especially mobile error handling flows
+- **Document Changes:** Note any architectural decisions or deviations
 
-### Post-Implementation
-- [ ] Run full regression test suite
-- [ ] Test on real mobile devices
-- [ ] Verify analytics tracking works
-- [ ] Update documentation
-
-### Rollout Strategy
-1. **Week 1-2:** Deploy behind feature flag (0% users)
-2. **Week 3:** Enable for internal testing (team only)
-3. **Week 4:** Gradual rollout (10% → 50% → 100%)
-4. **Week 5:** Monitor metrics and optimize
+### Architecture Integration
+Components work together as follows:
+- **BookingContext:** Central state management for both V2 and V3 errors
+- **Error Factory:** Converts API responses to structured V3 errors
+- **Error Display:** Renders errors with recovery actions (desktop/mobile)
+- **Suggestion Engine:** Provides intelligent date alternatives
+- **Recovery Actions:** Allow users to fix errors automatically or manually
 
 ---
 
-**Document Complete**  
+**Document Complete - Guidance-Based Specification**  
 **Total Specification Pages:** ~85 pages  
 **Implementation Ready:** Yes  
-**External Developer Ready:** Yes  
-**AI Assistant Compatible:** Yes
+**External Developer Ready:** Yes - Guidance-focused approach  
+**AI Assistant Compatible:** Yes - Architectural guidance over prescriptive code  
+**Philosophy:** What & Why over How - Empowers decision-making
