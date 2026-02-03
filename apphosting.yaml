@@ -106,6 +106,12 @@ env:
         - BUILD
         - RUNTIME
 
+# Resend API for email delivery
+  - variable: RESEND_API_KEY
+    secret: projects/1061532538391/secrets/RESEND_API_KEY/versions/latest
+    availability:
+        - RUNTIME
+
 # Grant access to secrets in Cloud Secret Manager.
 # See https://firebase.google.com/docs/app-hosting/configure#secret-parameters
 # - variable: MY_SECRET
