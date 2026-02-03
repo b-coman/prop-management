@@ -64,7 +64,11 @@ async function sendWithResend(
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     const resend = getResendClient();
-    const fromEmail = from || process.env.RESEND_FROM_EMAIL || 'RentalSpot <bookings@rentalspot.com>';
+    // Use verified domain if configured, otherwise use Resend's default sender
+    // Note: On free tier, you MUST use onboarding@resend.dev until you verify a domain
+    const fromEmail = from || process.env.RESEND_FROM_EMAIL || 'RentalSpot <onboarding@resend.dev>';
+
+    console.log(`[EmailService] Sending via Resend from: ${fromEmail} to: ${to}`);
 
     const { data, error } = await resend.emails.send({
       from: fromEmail,
@@ -75,7 +79,7 @@ async function sendWithResend(
     });
 
     if (error) {
-      console.error('[EmailService] Resend error:', error);
+      console.error('[EmailService] Resend error:', JSON.stringify(error));
       return { success: false, error: error.message };
     }
 
