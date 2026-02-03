@@ -70,6 +70,7 @@ export interface Property {
   templateId: string; // ID of the website template to use
   themeId?: string; // ID of the design theme to use
   ownerId?: string; // User ID of the property owner
+  ownerEmail?: string; // Email address for notifications (inquiries, bookings)
   channelIds?: { // For external platform sync
     airbnb?: string;
     booking_com?: string;

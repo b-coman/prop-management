@@ -44,6 +44,7 @@ const propertyActionSchema = z.object({
     cancellationPolicy: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
     status: z.enum(['active', 'inactive', 'draft']),
     ownerId: z.string().optional(), // Handle setting this appropriately
+    ownerEmail: z.string().email().optional().or(z.literal('')).transform(val => val || null), // Email for notifications
     customDomain: z.string().optional().nullable().transform(val => val ? sanitizeText(val) : null),
     useCustomDomain: z.boolean().optional(),
     analytics: z.object({

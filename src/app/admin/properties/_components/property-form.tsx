@@ -82,6 +82,7 @@ const propertyFormSchema = z.object({
     // Status & Sync
     status: z.enum(['active', 'inactive', 'draft']).default('draft'),
     ownerId: z.string().optional(), // This might be set automatically based on logged-in user
+    ownerEmail: z.string().email("Invalid email address").optional().or(z.literal('')), // Email for notifications
     // Channel IDs might need separate inputs
     // airbnbListingId: z.string().optional(),
     // bookingComListingId: z.string().optional(),
@@ -158,6 +159,7 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
         cancellationPolicy: typeof initialData?.cancellationPolicy === 'string' ? initialData.cancellationPolicy : initialData?.cancellationPolicy?.en ?? '',
         status: initialData?.status ?? 'draft',
         ownerId: initialData?.ownerId ?? '', // Handle owner ID logic
+        ownerEmail: initialData?.ownerEmail ?? '', // Email for notifications
         customDomain: initialData?.customDomain ?? null,
         useCustomDomain: initialData?.useCustomDomain ?? false,
         analytics: {
@@ -366,6 +368,7 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
          <FormField control={form.control} name="enableHoldOption" render={({ field }) => ( <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4"><div className="space-y-0.5"><FormLabel className="text-base">Enable "Hold Dates" Option</FormLabel><FormDescription>Allow guests to pay a fee to hold dates.</FormDescription></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem> )} />
          <FormField control={form.control} name="holdFeeAmount" render={({ field }) => ( <FormItem><FormLabel>Hold Fee Amount</FormLabel><FormControl><Input type="number" step="0.01" placeholder="e.g., 25" {...field} /></FormControl><FormMessage /></FormItem> )} />
          <FormField control={form.control} name="enableContactOption" render={({ field }) => ( <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4"><div className="space-y-0.5"><FormLabel className="text-base">Enable "Contact Host" Option</FormLabel><FormDescription>Allow guests to send inquiries.</FormDescription></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem> )} />
+         <FormField control={form.control} name="ownerEmail" render={({ field }) => ( <FormItem><FormLabel>Owner/Notification Email</FormLabel><FormControl><Input type="email" placeholder="owner@example.com" {...field} /></FormControl><FormDescription>Email address to receive inquiry and booking notifications.</FormDescription><FormMessage /></FormItem> )} />
 
 
         {/* --- Submit Button --- */}

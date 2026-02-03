@@ -2,9 +2,9 @@
 "use server";
 
 import { z } from "zod";
-import { collection, addDoc, serverTimestamp, Timestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, Timestamp, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Inquiry, CurrencyCode, LanguageCode } from "@/types";
+import type { Inquiry, Property, CurrencyCode, LanguageCode } from "@/types";
 import { SUPPORTED_CURRENCIES, SUPPORTED_LANGUAGES } from "@/types";
 import { sanitizeEmail, sanitizePhone, sanitizeText } from "@/lib/sanitize";
 import { revalidatePath } from "next/cache";
@@ -100,18 +100,32 @@ export async function createInquiryAction(
 
       // Fetch property owner email and send notification
       try {
-        // For now, send to a fallback admin email since we don't have owner email
-        // In a real implementation, you would fetch the property owner's email
-        const adminEmail = process.env.ADMIN_EMAIL || 'admin@rentalspot.com';
-        const ownerEmailResult = await sendInquiryNotificationEmail(adminEmail, inquiryWithId);
+        // Fetch property to get owner email
+        const propertyRef = doc(db, 'properties', propertySlug);
+        const propertySnap = await getDoc(propertyRef);
 
-        if (ownerEmailResult.success) {
-          console.log(`✅ [Action createInquiryAction] Sent notification email to admin ${adminEmail}`);
-          if (ownerEmailResult.previewUrl) {
-            console.log(`  - Preview URL: ${ownerEmailResult.previewUrl}`);
+        let notificationEmail: string | null = null;
+        if (propertySnap.exists()) {
+          const propertyData = propertySnap.data() as Property;
+          notificationEmail = propertyData.ownerEmail || null;
+        }
+
+        // Fallback to ADMIN_EMAIL env var if no owner email configured
+        const finalEmail = notificationEmail || process.env.ADMIN_EMAIL;
+
+        if (finalEmail) {
+          const ownerEmailResult = await sendInquiryNotificationEmail(finalEmail, inquiryWithId);
+
+          if (ownerEmailResult.success) {
+            console.log(`✅ [Action createInquiryAction] Sent notification email to ${finalEmail}`);
+            if (ownerEmailResult.previewUrl) {
+              console.log(`  - Preview URL: ${ownerEmailResult.previewUrl}`);
+            }
+          } else {
+            console.warn(`⚠️ [Action createInquiryAction] Failed to send notification email: ${ownerEmailResult.error}`);
           }
         } else {
-          console.warn(`⚠️ [Action createInquiryAction] Failed to send notification email: ${ownerEmailResult.error}`);
+          console.warn(`⚠️ [Action createInquiryAction] No owner email configured for property ${propertySlug} and no ADMIN_EMAIL env var set. Skipping notification.`);
         }
       } catch (ownerEmailError) {
         console.error(`❌ [Action createInquiryAction] Error sending notification to owner:`, ownerEmailError);
