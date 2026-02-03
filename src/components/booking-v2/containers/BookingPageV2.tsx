@@ -418,6 +418,8 @@ function BookingPageContent({ className }: { className?: string }) {
                           phone: values.phone
                         },
                         holdFeeAmount: property.holdFeeAmount || 50,
+                        holdDurationHours: property.holdDurationHours || 24,
+                        holdFeeRefundable: property.holdFeeRefundable ?? true,
                         selectedCurrency
                       });
 

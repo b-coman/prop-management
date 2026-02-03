@@ -29,6 +29,7 @@ import { sanitizeEmail, sanitizePhone, sanitizeText } from '@/lib/sanitize';
 import type { Property, PriceCalculationResult } from '@/types';
 import { TouchTarget } from '@/components/ui/touch-target';
 import { InteractionFeedback } from '@/components/ui/interaction-feedback';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 // Schema will be created inside component with translations
 type HoldFormValues = {
@@ -60,7 +61,8 @@ export function HoldFormV2({
   selectedCurrency
 }: HoldFormV2Props) {
   const { t } = useLanguage();
-  
+  const { convertToSelectedCurrency } = useCurrency();
+
   // Get data from V2 booking context
   const {
     property,
@@ -77,9 +79,13 @@ export function HoldFormV2({
   } = useBooking();
 
   // Hold fee configuration (preserved from V1)
-  const holdFeeAmount = property.holdFeeAmount || 50; // Default hold fee
+  const holdFeeAmountBase = property.holdFeeAmount || 50; // Default hold fee in property's base currency
   const holdDurationHours = property.holdDurationHours || 24;
   const holdFeeRefundable = property.holdFeeRefundable ?? true;
+
+  // Convert hold fee to selected currency (property stores fee in baseCurrency, e.g., EUR)
+  const baseCurrency = property.baseCurrency || 'EUR';
+  const holdFeeAmount = convertToSelectedCurrency(holdFeeAmountBase, baseCurrency);
 
   // Create schema with translations
   const holdFormSchema = z.object({
@@ -132,10 +138,12 @@ export function HoldFormV2({
   const isLoading = isProcessing || isPending;
   const isFormDisabled = isLoading || !checkInDate || !checkOutDate || !pricingDetails;
 
-  // Format hold fee display (simplified for now, can be enhanced with currency context later)
+  // Format hold fee display - show without decimals for whole numbers
   const displayHoldFee = new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: selectedCurrency
+    currency: selectedCurrency,
+    minimumFractionDigits: holdFeeAmount % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2
   }).format(holdFeeAmount);
 
   return (

@@ -22,6 +22,8 @@ const CreateHoldBookingSchema = z.object({
     phone: z.string().optional().transform(val => val ? sanitizePhone(val) : undefined),
   }),
   holdFeeAmount: z.number().positive("Hold fee amount must be positive."), // Hold fee from property settings
+  holdDurationHours: z.number().int().positive().optional(), // Hold duration in hours (default 24)
+  holdFeeRefundable: z.boolean().optional(), // Whether hold fee is refundable (default true)
   selectedCurrency: z.string().optional(), // User's selected currency from header dropdown
 }).refine(data => new Date(data.checkOutDate) > new Date(data.checkInDate), {
   message: "Check-out date must be after check-in date.",
@@ -49,6 +51,8 @@ export async function createHoldBookingAction(
     guestCount,
     guestInfo,
     holdFeeAmount,
+    holdDurationHours = 24, // Default to 24 hours
+    holdFeeRefundable = true, // Default to refundable
     selectedCurrency,
   } = validationResult.data;
 
@@ -57,7 +61,7 @@ export async function createHoldBookingAction(
     const checkIn = new Date(checkInDate);
     const checkOut = new Date(checkOutDate);
     const now = new Date();
-    const holdUntil = addHours(now, 24); // Hold expires in 24 hours
+    const holdUntil = addHours(now, holdDurationHours); // Use property's hold duration setting
     
     // Calculate the number of nights
     const numberOfNights = differenceInDays(checkOut, checkIn);
@@ -100,6 +104,8 @@ export async function createHoldBookingAction(
       appliedCouponCode: null,
       convertedFromHold: false,
       convertedFromInquiry: null,
+      holdFeeRefundable: holdFeeRefundable, // Store whether the hold fee is refundable
+      holdDurationHours: holdDurationHours, // Store the hold duration for reference
     };
     
     console.log("[Action createHoldBookingAction] Prepared Firestore Data:", bookingData);
