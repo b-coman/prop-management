@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestoreForPricing } from '@/lib/firebaseAdminPricing';
 import { format, isValid, parseISO } from 'date-fns';
+import { FieldValue } from 'firebase-admin/firestore';
 
 export async function GET(request: NextRequest) {
   console.log("--- [Cron API] Release expired holds endpoint called ---");
@@ -178,9 +179,9 @@ async function updateAvailabilityAdmin(
     
     for (const [day, isAvailable] of Object.entries(dayUpdates)) {
       updateData[`available.${day}`] = isAvailable;
-      // Clear hold when making available
+      // Clear hold when making available - use FieldValue.delete() to remove the field
       if (isAvailable) {
-        updateData[`holds.${day}`] = null;
+        updateData[`holds.${day}`] = FieldValue.delete();
       }
     }
     
