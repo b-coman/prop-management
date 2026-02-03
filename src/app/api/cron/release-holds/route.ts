@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestoreForPricing } from '@/lib/firebaseAdminPricing';
 import { format, isValid, parseISO } from 'date-fns';
-import { FieldValue } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp as AdminTimestamp } from 'firebase-admin/firestore';
 
 export async function GET(request: NextRequest) {
   console.log("--- [Cron API] Release expired holds endpoint called ---");
@@ -79,14 +79,31 @@ export async function GET(request: NextRequest) {
       const rawCheckOut = bookingData.checkOutDate;
 
       // Debug logging for date parsing
-      console.log(`[Cron API] Raw dates for ${bookingId}: checkIn=${JSON.stringify(rawCheckIn)}, checkOut=${JSON.stringify(rawCheckOut)}`);
+      console.log(`[Cron API] Raw dates for ${bookingId}: checkIn type=${rawCheckIn?.constructor?.name}, checkOut type=${rawCheckOut?.constructor?.name}`);
 
-      const checkInDate = rawCheckIn?.toDate?.() ||
-                         (rawCheckIn ? parseISO(rawCheckIn as string) : null);
-      const checkOutDate = rawCheckOut?.toDate?.() ||
-                          (rawCheckOut ? parseISO(rawCheckOut as string) : null);
+      // Parse dates - Admin SDK returns Timestamp objects from firebase-admin/firestore
+      // These have a toDate() method, but we need to handle both Timestamp and string formats
+      let checkInDate: Date | null = null;
+      if (rawCheckIn instanceof AdminTimestamp) {
+        checkInDate = rawCheckIn.toDate();
+      } else if (rawCheckIn && typeof rawCheckIn === 'object' && '_seconds' in rawCheckIn) {
+        // Handle case where Timestamp was serialized with _seconds/_nanoseconds
+        checkInDate = new Date((rawCheckIn as any)._seconds * 1000);
+      } else if (typeof rawCheckIn === 'string') {
+        checkInDate = parseISO(rawCheckIn);
+      }
 
-      console.log(`[Cron API] Parsed dates: checkIn=${checkInDate}, checkOut=${checkOutDate}, valid=${checkInDate && checkOutDate ? isValid(checkInDate) && isValid(checkOutDate) : 'N/A'}`);
+      let checkOutDate: Date | null = null;
+      if (rawCheckOut instanceof AdminTimestamp) {
+        checkOutDate = rawCheckOut.toDate();
+      } else if (rawCheckOut && typeof rawCheckOut === 'object' && '_seconds' in rawCheckOut) {
+        // Handle case where Timestamp was serialized with _seconds/_nanoseconds
+        checkOutDate = new Date((rawCheckOut as any)._seconds * 1000);
+      } else if (typeof rawCheckOut === 'string') {
+        checkOutDate = parseISO(rawCheckOut);
+      }
+
+      console.log(`[Cron API] Parsed dates: checkIn=${checkInDate?.toISOString()}, checkOut=${checkOutDate?.toISOString()}, valid=${checkInDate && checkOutDate ? isValid(checkInDate) && isValid(checkOutDate) : 'N/A'}`);
 
       if (propertyId && checkInDate && checkOutDate && isValid(checkInDate) && isValid(checkOutDate)) {
         console.log(`[Cron API] Scheduling availability release for property ${propertyId}`);
