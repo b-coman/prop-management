@@ -112,16 +112,22 @@
 - [x] **Calendar:** Dates available again after manual fix ✓
 
 ### Result:
-- [x] PARTIAL PASS - Bug found and fixed
+- [x] PASS - Multiple bugs found and fixed
 - Notes:
   - Booking status update: PASS
-  - Availability release: FAIL (bug: using `null` instead of `FieldValue.delete()`)
-  - Bug fixed in commit 9b33047, deployed
+  - Availability release: PASS (after 3 bug fixes)
+  - All fixes deployed and verified on 2026-02-03
 
-### Bug Fixed:
-- **Issue:** Cron job set `holds.{day}` to `null` instead of deleting the field
-- **Fix:** Use `FieldValue.delete()` to properly remove hold entries
-- **Commit:** 9b33047
+### Bugs Fixed:
+| Issue | Root Cause | Fix | Commit |
+|-------|------------|-----|--------|
+| Holds not clearing | Used `null` instead of deleting | `FieldValue.delete()` | 9b33047 |
+| processedCount=0 | Admin SDK timestamps not parsed | `instanceof AdminTimestamp` + `_seconds` fallback | faecc90 |
+| Nested maps not updating | `batch.set()` with merge creates root fields | Use `batch.update()` | d93fe35 |
+
+### Test Booking:
+- Hold ID: `TjvcPTA4lcT0RtzXCo2n` (Feb 17-19, 2026)
+- Verified: status=cancelled, available.17=true, available.18=true, holds deleted
 
 ---
 
@@ -275,7 +281,7 @@
 |------|--------|-------|
 | 1. Booking Flow | PASS | 7 issues found and fixed during testing |
 | 2. Hold Flow | PASS | Tested 2026-02-03, email auto-sent via Resend |
-| 3. Hold Expiration | PASS | Bug found & fixed (FieldValue.delete) |
+| 3. Hold Expiration | PASS | 3 bugs found & fixed (FieldValue.delete, Admin timestamps, batch.update) |
 | 4. Inquiry Flow | PENDING | |
 | 5. Availability Blocking | PARTIAL | Works (dates blocked after booking) |
 | 6. Pricing Calculation | PARTIAL | Base pricing + currency switching tested |
@@ -298,6 +304,8 @@
 | 6 | Base rate showing as RON 0.00 on success page (API returns accommodationTotal, not baseRate) | Medium | FIXED | 146de5e |
 | 7 | "000" appearing on success page between Cleaning fee and Total (React rendering `0` from short-circuit) | Medium | FIXED | 88621a1 |
 | 8 | Hold expiration cron not releasing availability (using `null` instead of `FieldValue.delete()`) | High | FIXED | 9b33047 |
+| 9 | Cron job not parsing Admin SDK timestamps (processedCount=0) | High | FIXED | faecc90 |
+| 10 | Cron job creating root-level fields instead of updating nested maps (`batch.set` vs `batch.update`) | High | FIXED | d93fe35 |
 
 ---
 
