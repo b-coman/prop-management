@@ -211,7 +211,8 @@ async function updateAvailabilityAdmin(
     }
     
     console.log(`[updateAvailabilityAdmin] Updating ${docId} with ${Object.keys(dayUpdates).length} days`);
-    batch.set(docRef, updateData, { merge: true });
+    // Use update() instead of set() with merge - update() properly handles dot notation for nested maps
+    batch.update(docRef, updateData);
   }
   
   await batch.commit();
