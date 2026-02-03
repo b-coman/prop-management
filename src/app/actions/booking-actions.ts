@@ -5,8 +5,8 @@ import { z } from 'zod';
 import { collection, addDoc, serverTimestamp, Timestamp, getFirestore, Firestore } from 'firebase/firestore';
 import { dbAdmin } from '@/lib/firebaseAdmin'; // Admin SDK
 import { db } from '@/lib/firebase'; // Client SDK
-import type { Booking, Property, CurrencyCode } from '@/types';
-import { SUPPORTED_CURRENCIES } from '@/types';
+import type { Booking, Property, CurrencyCode, LanguageCode } from '@/types';
+import { SUPPORTED_CURRENCIES, SUPPORTED_LANGUAGES } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { sanitizeEmail, sanitizePhone, sanitizeText } from '@/lib/sanitize';
 
@@ -38,6 +38,7 @@ const CreatePendingBookingSchema = z.object({
   }).passthrough(),
   status: z.literal('pending'), // Explicitly pending for this action
   appliedCouponCode: z.string().trim().toUpperCase().nullable().optional().transform(val => val ? sanitizeText(val) : null),
+  language: z.enum(SUPPORTED_LANGUAGES).optional().default('en'), // User's language preference for emails
   // Fields related to holds or inquiries might be passed if converting, but not strictly needed by this schema
   convertedFromHold: z.boolean().optional(),
   convertedFromInquiry: z.string().optional(),
@@ -84,6 +85,7 @@ export async function createPendingBookingAction(
     pricing,
     status,
     appliedCouponCode,
+    language,
     convertedFromHold, // Capture conversion flags
     convertedFromInquiry,
   } = validationResult.data;
@@ -146,6 +148,7 @@ export async function createPendingBookingAction(
         paidAt: null,
       },
       source: 'website-pending', // Source indicating it's from the main booking flow
+      language: language, // User's language preference for emails
       // Include conversion flags if provided
       convertedFromHold: convertedFromHold ?? false,
       convertedFromInquiry: convertedFromInquiry ?? null,
@@ -231,8 +234,8 @@ export async function createPendingBookingAction(
 const CreateHoldBookingSchema = z.object({
   propertySlug: z.string().min(1), // Property SLUG
   guestInfo: z.object({
-    firstName: z.string().min(1, "First name is required.").transform(sanitizeText), // Line 134
-    lastName: z.string().min(1, "Last name is required.").transform(sanitizeText), // Line 135
+    firstName: z.string().min(1, "First name is required.").transform(sanitizeText),
+    lastName: z.string().min(1, "Last name is required.").transform(sanitizeText),
     email: z.string().email("Invalid email address.").transform(sanitizeEmail),
     phone: z.string().min(1, "Phone number is required.").transform(sanitizePhone),
   }).passthrough(),
@@ -240,6 +243,7 @@ const CreateHoldBookingSchema = z.object({
   checkOutDate: z.string().datetime(), // ISO string
   numberOfGuests: z.number().int().positive(),
   holdFeeAmount: z.number().nonnegative(), // The fee paid to hold the booking
+  language: z.enum(SUPPORTED_LANGUAGES).optional().default('en'), // User's language preference for emails
   // No pricing object directly provided in the input, it will be calculated
 });
 
@@ -265,6 +269,7 @@ export async function createHoldBookingAction(
     checkOutDate: checkOutStr,
     numberOfGuests,
     holdFeeAmount,
+    language: holdLanguage,
   } = validationResult.data;
 
   try {
@@ -309,6 +314,7 @@ export async function createHoldBookingAction(
         paidAt: null,
       },
       source: 'website-hold',
+      language: holdLanguage, // User's language preference for emails
       appliedCouponCode: null,
       convertedFromHold: false,
       convertedFromInquiry: null,

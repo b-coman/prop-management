@@ -358,7 +358,8 @@ function BookingPageContent({ className }: { className?: string }) {
                         },
                         message: values.message,
                         totalPrice: pricingDetails?.totalPrice,
-                        currency: selectedCurrency as any
+                        currency: selectedCurrency as any,
+                        language: currentLang as 'en' | 'ro'
                       });
                       
                       if (result.error) {
@@ -420,7 +421,8 @@ function BookingPageContent({ className }: { className?: string }) {
                         holdFeeAmount: property.holdFeeAmount || 50,
                         holdDurationHours: property.holdDurationHours || 24,
                         holdFeeRefundable: property.holdFeeRefundable ?? true,
-                        selectedCurrency
+                        selectedCurrency,
+                        language: currentLang as 'en' | 'ro'
                       });
 
                       if (holdResult.error || !holdResult.bookingId) {
@@ -520,7 +522,8 @@ function BookingPageContent({ className }: { className?: string }) {
                           currency: selectedCurrency as any
                         },
                         status: 'pending',
-                        appliedCouponCode: appliedCoupon?.code || null
+                        appliedCouponCode: appliedCoupon?.code || null,
+                        language: currentLang as 'en' | 'ro'
                       });
 
                       if (bookingResult.error || !bookingResult.bookingId) {

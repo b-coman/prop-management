@@ -4,7 +4,8 @@
 import { z } from "zod";
 import { collection, addDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Booking, Property } from "@/types"; // Assuming Property type includes holdFeeAmount
+import type { Booking, Property, LanguageCode } from "@/types";
+import { SUPPORTED_LANGUAGES } from "@/types";
 import { sanitizeEmail, sanitizePhone, sanitizeText } from "@/lib/sanitize";
 import { revalidatePath } from "next/cache";
 import { addHours, differenceInDays } from 'date-fns'; // For calculating hold expiry
@@ -25,6 +26,7 @@ const CreateHoldBookingSchema = z.object({
   holdDurationHours: z.number().int().positive().optional(), // Hold duration in hours (default 24)
   holdFeeRefundable: z.boolean().optional(), // Whether hold fee is refundable (default true)
   selectedCurrency: z.string().optional(), // User's selected currency from header dropdown
+  language: z.enum(SUPPORTED_LANGUAGES).optional().default('en'), // User's language preference for emails
 }).refine(data => new Date(data.checkOutDate) > new Date(data.checkInDate), {
   message: "Check-out date must be after check-in date.",
   path: ["checkOutDate"],
@@ -54,6 +56,7 @@ export async function createHoldBookingAction(
     holdDurationHours = 24, // Default to 24 hours
     holdFeeRefundable = true, // Default to refundable
     selectedCurrency,
+    language,
   } = validationResult.data;
 
   try {
@@ -106,6 +109,7 @@ export async function createHoldBookingAction(
       convertedFromInquiry: null,
       holdFeeRefundable: holdFeeRefundable, // Store whether the hold fee is refundable
       holdDurationHours: holdDurationHours, // Store the hold duration for reference
+      language: language, // User's language preference for emails
     };
     
     console.log("[Action createHoldBookingAction] Prepared Firestore Data:", bookingData);

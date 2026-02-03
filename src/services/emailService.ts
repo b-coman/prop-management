@@ -3,7 +3,7 @@
 import nodemailer from 'nodemailer';
 import { Resend } from 'resend';
 import { format } from 'date-fns';
-import type { Booking, Property, Inquiry } from '@/types';
+import type { Booking, Property, Inquiry, LanguageCode } from '@/types';
 import { getPropertyBySlug } from '@/lib/property-utils';
 import {
   createBookingConfirmationTemplate,
@@ -194,7 +194,10 @@ export async function sendBookingConfirmationEmail(
     const property = await getPropertyBySlug(booking.propertyId);
     const propertyName = getPropertyName(property, booking.propertyId);
 
-    const { text, html } = createBookingConfirmationTemplate({
+    // Use stored language preference, default to 'en'
+    const language: LanguageCode = booking.language || 'en';
+
+    const { text, html, subject } = createBookingConfirmationTemplate({
       guestName: `${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''}`.trim(),
       bookingId: booking.id,
       propertyName,
@@ -214,12 +217,12 @@ export async function sendBookingConfirmationEmail(
       hostName: (property as any)?.hostInfo?.name,
       hostPhone: (property as any)?.hostInfo?.phone,
       specialRequests: (booking as any).specialRequests
-    });
+    }, language);
 
-    const subject = `Booking Confirmation | Confirmare Rezervare - ${propertyName}`;
-    console.log(`[EmailService] Sending booking confirmation to ${email}`);
+    const emailSubject = `${subject} - ${propertyName}`;
+    console.log(`[EmailService] Sending booking confirmation (${language}) to ${email}`);
 
-    return sendEmail(email, subject, text, html);
+    return sendEmail(email, emailSubject, text, html);
   } catch (error) {
     console.error('[EmailService] Error sending booking confirmation:', error);
     return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -249,7 +252,10 @@ export async function sendHoldConfirmationEmail(
     const property = await getPropertyBySlug(booking.propertyId);
     const propertyName = getPropertyName(property, booking.propertyId);
 
-    const { text, html } = createHoldConfirmationTemplate({
+    // Use stored language preference, default to 'en'
+    const language: LanguageCode = booking.language || 'en';
+
+    const { text, html, subject } = createHoldConfirmationTemplate({
       guestName: `${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''}`.trim(),
       holdId: booking.id,
       propertyName,
@@ -258,13 +264,14 @@ export async function sendHoldConfirmationEmail(
       numberOfGuests: booking.numberOfGuests,
       expirationTime: booking.holdUntil ? formatDate(booking.holdUntil) : 'N/A',
       estimatedTotal: formatCurrency(booking.holdFee || 0, booking.pricing?.currency || 'EUR'),
-      currency: booking.pricing?.currency || 'EUR'
-    });
+      currency: booking.pricing?.currency || 'EUR',
+      completeBookingUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/booking/check/${booking.propertyId}`
+    }, language);
 
-    const subject = `Hold Confirmation | Confirmare Rezervare Temporară - ${propertyName}`;
-    console.log(`[EmailService] Sending hold confirmation to ${email}`);
+    const emailSubject = `${subject} - ${propertyName}`;
+    console.log(`[EmailService] Sending hold confirmation (${language}) to ${email}`);
 
-    return sendEmail(email, subject, text, html);
+    return sendEmail(email, emailSubject, text, html);
   } catch (error) {
     console.error('[EmailService] Error sending hold confirmation:', error);
     return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -383,17 +390,20 @@ export async function sendInquiryConfirmationEmail(
     const property = await getPropertyBySlug(inquiry.propertySlug);
     const propertyName = getPropertyName(property, inquiry.propertySlug);
 
-    const { text, html } = createInquiryConfirmationTemplate({
+    // Use stored language preference, default to 'en'
+    const language: LanguageCode = inquiry.language || 'en';
+
+    const { text, html, subject } = createInquiryConfirmationTemplate({
       guestName: `${inquiry.guestInfo.firstName} ${inquiry.guestInfo.lastName || ''}`.trim(),
       inquiryId: inquiry.id,
       propertyName,
       message: inquiry.message
-    });
+    }, language);
 
-    const subject = `Inquiry Confirmation | Confirmare Solicitare - ${propertyName}`;
-    console.log(`[EmailService] Sending inquiry confirmation to ${recipientEmail}`);
+    const emailSubject = `${subject} - ${propertyName}`;
+    console.log(`[EmailService] Sending inquiry confirmation (${language}) to ${recipientEmail}`);
 
-    return sendEmail(recipientEmail, subject, text, html);
+    return sendEmail(recipientEmail, emailSubject, text, html);
   } catch (error) {
     console.error('[EmailService] Error sending inquiry confirmation:', error);
     return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -502,19 +512,22 @@ export async function sendInquiryResponseEmail(
     const property = await getPropertyBySlug(inquiry.propertySlug);
     const propertyName = getPropertyName(property, inquiry.propertySlug);
 
-    const { text, html } = createInquiryResponseTemplate({
+    // Use stored language preference, default to 'en'
+    const language: LanguageCode = inquiry.language || 'en';
+
+    const { text, html, subject } = createInquiryResponseTemplate({
       guestName: `${inquiry.guestInfo.firstName} ${inquiry.guestInfo.lastName || ''}`.trim(),
       inquiryId: inquiry.id,
       propertyName,
       message: inquiry.message,
       responseMessage,
       hostName: (property as any)?.hostInfo?.name
-    });
+    }, language);
 
-    const subject = `Response to Your Inquiry | Răspuns la Solicitarea Dvs. - ${propertyName}`;
-    console.log(`[EmailService] Sending inquiry response to ${recipientEmail}`);
+    const emailSubject = `${subject} - ${propertyName}`;
+    console.log(`[EmailService] Sending inquiry response (${language}) to ${recipientEmail}`);
 
-    return sendEmail(recipientEmail, subject, text, html);
+    return sendEmail(recipientEmail, emailSubject, text, html);
   } catch (error) {
     console.error('[EmailService] Error sending inquiry response:', error);
     return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -544,7 +557,10 @@ export async function sendBookingCancellationEmail(
     const property = await getPropertyBySlug(booking.propertyId);
     const propertyName = getPropertyName(property, booking.propertyId);
 
-    const { text, html } = createBookingCancellationTemplate({
+    // Use stored language preference, default to 'en'
+    const language: LanguageCode = booking.language || 'en';
+
+    const { text, html, subject } = createBookingCancellationTemplate({
       guestName: `${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''}`.trim(),
       bookingId: booking.id,
       propertyName,
@@ -559,12 +575,12 @@ export async function sendBookingCancellationEmail(
       extraGuestFee: booking.pricing.extraGuestFee ? formatCurrency(booking.pricing.extraGuestFee, booking.pricing.currency) : undefined,
       totalAmount: formatCurrency(booking.pricing.total, booking.pricing.currency),
       currency: booking.pricing.currency
-    });
+    }, language);
 
-    const subject = `Booking Cancellation | Anulare Rezervare - ${propertyName}`;
-    console.log(`[EmailService] Sending booking cancellation to ${email}`);
+    const emailSubject = `${subject} - ${propertyName}`;
+    console.log(`[EmailService] Sending booking cancellation (${language}) to ${email}`);
 
-    return sendEmail(email, subject, text, html);
+    return sendEmail(email, emailSubject, text, html);
   } catch (error) {
     console.error('[EmailService] Error sending booking cancellation:', error);
     return { success: false, error: error instanceof Error ? error.message : String(error) };

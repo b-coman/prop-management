@@ -143,6 +143,10 @@ export interface PaymentInfo {
   paidAt?: SerializableTimestamp | null;
 }
 
+// Supported languages for user preferences
+export const SUPPORTED_LANGUAGES = ['en', 'ro'] as const;
+export type LanguageCode = typeof SUPPORTED_LANGUAGES[number];
+
 export interface Booking {
   id: string; // Document ID from Firestore
   propertyId: string; // Slug of the property
@@ -157,6 +161,7 @@ export interface Booking {
   source?: string; // e.g., 'website', 'airbnb', 'booking.com', 'test-button'
   externalId?: string; // ID from external platform if applicable
   appliedCouponCode?: string | null; // Store the applied coupon code
+  language?: LanguageCode; // User's preferred language at time of booking (for emails)
   // New fields for holds
   holdFee?: number; // Amount paid for the hold
   holdUntil?: SerializableTimestamp | null; // Timestamp when the hold expires
@@ -181,6 +186,7 @@ export interface Inquiry {
   };
   message: string;
   status: "new" | "responded" | "converted" | "closed";
+  language?: LanguageCode; // User's preferred language at time of inquiry (for emails)
   createdAt: SerializableTimestamp;
   updatedAt: SerializableTimestamp;
   responses?: Array<{ // Array of response messages

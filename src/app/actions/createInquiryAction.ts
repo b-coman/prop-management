@@ -4,8 +4,8 @@
 import { z } from "zod";
 import { collection, addDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Inquiry, CurrencyCode } from "@/types"; // Added CurrencyCode
-import { SUPPORTED_CURRENCIES } from "@/types"; // Import SUPPORTED_CURRENCIES
+import type { Inquiry, CurrencyCode, LanguageCode } from "@/types";
+import { SUPPORTED_CURRENCIES, SUPPORTED_LANGUAGES } from "@/types";
 import { sanitizeEmail, sanitizePhone, sanitizeText } from "@/lib/sanitize";
 import { revalidatePath } from "next/cache";
 // Import email service functions
@@ -26,6 +26,7 @@ const CreateInquirySchema = z.object({
   message: z.string().min(10, "Message must be at least 10 characters.").max(1000, "Message cannot exceed 1000 characters.").transform(sanitizeText),
   totalPrice: z.number().nonnegative("Total price must be a non-negative number.").optional(),
   currency: z.enum(SUPPORTED_CURRENCIES).optional(),
+  language: z.enum(SUPPORTED_LANGUAGES).optional().default('en'), // User's language preference for emails
 }).refine(data => new Date(data.checkOutDate) > new Date(data.checkInDate), {
   message: "Check-out date must be after check-in date.",
   path: ["checkOutDate"],
@@ -54,6 +55,7 @@ export async function createInquiryAction(
     message,
     totalPrice,
     currency,
+    language,
   } = validationResult.data;
 
   try {
@@ -74,6 +76,7 @@ export async function createInquiryAction(
       responses: [], // Initialize with empty responses array
       totalPrice: totalPrice, // Add totalPrice
       currency: currency, // Add currency
+      language: language, // User's language preference for emails
     };
     console.log("[Action createInquiryAction] Prepared Firestore Data:", inquiryData);
 
