@@ -148,10 +148,10 @@ describe('Email Templates', () => {
     it('should generate Romanian hold confirmation', () => {
       const result = createHoldConfirmationTemplate(sampleHoldData, 'ro');
 
-      expect(result.subject).toBe('Confirmare Rezervare Temporară');
-      expect(result.html).toContain('Confirmare Rezervare Temporară');
+      expect(result.subject).toBe('Confirmare Blocare Temporară');
+      expect(result.html).toContain('Confirmare Blocare Temporară');
       expect(result.html).toContain('Dragă Jane Smith');
-      expect(result.html).toContain('Rezervarea dvs. temporară a fost creată');
+      expect(result.html).toContain('Blocarea dvs. temporară a fost creată');
     });
 
     it('should include expiration warning', () => {

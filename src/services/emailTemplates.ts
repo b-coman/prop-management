@@ -113,13 +113,13 @@ const emailTranslations = {
     specialRequests: 'Cereri Speciale',
 
     // Hold confirmation
-    holdConfirmation: 'Confirmare Rezervare Temporară',
-    holdCreatedMessage: 'Rezervarea dvs. temporară a fost creată! Vă rugăm să finalizați rezervarea înainte de expirare.',
-    holdDetails: 'Detalii Rezervare Temporară',
+    holdConfirmation: 'Confirmare Blocare Temporară',
+    holdCreatedMessage: 'Blocarea dvs. temporară a fost creată! Vă rugăm să finalizați rezervarea înainte de expirare.',
+    holdDetails: 'Detalii Blocare Temporară',
     holdId: 'ID',
     expires: 'Expiră',
     estimatedTotal: 'Total Estimat',
-    holdExpirationWarning: 'IMPORTANT: Această rezervare temporară va expira la {time}. Vă rugăm să finalizați rezervarea înainte de această oră.',
+    holdExpirationWarning: 'IMPORTANT: Această blocare temporară va expira la {time}. Vă rugăm să finalizați rezervarea înainte de această oră.',
     completeBooking: 'Finalizează Rezervarea',
 
     // Inquiry confirmation
