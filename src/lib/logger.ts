@@ -349,7 +349,10 @@ export const loggers = {
   email: createLogger('email'),
   performance: createLogger('performance'),
   error: createLogger('error'),
-  languageSystem: createLogger('language:system')
+  languageSystem: createLogger('language:system'),
+  admin: createLogger('admin'),
+  adminBookings: createLogger('admin:bookings'),
+  adminPricing: createLogger('admin:pricing')
 };
 
 // Type-safe logger categories
