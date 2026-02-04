@@ -206,16 +206,15 @@ export interface User {
   email: string | null;
   displayName?: string | null;
   photoURL?: string | null;
-  role?: 'guest' | 'owner' | 'admin';
-  // Add other user-specific fields as needed
+  // Admin role types
+  role?: 'super_admin' | 'property_owner';
+  // Property slugs this user can manage (for property_owner role)
+  managedProperties?: string[];
+  // True if user was auto-created from SUPER_ADMIN_EMAILS env var
+  autoProvisioned?: boolean;
   firstName?: string;
   lastName?: string;
   phone?: string;
-  // propertiesOwned?: string[]; // Array of property slugs if role is 'owner'
-  // settings?: {
-  //   emailNotifications?: boolean;
-  //   smsNotifications?: boolean;
-  // };
   createdAt?: SerializableTimestamp;
   updatedAt?: SerializableTimestamp;
   lastLogin?: SerializableTimestamp;

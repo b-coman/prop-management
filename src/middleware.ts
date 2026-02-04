@@ -191,30 +191,102 @@ function handleLanguageRouting(request: NextRequest, preferredLang: string): Nex
 }
 
 /**
- * Handle admin routes with authentication check
+ * Check if email is a super admin (edge-compatible - reads env var directly)
+ */
+function isEnvSuperAdmin(email: string): boolean {
+  const superAdminEmails = process.env.SUPER_ADMIN_EMAILS
+    ?.split(',')
+    .map(e => e.trim().toLowerCase())
+    .filter(e => e.length > 0) || [];
+  return superAdminEmails.includes(email.toLowerCase());
+}
+
+/**
+ * Parse session cookie to extract user info (edge-compatible)
+ */
+function parseSessionCookie(cookieValue: string): { uid: string; email: string } | null {
+  try {
+    // Try to parse as base64 simple session
+    const sessionData = JSON.parse(
+      Buffer.from(cookieValue, 'base64').toString()
+    );
+
+    // Check if session is expired (7 days)
+    const isExpired = Date.now() - sessionData.timestamp > (60 * 60 * 24 * 7 * 1000);
+    if (isExpired) return null;
+
+    return {
+      uid: sessionData.uid,
+      email: sessionData.email
+    };
+  } catch {
+    // Not a simple session - could be Firebase session cookie
+    // We can't verify Firebase cookies in edge runtime
+    return null;
+  }
+}
+
+/**
+ * Handle admin routes with authentication and authorization check
  */
 async function handleAdminRoute(request: NextRequest) {
-  // Import Edge-compatible auth helpers
   const { checkAuth, createLoginRedirect, createUnauthorizedRedirect } = await import('./lib/simple-auth-edge');
 
-  // Check authentication
+  // First, check basic authentication
   const authResult = await checkAuth(request);
-
-  // If not authenticated, redirect to login
   if (!authResult.authenticated) {
     return createLoginRedirect(request);
   }
 
-  try {
-    // User is authenticated, check for admin-specific permissions
-    // Note: In a real production app, you would call an edge function to check if
-    // the user has admin privileges. Since this is using Edge middleware,
-    // we're keeping it simple.
+  // Try to get user email from session
+  const sessionCookie = request.cookies.get('auth-session');
+  if (!sessionCookie?.value) {
+    return createLoginRedirect(request);
+  }
 
-    // For now, all authenticated users are allowed to access admin routes
+  const sessionUser = parseSessionCookie(sessionCookie.value);
+
+  // Fast path: If user is in SUPER_ADMIN_EMAILS, allow access immediately
+  // This avoids an API call for super admins
+  if (sessionUser?.email && isEnvSuperAdmin(sessionUser.email)) {
     return NextResponse.next();
+  }
+
+  // For other users, we need to check the database via API
+  // Call the check-admin API endpoint (runs in Node.js runtime)
+  try {
+    const baseUrl = request.nextUrl.origin;
+    const checkAdminUrl = new URL('/api/auth/check-admin', baseUrl);
+
+    // Forward the session cookie
+    const response = await fetch(checkAdminUrl, {
+      method: 'GET',
+      headers: {
+        'Cookie': `auth-session=${sessionCookie.value}`,
+      },
+    });
+
+    if (!response.ok) {
+      console.error('[Middleware] check-admin API returned error:', response.status);
+      return createUnauthorizedRedirect(request);
+    }
+
+    const data = await response.json();
+
+    if (!data.authorized) {
+      console.warn('[Middleware] User not authorized:', data.error);
+      return createUnauthorizedRedirect(request);
+    }
+
+    // User is authorized - allow access
+    return NextResponse.next();
+
   } catch (error) {
-    // Redirect to login on any error
-    return createUnauthorizedRedirect(request);
+    console.error('[Middleware] Error checking admin status:', error);
+
+    // Graceful fallback: allow access but server actions will do final check
+    // This prevents middleware failures from blocking all admin access
+    console.warn('[Middleware] Falling back to server-side auth check');
+    return NextResponse.next();
   }
 }

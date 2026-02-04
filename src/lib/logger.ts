@@ -352,7 +352,8 @@ export const loggers = {
   languageSystem: createLogger('language:system'),
   admin: createLogger('admin'),
   adminBookings: createLogger('admin:bookings'),
-  adminPricing: createLogger('admin:pricing')
+  adminPricing: createLogger('admin:pricing'),
+  authorization: createLogger('authorization'),
 };
 
 // Type-safe logger categories

@@ -5,10 +5,17 @@ import { z } from "zod";
 import { collection, doc, getDoc, getDocs, orderBy, query, Timestamp, updateDoc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Booking, SerializableTimestamp } from "@/types";
-import { updatePropertyAvailability, triggerExternalSyncForDateUpdate } from '@/services/bookingService'; // Assuming these exist and handle availability/sync
+import { updatePropertyAvailability, triggerExternalSyncForDateUpdate } from '@/services/bookingService';
 import { revalidatePath } from "next/cache";
 import { addHours, parseISO, isValid } from 'date-fns';
 import { loggers } from '@/lib/logger';
+import {
+  requireAdmin,
+  requirePropertyAccess,
+  filterBookingsForUser,
+  handleAuthError,
+  AuthorizationError
+} from '@/lib/authorization';
 
 const logger = loggers.adminBookings;
 
@@ -36,14 +43,19 @@ const toDate = (timestamp: SerializableTimestamp | undefined | null): Date | nul
 
 /**
  * Fetches all bookings from the Firestore collection, ordered by creation date.
+ * Filters results based on user's property access.
  * @returns A promise that resolves to an array of Booking objects with serialized dates.
  */
 export async function fetchBookings(): Promise<Booking[]> {
-  logger.debug('Fetching all bookings');
-  const bookings: Booking[] = [];
+  logger.debug('Fetching bookings');
+
   try {
+    // Check authorization first
+    const user = await requireAdmin();
+
+    const bookings: Booking[] = [];
     const bookingsCollection = collection(db, 'bookings');
-    const q = query(bookingsCollection, orderBy("createdAt", "desc")); // Order by creation date
+    const q = query(bookingsCollection, orderBy("createdAt", "desc"));
     const querySnapshot = await getDocs(q);
 
     querySnapshot.forEach((docSnap) => {
@@ -63,11 +75,18 @@ export async function fetchBookings(): Promise<Booking[]> {
         updatedAt: serializeTimestamp(data.updatedAt),
       } as Booking);
     });
-    logger.info('Bookings fetched', { count: bookings.length });
-    return bookings;
+
+    // Filter bookings based on user access
+    const filteredBookings = filterBookingsForUser(bookings, user);
+    logger.info('Bookings fetched', { count: filteredBookings.length, total: bookings.length, role: user.role });
+    return filteredBookings;
   } catch (error) {
+    if (error instanceof AuthorizationError) {
+      logger.warn('Authorization failed for fetchBookings', { error: error.message });
+      return [];
+    }
     logger.error('Error fetching bookings', error as Error);
-    return []; // Return empty array on error
+    return [];
   }
 }
 
@@ -89,16 +108,23 @@ export async function extendBookingHoldAction(
     }
 
     const { bookingId, hoursToAdd } = validation.data;
-    logger.info('Extending hold', { bookingId, hoursToAdd });
 
     try {
+        // Fetch booking first to check property access
         const bookingRef = doc(db, 'bookings', bookingId);
         const bookingSnap = await getDoc(bookingRef);
 
         if (!bookingSnap.exists()) {
             return { success: false, error: "Booking not found." };
         }
+
         const bookingData = bookingSnap.data() as Booking;
+
+        // Check authorization for this property
+        await requirePropertyAccess(bookingData.propertyId);
+
+        logger.info('Extending hold', { bookingId, hoursToAdd });
+
         if (bookingData.status !== 'on-hold') {
              return { success: false, error: "Booking is not currently on hold." };
         }
@@ -122,8 +148,11 @@ export async function extendBookingHoldAction(
         return { success: true, newHoldUntil: newHoldUntil.toISOString() };
 
     } catch (error) {
-         logger.error('Error extending hold', error as Error, { bookingId });
-         return { success: false, error: `Failed to extend hold: ${error instanceof Error ? error.message : 'Unknown error'}` };
+        if (error instanceof AuthorizationError) {
+            return handleAuthError(error);
+        }
+        logger.error('Error extending hold', error as Error, { bookingId });
+        return { success: false, error: `Failed to extend hold: ${error instanceof Error ? error.message : 'Unknown error'}` };
     }
 }
 
@@ -142,15 +171,21 @@ export async function cancelBookingHoldAction(
     if (!validation.success) return { success: false, error: "Invalid input." };
 
     const { bookingId } = validation.data;
-    logger.info('Cancelling hold', { bookingId });
 
     try {
+        // Fetch booking first to check property access
         const bookingRef = doc(db, 'bookings', bookingId);
         const bookingSnap = await getDoc(bookingRef);
 
         if (!bookingSnap.exists()) return { success: false, error: "Booking not found." };
 
         const bookingData = bookingSnap.data() as Booking;
+
+        // Check authorization for this property
+        await requirePropertyAccess(bookingData.propertyId);
+
+        logger.info('Cancelling hold', { bookingId });
+
         if (bookingData.status !== 'on-hold') return { success: false, error: "Booking is not on hold." };
 
         const checkInDate = toDate(bookingData.checkInDate);
@@ -192,8 +227,11 @@ export async function cancelBookingHoldAction(
         return { success: true };
 
     } catch (error) {
-         logger.error('Error cancelling hold', error as Error, { bookingId });
-         return { success: false, error: `Failed to cancel hold: ${error instanceof Error ? error.message : 'Unknown error'}` };
+        if (error instanceof AuthorizationError) {
+            return handleAuthError(error);
+        }
+        logger.error('Error cancelling hold', error as Error, { bookingId });
+        return { success: false, error: `Failed to cancel hold: ${error instanceof Error ? error.message : 'Unknown error'}` };
     }
 }
 
@@ -212,47 +250,56 @@ export async function convertHoldToBookingAction(
     if (!validation.success) return { success: false, error: "Invalid input." };
 
     const { bookingId } = validation.data;
-    logger.info('Converting hold to confirmed booking', { bookingId });
 
     try {
-         const bookingRef = doc(db, 'bookings', bookingId);
-         const bookingSnap = await getDoc(bookingRef);
+        // Fetch booking first to check property access
+        const bookingRef = doc(db, 'bookings', bookingId);
+        const bookingSnap = await getDoc(bookingRef);
 
-         if (!bookingSnap.exists()) return { success: false, error: "Booking not found." };
+        if (!bookingSnap.exists()) return { success: false, error: "Booking not found." };
 
-         const bookingData = bookingSnap.data() as Booking;
-         if (bookingData.status !== 'on-hold') return { success: false, error: "Booking is not on hold." };
+        const bookingData = bookingSnap.data() as Booking;
 
-         // Update status to confirmed
-         await updateDoc(bookingRef, {
-             status: 'confirmed',
-             convertedFromHold: true, // Mark as converted
-             updatedAt: serverTimestamp(),
-             notes: `${bookingData.notes || ''}\nHold converted to confirmed booking by admin on ${new Date().toISOString()}. Payment assumed handled.`.trim(),
-         });
+        // Check authorization for this property
+        await requirePropertyAccess(bookingData.propertyId);
 
-         logger.info('Hold converted to confirmed', { bookingId });
-         revalidatePath('/admin/bookings');
+        logger.info('Converting hold to confirmed booking', { bookingId });
 
-         // Ensure availability remains blocked (it should already be blocked from the hold)
-         // No availability update needed here, just ensure sync if necessary
-         const checkInDate = toDate(bookingData.checkInDate);
-         const checkOutDate = toDate(bookingData.checkOutDate);
-         const propertyId = bookingData.propertyId;
+        if (bookingData.status !== 'on-hold') return { success: false, error: "Booking is not on hold." };
 
-          if (checkInDate && checkOutDate && propertyId && isValid(checkInDate) && isValid(checkOutDate)) {
+        // Update status to confirmed
+        await updateDoc(bookingRef, {
+            status: 'confirmed',
+            convertedFromHold: true, // Mark as converted
+            updatedAt: serverTimestamp(),
+            notes: `${bookingData.notes || ''}\nHold converted to confirmed booking by admin on ${new Date().toISOString()}. Payment assumed handled.`.trim(),
+        });
+
+        logger.info('Hold converted to confirmed', { bookingId });
+        revalidatePath('/admin/bookings');
+
+        // Ensure availability remains blocked (it should already be blocked from the hold)
+        // No availability update needed here, just ensure sync if necessary
+        const checkInDate = toDate(bookingData.checkInDate);
+        const checkOutDate = toDate(bookingData.checkOutDate);
+        const propertyId = bookingData.propertyId;
+
+        if (checkInDate && checkOutDate && propertyId && isValid(checkInDate) && isValid(checkOutDate)) {
             try {
                 logger.debug('Triggering external sync for confirmed booking', { bookingId });
                 await triggerExternalSyncForDateUpdate(propertyId, checkInDate, checkOutDate, false); // Ensure blocked
             } catch (syncError) {
                  logger.error('Failed to sync externally', syncError as Error, { bookingId });
             }
-          }
+        }
 
-         return { success: true };
+        return { success: true };
 
     } catch (error) {
-         logger.error('Error converting hold', error as Error, { bookingId });
-         return { success: false, error: `Failed to convert hold: ${error instanceof Error ? error.message : 'Unknown error'}` };
+        if (error instanceof AuthorizationError) {
+            return handleAuthError(error);
+        }
+        logger.error('Error converting hold', error as Error, { bookingId });
+        return { success: false, error: `Failed to convert hold: ${error instanceof Error ? error.message : 'Unknown error'}` };
     }
 }

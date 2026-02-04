@@ -6,8 +6,9 @@ import { collection, addDoc, serverTimestamp, Timestamp } from "firebase/firesto
 import { db } from "@/lib/firebase";
 import type { Coupon } from "@/types";
 import { revalidatePath } from "next/cache";
-import { sanitizeText } from "@/lib/sanitize"; // Import sanitizer
+import { sanitizeText } from "@/lib/sanitize";
 import { loggers } from '@/lib/logger';
+import { requireSuperAdmin, handleAuthError, AuthorizationError } from '@/lib/authorization';
 
 const logger = loggers.admin;
 
@@ -52,6 +53,16 @@ const createCouponSchema = z.object({
 export async function createCouponAction(
   values: z.infer<typeof createCouponSchema>
 ): Promise<{ id?: string; code?: string; error?: string }> {
+  try {
+    // Only super admins can create coupons
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      return handleAuthError(error) as { error: string };
+    }
+    throw error;
+  }
+
   const validatedFields = createCouponSchema.safeParse(values);
 
   if (!validatedFields.success) {

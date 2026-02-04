@@ -8,6 +8,7 @@ import type { Coupon, SerializableTimestamp } from "@/types";
 import { revalidatePath } from "next/cache";
 import { sanitizeText } from "@/lib/sanitize";
 import { loggers } from '@/lib/logger';
+import { requireSuperAdmin, handleAuthError, AuthorizationError } from '@/lib/authorization';
 
 const logger = loggers.admin;
 
@@ -78,8 +79,15 @@ const serializeTimestamp = (timestamp: SerializableTimestamp | undefined | null)
 };
 
 
+/**
+ * Fetch all coupons
+ * Only super admins can access coupons (global resource)
+ */
 export async function fetchCoupons(): Promise<Coupon[]> {
   try {
+    // Only super admins can manage coupons
+    await requireSuperAdmin();
+
     const couponsCollection = collection(db, 'coupons');
     const querySnapshot = await getDocs(couponsCollection);
     const coupons = querySnapshot.docs.map((doc) => {
@@ -97,18 +105,31 @@ export async function fetchCoupons(): Promise<Coupon[]> {
         })) || null,
         createdAt: serializeTimestamp(data.createdAt),
         updatedAt: serializeTimestamp(data.updatedAt),
-      } as Coupon; // Cast to Coupon to ensure type compatibility
+      } as Coupon;
     });
     return coupons;
   } catch (error) {
+    if (error instanceof AuthorizationError) {
+      logger.warn('Authorization failed for fetchCoupons');
+      return [];
+    }
     logger.error('Error fetching coupons', error as Error);
-    return []; // Return empty array on error
+    return [];
   }
 }
 
 export async function updateCouponStatusAction(
   values: z.infer<typeof updateCouponStatusSchema>
 ): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      return handleAuthError(error);
+    }
+    throw error;
+  }
+
   const validatedFields = updateCouponStatusSchema.safeParse(values);
 
   if (!validatedFields.success) {
@@ -134,6 +155,15 @@ export async function updateCouponStatusAction(
 export async function updateCouponExpiryAction(
   values: z.infer<typeof updateCouponExpirySchema>
 ): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      return handleAuthError(error);
+    }
+    throw error;
+  }
+
   const validatedFields = updateCouponExpirySchema.safeParse(values);
 
   if (!validatedFields.success) {
@@ -146,7 +176,7 @@ export async function updateCouponExpiryAction(
   try {
     const couponRef = doc(db, 'coupons', couponId);
     await updateDoc(couponRef, {
-      validUntil: Timestamp.fromDate(validUntil), // Convert Date to Firestore Timestamp
+      validUntil: Timestamp.fromDate(validUntil),
       updatedAt: serverTimestamp(),
     });
     revalidatePath('/admin/coupons');
@@ -161,6 +191,15 @@ export async function updateCouponExpiryAction(
 export async function updateCouponBookingValidityAction(
   values: z.infer<typeof updateCouponBookingValiditySchema>
 ): Promise<{ success: boolean; error?: string }> {
+    try {
+      await requireSuperAdmin();
+    } catch (error) {
+      if (error instanceof AuthorizationError) {
+        return handleAuthError(error);
+      }
+      throw error;
+    }
+
     const validatedFields = updateCouponBookingValiditySchema.safeParse(values);
 
     if (!validatedFields.success) {
@@ -188,6 +227,15 @@ export async function updateCouponBookingValidityAction(
 export async function updateCouponExclusionsAction(
   values: z.infer<typeof updateCouponExclusionsSchema>
 ): Promise<{ success: boolean; error?: string }> {
+    try {
+      await requireSuperAdmin();
+    } catch (error) {
+      if (error instanceof AuthorizationError) {
+        return handleAuthError(error);
+      }
+      throw error;
+    }
+
     const validatedFields = updateCouponExclusionsSchema.safeParse(values);
 
     if (!validatedFields.success) {

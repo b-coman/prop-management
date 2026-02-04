@@ -1,15 +1,19 @@
 /**
  * @fileoverview Simple session management API
  * @module api/auth/simple-session
- * 
+ *
  * @description
  * Simple, reliable session management for admin authentication.
  * Works in both development and production environments.
+ * Integrates with authorization service for auto-provisioning.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { loggers } from '@/lib/logger';
+import { isEnvSuperAdmin, updateLastLogin } from '@/lib/authorization';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 const logger = loggers.auth;
 
@@ -24,14 +28,51 @@ interface SessionData {
 }
 
 /**
+ * Auto-provision or update user on login
+ * - If user exists: update lastLogin
+ * - If user doesn't exist but is in SUPER_ADMIN_EMAILS: create as super_admin
+ * - If user doesn't exist and not in SUPER_ADMIN_EMAILS: do nothing (no admin access)
+ */
+async function handleUserProvisioning(uid: string, email: string): Promise<void> {
+  try {
+    const userRef = doc(db, 'users', uid);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+      // User exists - just update lastLogin
+      await updateLastLogin(uid);
+      logger.debug('Updated lastLogin for existing user', { uid, email });
+    } else if (isEnvSuperAdmin(email)) {
+      // User doesn't exist but is in SUPER_ADMIN_EMAILS - auto-provision as super_admin
+      await setDoc(userRef, {
+        email,
+        role: 'super_admin',
+        managedProperties: [],
+        autoProvisioned: true,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        lastLogin: serverTimestamp(),
+      });
+      logger.info('Auto-provisioned super admin user', { uid, email });
+    } else {
+      // User doesn't exist and is not a super admin - they won't have admin access
+      logger.debug('User not in SUPER_ADMIN_EMAILS, not auto-provisioning', { email });
+    }
+  } catch (error) {
+    // Log but don't fail the login - provisioning is best-effort
+    logger.error('Error in user provisioning', error as Error, { uid, email });
+  }
+}
+
+/**
  * Create session cookie
  */
 export async function POST(request: NextRequest) {
   logger.debug('Creating session');
-  
+
   try {
     const { idToken } = await request.json();
-    
+
     if (!idToken) {
       return NextResponse.json(
         { error: 'ID token required' },
@@ -42,7 +83,7 @@ export async function POST(request: NextRequest) {
     // In development, create simple session without Firebase Admin
     if (process.env.NODE_ENV === 'development') {
       logger.debug('Development mode - creating simple session');
-      
+
       // For development, extract basic info from token (unsafe but fine for dev)
       // In production, this would verify with Firebase Admin
       const sessionData: SessionData = {
@@ -51,9 +92,9 @@ export async function POST(request: NextRequest) {
         timestamp: Date.now(),
         environment: 'development'
       };
-      
+
       const sessionToken = Buffer.from(JSON.stringify(sessionData)).toString('base64');
-      
+
       // Set session cookie
       const cookieStore = await cookies();
       cookieStore.set('auth-session', sessionToken, {
@@ -63,6 +104,9 @@ export async function POST(request: NextRequest) {
         maxAge: 60 * 60 * 24 * 7, // 7 days
         path: '/'
       });
+
+      // Auto-provision user if needed
+      await handleUserProvisioning(sessionData.uid, sessionData.email);
 
       return NextResponse.json({
         success: true,
@@ -78,9 +122,9 @@ export async function POST(request: NextRequest) {
     try {
       // Import Firebase Admin only in production
       const { verifyIdToken, createSessionCookie } = await import('@/lib/firebaseAdminNode');
-      
+
       logger.debug('Production mode - verifying with Firebase Admin');
-      
+
       const decodedToken = await verifyIdToken(idToken);
       if (!decodedToken) {
         return NextResponse.json(
@@ -89,24 +133,27 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Auto-provision user if needed (do this early so user has access immediately)
+      await handleUserProvisioning(decodedToken.uid, decodedToken.email || '');
+
       // Create Firebase session cookie
-      const sessionCookie = await createSessionCookie(idToken, { 
+      const sessionCookie = await createSessionCookie(idToken, {
         expiresIn: 60 * 60 * 24 * 7 * 1000 // 7 days
       });
 
       if (!sessionCookie) {
         // Fallback to simple session in production if Firebase Admin fails
         logger.warn('Firebase Admin failed, using fallback session');
-        
+
         const sessionData: SessionData = {
           uid: decodedToken.uid,
           email: decodedToken.email || 'unknown@example.com',
           timestamp: Date.now(),
           environment: 'production-fallback'
         };
-        
+
         const sessionToken = Buffer.from(JSON.stringify(sessionData)).toString('base64');
-        
+
         const cookieStore = await cookies();
         cookieStore.set('auth-session', sessionToken, {
           httpOnly: true,
@@ -147,7 +194,7 @@ export async function POST(request: NextRequest) {
 
     } catch (adminError) {
       logger.error('Firebase Admin error', adminError as Error);
-      
+
       // Fallback to development-style session
       const sessionData: SessionData = {
         uid: 'fallback-user-' + Date.now(),
@@ -155,9 +202,9 @@ export async function POST(request: NextRequest) {
         timestamp: Date.now(),
         environment: 'production-fallback'
       };
-      
+
       const sessionToken = Buffer.from(JSON.stringify(sessionData)).toString('base64');
-      
+
       const cookieStore = await cookies();
       cookieStore.set('auth-session', sessionToken, {
         httpOnly: true,
@@ -192,7 +239,7 @@ export async function POST(request: NextRequest) {
  */
 export async function GET() {
   logger.debug('Checking session');
-  
+
   try {
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get('auth-session');
@@ -212,7 +259,7 @@ export async function GET() {
 
       // Check if session is expired (7 days)
       const isExpired = Date.now() - sessionData.timestamp > (60 * 60 * 24 * 7 * 1000);
-      
+
       if (isExpired) {
         return NextResponse.json({
           authenticated: false,
@@ -235,7 +282,7 @@ export async function GET() {
         try {
           const { verifySessionCookie } = await import('@/lib/firebaseAdminNode');
           const decodedClaims = await verifySessionCookie(sessionCookie.value);
-          
+
           if (decodedClaims) {
             return NextResponse.json({
               authenticated: true,
@@ -271,7 +318,7 @@ export async function GET() {
  */
 export async function DELETE() {
   logger.debug('Clearing session');
-  
+
   try {
     const cookieStore = await cookies();
     cookieStore.delete('auth-session');

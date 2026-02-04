@@ -2,9 +2,14 @@
 "use server";
 
 import { z } from "zod";
-import { updateInquiryStatus as updateStatusService, addResponseToInquiry as addResponseService } from "@/services/inquiryService";
+import {
+  updateInquiryStatus as updateStatusService,
+  addResponseToInquiry as addResponseService,
+  getInquiryById
+} from "@/services/inquiryService";
 import type { Inquiry } from "@/types";
 import { loggers } from '@/lib/logger';
+import { requirePropertyAccess, handleAuthError, AuthorizationError } from '@/lib/authorization';
 
 const logger = loggers.admin;
 
@@ -22,6 +27,7 @@ const addResponseSchema = z.object({
 
 /**
  * Server action to update the status of an inquiry.
+ * Requires access to the property the inquiry is for.
  */
 export async function updateInquiryStatusAction(
   values: z.infer<typeof updateInquiryStatusSchema>
@@ -35,9 +41,21 @@ export async function updateInquiryStatusAction(
   const { inquiryId, status } = validatedFields.data;
 
   try {
+    // Fetch inquiry to get propertySlug
+    const inquiry = await getInquiryById(inquiryId);
+    if (!inquiry) {
+      return { success: false, error: "Inquiry not found." };
+    }
+
+    // Check property access
+    await requirePropertyAccess(inquiry.propertySlug);
+
     await updateStatusService(inquiryId, status);
     return { success: true };
   } catch (error) {
+    if (error instanceof AuthorizationError) {
+      return handleAuthError(error);
+    }
     logger.error('Error updating inquiry status', error as Error, { inquiryId, status });
     return { success: false, error: "Failed to update inquiry status." };
   }
@@ -45,6 +63,7 @@ export async function updateInquiryStatusAction(
 
 /**
  * Server action for an admin/host to add a response to an inquiry.
+ * Requires access to the property the inquiry is for.
  */
 export async function addResponseToInquiryAction(
   values: z.infer<typeof addResponseSchema>
@@ -58,10 +77,22 @@ export async function addResponseToInquiryAction(
     const { inquiryId, message } = validatedFields.data;
 
     try {
-        // Assume responses added through this action are always from the host
+        // Fetch inquiry to get propertySlug
+        const inquiry = await getInquiryById(inquiryId);
+        if (!inquiry) {
+          return { success: false, error: "Inquiry not found." };
+        }
+
+        // Check property access
+        await requirePropertyAccess(inquiry.propertySlug);
+
+        // Responses added through this action are always from the host
         await addResponseService(inquiryId, message, true);
         return { success: true };
     } catch (error) {
+        if (error instanceof AuthorizationError) {
+          return handleAuthError(error);
+        }
         logger.error('Error adding response to inquiry', error as Error, { inquiryId });
         return { success: false, error: "Failed to add response." };
     }

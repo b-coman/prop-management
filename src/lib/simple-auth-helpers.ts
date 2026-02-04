@@ -1,14 +1,23 @@
 /**
  * @fileoverview Simple authentication helpers
  * @module lib/simple-auth-helpers
- * 
+ *
  * @description
  * Simple, reliable authentication helpers for server-side auth checks.
+ * Integrates with the authorization service for admin access control.
  * Works universally across all environments.
  */
 
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import {
+  checkAdminAccess as checkAuthorizationAccess,
+  type AdminUser,
+  type AuthorizationResult
+} from '@/lib/authorization';
+import { loggers } from '@/lib/logger';
+
+const logger = loggers.auth;
 
 export interface AuthUser {
   uid: string;
@@ -23,6 +32,7 @@ export interface AuthResult {
 
 /**
  * Check if user is authenticated (server-side)
+ * This is a basic authentication check - it only verifies the session is valid
  */
 export async function checkAuthentication(): Promise<AuthResult> {
   try {
@@ -41,7 +51,7 @@ export async function checkAuthentication(): Promise<AuthResult> {
 
       // Check if session is expired (7 days)
       const isExpired = Date.now() - sessionData.timestamp > (60 * 60 * 24 * 7 * 1000);
-      
+
       if (isExpired) {
         return { authenticated: false };
       }
@@ -61,7 +71,7 @@ export async function checkAuthentication(): Promise<AuthResult> {
         try {
           const { verifySessionCookie } = await import('@/lib/firebaseAdminNode');
           const decodedClaims = await verifySessionCookie(sessionCookie.value);
-          
+
           if (decodedClaims) {
             return {
               authenticated: true,
@@ -73,7 +83,7 @@ export async function checkAuthentication(): Promise<AuthResult> {
             };
           }
         } catch (verifyError) {
-          console.error('[SimpleAuthHelpers] Session verification error:', verifyError);
+          logger.error('Session verification error', verifyError as Error);
         }
       }
 
@@ -81,7 +91,7 @@ export async function checkAuthentication(): Promise<AuthResult> {
     }
 
   } catch (error) {
-    console.error('[SimpleAuthHelpers] Authentication check error:', error);
+    logger.error('Authentication check error', error as Error);
     return { authenticated: false };
   }
 }
@@ -91,23 +101,36 @@ export async function checkAuthentication(): Promise<AuthResult> {
  */
 export async function requireAuthentication(): Promise<AuthUser> {
   const authResult = await checkAuthentication();
-  
+
   if (!authResult.authenticated || !authResult.user) {
     redirect('/login');
   }
-  
+
   return authResult.user;
 }
 
 /**
- * Check if user is admin (for now, all authenticated users are admin)
+ * Check if user has admin access
+ * Returns the full authorization result with AdminUser if authorized
  */
-export async function checkAdminAccess(): Promise<AuthUser> {
-  const user = await requireAuthentication();
-  
-  // For now, all authenticated users have admin access
-  // In the future, this could check against a list of admin emails
-  console.log('[SimpleAuthHelpers] Admin access granted to:', user.email);
-  
-  return user;
+export async function checkAdminAccess(): Promise<AuthorizationResult> {
+  return checkAuthorizationAccess();
 }
+
+/**
+ * Require admin access - redirects to login with error if not authorized
+ * Returns the full AdminUser object with role and permissions
+ */
+export async function requireAdminAccess(): Promise<AdminUser> {
+  const result = await checkAuthorizationAccess();
+
+  if (!result.authorized || !result.user) {
+    logger.warn('Admin access denied', { error: result.error });
+    redirect('/login?error=unauthorized');
+  }
+
+  return result.user;
+}
+
+// Re-export types from authorization for convenience
+export type { AdminUser, AuthorizationResult } from '@/lib/authorization';

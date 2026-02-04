@@ -6,14 +6,27 @@ import { collection, doc, addDoc, updateDoc, deleteDoc, getDoc } from 'firebase/
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
 import { loggers } from '@/lib/logger';
+import { requirePropertyAccess, AuthorizationError } from '@/lib/authorization';
 
 const logger = loggers.adminPricing;
 
 /**
  * Create a new seasonal pricing rule
+ * Requires access to the property
  */
 export async function createSeasonalPricing(formData: FormData) {
   const propertyId = formData.get('propertyId') as string;
+
+  // Check property access first
+  try {
+    await requirePropertyAccess(propertyId);
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      throw new Error(error.message);
+    }
+    throw error;
+  }
+
   try {
     const name = formData.get('name') as string;
     const seasonType = formData.get('seasonType') as 'minimum' | 'low' | 'standard' | 'medium' | 'high';
@@ -61,10 +74,22 @@ export async function createSeasonalPricing(formData: FormData) {
 
 /**
  * Update an existing seasonal pricing rule
+ * Requires access to the property
  */
 export async function updateSeasonalPricing(formData: FormData) {
   const id = formData.get('id') as string;
   const propertyId = formData.get('propertyId') as string;
+
+  // Check property access first
+  try {
+    await requirePropertyAccess(propertyId);
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      throw new Error(error.message);
+    }
+    throw error;
+  }
+
   try {
     const name = formData.get('name') as string;
     const seasonType = formData.get('seasonType') as 'minimum' | 'low' | 'standard' | 'medium' | 'high';
@@ -114,10 +139,22 @@ export async function updateSeasonalPricing(formData: FormData) {
 
 /**
  * Create a new date override
+ * Requires access to the property
  */
 export async function createDateOverride(formData: FormData) {
   const propertyId = formData.get('propertyId') as string;
   const date = formData.get('date') as string;
+
+  // Check property access first
+  try {
+    await requirePropertyAccess(propertyId);
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      throw new Error(error.message);
+    }
+    throw error;
+  }
+
   try {
     const customPriceValue = formData.get('customPrice') as string;
     const reason = formData.get('reason') as string;
@@ -165,10 +202,22 @@ export async function createDateOverride(formData: FormData) {
 
 /**
  * Update an existing date override
+ * Requires access to the property
  */
 export async function updateDateOverride(formData: FormData) {
   const id = formData.get('id') as string;
   const propertyId = formData.get('propertyId') as string;
+
+  // Check property access first
+  try {
+    await requirePropertyAccess(propertyId);
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      throw new Error(error.message);
+    }
+    throw error;
+  }
+
   try {
     const date = formData.get('date') as string;
     const customPriceValue = formData.get('customPrice') as string;
@@ -217,10 +266,22 @@ export async function updateDateOverride(formData: FormData) {
 
 /**
  * Delete a seasonal pricing rule
+ * Requires access to the property
  */
 export async function deleteSeasonalPricing(formData: FormData) {
   const id = formData.get('id') as string;
   const propertyId = formData.get('propertyId') as string;
+
+  // Check property access first
+  try {
+    await requirePropertyAccess(propertyId);
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      throw new Error(error.message);
+    }
+    throw error;
+  }
+
   try {
     // Validate input
     if (!id || !propertyId) {
@@ -245,10 +306,22 @@ export async function deleteSeasonalPricing(formData: FormData) {
 
 /**
  * Delete a date override
+ * Requires access to the property
  */
 export async function deleteDateOverride(formData: FormData) {
   const id = formData.get('id') as string;
   const propertyId = formData.get('propertyId') as string;
+
+  // Check property access first
+  try {
+    await requirePropertyAccess(propertyId);
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      throw new Error(error.message);
+    }
+    throw error;
+  }
+
   try {
     // Validate input
     if (!id || !propertyId) {

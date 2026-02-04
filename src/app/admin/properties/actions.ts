@@ -2,12 +2,20 @@
 "use server";
 
 import { z } from "zod";
-import { collection, doc, addDoc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp } from "firebase/firestore";
+import { collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Property, SerializableTimestamp } from "@/types";
 import { revalidatePath } from "next/cache";
-import { sanitizeText } from "@/lib/sanitize"; // Assuming sanitizer
+import { sanitizeText } from "@/lib/sanitize";
 import { loggers } from '@/lib/logger';
+import {
+  requireAdmin,
+  requireSuperAdmin,
+  requirePropertyAccess,
+  filterPropertiesForUser,
+  handleAuthError,
+  AuthorizationError
+} from '@/lib/authorization';
 
 const logger = loggers.admin;
 
@@ -33,7 +41,7 @@ const propertyActionSchema = z.object({
         }).optional(),
     }),
     pricePerNight: z.coerce.number().positive(),
-    baseCurrency: z.string(), // Add validation if using enum type
+    baseCurrency: z.string(),
     cleaningFee: z.coerce.number().nonnegative().optional(),
     maxGuests: z.coerce.number().int().positive(),
     baseOccupancy: z.coerce.number().int().positive(),
@@ -46,8 +54,8 @@ const propertyActionSchema = z.object({
     checkOutTime: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
     cancellationPolicy: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
     status: z.enum(['active', 'inactive', 'draft']),
-    ownerId: z.string().optional(), // Handle setting this appropriately
-    ownerEmail: z.string().email().optional().or(z.literal('')).transform(val => val || null), // Email for notifications
+    ownerId: z.string().optional(),
+    ownerEmail: z.string().email().optional().or(z.literal('')).transform(val => val || null),
     customDomain: z.string().optional().nullable().transform(val => val ? sanitizeText(val) : null),
     useCustomDomain: z.boolean().optional(),
     analytics: z.object({
@@ -68,8 +76,8 @@ const serializeTimestamp = (timestamp: SerializableTimestamp | undefined | null)
   if (!timestamp) return null;
   if (timestamp instanceof Timestamp) return timestamp.toDate().toISOString();
   if (timestamp instanceof Date) return timestamp.toISOString();
-  if (typeof timestamp === 'string') return timestamp; // Assume already ISO string
-  
+  if (typeof timestamp === 'string') return timestamp;
+
   // Handle Firestore-like objects with _seconds and _nanoseconds
   if (typeof timestamp === 'object' && '_seconds' in timestamp && '_nanoseconds' in timestamp) {
     try {
@@ -96,53 +104,79 @@ const serializeTimestamp = (timestamp: SerializableTimestamp | undefined | null)
 // Helper function to recursively serialize timestamps in an object
 const serializeTimestampsInObject = (obj: any): any => {
   if (!obj || typeof obj !== 'object') return obj;
-  
+
   // If it's an array, process each element
   if (Array.isArray(obj)) {
     return obj.map(item => serializeTimestampsInObject(item));
   }
-  
+
   // If it's a timestamp-like object
   if ('_seconds' in obj && '_nanoseconds' in obj) {
     return serializeTimestamp(obj);
   }
-  
+
   // Process each property of the object
   const result: any = {};
   for (const [key, value] of Object.entries(obj)) {
     result[key] = serializeTimestampsInObject(value);
   }
-  
+
   return result;
 };
 
-// Fetch all properties
+/**
+ * Fetch all properties
+ * Filters results based on user's property access
+ */
 export async function fetchProperties(): Promise<Property[]> {
   try {
+    // Check authorization first
+    const user = await requireAdmin();
+
     const propertiesCollection = collection(db, 'properties');
     const querySnapshot = await getDocs(propertiesCollection);
-    const properties = querySnapshot.docs.map((doc) => {
+    const allProperties = querySnapshot.docs.map((doc) => {
       const data = doc.data();
-      // Recursively serialize all timestamps in the data
       const serializedData = serializeTimestampsInObject(data);
       return {
         id: doc.id,
-        slug: doc.id, // Use doc ID as slug
+        slug: doc.id,
         ...serializedData,
       } as Property;
     });
-    return properties;
+
+    // Filter based on user access
+    const filteredProperties = filterPropertiesForUser(allProperties, user);
+    logger.debug('Properties fetched', { count: filteredProperties.length, total: allProperties.length, role: user.role });
+    return filteredProperties;
   } catch (error) {
+    if (error instanceof AuthorizationError) {
+      logger.warn('Authorization failed for fetchProperties');
+      return [];
+    }
     logger.error('Error fetching properties', error as Error);
     return [];
   }
 }
 
 
-// Create a new property
+/**
+ * Create a new property
+ * Only super admins can create properties
+ */
 export async function createPropertyAction(
   values: z.infer<typeof propertyActionSchema>
 ): Promise<{ slug?: string; name?: string; error?: string }> {
+  try {
+    // Only super admins can create properties
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      return handleAuthError(error) as { error: string };
+    }
+    throw error;
+  }
+
   const validatedFields = propertyActionSchema.safeParse(values);
 
   if (!validatedFields.success) {
@@ -153,7 +187,6 @@ export async function createPropertyAction(
 
   const { slug, ...propertyData } = validatedFields.data;
 
-  // Check if slug already exists
   try {
     const existingDocRef = doc(db, 'properties', slug);
     const docSnap = await getDoc(existingDocRef);
@@ -161,20 +194,17 @@ export async function createPropertyAction(
       return { error: `Property with slug "${slug}" already exists.` };
     }
 
-    // Add ownerId if necessary (e.g., from logged-in user context - needs implementation)
-    // propertyData.ownerId = 'current_user_id';
-
     const dataToSave = {
         ...propertyData,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     };
 
-    await setDoc(existingDocRef, dataToSave); // Use setDoc with the slug as the ID
+    await setDoc(existingDocRef, dataToSave);
 
     logger.info('Property created successfully', { name: propertyData.name, slug });
     revalidatePath('/admin/properties');
-    revalidatePath(`/properties/${slug}`); // Revalidate public page
+    revalidatePath(`/properties/${slug}`);
     return { slug: slug, name: propertyData.name };
   } catch (error) {
     logger.error('Error creating property', error as Error, { slug });
@@ -182,22 +212,33 @@ export async function createPropertyAction(
   }
 }
 
-// Update an existing property
+/**
+ * Update an existing property
+ * Users can only update properties they have access to
+ */
 export async function updatePropertyAction(
-  currentSlug: string, // The slug of the property to update
+  currentSlug: string,
   values: z.infer<typeof propertyActionSchema>
 ): Promise<{ slug?: string; name?: string; error?: string }> {
-   // Instead of omit, validate directly against propertyActionSchema
-   // and ignore the slug field since we use the currentSlug
-   const validatedFields = propertyActionSchema.safeParse(values);
+  try {
+    // Check access to this specific property
+    await requirePropertyAccess(currentSlug);
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      return handleAuthError(error) as { error: string };
+    }
+    throw error;
+  }
 
-   if (!validatedFields.success) {
-     const errorMessages = validatedFields.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
-     logger.warn('Update property validation error', { errors: errorMessages, slug: currentSlug });
-     return { error: `Invalid input: ${errorMessages}` };
-   }
+  const validatedFields = propertyActionSchema.safeParse(values);
 
-   const propertyData = validatedFields.data;
+  if (!validatedFields.success) {
+    const errorMessages = validatedFields.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+    logger.warn('Update property validation error', { errors: errorMessages, slug: currentSlug });
+    return { error: `Invalid input: ${errorMessages}` };
+  }
+
+  const propertyData = validatedFields.data;
 
   try {
     const propertyRef = doc(db, 'properties', currentSlug);
@@ -208,19 +249,19 @@ export async function updatePropertyAction(
       return { error: `Property with slug "${currentSlug}" not found.` };
     }
 
-     // Prepare data for update (excluding slug)
-     const { slug: _, ...dataWithoutSlug } = propertyData;
-     const dataToUpdate = {
-         ...dataWithoutSlug,
-         updatedAt: serverTimestamp(),
-     };
+    // Prepare data for update (excluding slug)
+    const { slug: _, ...dataWithoutSlug } = propertyData;
+    const dataToUpdate = {
+        ...dataWithoutSlug,
+        updatedAt: serverTimestamp(),
+    };
 
     await updateDoc(propertyRef, dataToUpdate);
 
     logger.info('Property updated successfully', { name: propertyData.name, slug: currentSlug });
     revalidatePath('/admin/properties');
-    revalidatePath(`/properties/${currentSlug}`); // Revalidate public page
-    revalidatePath(`/admin/properties/${currentSlug}/edit`); // Revalidate edit page
+    revalidatePath(`/properties/${currentSlug}`);
+    revalidatePath(`/admin/properties/${currentSlug}/edit`);
     return { slug: currentSlug, name: propertyData.name };
 
   } catch (error) {
@@ -230,23 +271,35 @@ export async function updatePropertyAction(
 }
 
 
-// Delete a property
+/**
+ * Delete a property
+ * Only super admins can delete properties
+ */
 export async function deletePropertyAction(
   slug: string
 ): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Only super admins can delete properties
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      return handleAuthError(error);
+    }
+    throw error;
+  }
+
   if (!slug) {
     return { success: false, error: "Property slug is required." };
   }
 
   try {
     const propertyRef = doc(db, 'properties', slug);
-    const overridesRef = doc(db, 'propertyOverrides', slug); // Also target overrides
+    const overridesRef = doc(db, 'propertyOverrides', slug);
 
     // Check if the property exists
     const docSnap = await getDoc(propertyRef);
     if (!docSnap.exists()) {
         logger.warn('Property not found, attempting to delete anyway', { slug });
-        // Allow deletion attempt even if main doc is missing, to clean up overrides etc.
     }
 
     // TODO: Implement deletion of related data (bookings, availability, reviews, overrides, etc.)
@@ -254,11 +307,11 @@ export async function deletePropertyAction(
     // For now, we just delete the main property doc and overrides.
 
     await deleteDoc(propertyRef);
-    await deleteDoc(overridesRef).catch(err => logger.warn('Could not delete overrides', { slug, error: err.message })); // Try to delete overrides, ignore if not found
+    await deleteDoc(overridesRef).catch(err => logger.warn('Could not delete overrides', { slug, error: err.message }));
 
     logger.info('Property deleted successfully', { slug });
     revalidatePath('/admin/properties');
-    revalidatePath(`/properties/${slug}`); // Invalidate deleted page path
+    revalidatePath(`/properties/${slug}`);
     return { success: true };
   } catch (error) {
     logger.error('Error deleting property', error as Error, { slug });
