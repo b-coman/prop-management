@@ -27,11 +27,13 @@ As of May 2025, the dynamic pricing system has been implemented and integrated w
    - Supports both legacy and dynamic pricing models
    - Handles dynamicPricing property for data from price calendar
 
-4. **check-pricing-availability API Route**
-   - New API endpoint for retrieving both pricing and availability
-   - Uses client-side Firebase SDK to ensure Edge Runtime compatibility
+4. **check-pricing API Route** (Primary Endpoint)
+   - API endpoint for retrieving both pricing and availability
+   - Uses Admin SDK with proper Node.js runtime
    - Fetches price information from priceCalendar collection
-   - Handles compatibility with Edge Runtime environment
+   - Called by BookingProvider and availabilityService
+
+   > **Note**: `/api/check-pricing-availability` was removed in Feb 2026 (returned mock data, never properly implemented).
 
 ### Architecture
 

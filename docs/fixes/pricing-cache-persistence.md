@@ -1,5 +1,7 @@
 # Pricing Cache Persistence Fix
 
+> **Historical Note (Feb 2026)**: This document describes a fix implemented in May 2025. The `/api/check-pricing-availability` endpoint mentioned here was later removed as it only returned mock data. The current system uses `/api/check-pricing` exclusively with proper localStorage caching.
+
 ## Problem
 
 The pricing availability API was experiencing infinite API calls in production, causing increased load and 500 errors. The issue occurred because:
@@ -69,7 +71,7 @@ To prevent similar issues in the future:
 
 1. **Use localStorage for client-side caching** whenever you need to persist data across page refreshes or Cloud Run instances
 2. **Implement proper fallback responses** to ensure the UI doesn't break when API calls fail
-3. **Add cache debugging tools** like the reset-price-cache API endpoint to help troubleshoot issues
+3. **Add cache debugging tools** to help troubleshoot issues (note: `/api/reset-price-cache` was removed in Feb 2026 as it was never fully implemented)
 4. **Add logging** to track API call patterns and cache hits/misses
 
 ## Future Improvements

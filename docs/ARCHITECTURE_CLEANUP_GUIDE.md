@@ -35,6 +35,8 @@ These files have **no imports anywhere** in the codebase and can be deleted imme
 
 ### 1.1 Unused Amenities Components
 
+**Status**: ✅ COMPLETED (2026-02-04, commit 147fb9e)
+
 **Location**: `/src/components/property/`
 
 | File | Reason for Deletion |

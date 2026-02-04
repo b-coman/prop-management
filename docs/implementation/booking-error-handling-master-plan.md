@@ -14,10 +14,12 @@ This document provides a comprehensive plan to transform the booking system's er
 ### 1. Error Types & Sources Identified
 
 #### **API Error Sources**
-- **`/api/check-pricing`** & **`/api/check-pricing-v2`**
+- **`/api/check-pricing`**
   - `unavailable_dates` - Dates blocked in availability collection
   - `minimum_stay` - Nights < required minimum stay
   - `price_unavailable` - Missing pricing calendar data
+
+> **Note**: `/api/check-pricing-v2` was removed in Feb 2026 as part of architecture cleanup (never adopted).
   
 - **`/api/check-availability`**  
   - Database connection errors

@@ -14,7 +14,7 @@
 - **Date Selection:** `src/components/booking-v2/components/DateAndGuestSelector.tsx` 
 - **Mobile Wrapper:** `src/components/booking-v2/components/MobileDateSelectorWrapper.tsx`
 - **Context Management:** `src/contexts/BookingContext.tsx`
-- **API Endpoints:** `/api/check-pricing` and `/api/check-pricing-v2`
+- **API Endpoints:** `/api/check-pricing` (note: `/api/check-pricing-v2` was removed in Feb 2026)
 
 ### Error System Current State
 - **Error Display:** `PricingStatusDisplay` function within `DateAndGuestSelector.tsx:580-598`
