@@ -26,6 +26,7 @@ import { useRouter } from 'next/navigation';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  signingIn: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -35,6 +36,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [signingIn, setSigningIn] = useState(false);
+  const [sessionCreated, setSessionCreated] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -53,9 +56,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (result) {
           console.log('[SimpleAuth] Redirect result found:', result.user.email);
           // Create session on server
-          await createServerSession(result.user);
-          // Redirect to admin
-          router.push('/admin');
+          const sessionOk = await createServerSession(result.user);
+          setSessionCreated(sessionOk);
+          if (sessionOk) {
+            // Redirect to admin using full page navigation
+            window.location.href = '/admin';
+          }
         }
       })
       .catch((error) => {
@@ -66,12 +72,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       console.log('[SimpleAuth] Auth state changed:', user?.email || 'null');
       setUser(user);
-      
-      // If user is authenticated, ensure server session exists
-      if (user) {
-        await createServerSession(user);
-      }
-      
       setLoading(false);
     });
 
@@ -86,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       setLoading(true);
+      setSigningIn(true);
 
       const provider = new GoogleAuthProvider();
       provider.addScope('email');
@@ -97,11 +98,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const result = await signInWithPopup(auth, provider);
         console.log('[SimpleAuth] Popup sign-in successful:', result.user.email);
 
-        // Create session on server
-        await createServerSession(result.user);
+        // Create session on server and wait for it
+        const sessionOk = await createServerSession(result.user);
+        setSessionCreated(sessionOk);
 
-        // Redirect to admin
-        router.push('/admin');
+        if (sessionOk) {
+          console.log('[SimpleAuth] Session created, redirecting to admin');
+          // Use replace to avoid back button issues
+          window.location.href = '/admin';
+        } else {
+          console.error('[SimpleAuth] Session creation failed, not redirecting');
+          setLoading(false);
+        }
       } catch (popupError: unknown) {
         const error = popupError as { code?: string };
         // If popup is blocked or fails, try redirect
@@ -116,6 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('[SimpleAuth] Sign-in error:', error);
       setLoading(false);
+      setSigningIn(false);
     }
   };
 
@@ -148,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = {
     user,
     loading,
+    signingIn,
     signInWithGoogle,
     signOut: signOutUser
   };
@@ -169,11 +179,12 @@ export function useAuth() {
 
 /**
  * Create session on server
+ * Returns true if session was created successfully
  */
-async function createServerSession(user: User) {
+async function createServerSession(user: User): Promise<boolean> {
   try {
     const idToken = await user.getIdToken();
-    
+
     const response = await fetch('/api/auth/simple-session', {
       method: 'POST',
       headers: {
@@ -184,12 +195,15 @@ async function createServerSession(user: User) {
 
     if (!response.ok) {
       console.error('[SimpleAuth] Session creation failed:', response.statusText);
-    } else {
-      const result = await response.json();
-      console.log('[SimpleAuth] Server session created:', result.environment);
+      return false;
     }
+
+    const result = await response.json();
+    console.log('[SimpleAuth] Server session created:', result.environment);
+    return true;
   } catch (error) {
     console.error('[SimpleAuth] Session creation error:', error);
+    return false;
   }
 }
 

@@ -24,17 +24,18 @@ const GoogleIcon = () => (
 );
 
 export default function SimpleLoginPage() {
-  const { user, loading, signInWithGoogle } = useAuth();
+  const { user, loading, signingIn, signInWithGoogle } = useAuth();
   const router = useRouter();
 
-  console.log('[SimpleLogin] Render - loading:', loading, 'user:', user?.email || 'null');
+  console.log('[SimpleLogin] Render - loading:', loading, 'signingIn:', signingIn, 'user:', user?.email || 'null');
 
   useEffect(() => {
-    if (!loading && user) {
+    // Don't auto-redirect while signing in - the sign-in handler will redirect
+    if (!loading && !signingIn && user) {
       console.log('[SimpleLogin] User authenticated, redirecting to admin');
       router.push('/admin');
     }
-  }, [loading, user, router]);
+  }, [loading, signingIn, user, router]);
 
   if (loading) {
     return (
