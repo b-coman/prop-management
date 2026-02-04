@@ -51,15 +51,26 @@ export async function checkAvailabilityWithFlags(
     monthGroups[monthKey].push(date);
   });
 
-  for (const [monthKey, dates] of Object.entries(monthGroups)) {
-    const docId = `${propertyId}_${monthKey}`;
-    const doc = await db.collection('availability').doc(docId).get();
-    
+  // Build document references for batch fetch
+  const monthKeys = Object.keys(monthGroups);
+  const docIds = monthKeys.map(monthKey => `${propertyId}_${monthKey}`);
+  const docRefs = docIds.map(docId => db.collection('availability').doc(docId));
+
+  // Single batch fetch instead of N sequential fetches
+  // Performance improvement: O(n) queries → O(1) query
+  const docs = await db.getAll(...docRefs);
+
+  // Process results
+  docs.forEach((doc, index) => {
+    const monthKey = monthKeys[index];
+    const dates = monthGroups[monthKey];
+    const docId = docIds[index];
+
     if (!doc.exists) {
       // No document = dates are considered available (consistent with /api/check-availability)
       // This is the expected state for future months that haven't been configured yet
       console.log(`[AvailabilityService] No availability document for ${docId}, considering dates available`);
-      continue;
+      return;
     }
 
     const data = doc.data();
@@ -69,16 +80,16 @@ export async function checkAvailabilityWithFlags(
     dates.forEach(date => {
       const day = date.getDate();
       const dateStr = format(date, 'yyyy-MM-dd');
-      
+
       // Check if date is explicitly marked as unavailable or has a hold
       const isUnavailable = availableMap[day] === false || !!holdsMap[day];
-      
+
       if (isUnavailable) {
         unavailableDates.push(dateStr);
         console.log(`[AvailabilityService] Date ${dateStr} unavailable (available=${availableMap[day]}, hold=${holdsMap[day]})`);
       }
     });
-  }
+  });
 
   const isAvailable = unavailableDates.length === 0;
   console.log(`[AvailabilityService] Availability result: ${isAvailable ? 'AVAILABLE' : 'UNAVAILABLE'} (${unavailableDates.length} unavailable dates)`);
