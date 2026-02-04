@@ -65,8 +65,15 @@ Next.js 15 vacation rental booking platform with Stripe payments, Firebase/Fires
 - No emojis in issues
 - Reference issue numbers in commits
 
-## Commit Format
+## Commit & Deploy
 
+**Push to `main` auto-deploys to production.** No staging environment.
+
+Before pushing:
+1. `npm run build` must pass
+2. Test critical functionality locally
+
+Commit format:
 ```
 <type>: <description>
 
@@ -74,3 +81,5 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 ```
 
 Types: `feat`, `fix`, `refactor`, `docs`, `perf`, `security`
+
+Firestore rules deploy separately: `firebase deploy --only firestore:rules`
