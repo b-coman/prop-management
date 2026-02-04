@@ -9,7 +9,7 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/SimpleAuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,23 +26,49 @@ const GoogleIcon = () => (
 export default function SimpleLoginPage() {
   const { user, loading, signingIn, signInWithGoogle } = useAuth();
   const router = useRouter();
+  const [syncingSession, setSyncingSession] = useState(false);
 
   console.log('[SimpleLogin] Render - loading:', loading, 'signingIn:', signingIn, 'user:', user?.email || 'null');
 
   useEffect(() => {
-    // Don't auto-redirect while signing in - the sign-in handler will redirect
-    if (!loading && !signingIn && user) {
-      console.log('[SimpleLogin] User authenticated, redirecting to admin');
-      router.push('/admin');
-    }
-  }, [loading, signingIn, user, router]);
+    // If we have a Firebase user but ended up on login page,
+    // it means server session is missing - create it
+    if (!loading && !signingIn && !syncingSession && user) {
+      console.log('[SimpleLogin] Firebase user exists, syncing server session...');
+      setSyncingSession(true);
 
-  if (loading) {
+      // Create server session and redirect
+      user.getIdToken().then(async (idToken) => {
+        try {
+          const response = await fetch('/api/auth/simple-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken }),
+          });
+
+          if (response.ok) {
+            console.log('[SimpleLogin] Session synced, redirecting to admin');
+            window.location.href = '/admin';
+          } else {
+            console.error('[SimpleLogin] Session sync failed');
+            setSyncingSession(false);
+          }
+        } catch (error) {
+          console.error('[SimpleLogin] Session sync error:', error);
+          setSyncingSession(false);
+        }
+      });
+    }
+  }, [loading, signingIn, syncingSession, user]);
+
+  if (loading || syncingSession) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground">
+            {syncingSession ? 'Restoring session...' : 'Loading...'}
+          </p>
         </div>
       </div>
     );
