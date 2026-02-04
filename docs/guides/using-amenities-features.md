@@ -94,49 +94,47 @@ Property overrides use amenity references in categories:
 }
 ```
 
-## Using the AmenitiesDisplay Component
+## Using the AmenitiesList Component
 
-### Basic Usage
+> **Note**: As of Feb 2026, the system uses `AmenitiesList` which renders pre-loaded structured data from property overrides. The previous `AmenitiesDisplay` component (which fetched from Firestore at runtime) was removed during architecture cleanup.
 
-For simple amenity lists (from property data):
+### Current Implementation
+
+The `AmenitiesList` component is used by `property-page-renderer.tsx` and expects `AmenitiesListBlock` data:
 
 ```typescript
-import { AmenitiesDisplay } from '@/components/property/amenities-display';
+import { AmenitiesList } from '@/components/property/amenities-list';
 
-// In your component
-<AmenitiesDisplay 
-  amenityIds={property.amenities}
-  title={{ en: "Amenities", ro: "Facilități" }}
+// Used with pre-loaded data from property overrides
+<AmenitiesList
+  content={amenitiesListBlock}
+  language={currentLanguage}
 />
 ```
 
-### Categorized Display
+The `AmenitiesListBlock` schema includes:
+- `title`: Multilingual title for the section
+- `categories`: Array of category objects, each containing:
+  - `name`: Multilingual category name
+  - `amenities`: Array of amenity objects with `icon` and `name`
 
-For categorized amenities (from property overrides):
+### Icon Mapping
 
-```typescript
-<AmenitiesDisplay 
-  categories={propertyOverride.details.amenities.categories}
-  title={propertyOverride.details.amenities.title}
-/>
-```
+Icons are mapped from string names to Lucide React components. Supported icons include:
+- `Wifi`, `Tv`, `Thermometer`, `ParkingSquare`, `Trees`, `Flame`
+- `ChefHat`, `Utensils`, `Car`, `Mountain`, `Building`, `Coffee`
+- Plus aliases like `Kitchen` → `ChefHat`, `Parking` → `ParkingSquare`
 
-### Custom Styling
+## Fetching Amenities (Admin/Scripts Only)
 
-```typescript
-<AmenitiesDisplay 
-  amenityIds={property.amenities}
-  className="grid grid-cols-3 gap-4"
-/>
-```
-
-## Fetching Amenities
-
-### Batch Fetching
-
-The component automatically batches amenity fetches (Firestore limit is 10 per query):
+If you need to fetch amenities directly from the collection (for admin tools or scripts):
 
 ```typescript
+// Single amenity
+const amenityDoc = await getDoc(doc(db, 'amenities', amenityId));
+const amenity = amenityDoc.data();
+
+// Multiple amenities (batch to avoid Firestore limit)
 const batchSize = 10;
 for (let i = 0; i < amenityIds.length; i += batchSize) {
   const batch = amenityIds.slice(i, i + batchSize);
@@ -144,18 +142,9 @@ for (let i = 0; i < amenityIds.length; i += batchSize) {
     collection(db, 'amenities'),
     where(documentId(), 'in', batch)
   );
-  
   const snapshot = await getDocs(q);
   // Process results...
 }
-```
-
-### Direct Fetching
-
-For single amenity:
-```typescript
-const amenityDoc = await getDoc(doc(db, 'amenities', amenityId));
-const amenity = amenityDoc.data();
 ```
 
 ## Managing Amenities

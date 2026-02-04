@@ -102,21 +102,24 @@ We've restructured the data model to normalize amenities and features into separ
 
 ### Displaying Amenities
 
+The current implementation uses `AmenitiesList` which expects pre-loaded structured data from property overrides:
+
 ```typescript
-import { AmenitiesDisplay } from '@/components/property/amenities-display';
+import { AmenitiesList } from '@/components/property/amenities-list';
 
-// For simple list (from property)
-<AmenitiesDisplay 
-  amenityIds={property.amenities}
-  title={{ en: "Amenities", ro: "Facilități" }}
-/>
-
-// For categorized display (from property overrides)
-<AmenitiesDisplay 
-  categories={propertyOverride.details.amenities.categories}
-  title={propertyOverride.details.amenities.title}
+// Used in property-page-renderer.tsx with AmenitiesListBlock data
+<AmenitiesList
+  content={amenitiesListBlock}
+  language={currentLanguage}
 />
 ```
+
+The `AmenitiesListBlock` schema (from `lib/overridesSchemas-multipage.ts`) includes:
+- `title`: Multilingual title
+- `categories`: Array of category objects with names and amenities
+- Each amenity has `icon` (Lucide icon name) and `name` (multilingual)
+
+> **Note**: The previous `AmenitiesDisplay` component (which fetched from Firestore at runtime) was removed in Feb 2026 as part of architecture cleanup. The current system uses pre-loaded structured data from property overrides.
 
 ### Fetching Amenities
 
