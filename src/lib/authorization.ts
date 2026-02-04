@@ -4,6 +4,8 @@
  *
  * @description
  * Provides role-based access control for the admin panel.
+ * Uses Admin SDK for Firestore access (bypasses rules, works in server context).
+ *
  * Supports two roles:
  * - super_admin: Full access to everything (all properties, all operations)
  * - property_owner: Access only to assigned properties
@@ -12,18 +14,10 @@
  * - Per-request caching (1 min TTL) to minimize Firestore reads
  * - Auto-provisioning of super admins from SUPER_ADMIN_EMAILS env var
  * - Filtering functions for properties, bookings, and inquiries
- *
- * @architecture
- * Location: Infrastructure layer
- * Pattern: Service module with caching
- *
- * @dependencies
- * - Internal: firebase.ts, simple-auth-helpers.ts, logger.ts
- * - External: firebase/firestore
  */
 
-import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { initializeFirebaseAdminSafe } from '@/lib/firebaseAdminSafe';
+import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { loggers } from '@/lib/logger';
 
 const logger = loggers.authorization;
@@ -137,7 +131,7 @@ export function getSuperAdminEmails(): string[] {
 }
 
 // ============================================================================
-// Authentication Helper (to avoid circular dependency)
+// Authentication Helper
 // ============================================================================
 
 interface AuthUser {
@@ -152,11 +146,9 @@ interface AuthResult {
 
 /**
  * Check authentication from session cookie
- * This is a simplified version to avoid circular dependency with simple-auth-helpers
  */
 async function checkAuthenticationInternal(): Promise<AuthResult> {
   try {
-    // Dynamic import to work in server context
     const { cookies } = await import('next/headers');
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get('auth-session');
@@ -185,27 +177,8 @@ async function checkAuthenticationInternal(): Promise<AuthResult> {
           email: sessionData.email
         }
       };
-    } catch (parseError) {
-      // If parsing fails, it might be a Firebase session cookie
-      if (process.env.NODE_ENV === 'production') {
-        try {
-          const { verifySessionCookie } = await import('@/lib/firebaseAdminNode');
-          const decodedClaims = await verifySessionCookie(sessionCookie.value);
-
-          if (decodedClaims) {
-            return {
-              authenticated: true,
-              user: {
-                uid: decodedClaims.uid,
-                email: decodedClaims.email || 'unknown@example.com'
-              }
-            };
-          }
-        } catch (verifyError) {
-          logger.error('Session verification error', verifyError as Error);
-        }
-      }
-
+    } catch {
+      // If parsing fails, session is invalid
       return { authenticated: false };
     }
   } catch (error) {
@@ -215,11 +188,23 @@ async function checkAuthenticationInternal(): Promise<AuthResult> {
 }
 
 // ============================================================================
-// User Document Operations
+// Admin SDK Helper
+// ============================================================================
+
+async function getAdminFirestore() {
+  const adminApp = await initializeFirebaseAdminSafe();
+  if (!adminApp) {
+    throw new Error('Admin SDK not available');
+  }
+  return getFirestore(adminApp);
+}
+
+// ============================================================================
+// User Document Operations (using Admin SDK)
 // ============================================================================
 
 /**
- * Fetch admin user from Firestore
+ * Fetch admin user from Firestore using Admin SDK
  * Returns null if user doesn't exist or doesn't have an admin role
  */
 async function fetchAdminUser(uid: string, email: string): Promise<AdminUser | null> {
@@ -230,11 +215,11 @@ async function fetchAdminUser(uid: string, email: string): Promise<AdminUser | n
   }
 
   try {
-    const userRef = doc(db, 'users', uid);
-    const userSnap = await getDoc(userRef);
+    const db = await getAdminFirestore();
+    const userDoc = await db.collection('users').doc(uid).get();
 
-    if (userSnap.exists()) {
-      const data = userSnap.data();
+    if (userDoc.exists) {
+      const data = userDoc.data()!;
 
       // Check if user has a valid admin role
       if (data.role !== 'super_admin' && data.role !== 'property_owner') {
@@ -277,7 +262,7 @@ async function fetchAdminUser(uid: string, email: string): Promise<AdminUser | n
 }
 
 /**
- * Create a new admin user document
+ * Create a new admin user document using Admin SDK
  */
 async function createAdminUser(
   uid: string,
@@ -286,20 +271,20 @@ async function createAdminUser(
   managedProperties: string[] = [],
   autoProvisioned: boolean = false
 ): Promise<AdminUser> {
-  const userRef = doc(db, 'users', uid);
-  const now = serverTimestamp();
+  const db = await getAdminFirestore();
+  const userRef = db.collection('users').doc(uid);
 
   const userData = {
     email,
     role,
     managedProperties,
     autoProvisioned,
-    createdAt: now,
-    updatedAt: now,
-    lastLogin: now,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+    lastLogin: FieldValue.serverTimestamp(),
   };
 
-  await setDoc(userRef, userData);
+  await userRef.set(userData);
   logger.info('Created admin user', { uid, email, role, autoProvisioned });
 
   return {
@@ -315,16 +300,17 @@ async function createAdminUser(
 }
 
 /**
- * Update user's lastLogin timestamp
+ * Update user's lastLogin timestamp using Admin SDK
  */
 export async function updateLastLogin(uid: string): Promise<void> {
   try {
-    const userRef = doc(db, 'users', uid);
-    await setDoc(
-      userRef,
-      { lastLogin: serverTimestamp(), updatedAt: serverTimestamp() },
-      { merge: true }
-    );
+    const db = await getAdminFirestore();
+    const userRef = db.collection('users').doc(uid);
+
+    await userRef.update({
+      lastLogin: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
 
     // Invalidate cache
     userCache.delete(uid);
