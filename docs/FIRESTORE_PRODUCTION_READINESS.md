@@ -643,6 +643,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 
 ### Phase 5: Logging Migration (Optional)
 
+**Status**: ⏳ IN PROGRESS (2026-02-04)
 **Risk**: LOW
 **Effort**: 8-10 hours
 **Dependencies**: None
@@ -664,13 +665,20 @@ loggers.booking.info('message with context', { additionalData });
 loggers.booking.error('Error description', error, { additionalData });
 ```
 
-#### Priority Files
+#### Priority Files - Progress
 
-| File | Calls | Namespace |
-|------|-------|-----------|
-| `BookingContext.tsx` | 89 | `loggers.bookingContext` |
-| `bookingService.ts` | 50+ | `loggers.booking` |
-| Booking pages | 34+ | `loggers.booking` |
+| File | Calls | Namespace | Status |
+|------|-------|-----------|--------|
+| `BookingContext.tsx` | 89 | `loggers.bookingContext` | ✅ DONE |
+| `booking/success/actions.ts` | 22 | `loggers.booking` | ✅ DONE |
+| `admin/bookings/actions.ts` | 18 | `loggers.adminBookings` | ✅ DONE |
+| `bookingService.ts` | 50+ | `loggers.booking` | Pending |
+| Other booking pages | 34+ | `loggers.booking` | Pending |
+
+**New Logger Namespaces Added**:
+- `loggers.admin` - General admin operations
+- `loggers.adminBookings` - Admin booking management
+- `loggers.adminPricing` - Admin pricing management
 
 ---
 
@@ -817,12 +825,13 @@ firebase emulators:exec "npm test" --only firestore
 | Phase 2 | Tighten security rules | ✅ COMPLETED | 2026-02-04 | 4 collections secured, commit dfcfe62 |
 | Phase 3 | Deploy and verify | ⏳ DEPLOYED | 2026-02-04 | Rules deployed, manual testing required |
 | Phase 4 | Performance optimization | ✅ COMPLETED | 2026-02-04 | Batch fetch in availability-service.ts, commit 1b02f2f |
-| Phase 5 | Logging migration | Optional | - | - |
+| Phase 5 | Logging migration | ⏳ IN PROGRESS | 2026-02-04 | High-priority files migrated (129/1279 calls) |
 
 ### Revision History
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2026-02-04 | Phase 5 started: Migrated high-priority files (BookingContext, booking/success/actions, admin/bookings/actions) | Claude |
 | 2026-02-04 | Phase 4 completed: Batch fetch optimization in availability-service.ts | Claude |
 | 2026-02-04 | Phase 3 partial: Rules deployed to Firebase, manual testing pending | Claude |
 | 2026-02-04 | Phase 2 completed: Tightened security rules for properties, dateOverrides, priceCalendars | Claude |
