@@ -3,6 +3,9 @@
 
 import { initializeFirebaseAdminSafe, getFirestoreSafe } from './firebaseAdminSafe';
 import * as admin from 'firebase-admin';
+import { loggers } from '@/lib/logger';
+
+const logger = loggers.adminPricing;
 
 // Cache the initialization promise
 let initPromise: Promise<admin.firestore.Firestore | null> | null = null;
@@ -15,21 +18,20 @@ export async function getFirestoreForPricing(): Promise<admin.firestore.Firestor
   if (!initPromise) {
     initPromise = (async () => {
       try {
-        console.log('[PRICING] Initializing Firebase Admin for pricing...');
         await initializeFirebaseAdminSafe();
         const db = getFirestoreSafe();
         if (!db) {
-          console.error('[PRICING] Failed to get Firestore instance');
+          logger.error('Failed to get Firestore instance for pricing');
           return null;
         }
-        console.log('[PRICING] Firebase Admin initialized successfully');
+        logger.debug('Firestore initialized for pricing operations');
         return db;
       } catch (error) {
-        console.error('[PRICING] Error initializing Firebase Admin:', error);
+        logger.error('Error initializing Firestore for pricing', error as Error);
         return null;
       }
     })();
   }
-  
+
   return initPromise;
 }

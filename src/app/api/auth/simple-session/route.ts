@@ -9,6 +9,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { loggers } from '@/lib/logger';
+
+const logger = loggers.auth;
 
 // Force Node.js runtime for cookie handling
 export const runtime = 'nodejs';
@@ -24,7 +27,7 @@ interface SessionData {
  * Create session cookie
  */
 export async function POST(request: NextRequest) {
-  console.log('[SimpleSession] POST - Creating session');
+  logger.debug('Creating session');
   
   try {
     const { idToken } = await request.json();
@@ -38,7 +41,7 @@ export async function POST(request: NextRequest) {
 
     // In development, create simple session without Firebase Admin
     if (process.env.NODE_ENV === 'development') {
-      console.log('[SimpleSession] Development mode - creating simple session');
+      logger.debug('Development mode - creating simple session');
       
       // For development, extract basic info from token (unsafe but fine for dev)
       // In production, this would verify with Firebase Admin
@@ -76,7 +79,7 @@ export async function POST(request: NextRequest) {
       // Import Firebase Admin only in production
       const { verifyIdToken, createSessionCookie } = await import('@/lib/firebaseAdminNode');
       
-      console.log('[SimpleSession] Production mode - verifying with Firebase Admin');
+      logger.debug('Production mode - verifying with Firebase Admin');
       
       const decodedToken = await verifyIdToken(idToken);
       if (!decodedToken) {
@@ -93,7 +96,7 @@ export async function POST(request: NextRequest) {
 
       if (!sessionCookie) {
         // Fallback to simple session in production if Firebase Admin fails
-        console.warn('[SimpleSession] Firebase Admin failed, using fallback session');
+        logger.warn('Firebase Admin failed, using fallback session');
         
         const sessionData: SessionData = {
           uid: decodedToken.uid,
@@ -143,7 +146,7 @@ export async function POST(request: NextRequest) {
       });
 
     } catch (adminError) {
-      console.error('[SimpleSession] Firebase Admin error:', adminError);
+      logger.error('Firebase Admin error', adminError as Error);
       
       // Fallback to development-style session
       const sessionData: SessionData = {
@@ -176,7 +179,7 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
-    console.error('[SimpleSession] Session creation error:', error);
+    logger.error('Session creation error', error as Error);
     return NextResponse.json(
       { error: 'Failed to create session' },
       { status: 500 }
@@ -188,7 +191,7 @@ export async function POST(request: NextRequest) {
  * Check session status
  */
 export async function GET() {
-  console.log('[SimpleSession] GET - Checking session');
+  logger.debug('Checking session');
   
   try {
     const cookieStore = await cookies();
@@ -244,7 +247,7 @@ export async function GET() {
             });
           }
         } catch (verifyError) {
-          console.error('[SimpleSession] Session verification error:', verifyError);
+          logger.error('Session verification error', verifyError as Error);
         }
       }
 
@@ -255,7 +258,7 @@ export async function GET() {
     }
 
   } catch (error) {
-    console.error('[SimpleSession] Session check error:', error);
+    logger.error('Session check error', error as Error);
     return NextResponse.json(
       { error: 'Session check failed' },
       { status: 500 }
@@ -267,7 +270,7 @@ export async function GET() {
  * Clear session
  */
 export async function DELETE() {
-  console.log('[SimpleSession] DELETE - Clearing session');
+  logger.debug('Clearing session');
   
   try {
     const cookieStore = await cookies();
@@ -275,7 +278,7 @@ export async function DELETE() {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('[SimpleSession] Session deletion error:', error);
+    logger.error('Session deletion error', error as Error);
     return NextResponse.json(
       { error: 'Failed to delete session' },
       { status: 500 }

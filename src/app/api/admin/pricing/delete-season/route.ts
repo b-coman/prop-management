@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteSeasonalPricing } from '@/app/admin/pricing/actions';
+import { loggers } from '@/lib/logger';
+
+const logger = loggers.adminPricing;
 
 export async function POST(request: NextRequest) {
   try {
@@ -7,7 +10,7 @@ export async function POST(request: NextRequest) {
     await deleteSeasonalPricing(formData);
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting season:', error);
+    logger.error('Error deleting season', error as Error);
     return NextResponse.json(
       { success: false, error: 'Failed to delete season' },
       { status: 500 }

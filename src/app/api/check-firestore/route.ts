@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { loggers } from '@/lib/logger';
+
+const logger = loggers.admin;
 
 export async function GET() {
   try {
@@ -66,7 +69,7 @@ export async function GET() {
     
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
-    console.error('Error fetching Firestore data:', error);
+    logger.error('Error fetching Firestore data', error as Error);
     return NextResponse.json({ 
       error: 'Failed to fetch Firestore data',
       details: error instanceof Error ? error.message : 'Unknown error'

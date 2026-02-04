@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { loggers } from '@/lib/logger';
+
+const logger = loggers.admin;
 
 export async function POST() {
   try {
@@ -46,7 +49,7 @@ export async function POST() {
     }, { status: 200 });
     
   } catch (error) {
-    console.error('Error updating features:', error);
+    logger.error('Error updating features', error as Error);
     return NextResponse.json({ 
       error: 'Failed to update features',
       details: error instanceof Error ? error.message : 'Unknown error'

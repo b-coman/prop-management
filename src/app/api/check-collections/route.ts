@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getFirestoreForPricing } from '@/lib/firebaseAdminPricing';
+import { loggers } from '@/lib/logger';
+
+const logger = loggers.admin;
 
 export async function GET() {
   try {
@@ -7,8 +10,8 @@ export async function GET() {
     if (!db) {
       return NextResponse.json({ error: 'Database connection unavailable' });
     }
-    
-    console.log('Listing collections...');
+
+    logger.debug('Listing collections');
     
     // Get all collections
     const collections = await db.listCollections();
@@ -62,10 +65,10 @@ export async function GET() {
     });
     
   } catch (error: any) {
-    console.error('Error checking collections:', error);
-    return NextResponse.json({ 
+    logger.error('Error checking collections', error as Error);
+    return NextResponse.json({
       error: error.message,
-      stack: error.stack 
+      stack: error.stack
     });
   }
 }

@@ -2,7 +2,10 @@
 import { NextResponse } from 'next/server';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { loggers } from '@/lib/logger';
 import type { Property, CurrencyCode } from '@/types'; // Added CurrencyCode
+
+const logger = loggers.admin;
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -11,7 +14,7 @@ export async function GET(request: Request) {
   if (!domain) {
     return NextResponse.json({ error: 'Domain parameter is required' }, { status: 400 });
   }
-  console.log(`[API /resolve-domain] Resolving domain: ${domain}`);
+  logger.debug('Resolving domain', { domain });
 
   try {
     const propertiesCollection = collection(db, 'properties');
@@ -28,18 +31,18 @@ export async function GET(request: Request) {
     if (!querySnapshot.empty) {
       const propertyDoc = querySnapshot.docs[0];
       const propertyData = propertyDoc.data() as Property;
-      console.log(`[API /resolve-domain] Domain ${domain} resolved to property slug: ${propertyDoc.id} (base currency: ${propertyData.baseCurrency})`);
+      logger.debug('Domain resolved', { domain, slug: propertyDoc.id, baseCurrency: propertyData.baseCurrency });
       return NextResponse.json({
         slug: propertyDoc.id, // The document ID is the slug
         name: propertyData.name,
         baseCurrency: propertyData.baseCurrency, // Include base currency
       });
     } else {
-      console.log(`[API /resolve-domain] Domain not found or not active: ${domain}`);
+      logger.debug('Domain not found or not active', { domain });
       return NextResponse.json({ error: 'Domain not found or not configured for this property' }, { status: 404 });
     }
   } catch (error) {
-    console.error(`[API /resolve-domain] Error resolving domain ${domain}:`, error);
+    logger.error('Error resolving domain', error as Error, { domain });
     return NextResponse.json({ error: 'Internal server error while resolving domain' }, { status: 500 });
   }
 }

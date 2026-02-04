@@ -1,37 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestoreForPricing } from '@/lib/firebaseAdminPricing';
 import { format, isValid, startOfDay } from 'date-fns';
+import { loggers } from '@/lib/logger';
+import { checkRateLimit, rateLimitHeaders } from '@/lib/rate-limiter';
+
+const logger = loggers.availability;
+
+// Rate limit: 60 requests per minute per IP
+const RATE_LIMIT_CONFIG = { maxRequests: 60, windowSeconds: 60, keyPrefix: 'check-availability' };
 
 /**
  * API route handler for checking property availability
  * Performs the Firestore query server-side using Admin SDK for cloud compatibility
  */
 export async function GET(request: NextRequest) {
-  try {
-    // BEGIN - Add very visible debug logs
-    console.log(`==========================================`);
-    console.log(`🚨 API AVAILABILITY CHECK RECEIVED! 🚨`);
-    console.log(`==========================================`);
-    console.log(`URL: ${request.url}`);
+  // Check rate limit
+  const rateLimitResult = checkRateLimit(request, RATE_LIMIT_CONFIG);
+  if (!rateLimitResult.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.', unavailableDates: [] },
+      { status: 429, headers: rateLimitHeaders(rateLimitResult) }
+    );
+  }
 
+  try {
     // Get property slug and months from query parameters
     const searchParams = request.nextUrl.searchParams;
     const propertySlug = searchParams.get('propertySlug');
     const monthsToFetch = parseInt(searchParams.get('months') || '12', 10);
 
-    console.log(`🔍 Request params: propertySlug=${propertySlug}, months=${monthsToFetch}`);
+    logger.debug('Request received', { propertySlug, monthsToFetch });
 
     // Validate parameters
     if (!propertySlug) {
-      console.log(`❌ API ERROR: Missing propertySlug parameter`);
+      logger.warn('Missing propertySlug parameter');
       return NextResponse.json(
         { error: 'Property slug is required' },
         { status: 400 }
       );
     }
 
-    // Log the request for debugging
-    console.log(`[API] Checking availability for property: ${propertySlug}, months: ${monthsToFetch}`);
 
     // Implementation using Admin SDK for cloud compatibility
     const unavailableDates: string[] = []; // Return as ISO strings for consistent serialization
@@ -40,7 +48,7 @@ export async function GET(request: NextRequest) {
     const db = await getFirestoreForPricing();
     
     if (!db) {
-      console.error("[API] ❌ CRITICAL ERROR: Firestore Admin SDK (db) is not initialized.");
+      logger.error('Firestore Admin SDK not initialized');
       return NextResponse.json(
         {
           error: 'Database connection error - Firestore admin not initialized',
@@ -51,7 +59,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log("[API] ✅ Firestore Admin SDK is initialized, continuing with availability check");
 
     const availabilityCollection = db.collection('availability');
     const today = new Date();
@@ -64,7 +71,6 @@ export async function GET(request: NextRequest) {
       const monthStr = format(targetMonth, 'yyyy-MM');
       const docId = `${propertySlug}_${monthStr}`;
       monthDocIds.push(docId);
-      console.log(`[API] Adding doc ID to query: ${docId}`);
     }
 
     if (monthDocIds.length === 0) {
@@ -81,7 +87,6 @@ export async function GET(request: NextRequest) {
     const allQuerySnapshots = await Promise.all(
       queryBatches.map(async (batchIds, index) => {
         if (batchIds.length === 0) return null;
-        console.log(`[API] Executing query for batch ${index + 1}: ${batchIds.join(', ')}`);
         const query = availabilityCollection.where('__name__', 'in', batchIds.map(id => availabilityCollection.doc(id)));
         return query.get();
       })
@@ -96,7 +101,6 @@ export async function GET(request: NextRequest) {
         return;
       }
       
-      console.log(`[API] Processing batch ${batchIndex + 1}: Found ${querySnapshot.docs.length} documents.`);
       docCount += querySnapshot.docs.length;
       
       querySnapshot.docs.forEach((doc) => {
@@ -105,13 +109,13 @@ export async function GET(request: NextRequest) {
         
         // Check if the document is for the requested property
         if (!docId.startsWith(`${propertySlug}_`)) {
-          console.warn(`[API] Mismatch: Doc ID ${docId} doesn't match expected pattern for slug ${propertySlug}. Skipping.`);
+          logger.warn('Document ID mismatch', { docId, propertySlug });
           return;
         }
 
         const monthStr = data.month || docId.split('_').slice(1).join('_');
         if (!monthStr || !/^\d{4}-\d{2}$/.test(monthStr)) {
-          console.warn(`[API] Invalid month string '${monthStr}' for doc ${docId}. Skipping.`);
+          logger.warn('Invalid month string', { monthStr, docId });
           return;
         }
 
@@ -138,7 +142,7 @@ export async function GET(request: NextRequest) {
                   }
                 }
               } catch (dateError) {
-                console.warn(`[API] Error creating date ${monthStr}-${dayStr}:`, dateError);
+                logger.warn('Error creating date', { monthStr, dayStr, error: dateError });
               }
             }
           }
@@ -162,7 +166,7 @@ export async function GET(request: NextRequest) {
                     }
                   }
                 } catch (dateError) {
-                  console.warn(`[API] Error creating date ${monthStr}-${dayStr}:`, dateError);
+                  logger.warn('Error creating date', { monthStr, dayStr, error: dateError });
                 }
               }
             }
@@ -171,23 +175,16 @@ export async function GET(request: NextRequest) {
       });
     });
 
-    console.log(`[API] Summary: Processed ${docCount} total documents, ${docsWithDataCount} with valid data.`);
-    console.log(`[API] Total unavailable dates found for property ${propertySlug}: ${unavailableDates.length}`);
+    logger.debug('Availability check complete', {
+      propertySlug,
+      docsProcessed: docCount,
+      docsWithData: docsWithDataCount,
+      unavailableDatesCount: unavailableDates.length
+    });
 
     // Sort dates for convenience
     unavailableDates.sort();
 
-    // Log example dates for debugging
-    if (unavailableDates.length > 0) {
-      const examples = unavailableDates.slice(0, Math.min(5, unavailableDates.length));
-      console.log(`[API] Example unavailable dates (${examples.length}):`);
-      examples.forEach(dateStr => {
-        const date = new Date(dateStr);
-        console.log(`  - ${dateStr} -> ${date.toDateString()} (${date.getFullYear()}-${date.getMonth()+1}-${date.getDate()})`);
-      });
-    } else {
-      console.log(`[API] No unavailable dates found for property ${propertySlug}`);
-    }
 
     // Return the unavailable dates as ISO strings (will be converted back to Date objects on the client)
     return NextResponse.json({
@@ -202,7 +199,7 @@ export async function GET(request: NextRequest) {
     });
     
   } catch (error) {
-    console.error('[API] 🔴 Error in check-availability endpoint:', error);
+    logger.error('Error in check-availability endpoint', error as Error);
 
     // Always return a valid response with empty array to prevent client issues
     return NextResponse.json(
@@ -231,7 +228,7 @@ export async function POST(request: NextRequest) {
     
     return GET(newRequest);
   } catch (error) {
-    console.error('[API] Error processing POST request:', error);
+    logger.error('Error processing POST request', error as Error);
     return NextResponse.json(
       { error: 'Invalid request format' },
       { status: 400 }

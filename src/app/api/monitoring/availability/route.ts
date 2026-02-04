@@ -8,6 +8,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestoreForPricing } from '@/lib/firebaseAdminPricing';
 import { format, addDays } from 'date-fns';
+import { loggers } from '@/lib/logger';
+
+const logger = loggers.availability;
 
 interface HealthMetrics {
   timestamp: string;
@@ -50,7 +53,7 @@ export async function GET(request: NextRequest) {
       const testDoc = await db.collection('availability').limit(1).get();
       metrics.systemHealth.availabilityCollectionAccessible = true;
     } catch (error) {
-      console.error('[Monitoring] Availability collection not accessible:', error);
+      logger.error('Availability collection not accessible', error as Error);
       metrics.systemHealth.status = 'critical';
     }
 
@@ -68,18 +71,17 @@ export async function GET(request: NextRequest) {
         metrics.systemHealth.holdCleanupRunning = true;
       } else {
         metrics.systemHealth.status = 'warning';
-        console.warn(`[Monitoring] Found ${expiredHolds.size} expired holds not cleaned up`);
+        logger.warn('Found expired holds not cleaned up', { count: expiredHolds.size });
       }
     } catch (error) {
-      console.error('[Monitoring] Error checking expired holds:', error);
+      logger.error('Error checking expired holds', error as Error);
     }
 
     // Calculate performance metrics
     const endTime = Date.now();
     metrics.performanceMetrics.lastCheckDuration = endTime - startTime;
 
-    // Log metrics for monitoring systems
-    console.log('[Monitoring] Health check completed:', {
+    logger.debug('Health check completed', {
       status: metrics.systemHealth.status,
       duration: metrics.performanceMetrics.lastCheckDuration
     });
@@ -87,7 +89,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(metrics);
 
   } catch (error) {
-    console.error('[Monitoring] Error in availability monitoring:', error);
+    logger.error('Error in availability monitoring', error as Error);
     return NextResponse.json(
       { 
         error: 'Monitoring check failed',

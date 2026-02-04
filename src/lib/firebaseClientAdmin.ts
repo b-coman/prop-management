@@ -17,6 +17,7 @@
  */
 
 import { db } from '@/lib/firebase'; // Import the already initialized client SDK
+import { loggers } from '@/lib/logger';
 import {
   collection,
   doc,
@@ -33,6 +34,8 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 
+const logger = loggers.admin;
+
 // Check if Firebase client is available
 export function isFirestoreAvailable(): boolean {
   return !!db;
@@ -43,7 +46,7 @@ export function isFirestoreAvailable(): boolean {
  */
 export async function getAdminProperties() {
   if (!db) {
-    console.error('Firestore client not available');
+    logger.error('Firestore client not available');
     return [];
   }
   
@@ -56,7 +59,7 @@ export async function getAdminProperties() {
       ...doc.data()
     }));
   } catch (error) {
-    console.error('Error fetching properties:', error);
+    logger.error('Error fetching properties', error as Error);
     return [];
   }
 }
@@ -66,7 +69,7 @@ export async function getAdminProperties() {
  */
 export async function getAdminSeasonalPricing(propertyId: string) {
   if (!db) {
-    console.error('Firestore client not available');
+    logger.error('Firestore client not available');
     return [];
   }
   
@@ -80,7 +83,7 @@ export async function getAdminSeasonalPricing(propertyId: string) {
       ...doc.data()
     }));
   } catch (error) {
-    console.error(`Error fetching seasonal pricing for property ${propertyId}:`, error);
+    logger.error('Error fetching seasonal pricing', error as Error, { propertyId });
     return [];
   }
 }
@@ -90,7 +93,7 @@ export async function getAdminSeasonalPricing(propertyId: string) {
  */
 export async function getAdminDateOverrides(propertyId: string) {
   if (!db) {
-    console.error('Firestore client not available');
+    logger.error('Firestore client not available');
     return [];
   }
   
@@ -104,7 +107,7 @@ export async function getAdminDateOverrides(propertyId: string) {
       ...doc.data()
     }));
   } catch (error) {
-    console.error(`Error fetching date overrides for property ${propertyId}:`, error);
+    logger.error('Error fetching date overrides', error as Error, { propertyId });
     return [];
   }
 }
@@ -114,7 +117,7 @@ export async function getAdminDateOverrides(propertyId: string) {
  */
 export async function toggleDateOverrideAvailability(dateOverrideId: string, available: boolean) {
   if (!db) {
-    console.error('Firestore client not available');
+    logger.error('Firestore client not available');
     return { success: false, error: 'Firestore client not available' };
   }
   
@@ -128,7 +131,7 @@ export async function toggleDateOverrideAvailability(dateOverrideId: string, ava
     
     return { success: true };
   } catch (error) {
-    console.error(`Error updating date override ${dateOverrideId}:`, error);
+    logger.error('Error updating date override', error as Error, { dateOverrideId });
     return { success: false, error: `Failed to update date override: ${error}` };
   }
 }
@@ -138,7 +141,7 @@ export async function toggleDateOverrideAvailability(dateOverrideId: string, ava
  */
 export async function toggleSeasonalPricingStatus(seasonId: string, enabled: boolean) {
   if (!db) {
-    console.error('Firestore client not available');
+    logger.error('Firestore client not available');
     return { success: false, error: 'Firestore client not available' };
   }
   
@@ -152,7 +155,7 @@ export async function toggleSeasonalPricingStatus(seasonId: string, enabled: boo
     
     return { success: true };
   } catch (error) {
-    console.error(`Error updating seasonal pricing ${seasonId}:`, error);
+    logger.error('Error updating seasonal pricing', error as Error, { seasonId });
     return { success: false, error: `Failed to update seasonal pricing: ${error}` };
   }
 }
@@ -164,12 +167,12 @@ export async function toggleSeasonalPricingStatus(seasonId: string, enabled: boo
  */
 export async function generatePriceCalendar(propertyId: string) {
   if (!db) {
-    console.error('Firestore client not available');
+    logger.error('Firestore client not available');
     return { success: false, error: 'Firestore client not available' };
   }
   
   try {
-    console.log(`[Client] Generating price calendars for property ${propertyId}`);
+    logger.debug('Generating price calendars', { propertyId });
     
     // This would typically fetch all price information and generate calendars
     // For now, we'll just pretend to do it and return success
@@ -186,7 +189,7 @@ export async function generatePriceCalendar(propertyId: string) {
     
     return { success: true, months: 12 };
   } catch (error) {
-    console.error(`Error generating price calendars for property ${propertyId}:`, error);
+    logger.error('Error generating price calendars', error as Error, { propertyId });
     return { success: false, error: `Failed to generate price calendars: ${error}` };
   }
 }

@@ -4,6 +4,13 @@ import { getMonthsBetweenDates } from '@/lib/pricing/price-calendar-generator';
 import { calculateBookingPrice, LengthOfStayDiscount } from '@/lib/pricing/price-calculation';
 import { differenceInDays, format, addDays, parseISO } from 'date-fns';
 import { checkAvailabilityWithFlags } from '@/lib/availability-service';
+import { loggers } from '@/lib/logger';
+import { checkRateLimit, rateLimitHeaders } from '@/lib/rate-limiter';
+
+const logger = loggers.pricing;
+
+// Rate limit: 60 requests per minute per IP
+const RATE_LIMIT_CONFIG = { maxRequests: 60, windowSeconds: 60, keyPrefix: 'check-pricing' };
 
 /**
  * API endpoint to check availability and pricing for a specific date range
@@ -21,6 +28,15 @@ import { checkAvailabilityWithFlags } from '@/lib/availability-service';
  * ```
  */
 export async function POST(request: NextRequest) {
+  // Check rate limit
+  const rateLimitResult = checkRateLimit(request, RATE_LIMIT_CONFIG);
+  if (!rateLimitResult.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: rateLimitHeaders(rateLimitResult) }
+    );
+  }
+
   try {
     // Parse request body
     const body = await request.json();
@@ -38,14 +54,11 @@ export async function POST(request: NextRequest) {
     const checkInDate = parseISO(checkIn);
     const checkOutDate = parseISO(checkOut);
     
-    console.log('🔍 [API check-pricing] REQUEST RECEIVED:', {
+    logger.debug('Request received', {
       propertyId,
       checkIn,
       checkOut,
-      parsedCheckIn: checkInDate.toISOString(),
-      parsedCheckOut: checkOutDate.toISOString(),
-      guests,
-      timestamp: new Date().toISOString()
+      guests
     });
     
     // Validate past dates
@@ -70,8 +83,8 @@ export async function POST(request: NextRequest) {
     // Get property details
     const property = await getPropertyWithDb(propertyId);
     
-    // Log property for debugging
-    console.log(`[check-pricing] 🏠 Property details for ${propertyId}:`, {
+    logger.debug('Property details', {
+      propertyId,
       baseOccupancy: property.baseOccupancy,
       extraGuestFee: property.extraGuestFee,
       pricePerNight: property.pricePerNight
@@ -81,9 +94,8 @@ export async function POST(request: NextRequest) {
     const nights = differenceInDays(checkOutDate, checkInDate);
     
     // Check availability first using the availability service
-    console.log(`[check-pricing] 🔍 Checking availability using availability service...`);
     const availabilityResult = await checkAvailabilityWithFlags(propertyId, checkInDate, checkOutDate);
-    console.log(`[check-pricing] 📊 Availability result:`, {
+    logger.debug('Availability result', {
       isAvailable: availabilityResult.isAvailable,
       source: availabilityResult.source,
       unavailableDatesCount: availabilityResult.unavailableDates.length
@@ -91,13 +103,12 @@ export async function POST(request: NextRequest) {
     
     // If dates are not available, return early
     if (!availabilityResult.isAvailable) {
-      console.log('🔍 [API check-pricing] UNAVAILABLE DATES FOUND:', {
+      logger.debug('Unavailable dates found', {
         unavailableDates: availabilityResult.unavailableDates,
         checkIn,
-        checkOut,
-        timestamp: new Date().toISOString()
+        checkOut
       });
-      
+
       return NextResponse.json({
         available: false,
         reason: 'unavailable_dates',
@@ -128,7 +139,7 @@ export async function POST(request: NextRequest) {
     
     // Calculate pricing for each day (availability already checked)
     const currentDate = new Date(checkInDate);
-    console.log(`[check-pricing] 💰 Calculating pricing for ${nights} nights from ${format(checkInDate, 'yyyy-MM-dd')}`);
+    logger.debug('Calculating pricing', { nights, startDate: format(checkInDate, 'yyyy-MM-dd') });
     
     for (let night = 0; night < nights; night++) {
       const dateStr = format(currentDate, 'yyyy-MM-dd');
@@ -136,7 +147,6 @@ export async function POST(request: NextRequest) {
       const month = currentDate.getMonth() + 1;
       const day = currentDate.getDate().toString();
       
-      console.log(`[check-pricing] 📅 Night ${night}: Getting price for ${dateStr}`);
       
       // Find the relevant calendar
       const calendar = calendars.find(c => c?.year === year && c?.month === month);
@@ -152,26 +162,17 @@ export async function POST(request: NextRequest) {
       const dayPrice = calendar.days[day];
       
       // Record price for this date
-      console.log(`[check-pricing] 🧮 Calculating price for ${dateStr} with ${guests} guests (baseOccupancy: ${property.baseOccupancy})`);
-      
       if (guests <= property.baseOccupancy) {
-        console.log(`[check-pricing] ✅ Using baseOccupancyPrice: ${dayPrice.basePrice}`);
         dailyPrices[dateStr] = dayPrice.basePrice;
       } else {
         const occupancyPrice = dayPrice.prices?.[guests.toString()];
-        console.log(`[check-pricing] 🔍 Checking for specific price for ${guests} guests:`, 
-          occupancyPrice ? `Found: ${occupancyPrice}` : 'Not found, using fallback');
-        
         if (occupancyPrice) {
           dailyPrices[dateStr] = occupancyPrice;
         } else {
           // Fallback to base price + extra guest fee
           const extraGuests = guests - property.baseOccupancy;
           const extraGuestFee = property.extraGuestFee || 0;
-          const calculatedPrice = dayPrice.basePrice + (extraGuests * extraGuestFee);
-          
-          console.log(`[check-pricing] 📊 Fallback calculation: ${dayPrice.basePrice} + (${extraGuests} × ${extraGuestFee}) = ${calculatedPrice}`);
-          dailyPrices[dateStr] = calculatedPrice;
+          dailyPrices[dateStr] = dayPrice.basePrice + (extraGuests * extraGuestFee);
         }
       }
       
@@ -185,7 +186,6 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if minimum stay requirement is met
-    console.log(`[check-pricing] 🏗️ Minimum stay validation: ${nights} nights >= ${minimumStay} minimum = ${nights >= minimumStay}`);
     const meetsMinimumStay = nights >= minimumStay;
     
     // Calculate pricing (availability already confirmed)
@@ -207,21 +207,12 @@ export async function POST(request: NextRequest) {
         }
       };
       
-      // Log both naming conventions for debugging
-      console.log(`[check-pricing] 📊 Final pricing response for ${guests} guests:`, {
-        subtotal: finalResponse.pricing.subtotal,
-        totalPrice: finalResponse.pricing.totalPrice,
+      logger.debug('Final pricing response', {
+        guests,
         total: finalResponse.pricing.total,
-        averageNightlyRate: finalResponse.pricing.accommodationTotal / finalResponse.pricing.numberOfNights,
-        numberOfGuests: guests,
-        baseOccupancy: property.baseOccupancy,
-        extraGuestFee: property.extraGuestFee,
-        dailyRatesSample: Object.entries(dailyPrices).slice(0, 2)
+        nights: finalResponse.pricing.numberOfNights
       });
-      
-      // Log field names for debugging naming inconsistencies
-      console.log(`[check-pricing] 🏷️ API FIELD NAMES: pricingDetails fields = [${Object.keys(pricingDetails).join(', ')}]`);
-      
+
       return NextResponse.json(finalResponse);
     } else {
       // Only reason we'd get here is minimum stay not met
@@ -233,7 +224,7 @@ export async function POST(request: NextRequest) {
       });
     }
   } catch (error) {
-    console.error('Error checking pricing:', error);
+    logger.error('Error checking pricing', error as Error);
     return NextResponse.json(
       { error: 'Failed to check pricing' },
       { status: 500 }
