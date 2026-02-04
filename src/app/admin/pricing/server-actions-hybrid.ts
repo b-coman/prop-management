@@ -22,6 +22,9 @@ import { collection, getDocs, doc, updateDoc, getDoc, query, where, orderBy, set
 import { db } from "@/lib/firebase"; // Import the client SDK
 import { convertTimestampsToISOStrings } from "@/lib/utils"; // Import the timestamp converter
 import { format, parse } from "date-fns"; // Import date-fns
+import { loggers } from '@/lib/logger';
+
+const logger = loggers.adminPricing;
 
 /**
  * Fetch a single property by ID
@@ -32,14 +35,14 @@ export async function fetchProperty(propertyId: string) {
     const propertyDoc = await getDoc(propertyRef);
 
     if (!propertyDoc.exists()) {
-      console.log(`[Server] Property ${propertyId} not found`);
+      logger.debug('Property not found', { propertyId });
       return null;
     }
 
     const data = propertyDoc.data();
     const serializedData = convertTimestampsToISOStrings(data);
 
-    console.log(`[Server] Fetched property ${propertyId} using client SDK`);
+    logger.debug('Fetched property', { propertyId });
     return {
       id: propertyDoc.id,
       name: serializedData.name || propertyDoc.id,
@@ -49,7 +52,7 @@ export async function fetchProperty(propertyId: string) {
       ...serializedData
     };
   } catch (error) {
-    console.error(`[Server] Error fetching property ${propertyId}:`, error);
+    logger.error('Error fetching property', error as Error, { propertyId });
     return null;
   }
 }
@@ -78,10 +81,10 @@ export async function fetchProperties() {
       };
     });
 
-    console.log(`[Server] Fetched ${properties.length} properties using client SDK`);
+    logger.debug('Fetched properties', { count: properties.length });
     return properties;
   } catch (error) {
-    console.error('[Server] Error fetching properties:', error);
+    logger.error('Error fetching properties', error as Error);
     return [];
   }
 }
@@ -106,10 +109,10 @@ export async function fetchSeasonalPricing(propertyId: string) {
       };
     });
 
-    console.log(`[Server] Fetched ${seasonalPricing.length} seasonal pricing rules for property ${propertyId}`);
+    logger.debug('Fetched seasonal pricing rules', { propertyId, count: seasonalPricing.length });
     return seasonalPricing;
   } catch (error) {
-    console.error(`[Server] Error fetching seasonal pricing for property ${propertyId}:`, error);
+    logger.error('Error fetching seasonal pricing', error as Error, { propertyId });
     return [];
   }
 }
@@ -134,10 +137,10 @@ export async function fetchDateOverrides(propertyId: string) {
       };
     });
 
-    console.log(`[Server] Fetched ${dateOverrides.length} date overrides for property ${propertyId}`);
+    logger.debug('Fetched date overrides', { propertyId, count: dateOverrides.length });
     return dateOverrides;
   } catch (error) {
-    console.error(`[Server] Error fetching date overrides for property ${propertyId}:`, error);
+    logger.error('Error fetching date overrides', error as Error, { propertyId });
     return [];
   }
 }
@@ -162,7 +165,7 @@ export async function toggleSeasonalPricingStatus(seasonId: string, enabled: boo
     
     return { success: true };
   } catch (error) {
-    console.error(`[Server] Error updating seasonal pricing ${seasonId}:`, error);
+    logger.error('Error updating seasonal pricing', error as Error, { seasonId, enabled });
     return { success: false, error: `Failed to update seasonal pricing: ${error}` };
   }
 }
@@ -187,7 +190,7 @@ export async function toggleDateOverrideAvailability(dateOverrideId: string, ava
 
     return { success: true };
   } catch (error) {
-    console.error(`[Server] Error updating date override ${dateOverrideId}:`, error);
+    logger.error('Error updating date override', error as Error, { dateOverrideId, available });
     return { success: false, error: `Failed to update date override: ${error}` };
   }
 }
@@ -197,7 +200,7 @@ export async function toggleDateOverrideAvailability(dateOverrideId: string, ava
  */
 export async function updateDay(dayData: any) {
   try {
-    console.log(`[Server] Updating day for ${dayData.date}`);
+    logger.debug('Updating day', { date: dayData.date, propertyId: dayData.propertyId });
     let overrideId = dayData.id;
 
     // If we have an ID, it means we're updating an existing override
@@ -230,22 +233,22 @@ export async function updateDay(dayData: any) {
 
     // Format the calendar ID (propertyId_YYYY-MM)
     const calendarId = `${dayData.propertyId}_${year}-${month.toString().padStart(2, '0')}`;
-    console.log(`[Server] Updating price calendar ${calendarId} for day ${day}`);
+    logger.debug('Updating price calendar', { calendarId, day });
 
     // Update the availability collection (NEW - for availability deduplication)
+    const availabilityDocId = `${dayData.propertyId}_${year}-${month.toString().padStart(2, '0')}`;
     try {
-      const availabilityDocId = `${dayData.propertyId}_${year}-${month.toString().padStart(2, '0')}`;
       const availabilityRef = doc(db, 'availability', availabilityDocId);
-      
+
       // Update the availability status for the specific day
       await setDoc(availabilityRef, {
         [`available.${day}`]: dayData.available,
         updatedAt: new Date().toISOString()
       }, { merge: true });
-      
-      console.log(`[Server] Successfully updated availability collection for ${availabilityDocId} day ${day}`);
+
+      logger.debug('Updated availability collection', { availabilityDocId, day });
     } catch (availabilityError) {
-      console.error(`[Server] Error updating availability collection:`, availabilityError);
+      logger.error('Error updating availability collection', availabilityError as Error, { availabilityDocId, day });
       // Don't fail the operation if availability update fails
     }
 
@@ -272,13 +275,13 @@ export async function updateDay(dayData: any) {
           updatedAt: new Date().toISOString()
         });
 
-        console.log(`[Server] Successfully updated calendar ${calendarId} day ${day}`);
+        logger.debug('Updated price calendar', { calendarId, day });
       } else {
-        console.log(`[Server] Price calendar ${calendarId} does not exist, skipping direct update`);
+        logger.debug('Price calendar does not exist, skipping direct update', { calendarId });
       }
     } catch (calendarError) {
       // Don't fail the entire operation if calendar update fails
-      console.error(`[Server] Error updating price calendar:`, calendarError);
+      logger.error('Error updating price calendar', calendarError as Error, { calendarId });
     }
 
     revalidatePath('/admin/pricing');
@@ -286,7 +289,7 @@ export async function updateDay(dayData: any) {
 
     return { success: true };
   } catch (error) {
-    console.error(`[Server] Error updating day:`, error);
+    logger.error('Error updating day', error as Error, { date: dayData.date });
     return { success: false, error: `Failed to update day: ${error}` };
   }
 }
@@ -310,7 +313,7 @@ export async function fetchPriceCalendars(
   endMonth?: number
 ) {
   try {
-    console.log(`[Server] Fetching price calendars for property ${propertyId}`);
+    logger.debug('Fetching price calendars', { propertyId, monthsToFetch });
 
     const priceCalendarsRef = collection(db, 'priceCalendars');
 
@@ -357,7 +360,7 @@ export async function fetchPriceCalendars(
           monthDate = parse(serializedData.monthStr, 'MMMM yyyy', new Date());
         }
       } catch (error) {
-        console.error('[Server] Error parsing month string:', error);
+        logger.warn('Error parsing month string', { error, monthStr: serializedData.monthStr });
       }
 
       return {
@@ -395,10 +398,10 @@ export async function fetchPriceCalendars(
       return a.monthDate.getTime() - b.monthDate.getTime();
     });
 
-    console.log(`[Server] Fetched ${calendars.length} price calendars for property ${propertyId}`);
+    logger.debug('Fetched price calendars', { propertyId, count: calendars.length });
     return calendars;
   } catch (error) {
-    console.error(`[Server] Error fetching price calendars for property ${propertyId}:`, error);
+    logger.error('Error fetching price calendars', error as Error, { propertyId });
     return [];
   }
 }
@@ -408,7 +411,7 @@ export async function fetchPriceCalendars(
  */
 export async function generatePriceCalendar(propertyId: string) {
   try {
-    console.log(`[Server] Generating price calendars for property ${propertyId}`);
+    logger.info('Generating price calendars', { propertyId });
 
     // Get current date
     const now = new Date();
@@ -429,7 +432,7 @@ export async function generatePriceCalendar(propertyId: string) {
       const propertyDoc = await getDoc(propertyRef);
 
       if (!propertyDoc.exists()) {
-        console.error(`Property ${propertyId} not found`);
+        logger.error('Property not found during calendar generation', undefined, { propertyId });
         continue;
       }
 
@@ -646,7 +649,7 @@ export async function generatePriceCalendar(propertyId: string) {
       await setDoc(calendarRef, calendar);
 
       generatedCalendars.push(calendarId);
-      console.log(`[Server] Generated price calendar ${calendarId}`);
+      logger.debug('Generated price calendar', { calendarId });
     }
 
     revalidatePath('/admin/pricing');
@@ -658,7 +661,7 @@ export async function generatePriceCalendar(propertyId: string) {
       generatedCalendars
     };
   } catch (error) {
-    console.error(`[Server] Error generating price calendars for property ${propertyId}:`, error);
+    logger.error('Error generating price calendars', error as Error, { propertyId });
     return { success: false, error: `Failed to generate price calendars: ${error}` };
   }
 }

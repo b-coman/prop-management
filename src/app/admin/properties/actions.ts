@@ -7,6 +7,9 @@ import { db } from "@/lib/firebase";
 import type { Property, SerializableTimestamp } from "@/types";
 import { revalidatePath } from "next/cache";
 import { sanitizeText } from "@/lib/sanitize"; // Assuming sanitizer
+import { loggers } from '@/lib/logger';
+
+const logger = loggers.admin;
 
 // Schema for Property (adjust based on your final Property type in types/index.ts)
 // This schema should mirror the form validation schema but used for server-side action validation
@@ -76,16 +79,16 @@ const serializeTimestamp = (timestamp: SerializableTimestamp | undefined | null)
         return new Date(seconds * 1000 + nanoseconds / 1000000).toISOString();
       }
     } catch (error) {
-      console.error("Error converting Firestore timestamp object:", error);
+      logger.error('Error converting Firestore timestamp object', error as Error);
       return null;
     }
   }
-  
+
   // Last resort - try to convert as is
   try {
     return new Date(timestamp as any).toISOString();
   } catch (error) {
-    console.error("Invalid timestamp format:", timestamp);
+    logger.error('Invalid timestamp format', error as Error, { timestamp });
     return null;
   }
 };
@@ -130,7 +133,7 @@ export async function fetchProperties(): Promise<Property[]> {
     });
     return properties;
   } catch (error) {
-    console.error("[Action fetchProperties] Error fetching properties:", error);
+    logger.error('Error fetching properties', error as Error);
     return [];
   }
 }
@@ -144,7 +147,7 @@ export async function createPropertyAction(
 
   if (!validatedFields.success) {
     const errorMessages = validatedFields.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
-    console.error("[Create Property Action] Validation Error:", errorMessages);
+    logger.warn('Create property validation error', { errors: errorMessages });
     return { error: `Invalid input: ${errorMessages}` };
   }
 
@@ -169,12 +172,12 @@ export async function createPropertyAction(
 
     await setDoc(existingDocRef, dataToSave); // Use setDoc with the slug as the ID
 
-    console.log(`[Create Property Action] Property "${propertyData.name}" created successfully with slug: ${slug}`);
+    logger.info('Property created successfully', { name: propertyData.name, slug });
     revalidatePath('/admin/properties');
     revalidatePath(`/properties/${slug}`); // Revalidate public page
     return { slug: slug, name: propertyData.name };
   } catch (error) {
-    console.error(`❌ [Create Property Action] Error creating property "${slug}":`, error);
+    logger.error('Error creating property', error as Error, { slug });
     return { error: `Failed to create property: ${error instanceof Error ? error.message : String(error)}` };
   }
 }
@@ -190,7 +193,7 @@ export async function updatePropertyAction(
 
    if (!validatedFields.success) {
      const errorMessages = validatedFields.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
-     console.error("[Update Property Action] Validation Error:", errorMessages);
+     logger.warn('Update property validation error', { errors: errorMessages, slug: currentSlug });
      return { error: `Invalid input: ${errorMessages}` };
    }
 
@@ -214,14 +217,14 @@ export async function updatePropertyAction(
 
     await updateDoc(propertyRef, dataToUpdate);
 
-    console.log(`[Update Property Action] Property "${propertyData.name}" (${currentSlug}) updated successfully.`);
+    logger.info('Property updated successfully', { name: propertyData.name, slug: currentSlug });
     revalidatePath('/admin/properties');
     revalidatePath(`/properties/${currentSlug}`); // Revalidate public page
     revalidatePath(`/admin/properties/${currentSlug}/edit`); // Revalidate edit page
     return { slug: currentSlug, name: propertyData.name };
 
   } catch (error) {
-    console.error(`❌ [Update Property Action] Error updating property "${currentSlug}":`, error);
+    logger.error('Error updating property', error as Error, { slug: currentSlug });
     return { error: `Failed to update property: ${error instanceof Error ? error.message : String(error)}` };
   }
 }
@@ -242,7 +245,7 @@ export async function deletePropertyAction(
     // Check if the property exists
     const docSnap = await getDoc(propertyRef);
     if (!docSnap.exists()) {
-        console.warn(`[Delete Property Action] Property "${slug}" not found, attempting to delete anyway.`);
+        logger.warn('Property not found, attempting to delete anyway', { slug });
         // Allow deletion attempt even if main doc is missing, to clean up overrides etc.
     }
 
@@ -251,14 +254,14 @@ export async function deletePropertyAction(
     // For now, we just delete the main property doc and overrides.
 
     await deleteDoc(propertyRef);
-    await deleteDoc(overridesRef).catch(err => console.warn(`Could not delete overrides for ${slug}: ${err.message}`)); // Try to delete overrides, ignore if not found
+    await deleteDoc(overridesRef).catch(err => logger.warn('Could not delete overrides', { slug, error: err.message })); // Try to delete overrides, ignore if not found
 
-    console.log(`[Delete Property Action] Property "${slug}" deleted successfully.`);
+    logger.info('Property deleted successfully', { slug });
     revalidatePath('/admin/properties');
     revalidatePath(`/properties/${slug}`); // Invalidate deleted page path
     return { success: true };
   } catch (error) {
-    console.error(`❌ [Delete Property Action] Error deleting property "${slug}":`, error);
+    logger.error('Error deleting property', error as Error, { slug });
     return { success: false, error: `Failed to delete property: ${error instanceof Error ? error.message : String(error)}` };
   }
 }
