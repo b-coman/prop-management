@@ -56,6 +56,9 @@ import { serverTranslateContent } from '@/lib/server-language-utils';
 import { BookingPageV2 } from '@/components/booking-v2';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
 import { LanguageHtmlUpdater } from '@/components/language-html-updater';
+import { loggers } from '@/lib/logger';
+
+const logger = loggers.booking;
 
 interface BookingCheckPageProps {
   params: Promise<{ 
@@ -130,40 +133,35 @@ export default async function BookingCheckPage({ params, searchParams }: Booking
     actualPath = actualPath.slice(1); // Remove language from path for future use
   }
 
-  console.log("\n================================");
-  console.log("🔍 [SERVER] Booking Check Page Requested");
-  console.log("================================");
-  console.log(`📆 Date/Time: ${new Date().toISOString()}`);
-  console.log(`🏠 Property Slug: ${slug}`);
-  console.log(`🗓️ Check-in: ${checkIn || 'Not provided'}`);
-  console.log(`🗓️ Check-out: ${checkOut || 'Not provided'}`);
-  console.log(`🌐 Language Path: ${path ? path.join('/') : 'Not provided'}`);
-  console.log(`🌐 Detected Language: ${detectedLanguage}`);
-  console.log(`🌐 Supported Languages: ${SUPPORTED_LANGUAGES.join(', ')}`);
-  console.log(`🔧 Migration: Using path-based detection (v2.0)`);
-  console.log("================================\n");
+  logger.info('Booking check page requested', {
+    slug,
+    checkIn: checkIn || 'Not provided',
+    checkOut: checkOut || 'Not provided',
+    languagePath: path ? path.join('/') : 'Not provided',
+    detectedLanguage
+  });
 
   if (!slug) {
-    console.error("❌ [SERVER] Slug is missing from params - returning 404");
+    logger.error('Slug is missing from params - returning 404');
     notFound();
   }
 
-  console.log("🔍 [SERVER] Fetching property data from database...");
+  logger.debug('Fetching property data from database', { slug });
   const property = await getPropertyBySlug(slug);
 
   if (!property) {
-    console.error(`❌ [SERVER] Property not found with slug: ${slug} - returning 404`);
+    logger.error('Property not found - returning 404', undefined, { slug });
     notFound(); // Property slug is invalid
   }
 
-  console.log(`✅ [SERVER] Property found: "${property.name}"`);
+  logger.debug('Property found', { propertyName: property.name, slug });
 
   // Basic validation for search params (only dates now)
   if (!checkIn || !checkOut) {
-    console.warn("⚠️ [SERVER] Missing date parameters in URL:");
-    console.warn(`   Check-in: ${checkIn || 'MISSING'}`);
-    console.warn(`   Check-out: ${checkOut || 'MISSING'}`);
-    console.warn("   The client component will handle this case.");
+    logger.warn('Missing date parameters in URL', {
+      checkIn: checkIn || 'MISSING',
+      checkOut: checkOut || 'MISSING'
+    });
   } else {
     // Additional validation to catch invalid date formats
     try {
@@ -171,30 +169,34 @@ export default async function BookingCheckPage({ params, searchParams }: Booking
       const checkOutDate = new Date(checkOut);
 
       if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
-        console.error("❌ [SERVER] Invalid date format detected in URL params:");
-        console.error(`   Check-in: ${checkIn} - Valid: ${!isNaN(checkInDate.getTime())}`);
-        console.error(`   Check-out: ${checkOut} - Valid: ${!isNaN(checkOutDate.getTime())}`);
+        logger.error('Invalid date format detected in URL params', undefined, {
+          checkIn,
+          checkOut,
+          checkInValid: !isNaN(checkInDate.getTime()),
+          checkOutValid: !isNaN(checkOutDate.getTime())
+        });
       } else {
         const nights = Math.round((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
-        console.log("✅ [SERVER] Valid dates parsed from URL params:");
-        console.log(`   Check-in: ${checkInDate.toISOString().split('T')[0]}`);
-        console.log(`   Check-out: ${checkOutDate.toISOString().split('T')[0]}`);
-        console.log(`   Nights: ${nights}`);
+        logger.debug('Valid dates parsed from URL params', {
+          checkIn: checkInDate.toISOString().split('T')[0],
+          checkOut: checkOutDate.toISOString().split('T')[0],
+          nights
+        });
 
         if (nights <= 0) {
-          console.warn("⚠️ [SERVER] Potential issue: Check-out date is before or same as check-in date");
+          logger.warn('Check-out date is before or same as check-in date', { nights });
         }
 
         if (checkInDate < new Date()) {
-          console.warn("⚠️ [SERVER] Potential issue: Check-in date is in the past");
+          logger.warn('Check-in date is in the past', { checkIn: checkInDate.toISOString() });
         }
       }
     } catch (error) {
-      console.error("❌ [SERVER] Error parsing dates from URL params:", error);
+      logger.error('Error parsing dates from URL params', error as Error, { checkIn, checkOut });
     }
   }
 
-  console.log("🚀 [SERVER] Rendering booking check page...\n");
+  logger.debug('Rendering booking check page', { slug, detectedLanguage });
 
   // Extract property name for display using server-side multilingual handling
   const propertyName = serverTranslateContent(property.name) || property.slug;
@@ -202,11 +204,11 @@ export default async function BookingCheckPage({ params, searchParams }: Booking
   // Pre-fetch hero image directly on the server side - this is more reliable
   let heroImage = null;
   try {
-    console.log("🖼️ [SERVER] Pre-fetching hero image for property:", property.slug);
+    logger.debug('Pre-fetching hero image', { slug: property.slug });
     heroImage = await getPropertyHeroImage(property.slug, true);
-    console.log("🖼️ [SERVER] Hero image result:", heroImage);
+    logger.debug('Hero image fetched', { slug: property.slug, hasImage: !!heroImage });
   } catch (error) {
-    console.error("🖼️ [SERVER] Error pre-fetching hero image:", error);
+    logger.error('Error pre-fetching hero image', error as Error, { slug: property.slug });
     // Continue without the hero image if it fails
   }
 
