@@ -1,37 +1,26 @@
 # Claude AI - RentalSpot Project Guide
 
-**Last Updated**: 2026-02-04
-
 ## Project Overview
 
-RentalSpot-Builder is a Next.js 15 vacation rental booking platform with:
-- Public property pages and booking flows
-- Admin dashboard for property/pricing management
-- Stripe payment integration (full bookings + hold deposits)
-- Multi-language support (EN/RO)
-- Firebase/Firestore backend
+Next.js 15 vacation rental booking platform with Stripe payments, Firebase/Firestore backend, and multi-language support (EN/RO).
 
 ## Current System Status
 
-| System | Status | Notes |
-|--------|--------|-------|
-| Booking System | Production Ready | Single implementation, legacy V1 removed |
-| Availability | Single-source | Uses `availability` collection only |
-| Security Rules | Hardened | Admin-only writes on sensitive collections |
-| Logging | Structured | ~416 calls migrated to namespace-based logger |
-| Hold Flow | Working | Auto-expiration via cron job |
+| System | Status |
+|--------|--------|
+| Booking System | Production ready, single implementation |
+| Availability | Single-source (`availability` collection) |
+| Security Rules | Hardened, admin-only writes on sensitive collections |
+| Logging | Structured logger with namespaces |
+| Hold Flow | Working with auto-expiration cron |
 
-## Key Principles
+## Key Rules
 
-### Code Changes
-- **Modify existing files** - never create duplicates (no `.v2`, `.old`, `.backup`)
-- **No hardcoded/mock data** - always use real Firestore data
-- **Test before claiming done** - build must pass, functionality must work
-
-### Documentation
-- Only update docs when explicitly requested
-- Focus on code changes over documentation
-- Reference existing docs rather than recreating
+1. **Modify existing files** - never create duplicates or version suffixes
+2. **No mock/hardcoded data** - always use real Firestore data
+3. **Test before claiming done** - `npm run build` must pass, functionality must work
+4. **Use structured logger** - not `console.*` (see `src/lib/logger.ts`)
+5. **Update docs only when requested** - focus on code changes
 
 ## User Keywords
 
@@ -42,88 +31,46 @@ RentalSpot-Builder is a Next.js 15 vacation rental booking platform with:
 | `$explain` | Detailed explanations with examples |
 | `$plan` | Create implementation plan before coding |
 
-## Key Architecture Patterns
+## Architecture Quick Reference
 
-### Firebase SDK Usage
+**Firebase SDK Usage:**
+- Browser & Server Actions → Client SDK (rules apply)
+- API routes & Cron jobs → Admin SDK (bypasses rules)
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  Browser/Client     │  Server Actions    │  Cron/API   │
-│  (React Components) │  ("use server")    │  Routes     │
-├─────────────────────────────────────────────────────────┤
-│  Client SDK         │  Client SDK        │  Admin SDK  │
-│  (rules apply)      │  (rules apply)     │  (bypasses) │
-└─────────────────────────────────────────────────────────┘
-```
+**Logger Namespaces:** `booking`, `bookingContext`, `stripe`, `admin`, `adminPricing`, `adminBookings`, `availability`, `email`
 
-**Important**: Server Actions use Client SDK, so Firestore rules still apply to them.
+## Key Files
 
-### Structured Logging
-
-```typescript
-import { loggers } from '@/lib/logger';
-
-// Available namespaces
-loggers.booking       // Core booking operations
-loggers.stripe        // Payment processing
-loggers.admin         // Admin operations
-loggers.adminPricing  // Pricing management
-loggers.availability  // Availability checks
-
-// Usage
-logger.info('Operation completed', { bookingId, propertyId });
-logger.error('Operation failed', error as Error, { context });
-logger.debug('Debug info', { data });  // Only shows when enabled
-```
-
-Enable debug logging:
-- URL: `?debug=booking:*`
-- Console: `LoggerConfig.enableDebug('booking:*')`
-- Server: `RENTAL_SPOT_LOG_LEVEL=DEBUG`
+| Purpose | Path |
+|---------|------|
+| Firestore Rules | `firestore.rules` |
+| Client SDK | `src/lib/firebase.ts` |
+| Admin SDK | `src/lib/firebaseAdminSafe.ts` |
+| Logger | `src/lib/logger.ts` |
+| Booking Service | `src/services/bookingService.ts` |
+| Stripe Webhook | `src/app/api/webhooks/stripe/route.ts` |
 
 ## Key Documentation
 
 | Document | Purpose |
 |----------|---------|
-| `docs/FIRESTORE_PRODUCTION_READINESS.md` | Security rules, deployment checklist |
-| `docs/ARCHITECTURE_CLEANUP_GUIDE.md` | Technical debt status, cleanup phases |
-| `docs/testing/production-readiness-checklist.md` | Manual testing scenarios |
-| `docs/implementation/booking-system-v2-specification.md` | Booking flow details |
+| `docs/FIRESTORE_PRODUCTION_READINESS.md` | Security, deployment status |
+| `docs/ARCHITECTURE_CLEANUP_GUIDE.md` | Technical debt, cleanup phases |
+| `docs/testing/production-readiness-checklist.md` | Manual test scenarios |
 
-## GitHub Issues Workflow
+## GitHub Issues
 
-1. **Before creating issues**: ASK user first - "Should I create a GitHub issue for [X]?"
-2. **Before fixing issues**: Investigate with `$nc` mode, present findings, wait for approval
-3. **Never use emojis** in GitHub issues
-4. **Reference issue numbers** in commits
+- ASK before creating issues
+- Investigate with `$nc` mode before fixing
+- No emojis in issues
+- Reference issue numbers in commits
 
-## File Locations Quick Reference
+## Commit Format
 
-| Purpose | Path |
-|---------|------|
-| Firestore Rules | `/firestore.rules` |
-| Client SDK | `/src/lib/firebase.ts` |
-| Admin SDK | `/src/lib/firebaseAdminSafe.ts` |
-| Booking Service | `/src/services/bookingService.ts` |
-| Availability Service | `/src/lib/availability-service.ts` |
-| Logger | `/src/lib/logger.ts` |
-| Stripe Webhook | `/src/app/api/webhooks/stripe/route.ts` |
-| Cron: Release Holds | `/src/app/api/cron/release-holds/route.ts` |
+```
+<type>: <description>
 
-## Common Tasks
-
-### Check System Health
-```bash
-npm run build                    # Verify no build errors
-gh issue list                    # Check open issues
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 ```
 
-### Debug Booking Issues
-1. Check structured logs with appropriate namespace
-2. Verify Firestore rules allow the operation
-3. Check if using Client SDK vs Admin SDK appropriately
-
-### Deploy Security Rules
-```bash
-firebase deploy --only firestore:rules
-```
+Types: `feat`, `fix`, `refactor`, `docs`, `perf`, `security`
