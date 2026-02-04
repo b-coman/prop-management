@@ -1,24 +1,23 @@
-"use client";
-
 /**
- * BookingContainer - Embedded booking widget for hero sections
+ * BookingWidget - Embedded booking widget for hero sections
  *
- * Simplified version that renders a date picker + price display.
- * The form redirects to the V2 booking page (/booking/check/[slug]).
- *
- * No V1 BookingContext dependency - all state is local to InitialBookingForm.
+ * @description Displays price and date picker, redirects to V2 booking page.
+ *              Standalone component extracted from V1 booking system during cleanup.
+ * @created 2026-02-04
+ * @module components/booking-widget
  */
 
+"use client";
+
 import React, { useEffect, useState } from 'react';
-import { InitialBookingForm } from '@/components/booking/initial-booking-form';
+import { InitialBookingForm } from './InitialBookingForm';
 import { Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useLanguage } from '@/hooks/useLanguage';
 import type { Property } from '@/types';
 
-// Props for the BookingContainer
-export interface BookingContainerProps {
+export interface BookingWidgetProps {
   property: Property;
   position?: 'center' | 'top' | 'bottom' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
   size?: 'compressed' | 'large';
@@ -31,14 +30,14 @@ export interface BookingContainerProps {
  * Embedded booking widget for hero sections
  * Displays price and date picker, redirects to V2 booking page
  */
-export const BookingContainer = React.memo(function BookingContainer({
+export const BookingWidget = React.memo(function BookingWidget({
   property,
   position = 'bottom',
   size = 'compressed',
   showRating = false,
   variant = 'embedded',
   className
-}: BookingContainerProps) {
+}: BookingWidgetProps) {
   const { formatPrice, selectedCurrency, baseCurrencyForProperty, convertToSelectedCurrency, ratesLoading } = useCurrency();
   const { tc, t } = useLanguage();
   const [hasMounted, setHasMounted] = useState(false);
@@ -49,7 +48,7 @@ export const BookingContainer = React.memo(function BookingContainer({
 
   // Only embedded variant is supported
   if (variant !== 'embedded') {
-    console.warn('[BookingContainer] Only embedded variant is supported. Use V2 booking page for full booking flow.');
+    console.warn('[BookingWidget] Only embedded variant is supported. Use V2 booking page for full booking flow.');
     return null;
   }
 
@@ -383,7 +382,7 @@ export const BookingContainer = React.memo(function BookingContainer({
                 : t('common.from')}
             </p>
 
-            {/* Mobile: FROM → price with visual balance */}
+            {/* Mobile: FROM -> price with visual balance */}
             <div className={cn(
               "flex items-center justify-between w-full md:hidden px-2",
               size === 'large' ? "text-xl" : "text-lg"
@@ -393,7 +392,7 @@ export const BookingContainer = React.memo(function BookingContainer({
                   ? tc(property.advertisedRateType)
                   : t('common.from')}
               </span>
-              <span className="text-muted-foreground mx-2">→</span>
+              <span className="text-muted-foreground mx-2">{'->'}</span>
               <div className="font-bold text-foreground leading-none">
                 {hasMounted && formattedDisplayPrice !== null
                   ? formattedDisplayPrice

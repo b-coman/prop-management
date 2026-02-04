@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import { setupHeroContentAdjustment } from './hero-helper';
 import { useLanguage } from '@/hooks/useLanguage';
-import { BookingContainer } from '@/components/booking';
+import { BookingContainer } from '@/components/booking-widget';
 
 export interface HeroData {
   backgroundImage?: string | null;

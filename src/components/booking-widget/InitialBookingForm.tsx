@@ -1,5 +1,12 @@
+/**
+ * InitialBookingForm - Date picker form for hero section booking widget
+ *
+ * @description Simple form that collects date range and redirects to V2 booking page.
+ *              Part of the standalone booking widget extracted from V1 booking system.
+ * @created 2026-02-04
+ * @module components/booking-widget
+ */
 
-// src/components/booking/initial-booking-form.tsx
 "use client";
 
 import * as React from 'react';
@@ -25,7 +32,7 @@ import { TouchTarget } from '@/components/ui/touch-target';
 
 interface InitialBookingFormProps {
   property: Property;
-  size?: 'compressed' | 'large'; // Add optional size prop
+  size?: 'compressed' | 'large';
   language?: string;
 }
 
@@ -35,8 +42,6 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
   const router = useRouter();
   const { toast } = useToast();
   const { tc, t, currentLanguage } = useLanguage();
-
-  // Removed session storage clearing - now handled by navigation flow
 
   // Check if date range is valid (end date is after start date)
   const isDateRangeValid = (): boolean => {
@@ -67,54 +72,46 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
       checkOut,
     });
 
-    // Current language is now available from component-level hook
-    
     // Build path-based URL: /booking/check/slug/[language]?params
     let bookingPath = `/booking/check/${property.slug}`;
     if (currentLanguage && currentLanguage !== 'en') {
       bookingPath += `/${currentLanguage}`;
     }
-    
+
     // Navigate to the new availability check page with path-based language
     router.push(`${bookingPath}?${params.toString()}`);
-    // Note: setIsLoading(false) will happen implicitly when navigation occurs
   };
 
   const isButtonDisabled = !isDateRangeValid() || isLoading;
 
   /**
    * Get the form's position from the hero section data attribute
-   * This determines layout patterns based on where the form is positioned
    */
   const getFormPosition = (): string => {
     if (typeof window === 'undefined') return 'bottom';
-    
+
     try {
-      // Find the hero section by walking up from any element or by direct ID
       const heroSection = document.getElementById('hero') || (() => {
-        // Walk up the DOM to find the hero section
         let element: HTMLElement | null = document.activeElement as HTMLElement | null;
         while (element && element.id !== 'hero') {
           element = element.parentElement;
         }
         return element;
       })();
-      
-      // If we found the hero, get its position attribute
+
       if (heroSection) {
         return heroSection.getAttribute('data-form-position') || 'bottom';
       }
     } catch (e) {
       console.error('[BookingForm] Error detecting form position:', e);
     }
-    
-    return 'bottom'; // Default if we can't determine
+
+    return 'bottom';
   };
-  
-  // Get the form's size to determine layout
+
   const getFormSize = (): string => {
     if (typeof window === 'undefined') return size || 'compressed';
-    
+
     try {
       const heroSection = document.getElementById('hero');
       if (heroSection) {
@@ -123,11 +120,10 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
     } catch (e) {
       console.error('[BookingForm] Error detecting form size:', e);
     }
-    
+
     return size || 'compressed';
   };
-  
-  // Simplified layout - no longer using complex position calculations
+
   const isBottomLarge = () => {
     const position = getFormPosition();
     const formSize = getFormSize();
@@ -137,51 +133,36 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
   // Apply height matching for the date picker and button
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    
-    console.log('[InitialBookingForm] Adding height matching for date picker and button');
-    
-    // Function to match heights
+
     const matchElementHeights = () => {
-      // Find the date picker and button directly by ID
       const datePicker = document.querySelector('#date');
       const button = document.querySelector('#check-availability-btn');
-      
+
       if (datePicker && button) {
-        console.log('[DIRECT DEBUG] Date picker and button found - matching heights');
-        
-        // Ensure the button and date picker have the same height
         const datePickerHeight = datePicker.getBoundingClientRect().height;
         (button as HTMLElement).style.height = `${datePickerHeight}px`;
-        
-        console.log('[DIRECT DEBUG] Applied height matching:', datePickerHeight);
-      } else {
-        console.log('[DIRECT DEBUG] Date picker or button not found yet');
       }
     };
-    
-    // Try matching heights at different intervals
+
     setTimeout(matchElementHeights, 100);
     setTimeout(matchElementHeights, 500);
     setTimeout(matchElementHeights, 1000);
   }, [size, date]);
-  
-  // No need for direct inline styles with our simplified layout approach
-  
+
   return (
     <div className="w-full InitialBookingForm">
       {/* Date Range Picker */}
       <div>
-         {/* Hide this label completely with aggressive styling */}
-         <Label htmlFor="date" className="sr-only" style={{ 
-           position: 'absolute', 
-           width: '1px', 
-           height: '1px', 
-           padding: '0', 
-           margin: '-1px', 
-           overflow: 'hidden', 
-           clip: 'rect(0, 0, 0, 0)', 
-           whiteSpace: 'nowrap', 
-           border: '0' 
+         <Label htmlFor="date" className="sr-only" style={{
+           position: 'absolute',
+           width: '1px',
+           height: '1px',
+           padding: '0',
+           margin: '-1px',
+           overflow: 'hidden',
+           clip: 'rect(0, 0, 0, 0)',
+           whiteSpace: 'nowrap',
+           border: '0'
          }}>
              {t('booking.checkInCheckOut')}
          </Label>
@@ -192,9 +173,9 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
                 id="date"
                 variant={'outline'}
                 className={cn(
-                  'w-full h-full justify-center text-center font-normal min-h-[46px]', // Always center content
-                  !date && 'text-muted-foreground', // Placeholder text styling
-                  isBottomLarge() && 'md:px-6 md:py-3 md:border-2 md:text-base md:font-medium md:rounded-md md:bg-background/50 hover:md:bg-background/80' // Larger input appearance for bottom-large with subtle background effect
+                  'w-full h-full justify-center text-center font-normal min-h-[46px]',
+                  !date && 'text-muted-foreground',
+                  isBottomLarge() && 'md:px-6 md:py-3 md:border-2 md:text-base md:font-medium md:rounded-md md:bg-background/50 hover:md:bg-background/80'
                 )}
                 disabled={isLoading}
               >
@@ -223,7 +204,7 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
                   selected={date}
                   onSelect={setDate}
                   numberOfMonths={1}
-                  disabled={{ before: new Date(new Date().setHours(0, 0, 0, 0)) }} // Only disable past dates
+                  disabled={{ before: new Date(new Date().setHours(0, 0, 0, 0)) }}
               />
           </PopoverContent>
         </Popover>
@@ -258,5 +239,3 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
     </div>
   );
 }
-
-    
