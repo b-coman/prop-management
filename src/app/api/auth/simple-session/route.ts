@@ -11,9 +11,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { loggers } from '@/lib/logger';
-import { isEnvSuperAdmin, updateLastLogin } from '@/lib/authorization';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { isEnvSuperAdmin } from '@/lib/authorization';
+import { initializeFirebaseAdminSafe } from '@/lib/firebaseAdminSafe';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
 const logger = loggers.auth;
 
@@ -32,26 +32,38 @@ interface SessionData {
  * - If user exists: update lastLogin
  * - If user doesn't exist but is in SUPER_ADMIN_EMAILS: create as super_admin
  * - If user doesn't exist and not in SUPER_ADMIN_EMAILS: do nothing (no admin access)
+ *
+ * Uses Admin SDK to bypass Firestore rules (API routes have no auth context)
  */
 async function handleUserProvisioning(uid: string, email: string): Promise<void> {
   try {
-    const userRef = doc(db, 'users', uid);
-    const userSnap = await getDoc(userRef);
+    const adminApp = await initializeFirebaseAdminSafe();
+    if (!adminApp) {
+      logger.warn('Admin SDK not available, skipping user provisioning');
+      return;
+    }
 
-    if (userSnap.exists()) {
+    const db = getFirestore(adminApp);
+    const userRef = db.collection('users').doc(uid);
+    const userSnap = await userRef.get();
+
+    if (userSnap.exists) {
       // User exists - just update lastLogin
-      await updateLastLogin(uid);
+      await userRef.update({
+        lastLogin: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
       logger.debug('Updated lastLogin for existing user', { uid, email });
     } else if (isEnvSuperAdmin(email)) {
       // User doesn't exist but is in SUPER_ADMIN_EMAILS - auto-provision as super_admin
-      await setDoc(userRef, {
+      await userRef.set({
         email,
         role: 'super_admin',
         managedProperties: [],
         autoProvisioned: true,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        lastLogin: serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        lastLogin: FieldValue.serverTimestamp(),
       });
       logger.info('Auto-provisioned super admin user', { uid, email });
     } else {
