@@ -5,8 +5,6 @@
 rentalspot-*-firebase-*.json
 node_modules
 .env.local
-CLAUDE.md
-CLAUDE_DEVELOPMENT_STANDARDS.md
 rentalspot-fzwom-firebase-adminsdk-fbsvc-501458abe7.json
 rentalspot-fzwom-firebase-adminsdk-fbsvc-1ec4294c56.json
 
