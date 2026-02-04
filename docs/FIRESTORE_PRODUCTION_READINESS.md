@@ -2,7 +2,7 @@
 
 **Created**: 2026-02-04
 **Status**: Phases 1-2, 4-5 Complete; Phase 3 Manual Testing Required
-**Last Updated**: 2026-02-04
+**Last Updated**: 2026-02-04 (Phase 5 Extended)
 **Author**: Claude (verified against codebase)
 
 ---
@@ -29,7 +29,7 @@ This document provides a verified, step-by-step guide for preparing the RentalSp
 | Phase 2 | Tighten safe security rules | Low | 15 min | ✅ COMPLETED |
 | Phase 3 | Deploy and verify rules | Low | 30 min | ⏳ DEPLOYED - Manual testing needed |
 | Phase 4 | Minor performance optimization | Low | 1 hr | ✅ COMPLETED |
-| Phase 5 | Logging migration | Low | 8-10 hrs | ✅ OPTION B COMPLETED |
+| Phase 5 | Logging migration | Low | 8-10 hrs | ✅ OPTION B + CRITICAL PATH |
 
 ---
 
@@ -641,18 +641,18 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 
 ---
 
-### Phase 5: Logging Migration (Option B Completed)
+### Phase 5: Logging Migration (Option B + Critical Path Completed)
 
-**Status**: ✅ OPTION B COMPLETED (2026-02-04)
+**Status**: ✅ OPTION B + CRITICAL PATH COMPLETED (2026-02-04)
 **Risk**: LOW
-**Effort**: ~4 hours (Option B scope)
+**Effort**: ~6 hours (Option B + Critical Path scope)
 **Dependencies**: None
 
 This phase is documented in `docs/ARCHITECTURE_CLEANUP_GUIDE.md` Phase 4.
 
 #### Summary
 
-Migrated high-priority and medium-priority files from `console.*` to structured logger:
+Migrated high-priority, medium-priority, and critical path files from `console.*` to structured logger:
 
 ```typescript
 // Before
@@ -688,12 +688,24 @@ loggers.booking.error('Error description', error, { additionalData });
 | `coupons/new/actions.ts` | 3 | `loggers.admin` | ✅ DONE |
 | `inquiries/actions.ts` | 2 | `loggers.admin` | ✅ DONE |
 
-**Total Migrated: ~310 console statements**
+**Critical Path Files (Booking/Payment Flow):**
+
+| File | Calls Migrated | Namespace | Status |
+|------|----------------|-----------|--------|
+| `api/webhooks/stripe/route.ts` | 34 | `loggers.stripe` | ✅ DONE |
+| `api/cron/release-holds/route.ts` | 22 | `loggers.booking` | ✅ DONE |
+| `booking/hold-success/actions.ts` | 18 | `loggers.booking` | ✅ DONE |
+| `actions/booking-actions.ts` | 13 | `loggers.booking` | ✅ DONE |
+| `actions/createHoldBookingAction.ts` | 6 | `loggers.booking` | ✅ DONE |
+| `actions/create-checkout-session.ts` | 7 | `loggers.stripe` | ✅ DONE |
+| `actions/createHoldCheckoutSession.ts` | 6 | `loggers.stripe` | ✅ DONE |
+
+**Total Migrated: ~416 console statements across 18 files**
 
 #### Remaining (Low Priority)
 
-312 console statements remain across 48 files, primarily in:
-- API routes (webhooks, cron jobs, monitoring endpoints)
+~200 console statements remain across ~35 files, primarily in:
+- Monitoring and diagnostic API routes
 - Client-side error boundaries and utilities
 - Archived/disabled files
 
@@ -872,12 +884,13 @@ firebase emulators:exec "npm test" --only firestore
 | Phase 2 | Tighten security rules | ✅ COMPLETED | 2026-02-04 | 4 collections secured, commit dfcfe62 |
 | Phase 3 | Deploy and verify | ⏳ DEPLOYED | 2026-02-04 | Rules deployed, manual testing required |
 | Phase 4 | Performance optimization | ✅ COMPLETED | 2026-02-04 | Batch fetch in availability-service.ts, commit 1b02f2f |
-| Phase 5 | Logging migration | ✅ OPTION B COMPLETED | 2026-02-04 | ~310 calls migrated across 11 core files |
+| Phase 5 | Logging migration | ✅ OPTION B + CRITICAL PATH | 2026-02-04 | ~416 calls migrated across 18 files |
 
 ### Revision History
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2026-02-04 | Phase 5 extended: Added critical path migration (~106 more calls in 7 files) | Claude |
 | 2026-02-04 | Phase 5 Option B completed: Migrated ~310 console calls across 11 core files | Claude |
 | 2026-02-04 | Phase 5 started: Migrated high-priority files (BookingContext, booking/success/actions, admin/bookings/actions) | Claude |
 | 2026-02-04 | Phase 4 completed: Batch fetch optimization in availability-service.ts | Claude |
