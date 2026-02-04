@@ -112,6 +112,12 @@ env:
     availability:
         - RUNTIME
 
+# Super admin emails for authorization
+  - variable: SUPER_ADMIN_EMAILS
+    secret: projects/1061532538391/secrets/SUPER_ADMIN_EMAILS/versions/latest
+    availability:
+        - RUNTIME
+
 # Grant access to secrets in Cloud Secret Manager.
 # See https://firebase.google.com/docs/app-hosting/configure#secret-parameters
 # - variable: MY_SECRET
