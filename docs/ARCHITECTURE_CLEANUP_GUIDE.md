@@ -144,6 +144,8 @@ const isFirestoreAdminAvailable = () => getFirestoreSafe() !== null;
 
 ## Phase 2: V1 Booking System Removal (Low Risk)
 
+**Status**: ✅ COMPLETED (2026-02-04, commit 2a374d1)
+
 The V1 booking system is dead code. `BOOKING_V2` flag is always `true` and never checked.
 
 ### 2.1 Current State
@@ -211,12 +213,12 @@ rm -rf src/components/booking/
 
 ### 2.3 Verification Checklist
 
-- [ ] `npm run build` succeeds
-- [ ] Hero section renders without errors
-- [ ] Date picker in hero section works
-- [ ] Clicking "Check Availability" redirects to `/booking/check/[slug]`
-- [ ] V2 booking flow completes successfully
-- [ ] No console errors on any booking page
+- [x] `npm run build` succeeds
+- [ ] Hero section renders without errors (manual test needed)
+- [ ] Date picker in hero section works (manual test needed)
+- [ ] Clicking "Check Availability" redirects to `/booking/check/[slug]` (manual test needed)
+- [ ] V2 booking flow completes successfully (manual test needed)
+- [ ] No console errors on any booking page (manual test needed)
 
 ---
 
