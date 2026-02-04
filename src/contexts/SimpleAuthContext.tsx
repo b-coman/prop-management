@@ -11,9 +11,10 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { 
+import {
   User,
   onAuthStateChanged,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
@@ -48,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check for redirect result first (user returning from Google OAuth)
     getRedirectResult(auth)
       .then(async (result) => {
+        console.log('[SimpleAuth] getRedirectResult completed, result:', result ? 'found' : 'null');
         if (result) {
           console.log('[SimpleAuth] Redirect result found:', result.user.email);
           // Create session on server
@@ -57,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       })
       .catch((error) => {
-        console.error('[SimpleAuth] Redirect result error:', error);
+        console.error('[SimpleAuth] Redirect result error:', error.code, error.message);
       });
 
     // Set up auth state listener
@@ -83,16 +85,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      console.log('[SimpleAuth] Starting Google sign-in (redirect)');
       setLoading(true);
-      
+
       const provider = new GoogleAuthProvider();
       provider.addScope('email');
       provider.addScope('profile');
-      
-      // Always use redirect - works universally across all browsers
-      await signInWithRedirect(auth, provider);
-      
+
+      // Try popup first (more reliable), fall back to redirect if blocked
+      try {
+        console.log('[SimpleAuth] Starting Google sign-in (popup)');
+        const result = await signInWithPopup(auth, provider);
+        console.log('[SimpleAuth] Popup sign-in successful:', result.user.email);
+
+        // Create session on server
+        await createServerSession(result.user);
+
+        // Redirect to admin
+        router.push('/admin');
+      } catch (popupError: unknown) {
+        const error = popupError as { code?: string };
+        // If popup is blocked or fails, try redirect
+        if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
+          console.log('[SimpleAuth] Popup blocked/closed, falling back to redirect');
+          await signInWithRedirect(auth, provider);
+        } else {
+          throw popupError;
+        }
+      }
+
     } catch (error) {
       console.error('[SimpleAuth] Sign-in error:', error);
       setLoading(false);
