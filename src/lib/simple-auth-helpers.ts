@@ -4,18 +4,32 @@
  *
  * @description
  * Simple, reliable authentication helpers for server-side auth checks.
- * Integrates with the authorization service for admin access control.
+ * Uses Admin SDK for Firestore access to bypass rules.
  * Works universally across all environments.
  */
 
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import {
-  checkAdminAccess as checkAuthorizationAccess,
-  type AdminUser,
-  type AuthorizationResult
-} from '@/lib/authorization';
+import { initializeFirebaseAdminSafe } from '@/lib/firebaseAdminSafe';
+import { getFirestore } from 'firebase-admin/firestore';
 import { loggers } from '@/lib/logger';
+
+// Re-export types
+export type AdminRole = 'super_admin' | 'property_owner';
+
+export interface AdminUser {
+  uid: string;
+  email: string;
+  role: AdminRole;
+  managedProperties: string[];
+  displayName?: string;
+}
+
+export interface AuthorizationResult {
+  authorized: boolean;
+  user?: AdminUser;
+  error?: string;
+}
 
 const logger = loggers.auth;
 
@@ -110,11 +124,57 @@ export async function requireAuthentication(): Promise<AuthUser> {
 }
 
 /**
- * Check if user has admin access
+ * Check if user has admin access (uses Admin SDK)
  * Returns the full authorization result with AdminUser if authorized
  */
 export async function checkAdminAccess(): Promise<AuthorizationResult> {
-  return checkAuthorizationAccess();
+  try {
+    // First check authentication
+    const authResult = await checkAuthentication();
+    if (!authResult.authenticated || !authResult.user) {
+      return { authorized: false, error: 'Not authenticated' };
+    }
+
+    const { uid, email } = authResult.user;
+
+    // Use Admin SDK to fetch user document
+    const adminApp = await initializeFirebaseAdminSafe();
+    if (!adminApp) {
+      logger.error('Admin SDK not available');
+      return { authorized: false, error: 'Server configuration error' };
+    }
+
+    const db = getFirestore(adminApp);
+    const userDoc = await db.collection('users').doc(uid).get();
+
+    if (!userDoc.exists) {
+      logger.debug('User document not found', { uid });
+      return { authorized: false, error: 'User not found' };
+    }
+
+    const userData = userDoc.data()!;
+    const role = userData.role;
+
+    // Check if user has admin role
+    if (role !== 'super_admin' && role !== 'property_owner') {
+      logger.debug('User has no admin role', { uid, role });
+      return { authorized: false, error: 'Not an admin' };
+    }
+
+    const adminUser: AdminUser = {
+      uid,
+      email: userData.email || email,
+      role: role as AdminRole,
+      managedProperties: userData.managedProperties || [],
+      displayName: userData.displayName,
+    };
+
+    return { authorized: true, user: adminUser };
+
+  } catch (error) {
+    logger.error('Admin access check error', error as Error);
+    return { authorized: false, error: 'Authorization check failed' };
+  }
 }
 
 /**
@@ -122,7 +182,7 @@ export async function checkAdminAccess(): Promise<AuthorizationResult> {
  * Returns the full AdminUser object with role and permissions
  */
 export async function requireAdminAccess(): Promise<AdminUser> {
-  const result = await checkAuthorizationAccess();
+  const result = await checkAdminAccess();
 
   if (!result.authorized || !result.user) {
     logger.warn('Admin access denied', { error: result.error });
@@ -131,6 +191,3 @@ export async function requireAdminAccess(): Promise<AdminUser> {
 
   return result.user;
 }
-
-// Re-export types from authorization for convenience
-export type { AdminUser, AuthorizationResult } from '@/lib/authorization';

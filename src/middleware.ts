@@ -28,9 +28,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Handle admin routes with authentication check
+  // Admin routes - let the pages handle auth (simpler, avoids loops)
   if (pathname.startsWith('/admin')) {
-    return await handleAdminRoute(request);
+    return NextResponse.next();
   }
 
   // Language detection for guest-facing pages
