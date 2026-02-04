@@ -28,7 +28,7 @@ This document provides a verified, step-by-step guide for preparing the RentalSp
 | Phase 1 | Remove unprotected `/manage-pricing` | Zero | 5 min | ✅ COMPLETED |
 | Phase 2 | Tighten safe security rules | Low | 15 min | ✅ COMPLETED |
 | Phase 3 | Deploy and verify rules | Low | 30 min | ⏳ DEPLOYED - Manual testing needed |
-| Phase 4 | Minor performance optimization | Low | 1 hr | Optional |
+| Phase 4 | Minor performance optimization | Low | 1 hr | ✅ COMPLETED |
 | Phase 5 | Logging migration | Low | 8-10 hrs | Optional |
 
 ---
@@ -553,6 +553,7 @@ Test in incognito/private window (NOT logged in):
 
 ### Phase 4: Performance Optimization (Optional)
 
+**Status**: ✅ COMPLETED (2026-02-04, commit 1b02f2f)
 **Risk**: LOW
 **Effort**: 1 hour
 **Dependencies**: None (can be done independently)
@@ -815,13 +816,14 @@ firebase emulators:exec "npm test" --only firestore
 | Phase 1 | Remove `/manage-pricing` | ✅ COMPLETED | 2026-02-04 | 13 files deleted, commit b57ae03 |
 | Phase 2 | Tighten security rules | ✅ COMPLETED | 2026-02-04 | 4 collections secured, commit dfcfe62 |
 | Phase 3 | Deploy and verify | ⏳ DEPLOYED | 2026-02-04 | Rules deployed, manual testing required |
-| Phase 4 | Performance optimization | Optional | - | - |
+| Phase 4 | Performance optimization | ✅ COMPLETED | 2026-02-04 | Batch fetch in availability-service.ts, commit 1b02f2f |
 | Phase 5 | Logging migration | Optional | - | - |
 
 ### Revision History
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2026-02-04 | Phase 4 completed: Batch fetch optimization in availability-service.ts | Claude |
 | 2026-02-04 | Phase 3 partial: Rules deployed to Firebase, manual testing pending | Claude |
 | 2026-02-04 | Phase 2 completed: Tightened security rules for properties, dateOverrides, priceCalendars | Claude |
 | 2026-02-04 | Phase 1 completed: Removed unprotected /manage-pricing routes | Claude |
