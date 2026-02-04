@@ -9,6 +9,9 @@ import { SUPPORTED_LANGUAGES } from "@/types";
 import { sanitizeEmail, sanitizePhone, sanitizeText } from "@/lib/sanitize";
 import { revalidatePath } from "next/cache";
 import { addHours, differenceInDays } from 'date-fns'; // For calculating hold expiry
+import { loggers } from '@/lib/logger';
+
+const logger = loggers.booking;
 
 // Schema for creating an ON-HOLD booking
 const CreateHoldBookingSchema = z.object({
@@ -37,12 +40,12 @@ type CreateHoldBookingInput = z.infer<typeof CreateHoldBookingSchema>;
 export async function createHoldBookingAction(
   input: CreateHoldBookingInput
 ): Promise<{ bookingId?: string; error?: string; errorType?: string; retry?: boolean }> {
-  console.log("[Action createHoldBookingAction] Called with input:", JSON.stringify(input, null, 2));
+  logger.debug('createHoldBookingAction called', { propertySlug: input.propertySlug });
   const validationResult = CreateHoldBookingSchema.safeParse(input);
 
   if (!validationResult.success) {
     const errorMessages = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
-    console.error("[Action createHoldBookingAction] Validation Error:", errorMessages);
+    logger.warn('Validation error', { errors: errorMessages });
     return { error: `Invalid hold booking data: ${errorMessages}` };
   }
 
@@ -68,8 +71,8 @@ export async function createHoldBookingAction(
     
     // Calculate the number of nights
     const numberOfNights = differenceInDays(checkOut, checkIn);
-    
-    console.log(`[Action createHoldBookingAction] Calculated ${numberOfNights} nights between ${checkIn.toISOString()} and ${checkOut.toISOString()}`);
+
+    logger.debug('Calculated nights', { numberOfNights, checkIn: checkIn.toISOString(), checkOut: checkOut.toISOString() });
 
     const bookingData = {
       propertyId: propertySlug,
@@ -111,17 +114,17 @@ export async function createHoldBookingAction(
       holdDurationHours: holdDurationHours, // Store the hold duration for reference
       language: language, // User's language preference for emails
     };
-    
-    console.log("[Action createHoldBookingAction] Prepared Firestore Data:", bookingData);
+
+    logger.debug('Prepared Firestore data', { propertySlug, holdFeeAmount });
 
     const docRef = await addDoc(bookingsCollection, bookingData);
-    console.log(`[Action createHoldBookingAction] Hold booking created successfully with ID: ${docRef.id}`);
+    logger.info('Hold booking created successfully', { bookingId: docRef.id, propertySlug });
 
     revalidatePath(`/properties/${propertySlug}`);
     revalidatePath(`/booking/check/${propertySlug}`);
     return { bookingId: docRef.id };
   } catch (error) {
-    console.error(`❌ [Action createHoldBookingAction] Error creating hold booking:`, error);
+    logger.error('Error creating hold booking', error as Error, { propertySlug });
     const errorMessage = error instanceof Error ? error.message : String(error);
     
     if (errorMessage.includes('PERMISSION_DENIED')) {

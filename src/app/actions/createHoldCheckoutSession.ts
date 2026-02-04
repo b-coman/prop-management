@@ -5,6 +5,9 @@ import type { Property, CurrencyCode } from '@/types';
 import { headers } from 'next/headers';
 import Stripe from 'stripe';
 import { getCurrencyRates } from '@/services/configService'; // Import to get currency rates
+import { loggers } from '@/lib/logger';
+
+const logger = loggers.stripe;
 
 // Lazy initialization of Stripe
 let stripe: Stripe | null = null;
@@ -67,12 +70,12 @@ export async function createHoldCheckoutSession(input: CreateHoldCheckoutSession
         const amountInUSD = holdFeeAmount / baseRate;
         convertedHoldFeeAmount = amountInUSD * targetRate;
 
-        console.log(`[createHoldCheckoutSession] Converted hold fee: ${holdFeeAmount} ${property.baseCurrency} → ${convertedHoldFeeAmount.toFixed(2)} ${selectedCurrency}`);
+        logger.debug('Converted hold fee', { from: holdFeeAmount, fromCurrency: property.baseCurrency, to: convertedHoldFeeAmount.toFixed(2), toCurrency: selectedCurrency });
       } else {
-        console.warn("[createHoldCheckoutSession] Currency rates not available, using original amount");
+        logger.warn('Currency rates not available, using original amount');
       }
     } catch (error) {
-      console.error("[createHoldCheckoutSession] Error converting currency:", error);
+      logger.error('Error converting currency for hold fee', error as Error);
       // Continue with original amount if conversion fails
     }
   }
@@ -102,7 +105,7 @@ export async function createHoldCheckoutSession(input: CreateHoldCheckoutSession
   try {
     // Validate essential fields to provide clearer error messages
     if (!guestEmail || guestEmail.trim() === '') {
-      console.error('[createHoldCheckoutSession] Missing required guest email');
+      logger.error('Missing required guest email for hold checkout');
       return { error: "Missing required guest email. Please fill in your email to continue." };
     }
 
@@ -139,10 +142,10 @@ export async function createHoldCheckoutSession(input: CreateHoldCheckoutSession
       throw new Error('Failed to create Stripe session or missing session URL.');
     }
 
-    console.log(`[createHoldCheckoutSession] Stripe session ${session.id} created for hold booking ${holdBookingId}.`);
+    logger.info('Hold checkout session created', { sessionId: session.id, holdBookingId });
     return { sessionId: session.id, sessionUrl: session.url };
   } catch (error) {
-    console.error('Error creating Stripe Hold Checkout session:', error);
+    logger.error('Error creating hold checkout session', error as Error, { holdBookingId });
     return { error: `Failed to create hold checkout session: ${error instanceof Error ? error.message : String(error)}` };
   }
 }

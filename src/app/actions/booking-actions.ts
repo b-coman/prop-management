@@ -9,6 +9,9 @@ import type { Booking, Property, CurrencyCode, LanguageCode } from '@/types';
 import { SUPPORTED_CURRENCIES, SUPPORTED_LANGUAGES } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { sanitizeEmail, sanitizePhone, sanitizeText } from '@/lib/sanitize';
+import { loggers } from '@/lib/logger';
+
+const logger = loggers.booking;
 
 
 // Schema for creating a PENDING booking (used for the final "Book Now" path)
@@ -49,13 +52,13 @@ type CreatePendingBookingInput = z.infer<typeof CreatePendingBookingSchema>;
 export async function createPendingBookingAction(
   input: CreatePendingBookingInput
 ): Promise<{ bookingId?: string; error?: string; errorType?: string; retry?: boolean }> {
-  console.log("[Action createPendingBookingAction] Called with input:", JSON.stringify(input, null, 2));
+  logger.debug('createPendingBookingAction called', { propertyId: input.propertyId, guestEmail: input.guestInfo?.email });
 
   // Check for any undefined values in pricing before validation
   if (input.pricing) {
     for (const [key, value] of Object.entries(input.pricing)) {
       if (value === undefined) {
-        console.error(`[Action createPendingBookingAction] Found undefined value for pricing.${key}`);
+        logger.error('Found undefined value in pricing', undefined, { field: key });
         return {
           error: `Invalid pricing data: ${key} is undefined`,
           errorType: 'validation_error'
@@ -69,7 +72,7 @@ export async function createPendingBookingAction(
 
   if (!validationResult.success) {
     const errorMessages = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
-    console.error("[Action createPendingBookingAction] Validation Error:", errorMessages);
+    logger.warn('Validation error in createPendingBookingAction', { errors: errorMessages });
     return {
       error: `Please check your booking information: ${errorMessages}`,
       errorType: 'validation_error'
@@ -93,7 +96,7 @@ export async function createPendingBookingAction(
   try {
     // Check if database is initialized
     if (!db) {
-      console.error("[Action createPendingBookingAction] Firebase Client SDK not initialized.");
+      logger.error('Firebase Client SDK not initialized');
       return {
         error: "We're experiencing technical difficulties. Please try again in a moment.",
         errorType: 'service_unavailable',
@@ -157,7 +160,7 @@ export async function createPendingBookingAction(
       // holdUntil: undefined,
       // holdPaymentId: undefined,
     };
-    console.log("[Action createPendingBookingAction] Preparing to save booking data...");
+    logger.debug('Preparing to save booking data', { propertyId });
 
     // Add timeout to detect hanging operations
     const timeoutPromise = new Promise((_, reject) => {
@@ -172,7 +175,7 @@ export async function createPendingBookingAction(
       timeoutPromise
     ]) as any;
 
-    console.log(`[Action createPendingBookingAction] Pending booking created successfully with ID: ${docRef.id}`);
+    logger.info('Pending booking created successfully', { bookingId: docRef.id, propertyId });
 
     // Revalidate relevant pages
     try {
@@ -180,7 +183,7 @@ export async function createPendingBookingAction(
       revalidatePath(`/booking/check/${propertyId}`); // Revalidate check page
     } catch (revalidationError) {
       // Log but don't fail if revalidation has issues
-      console.warn(`[Action createPendingBookingAction] Revalidation warning:`, revalidationError);
+      logger.warn('Revalidation warning', { error: revalidationError });
     }
 
     return { bookingId: docRef.id };
@@ -252,13 +255,13 @@ type CreateHoldBookingInput = z.infer<typeof CreateHoldBookingSchema>;
 export async function createHoldBookingAction(
   input: CreateHoldBookingInput
 ): Promise<{ bookingId?: string; error?: string }> {
-  console.log("[Action createHoldBookingAction] Called with input:", JSON.stringify(input, null, 2));
+  logger.debug('createHoldBookingAction called', { propertySlug: input.propertySlug });
 
   const validationResult = CreateHoldBookingSchema.safeParse(input);
 
   if (!validationResult.success) {
     const errorMessages = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
-    console.error("[Action createHoldBookingAction] Validation Error:", errorMessages);
+    logger.warn('Validation error in createHoldBookingAction', { errors: errorMessages });
     return { error: `Invalid hold booking data: ${errorMessages}` };
   }
 
@@ -274,7 +277,7 @@ export async function createHoldBookingAction(
 
   try {
     if (!db) {
-      console.error("[Action createHoldBookingAction] Firebase Client SDK not initialized.");
+      logger.error('Firebase Client SDK not initialized');
       return { error: "Internal server error: Database connection not available." };
     }
 
@@ -283,7 +286,7 @@ export async function createHoldBookingAction(
     const checkOut = new Date(checkOutStr);
     const holdUntil = new Date(Date.now() + 15 * 60 * 1000); // Hold for 15 minutes
 
-    console.log("[Action createHoldBookingAction] Preparing hold booking data...");
+    logger.debug('Preparing hold booking data', { propertySlug });
 
     // Create a new booking object with all required fields explicitly defined
     const holdBookingData = {
@@ -321,13 +324,13 @@ export async function createHoldBookingAction(
     };
 
     const docRef = await addDoc(bookingsCollection, holdBookingData);
-    console.log(`[Action createHoldBookingAction] Hold booking created successfully with ID: ${docRef.id}`);
+    logger.info('Hold booking created successfully', { bookingId: docRef.id, propertySlug });
     revalidatePath(`/properties/${propertySlug}`);
     revalidatePath(`/booking/check/${propertySlug}`);
 
     return { bookingId: docRef.id };
   } catch (error) {
-    console.error(`❌ [Action createHoldBookingAction] Error creating hold booking:`, error);
+    logger.error('Error creating hold booking', error as Error, { propertySlug });
     const errorMessage = error instanceof Error ? error.message : String(error);
     if (errorMessage.includes('PERMISSION_DENIED')) {
       return { error: 'Permission denied. Could not create hold booking.' };

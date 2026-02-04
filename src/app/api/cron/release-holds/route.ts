@@ -1,10 +1,10 @@
 /**
  * @fileoverview Cloud Function endpoint for releasing expired booking holds.
- * 
+ *
  * This API endpoint is designed to be triggered by Cloud Scheduler (cron job)
  * and processes expired holds automatically. It uses Firebase Admin SDK for
  * server-side operations and proper authorization.
- * 
+ *
  * Security: Only accessible via cron job with proper authorization header.
  * Frequency: Intended to run every hour via Cloud Scheduler.
  */
@@ -13,17 +13,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getFirestoreForPricing } from '@/lib/firebaseAdminPricing';
 import { format, isValid, parseISO } from 'date-fns';
 import { FieldValue, Timestamp as AdminTimestamp } from 'firebase-admin/firestore';
+import { loggers } from '@/lib/logger';
+
+const logger = loggers.booking;
 
 export async function GET(request: NextRequest) {
-  console.log("--- [Cron API] Release expired holds endpoint called ---");
-  
+  logger.info('Release expired holds endpoint called');
+
   // Verify this is a legitimate cron request
   const authHeader = request.headers.get('Authorization');
   const cronHeader = request.headers.get('X-Appengine-Cron');
-  
+
   // For Cloud Scheduler, check for Bearer token or cron header
   if (!cronHeader && !authHeader?.startsWith('Bearer ')) {
-    console.error('[Cron API] Unauthorized access attempt');
+    logger.error('Unauthorized access attempt to cron endpoint');
     return NextResponse.json(
       { error: 'Unauthorized' },
       { status: 401 }
@@ -36,19 +39,19 @@ export async function GET(request: NextRequest) {
       throw new Error('Firebase Admin SDK not available');
     }
 
-    console.log('[Cron API] Querying for expired holds...');
+    logger.debug('Querying for expired holds');
     const now = new Date();
-    
+
     // Query for expired holds using Admin SDK
     const expiredHoldsQuery = db.collection('bookings')
       .where('status', '==', 'on-hold')
       .where('holdUntil', '<=', now);
-    
+
     const snapshot = await expiredHoldsQuery.get();
-    console.log(`[Cron API] Found ${snapshot.docs.length} expired holds to process`);
+    logger.info('Found expired holds', { count: snapshot.docs.length });
 
     if (snapshot.empty) {
-      console.log('[Cron API] No expired holds found');
+      logger.info('No expired holds found');
       return NextResponse.json({
         success: true,
         processed: 0,
@@ -63,9 +66,9 @@ export async function GET(request: NextRequest) {
     for (const doc of snapshot.docs) {
       const bookingId = doc.id;
       const bookingData = doc.data();
-      
-      console.log(`[Cron API] Processing expired hold: ${bookingId}`);
-      
+
+      logger.info('Processing expired hold', { bookingId });
+
       // Update booking status to cancelled
       batch.update(doc.ref, {
         status: 'cancelled',
@@ -79,7 +82,7 @@ export async function GET(request: NextRequest) {
       const rawCheckOut = bookingData.checkOutDate;
 
       // Debug logging for date parsing
-      console.log(`[Cron API] Raw dates for ${bookingId}: checkIn type=${rawCheckIn?.constructor?.name}, checkOut type=${rawCheckOut?.constructor?.name}`);
+      logger.debug('Raw dates for booking', { bookingId, checkInType: rawCheckIn?.constructor?.name, checkOutType: rawCheckOut?.constructor?.name });
 
       // Parse dates - Admin SDK returns Timestamp objects from firebase-admin/firestore
       // These have a toDate() method, but we need to handle both Timestamp and string formats
@@ -103,35 +106,35 @@ export async function GET(request: NextRequest) {
         checkOutDate = parseISO(rawCheckOut);
       }
 
-      console.log(`[Cron API] Parsed dates: checkIn=${checkInDate?.toISOString()}, checkOut=${checkOutDate?.toISOString()}, valid=${checkInDate && checkOutDate ? isValid(checkInDate) && isValid(checkOutDate) : 'N/A'}`);
+      logger.debug('Parsed dates', { bookingId, checkIn: checkInDate?.toISOString(), checkOut: checkOutDate?.toISOString() });
 
       if (propertyId && checkInDate && checkOutDate && isValid(checkInDate) && isValid(checkOutDate)) {
-        console.log(`[Cron API] Scheduling availability release for property ${propertyId}`);
-        
+        logger.debug('Scheduling availability release', { bookingId, propertyId });
+
         // Add availability update to the queue
         availabilityUpdates.push(
           updateAvailabilityAdmin(db, propertyId, checkInDate, checkOutDate, true)
-            .then(() => console.log(`[Cron API] ✅ Released availability for booking ${bookingId}`))
-            .catch(err => console.error(`[Cron API] ❌ Failed to release availability for booking ${bookingId}:`, err))
+            .then(() => logger.info('Released availability for booking', { bookingId }))
+            .catch(err => logger.error('Failed to release availability', err as Error, { bookingId }))
         );
-        
+
         processedCount++;
       } else {
-        console.warn(`[Cron API] Invalid data for booking ${bookingId}, skipping availability update`);
+        logger.warn('Invalid data for booking, skipping availability update', { bookingId });
       }
     }
 
     // Commit booking status updates
-    console.log('[Cron API] Committing booking status updates...');
+    logger.debug('Committing booking status updates');
     await batch.commit();
-    console.log('[Cron API] ✅ Booking status updates committed');
+    logger.info('Booking status updates committed');
 
     // Process availability updates
-    console.log('[Cron API] Processing availability updates...');
+    logger.debug('Processing availability updates');
     await Promise.allSettled(availabilityUpdates);
-    console.log('[Cron API] ✅ Availability updates completed');
+    logger.info('Availability updates completed');
 
-    console.log(`[Cron API] Successfully processed ${processedCount} expired holds`);
+    logger.info('Successfully processed expired holds', { processedCount });
     
     return NextResponse.json({
       success: true,
@@ -140,9 +143,9 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('[Cron API] Error processing expired holds:', error);
+    logger.error('Error processing expired holds', error as Error);
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to process expired holds',
         details: error instanceof Error ? error.message : String(error)
       },
@@ -161,7 +164,7 @@ async function updateAvailabilityAdmin(
   checkOutDate: Date,
   available: boolean
 ): Promise<void> {
-  console.log(`[updateAvailabilityAdmin] ${available ? 'Releasing' : 'Blocking'} dates for property ${propertyId}`);
+  logger.debug('Updating availability', { propertyId, action: available ? 'releasing' : 'blocking' });
   
   // Get date range (excluding check-out date)
   const dates: Date[] = [];
@@ -173,7 +176,7 @@ async function updateAvailabilityAdmin(
   }
   
   if (dates.length === 0) {
-    console.log('[updateAvailabilityAdmin] No dates to update');
+    logger.debug('No dates to update', { propertyId });
     return;
   }
   
@@ -210,13 +213,13 @@ async function updateAvailabilityAdmin(
       }
     }
     
-    console.log(`[updateAvailabilityAdmin] Updating ${docId} with ${Object.keys(dayUpdates).length} days`);
+    logger.debug('Updating availability document', { docId, daysCount: Object.keys(dayUpdates).length });
     // Use update() instead of set() with merge - update() properly handles dot notation for nested maps
     batch.update(docRef, updateData);
   }
-  
+
   await batch.commit();
-  console.log(`[updateAvailabilityAdmin] ✅ Completed availability updates for property ${propertyId}`);
+  logger.info('Completed availability updates', { propertyId });
 }
 
 // POST method for manual testing (protected)

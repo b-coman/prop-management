@@ -3,6 +3,9 @@
 import type { Property, CurrencyCode } from '@/types'; // Added CurrencyCode
 import { headers } from 'next/headers';
 import Stripe from 'stripe';
+import { loggers } from '@/lib/logger';
+
+const logger = loggers.stripe;
 
 interface CreateCheckoutSessionInput {
   property: Property;
@@ -92,7 +95,7 @@ export async function createCheckoutSession(
             
             if (existingCoupon) {
                 discountCoupon = existingCoupon.id;
-                console.log(`[createCheckoutSession] Using existing Stripe coupon: ${couponId}`);
+                logger.debug('Using existing Stripe coupon', { couponId });
             } else {
                 const coupon = await stripeInstance.coupons.create({
                     id: couponId,
@@ -101,10 +104,10 @@ export async function createCheckoutSession(
                     name: `${discountPercentage}% Discount`,
                 });
                 discountCoupon = coupon.id;
-                console.log(`[createCheckoutSession] Created new Stripe coupon: ${couponId}`);
+                logger.debug('Created new Stripe coupon', { couponId });
             }
         } catch (error) {
-            console.error('[createCheckoutSession] Error creating/checking coupon:', error);
+            logger.error('Error creating/checking coupon', error as Error);
             // Continue without discount if coupon creation fails
         }
     }
@@ -166,16 +169,15 @@ export async function createCheckoutSession(
 
     const session = await stripeInstance.checkout.sessions.create(sessionParams);
 
-    console.log(`[createCheckoutSession] ✅ Successfully created session: ${session.id}`);
-    console.log(`[createCheckoutSession] Session URL: ${session.url}`);
+    logger.info('Checkout session created successfully', { sessionId: session.id, sessionUrl: session.url });
 
     return {
       sessionId: session.id,
       sessionUrl: session.url || undefined,
     };
   } catch (error) {
-    console.error('[createCheckoutSession] Error:', error);
-    
+    logger.error('Error creating checkout session', error as Error);
+
     if (error instanceof Error) {
       return { error: error.message };
     }
