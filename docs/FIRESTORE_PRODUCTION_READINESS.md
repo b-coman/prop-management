@@ -1,7 +1,7 @@
 # Firestore Production Readiness Guide
 
 **Created**: 2026-02-04
-**Status**: Phase 3 Rules Deployed, Manual Testing Required
+**Status**: Phases 1-2, 4-5 Complete; Phase 3 Manual Testing Required
 **Last Updated**: 2026-02-04
 **Author**: Claude (verified against codebase)
 
@@ -17,9 +17,9 @@ This document provides a verified, step-by-step guide for preparing the RentalSp
 |----------|--------|----------|------------|
 | Security Rules | ✅ TIGHTENED (Phase 2) | - | Low |
 | Unprotected Routes | ✅ RESOLVED (Phase 1) | - | None |
-| Query Performance | Good | - | None |
+| Query Performance | ✅ OPTIMIZED (Phase 4) | - | None |
 | Indexing | Adequate | Low | None |
-| Logging | Needs Improvement | P2 | Low |
+| Logging | ✅ CORE PATHS MIGRATED (Phase 5) | - | Low |
 
 ### Quick Reference - Implementation Phases
 
@@ -29,7 +29,7 @@ This document provides a verified, step-by-step guide for preparing the RentalSp
 | Phase 2 | Tighten safe security rules | Low | 15 min | ✅ COMPLETED |
 | Phase 3 | Deploy and verify rules | Low | 30 min | ⏳ DEPLOYED - Manual testing needed |
 | Phase 4 | Minor performance optimization | Low | 1 hr | ✅ COMPLETED |
-| Phase 5 | Logging migration | Low | 8-10 hrs | Optional |
+| Phase 5 | Logging migration | Low | 8-10 hrs | ✅ OPTION B COMPLETED |
 
 ---
 
@@ -641,18 +641,18 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 
 ---
 
-### Phase 5: Logging Migration (Optional)
+### Phase 5: Logging Migration (Option B Completed)
 
-**Status**: ⏳ IN PROGRESS (2026-02-04)
+**Status**: ✅ OPTION B COMPLETED (2026-02-04)
 **Risk**: LOW
-**Effort**: 8-10 hours
+**Effort**: ~4 hours (Option B scope)
 **Dependencies**: None
 
 This phase is documented in `docs/ARCHITECTURE_CLEANUP_GUIDE.md` Phase 4.
 
 #### Summary
 
-Migrate 1,279 `console.*` calls to structured logger:
+Migrated high-priority and medium-priority files from `console.*` to structured logger:
 
 ```typescript
 // Before
@@ -665,20 +665,67 @@ loggers.booking.info('message with context', { additionalData });
 loggers.booking.error('Error description', error, { additionalData });
 ```
 
-#### Priority Files - Progress
+#### Option B Migration - Completed
 
-| File | Calls | Namespace | Status |
-|------|-------|-----------|--------|
+**High-Priority Files (Core Booking System):**
+
+| File | Calls Migrated | Namespace | Status |
+|------|----------------|-----------|--------|
 | `BookingContext.tsx` | 89 | `loggers.bookingContext` | ✅ DONE |
+| `bookingService.ts` | 90+ | `loggers.booking` | ✅ DONE |
+| `booking/check/page.tsx` | 34 | `loggers.booking` | ✅ DONE |
 | `booking/success/actions.ts` | 22 | `loggers.booking` | ✅ DONE |
 | `admin/bookings/actions.ts` | 18 | `loggers.adminBookings` | ✅ DONE |
-| `bookingService.ts` | 50+ | `loggers.booking` | Pending |
-| Other booking pages | 34+ | `loggers.booking` | Pending |
 
-**New Logger Namespaces Added**:
-- `loggers.admin` - General admin operations
-- `loggers.adminBookings` - Admin booking management
-- `loggers.adminPricing` - Admin pricing management
+**Medium-Priority Files (Admin Actions):**
+
+| File | Calls Migrated | Namespace | Status |
+|------|----------------|-----------|--------|
+| `pricing/server-actions-hybrid.ts` | 27 | `loggers.adminPricing` | ✅ DONE |
+| `properties/actions.ts` | 13 | `loggers.admin` | ✅ DONE |
+| `pricing/actions.ts` | 6 | `loggers.adminPricing` | ✅ DONE |
+| `coupons/actions.ts` | 7 | `loggers.admin` | ✅ DONE |
+| `coupons/new/actions.ts` | 3 | `loggers.admin` | ✅ DONE |
+| `inquiries/actions.ts` | 2 | `loggers.admin` | ✅ DONE |
+
+**Total Migrated: ~310 console statements**
+
+#### Remaining (Low Priority)
+
+312 console statements remain across 48 files, primarily in:
+- API routes (webhooks, cron jobs, monitoring endpoints)
+- Client-side error boundaries and utilities
+- Archived/disabled files
+
+These can be migrated in future iterations if needed.
+
+#### Logger Namespaces Available
+
+| Namespace | Purpose |
+|-----------|---------|
+| `loggers.booking` | Core booking operations |
+| `loggers.bookingContext` | Booking state management |
+| `loggers.admin` | General admin operations |
+| `loggers.adminBookings` | Admin booking management |
+| `loggers.adminPricing` | Admin pricing management |
+| `loggers.availability` | Availability checks |
+| `loggers.stripe` | Payment processing |
+| `loggers.email` | Email notifications |
+
+#### Enabling Debug Logging
+
+```typescript
+// Via URL parameter (temporary)
+?debug=booking:*
+
+// Via browser console (persistent)
+LoggerConfig.enableDebug('booking:*');
+LoggerConfig.enableDebug(['booking:*', 'admin:*']);
+
+// Via environment variable (server-side)
+RENTAL_SPOT_LOG_LEVEL=DEBUG
+RENTAL_SPOT_LOG_NAMESPACES=booking:*,admin:*
+```
 
 ---
 
@@ -825,12 +872,13 @@ firebase emulators:exec "npm test" --only firestore
 | Phase 2 | Tighten security rules | ✅ COMPLETED | 2026-02-04 | 4 collections secured, commit dfcfe62 |
 | Phase 3 | Deploy and verify | ⏳ DEPLOYED | 2026-02-04 | Rules deployed, manual testing required |
 | Phase 4 | Performance optimization | ✅ COMPLETED | 2026-02-04 | Batch fetch in availability-service.ts, commit 1b02f2f |
-| Phase 5 | Logging migration | ⏳ IN PROGRESS | 2026-02-04 | High-priority files migrated (129/1279 calls) |
+| Phase 5 | Logging migration | ✅ OPTION B COMPLETED | 2026-02-04 | ~310 calls migrated across 11 core files |
 
 ### Revision History
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2026-02-04 | Phase 5 Option B completed: Migrated ~310 console calls across 11 core files | Claude |
 | 2026-02-04 | Phase 5 started: Migrated high-priority files (BookingContext, booking/success/actions, admin/bookings/actions) | Claude |
 | 2026-02-04 | Phase 4 completed: Batch fetch optimization in availability-service.ts | Claude |
 | 2026-02-04 | Phase 3 partial: Rules deployed to Firebase, manual testing pending | Claude |
