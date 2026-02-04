@@ -1,7 +1,7 @@
 # Settings for Backend (on Cloud Run).
 # See https://firebase.google.com/docs/app-hosting/configure#cloud-run
 runConfig:
-  minInstances: 1
+  minInstances: 0  # Cost savings - set to 1 when traffic increases
   maxInstances: 100
   concurrency: 80
   cpu: 1
