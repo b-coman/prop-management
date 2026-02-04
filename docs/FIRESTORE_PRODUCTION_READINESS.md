@@ -1,7 +1,7 @@
 # Firestore Production Readiness Guide
 
 **Created**: 2026-02-04
-**Status**: Phase 2 Complete, Phase 3 Pending
+**Status**: Phase 3 Rules Deployed, Manual Testing Required
 **Last Updated**: 2026-02-04
 **Author**: Claude (verified against codebase)
 
@@ -27,7 +27,7 @@ This document provides a verified, step-by-step guide for preparing the RentalSp
 |-------|-------------|------|--------|--------|
 | Phase 1 | Remove unprotected `/manage-pricing` | Zero | 5 min | ✅ COMPLETED |
 | Phase 2 | Tighten safe security rules | Low | 15 min | ✅ COMPLETED |
-| Phase 3 | Deploy and verify rules | Low | 30 min | Pending |
+| Phase 3 | Deploy and verify rules | Low | 30 min | ⏳ DEPLOYED - Manual testing needed |
 | Phase 4 | Minor performance optimization | Low | 1 hr | Optional |
 | Phase 5 | Logging migration | Low | 8-10 hrs | Optional |
 
@@ -501,11 +501,14 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 
 ### Phase 3: Deploy and Verify Rules
 
+**Status**: ⏳ DEPLOYED (2026-02-04) - Manual testing required
 **Risk**: LOW
 **Effort**: 30 minutes
 **Dependencies**: Phase 2 completed
 
 #### Step 3.1: Deploy Rules to Firebase
+
+**COMPLETED**: Rules deployed to `rentalspot-fzwom` on 2026-02-04
 
 ```bash
 firebase deploy --only firestore:rules
@@ -811,7 +814,7 @@ firebase emulators:exec "npm test" --only firestore
 |-------|-------------|--------|------|-------|
 | Phase 1 | Remove `/manage-pricing` | ✅ COMPLETED | 2026-02-04 | 13 files deleted, commit b57ae03 |
 | Phase 2 | Tighten security rules | ✅ COMPLETED | 2026-02-04 | 4 collections secured, commit dfcfe62 |
-| Phase 3 | Deploy and verify | Pending | - | - |
+| Phase 3 | Deploy and verify | ⏳ DEPLOYED | 2026-02-04 | Rules deployed, manual testing required |
 | Phase 4 | Performance optimization | Optional | - | - |
 | Phase 5 | Logging migration | Optional | - | - |
 
@@ -819,6 +822,7 @@ firebase emulators:exec "npm test" --only firestore
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2026-02-04 | Phase 3 partial: Rules deployed to Firebase, manual testing pending | Claude |
 | 2026-02-04 | Phase 2 completed: Tightened security rules for properties, dateOverrides, priceCalendars | Claude |
 | 2026-02-04 | Phase 1 completed: Removed unprotected /manage-pricing routes | Claude |
 | 2026-02-04 | Initial document created from verified investigation | Claude |
