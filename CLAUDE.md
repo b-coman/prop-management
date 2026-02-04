@@ -35,8 +35,10 @@ Next.js 15 multi-property vacation rental platform with Stripe payments, Firebas
 ## Architecture
 
 **Firebase SDK Usage:**
-- Browser & Server Actions → Client SDK (rules apply)
-- API routes & Cron jobs → Admin SDK (bypasses rules)
+- Browser components → Client SDK (rules apply, has auth context)
+- Server-side code (API routes, server components, server actions) → Admin SDK (bypasses rules)
+
+*Why Admin SDK on server:* Client SDK requires Firebase Auth context which doesn't exist in server-side code. Firestore rules check `request.auth` which is null on server.
 
 **Firebase Ecosystem:**
 - App Hosting: Cloud Run (europe-west4), auto-deploy on push to main
@@ -67,7 +69,11 @@ Next.js 15 multi-property vacation rental platform with Stripe payments, Firebas
 - **Create issues with full context BEFORE implementing** - issues should be detailed enough to drive independent implementation
 - Investigate with `$nc` mode before fixing
 - No emojis in issues
-- Reference issue numbers in commits
+- Reference issue numbers in commits (`Closes #123`)
+- **When closing issues**, add a comment summarizing what was implemented:
+  - Files created/modified
+  - Key functions or patterns used
+  - Any deviations from original plan
 
 ## Development Workflow
 
