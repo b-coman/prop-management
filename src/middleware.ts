@@ -246,9 +246,19 @@ async function handleAdminRoute(request: NextRequest) {
 
   const sessionUser = parseSessionCookie(sessionCookie.value);
 
+  // Debug logging
+  const envValue = process.env.SUPER_ADMIN_EMAILS;
+  console.log('[Middleware] Auth check:', {
+    hasSession: !!sessionCookie?.value,
+    sessionEmail: sessionUser?.email || 'none',
+    envVarSet: !!envValue,
+    isSuperAdmin: sessionUser?.email ? isEnvSuperAdmin(sessionUser.email) : false
+  });
+
   // Fast path: If user is in SUPER_ADMIN_EMAILS, allow access immediately
   // This avoids an API call for super admins
   if (sessionUser?.email && isEnvSuperAdmin(sessionUser.email)) {
+    console.log('[Middleware] Fast path: super admin access granted');
     return NextResponse.next();
   }
 

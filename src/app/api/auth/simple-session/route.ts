@@ -47,6 +47,18 @@ async function handleUserProvisioning(uid: string, email: string): Promise<void>
     const userRef = db.collection('users').doc(uid);
     const userSnap = await userRef.get();
 
+    // Debug: log env var availability
+    const envValue = process.env.SUPER_ADMIN_EMAILS;
+    const isSuperAdmin = isEnvSuperAdmin(email);
+    logger.info('User provisioning check', {
+      uid,
+      email,
+      userExists: userSnap.exists,
+      envVarSet: !!envValue,
+      envVarValue: envValue ? '[REDACTED]' : 'undefined',
+      isSuperAdmin
+    });
+
     if (userSnap.exists) {
       // User exists - just update lastLogin
       await userRef.update({
@@ -54,7 +66,7 @@ async function handleUserProvisioning(uid: string, email: string): Promise<void>
         updatedAt: FieldValue.serverTimestamp(),
       });
       logger.debug('Updated lastLogin for existing user', { uid, email });
-    } else if (isEnvSuperAdmin(email)) {
+    } else if (isSuperAdmin) {
       // User doesn't exist but is in SUPER_ADMIN_EMAILS - auto-provision as super_admin
       await userRef.set({
         email,
@@ -68,7 +80,10 @@ async function handleUserProvisioning(uid: string, email: string): Promise<void>
       logger.info('Auto-provisioned super admin user', { uid, email });
     } else {
       // User doesn't exist and is not a super admin - they won't have admin access
-      logger.debug('User not in SUPER_ADMIN_EMAILS, not auto-provisioning', { email });
+      logger.warn('User not in SUPER_ADMIN_EMAILS, not auto-provisioning', {
+        email,
+        envVarSet: !!envValue
+      });
     }
   } catch (error) {
     // Log but don't fail the login - provisioning is best-effort
