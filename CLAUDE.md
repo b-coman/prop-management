@@ -45,7 +45,7 @@ Next.js 15 multi-property vacation rental platform with Stripe payments, Firebas
 - Storage: Firebase Storage bucket
 
 **Logger Namespaces:**
-`booking`, `bookingContext`, `bookingAPI`, `bookingStorage`, `bookingUI`, `pricing`, `availability`, `auth`, `stripe`, `email`, `admin`, `adminBookings`, `adminPricing`, `performance`, `error`, `languageSystem`
+`booking`, `bookingContext`, `bookingAPI`, `bookingStorage`, `bookingUI`, `pricing`, `availability`, `auth`, `authorization`, `stripe`, `email`, `admin`, `adminBookings`, `adminPricing`, `performance`, `error`, `languageSystem`
 
 ## Key Files
 
@@ -55,6 +55,7 @@ Next.js 15 multi-property vacation rental platform with Stripe payments, Firebas
 | Cloud Run Config | `apphosting.yaml` |
 | Client SDK | `src/lib/firebase.ts` |
 | Admin SDK | `src/lib/firebaseAdminSafe.ts` |
+| Authorization | `src/lib/authorization.ts` |
 | Logger | `src/lib/logger.ts` |
 | Rate Limiter | `src/lib/rate-limiter.ts` |
 | Booking Service | `src/services/bookingService.ts` |
@@ -63,9 +64,18 @@ Next.js 15 multi-property vacation rental platform with Stripe payments, Firebas
 ## GitHub Issues
 
 - ASK before creating issues
+- **Create issues with full context BEFORE implementing** - issues should be detailed enough to drive independent implementation
 - Investigate with `$nc` mode before fixing
 - No emojis in issues
 - Reference issue numbers in commits
+
+## Development Workflow
+
+**For complex features:**
+1. Create detailed plan document
+2. Create GitHub issues from plan (with full context)
+3. Implement in logical phases
+4. Run `npm run build` between phases to catch issues early
 
 ## Commit & Deploy
 
@@ -79,4 +89,10 @@ Commit format: `<type>: <description>` + Co-Authored-By line
 
 Types: `feat`, `fix`, `refactor`, `docs`, `perf`, `security`
 
-Firestore rules: `firebase deploy --only firestore:rules`
+Firestore rules (deployed separately): `firebase deploy --only firestore:rules`
+
+**Secrets Management:**
+```bash
+firebase apphosting:secrets:set SECRET_NAME
+firebase apphosting:secrets:grantaccess SECRET_NAME --backend prop-management
+```
