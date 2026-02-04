@@ -7,6 +7,9 @@ import { db } from "@/lib/firebase";
 import type { Coupon } from "@/types";
 import { revalidatePath } from "next/cache";
 import { sanitizeText } from "@/lib/sanitize"; // Import sanitizer
+import { loggers } from '@/lib/logger';
+
+const logger = loggers.admin;
 
 const exclusionPeriodSchema = z.object({
   start: z.date(),
@@ -53,7 +56,7 @@ export async function createCouponAction(
 
   if (!validatedFields.success) {
     const errorMessages = validatedFields.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
-    console.error("[Create Coupon Action] Validation Error:", errorMessages);
+    logger.warn('Create coupon validation error', { errors: errorMessages });
     return { error: `Invalid input: ${errorMessages}` };
   }
 
@@ -87,11 +90,11 @@ export async function createCouponAction(
     };
 
     const docRef = await addDoc(couponsCollection, couponData);
-    console.log(`[Create Coupon Action] Coupon "${code}" created successfully with ID: ${docRef.id}`);
+    logger.info('Coupon created successfully', { code, id: docRef.id });
     revalidatePath('/admin/coupons');
     return { id: docRef.id, code: code };
   } catch (error) {
-    console.error(`❌ [Create Coupon Action] Error creating coupon "${code}":`, error);
+    logger.error('Error creating coupon', error as Error, { code });
     const errorMessage = error instanceof Error ? error.message : String(error);
     if (errorMessage.includes('PERMISSION_DENIED')) {
       return { error: 'Permission denied. Ensure you are logged in with admin privileges.' };

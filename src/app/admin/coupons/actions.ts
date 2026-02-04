@@ -7,6 +7,9 @@ import { db } from "@/lib/firebase";
 import type { Coupon, SerializableTimestamp } from "@/types";
 import { revalidatePath } from "next/cache";
 import { sanitizeText } from "@/lib/sanitize";
+import { loggers } from '@/lib/logger';
+
+const logger = loggers.admin;
 
 // Schema for updating coupon status
 const updateCouponStatusSchema = z.object({
@@ -63,14 +66,14 @@ const serializeTimestamp = (timestamp: SerializableTimestamp | undefined | null)
     try {
       return new Date(timestamp).toISOString();
     } catch (e) {
-      console.warn(`Could not parse date string to ISOString: ${timestamp}`, e);
+      logger.warn('Could not parse date string to ISOString', { timestamp, error: e });
       return null;
     }
   }
   if (typeof timestamp === 'number') {
     return new Date(timestamp).toISOString();
   }
-  console.warn(`Unhandled timestamp type for serialization: ${typeof timestamp}`, timestamp);
+  logger.warn('Unhandled timestamp type for serialization', { type: typeof timestamp, timestamp });
   return null;
 };
 
@@ -98,7 +101,7 @@ export async function fetchCoupons(): Promise<Coupon[]> {
     });
     return coupons;
   } catch (error) {
-    console.error("[Action fetchCoupons] Error fetching coupons:", error);
+    logger.error('Error fetching coupons', error as Error);
     return []; // Return empty array on error
   }
 }
@@ -123,7 +126,7 @@ export async function updateCouponStatusAction(
     revalidatePath('/admin/coupons');
     return { success: true };
   } catch (error) {
-    console.error("[Action updateCouponStatusAction] Error updating coupon status:", error);
+    logger.error('Error updating coupon status', error as Error, { couponId });
     return { success: false, error: "Failed to update coupon status." };
   }
 }
@@ -149,7 +152,7 @@ export async function updateCouponExpiryAction(
     revalidatePath('/admin/coupons');
     return { success: true };
   } catch (error) {
-    console.error("[Action updateCouponExpiryAction] Error updating coupon expiry:", error);
+    logger.error('Error updating coupon expiry', error as Error, { couponId });
     return { success: false, error: "Failed to update coupon expiry date." };
   }
 }
@@ -177,7 +180,7 @@ export async function updateCouponBookingValidityAction(
         revalidatePath('/admin/coupons');
         return { success: true };
     } catch (error) {
-        console.error("[Action updateCouponBookingValidityAction] Error updating coupon booking validity:", error);
+        logger.error('Error updating coupon booking validity', error as Error, { couponId });
         return { success: false, error: "Failed to update coupon booking validity." };
     }
 }
@@ -206,7 +209,7 @@ export async function updateCouponExclusionsAction(
         revalidatePath('/admin/coupons');
         return { success: true };
     } catch (error) {
-        console.error("[Action updateCouponExclusionsAction] Error updating coupon exclusion periods:", error);
+        logger.error('Error updating coupon exclusion periods', error as Error, { couponId });
         return { success: false, error: "Failed to update coupon exclusion periods." };
     }
 }

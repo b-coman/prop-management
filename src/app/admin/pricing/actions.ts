@@ -5,13 +5,16 @@ import { redirect } from 'next/navigation';
 import { collection, doc, addDoc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
+import { loggers } from '@/lib/logger';
+
+const logger = loggers.adminPricing;
 
 /**
  * Create a new seasonal pricing rule
  */
 export async function createSeasonalPricing(formData: FormData) {
+  const propertyId = formData.get('propertyId') as string;
   try {
-    const propertyId = formData.get('propertyId') as string;
     const name = formData.get('name') as string;
     const seasonType = formData.get('seasonType') as 'minimum' | 'low' | 'standard' | 'medium' | 'high';
     const startDate = formData.get('startDate') as string;
@@ -51,7 +54,7 @@ export async function createSeasonalPricing(formData: FormData) {
     // Redirect back to the pricing page
     redirect(`/admin/pricing?propertyId=${propertyId}`);
   } catch (error) {
-    console.error('[Server] Error creating seasonal pricing:', error);
+    logger.error('Error creating seasonal pricing', error as Error, { propertyId });
     throw new Error(`Failed to create seasonal pricing: ${error}`);
   }
 }
@@ -60,9 +63,9 @@ export async function createSeasonalPricing(formData: FormData) {
  * Update an existing seasonal pricing rule
  */
 export async function updateSeasonalPricing(formData: FormData) {
+  const id = formData.get('id') as string;
+  const propertyId = formData.get('propertyId') as string;
   try {
-    const id = formData.get('id') as string;
-    const propertyId = formData.get('propertyId') as string;
     const name = formData.get('name') as string;
     const seasonType = formData.get('seasonType') as 'minimum' | 'low' | 'standard' | 'medium' | 'high';
     const startDate = formData.get('startDate') as string;
@@ -104,7 +107,7 @@ export async function updateSeasonalPricing(formData: FormData) {
     // Redirect back to the pricing page
     redirect(`/admin/pricing?propertyId=${propertyId}`);
   } catch (error) {
-    console.error('[Server] Error updating seasonal pricing:', error);
+    logger.error('Error updating seasonal pricing', error as Error, { id, propertyId });
     throw new Error(`Failed to update seasonal pricing: ${error}`);
   }
 }
@@ -113,9 +116,9 @@ export async function updateSeasonalPricing(formData: FormData) {
  * Create a new date override
  */
 export async function createDateOverride(formData: FormData) {
+  const propertyId = formData.get('propertyId') as string;
+  const date = formData.get('date') as string;
   try {
-    const propertyId = formData.get('propertyId') as string;
-    const date = formData.get('date') as string;
     const customPriceValue = formData.get('customPrice') as string;
     const reason = formData.get('reason') as string;
     const minimumStayValue = formData.get('minimumStay') as string;
@@ -155,7 +158,7 @@ export async function createDateOverride(formData: FormData) {
     // Redirect back to the pricing page
     redirect(`/admin/pricing?propertyId=${propertyId}`);
   } catch (error) {
-    console.error('[Server] Error creating date override:', error);
+    logger.error('Error creating date override', error as Error, { propertyId, date });
     throw new Error(`Failed to create date override: ${error}`);
   }
 }
@@ -164,9 +167,9 @@ export async function createDateOverride(formData: FormData) {
  * Update an existing date override
  */
 export async function updateDateOverride(formData: FormData) {
+  const id = formData.get('id') as string;
+  const propertyId = formData.get('propertyId') as string;
   try {
-    const id = formData.get('id') as string;
-    const propertyId = formData.get('propertyId') as string;
     const date = formData.get('date') as string;
     const customPriceValue = formData.get('customPrice') as string;
     const reason = formData.get('reason') as string;
@@ -207,7 +210,7 @@ export async function updateDateOverride(formData: FormData) {
     // Redirect back to the pricing page
     redirect(`/admin/pricing?propertyId=${propertyId}`);
   } catch (error) {
-    console.error('[Server] Error updating date override:', error);
+    logger.error('Error updating date override', error as Error, { id, propertyId });
     throw new Error(`Failed to update date override: ${error}`);
   }
 }
@@ -216,10 +219,9 @@ export async function updateDateOverride(formData: FormData) {
  * Delete a seasonal pricing rule
  */
 export async function deleteSeasonalPricing(formData: FormData) {
+  const id = formData.get('id') as string;
+  const propertyId = formData.get('propertyId') as string;
   try {
-    const id = formData.get('id') as string;
-    const propertyId = formData.get('propertyId') as string;
-
     // Validate input
     if (!id || !propertyId) {
       throw new Error('Missing required fields');
@@ -236,7 +238,7 @@ export async function deleteSeasonalPricing(formData: FormData) {
     // Redirect back to the pricing page
     redirect(`/admin/pricing?propertyId=${propertyId}`);
   } catch (error) {
-    console.error('[Server] Error deleting seasonal pricing:', error);
+    logger.error('Error deleting seasonal pricing', error as Error, { id, propertyId });
     throw new Error(`Failed to delete seasonal pricing: ${error}`);
   }
 }
@@ -245,10 +247,9 @@ export async function deleteSeasonalPricing(formData: FormData) {
  * Delete a date override
  */
 export async function deleteDateOverride(formData: FormData) {
+  const id = formData.get('id') as string;
+  const propertyId = formData.get('propertyId') as string;
   try {
-    const id = formData.get('id') as string;
-    const propertyId = formData.get('propertyId') as string;
-
     // Validate input
     if (!id || !propertyId) {
       throw new Error('Missing required fields');
@@ -265,7 +266,7 @@ export async function deleteDateOverride(formData: FormData) {
     // Redirect back to the pricing page
     redirect(`/admin/pricing?propertyId=${propertyId}`);
   } catch (error) {
-    console.error('[Server] Error deleting date override:', error);
+    logger.error('Error deleting date override', error as Error, { id, propertyId });
     throw new Error(`Failed to delete date override: ${error}`);
   }
 }

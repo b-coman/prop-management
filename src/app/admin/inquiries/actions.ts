@@ -4,6 +4,9 @@
 import { z } from "zod";
 import { updateInquiryStatus as updateStatusService, addResponseToInquiry as addResponseService } from "@/services/inquiryService";
 import type { Inquiry } from "@/types";
+import { loggers } from '@/lib/logger';
+
+const logger = loggers.admin;
 
 // Schema for updating inquiry status
 const updateInquiryStatusSchema = z.object({
@@ -35,7 +38,7 @@ export async function updateInquiryStatusAction(
     await updateStatusService(inquiryId, status);
     return { success: true };
   } catch (error) {
-    console.error(`[Action updateInquiryStatusAction] Error updating inquiry ${inquiryId} status:`, error);
+    logger.error('Error updating inquiry status', error as Error, { inquiryId, status });
     return { success: false, error: "Failed to update inquiry status." };
   }
 }
@@ -59,7 +62,7 @@ export async function addResponseToInquiryAction(
         await addResponseService(inquiryId, message, true);
         return { success: true };
     } catch (error) {
-        console.error(`[Action addResponseToInquiryAction] Error adding response to inquiry ${inquiryId}:`, error);
+        logger.error('Error adding response to inquiry', error as Error, { inquiryId });
         return { success: false, error: "Failed to add response." };
     }
 }
