@@ -1,7 +1,7 @@
 # Firestore Production Readiness Guide
 
 **Created**: 2026-02-04
-**Status**: Phase 1 Complete, Phase 2 Pending
+**Status**: Phase 2 Complete, Phase 3 Pending
 **Last Updated**: 2026-02-04
 **Author**: Claude (verified against codebase)
 
@@ -15,7 +15,7 @@ This document provides a verified, step-by-step guide for preparing the RentalSp
 
 | Category | Status | Priority | Risk Level |
 |----------|--------|----------|------------|
-| Security Rules | **CRITICAL ISSUES** | P0 | High |
+| Security Rules | ✅ TIGHTENED (Phase 2) | - | Low |
 | Unprotected Routes | ✅ RESOLVED (Phase 1) | - | None |
 | Query Performance | Good | - | None |
 | Indexing | Adequate | Low | None |
@@ -26,7 +26,7 @@ This document provides a verified, step-by-step guide for preparing the RentalSp
 | Phase | Description | Risk | Effort | Status |
 |-------|-------------|------|--------|--------|
 | Phase 1 | Remove unprotected `/manage-pricing` | Zero | 5 min | ✅ COMPLETED |
-| Phase 2 | Tighten safe security rules | Low | 15 min | Pending |
+| Phase 2 | Tighten safe security rules | Low | 15 min | ✅ COMPLETED |
 | Phase 3 | Deploy and verify rules | Low | 30 min | Pending |
 | Phase 4 | Minor performance optimization | Low | 1 hr | Optional |
 | Phase 5 | Logging migration | Low | 8-10 hrs | Optional |
@@ -339,6 +339,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 
 ### Phase 2: Tighten Safe Security Rules
 
+**Status**: ✅ COMPLETED (2026-02-04, commit dfcfe62)
 **Risk**: LOW
 **Effort**: 15 minutes
 **Dependencies**: Phase 1 completed
@@ -809,7 +810,7 @@ firebase emulators:exec "npm test" --only firestore
 | Phase | Description | Status | Date | Notes |
 |-------|-------------|--------|------|-------|
 | Phase 1 | Remove `/manage-pricing` | ✅ COMPLETED | 2026-02-04 | 13 files deleted, commit b57ae03 |
-| Phase 2 | Tighten security rules | Pending | - | - |
+| Phase 2 | Tighten security rules | ✅ COMPLETED | 2026-02-04 | 4 collections secured, commit dfcfe62 |
 | Phase 3 | Deploy and verify | Pending | - | - |
 | Phase 4 | Performance optimization | Optional | - | - |
 | Phase 5 | Logging migration | Optional | - | - |
@@ -818,6 +819,7 @@ firebase emulators:exec "npm test" --only firestore
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2026-02-04 | Phase 2 completed: Tightened security rules for properties, dateOverrides, priceCalendars | Claude |
 | 2026-02-04 | Phase 1 completed: Removed unprotected /manage-pricing routes | Claude |
 | 2026-02-04 | Initial document created from verified investigation | Claude |
 
