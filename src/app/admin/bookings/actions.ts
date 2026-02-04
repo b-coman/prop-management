@@ -8,6 +8,9 @@ import type { Booking, SerializableTimestamp } from "@/types";
 import { updatePropertyAvailability, triggerExternalSyncForDateUpdate } from '@/services/bookingService'; // Assuming these exist and handle availability/sync
 import { revalidatePath } from "next/cache";
 import { addHours, parseISO, isValid } from 'date-fns';
+import { loggers } from '@/lib/logger';
+
+const logger = loggers.adminBookings;
 
 // Helper to convert Firestore Timestamp or string date to a serializable format (ISO string)
 const serializeTimestamp = (timestamp: SerializableTimestamp | undefined | null): string | null => {
@@ -36,7 +39,7 @@ const toDate = (timestamp: SerializableTimestamp | undefined | null): Date | nul
  * @returns A promise that resolves to an array of Booking objects with serialized dates.
  */
 export async function fetchBookings(): Promise<Booking[]> {
-  console.log("[Admin Actions] Fetching all bookings...");
+  logger.debug('Fetching all bookings');
   const bookings: Booking[] = [];
   try {
     const bookingsCollection = collection(db, 'bookings');
@@ -60,10 +63,10 @@ export async function fetchBookings(): Promise<Booking[]> {
         updatedAt: serializeTimestamp(data.updatedAt),
       } as Booking);
     });
-    console.log(`[Admin Actions] Found ${bookings.length} bookings.`);
+    logger.info('Bookings fetched', { count: bookings.length });
     return bookings;
   } catch (error) {
-    console.error("❌ [Admin Actions] Error fetching bookings:", error);
+    logger.error('Error fetching bookings', error as Error);
     return []; // Return empty array on error
   }
 }
@@ -86,7 +89,7 @@ export async function extendBookingHoldAction(
     }
 
     const { bookingId, hoursToAdd } = validation.data;
-    console.log(`[Admin Actions] Attempting to extend hold for booking ${bookingId} by ${hoursToAdd} hours.`);
+    logger.info('Extending hold', { bookingId, hoursToAdd });
 
     try {
         const bookingRef = doc(db, 'bookings', bookingId);
@@ -115,11 +118,11 @@ export async function extendBookingHoldAction(
         });
 
         revalidatePath('/admin/bookings');
-        console.log(`✅ [Admin Actions] Successfully extended hold for booking ${bookingId} to ${newHoldUntil.toISOString()}.`);
+        logger.info('Hold extended successfully', { bookingId, newHoldUntil: newHoldUntil.toISOString() });
         return { success: true, newHoldUntil: newHoldUntil.toISOString() };
 
     } catch (error) {
-         console.error(`❌ [Admin Actions] Error extending hold for booking ${bookingId}:`, error);
+         logger.error('Error extending hold', error as Error, { bookingId });
          return { success: false, error: `Failed to extend hold: ${error instanceof Error ? error.message : 'Unknown error'}` };
     }
 }
@@ -139,7 +142,7 @@ export async function cancelBookingHoldAction(
     if (!validation.success) return { success: false, error: "Invalid input." };
 
     const { bookingId } = validation.data;
-    console.log(`[Admin Actions] Attempting to cancel hold for booking ${bookingId}.`);
+    logger.info('Cancelling hold', { bookingId });
 
     try {
         const bookingRef = doc(db, 'bookings', bookingId);
@@ -155,7 +158,7 @@ export async function cancelBookingHoldAction(
         const propertyId = bookingData.propertyId;
 
         if (!checkInDate || !checkOutDate || !propertyId || !isValid(checkInDate) || !isValid(checkOutDate)) {
-             console.warn(`[Admin Actions] Missing or invalid data for booking ${bookingId} required to release availability.`);
+             logger.warn('Missing or invalid data to release availability', { bookingId });
              // Proceed with cancellation but log warning
         }
 
@@ -170,18 +173,18 @@ export async function cancelBookingHoldAction(
 
         // Commit Firestore batch first
         await batch.commit();
-        console.log(`✅ [Admin Actions] Successfully updated booking ${bookingId} status to cancelled.`);
+        logger.info('Booking status updated to cancelled', { bookingId });
         revalidatePath('/admin/bookings');
 
         // Release availability (best effort after status update)
         if (checkInDate && checkOutDate && propertyId && isValid(checkInDate) && isValid(checkOutDate)) {
             try {
-                console.log(`[Admin Actions] Releasing availability for cancelled hold ${bookingId}...`);
+                logger.debug('Releasing availability for cancelled hold', { bookingId });
                 await updatePropertyAvailability(propertyId, checkInDate, checkOutDate, true); // Mark as available
                 await triggerExternalSyncForDateUpdate(propertyId, checkInDate, checkOutDate, true); // Sync release
-                console.log(`✅ [Admin Actions] Availability released and synced for ${bookingId}.`);
+                logger.info('Availability released and synced', { bookingId });
             } catch (availError) {
-                 console.error(`❌ [Admin Actions] Failed to release/sync availability for cancelled hold ${bookingId}:`, availError);
+                 logger.error('Failed to release/sync availability', availError as Error, { bookingId });
                  // Log the error, but the booking status is already cancelled.
             }
         }
@@ -189,7 +192,7 @@ export async function cancelBookingHoldAction(
         return { success: true };
 
     } catch (error) {
-         console.error(`❌ [Admin Actions] Error cancelling hold for booking ${bookingId}:`, error);
+         logger.error('Error cancelling hold', error as Error, { bookingId });
          return { success: false, error: `Failed to cancel hold: ${error instanceof Error ? error.message : 'Unknown error'}` };
     }
 }
@@ -209,7 +212,7 @@ export async function convertHoldToBookingAction(
     if (!validation.success) return { success: false, error: "Invalid input." };
 
     const { bookingId } = validation.data;
-    console.log(`[Admin Actions] Attempting to manually convert hold ${bookingId} to confirmed booking.`);
+    logger.info('Converting hold to confirmed booking', { bookingId });
 
     try {
          const bookingRef = doc(db, 'bookings', bookingId);
@@ -228,7 +231,7 @@ export async function convertHoldToBookingAction(
              notes: `${bookingData.notes || ''}\nHold converted to confirmed booking by admin on ${new Date().toISOString()}. Payment assumed handled.`.trim(),
          });
 
-         console.log(`✅ [Admin Actions] Successfully converted hold ${bookingId} to confirmed.`);
+         logger.info('Hold converted to confirmed', { bookingId });
          revalidatePath('/admin/bookings');
 
          // Ensure availability remains blocked (it should already be blocked from the hold)
@@ -239,17 +242,17 @@ export async function convertHoldToBookingAction(
 
           if (checkInDate && checkOutDate && propertyId && isValid(checkInDate) && isValid(checkOutDate)) {
             try {
-                console.log(`[Admin Actions] Triggering external sync for confirmed booking ${bookingId} (converted from hold)...`);
+                logger.debug('Triggering external sync for confirmed booking', { bookingId });
                 await triggerExternalSyncForDateUpdate(propertyId, checkInDate, checkOutDate, false); // Ensure blocked
             } catch (syncError) {
-                 console.error(`❌ [Admin Actions] Failed to sync externally for confirmed booking ${bookingId}:`, syncError);
+                 logger.error('Failed to sync externally', syncError as Error, { bookingId });
             }
           }
 
          return { success: true };
 
     } catch (error) {
-         console.error(`❌ [Admin Actions] Error converting hold ${bookingId}:`, error);
+         logger.error('Error converting hold', error as Error, { bookingId });
          return { success: false, error: `Failed to convert hold: ${error instanceof Error ? error.message : 'Unknown error'}` };
     }
 }
