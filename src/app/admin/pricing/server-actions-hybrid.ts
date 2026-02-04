@@ -24,6 +24,37 @@ import { convertTimestampsToISOStrings } from "@/lib/utils"; // Import the times
 import { format, parse } from "date-fns"; // Import date-fns
 
 /**
+ * Fetch a single property by ID
+ */
+export async function fetchProperty(propertyId: string) {
+  try {
+    const propertyRef = doc(db, 'properties', propertyId);
+    const propertyDoc = await getDoc(propertyRef);
+
+    if (!propertyDoc.exists()) {
+      console.log(`[Server] Property ${propertyId} not found`);
+      return null;
+    }
+
+    const data = propertyDoc.data();
+    const serializedData = convertTimestampsToISOStrings(data);
+
+    console.log(`[Server] Fetched property ${propertyId} using client SDK`);
+    return {
+      id: propertyDoc.id,
+      name: serializedData.name || propertyDoc.id,
+      location: serializedData.location || '',
+      status: serializedData.status || 'active',
+      pricePerNight: serializedData.pricePerNight,
+      ...serializedData
+    };
+  } catch (error) {
+    console.error(`[Server] Error fetching property ${propertyId}:`, error);
+    return null;
+  }
+}
+
+/**
  * Fetch all properties - server action using client SDK
  * This matches the pattern used in the coupons section
  */

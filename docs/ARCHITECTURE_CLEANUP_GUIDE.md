@@ -110,35 +110,29 @@ grep -r "reset-price-cache" src/
 - `firebaseAdminPricing.ts` - Pricing operations (caching layer)
 - `firebaseAdmin.ts` - Legacy facade (simplify in Phase 4)
 
-**Commands**:
-```bash
-rm src/lib/firebaseAdminDebug.ts
-rm src/lib/firebaseAdminNew.ts
-```
+### 1.4 Broken Pricing Data Module
 
-**Verification**:
-```bash
-grep -r "firebaseAdminDebug" src/
-grep -r "firebaseAdminNew" src/
-# Should only return results in pricing-data.ts and startup-check - update these files
-```
+**Status**: ✅ COMPLETED (2026-02-04)
 
-**Required Updates** (for `firebaseAdminNew.ts` removal):
+**Location**: `/src/lib/server/`
 
-```typescript
-// In src/lib/server/pricing-data.ts
-// Replace:
-const { isFirestoreAdminAvailable } = await import('@/lib/firebaseAdminNew');
+| File | Reason for Deletion |
+|------|---------------------|
+| `pricing-data.ts` | Stub implementations that always returned false/null/empty |
 
-// With:
-import { getFirestoreSafe } from '@/lib/firebaseAdminSafe';
-const isFirestoreAdminAvailable = () => getFirestoreSafe() !== null;
-```
+**Problem**: The `pricing-data.ts` module contained stub functions that never returned real data:
+- `isFirestoreAdminAvailableStub()` always returned `false`
+- All data-fetching functions exited early when this check failed
+- Forms using this module fell back to hardcoded default values
 
-```typescript
-// In src/app/api/startup-check/route.ts
-// Remove or replace firebaseAdminNew imports with firebaseAdminSafe
-```
+**Solution**: Updated `ServerSeasonalPricingForm` to use `server-actions-hybrid.ts` which:
+- Uses Firebase Client SDK (proven pattern used throughout admin interface)
+- Actually fetches real property data from Firestore
+- Added new `fetchProperty(propertyId)` function
+
+**Files Modified**:
+- `src/app/admin/pricing/server-actions-hybrid.ts` - Added `fetchProperty()` function
+- `src/app/admin/pricing/seasons/new/_components/server-seasonal-pricing-form.tsx` - Updated import
 
 ---
 
