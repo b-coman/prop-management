@@ -65,6 +65,8 @@ grep -r "amenities-from-references" src/
 
 ### 1.2 Unused Pricing API Endpoints
 
+**Status**: ✅ COMPLETED (2026-02-04, commit 7a60ab1)
+
 **Location**: `/src/app/api/`
 
 | Endpoint | Reason for Deletion |

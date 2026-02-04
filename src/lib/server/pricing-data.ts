@@ -7,9 +7,22 @@
  * IMPORTANT: Only use these functions in server components or server actions!
  */
 
-import { dbAdmin } from '@/lib/firebaseAdminNew';
 // Use the unstable_cache function which is more compatible with Edge Runtime
 import { unstable_cache } from 'next/cache';
+
+/**
+ * Stub implementations for Firebase Admin functions
+ *
+ * NOTE: These are placeholder stubs that maintain backward compatibility.
+ * The actual Firebase Admin integration for this module was never completed.
+ * All functions return empty/false values, causing callers to use fallback data.
+ *
+ * TODO: Implement proper Firebase Admin integration or remove this module if unused.
+ */
+const isFirestoreAdminAvailableStub = (): boolean => false;
+const getAdminPropertiesStub = async (): Promise<any[]> => [];
+const getAdminSeasonalPricingStub = async (_propertyId: string): Promise<any[]> => [];
+const getAdminDateOverridesStub = async (_propertyId: string): Promise<any[]> => [];
 
 // Define types for the different data models
 export interface Property {
@@ -84,9 +97,8 @@ export interface PriceCalendarMonth {
  */
 export const getProperties = unstable_cache(
   async (): Promise<Property[]> => {
-    // Import and use the function to ensure Firebase Admin is initialized
-    const { isFirestoreAdminAvailable, getAdminProperties } = await import('@/lib/firebaseAdminNew');
-    const available = await isFirestoreAdminAvailable();
+    // Check if Firebase Admin is available (currently stubbed to return false)
+    const available = isFirestoreAdminAvailableStub();
 
     if (!available) {
       console.error('Firebase Admin is not initialized');
@@ -95,7 +107,7 @@ export const getProperties = unstable_cache(
 
     try {
       console.log('[Server] Fetching properties from Firestore');
-      const properties = await getAdminProperties();
+      const properties = await getAdminPropertiesStub();
 
       if (properties.length === 0) {
         console.log('[Server] No properties found in Firestore');
@@ -142,9 +154,8 @@ export const getProperties = unstable_cache(
  */
 export const getProperty = unstable_cache(
   async (propertyId: string): Promise<Property | null> => {
-    // Import and use the functions to ensure Firebase Admin is initialized
-    const { isFirestoreAdminAvailable } = await import('@/lib/firebaseAdminNew');
-    const available = await isFirestoreAdminAvailable();
+    // Check if Firebase Admin is available (currently stubbed to return false)
+    const available = isFirestoreAdminAvailableStub();
 
     if (!available) {
       console.error('Firebase Admin is not initialized');
@@ -179,9 +190,8 @@ export const getProperty = unstable_cache(
  */
 export const getSeasonalPricing = unstable_cache(
   async (propertyId: string): Promise<SeasonalPricing[]> => {
-    // Import and use the functions to ensure Firebase Admin is initialized
-    const { isFirestoreAdminAvailable, getAdminSeasonalPricing } = await import('@/lib/firebaseAdminNew');
-    const available = await isFirestoreAdminAvailable();
+    // Check if Firebase Admin is available (currently stubbed to return false)
+    const available = isFirestoreAdminAvailableStub();
 
     if (!available) {
       console.error('Firebase Admin is not initialized');
@@ -190,7 +200,7 @@ export const getSeasonalPricing = unstable_cache(
 
     try {
       console.log(`[Server] Fetching seasonal pricing for property ${propertyId}`);
-      const seasonalPricing = await getAdminSeasonalPricing(propertyId);
+      const seasonalPricing = await getAdminSeasonalPricingStub(propertyId);
 
       if (seasonalPricing.length === 0) {
         console.log(`[Server] No seasonal pricing found for property ${propertyId}`);
@@ -224,9 +234,8 @@ export const getSeasonalPricing = unstable_cache(
  */
 export const getDateOverrides = unstable_cache(
   async (propertyId: string): Promise<DateOverride[]> => {
-    // Import and use the functions to ensure Firebase Admin is initialized
-    const { isFirestoreAdminAvailable, getAdminDateOverrides } = await import('@/lib/firebaseAdminNew');
-    const available = await isFirestoreAdminAvailable();
+    // Check if Firebase Admin is available (currently stubbed to return false)
+    const available = isFirestoreAdminAvailableStub();
 
     if (!available) {
       console.error('Firebase Admin is not initialized');
@@ -235,7 +244,7 @@ export const getDateOverrides = unstable_cache(
 
     try {
       console.log(`[Server] Fetching date overrides for property ${propertyId}`);
-      const dateOverrides = await getAdminDateOverrides(propertyId);
+      const dateOverrides = await getAdminDateOverridesStub(propertyId);
 
       if (dateOverrides.length === 0) {
         console.log(`[Server] No date overrides found for property ${propertyId}`);
@@ -268,9 +277,8 @@ export const getDateOverrides = unstable_cache(
  */
 export const getPriceCalendars = unstable_cache(
   async (propertyId: string, year: number): Promise<PriceCalendarMonth[]> => {
-    // Import and use the functions to ensure Firebase Admin is initialized
-    const { isFirestoreAdminAvailable } = await import('@/lib/firebaseAdminNew');
-    const available = await isFirestoreAdminAvailable();
+    // Check if Firebase Admin is available (currently stubbed to return false)
+    const available = isFirestoreAdminAvailableStub();
 
     if (!available) {
       console.error('Firebase Admin is not initialized');
@@ -280,8 +288,7 @@ export const getPriceCalendars = unstable_cache(
     try {
       console.log(`[Server] Fetching price calendars for property ${propertyId} and year ${year}`);
 
-      // This is a mock implementation until we can refactor the calendar fetching
-      // to use our new helpers in firebaseAdminNew.ts
+      // This is a stub implementation - Firebase Admin integration was never completed
       return [];
     } catch (error) {
       console.error(`[Server] Error fetching price calendars for property ${propertyId} and year ${year}:`, error);
@@ -294,11 +301,10 @@ export const getPriceCalendars = unstable_cache(
 
 /**
  * Helper function to check if Firestore Admin is available
- * 
- * Useful for providing fallback data in development environments
+ *
+ * NOTE: Currently stubbed to return false. The Firebase Admin integration
+ * for this module was never completed. Callers should use fallback data.
  */
 export const isFirestoreAdminAvailable = async (): Promise<boolean> => {
-  // Import and use the function from our new implementation
-  const { isFirestoreAdminAvailable: checkFirestore } = await import('@/lib/firebaseAdminNew');
-  return checkFirestore();
+  return isFirestoreAdminAvailableStub();
 };
