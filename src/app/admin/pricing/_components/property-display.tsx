@@ -7,11 +7,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 // Define Property interface
 interface Property {
   id: string;
-  name: string;
-  location?: string | any;
+  name: string | { en?: string; ro?: string };
+  location?: string | { city?: string; country?: string } | any;
   status: string;
   pricePerNight?: number;
   [key: string]: any;
+}
+
+// Helper to get display name from potentially localized name
+function getDisplayName(name: string | { en?: string; ro?: string } | undefined): string {
+  if (!name) return 'Unnamed';
+  if (typeof name === 'string') return name;
+  return name.en || name.ro || 'Unnamed';
 }
 
 interface PropertyDisplayProps {
@@ -68,7 +75,7 @@ export function PropertyDisplay({
             <SelectContent>
               {properties.map((property) => (
                 <SelectItem key={property.id} value={property.id}>
-                  {property.name} {property.location && typeof property.location === 'string' ? `(${property.location})` : ''}
+                  {getDisplayName(property.name)} {property.location && typeof property.location === 'string' ? `(${property.location})` : ''}
                 </SelectItem>
               ))}
               {properties.length === 0 && (
