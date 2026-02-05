@@ -402,13 +402,13 @@
 
       log(`Test 1: Check in before block (${dateFormat.format(dayBeforeBlock)}), check out after block (${dateFormat.format(dayAfterBlock)})`);
 
-      const response1 = await fetch('/api/check-pricing-availability', {
+      const response1 = await fetch('/api/check-pricing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           propertyId: propertySlug,
-          checkIn: dayBeforeBlock.toISOString(),
-          checkOut: dayAfterBlock.toISOString(),
+          checkIn: utils.formatDateISO(dayBeforeBlock),
+          checkOut: utils.formatDateISO(dayAfterBlock),
           guests: 2
         })
       });
@@ -430,13 +430,13 @@
 
       log(`Test 2: Check in on first day of block (${dateFormat.format(blockStart)}), check out on day after block (${dateFormat.format(dayAfterBlock)})`);
 
-      const response2 = await fetch('/api/check-pricing-availability', {
+      const response2 = await fetch('/api/check-pricing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           propertyId: propertySlug,
-          checkIn: blockStart.toISOString(),
-          checkOut: dayAfterBlock.toISOString(),
+          checkIn: utils.formatDateISO(blockStart),
+          checkOut: utils.formatDateISO(dayAfterBlock),
           guests: 2
         })
       });
@@ -453,13 +453,13 @@
       // Test case 3: Check in before block, checkout on last day of block (should be allowed)
       log(`Test 3: Check in before block (${dateFormat.format(dayBeforeBlock)}), check out on last day of block (${dateFormat.format(blockEnd)})`);
 
-      const response3 = await fetch('/api/check-pricing-availability', {
+      const response3 = await fetch('/api/check-pricing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           propertyId: propertySlug,
-          checkIn: dayBeforeBlock.toISOString(),
-          checkOut: blockEnd.toISOString(),
+          checkIn: utils.formatDateISO(dayBeforeBlock),
+          checkOut: utils.formatDateISO(blockEnd),
           guests: 2
         })
       });
@@ -490,15 +490,15 @@
     log(`Running API test: Checkout on ${utils.formatDate(test.checkOut)}`);
 
     try {
-      const response = await fetch('/api/check-pricing-availability', {
+      const response = await fetch('/api/check-pricing', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           propertyId: propertySlug,
-          checkIn: test.checkIn.toISOString(),
-          checkOut: test.checkOut.toISOString(),
+          checkIn: utils.formatDateISO(test.checkIn),
+          checkOut: utils.formatDateISO(test.checkOut),
           guests: test.guests
         }),
       });
@@ -507,7 +507,7 @@
 
       if (data.available) {
         log(`✅ API correctly allows checkout on blocked date ${utils.formatDate(test.checkOut)}`);
-        log(`Total price: ${data.pricing.totalPrice} ${data.pricing.currency}`);
+        log(`Total price: ${data.pricing.total} ${data.pricing.currency}`);
       } else {
         log(`❌ UNEXPECTED: API rejected checkout on blocked date ${utils.formatDate(test.checkOut)}`, true);
         log(`Reason: ${data.reason}`);

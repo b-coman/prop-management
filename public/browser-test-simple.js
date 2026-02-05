@@ -147,7 +147,7 @@
         console.log(`   Check-in: ${scenario.checkIn}, Check-out: ${scenario.checkOut}, Guests: ${scenario.guests}`);
 
         try {
-          const response = await fetch('/api/check-pricing-availability', {
+          const response = await fetch('/api/check-pricing', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -162,7 +162,7 @@
 
           if (data.available) {
             console.log(`✅ Booking is available`);
-            console.log(`💰 Total price: ${data.pricing.totalPrice} ${data.pricing.currency}`);
+            console.log(`💰 Total price: ${data.pricing.total} ${data.pricing.currency}`);
 
             // Check for discounts
             if (data.pricing.lengthOfStayDiscount && data.pricing.lengthOfStayDiscount.discountAmount > 0) {
@@ -171,7 +171,7 @@
 
             // Calculate price per night
             const nights = (new Date(scenario.checkOut) - new Date(scenario.checkIn)) / (1000 * 60 * 60 * 24);
-            const pricePerNight = data.pricing.totalPrice / nights;
+            const pricePerNight = data.pricing.total / nights;
             console.log(`🌙 Price per night: ${pricePerNight.toFixed(2)} ${data.pricing.currency}`);
 
           } else {
@@ -254,13 +254,13 @@
             console.log(`   Check-in: ${utils.formatDate(dayBeforeStart)}, Check-out: ${utils.formatDate(blockStart)}`);
 
             try {
-              const response = await fetch('/api/check-pricing-availability', {
+              const response = await fetch('/api/check-pricing', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   propertyId: propertySlug,
-                  checkIn: dayBeforeStart.toISOString(),
-                  checkOut: blockStart.toISOString(),
+                  checkIn: utils.formatDateISO(dayBeforeStart),
+                  checkOut: utils.formatDateISO(blockStart),
                   guests: 2
                 })
               });
@@ -285,13 +285,13 @@
               console.log(`   Check-in: ${utils.formatDate(dayBeforeStart)}, Check-out: ${utils.formatDate(secondDayOfBlock)}`);
 
               try {
-                const response = await fetch('/api/check-pricing-availability', {
+                const response = await fetch('/api/check-pricing', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                     propertyId: propertySlug,
-                    checkIn: dayBeforeStart.toISOString(),
-                    checkOut: secondDayOfBlock.toISOString(),
+                    checkIn: utils.formatDateISO(dayBeforeStart),
+                    checkOut: utils.formatDateISO(secondDayOfBlock),
                     guests: 2
                   })
                 });

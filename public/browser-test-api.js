@@ -393,15 +393,15 @@
     log(`Running API test: ${scenario.name}`);
 
     try {
-      const response = await fetch('/api/check-pricing-availability', {
+      const response = await fetch('/api/check-pricing', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           propertyId: propertySlug,
-          checkIn: scenario.checkIn.toISOString(),
-          checkOut: scenario.checkOut.toISOString(),
+          checkIn: utils.formatDateISO(scenario.checkIn),
+          checkOut: utils.formatDateISO(scenario.checkOut),
           guests: scenario.guests
         }),
       });
@@ -419,7 +419,7 @@
           log(`✅ Result matches expected outcome: Booking allowed`);
         }
 
-        log(`Total price: ${data.pricing.totalPrice} ${data.pricing.currency}`);
+        log(`Total price: ${data.pricing.total} ${data.pricing.currency}`);
 
         // Check for discounts
         if (data.pricing.lengthOfStayDiscount && data.pricing.lengthOfStayDiscount.discountAmount > 0) {
@@ -925,13 +925,13 @@
 
             // Check if this booking length is allowed
             try {
-              const response = await fetch('/api/check-pricing-availability', {
+              const response = await fetch('/api/check-pricing', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   propertyId: propertySlug,
-                  checkIn: startDate.toISOString(),
-                  checkOut: endDate.toISOString(),
+                  checkIn: utils.formatDateISO(startDate),
+                  checkOut: utils.formatDateISO(endDate),
                   guests: 2
                 })
               });
@@ -1086,13 +1086,13 @@
 
         for (const guests of guestCounts) {
           try {
-            const response = await fetch('/api/check-pricing-availability', {
+            const response = await fetch('/api/check-pricing', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 propertyId: propertySlug,
-                checkIn: guestStartDate.toISOString(),
-                checkOut: guestEndDate.toISOString(),
+                checkIn: utils.formatDateISO(guestStartDate),
+                checkOut: utils.formatDateISO(guestEndDate),
                 guests: guests
               })
             });
@@ -1102,7 +1102,7 @@
             if (data.available && data.pricing) {
               results.push({
                 guests,
-                price: data.pricing.totalPrice
+                price: data.pricing.total
               });
             }
           } catch (error) {
@@ -1219,13 +1219,13 @@
           checkOut.setDate(baseDate.getDate() + nights);
 
           try {
-            const response = await fetch('/api/check-pricing-availability', {
+            const response = await fetch('/api/check-pricing', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 propertyId: propertySlug,
-                checkIn: checkIn.toISOString(),
-                checkOut: checkOut.toISOString(),
+                checkIn: utils.formatDateISO(checkIn),
+                checkOut: utils.formatDateISO(checkOut),
                 guests: 2
               })
             });
@@ -1235,8 +1235,8 @@
             if (data.available && data.pricing) {
               results.push({
                 nights,
-                totalPrice: data.pricing.totalPrice,
-                pricePerNight: data.pricing.totalPrice / nights,
+                totalPrice: data.pricing.total,
+                pricePerNight: data.pricing.total / nights,
                 hasDiscount: !!(data.pricing.lengthOfStayDiscount && data.pricing.lengthOfStayDiscount.discountAmount > 0),
                 discountPercentage: data.pricing.lengthOfStayDiscount?.discountPercentage || 0,
                 discountAmount: data.pricing.lengthOfStayDiscount?.discountAmount || 0
