@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 import { loggers } from '@/lib/logger';
 import { requirePropertyAccess, AuthorizationError } from '@/lib/authorization';
 import { sanitizeText } from '@/lib/sanitize';
+import { regenerateCalendarsAfterChange } from './server-actions-hybrid';
 
 const logger = loggers.adminPricing;
 
@@ -116,6 +117,9 @@ export async function createSeasonalPricing(formData: FormData) {
 
     logger.info('Created seasonal pricing', { propertyId, name });
 
+    // Regenerate calendars to reflect the new season
+    await regenerateCalendarsAfterChange(propertyId);
+
     // Invalidate cached data
     revalidatePath('/admin/pricing');
     revalidatePath(`/admin/pricing?propertyId=${propertyId}`);
@@ -175,6 +179,9 @@ export async function updateSeasonalPricing(formData: FormData) {
 
     logger.info('Updated seasonal pricing', { id, propertyId, name });
 
+    // Regenerate calendars to reflect the updated season
+    await regenerateCalendarsAfterChange(propertyId);
+
     // Invalidate cached data
     revalidatePath('/admin/pricing');
     revalidatePath(`/admin/pricing?propertyId=${propertyId}`);
@@ -232,6 +239,9 @@ export async function createDateOverride(formData: FormData) {
     await db.collection('dateOverrides').add(dateOverride);
 
     logger.info('Created date override', { propertyId, date });
+
+    // Regenerate calendars to reflect the new override
+    await regenerateCalendarsAfterChange(propertyId);
 
     // Invalidate cached data
     revalidatePath('/admin/pricing');
@@ -291,6 +301,9 @@ export async function updateDateOverride(formData: FormData) {
 
     logger.info('Updated date override', { id, propertyId, date });
 
+    // Regenerate calendars to reflect the updated override
+    await regenerateCalendarsAfterChange(propertyId);
+
     // Invalidate cached data
     revalidatePath('/admin/pricing');
     revalidatePath(`/admin/pricing?propertyId=${propertyId}`);
@@ -337,6 +350,9 @@ export async function deleteSeasonalPricing(formData: FormData) {
 
     logger.info('Deleted seasonal pricing', { id, propertyId });
 
+    // Regenerate calendars to remove the deleted season's pricing
+    await regenerateCalendarsAfterChange(propertyId);
+
     // Invalidate cached data
     revalidatePath('/admin/pricing');
     revalidatePath(`/admin/pricing?propertyId=${propertyId}`);
@@ -382,6 +398,9 @@ export async function deleteDateOverride(formData: FormData) {
     await overrideRef.delete();
 
     logger.info('Deleted date override', { id, propertyId });
+
+    // Regenerate calendars to remove the deleted override's pricing
+    await regenerateCalendarsAfterChange(propertyId);
 
     // Invalidate cached data
     revalidatePath('/admin/pricing');

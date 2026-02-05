@@ -427,5 +427,20 @@ export interface PricingResponse {
   };
 }
 
-// Re-export from price-utils
-export type { PriceCalculationResult } from '@/lib/price-utils';
+// Pricing calculation result used by booking form components
+export interface PriceCalculationResult {
+  basePrice: number;
+  baseRate?: number;
+  extraGuestFeeTotal: number;
+  extraGuestFee?: number;
+  cleaningFee: number;
+  subtotal: number;
+  accommodationTotal?: number;
+  discountAmount: number;
+  total: number;
+  totalPrice?: number;
+  taxes?: number;
+  currency: CurrencyCode;
+  numberOfNights: number;
+  numberOfExtraGuests: number;
+}

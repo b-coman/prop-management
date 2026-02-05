@@ -45,32 +45,7 @@ export const PriceCalendarDaySchema = z.object({
   reason: z.string().nullable()
 });
 
-/**
- * Schema for the internal price calculation day format
- * (used in the price-calculation.ts module)
- */
-export const PriceCalculationDaySchema = z.object({
-  // Base price for the standard occupancy
-  baseOccupancyPrice: z.number().nonnegative(),
-  
-  // Prices for different occupancy levels
-  prices: z.record(z.string(), z.number().nonnegative()),
-  
-  // Whether this date is available for booking
-  available: z.boolean(),
-  
-  // Minimum nights required
-  minimumStay: z.number().int().positive(),
-  
-  // Source of the price calculation
-  priceSource: z.enum(['base', 'weekend', 'season', 'override']),
-  
-  // Additional details about the source
-  sourceDetails: z.any().optional()
-});
-
 export type PriceCalendarDay = z.infer<typeof PriceCalendarDaySchema>;
-export type PriceCalculationDay = z.infer<typeof PriceCalculationDaySchema>;
 
 /**
  * Schema for summary statistics of a price calendar

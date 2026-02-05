@@ -20,6 +20,8 @@ import { convertTimestampsToISOStrings } from "@/lib/utils"; // Import the times
 import { format, parse } from "date-fns"; // Import date-fns
 import { loggers } from '@/lib/logger';
 import { requireAdmin, requirePropertyAccess, filterPropertiesForUser, AuthorizationError } from '@/lib/authorization';
+import { calculateDayPrice } from '@/lib/pricing/price-calculation';
+import type { PropertyPricing, SeasonalPricing, DateOverride, MinimumStayRule } from '@/lib/pricing/price-calculation';
 
 const logger = loggers.adminPricing;
 
@@ -201,6 +203,11 @@ export async function toggleSeasonalPricingStatus(seasonId: string, enabled: boo
 
     await seasonRef.update({ enabled, updatedAt: FieldValue.serverTimestamp() });
 
+    // Regenerate calendars to reflect the change
+    if (propertyId) {
+      await regenerateCalendarsAfterChange(propertyId);
+    }
+
     revalidatePath('/admin/pricing');
     if (propertyId) {
       revalidatePath(`/admin/pricing?propertyId=${propertyId}`);
@@ -238,6 +245,11 @@ export async function toggleDateOverrideAvailability(dateOverrideId: string, ava
     await requirePropertyAccess(propertyId);
 
     await overrideRef.update({ available, updatedAt: FieldValue.serverTimestamp() });
+
+    // Regenerate calendars to reflect the change
+    if (propertyId) {
+      await regenerateCalendarsAfterChange(propertyId);
+    }
 
     revalidatePath('/admin/pricing');
     if (propertyId) {
@@ -478,6 +490,25 @@ export async function fetchPriceCalendars(
 }
 
 /**
+ * Auto-regenerate calendars after a pricing config change.
+ * Logs errors but never throws — the CRUD operation should still succeed
+ * even if regeneration fails.
+ */
+export async function regenerateCalendarsAfterChange(propertyId: string): Promise<void> {
+  try {
+    logger.info('Auto-regenerating calendars after pricing change', { propertyId });
+    const result = await generatePriceCalendar(propertyId);
+    if (result.success) {
+      logger.info('Calendars regenerated successfully', { propertyId, months: result.months });
+    } else {
+      logger.warn('Calendar regeneration returned error', { propertyId, error: result.error });
+    }
+  } catch (error) {
+    logger.error('Failed to auto-regenerate calendars', error as Error, { propertyId });
+  }
+}
+
+/**
  * Generate price calendars for a property
  * Requires property access
  */
@@ -490,209 +521,156 @@ export async function generatePriceCalendar(propertyId: string) {
 
     const db = await getAdminDb();
 
-    // Get current date
+    // --- Fetch all data once (not per-month) ---
+
+    // 1. Property data
+    const propertyDoc = await db.collection('properties').doc(propertyId).get();
+    if (!propertyDoc.exists) {
+      logger.error('Property not found during calendar generation', undefined, { propertyId });
+      return { success: false, error: 'Property not found' };
+    }
+    const property = convertTimestampsToISOStrings(propertyDoc.data()!);
+
+    // Build PropertyPricing with backward-compat fallback (pricingConfig vs legacy pricing.weekendPricing)
+    const propertyPricing: PropertyPricing = {
+      id: propertyId,
+      pricePerNight: property.pricePerNight || 100,
+      baseCurrency: property.baseCurrency || 'EUR',
+      baseOccupancy: property.baseOccupancy || 2,
+      extraGuestFee: property.extraGuestFee || 0,
+      maxGuests: property.maxGuests || 6,
+      pricingConfig: property.pricingConfig || {
+        weekendAdjustment: (property.pricing?.weekendPricing?.enabled
+          ? property.pricing.weekendPricing.priceMultiplier
+          : 1.0) || 1.0,
+        weekendDays: property.pricing?.weekendPricing?.weekendDays || ['friday', 'saturday'],
+      }
+    };
+
+    logger.debug('Built PropertyPricing', {
+      id: propertyPricing.id,
+      pricePerNight: propertyPricing.pricePerNight,
+      baseOccupancy: propertyPricing.baseOccupancy,
+      weekendAdjustment: propertyPricing.pricingConfig?.weekendAdjustment,
+      weekendDays: propertyPricing.pricingConfig?.weekendDays,
+      usedFallback: !property.pricingConfig
+    });
+
+    // 2. Seasonal pricing (enabled only)
+    const seasonalSnapshot = await db.collection('seasonalPricing')
+      .where('propertyId', '==', propertyId)
+      .where('enabled', '==', true)
+      .get();
+    const seasons: SeasonalPricing[] = seasonalSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...convertTimestampsToISOStrings(doc.data())
+    })) as SeasonalPricing[];
+
+    // 3. Date overrides (all — calculateDayPrice will match by date)
+    const overridesSnapshot = await db.collection('dateOverrides')
+      .where('propertyId', '==', propertyId)
+      .get();
+    const overrides: DateOverride[] = overridesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...convertTimestampsToISOStrings(doc.data())
+    })) as DateOverride[];
+
+    // 4. Minimum stay rules
+    const minStaySnapshot = await db.collection('minimumStayRules')
+      .where('propertyId', '==', propertyId)
+      .where('enabled', '==', true)
+      .get();
+    const minStayRules: MinimumStayRule[] = minStaySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...convertTimestampsToISOStrings(doc.data())
+    })) as MinimumStayRule[];
+
+    // 5. Booked dates (confirmed and on-hold bookings)
+    const bookingsSnapshot = await db.collection('bookings')
+      .where('propertyId', '==', propertyId)
+      .where('status', 'in', ['confirmed', 'on-hold'])
+      .get();
+    const bookedDates = new Set<string>();
+    bookingsSnapshot.docs.forEach(docSnap => {
+      const booking = docSnap.data();
+      if (booking.checkInDate && booking.checkOutDate) {
+        const checkIn = booking.checkInDate instanceof Date
+          ? booking.checkInDate
+          : booking.checkInDate.toDate ? booking.checkInDate.toDate()
+          : booking.checkInDate._seconds ? new Date(booking.checkInDate._seconds * 1000)
+          : new Date(booking.checkInDate);
+        const checkOut = booking.checkOutDate instanceof Date
+          ? booking.checkOutDate
+          : booking.checkOutDate.toDate ? booking.checkOutDate.toDate()
+          : booking.checkOutDate._seconds ? new Date(booking.checkOutDate._seconds * 1000)
+          : new Date(booking.checkOutDate);
+        const currentDate = new Date(checkIn);
+        while (currentDate < checkOut) {
+          bookedDates.add(format(currentDate, 'yyyy-MM-dd'));
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+      }
+    });
+
+    logger.debug('Fetched pricing data', {
+      propertyId,
+      seasons: seasons.length,
+      overrides: overrides.length,
+      minStayRules: minStayRules.length,
+      bookedDates: bookedDates.size
+    });
+
+    // --- Generate calendars for 12 months ---
     const now = new Date();
     const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1; // 1-based month
-
-    // Generate calendars for the next 12 months
+    const currentMonth = now.getMonth() + 1;
     const months = 12;
-    const generatedCalendars = [];
+    const generatedCalendars: string[] = [];
 
     for (let i = 0; i < months; i++) {
       const targetDate = new Date(currentYear, currentMonth - 1 + i, 1);
       const year = targetDate.getFullYear();
-      const month = targetDate.getMonth() + 1; // 1-based month
-
-      // Get property data
-      const propertyRef = db.collection('properties').doc(propertyId);
-      const propertyDoc = await propertyRef.get();
-
-      if (!propertyDoc.exists) {
-        logger.error('Property not found during calendar generation', undefined, { propertyId });
-        continue;
-      }
-
-      // Use the utility function to handle any Timestamp objects
-      const property = convertTimestampsToISOStrings(propertyDoc.data()!);
-
-      // Get seasonal pricing
-      const seasonalPricingSnapshot = await db.collection('seasonalPricing')
-        .where('propertyId', '==', propertyId)
-        .where('enabled', '==', true)
-        .get();
-
-      const seasons = seasonalPricingSnapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        ...convertTimestampsToISOStrings(docSnap.data())
-      }));
-
-      // Get date overrides
+      const month = targetDate.getMonth() + 1;
       const monthStr = month.toString().padStart(2, '0');
-      const firstDay = `${year}-${monthStr}-01`;
-      const lastDay = `${year}-${monthStr}-${new Date(year, month, 0).getDate()}`;
-
-      // Use a simpler query that doesn't require a composite index
-      const dateOverridesSnapshot = await db.collection('dateOverrides')
-        .where('propertyId', '==', propertyId)
-        .get();
-
-      // Filter the results in memory
-      const dateOverrides = dateOverridesSnapshot.docs
-        .map(docSnap => ({
-          id: docSnap.id,
-          ...convertTimestampsToISOStrings(docSnap.data())
-        }))
-        .filter(override =>
-          override.date >= firstDay && override.date <= lastDay
-        );
-
-      // Get booked dates
-      const bookingsSnapshot = await db.collection('bookings')
-        .where('propertyId', '==', propertyId)
-        .where('status', 'in', ['confirmed', 'on-hold'])
-        .get();
-
-      const bookedDates = new Set<string>();
-      bookingsSnapshot.docs.forEach(docSnap => {
-        const booking = docSnap.data();
-        if (booking.checkInDate && booking.checkOutDate) {
-          // Convert dates to JS Date objects if they're Firestore Timestamps
-          const checkIn = booking.checkInDate instanceof Date ?
-            booking.checkInDate :
-            booking.checkInDate.toDate ? booking.checkInDate.toDate() :
-            booking.checkInDate._seconds ? new Date(booking.checkInDate._seconds * 1000) : new Date(booking.checkInDate);
-
-          const checkOut = booking.checkOutDate instanceof Date ?
-            booking.checkOutDate :
-            booking.checkOutDate.toDate ? booking.checkOutDate.toDate() :
-            booking.checkOutDate._seconds ? new Date(booking.checkOutDate._seconds * 1000) : new Date(booking.checkOutDate);
-
-          // Generate all dates in the range (excluding checkout day)
-          const currentDate = new Date(checkIn);
-          while (currentDate < checkOut) {
-            bookedDates.add(format(currentDate, 'yyyy-MM-dd'));
-            currentDate.setDate(currentDate.getDate() + 1);
-          }
-        }
-      });
-
-      // Generate days data
       const daysInMonth = new Date(year, month, 0).getDate();
       const days: Record<string, any> = {};
 
       for (let day = 1; day <= daysInMonth; day++) {
         const date = new Date(year, month - 1, day);
         const dateStr = format(date, 'yyyy-MM-dd');
-        const dayOfWeek = format(date, 'EEEE').toLowerCase();
 
-        // Start with base price
-        let basePrice = property.pricePerNight || 100;
-        let adjustedPrice = basePrice;
-        let available = true;
-        let minimumStay = 1;
-        let priceSource = 'base';
-        let seasonId = undefined;
-        let seasonName = undefined;
-        let overrideId = undefined;
-        let reason = undefined;
-        let flatRate = false;
+        // Use the canonical pricing engine
+        const dayPrice = calculateDayPrice(propertyPricing, date, seasons, overrides, minStayRules);
 
-        // Check if date is booked
+        // Overlay booking availability (booked dates are always unavailable)
         if (bookedDates.has(dateStr)) {
-          available = false;
+          dayPrice.available = false;
         }
 
-        // Check for date override
-        const override = dateOverrides.find(o => o.date === dateStr);
-        if (override) {
-          adjustedPrice = override.customPrice;
-          available = override.available !== false; // Default to true
-          minimumStay = override.minimumStay || minimumStay;
-          priceSource = 'override';
-          overrideId = override.id;
-          reason = override.reason;
-          flatRate = override.flatRate || false;
-        } else {
-          // Check for seasonal pricing
-          const activeSeason = seasons.find(season => {
-            const seasonStart = new Date(season.startDate);
-            const seasonEnd = new Date(season.endDate);
-            return date >= seasonStart && date <= seasonEnd;
-          });
-
-          if (activeSeason) {
-            adjustedPrice = basePrice * activeSeason.priceMultiplier;
-            minimumStay = activeSeason.minimumStay || minimumStay;
-            priceSource = 'season';
-            seasonId = activeSeason.id;
-            seasonName = activeSeason.name;
-          } else {
-            // Check for weekend pricing
-            const weekendDays = property.pricing?.weekendPricing?.weekendDays || ['friday', 'saturday'];
-            const isWeekendDay = weekendDays.includes(dayOfWeek);
-            const weekendMultiplier = property.pricing?.weekendPricing?.priceMultiplier || 1.0;
-
-            if (isWeekendDay && property.pricing?.weekendPricing?.enabled) {
-              adjustedPrice = basePrice * weekendMultiplier;
-              priceSource = 'weekend';
-            }
-          }
-        }
-
-        // Calculate prices for different occupancy levels
-        const baseOccupancy = property.baseOccupancy || 2;
-        const maxGuests = property.maxGuests || 6;
-        const extraGuestFee = property.extraGuestFee || 0;
-
-        const prices: Record<string, number> = {};
-        for (let guests = baseOccupancy; guests <= maxGuests; guests++) {
-          if (flatRate) {
-            prices[guests.toString()] = adjustedPrice;
-          } else {
-            const extraGuests = Math.max(0, guests - baseOccupancy);
-            prices[guests.toString()] = adjustedPrice + (extraGuests * extraGuestFee);
-          }
-        }
-
-        // Add the day to our calendar with null checks for undefined values
-        days[day.toString()] = {
-          basePrice,
-          adjustedPrice,
-          prices,
-          available,
-          minimumStay,
-          isWeekend: ['friday', 'saturday', 'sunday'].includes(dayOfWeek),
-          seasonId: seasonId || null,
-          seasonName: seasonName || null,
-          overrideId: overrideId || null,
-          reason: reason || null,
-          priceSource
-        };
+        days[day.toString()] = dayPrice;
       }
 
-      // Calculate summary statistics
-      const availableDays = Object.values(days).filter(day => day.available);
-      const defaultBasePrice = property.pricePerNight || 100;
+      // Calculate summary statistics using adjustedPrice
+      const dayValues = Object.values(days);
+      const availableDays = dayValues.filter((d: any) => d.available);
+      const defaultBasePrice = propertyPricing.pricePerNight;
 
       const minPrice = availableDays.length > 0
-        ? Math.min(...availableDays.map(day => day.adjustedPrice))
+        ? Math.min(...availableDays.map((d: any) => d.adjustedPrice))
         : defaultBasePrice;
-
       const maxPrice = availableDays.length > 0
-        ? Math.max(...availableDays.map(day => day.adjustedPrice))
+        ? Math.max(...availableDays.map((d: any) => d.adjustedPrice))
         : defaultBasePrice;
-
       const avgPrice = availableDays.length > 0
-        ? availableDays.reduce((sum, day) => sum + day.adjustedPrice, 0) / availableDays.length
+        ? availableDays.reduce((sum: number, d: any) => sum + d.adjustedPrice, 0) / availableDays.length
         : defaultBasePrice;
 
-      const unavailableDays = Object.values(days).filter(day => !day.available).length;
-      const modifiedDays = Object.values(days).filter(day => day.priceSource !== 'base').length;
-      const hasCustomPrices = Object.values(days).some(day => day.priceSource === 'override');
-      const hasSeasonalRates = Object.values(days).some(day => day.priceSource === 'season');
+      const unavailableDayCount = dayValues.filter((d: any) => !d.available).length;
+      const modifiedDays = dayValues.filter((d: any) => d.priceSource !== 'base').length;
+      const hasCustomPrices = dayValues.some((d: any) => d.priceSource === 'override');
+      const hasSeasonalRates = dayValues.some((d: any) => d.priceSource === 'season');
 
-      // Create the calendar document
+      // Create and save the calendar document
       const calendarId = `${propertyId}_${year}-${monthStr}`;
       const calendar = {
         id: calendarId,
@@ -705,19 +683,15 @@ export async function generatePriceCalendar(propertyId: string) {
           minPrice,
           maxPrice,
           avgPrice,
-          unavailableDays,
+          unavailableDays: unavailableDayCount,
           modifiedDays,
           hasCustomPrices,
           hasSeasonalRates
         },
-        // Use ISO string for timestamp to avoid serialization issues
         generatedAt: new Date().toISOString()
       };
 
-      // Save to Firestore
-      const calendarRef = db.collection('priceCalendars').doc(calendarId);
-      await calendarRef.set(calendar);
-
+      await db.collection('priceCalendars').doc(calendarId).set(calendar);
       generatedCalendars.push(calendarId);
       logger.debug('Generated price calendar', { calendarId });
     }

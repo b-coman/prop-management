@@ -1,4 +1,5 @@
 import { CurrencyCode } from '@/types';
+import { loggers } from '@/lib/logger';
 
 // Import types from schemas
 import {
@@ -105,34 +106,41 @@ export function findMatchingMinStayRule(
 }
 
 /**
- * Calculate prices for different occupancy levels
+ * Calculate prices for different occupancy levels.
+ * Includes base occupancy so the prices dict has entries for all valid guest counts.
  */
 export function calculateOccupancyPrices(
-  basePrice: number,
+  adjustedPrice: number,
   baseOccupancy: number,
   extraGuestFee: number,
   maxGuests: number,
   flatRate: boolean
 ): Record<string, number> {
   const result: Record<string, number> = {};
-  
-  // Start from baseOccupancy + 1 and go up to maxGuests
-  for (let guests = baseOccupancy + 1; guests <= maxGuests; guests++) {
+
+  for (let guests = baseOccupancy; guests <= maxGuests; guests++) {
     if (flatRate) {
-      // Same price for all occupancy levels
-      result[guests.toString()] = basePrice;
+      result[guests.toString()] = adjustedPrice;
     } else {
-      // Apply extra guest fee
-      const extraGuests = guests - baseOccupancy;
-      result[guests.toString()] = basePrice + (extraGuests * extraGuestFee);
+      const extraGuests = Math.max(0, guests - baseOccupancy);
+      result[guests.toString()] = adjustedPrice + (extraGuests * extraGuestFee);
     }
   }
-  
+
   return result;
 }
 
 /**
- * Calculates the price for a specific date based on all pricing rules
+ * Calculates the price for a specific date based on all pricing rules.
+ *
+ * Priority (compounding):
+ *   1. Override → replaces price entirely
+ *   2. Season → multiplies base (compounds with weekend if both apply)
+ *   3. Weekend → multiplies base
+ *   4. Base → property.pricePerNight
+ *
+ * basePrice = raw property.pricePerNight (never mutated)
+ * adjustedPrice = final price after all rules
  */
 export function calculateDayPrice(
   property: PropertyPricing,
@@ -141,87 +149,89 @@ export function calculateDayPrice(
   dateOverrides: DateOverride[],
   minimumStayRules: MinimumStayRule[]
 ): PriceCalendarDay {
-  // 1. Start with base price
-  let basePrice = property.pricePerNight;
+  const basePrice = property.pricePerNight;
+  let adjustedPrice = basePrice;
   let priceSource: PriceSource = 'base';
-  let sourceDetails = null;
   let minimumStay = 1;
   let isAvailable = true;
+  let seasonId: string | null = null;
+  let seasonName: string | null = null;
+  let overrideId: string | null = null;
+  let reason: string | null = null;
 
-  // Default to property.maxGuests or use 10 as a reasonable default
   const maxGuests = property.maxGuests || 10;
-  
-  // 2. Check if it's a weekend
+
+  // 1. Check if it's a weekend (based on configured weekendDays)
   const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as DayOfWeek;
   const isWeekend = property.pricingConfig?.weekendDays.includes(dayOfWeek) || false;
-  
+
   if (isWeekend && property.pricingConfig?.weekendAdjustment) {
-    basePrice *= property.pricingConfig.weekendAdjustment;
+    adjustedPrice *= property.pricingConfig.weekendAdjustment;
     priceSource = 'weekend';
   }
-  
-  // 3. Apply seasonal pricing (if applicable)
+
+  // 2. Apply seasonal pricing (compounds with weekend)
   const matchingSeason = findMatchingSeason(date, seasonalPricing);
   if (matchingSeason) {
-    basePrice *= matchingSeason.priceMultiplier;
+    adjustedPrice *= matchingSeason.priceMultiplier;
     priceSource = 'season';
-    sourceDetails = {
-      name: matchingSeason.name,
-      id: matchingSeason.id
-    };
-    
+    seasonId = matchingSeason.id;
+    seasonName = matchingSeason.name;
+
     if (matchingSeason.minimumStay) {
       minimumStay = matchingSeason.minimumStay;
     }
   }
-  
-  // 4. Apply date override (if exists - highest priority)
+
+  // 3. Apply date override (highest priority — replaces everything)
   const dateOverride = findDateOverride(date, dateOverrides);
   if (dateOverride) {
-    basePrice = dateOverride.customPrice;
+    adjustedPrice = dateOverride.customPrice;
     priceSource = 'override';
-    sourceDetails = {
-      reason: dateOverride.reason,
-      id: dateOverride.id
-    };
-    
+    overrideId = dateOverride.id;
+    reason = dateOverride.reason || null;
+    // Clear season info since override takes full control
+    seasonId = null;
+    seasonName = null;
+
     if (dateOverride.minimumStay) {
       minimumStay = dateOverride.minimumStay;
     }
-    
-    // Date overrides can also set availability
+
     isAvailable = dateOverride.available;
   }
-  
-  // 5. Apply minimum stay rules
+
+  // 4. Apply minimum stay rules (highest value wins)
   const matchingMinStayRule = findMatchingMinStayRule(date, minimumStayRules);
   if (matchingMinStayRule) {
-    minimumStay = matchingMinStayRule.minimumStay;
+    minimumStay = Math.max(minimumStay, matchingMinStayRule.minimumStay);
   }
-  
-  // 6. Calculate prices for different occupancy levels
+
+  // 5. Calculate prices for different occupancy levels
   const extraGuestFee = property.extraGuestFee || 0;
   const occupancyPrices = calculateOccupancyPrices(
-    basePrice, 
-    property.baseOccupancy, 
+    adjustedPrice,
+    property.baseOccupancy,
     extraGuestFee,
     maxGuests,
     dateOverride?.flatRate || false
   );
-  
-  // 7. Return the final price calendar day
+
+  // 6. Round adjustedPrice to 2 decimal places to avoid floating point drift
+  adjustedPrice = Math.round(adjustedPrice * 100) / 100;
+
   return {
     basePrice,
-    adjustedPrice: basePrice, // Same as base price after all adjustments
+    adjustedPrice,
     available: isAvailable,
     minimumStay,
-    isWeekend: date.getDay() === 0 || date.getDay() === 6, // Sunday or Saturday
+    isWeekend,
     priceSource,
     prices: occupancyPrices,
-    seasonId: (sourceDetails as any)?.seasonId || null,
-    seasonName: (sourceDetails as any)?.seasonName || null,
-    overrideId: (sourceDetails as any)?.overrideId || null,
-    reason: (sourceDetails as any)?.reason || null
+    seasonId,
+    seasonName,
+    overrideId,
+    reason
   };
 }
 
@@ -266,10 +276,8 @@ export function calculateBookingPrice(
   lengthOfStayDiscounts?: LengthOfStayDiscount[],
   couponDiscountPercentage?: number
 ) {
-  // Log the daily prices for debugging
-  console.log(`[price-calculation] 📆 calculateBookingPrice received dailyPrices:`, {
+  loggers.pricing.debug('calculateBookingPrice received dailyPrices', {
     daysCount: Object.keys(dailyPrices).length,
-    pricesSample: Object.entries(dailyPrices).slice(0, 3),
     cleaningFee,
     hasDiscounts: !!lengthOfStayDiscounts
   });
@@ -278,7 +286,7 @@ export function calculateBookingPrice(
   const numberOfNights = Object.keys(dailyPrices).length;
   const accommodationTotal = Object.values(dailyPrices).reduce((sum, price) => sum + price, 0);
   
-  console.log(`[price-calculation] 💰 Calculated accommodationTotal: ${accommodationTotal}`);
+  loggers.pricing.debug('Calculated accommodationTotal', { accommodationTotal });
   
   // Add cleaning fee
   const subtotal = accommodationTotal + cleaningFee;
@@ -296,9 +304,9 @@ export function calculateBookingPrice(
     couponDiscountAmount = subtotal * (couponDiscountPercentage / 100);
   }
   
-  // Calculate final total
-  const totalDiscountAmount = discountAmount + couponDiscountAmount;
-  const total = subtotal - totalDiscountAmount;
+  // Calculate final total (cap discounts at subtotal to prevent negative totals)
+  const totalDiscountAmount = Math.min(discountAmount + couponDiscountAmount, subtotal);
+  const total = Math.max(0, subtotal - totalDiscountAmount);
   
   // IMPORTANT: Return both 'total' and 'totalPrice' for backward compatibility
   // This ensures code that expects either name will work

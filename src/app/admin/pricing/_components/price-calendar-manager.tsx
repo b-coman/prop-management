@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CalendarIcon, RefreshCw, Calendar as CalendarCheck } from 'lucide-react';
+import { CalendarIcon, RefreshCw, Calendar as CalendarCheck, AlertTriangle } from 'lucide-react';
 import { generatePriceCalendar, fetchPriceCalendars } from '../server-actions-hybrid';
 import { PriceCalendarDisplay } from './price-calendar-display';
 import { Separator } from '@/components/ui/separator';
@@ -58,8 +58,46 @@ export function PriceCalendarManager({ propertyId }: PriceCalendarManagerProps) 
     }
   };
 
+  // Calculate calendar expiry: find the last month covered
+  const calendarExpiryDate = (() => {
+    if (priceCalendars.length === 0) return null;
+    let maxYear = 0;
+    let maxMonth = 0;
+    for (const cal of priceCalendars) {
+      if (cal.year > maxYear || (cal.year === maxYear && cal.month > maxMonth)) {
+        maxYear = cal.year;
+        maxMonth = cal.month;
+      }
+    }
+    if (maxYear === 0) return null;
+    // Last day of the last calendar month
+    return new Date(maxYear, maxMonth, 0); // day 0 of next month = last day of maxMonth
+  })();
+
+  const daysUntilExpiry = calendarExpiryDate
+    ? Math.ceil((calendarExpiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  const showExpiryWarning = daysUntilExpiry !== null && daysUntilExpiry <= 14;
+
   return (
     <div className="space-y-6">
+      {showExpiryWarning && (
+        <div className="bg-red-50 border border-red-300 rounded-md p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <h4 className="font-medium text-red-800">Price calendars expiring soon</h4>
+            <p className="text-sm text-red-700 mt-1">
+              {daysUntilExpiry! <= 0
+                ? 'Your price calendars have expired. Guests cannot book dates beyond the last generated month.'
+                : `Price calendars expire in ${daysUntilExpiry} day${daysUntilExpiry === 1 ? '' : 's'} (${calendarExpiryDate!.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}).`
+              }
+              {' '}Regenerate to ensure pricing is available for future bookings.
+            </p>
+          </div>
+        </div>
+      )}
+
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col items-center space-y-4">

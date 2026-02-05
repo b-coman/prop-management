@@ -590,3 +590,64 @@ export async function sendBookingCancellationEmail(
     return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
+
+/**
+ * Send a calendar expiry alert email to property owner or admin
+ */
+export async function sendCalendarExpiryAlert(
+  recipientEmail: string,
+  propertyName: string,
+  propertyId: string,
+  expiryDate: string,
+  daysUntilExpiry: number,
+  adminUrl: string
+): Promise<{ success: boolean; messageId?: string; previewUrl?: string; error?: string }> {
+  try {
+    const urgency = daysUntilExpiry <= 0 ? 'EXPIRED' : daysUntilExpiry <= 7 ? 'URGENT' : 'WARNING';
+
+    const subject = `[${urgency}] Price calendars ${daysUntilExpiry <= 0 ? 'have expired' : 'expiring soon'} for ${propertyName}`;
+
+    const text = [
+      `Price Calendar Alert for ${propertyName}`,
+      '',
+      daysUntilExpiry <= 0
+        ? `The price calendars for ${propertyName} have expired (last month: ${expiryDate}).`
+        : `The price calendars for ${propertyName} expire in ${daysUntilExpiry} day(s) (last month: ${expiryDate}).`,
+      '',
+      'Guests will not be able to book dates beyond the last generated calendar month.',
+      '',
+      `Please regenerate the calendars in the admin panel: ${adminUrl}`,
+      '',
+      'This is an automated alert from RentalSpot.'
+    ].join('\n');
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: ${daysUntilExpiry <= 0 ? '#dc2626' : daysUntilExpiry <= 7 ? '#ea580c' : '#d97706'}; color: white; padding: 16px 24px; border-radius: 8px 8px 0 0;">
+          <h2 style="margin: 0;">Price Calendar Alert</h2>
+        </div>
+        <div style="border: 1px solid #e5e7eb; border-top: none; padding: 24px; border-radius: 0 0 8px 8px;">
+          <p><strong>Property:</strong> ${propertyName}</p>
+          <p>${
+            daysUntilExpiry <= 0
+              ? `The price calendars have <strong>expired</strong> (last month: ${expiryDate}).`
+              : `The price calendars expire in <strong>${daysUntilExpiry} day(s)</strong> (last month: ${expiryDate}).`
+          }</p>
+          <p>Guests will not be able to book dates beyond the last generated calendar month.</p>
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${adminUrl}" style="background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">
+              Regenerate Calendars
+            </a>
+          </div>
+          <p style="color: #6b7280; font-size: 12px;">This is an automated alert from RentalSpot.</p>
+        </div>
+      </div>
+    `;
+
+    console.log(`[EmailService] Sending calendar expiry alert to ${recipientEmail} for ${propertyName}`);
+    return sendEmail(recipientEmail, subject, text, html);
+  } catch (error) {
+    console.error('[EmailService] Error sending calendar expiry alert:', error);
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}

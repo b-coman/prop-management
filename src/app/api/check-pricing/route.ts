@@ -161,19 +161,15 @@ export async function POST(request: NextRequest) {
       
       const dayPrice = calendar.days[day];
       
-      // Record price for this date
-      if (guests <= property.baseOccupancy) {
-        dailyPrices[dateStr] = dayPrice.basePrice;
+      // Record price for this date using the prices dict (includes base occupancy)
+      const occupancyPrice = dayPrice.prices?.[guests.toString()];
+      if (occupancyPrice !== undefined) {
+        dailyPrices[dateStr] = occupancyPrice;
       } else {
-        const occupancyPrice = dayPrice.prices?.[guests.toString()];
-        if (occupancyPrice) {
-          dailyPrices[dateStr] = occupancyPrice;
-        } else {
-          // Fallback to base price + extra guest fee
-          const extraGuests = guests - property.baseOccupancy;
-          const extraGuestFee = property.extraGuestFee || 0;
-          dailyPrices[dateStr] = dayPrice.basePrice + (extraGuests * extraGuestFee);
-        }
+        // Fallback: calculate from adjustedPrice (not basePrice, which is the raw property price)
+        const extraGuests = Math.max(0, guests - property.baseOccupancy);
+        const extraGuestFee = property.extraGuestFee || 0;
+        dailyPrices[dateStr] = dayPrice.adjustedPrice + (extraGuests * extraGuestFee);
       }
       
       // Check minimum stay for all nights - use the highest value found

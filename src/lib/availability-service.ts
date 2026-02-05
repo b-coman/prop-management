@@ -8,6 +8,7 @@
 
 import { getFirestoreForPricing } from '@/lib/firebaseAdminPricing';
 import { format, startOfDay, eachDayOfInterval, subDays } from 'date-fns';
+import { loggers } from '@/lib/logger';
 
 export interface AvailabilityResult {
   isAvailable: boolean;
@@ -28,7 +29,7 @@ export async function checkAvailabilityWithFlags(
   checkInDate: Date,
   checkOutDate: Date
 ): Promise<AvailabilityResult> {
-  console.log(`[AvailabilityService] Checking availability for ${propertyId} from ${format(checkInDate, 'yyyy-MM-dd')} to ${format(checkOutDate, 'yyyy-MM-dd')}`);
+  loggers.availability.debug('Checking availability', { propertyId, checkIn: format(checkInDate, 'yyyy-MM-dd'), checkOut: format(checkOutDate, 'yyyy-MM-dd') });
   
   const db = await getFirestoreForPricing();
   if (!db) {
@@ -69,7 +70,7 @@ export async function checkAvailabilityWithFlags(
     if (!doc.exists) {
       // No document = dates are considered available (consistent with /api/check-availability)
       // This is the expected state for future months that haven't been configured yet
-      console.log(`[AvailabilityService] No availability document for ${docId}, considering dates available`);
+      loggers.availability.debug('No availability document, considering dates available', { docId });
       return;
     }
 
@@ -86,13 +87,13 @@ export async function checkAvailabilityWithFlags(
 
       if (isUnavailable) {
         unavailableDates.push(dateStr);
-        console.log(`[AvailabilityService] Date ${dateStr} unavailable (available=${availableMap[day]}, hold=${holdsMap[day]})`);
+        loggers.availability.debug('Date unavailable', { dateStr, available: availableMap[day], hold: holdsMap[day] });
       }
     });
   });
 
   const isAvailable = unavailableDates.length === 0;
-  console.log(`[AvailabilityService] Availability result: ${isAvailable ? 'AVAILABLE' : 'UNAVAILABLE'} (${unavailableDates.length} unavailable dates)`);
+  loggers.availability.debug('Availability result', { isAvailable, unavailableDatesCount: unavailableDates.length });
 
   return {
     isAvailable,

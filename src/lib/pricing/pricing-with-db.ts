@@ -3,6 +3,7 @@ import * as admin from 'firebase-admin';
 import { getFirestoreForPricing } from '@/lib/firebaseAdminPricing';
 import { PropertyPricing } from './price-calculation';
 import { PriceCalendar } from './pricing-schemas';
+import { loggers } from '@/lib/logger';
 
 /**
  * Gets a property with proper DB initialization
@@ -38,20 +39,12 @@ export async function getPropertyWithDb(propertyId: string): Promise<PropertyPri
     pricingTemplate: data.pricingTemplate
   };
   
-  // Add a debug log to see the property data
-  console.log(`[pricing-with-db] 🏠 Retrieved property ${propertyId} from Firestore:`, {
+  loggers.pricing.debug('Retrieved property from Firestore', {
     id: property.id,
     pricePerNight: property.pricePerNight,
-    baseCurrency: property.baseCurrency,
     baseOccupancy: property.baseOccupancy,
     extraGuestFee: property.extraGuestFee,
-    maxGuests: property.maxGuests,
-    defaultMinimumStay: property.defaultMinimumStay,
-    cleaningFee: property.cleaningFee,
-    rawExtraGuestFee: data.extraGuestFee, // Raw value from Firestore
-    rawBaseOccupancy: data.baseOccupancy, // Raw value from Firestore
-    rawDefaultMinimumStay: data.defaultMinimumStay, // Raw value from Firestore
-    pricing: data.pricing // Check if this contains any relevant info
+    maxGuests: property.maxGuests
   });
   
   return property;
@@ -81,22 +74,17 @@ export async function getPriceCalendarWithDb(propertyId: string, year: number, m
   
   if (dayKeys.length > 0) {
     const sampleDay = calendarData.days[dayKeys[0]];
-    console.log(`[pricing-with-db] 📅 Price calendar sample for ${propertyId}, ${year}-${month}:`, {
+    loggers.pricing.debug('Price calendar sample', {
       id: doc.id,
       year: calendarData.year,
       month: calendarData.month,
       totalDays: dayKeys.length,
-      sampleDayNumber: dayKeys[0],
-      sampleDay: {
-        baseOccupancyPrice: sampleDay.basePrice,
-        hasPrices: !!sampleDay.prices,
-        prices: sampleDay.prices,
-        available: sampleDay.available,
-        priceSource: sampleDay.priceSource
-      }
+      sampleDayBasePrice: sampleDay.basePrice,
+      sampleDayAdjustedPrice: sampleDay.adjustedPrice,
+      sampleDaySource: sampleDay.priceSource
     });
   } else {
-    console.log(`[pricing-with-db] ⚠️ Price calendar for ${propertyId}, ${year}-${month} has no days defined.`);
+    loggers.pricing.warn('Price calendar has no days defined', { propertyId, year, month });
   }
   
   return calendarData;
