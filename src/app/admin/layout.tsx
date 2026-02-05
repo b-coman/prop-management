@@ -1,57 +1,53 @@
 /**
- * @fileoverview Simple admin layout with authentication
- * @module app/admin-simple/layout
- * 
+ * @fileoverview Admin layout with sidebar navigation
+ * @module app/admin/layout
+ *
  * @description
- * Clean admin layout with simple authentication protection.
+ * Admin layout with collapsible sidebar, breadcrumb navigation,
+ * and authentication protection.
  */
 
 import { ReactNode } from 'react';
 import { SimpleAdminAuth } from '@/components/SimpleAdminAuth';
-import { ClientAdminNavbar } from './_components/ClientAdminNavbar';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
+import { AdminSidebar } from '@/components/admin/AdminSidebar';
+import { AdminHeader } from '@/components/admin/AdminHeader';
 import { checkAuthentication } from '@/lib/simple-auth-helpers';
+import { cookies } from 'next/headers';
 
 interface AdminLayoutProps {
   children: ReactNode;
 }
 
-export default async function SimpleAdminLayout({ children }: AdminLayoutProps) {
+export default async function AdminLayout({ children }: AdminLayoutProps) {
   // Get auth status for display
   const authResult = await checkAuthentication();
-  
+
+  // Get sidebar state from cookie
+  const cookieStore = await cookies();
+  const sidebarState = cookieStore.get('sidebar_state')?.value;
+  const defaultOpen = sidebarState !== 'false';
+
   return (
     <SimpleAdminAuth>
-      <div className="flex min-h-screen flex-col">
-        {/* Navigation */}
-        <ClientAdminNavbar />
+      <SidebarProvider defaultOpen={defaultOpen}>
+        <AdminSidebar />
+        <SidebarInset>
+          <AdminHeader environment={authResult.environment} />
 
-        {/* Environment indicator */}
-        <div className="bg-blue-50 border-b border-blue-200 px-4 py-2">
-          <div className="container mx-auto">
-            <p className="text-sm text-blue-800">
-              ✅ Simple Authentication Active
-              {authResult.environment && (
-                <span className="ml-2 text-xs">({authResult.environment})</span>
-              )}
-            </p>
-          </div>
-        </div>
+          {/* Main content */}
+          <main className="flex-1 p-6">
+            {children}
+          </main>
 
-        {/* Main content */}
-        <main className="flex-grow container mx-auto py-8">
-          {children}
-        </main>
-
-        {/* Footer */}
-        <footer className="border-t bg-muted/50">
-          <div className="container mx-auto py-4 text-center text-xs text-muted-foreground">
-            RentalSpot Admin Panel &copy; {new Date().getFullYear()}
-            <span className="ml-2 text-green-600 font-medium">
-              Simple Auth v2.0
-            </span>
-          </div>
-        </footer>
-      </div>
+          {/* Footer */}
+          <footer className="border-t bg-muted/50">
+            <div className="py-4 px-6 text-center text-xs text-muted-foreground">
+              RentalSpot Admin Panel &copy; {new Date().getFullYear()}
+            </div>
+          </footer>
+        </SidebarInset>
+      </SidebarProvider>
     </SimpleAdminAuth>
   );
 }
