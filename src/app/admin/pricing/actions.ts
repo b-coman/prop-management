@@ -123,13 +123,13 @@ export async function createSeasonalPricing(formData: FormData) {
     // Invalidate cached data
     revalidatePath('/admin/pricing');
     revalidatePath(`/admin/pricing?propertyId=${propertyId}`);
-
-    // Redirect back to the pricing page
-    redirect(`/admin/pricing?propertyId=${propertyId}`);
   } catch (error) {
     logger.error('Error creating seasonal pricing', error as Error, { propertyId });
     throw new Error(`Failed to create seasonal pricing: ${error}`);
   }
+
+  // redirect() must be called outside try/catch — it throws NEXT_REDIRECT
+  redirect(`/admin/pricing?propertyId=${propertyId}`);
 }
 
 /**
@@ -185,13 +185,13 @@ export async function updateSeasonalPricing(formData: FormData) {
     // Invalidate cached data
     revalidatePath('/admin/pricing');
     revalidatePath(`/admin/pricing?propertyId=${propertyId}`);
-
-    // Redirect back to the pricing page
-    redirect(`/admin/pricing?propertyId=${propertyId}`);
   } catch (error) {
     logger.error('Error updating seasonal pricing', error as Error, { id, propertyId });
     throw new Error(`Failed to update seasonal pricing: ${error}`);
   }
+
+  // redirect() must be called outside try/catch — it throws NEXT_REDIRECT
+  redirect(`/admin/pricing?propertyId=${propertyId}`);
 }
 
 /**
@@ -246,13 +246,13 @@ export async function createDateOverride(formData: FormData) {
     // Invalidate cached data
     revalidatePath('/admin/pricing');
     revalidatePath(`/admin/pricing?propertyId=${propertyId}`);
-
-    // Redirect back to the pricing page
-    redirect(`/admin/pricing?propertyId=${propertyId}`);
   } catch (error) {
     logger.error('Error creating date override', error as Error, { propertyId, date });
     throw new Error(`Failed to create date override: ${error}`);
   }
+
+  // redirect() must be called outside try/catch — it throws NEXT_REDIRECT
+  redirect(`/admin/pricing?propertyId=${propertyId}`);
 }
 
 /**
@@ -307,13 +307,13 @@ export async function updateDateOverride(formData: FormData) {
     // Invalidate cached data
     revalidatePath('/admin/pricing');
     revalidatePath(`/admin/pricing?propertyId=${propertyId}`);
-
-    // Redirect back to the pricing page
-    redirect(`/admin/pricing?propertyId=${propertyId}`);
   } catch (error) {
     logger.error('Error updating date override', error as Error, { id, propertyId });
     throw new Error(`Failed to update date override: ${error}`);
   }
+
+  // redirect() must be called outside try/catch — it throws NEXT_REDIRECT
+  redirect(`/admin/pricing?propertyId=${propertyId}`);
 }
 
 /**
@@ -356,13 +356,13 @@ export async function deleteSeasonalPricing(formData: FormData) {
     // Invalidate cached data
     revalidatePath('/admin/pricing');
     revalidatePath(`/admin/pricing?propertyId=${propertyId}`);
-
-    // Redirect back to the pricing page
-    redirect(`/admin/pricing?propertyId=${propertyId}`);
   } catch (error) {
     logger.error('Error deleting seasonal pricing', error as Error, { id, propertyId });
     throw new Error(`Failed to delete seasonal pricing: ${error}`);
   }
+
+  // redirect() must be called outside try/catch — it throws NEXT_REDIRECT
+  redirect(`/admin/pricing?propertyId=${propertyId}`);
 }
 
 /**
@@ -405,11 +405,11 @@ export async function deleteDateOverride(formData: FormData) {
     // Invalidate cached data
     revalidatePath('/admin/pricing');
     revalidatePath(`/admin/pricing?propertyId=${propertyId}`);
-
-    // Redirect back to the pricing page
-    redirect(`/admin/pricing?propertyId=${propertyId}`);
   } catch (error) {
     logger.error('Error deleting date override', error as Error, { id, propertyId });
     throw new Error(`Failed to delete date override: ${error}`);
   }
+
+  // redirect() must be called outside try/catch — it throws NEXT_REDIRECT
+  redirect(`/admin/pricing?propertyId=${propertyId}`);
 }
