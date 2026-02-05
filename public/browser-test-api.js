@@ -772,7 +772,7 @@
             const isBeforeBlocked = isDateBlocked(dayBefore);
 
             if (!isBeforeBlocked) {
-              // Skip if it's in a consecutive block
+              // Skip if it's in a consecutive block (not first day)
               if (datesInConsecutiveBlocks.has(blockedDateStr)) {
                 log(`Skipping ${utils.formatDate(blockedDate)} despite available day before - part of consecutive block`);
                 continue;
@@ -781,6 +781,57 @@
               // Day before is available, can use for limited testing
               log(`Found blocked date ${utils.formatDate(blockedDate)} with day before available`);
               candidateDates.push(blockedDate);
+            }
+          }
+        }
+
+        // NEW: If still no candidates, create checkout tests for the FIRST day of each consecutive block
+        if (candidateDates.length === 0 && consecutiveBlocks.length > 0) {
+          log(`No isolated dates found, creating checkout tests for first day of consecutive blocks...`);
+
+          for (const block of consecutiveBlocks) {
+            if (candidateDates.length >= 5) break;
+
+            const firstDayOfBlock = block[0];
+            const dayBefore = new Date(firstDayOfBlock);
+            dayBefore.setDate(firstDayOfBlock.getDate() - 1);
+
+            // Check if day before first day of block is available
+            if (!isDateBlocked(dayBefore)) {
+              log(`Found first day of consecutive block ${utils.formatDate(firstDayOfBlock)} - can create checkout test`);
+
+              // Create checkout test directly for first day of consecutive block
+              const twoDaysBefore = new Date(firstDayOfBlock);
+              twoDaysBefore.setDate(firstDayOfBlock.getDate() - 2);
+
+              if (!isDateBlocked(twoDaysBefore)) {
+                scenarios.blockedDates.push({
+                  name: `Checkout on Block Start: ${utils.formatDate(firstDayOfBlock)}`,
+                  description: `Checkout on first day of consecutive block (should be allowed - guest is leaving)`,
+                  checkIn: twoDaysBefore,
+                  checkOut: firstDayOfBlock,
+                  guests: 2,
+                  expectedOutcome: 'allowed'
+                });
+                log(`✅ Created checkout test for ${utils.formatDate(firstDayOfBlock)}`);
+              }
+
+              // Also add a "booking spans blocked dates" rejection test
+              const lastDayOfBlock = block[block.length - 1];
+              const dayAfterBlock = new Date(lastDayOfBlock);
+              dayAfterBlock.setDate(lastDayOfBlock.getDate() + 1);
+
+              if (!isDateBlocked(dayAfterBlock)) {
+                scenarios.blockedDates.push({
+                  name: `Spans Block: ${utils.formatDate(firstDayOfBlock)}`,
+                  description: `Booking that spans blocked dates (should be rejected)`,
+                  checkIn: dayBefore,
+                  checkOut: dayAfterBlock,
+                  guests: 2,
+                  expectedOutcome: 'rejected'
+                });
+                log(`✅ Created rejection test spanning block from ${utils.formatDate(firstDayOfBlock)}`);
+              }
             }
           }
         }
