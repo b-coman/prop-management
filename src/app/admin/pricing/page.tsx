@@ -45,11 +45,11 @@ export default async function PricingPage({
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Pricing Management</h1>
-        <div className="text-sm text-blue-600 font-medium">
-          Server Components + Client SDK
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Pricing Management</h1>
+          <p className="text-muted-foreground mt-1">Manage seasonal pricing, date overrides, and price calendars</p>
         </div>
       </div>
 
