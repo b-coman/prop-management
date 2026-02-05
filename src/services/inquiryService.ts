@@ -1,13 +1,15 @@
 // src/services/inquiryService.ts
-// Placeholder for inquiry-related Firestore operations
-'use server'; // Add 'use server' directive
+// Inquiry-related Firestore operations using Admin SDK
+'use server';
 
-import { collection, addDoc, doc, getDoc, updateDoc, serverTimestamp, Timestamp, query, where, getDocs, arrayUnion, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { getAdminDb, Timestamp, FieldValue } from "@/lib/firebaseAdminSafe";
 import type { Inquiry, SerializableTimestamp } from "@/types";
 import { parseISO } from 'date-fns';
 import { revalidatePath } from 'next/cache';
 import { sanitizeText } from '@/lib/sanitize';
+import { loggers } from '@/lib/logger';
+
+const logger = loggers.admin;
 
 
 // Helper function to convert SerializableTimestamp to Date or null
@@ -25,6 +27,10 @@ const toDate = (timestamp: SerializableTimestamp | undefined | null): Date | nul
   if (typeof timestamp === 'number') {
     return new Date(timestamp);
   }
+  // Handle Admin SDK Timestamp-like objects with _seconds
+  if (typeof timestamp === 'object' && '_seconds' in timestamp) {
+    return new Date((timestamp as any)._seconds * 1000);
+  }
   return null;
 };
 
@@ -41,26 +47,31 @@ const serializeTimestamp = (timestamp: SerializableTimestamp | undefined | null)
     try {
       return new Date(timestamp).toISOString();
     } catch (e) {
-      console.warn(`Could not parse date string to ISOString: ${timestamp}`, e);
+      logger.warn('Could not parse date string to ISOString', { timestamp, error: e });
       return null;
     }
   }
   if (typeof timestamp === 'number') {
     return new Date(timestamp).toISOString();
   }
-  console.warn(`Unhandled timestamp type for serialization: ${typeof timestamp}`, timestamp);
+  // Handle Admin SDK Timestamp-like objects with _seconds
+  if (typeof timestamp === 'object' && '_seconds' in timestamp) {
+    return new Date((timestamp as any)._seconds * 1000).toISOString();
+  }
+  logger.warn('Unhandled timestamp type for serialization', { type: typeof timestamp, timestamp });
   return null;
 };
 
 
 export async function getInquiryById(inquiryId: string): Promise<Inquiry | null> {
-     console.log(`[inquiryService] Fetching inquiry ${inquiryId}`);
+    logger.debug('Fetching inquiry', { inquiryId });
     try {
-        const inquiryRef = doc(db, 'inquiries', inquiryId);
-        const docSnap = await getDoc(inquiryRef);
+        const db = await getAdminDb();
+        const inquiryRef = db.collection('inquiries').doc(inquiryId);
+        const docSnap = await inquiryRef.get();
 
-        if (docSnap.exists()) {
-             const data = docSnap.data();
+        if (docSnap.exists) {
+             const data = docSnap.data()!;
              // Convert timestamps
              const createdAt = toDate(data.createdAt);
              const updatedAt = toDate(data.updatedAt);
@@ -78,28 +89,29 @@ export async function getInquiryById(inquiryId: string): Promise<Inquiry | null>
                  responses,
              } as Inquiry;
         } else {
-            console.warn(`[inquiryService] Inquiry ${inquiryId} not found.`);
+            logger.warn('Inquiry not found', { inquiryId });
             return null;
         }
     } catch (error) {
-         console.error(`❌ [inquiryService] Error fetching inquiry ${inquiryId}:`, error);
+         logger.error('Error fetching inquiry', error as Error, { inquiryId });
          throw new Error(`Failed to fetch inquiry: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 
 export async function updateInquiryStatus(inquiryId: string, status: Inquiry['status']): Promise<void> {
-     console.log(`[inquiryService] Updating inquiry ${inquiryId} status to ${status}`);
+    logger.debug('Updating inquiry status', { inquiryId, status });
     try {
-        const inquiryRef = doc(db, 'inquiries', inquiryId);
-        await updateDoc(inquiryRef, {
+        const db = await getAdminDb();
+        const inquiryRef = db.collection('inquiries').doc(inquiryId);
+        await inquiryRef.update({
             status: status,
-            updatedAt: serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
         });
-        console.log(`✅ [inquiryService] Successfully updated inquiry ${inquiryId} status.`);
+        logger.info('Successfully updated inquiry status', { inquiryId, status });
         revalidatePath('/admin/inquiries');
         revalidatePath(`/admin/inquiries/${inquiryId}`);
     } catch (error) {
-        console.error(`❌ [inquiryService] Error updating inquiry ${inquiryId} status:`, error);
+        logger.error('Error updating inquiry status', error as Error, { inquiryId, status });
         throw new Error(`Failed to update inquiry status: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
@@ -110,31 +122,32 @@ export async function updateInquiryStatus(inquiryId: string, status: Inquiry['st
  * @returns A promise that resolves to an array of Inquiry objects.
  */
 export async function getInquiries(): Promise<Inquiry[]> {
-  console.log("[inquiryService] Fetching all inquiries");
+  logger.debug('Fetching all inquiries');
   const inquiries: Inquiry[] = [];
   try {
-    const inquiriesCollection = collection(db, 'inquiries');
+    const db = await getAdminDb();
     // Order by creation date, newest first
-    const q = query(inquiriesCollection, orderBy("createdAt", "desc"));
-    const querySnapshot = await getDocs(q);
+    const inquiriesSnapshot = await db.collection('inquiries')
+      .orderBy('createdAt', 'desc')
+      .get();
 
-    querySnapshot.forEach((doc) => {
-      const data = doc.data();
+    inquiriesSnapshot.forEach((docSnap) => {
+      const data = docSnap.data();
       // Convert Timestamps for client components
       inquiries.push({
-        id: doc.id,
+        id: docSnap.id,
         ...data,
         createdAt: serializeTimestamp(data.createdAt),
         updatedAt: serializeTimestamp(data.updatedAt),
         checkIn: serializeTimestamp(data.checkIn),
         checkOut: serializeTimestamp(data.checkOut),
         responses: data.responses?.map((r: any) => ({ ...r, createdAt: serializeTimestamp(r.createdAt) })) || [],
-      } as Inquiry); // Cast ensuring the structure matches
+      } as Inquiry);
     });
-    console.log(`[inquiryService] Found ${inquiries.length} inquiries.`);
+    logger.info('Fetched inquiries', { count: inquiries.length });
     return inquiries;
   } catch (error) {
-    console.error("❌ [inquiryService] Error fetching inquiries:", error);
+    logger.error('Error fetching inquiries', error as Error);
     throw new Error(`Failed to fetch inquiries: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
@@ -151,32 +164,34 @@ export async function addResponseToInquiry(
   message: string,
   fromHost: boolean
 ): Promise<void> {
-  console.log(`[inquiryService] Adding response to inquiry ${inquiryId}. FromHost: ${fromHost}`);
+  logger.debug('Adding response to inquiry', { inquiryId, fromHost });
   if (!inquiryId || !message) {
     throw new Error("Inquiry ID and message are required to add a response.");
   }
 
-  const inquiryRef = doc(db, 'inquiries', inquiryId);
   const sanitizedMessage = sanitizeText(message); // Sanitize the message
 
   const newResponse = {
     message: sanitizedMessage,
-    createdAt: serverTimestamp(), // Use Firestore server timestamp
+    createdAt: FieldValue.serverTimestamp(), // Use Firestore server timestamp
     fromHost: fromHost,
   };
 
   try {
-    // Update the inquiry document
-    await updateDoc(inquiryRef, {
-      responses: arrayUnion(newResponse), // Add the new response to the array
+    const db = await getAdminDb();
+    const inquiryRef = db.collection('inquiries').doc(inquiryId);
+
+    // Update the inquiry document using arrayUnion equivalent
+    await inquiryRef.update({
+      responses: FieldValue.arrayUnion(newResponse), // Add the new response to the array
       status: 'responded', // Update status to 'responded'
-      updatedAt: serverTimestamp(), // Update the main inquiry timestamp
+      updatedAt: FieldValue.serverTimestamp(), // Update the main inquiry timestamp
     });
-    console.log(`✅ [inquiryService] Successfully added response to inquiry ${inquiryId}.`);
+    logger.info('Successfully added response to inquiry', { inquiryId });
     revalidatePath(`/admin/inquiries/${inquiryId}`); // Revalidate detail page
     revalidatePath('/admin/inquiries'); // Revalidate list page
   } catch (error) {
-    console.error(`❌ [inquiryService] Error adding response to inquiry ${inquiryId}:`, error);
+    logger.error('Error adding response to inquiry', error as Error, { inquiryId });
     throw new Error(`Failed to add response: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

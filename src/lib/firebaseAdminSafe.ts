@@ -76,3 +76,21 @@ export function getAuthSafe() {
   }
   return admin.auth(_adminApp);
 }
+
+/**
+ * Get Admin Firestore instance - initializes SDK if needed
+ * Throws error if initialization fails (use in server actions where failure should halt execution)
+ */
+export async function getAdminDb(): Promise<admin.firestore.Firestore> {
+  const adminApp = await initializeFirebaseAdminSafe();
+  if (!adminApp) {
+    throw new Error('Admin SDK not available - check server configuration');
+  }
+  return admin.firestore(adminApp);
+}
+
+/**
+ * Re-export commonly used Admin SDK types for convenience
+ */
+export { FieldValue, Timestamp } from 'firebase-admin/firestore';
+export type { Firestore, DocumentReference, CollectionReference, Query, DocumentSnapshot, QuerySnapshot, WriteBatch } from 'firebase-admin/firestore';

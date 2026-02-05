@@ -64,12 +64,27 @@ service cloud.firestore {
     // ============================================================================
     // Availability Collection
     // ============================================================================
-
+    //
+    // SECURITY NOTE: This collection has permissive write rules because:
+    // 1. The public booking flow (bookingService.ts) uses Client SDK
+    // 2. Client SDK on server has no Firebase Auth context
+    // 3. Therefore, auth-based rules would break the booking flow
+    //
+    // RECOMMENDATION: Migrate bookingService.ts to use Admin SDK, then
+    // change rules to: allow write: if false; (Admin SDK bypasses rules)
+    //
+    // Current mitigations:
+    // - All admin operations use Admin SDK (bypasses these rules)
+    // - Document IDs follow format: {propertyId}_{YYYY-MM}
+    // - Delete is blocked to prevent accidental data loss
+    //
     match /availability/{documentId} {
       allow read: if true;
-      // Keep open for booking flow - TODO: move to Admin SDK
-      allow create: if true;
-      allow update: if true;
+      // Create/update needed for booking flow (uses Client SDK)
+      // TODO: Migrate bookingService.ts to Admin SDK, then set to false
+      allow create, update: if true;
+      // Block delete to prevent accidental data loss
+      allow delete: if false;
     }
 
     // ============================================================================

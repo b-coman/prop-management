@@ -2,8 +2,7 @@
 "use server";
 
 import { z } from "zod";
-import { collection, addDoc, serverTimestamp, Timestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { getAdminDb, Timestamp, FieldValue } from "@/lib/firebaseAdminSafe";
 import type { Coupon } from "@/types";
 import { revalidatePath } from "next/cache";
 import { sanitizeText } from "@/lib/sanitize";
@@ -83,15 +82,16 @@ export async function createCouponAction(
   } = validatedFields.data;
 
   try {
-    const couponsCollection = collection(db, 'coupons');
+    const db = await getAdminDb();
+    const couponsCollection = db.collection('coupons');
     const couponData: Omit<Coupon, 'id'> = {
       code: code,
       discount: discount,
       validUntil: Timestamp.fromDate(validUntil),
       isActive: isActive,
       description: description || "",
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
       bookingValidFrom: bookingValidFrom ? Timestamp.fromDate(bookingValidFrom) : null,
       bookingValidUntil: bookingValidUntil ? Timestamp.fromDate(bookingValidUntil) : null,
       exclusionPeriods: exclusionPeriods ? exclusionPeriods.map(period => ({
@@ -100,16 +100,13 @@ export async function createCouponAction(
       })) : null,
     };
 
-    const docRef = await addDoc(couponsCollection, couponData);
+    const docRef = await couponsCollection.add(couponData);
     logger.info('Coupon created successfully', { code, id: docRef.id });
     revalidatePath('/admin/coupons');
     return { id: docRef.id, code: code };
   } catch (error) {
     logger.error('Error creating coupon', error as Error, { code });
     const errorMessage = error instanceof Error ? error.message : String(error);
-    if (errorMessage.includes('PERMISSION_DENIED')) {
-      return { error: 'Permission denied. Ensure you are logged in with admin privileges.' };
-    }
     return { error: `Failed to create coupon: ${errorMessage}` };
   }
 }

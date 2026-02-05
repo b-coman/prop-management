@@ -1,23 +1,91 @@
 'use server';
 
+import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { collection, doc, addDoc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { format } from 'date-fns';
 import { loggers } from '@/lib/logger';
 import { requirePropertyAccess, AuthorizationError } from '@/lib/authorization';
+import { sanitizeText } from '@/lib/sanitize';
 
 const logger = loggers.adminPricing;
+
+// ============================================================================
+// Zod Schemas
+// ============================================================================
+
+const seasonTypeEnum = z.enum(['minimum', 'low', 'standard', 'medium', 'high']);
+
+// Base schema without refinement for extending
+const baseSeasonSchema = z.object({
+  propertyId: z.string().min(1, 'Property ID is required'),
+  name: z.string().min(1, 'Name is required').max(100).transform(sanitizeText),
+  seasonType: seasonTypeEnum,
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
+  priceMultiplier: z.coerce.number().min(0.1, 'Multiplier must be at least 0.1').max(10, 'Multiplier cannot exceed 10'),
+  minimumStay: z.coerce.number().int().min(1, 'Minimum stay must be at least 1').max(30),
+});
+
+const createSeasonSchema = baseSeasonSchema.refine(
+  data => data.endDate >= data.startDate,
+  { message: 'End date must be on or after start date', path: ['endDate'] }
+);
+
+const updateSeasonSchema = baseSeasonSchema.extend({
+  id: z.string().min(1, 'Season ID is required'),
+  enabled: z.coerce.boolean(),
+}).refine(
+  data => data.endDate >= data.startDate,
+  { message: 'End date must be on or after start date', path: ['endDate'] }
+);
+
+const createDateOverrideSchema = z.object({
+  propertyId: z.string().min(1, 'Property ID is required'),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
+  customPrice: z.coerce.number().nonnegative('Price must be non-negative'),
+  reason: z.string().max(200).optional().transform(val => val ? sanitizeText(val) : ''),
+  minimumStay: z.coerce.number().int().min(1).max(30).default(1),
+  available: z.coerce.boolean().default(true),
+  flatRate: z.coerce.boolean().default(false),
+});
+
+const updateDateOverrideSchema = createDateOverrideSchema.extend({
+  id: z.string().min(1, 'Override ID is required'),
+});
+
+const deleteSchema = z.object({
+  id: z.string().min(1, 'ID is required'),
+  propertyId: z.string().min(1, 'Property ID is required'),
+});
+
+// Helper to parse FormData into object
+function formDataToObject(formData: FormData): Record<string, string> {
+  const obj: Record<string, string> = {};
+  formData.forEach((value, key) => {
+    obj[key] = value.toString();
+  });
+  return obj;
+}
 
 /**
  * Create a new seasonal pricing rule
  * Requires access to the property
  */
 export async function createSeasonalPricing(formData: FormData) {
-  const propertyId = formData.get('propertyId') as string;
+  // Validate input with Zod
+  const parsed = createSeasonSchema.safeParse(formDataToObject(formData));
 
-  // Check property access first
+  if (!parsed.success) {
+    const errorMessages = parsed.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+    logger.warn('Create seasonal pricing validation error', { errors: errorMessages });
+    throw new Error(`Invalid input: ${errorMessages}`);
+  }
+
+  const { propertyId, name, seasonType, startDate, endDate, priceMultiplier, minimumStay } = parsed.data;
+
+  // Check property access
   try {
     await requirePropertyAccess(propertyId);
   } catch (error) {
@@ -28,21 +96,6 @@ export async function createSeasonalPricing(formData: FormData) {
   }
 
   try {
-    const name = formData.get('name') as string;
-    const seasonType = formData.get('seasonType') as 'minimum' | 'low' | 'standard' | 'medium' | 'high';
-    const startDate = formData.get('startDate') as string;
-    const endDate = formData.get('endDate') as string;
-    const priceMultiplierValue = formData.get('priceMultiplier') as string;
-    const minimumStayValue = formData.get('minimumStay') as string;
-
-    // Validate input
-    if (!propertyId || !name || !seasonType || !startDate || !endDate) {
-      throw new Error('Missing required fields');
-    }
-
-    const priceMultiplier = parseFloat(priceMultiplierValue) || 1.0;
-    const minimumStay = parseInt(minimumStayValue, 10) || 1;
-
     // Create the seasonal pricing object
     const seasonalPricing = {
       propertyId,
@@ -53,17 +106,20 @@ export async function createSeasonalPricing(formData: FormData) {
       priceMultiplier,
       minimumStay,
       enabled: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
     };
 
     // Add to Firestore
-    await addDoc(collection(db, 'seasonalPricing'), seasonalPricing);
-    
+    const db = await getAdminDb();
+    await db.collection('seasonalPricing').add(seasonalPricing);
+
+    logger.info('Created seasonal pricing', { propertyId, name });
+
     // Invalidate cached data
     revalidatePath('/admin/pricing');
     revalidatePath(`/admin/pricing?propertyId=${propertyId}`);
-    
+
     // Redirect back to the pricing page
     redirect(`/admin/pricing?propertyId=${propertyId}`);
   } catch (error) {
@@ -77,10 +133,18 @@ export async function createSeasonalPricing(formData: FormData) {
  * Requires access to the property
  */
 export async function updateSeasonalPricing(formData: FormData) {
-  const id = formData.get('id') as string;
-  const propertyId = formData.get('propertyId') as string;
+  // Validate input with Zod
+  const parsed = updateSeasonSchema.safeParse(formDataToObject(formData));
 
-  // Check property access first
+  if (!parsed.success) {
+    const errorMessages = parsed.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+    logger.warn('Update seasonal pricing validation error', { errors: errorMessages });
+    throw new Error(`Invalid input: ${errorMessages}`);
+  }
+
+  const { id, propertyId, name, seasonType, startDate, endDate, priceMultiplier, minimumStay, enabled } = parsed.data;
+
+  // Check property access
   try {
     await requirePropertyAccess(propertyId);
   } catch (error) {
@@ -91,23 +155,6 @@ export async function updateSeasonalPricing(formData: FormData) {
   }
 
   try {
-    const name = formData.get('name') as string;
-    const seasonType = formData.get('seasonType') as 'minimum' | 'low' | 'standard' | 'medium' | 'high';
-    const startDate = formData.get('startDate') as string;
-    const endDate = formData.get('endDate') as string;
-    const priceMultiplierValue = formData.get('priceMultiplier') as string;
-    const minimumStayValue = formData.get('minimumStay') as string;
-    const enabledValue = formData.get('enabled') as string;
-
-    // Validate input
-    if (!id || !propertyId || !name || !seasonType || !startDate || !endDate) {
-      throw new Error('Missing required fields');
-    }
-
-    const priceMultiplier = parseFloat(priceMultiplierValue) || 1.0;
-    const minimumStay = parseInt(minimumStayValue, 10) || 1;
-    const enabled = enabledValue === 'true';
-
     // Create the update object
     const updatedSeason = {
       propertyId,
@@ -118,17 +165,20 @@ export async function updateSeasonalPricing(formData: FormData) {
       priceMultiplier,
       minimumStay,
       enabled,
-      updatedAt: new Date().toISOString()
+      updatedAt: FieldValue.serverTimestamp()
     };
 
     // Update in Firestore
-    const seasonRef = doc(db, 'seasonalPricing', id);
-    await updateDoc(seasonRef, updatedSeason);
-    
+    const db = await getAdminDb();
+    const seasonRef = db.collection('seasonalPricing').doc(id);
+    await seasonRef.update(updatedSeason);
+
+    logger.info('Updated seasonal pricing', { id, propertyId, name });
+
     // Invalidate cached data
     revalidatePath('/admin/pricing');
     revalidatePath(`/admin/pricing?propertyId=${propertyId}`);
-    
+
     // Redirect back to the pricing page
     redirect(`/admin/pricing?propertyId=${propertyId}`);
   } catch (error) {
@@ -142,10 +192,18 @@ export async function updateSeasonalPricing(formData: FormData) {
  * Requires access to the property
  */
 export async function createDateOverride(formData: FormData) {
-  const propertyId = formData.get('propertyId') as string;
-  const date = formData.get('date') as string;
+  // Validate input with Zod
+  const parsed = createDateOverrideSchema.safeParse(formDataToObject(formData));
 
-  // Check property access first
+  if (!parsed.success) {
+    const errorMessages = parsed.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+    logger.warn('Create date override validation error', { errors: errorMessages });
+    throw new Error(`Invalid input: ${errorMessages}`);
+  }
+
+  const { propertyId, date, customPrice, reason, minimumStay, available, flatRate } = parsed.data;
+
+  // Check property access
   try {
     await requirePropertyAccess(propertyId);
   } catch (error) {
@@ -156,42 +214,29 @@ export async function createDateOverride(formData: FormData) {
   }
 
   try {
-    const customPriceValue = formData.get('customPrice') as string;
-    const reason = formData.get('reason') as string;
-    const minimumStayValue = formData.get('minimumStay') as string;
-    const availableValue = formData.get('available') as string;
-    const flatRateValue = formData.get('flatRate') as string;
-
-    // Validate input
-    if (!propertyId || !date || !customPriceValue) {
-      throw new Error('Missing required fields');
-    }
-
-    const customPrice = parseFloat(customPriceValue);
-    const minimumStay = parseInt(minimumStayValue, 10) || 1;
-    const available = availableValue !== 'false';
-    const flatRate = flatRateValue === 'true';
-
     // Create the date override object
     const dateOverride = {
       propertyId,
       date,
       customPrice,
-      reason: reason || '',
+      reason,
       minimumStay,
       available,
       flatRate,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
     };
 
     // Add to Firestore
-    await addDoc(collection(db, 'dateOverrides'), dateOverride);
-    
+    const db = await getAdminDb();
+    await db.collection('dateOverrides').add(dateOverride);
+
+    logger.info('Created date override', { propertyId, date });
+
     // Invalidate cached data
     revalidatePath('/admin/pricing');
     revalidatePath(`/admin/pricing?propertyId=${propertyId}`);
-    
+
     // Redirect back to the pricing page
     redirect(`/admin/pricing?propertyId=${propertyId}`);
   } catch (error) {
@@ -205,10 +250,18 @@ export async function createDateOverride(formData: FormData) {
  * Requires access to the property
  */
 export async function updateDateOverride(formData: FormData) {
-  const id = formData.get('id') as string;
-  const propertyId = formData.get('propertyId') as string;
+  // Validate input with Zod
+  const parsed = updateDateOverrideSchema.safeParse(formDataToObject(formData));
 
-  // Check property access first
+  if (!parsed.success) {
+    const errorMessages = parsed.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+    logger.warn('Update date override validation error', { errors: errorMessages });
+    throw new Error(`Invalid input: ${errorMessages}`);
+  }
+
+  const { id, propertyId, date, customPrice, reason, minimumStay, available, flatRate } = parsed.data;
+
+  // Check property access
   try {
     await requirePropertyAccess(propertyId);
   } catch (error) {
@@ -219,43 +272,29 @@ export async function updateDateOverride(formData: FormData) {
   }
 
   try {
-    const date = formData.get('date') as string;
-    const customPriceValue = formData.get('customPrice') as string;
-    const reason = formData.get('reason') as string;
-    const minimumStayValue = formData.get('minimumStay') as string;
-    const availableValue = formData.get('available') as string;
-    const flatRateValue = formData.get('flatRate') as string;
-
-    // Validate input
-    if (!id || !propertyId || !date || !customPriceValue) {
-      throw new Error('Missing required fields');
-    }
-
-    const customPrice = parseFloat(customPriceValue);
-    const minimumStay = parseInt(minimumStayValue, 10) || 1;
-    const available = availableValue === 'true';
-    const flatRate = flatRateValue === 'true';
-
     // Create the update object
     const updatedOverride = {
       propertyId,
       date,
       customPrice,
-      reason: reason || '',
+      reason,
       minimumStay,
       available,
       flatRate,
-      updatedAt: new Date().toISOString()
+      updatedAt: FieldValue.serverTimestamp()
     };
 
     // Update in Firestore
-    const overrideRef = doc(db, 'dateOverrides', id);
-    await updateDoc(overrideRef, updatedOverride);
-    
+    const db = await getAdminDb();
+    const overrideRef = db.collection('dateOverrides').doc(id);
+    await overrideRef.update(updatedOverride);
+
+    logger.info('Updated date override', { id, propertyId, date });
+
     // Invalidate cached data
     revalidatePath('/admin/pricing');
     revalidatePath(`/admin/pricing?propertyId=${propertyId}`);
-    
+
     // Redirect back to the pricing page
     redirect(`/admin/pricing?propertyId=${propertyId}`);
   } catch (error) {
@@ -269,10 +308,18 @@ export async function updateDateOverride(formData: FormData) {
  * Requires access to the property
  */
 export async function deleteSeasonalPricing(formData: FormData) {
-  const id = formData.get('id') as string;
-  const propertyId = formData.get('propertyId') as string;
+  // Validate input with Zod
+  const parsed = deleteSchema.safeParse(formDataToObject(formData));
 
-  // Check property access first
+  if (!parsed.success) {
+    const errorMessages = parsed.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+    logger.warn('Delete seasonal pricing validation error', { errors: errorMessages });
+    throw new Error(`Invalid input: ${errorMessages}`);
+  }
+
+  const { id, propertyId } = parsed.data;
+
+  // Check property access
   try {
     await requirePropertyAccess(propertyId);
   } catch (error) {
@@ -283,19 +330,17 @@ export async function deleteSeasonalPricing(formData: FormData) {
   }
 
   try {
-    // Validate input
-    if (!id || !propertyId) {
-      throw new Error('Missing required fields');
-    }
-
     // Delete from Firestore
-    const seasonRef = doc(db, 'seasonalPricing', id);
-    await deleteDoc(seasonRef);
-    
+    const db = await getAdminDb();
+    const seasonRef = db.collection('seasonalPricing').doc(id);
+    await seasonRef.delete();
+
+    logger.info('Deleted seasonal pricing', { id, propertyId });
+
     // Invalidate cached data
     revalidatePath('/admin/pricing');
     revalidatePath(`/admin/pricing?propertyId=${propertyId}`);
-    
+
     // Redirect back to the pricing page
     redirect(`/admin/pricing?propertyId=${propertyId}`);
   } catch (error) {
@@ -309,10 +354,18 @@ export async function deleteSeasonalPricing(formData: FormData) {
  * Requires access to the property
  */
 export async function deleteDateOverride(formData: FormData) {
-  const id = formData.get('id') as string;
-  const propertyId = formData.get('propertyId') as string;
+  // Validate input with Zod
+  const parsed = deleteSchema.safeParse(formDataToObject(formData));
 
-  // Check property access first
+  if (!parsed.success) {
+    const errorMessages = parsed.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+    logger.warn('Delete date override validation error', { errors: errorMessages });
+    throw new Error(`Invalid input: ${errorMessages}`);
+  }
+
+  const { id, propertyId } = parsed.data;
+
+  // Check property access
   try {
     await requirePropertyAccess(propertyId);
   } catch (error) {
@@ -323,19 +376,17 @@ export async function deleteDateOverride(formData: FormData) {
   }
 
   try {
-    // Validate input
-    if (!id || !propertyId) {
-      throw new Error('Missing required fields');
-    }
-
     // Delete from Firestore
-    const overrideRef = doc(db, 'dateOverrides', id);
-    await deleteDoc(overrideRef);
-    
+    const db = await getAdminDb();
+    const overrideRef = db.collection('dateOverrides').doc(id);
+    await overrideRef.delete();
+
+    logger.info('Deleted date override', { id, propertyId });
+
     // Invalidate cached data
     revalidatePath('/admin/pricing');
     revalidatePath(`/admin/pricing?propertyId=${propertyId}`);
-    
+
     // Redirect back to the pricing page
     redirect(`/admin/pricing?propertyId=${propertyId}`);
   } catch (error) {

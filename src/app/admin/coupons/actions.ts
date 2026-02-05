@@ -2,8 +2,7 @@
 "use server";
 
 import { z } from "zod";
-import { collection, getDocs, doc, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { getAdminDb, Timestamp, FieldValue } from "@/lib/firebaseAdminSafe";
 import type { Coupon, SerializableTimestamp } from "@/types";
 import { revalidatePath } from "next/cache";
 import { sanitizeText } from "@/lib/sanitize";
@@ -88,13 +87,15 @@ export async function fetchCoupons(): Promise<Coupon[]> {
     // Only super admins can manage coupons
     await requireSuperAdmin();
 
-    const couponsCollection = collection(db, 'coupons');
-    const querySnapshot = await getDocs(couponsCollection);
-    const coupons = querySnapshot.docs.map((doc) => {
-      const data = doc.data();
+    const db = await getAdminDb();
+    const couponsSnapshot = await db.collection('coupons').get();
+    const coupons: Coupon[] = [];
+
+    couponsSnapshot.forEach((docSnap) => {
+      const data = docSnap.data();
       // Convert Timestamps to ISO strings for client components
-      return {
-        id: doc.id,
+      coupons.push({
+        id: docSnap.id,
         ...data,
         validUntil: serializeTimestamp(data.validUntil),
         bookingValidFrom: serializeTimestamp(data.bookingValidFrom),
@@ -105,8 +106,9 @@ export async function fetchCoupons(): Promise<Coupon[]> {
         })) || null,
         createdAt: serializeTimestamp(data.createdAt),
         updatedAt: serializeTimestamp(data.updatedAt),
-      } as Coupon;
+      } as Coupon);
     });
+
     return coupons;
   } catch (error) {
     if (error instanceof AuthorizationError) {
@@ -139,10 +141,11 @@ export async function updateCouponStatusAction(
   const { couponId, isActive } = validatedFields.data;
 
   try {
-    const couponRef = doc(db, 'coupons', couponId);
-    await updateDoc(couponRef, {
+    const db = await getAdminDb();
+    const couponRef = db.collection('coupons').doc(couponId);
+    await couponRef.update({
       isActive: isActive,
-      updatedAt: serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
     revalidatePath('/admin/coupons');
     return { success: true };
@@ -174,10 +177,11 @@ export async function updateCouponExpiryAction(
   const { couponId, validUntil } = validatedFields.data;
 
   try {
-    const couponRef = doc(db, 'coupons', couponId);
-    await updateDoc(couponRef, {
+    const db = await getAdminDb();
+    const couponRef = db.collection('coupons').doc(couponId);
+    await couponRef.update({
       validUntil: Timestamp.fromDate(validUntil),
-      updatedAt: serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
     revalidatePath('/admin/coupons');
     return { success: true };
@@ -210,11 +214,12 @@ export async function updateCouponBookingValidityAction(
     const { couponId, bookingValidFrom, bookingValidUntil } = validatedFields.data;
 
     try {
-        const couponRef = doc(db, 'coupons', couponId);
-        await updateDoc(couponRef, {
+        const db = await getAdminDb();
+        const couponRef = db.collection('coupons').doc(couponId);
+        await couponRef.update({
             bookingValidFrom: bookingValidFrom ? Timestamp.fromDate(bookingValidFrom) : null,
             bookingValidUntil: bookingValidUntil ? Timestamp.fromDate(bookingValidUntil) : null,
-            updatedAt: serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
         });
         revalidatePath('/admin/coupons');
         return { success: true };
@@ -246,13 +251,14 @@ export async function updateCouponExclusionsAction(
     const { couponId, exclusionPeriods } = validatedFields.data;
 
     try {
-        const couponRef = doc(db, 'coupons', couponId);
-        await updateDoc(couponRef, {
+        const db = await getAdminDb();
+        const couponRef = db.collection('coupons').doc(couponId);
+        await couponRef.update({
             exclusionPeriods: exclusionPeriods.map(period => ({
                 start: Timestamp.fromDate(period.start),
                 end: Timestamp.fromDate(period.end),
             })),
-            updatedAt: serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
         });
         revalidatePath('/admin/coupons');
         return { success: true };

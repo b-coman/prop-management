@@ -2,8 +2,7 @@
 "use server";
 
 import { z } from "zod";
-import { collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { getAdminDb, Timestamp, FieldValue } from "@/lib/firebaseAdminSafe";
 import type { Property, SerializableTimestamp } from "@/types";
 import { revalidatePath } from "next/cache";
 import { sanitizeText } from "@/lib/sanitize";
@@ -133,16 +132,18 @@ export async function fetchProperties(): Promise<Property[]> {
     // Check authorization first
     const user = await requireAdmin();
 
-    const propertiesCollection = collection(db, 'properties');
-    const querySnapshot = await getDocs(propertiesCollection);
-    const allProperties = querySnapshot.docs.map((doc) => {
-      const data = doc.data();
+    const db = await getAdminDb();
+    const propertiesSnapshot = await db.collection('properties').get();
+    const allProperties: Property[] = [];
+
+    propertiesSnapshot.forEach((docSnap) => {
+      const data = docSnap.data();
       const serializedData = serializeTimestampsInObject(data);
-      return {
-        id: doc.id,
-        slug: doc.id,
+      allProperties.push({
+        id: docSnap.id,
+        slug: docSnap.id,
         ...serializedData,
-      } as Property;
+      } as Property);
     });
 
     // Filter based on user access
@@ -188,19 +189,21 @@ export async function createPropertyAction(
   const { slug, ...propertyData } = validatedFields.data;
 
   try {
-    const existingDocRef = doc(db, 'properties', slug);
-    const docSnap = await getDoc(existingDocRef);
-    if (docSnap.exists()) {
+    const db = await getAdminDb();
+    const propertyRef = db.collection('properties').doc(slug);
+    const docSnap = await propertyRef.get();
+
+    if (docSnap.exists) {
       return { error: `Property with slug "${slug}" already exists.` };
     }
 
     const dataToSave = {
         ...propertyData,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
     };
 
-    await setDoc(existingDocRef, dataToSave);
+    await propertyRef.set(dataToSave);
 
     logger.info('Property created successfully', { name: propertyData.name, slug });
     revalidatePath('/admin/properties');
@@ -241,11 +244,12 @@ export async function updatePropertyAction(
   const propertyData = validatedFields.data;
 
   try {
-    const propertyRef = doc(db, 'properties', currentSlug);
+    const db = await getAdminDb();
+    const propertyRef = db.collection('properties').doc(currentSlug);
 
     // Check if the document exists before updating
-    const docSnap = await getDoc(propertyRef);
-    if (!docSnap.exists()) {
+    const docSnap = await propertyRef.get();
+    if (!docSnap.exists) {
       return { error: `Property with slug "${currentSlug}" not found.` };
     }
 
@@ -253,10 +257,10 @@ export async function updatePropertyAction(
     const { slug: _, ...dataWithoutSlug } = propertyData;
     const dataToUpdate = {
         ...dataWithoutSlug,
-        updatedAt: serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
     };
 
-    await updateDoc(propertyRef, dataToUpdate);
+    await propertyRef.update(dataToUpdate);
 
     logger.info('Property updated successfully', { name: propertyData.name, slug: currentSlug });
     revalidatePath('/admin/properties');
@@ -293,12 +297,13 @@ export async function deletePropertyAction(
   }
 
   try {
-    const propertyRef = doc(db, 'properties', slug);
-    const overridesRef = doc(db, 'propertyOverrides', slug);
+    const db = await getAdminDb();
+    const propertyRef = db.collection('properties').doc(slug);
+    const overridesRef = db.collection('propertyOverrides').doc(slug);
 
     // Check if the property exists
-    const docSnap = await getDoc(propertyRef);
-    if (!docSnap.exists()) {
+    const docSnap = await propertyRef.get();
+    if (!docSnap.exists) {
         logger.warn('Property not found, attempting to delete anyway', { slug });
     }
 
@@ -306,8 +311,8 @@ export async function deletePropertyAction(
     // This often requires a Cloud Function for reliable cascading deletes.
     // For now, we just delete the main property doc and overrides.
 
-    await deleteDoc(propertyRef);
-    await deleteDoc(overridesRef).catch(err => logger.warn('Could not delete overrides', { slug, error: err.message }));
+    await propertyRef.delete();
+    await overridesRef.delete().catch(err => logger.warn('Could not delete overrides', { slug, error: err.message }));
 
     logger.info('Property deleted successfully', { slug });
     revalidatePath('/admin/properties');

@@ -2,8 +2,7 @@
 "use server";
 
 import { z } from "zod";
-import { collection, doc, getDoc, getDocs, orderBy, query, Timestamp, updateDoc, serverTimestamp, writeBatch } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { getAdminDb, Timestamp, FieldValue } from "@/lib/firebaseAdminSafe";
 import type { Booking, SerializableTimestamp } from "@/types";
 import { updatePropertyAvailability, triggerExternalSyncForDateUpdate } from '@/services/bookingService';
 import { revalidatePath } from "next/cache";
@@ -26,6 +25,10 @@ const serializeTimestamp = (timestamp: SerializableTimestamp | undefined | null)
   if (timestamp instanceof Date) return timestamp.toISOString();
   if (typeof timestamp === 'string') return timestamp; // Assume already ISO string
   if (typeof timestamp === 'number') return new Date(timestamp).toISOString();
+  // Handle Admin SDK Timestamp-like objects
+  if (typeof timestamp === 'object' && '_seconds' in timestamp) {
+    return new Date((timestamp as any)._seconds * 1000).toISOString();
+  }
   return null;
 };
 
@@ -38,6 +41,10 @@ const toDate = (timestamp: SerializableTimestamp | undefined | null): Date | nul
         try { return parseISO(timestamp); } catch { return null; }
     }
     if (typeof timestamp === 'number') return new Date(timestamp);
+    // Handle Admin SDK Timestamp-like objects
+    if (typeof timestamp === 'object' && '_seconds' in timestamp) {
+      return new Date((timestamp as any)._seconds * 1000);
+    }
     return null;
 };
 
@@ -53,12 +60,13 @@ export async function fetchBookings(): Promise<Booking[]> {
     // Check authorization first
     const user = await requireAdmin();
 
-    const bookings: Booking[] = [];
-    const bookingsCollection = collection(db, 'bookings');
-    const q = query(bookingsCollection, orderBy("createdAt", "desc"));
-    const querySnapshot = await getDocs(q);
+    const db = await getAdminDb();
+    const bookingsSnapshot = await db.collection('bookings')
+      .orderBy('createdAt', 'desc')
+      .get();
 
-    querySnapshot.forEach((docSnap) => {
+    const bookings: Booking[] = [];
+    bookingsSnapshot.forEach((docSnap) => {
       const data = docSnap.data();
       // Serialize Timestamps for client components
       bookings.push({
@@ -110,11 +118,11 @@ export async function extendBookingHoldAction(
     const { bookingId, hoursToAdd } = validation.data;
 
     try {
-        // Fetch booking first to check property access
-        const bookingRef = doc(db, 'bookings', bookingId);
-        const bookingSnap = await getDoc(bookingRef);
+        const db = await getAdminDb();
+        const bookingRef = db.collection('bookings').doc(bookingId);
+        const bookingSnap = await bookingRef.get();
 
-        if (!bookingSnap.exists()) {
+        if (!bookingSnap.exists) {
             return { success: false, error: "Booking not found." };
         }
 
@@ -137,9 +145,9 @@ export async function extendBookingHoldAction(
         const newHoldUntil = addHours(currentHoldUntil, hoursToAdd);
         const newHoldUntilTimestamp = Timestamp.fromDate(newHoldUntil);
 
-        await updateDoc(bookingRef, {
+        await bookingRef.update({
             holdUntil: newHoldUntilTimestamp,
-            updatedAt: serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
             notes: `${bookingData.notes || ''}\nHold extended by admin by ${hoursToAdd} hours on ${new Date().toISOString()}.`.trim(),
         });
 
@@ -173,11 +181,11 @@ export async function cancelBookingHoldAction(
     const { bookingId } = validation.data;
 
     try {
-        // Fetch booking first to check property access
-        const bookingRef = doc(db, 'bookings', bookingId);
-        const bookingSnap = await getDoc(bookingRef);
+        const db = await getAdminDb();
+        const bookingRef = db.collection('bookings').doc(bookingId);
+        const bookingSnap = await bookingRef.get();
 
-        if (!bookingSnap.exists()) return { success: false, error: "Booking not found." };
+        if (!bookingSnap.exists) return { success: false, error: "Booking not found." };
 
         const bookingData = bookingSnap.data() as Booking;
 
@@ -197,12 +205,12 @@ export async function cancelBookingHoldAction(
              // Proceed with cancellation but log warning
         }
 
-        const batch = writeBatch(db);
+        const batch = db.batch();
 
         // Update booking status
         batch.update(bookingRef, {
             status: 'cancelled',
-            updatedAt: serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
             notes: `${bookingData.notes || ''}\nHold cancelled by admin on ${new Date().toISOString()}.`.trim(),
         });
 
@@ -252,11 +260,11 @@ export async function convertHoldToBookingAction(
     const { bookingId } = validation.data;
 
     try {
-        // Fetch booking first to check property access
-        const bookingRef = doc(db, 'bookings', bookingId);
-        const bookingSnap = await getDoc(bookingRef);
+        const db = await getAdminDb();
+        const bookingRef = db.collection('bookings').doc(bookingId);
+        const bookingSnap = await bookingRef.get();
 
-        if (!bookingSnap.exists()) return { success: false, error: "Booking not found." };
+        if (!bookingSnap.exists) return { success: false, error: "Booking not found." };
 
         const bookingData = bookingSnap.data() as Booking;
 
@@ -268,10 +276,10 @@ export async function convertHoldToBookingAction(
         if (bookingData.status !== 'on-hold') return { success: false, error: "Booking is not on hold." };
 
         // Update status to confirmed
-        await updateDoc(bookingRef, {
+        await bookingRef.update({
             status: 'confirmed',
             convertedFromHold: true, // Mark as converted
-            updatedAt: serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
             notes: `${bookingData.notes || ''}\nHold converted to confirmed booking by admin on ${new Date().toISOString()}. Payment assumed handled.`.trim(),
         });
 

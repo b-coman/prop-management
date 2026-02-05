@@ -1,13 +1,10 @@
 'use server';
 
 /**
- * Server actions for the pricing management interface using Firebase Client SDK.
+ * Server actions for the pricing management interface using Firebase Admin SDK.
  *
  * This file contains all the server actions needed for the pricing management interface,
- * implementing data fetching and mutations using the Firebase Client SDK instead of Admin SDK.
- *
- * This approach matches the pattern used in other admin sections like coupons,
- * providing a consistent architecture throughout the admin interface.
+ * implementing data fetching and mutations using the Firebase Admin SDK.
  *
  * Functions:
  * - fetchProperties: Get all properties
@@ -18,28 +15,33 @@
  * - generatePriceCalendar: Generate price calendars for a property
  */
 import { revalidatePath } from 'next/cache';
-import { collection, getDocs, doc, updateDoc, getDoc, query, where, orderBy, setDoc, limit, addDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase"; // Import the client SDK
+import { getAdminDb, FieldValue } from "@/lib/firebaseAdminSafe";
 import { convertTimestampsToISOStrings } from "@/lib/utils"; // Import the timestamp converter
 import { format, parse } from "date-fns"; // Import date-fns
 import { loggers } from '@/lib/logger';
+import { requireAdmin, requirePropertyAccess, filterPropertiesForUser, AuthorizationError } from '@/lib/authorization';
 
 const logger = loggers.adminPricing;
 
 /**
  * Fetch a single property by ID
+ * Requires property access
  */
 export async function fetchProperty(propertyId: string) {
   try {
-    const propertyRef = doc(db, 'properties', propertyId);
-    const propertyDoc = await getDoc(propertyRef);
+    // Check property access
+    await requirePropertyAccess(propertyId);
 
-    if (!propertyDoc.exists()) {
+    const db = await getAdminDb();
+    const propertyRef = db.collection('properties').doc(propertyId);
+    const propertyDoc = await propertyRef.get();
+
+    if (!propertyDoc.exists) {
       logger.debug('Property not found', { propertyId });
       return null;
     }
 
-    const data = propertyDoc.data();
+    const data = propertyDoc.data()!;
     const serializedData = convertTimestampsToISOStrings(data);
 
     logger.debug('Fetched property', { propertyId });
@@ -52,28 +54,36 @@ export async function fetchProperty(propertyId: string) {
       ...serializedData
     };
   } catch (error) {
+    if (error instanceof AuthorizationError) {
+      logger.warn('Authorization failed for fetchProperty', { propertyId });
+      return null;
+    }
     logger.error('Error fetching property', error as Error, { propertyId });
     return null;
   }
 }
 
 /**
- * Fetch all properties - server action using client SDK
- * This matches the pattern used in the coupons section
+ * Fetch all properties - server action using Admin SDK
+ * Filters results based on user access
  */
 export async function fetchProperties() {
   try {
-    const propertiesRef = collection(db, 'properties');
-    const snapshot = await getDocs(propertiesRef);
+    // Check admin access
+    const user = await requireAdmin();
 
-    const properties = snapshot.docs.map(doc => {
-      const data = doc.data();
+    const db = await getAdminDb();
+    const propertiesSnapshot = await db.collection('properties').get();
+
+    const allProperties = propertiesSnapshot.docs.map(docSnap => {
+      const data = docSnap.data();
       // Use our utility function to convert all timestamps to ISO strings
       const serializedData = convertTimestampsToISOStrings(data);
 
       return {
-        id: doc.id,
-        name: serializedData.name || doc.id,
+        id: docSnap.id,
+        slug: docSnap.id,
+        name: serializedData.name || docSnap.id,
         location: serializedData.location || '',
         status: serializedData.status || 'active',
         pricePerNight: serializedData.pricePerNight,
@@ -81,9 +91,15 @@ export async function fetchProperties() {
       };
     });
 
-    logger.debug('Fetched properties', { count: properties.length });
-    return properties;
+    // Filter based on user access
+    const filteredProperties = filterPropertiesForUser(allProperties, user);
+    logger.debug('Fetched properties', { count: filteredProperties.length, total: allProperties.length, role: user.role });
+    return filteredProperties;
   } catch (error) {
+    if (error instanceof AuthorizationError) {
+      logger.warn('Authorization failed for fetchProperties');
+      return [];
+    }
     logger.error('Error fetching properties', error as Error);
     return [];
   }
@@ -91,20 +107,25 @@ export async function fetchProperties() {
 
 /**
  * Fetch seasonal pricing for a property
+ * Requires property access
  */
 export async function fetchSeasonalPricing(propertyId: string) {
   try {
-    const seasonalPricingRef = collection(db, 'seasonalPricing');
-    const q = query(seasonalPricingRef, where('propertyId', '==', propertyId));
-    const snapshot = await getDocs(q);
+    // Check property access
+    await requirePropertyAccess(propertyId);
 
-    const seasonalPricing = snapshot.docs.map(doc => {
-      const data = doc.data();
+    const db = await getAdminDb();
+    const seasonalPricingSnapshot = await db.collection('seasonalPricing')
+      .where('propertyId', '==', propertyId)
+      .get();
+
+    const seasonalPricing = seasonalPricingSnapshot.docs.map(docSnap => {
+      const data = docSnap.data();
       // Use our utility function to convert all timestamps to ISO strings
       const serializedData = convertTimestampsToISOStrings(data);
 
       return {
-        id: doc.id,
+        id: docSnap.id,
         ...serializedData
       };
     });
@@ -112,6 +133,10 @@ export async function fetchSeasonalPricing(propertyId: string) {
     logger.debug('Fetched seasonal pricing rules', { propertyId, count: seasonalPricing.length });
     return seasonalPricing;
   } catch (error) {
+    if (error instanceof AuthorizationError) {
+      logger.warn('Authorization failed for fetchSeasonalPricing', { propertyId });
+      return [];
+    }
     logger.error('Error fetching seasonal pricing', error as Error, { propertyId });
     return [];
   }
@@ -119,20 +144,25 @@ export async function fetchSeasonalPricing(propertyId: string) {
 
 /**
  * Fetch date overrides for a property
+ * Requires property access
  */
 export async function fetchDateOverrides(propertyId: string) {
   try {
-    const dateOverridesRef = collection(db, 'dateOverrides');
-    const q = query(dateOverridesRef, where('propertyId', '==', propertyId));
-    const snapshot = await getDocs(q);
+    // Check property access
+    await requirePropertyAccess(propertyId);
 
-    const dateOverrides = snapshot.docs.map(doc => {
-      const data = doc.data();
+    const db = await getAdminDb();
+    const dateOverridesSnapshot = await db.collection('dateOverrides')
+      .where('propertyId', '==', propertyId)
+      .get();
+
+    const dateOverrides = dateOverridesSnapshot.docs.map(docSnap => {
+      const data = docSnap.data();
       // Use our utility function to convert all timestamps to ISO strings
       const serializedData = convertTimestampsToISOStrings(data);
 
       return {
-        id: doc.id,
+        id: docSnap.id,
         ...serializedData
       };
     });
@@ -140,6 +170,10 @@ export async function fetchDateOverrides(propertyId: string) {
     logger.debug('Fetched date overrides', { propertyId, count: dateOverrides.length });
     return dateOverrides;
   } catch (error) {
+    if (error instanceof AuthorizationError) {
+      logger.warn('Authorization failed for fetchDateOverrides', { propertyId });
+      return [];
+    }
     logger.error('Error fetching date overrides', error as Error, { propertyId });
     return [];
   }
@@ -147,24 +181,37 @@ export async function fetchDateOverrides(propertyId: string) {
 
 /**
  * Toggle seasonal pricing status
+ * Requires property access
  */
 export async function toggleSeasonalPricingStatus(seasonId: string, enabled: boolean) {
   try {
-    const seasonRef = doc(db, 'seasonalPricing', seasonId);
-    
-    await updateDoc(seasonRef, { enabled });
-    
-    // Get property ID to revalidate paths
-    const seasonDoc = await getDoc(seasonRef);
+    const db = await getAdminDb();
+    const seasonRef = db.collection('seasonalPricing').doc(seasonId);
+
+    // Get season first to check property access
+    const seasonDoc = await seasonRef.get();
+    if (!seasonDoc.exists) {
+      return { success: false, error: 'Seasonal pricing rule not found' };
+    }
+
     const propertyId = seasonDoc.data()?.propertyId;
-    
+
+    // Check property access
+    await requirePropertyAccess(propertyId);
+
+    await seasonRef.update({ enabled, updatedAt: FieldValue.serverTimestamp() });
+
     revalidatePath('/admin/pricing');
     if (propertyId) {
       revalidatePath(`/admin/pricing?propertyId=${propertyId}`);
     }
-    
+
     return { success: true };
   } catch (error) {
+    if (error instanceof AuthorizationError) {
+      logger.warn('Authorization failed for toggleSeasonalPricingStatus', { seasonId });
+      return { success: false, error: 'You do not have access to this property' };
+    }
     logger.error('Error updating seasonal pricing', error as Error, { seasonId, enabled });
     return { success: false, error: `Failed to update seasonal pricing: ${error}` };
   }
@@ -172,16 +219,25 @@ export async function toggleSeasonalPricingStatus(seasonId: string, enabled: boo
 
 /**
  * Toggle date override availability
+ * Requires property access
  */
 export async function toggleDateOverrideAvailability(dateOverrideId: string, available: boolean) {
   try {
-    const overrideRef = doc(db, 'dateOverrides', dateOverrideId);
+    const db = await getAdminDb();
+    const overrideRef = db.collection('dateOverrides').doc(dateOverrideId);
 
-    await updateDoc(overrideRef, { available });
+    // Get override first to check property access
+    const overrideDoc = await overrideRef.get();
+    if (!overrideDoc.exists) {
+      return { success: false, error: 'Date override not found' };
+    }
 
-    // Get property ID to revalidate paths
-    const overrideDoc = await getDoc(overrideRef);
     const propertyId = overrideDoc.data()?.propertyId;
+
+    // Check property access
+    await requirePropertyAccess(propertyId);
+
+    await overrideRef.update({ available, updatedAt: FieldValue.serverTimestamp() });
 
     revalidatePath('/admin/pricing');
     if (propertyId) {
@@ -190,6 +246,10 @@ export async function toggleDateOverrideAvailability(dateOverrideId: string, ava
 
     return { success: true };
   } catch (error) {
+    if (error instanceof AuthorizationError) {
+      logger.warn('Authorization failed for toggleDateOverrideAvailability', { dateOverrideId });
+      return { success: false, error: 'You do not have access to this property' };
+    }
     logger.error('Error updating date override', error as Error, { dateOverrideId, available });
     return { success: false, error: `Failed to update date override: ${error}` };
   }
@@ -197,33 +257,38 @@ export async function toggleDateOverrideAvailability(dateOverrideId: string, ava
 
 /**
  * Update or create a date override
+ * Requires property access
  */
 export async function updateDay(dayData: any) {
   try {
+    // Check property access first
+    await requirePropertyAccess(dayData.propertyId);
+
     logger.debug('Updating day', { date: dayData.date, propertyId: dayData.propertyId });
+    const db = await getAdminDb();
     let overrideId = dayData.id;
 
     // If we have an ID, it means we're updating an existing override
     if (overrideId) {
-      const overrideRef = doc(db, 'dateOverrides', overrideId);
-      await updateDoc(overrideRef, {
+      const overrideRef = db.collection('dateOverrides').doc(overrideId);
+      await overrideRef.update({
         customPrice: dayData.customPrice,
         available: dayData.available,
         minimumStay: dayData.minimumStay,
         reason: dayData.reason,
-        updatedAt: new Date().toISOString()
+        updatedAt: FieldValue.serverTimestamp()
       });
     } else {
       // Otherwise, we're creating a new override
-      const docRef = await addDoc(collection(db, 'dateOverrides'), {
+      const docRef = await db.collection('dateOverrides').add({
         propertyId: dayData.propertyId,
         date: dayData.date,
         customPrice: dayData.customPrice,
         available: dayData.available,
         minimumStay: dayData.minimumStay,
         reason: dayData.reason,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
       });
       overrideId = docRef.id;
     }
@@ -238,12 +303,12 @@ export async function updateDay(dayData: any) {
     // Update the availability collection (NEW - for availability deduplication)
     const availabilityDocId = `${dayData.propertyId}_${year}-${month.toString().padStart(2, '0')}`;
     try {
-      const availabilityRef = doc(db, 'availability', availabilityDocId);
+      const availabilityRef = db.collection('availability').doc(availabilityDocId);
 
       // Update the availability status for the specific day
-      await setDoc(availabilityRef, {
+      await availabilityRef.set({
         [`available.${day}`]: dayData.available,
-        updatedAt: new Date().toISOString()
+        updatedAt: FieldValue.serverTimestamp()
       }, { merge: true });
 
       logger.debug('Updated availability collection', { availabilityDocId, day });
@@ -254,25 +319,26 @@ export async function updateDay(dayData: any) {
 
     // Update the corresponding price calendar
     try {
-      const calendarRef = doc(db, 'priceCalendars', calendarId);
-      const calendarDoc = await getDoc(calendarRef);
+      const calendarRef = db.collection('priceCalendars').doc(calendarId);
+      const calendarDoc = await calendarRef.get();
 
-      if (calendarDoc.exists()) {
+      if (calendarDoc.exists) {
+        const calendarData = calendarDoc.data()!;
         // Update the specific day in the calendar (availability now handled by availability collection only)
-        await updateDoc(calendarRef, {
+        await calendarRef.update({
           [`days.${day}.adjustedPrice`]: dayData.customPrice,
           [`days.${day}.minimumStay`]: dayData.minimumStay,
           [`days.${day}.reason`]: dayData.reason,
           [`days.${day}.priceSource`]: 'override',
           [`days.${day}.overrideId`]: overrideId,
           // Also update prices for different guest counts if present
-          ...(calendarDoc.data().days[day]?.prices ? {
-            [`days.${day}.prices`]: Object.keys(calendarDoc.data().days[day].prices).reduce((acc: any, guestCount) => {
+          ...(calendarData.days?.[day]?.prices ? {
+            [`days.${day}.prices`]: Object.keys(calendarData.days[day].prices).reduce((acc: any, guestCount) => {
               acc[guestCount] = dayData.customPrice;
               return acc;
             }, {})
           } : {}),
-          updatedAt: new Date().toISOString()
+          updatedAt: FieldValue.serverTimestamp()
         });
 
         logger.debug('Updated price calendar', { calendarId, day });
@@ -289,6 +355,10 @@ export async function updateDay(dayData: any) {
 
     return { success: true };
   } catch (error) {
+    if (error instanceof AuthorizationError) {
+      logger.warn('Authorization failed for updateDay', { date: dayData.date, propertyId: dayData.propertyId });
+      return { success: false, error: 'You do not have access to this property' };
+    }
     logger.error('Error updating day', error as Error, { date: dayData.date });
     return { success: false, error: `Failed to update day: ${error}` };
   }
@@ -296,6 +366,7 @@ export async function updateDay(dayData: any) {
 
 /**
  * Fetch price calendars for a property with optional date range filtering
+ * Requires property access
  *
  * @param propertyId - The ID of the property to fetch calendars for
  * @param monthsToFetch - The maximum number of months to fetch
@@ -313,43 +384,39 @@ export async function fetchPriceCalendars(
   endMonth?: number
 ) {
   try {
+    // Check property access
+    await requirePropertyAccess(propertyId);
+
     logger.debug('Fetching price calendars', { propertyId, monthsToFetch });
 
-    const priceCalendarsRef = collection(db, 'priceCalendars');
+    const db = await getAdminDb();
 
-    // Build query conditions
-    const queryConditions: any[] = [
-      where('propertyId', '==', propertyId)
-    ];
+    // Build base query
+    let queryRef = db.collection('priceCalendars')
+      .where('propertyId', '==', propertyId);
 
     // Apply date range filters if provided
     let useCustomFiltering = false;
     if (startYear !== undefined) {
-      // For simplicity in Firestore query, we just filter by year first
-      // then post-process for specific months
-      queryConditions.push(where('year', '>=', startYear));
+      queryRef = queryRef.where('year', '>=', startYear);
       useCustomFiltering = true;
     }
 
     if (endYear !== undefined) {
-      queryConditions.push(where('year', '<=', endYear));
+      queryRef = queryRef.where('year', '<=', endYear);
       useCustomFiltering = true;
     }
 
-    // Build the query
-    const q = query(
-      priceCalendarsRef,
-      ...queryConditions,
-      orderBy('year'),
-      orderBy('month'),
-      limit(monthsToFetch * 2) // Fetch extra in case we need to filter out months
-    );
-
-    const snapshot = await getDocs(q);
+    // Build the query with ordering and limit
+    const snapshot = await queryRef
+      .orderBy('year')
+      .orderBy('month')
+      .limit(monthsToFetch * 2) // Fetch extra in case we need to filter out months
+      .get();
 
     // Map and filter the results
-    let calendars = snapshot.docs.map(doc => {
-      const data = doc.data();
+    let calendars = snapshot.docs.map(docSnap => {
+      const data = docSnap.data();
       // Use our utility function to convert all timestamps to ISO strings
       const serializedData = convertTimestampsToISOStrings(data);
 
@@ -364,7 +431,7 @@ export async function fetchPriceCalendars(
       }
 
       return {
-        id: doc.id,
+        id: docSnap.id,
         monthDate,
         ...serializedData
       };
@@ -401,6 +468,10 @@ export async function fetchPriceCalendars(
     logger.debug('Fetched price calendars', { propertyId, count: calendars.length });
     return calendars;
   } catch (error) {
+    if (error instanceof AuthorizationError) {
+      logger.warn('Authorization failed for fetchPriceCalendars', { propertyId });
+      return [];
+    }
     logger.error('Error fetching price calendars', error as Error, { propertyId });
     return [];
   }
@@ -408,10 +479,16 @@ export async function fetchPriceCalendars(
 
 /**
  * Generate price calendars for a property
+ * Requires property access
  */
 export async function generatePriceCalendar(propertyId: string) {
   try {
+    // Check property access first
+    await requirePropertyAccess(propertyId);
+
     logger.info('Generating price calendars', { propertyId });
+
+    const db = await getAdminDb();
 
     // Get current date
     const now = new Date();
@@ -428,29 +505,26 @@ export async function generatePriceCalendar(propertyId: string) {
       const month = targetDate.getMonth() + 1; // 1-based month
 
       // Get property data
-      const propertyRef = doc(db, 'properties', propertyId);
-      const propertyDoc = await getDoc(propertyRef);
+      const propertyRef = db.collection('properties').doc(propertyId);
+      const propertyDoc = await propertyRef.get();
 
-      if (!propertyDoc.exists()) {
+      if (!propertyDoc.exists) {
         logger.error('Property not found during calendar generation', undefined, { propertyId });
         continue;
       }
 
       // Use the utility function to handle any Timestamp objects
-      const property = convertTimestampsToISOStrings(propertyDoc.data());
+      const property = convertTimestampsToISOStrings(propertyDoc.data()!);
 
       // Get seasonal pricing
-      const seasonalPricingRef = collection(db, 'seasonalPricing');
-      const seasonalPricingQuery = query(
-        seasonalPricingRef,
-        where('propertyId', '==', propertyId),
-        where('enabled', '==', true)
-      );
-      const seasonalPricingSnapshot = await getDocs(seasonalPricingQuery);
+      const seasonalPricingSnapshot = await db.collection('seasonalPricing')
+        .where('propertyId', '==', propertyId)
+        .where('enabled', '==', true)
+        .get();
 
-      const seasons = seasonalPricingSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...convertTimestampsToISOStrings(doc.data())
+      const seasons = seasonalPricingSnapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...convertTimestampsToISOStrings(docSnap.data())
       }));
 
       // Get date overrides
@@ -459,44 +533,40 @@ export async function generatePriceCalendar(propertyId: string) {
       const lastDay = `${year}-${monthStr}-${new Date(year, month, 0).getDate()}`;
 
       // Use a simpler query that doesn't require a composite index
-      const dateOverridesRef = collection(db, 'dateOverrides');
-      const dateOverridesQuery = query(
-        dateOverridesRef,
-        where('propertyId', '==', propertyId)
-      );
-      const dateOverridesSnapshot = await getDocs(dateOverridesQuery);
+      const dateOverridesSnapshot = await db.collection('dateOverrides')
+        .where('propertyId', '==', propertyId)
+        .get();
 
       // Filter the results in memory
       const dateOverrides = dateOverridesSnapshot.docs
-        .map(doc => ({
-          id: doc.id,
-          ...convertTimestampsToISOStrings(doc.data())
+        .map(docSnap => ({
+          id: docSnap.id,
+          ...convertTimestampsToISOStrings(docSnap.data())
         }))
         .filter(override =>
           override.date >= firstDay && override.date <= lastDay
         );
 
       // Get booked dates
-      const bookingsRef = collection(db, 'bookings');
-      const bookingsQuery = query(
-        bookingsRef,
-        where('propertyId', '==', propertyId),
-        where('status', 'in', ['confirmed', 'on-hold'])
-      );
-      const bookingsSnapshot = await getDocs(bookingsQuery);
+      const bookingsSnapshot = await db.collection('bookings')
+        .where('propertyId', '==', propertyId)
+        .where('status', 'in', ['confirmed', 'on-hold'])
+        .get();
 
       const bookedDates = new Set<string>();
-      bookingsSnapshot.docs.forEach(doc => {
-        const booking = doc.data();
+      bookingsSnapshot.docs.forEach(docSnap => {
+        const booking = docSnap.data();
         if (booking.checkInDate && booking.checkOutDate) {
           // Convert dates to JS Date objects if they're Firestore Timestamps
           const checkIn = booking.checkInDate instanceof Date ?
             booking.checkInDate :
-            booking.checkInDate.toDate ? booking.checkInDate.toDate() : new Date(booking.checkInDate);
+            booking.checkInDate.toDate ? booking.checkInDate.toDate() :
+            booking.checkInDate._seconds ? new Date(booking.checkInDate._seconds * 1000) : new Date(booking.checkInDate);
 
           const checkOut = booking.checkOutDate instanceof Date ?
             booking.checkOutDate :
-            booking.checkOutDate.toDate ? booking.checkOutDate.toDate() : new Date(booking.checkOutDate);
+            booking.checkOutDate.toDate ? booking.checkOutDate.toDate() :
+            booking.checkOutDate._seconds ? new Date(booking.checkOutDate._seconds * 1000) : new Date(booking.checkOutDate);
 
           // Generate all dates in the range (excluding checkout day)
           const currentDate = new Date(checkIn);
@@ -645,8 +715,8 @@ export async function generatePriceCalendar(propertyId: string) {
       };
 
       // Save to Firestore
-      const calendarRef = doc(db, 'priceCalendars', calendarId);
-      await setDoc(calendarRef, calendar);
+      const calendarRef = db.collection('priceCalendars').doc(calendarId);
+      await calendarRef.set(calendar);
 
       generatedCalendars.push(calendarId);
       logger.debug('Generated price calendar', { calendarId });
@@ -661,6 +731,10 @@ export async function generatePriceCalendar(propertyId: string) {
       generatedCalendars
     };
   } catch (error) {
+    if (error instanceof AuthorizationError) {
+      logger.warn('Authorization failed for generatePriceCalendar', { propertyId });
+      return { success: false, error: 'You do not have access to this property' };
+    }
     logger.error('Error generating price calendars', error as Error, { propertyId });
     return { success: false, error: `Failed to generate price calendars: ${error}` };
   }
