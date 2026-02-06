@@ -103,8 +103,10 @@ export function BookingTable({ bookings }: BookingTableProps) {
               </TableCell>
               <TableCell className="text-right space-x-1">
                  {/* Common Actions */}
-                 <Button variant="outline" size="icon" title="View Details (NYI)">
-                     <Eye className="h-4 w-4" />
+                 <Button variant="outline" size="icon" asChild title="View Details">
+                     <Link href={`/admin/bookings/${booking.id}`}>
+                       <Eye className="h-4 w-4" />
+                     </Link>
                  </Button>
 
                   {/* Hold-Specific Actions */}

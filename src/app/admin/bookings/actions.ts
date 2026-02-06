@@ -50,6 +50,53 @@ const toDate = (timestamp: SerializableTimestamp | undefined | null): Date | nul
 };
 
 /**
+ * Fetches a single booking by ID with authorization check.
+ */
+export async function fetchBookingById(bookingId: string): Promise<Booking | null> {
+  logger.debug('Fetching booking by ID', { bookingId });
+
+  try {
+    await requireAdmin();
+
+    const db = await getAdminDb();
+    const bookingSnap = await db.collection('bookings').doc(bookingId).get();
+
+    if (!bookingSnap.exists) {
+      return null;
+    }
+
+    const data = bookingSnap.data()!;
+
+    // Check authorization for this property
+    await requirePropertyAccess(data.propertyId);
+
+    const booking: Booking = {
+      id: bookingSnap.id,
+      ...data,
+      checkInDate: serializeTimestamp(data.checkInDate),
+      checkOutDate: serializeTimestamp(data.checkOutDate),
+      holdUntil: serializeTimestamp(data.holdUntil),
+      paymentInfo: {
+        ...data.paymentInfo,
+        paidAt: serializeTimestamp(data.paymentInfo?.paidAt),
+      },
+      createdAt: serializeTimestamp(data.createdAt),
+      updatedAt: serializeTimestamp(data.updatedAt),
+    } as Booking;
+
+    logger.info('Booking fetched', { bookingId });
+    return booking;
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      logger.warn('Authorization failed for fetchBookingById', { bookingId, error: error.message });
+      return null;
+    }
+    logger.error('Error fetching booking by ID', error as Error, { bookingId });
+    return null;
+  }
+}
+
+/**
  * Fetches all bookings from the Firestore collection, ordered by creation date.
  * Filters results based on user's property access.
  * @returns A promise that resolves to an array of Booking objects with serialized dates.
