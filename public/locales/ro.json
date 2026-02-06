@@ -30,6 +30,10 @@
   },
   "booking": {
     "checkAvailability": "Verifică Disponibilitatea",
+    "readyToBook": "Pregătit să rezervi sejurul?",
+    "checkAvailabilityAndBook": "Verifică Disponibilitatea și Rezervă",
+    "loadError": "Nu s-au putut încărca informațiile de rezervare. Vă rugăm reîncărcați pagina sau contactați-ne direct.",
+    "loading": "Se încarcă informațiile de rezervare...",
     "checkDates": "Verifică Datele",
     "selectDates": "Selectează datele",
     "selectDatesAndGuests": "Selectează detaliile rezervării",
@@ -310,6 +314,7 @@
     "beFirstReview": "Fii primul care recenzează această proprietate"
   },
   "host": {
+    "warmWelcome": "Bun venit din partea",
     "aboutHost": "Despre Gazda Ta",
     "hostName": "Nume Gazdă",
     "memberSince": "Membru Din",
@@ -419,6 +424,10 @@
     "resultsFound": "{{count}} rezultate găsite"
   },
   "footer": {
+    "quickLinks": "Linkuri Rapide",
+    "contact": "Contactează-ne",
+    "social": "Urmărește-ne",
+    "rights": "Toate drepturile rezervate.",
     "aboutUs": "Despre Noi",
     "howItWorks": "Cum Funcționează",
     "helpCenter": "Centru de Ajutor",
@@ -433,6 +442,26 @@
     "emailPlaceholder": "Introdu adresa ta de email",
     "subscribe": "Abonează-te",
     "copyright": "© {{year}} RentalSpot. Toate drepturile rezervate."
+  },
+  "pricing": {
+    "caption": "Tarife sezoniere și cerințe de sejur minim.",
+    "season": "Sezon",
+    "period": "Perioadă",
+    "rate": "Tarif pe Noapte",
+    "minimumStay": "Sejur Minim"
+  },
+  "distances": {
+    "place": "Loc",
+    "distance": "Distanță",
+    "travelTime": "Timp de Călătorie"
+  },
+  "map": {
+    "getDirections": "Obține Indicații",
+    "loading": "Se încarcă harta...",
+    "unavailable": "Hartă indisponibilă"
+  },
+  "gallery": {
+    "browseByCategory": "Răsfoiește pe Categorii"
   },
   "errors": {
     "genericError": "Ceva nu a mers bine. Vă rugăm încercați din nou.",

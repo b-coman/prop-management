@@ -30,6 +30,10 @@
   },
   "booking": {
     "checkAvailability": "Check Availability",
+    "readyToBook": "Ready to book your stay?",
+    "checkAvailabilityAndBook": "Check Availability & Book",
+    "loadError": "Unable to load booking information. Please refresh the page or contact us directly to book.",
+    "loading": "Loading booking information...",
     "checkDates": "Check Dates",
     "selectDates": "Select Dates",
     "selectDatesAndGuests": "Select dates and guests",
@@ -308,6 +312,7 @@
     "beFirstReview": "Be the first to review this property"
   },
   "host": {
+    "warmWelcome": "A Warm Welcome from",
     "aboutHost": "About Your Host",
     "hostName": "Host Name",
     "memberSince": "Member Since",
@@ -406,6 +411,10 @@
     "resultsFound": "{{count}} results found"
   },
   "footer": {
+    "quickLinks": "Quick Links",
+    "contact": "Contact Us",
+    "social": "Follow Us",
+    "rights": "All rights reserved.",
     "aboutUs": "About Us",
     "howItWorks": "How It Works",
     "helpCenter": "Help Center",
@@ -420,6 +429,26 @@
     "emailPlaceholder": "Enter your email",
     "subscribe": "Subscribe",
     "copyright": "© {{year}} RentalSpot. All rights reserved."
+  },
+  "pricing": {
+    "caption": "Seasonal rates and minimum stay requirements.",
+    "season": "Season",
+    "period": "Period",
+    "rate": "Nightly Rate",
+    "minimumStay": "Minimum Stay"
+  },
+  "distances": {
+    "place": "Place",
+    "distance": "Distance",
+    "travelTime": "Travel Time"
+  },
+  "map": {
+    "getDirections": "Get Directions",
+    "loading": "Loading map...",
+    "unavailable": "Map unavailable"
+  },
+  "gallery": {
+    "browseByCategory": "Browse by Category"
   },
   "errors": {
     "genericError": "Something went wrong. Please try again.",

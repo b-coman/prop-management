@@ -75,7 +75,7 @@ export function FullBookingForm({ content, property }: FullBookingFormProps) {
                     href={`/booking/check/${property.slug}`}
                     className="inline-block px-6 py-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
                   >
-                    {t('booking.checkAvailability', 'Check Availability & Book')}
+                    {t('booking.checkAvailabilityAndBook', 'Check Availability & Book')}
                   </a>
                 </div>
               ) : hasError ? (
