@@ -1,5 +1,33 @@
 import type { Property, Amenity } from '@/types';
 
+// Map full country names to ISO 3166-1 alpha-2 codes (Google requires ISO codes)
+const COUNTRY_TO_ISO: Record<string, string> = {
+  'romania': 'RO',
+  'united states': 'US',
+  'united kingdom': 'GB',
+  'france': 'FR',
+  'germany': 'DE',
+  'italy': 'IT',
+  'spain': 'ES',
+  'greece': 'GR',
+  'portugal': 'PT',
+  'austria': 'AT',
+  'switzerland': 'CH',
+  'netherlands': 'NL',
+  'belgium': 'BE',
+  'hungary': 'HU',
+  'bulgaria': 'BG',
+  'croatia': 'HR',
+  'czech republic': 'CZ',
+  'poland': 'PL',
+};
+
+function normalizeCountry(country: string): string {
+  // If already an ISO code (2 letters), return as-is
+  if (/^[A-Z]{2}$/.test(country)) return country;
+  return COUNTRY_TO_ISO[country.toLowerCase()] || country;
+}
+
 // Map amenity English names (lowercased) to schema.org LocationFeatureSpecification names
 // Reference: https://developers.google.com/search/docs/appearance/structured-data/vacation-rental
 const AMENITY_NAME_TO_SCHEMA: Record<string, string> = {
@@ -55,8 +83,15 @@ interface VacationRentalJsonLdOptions {
   telephone?: string;
 }
 
+function isPlaceholderValue(value?: string): boolean {
+  if (!value) return true;
+  const lower = value.toLowerCase();
+  return lower.includes('example') || lower.includes('(555)') || lower.includes('555-');
+}
+
 export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions): Record<string, unknown> {
   const { property, amenities = [], canonicalUrl, telephone } = options;
+  const validTelephone = telephone && !isPlaceholderValue(telephone) ? telephone : undefined;
 
   const name = typeof property.name === 'string'
     ? property.name
@@ -84,7 +119,7 @@ export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions):
     ...(property.location.address && { streetAddress: property.location.address }),
     ...(property.location.city && { addressLocality: property.location.city }),
     ...(property.location.state && { addressRegion: property.location.state }),
-    ...(property.location.country && { addressCountry: property.location.country }),
+    ...(property.location.country && { addressCountry: normalizeCountry(property.location.country) }),
     ...(property.location.zipCode && { postalCode: property.location.zipCode }),
   } : undefined;
 
@@ -177,7 +212,7 @@ export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions):
     url: canonicalUrl,
     ...(description && { description }),
     ...(images.length > 0 && { image: images }),
-    ...(telephone && { telephone }),
+    ...(validTelephone && { telephone: validTelephone }),
     ...(priceRange && { priceRange }),
     ...(property.location?.coordinates && {
       latitude: String(property.location.coordinates.latitude),
