@@ -43,39 +43,35 @@ export async function middleware(request: NextRequest) {
     return handleLanguageRouting(request, preferredLang);
   }
 
-  // Try to resolve domain - but fail gracefully
+  // Try to resolve domain - check static map first, then dynamic resolution
   let propertySlug = DOMAIN_TO_PROPERTY_MAP[hostname] || null;
-  
-  // If we need dynamic resolution, do it safely
-  if (!propertySlug && process.env.USE_DYNAMIC_DOMAIN_RESOLUTION === 'true') {
+
+  // Dynamic resolution via Firestore for custom domains not in the static map
+  if (!propertySlug && hostname && !hostname.includes('0.0.0.0')) {
     try {
-      // Only attempt fetch if we have a proper hostname
-      if (hostname && !hostname.includes('0.0.0.0')) {
-        const resolveUrl = `${request.nextUrl.protocol}//${hostname}/api/resolve-domain?domain=${encodeURIComponent(hostname)}`;
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
-        
-        try {
-          const response = await fetch(resolveUrl, {
-            signal: controller.signal,
-            headers: {
-              'User-Agent': 'RentalSpot-Middleware/1.0',
-            },
-          });
-          
-          clearTimeout(timeoutId);
-          
-          if (response.ok) {
-            const data = await response.json();
-            propertySlug = data.slug;
-          }
-        } catch (error) {
-          // Silently fail and continue
-          console.error(`[Middleware] Failed to resolve domain ${hostname}:`, error);
+      const resolveUrl = `${request.nextUrl.protocol}//${hostname}/api/resolve-domain?domain=${encodeURIComponent(hostname)}`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+
+      try {
+        const response = await fetch(resolveUrl, {
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'RentalSpot-Middleware/1.0',
+          },
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const data = await response.json();
+          propertySlug = data.slug;
         }
+      } catch (error) {
+        // Silently fail and continue — custom domain will fall through to root page
+        console.error(`[Middleware] Failed to resolve domain ${hostname}:`, error);
       }
     } catch (error) {
-      // Silently fail and continue
       console.error(`[Middleware] Error in domain resolution:`, error);
     }
   }
