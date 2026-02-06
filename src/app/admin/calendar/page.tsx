@@ -65,7 +65,7 @@ export default async function CalendarSyncPage({
                     <CardTitle>External Calendar Feeds</CardTitle>
                     <CardDescription>
                       Import availability from external platforms. Dates booked on other platforms
-                      will be automatically blocked here. Syncs every 15 minutes.
+                      will be automatically blocked here. Syncs every hour.
                     </CardDescription>
                   </div>
                   <AddFeedDialog propertyId={propertyId} />

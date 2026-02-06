@@ -8,6 +8,7 @@ import { requireAdmin, requirePropertyAccess, filterPropertiesForUser, Authoriza
 import { convertTimestampsToISOStrings } from '@/lib/utils';
 import { randomUUID } from 'crypto';
 import type { ICalFeed } from '@/types';
+import { fetchAndParseICalFeed, syncFeedToAvailability } from '@/lib/ical/ical-import';
 
 const logger = loggers.icalSync;
 
@@ -69,7 +70,6 @@ export async function fetchICalFeeds(propertyId: string): Promise<ICalFeed[]> {
     const snapshot = await db
       .collection('icalFeeds')
       .where('propertyId', '==', propertyId)
-      .orderBy('createdAt', 'desc')
       .get();
 
     return snapshot.docs.map(doc => {
@@ -300,5 +300,83 @@ export async function toggleExportEnabled(propertyId: string, enabled: boolean):
     }
     logger.error('Error toggling export', error as Error, { propertyId });
     return { error: 'Failed to toggle export' };
+  }
+}
+
+// ============================================================================
+// Manual Sync Trigger
+// ============================================================================
+
+export async function triggerManualSync(feedId: string): Promise<{
+  error?: string;
+  datesBlocked?: number;
+  datesReleased?: number;
+  eventsFound?: number;
+}> {
+  try {
+    const db = await getAdminDb();
+    const feedRef = db.collection('icalFeeds').doc(feedId);
+    const feedDoc = await feedRef.get();
+
+    if (!feedDoc.exists) {
+      return { error: 'Feed not found' };
+    }
+
+    const feedData = feedDoc.data()!;
+    await requirePropertyAccess(feedData.propertyId);
+
+    const feed: ICalFeed = { id: feedDoc.id, ...feedData } as ICalFeed;
+
+    logger.info('Manual sync triggered', { feedId, feedName: feed.name });
+
+    // Fetch and parse the feed
+    const events = await fetchAndParseICalFeed(feed.url);
+
+    // Sync to availability
+    const result = await syncFeedToAvailability(db, feed, events);
+
+    // Update feed status
+    await feedRef.update({
+      lastSyncAt: FieldValue.serverTimestamp(),
+      lastSyncStatus: 'success',
+      lastSyncError: null,
+      lastSyncEventsCount: result.eventsFound,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    logger.info('Manual sync completed', {
+      feedId,
+      eventsFound: result.eventsFound,
+      datesBlocked: result.datesBlocked,
+      datesReleased: result.datesReleased,
+    });
+
+    revalidatePath('/admin/calendar');
+    return {
+      eventsFound: result.eventsFound,
+      datesBlocked: result.datesBlocked,
+      datesReleased: result.datesReleased,
+    };
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      return { error: error.message };
+    }
+
+    // Update feed with error status
+    try {
+      const db = await getAdminDb();
+      await db.collection('icalFeeds').doc(feedId).update({
+        lastSyncAt: FieldValue.serverTimestamp(),
+        lastSyncStatus: 'error',
+        lastSyncError: error instanceof Error ? error.message : 'Unknown error',
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    } catch {
+      // Best effort
+    }
+
+    logger.error('Manual sync failed', error as Error, { feedId });
+    revalidatePath('/admin/calendar');
+    return { error: `Sync failed: ${error instanceof Error ? error.message : 'Unknown error'}` };
   }
 }
