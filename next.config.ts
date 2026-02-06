@@ -28,7 +28,7 @@ const nextConfig: NextConfig = {
     allowedDevOrigins: ["*"]
   },
   // External packages that need special handling
-  serverExternalPackages: ['firebase-admin'],
+  serverExternalPackages: ['firebase-admin', 'node-ical'],
   // WebAssembly config for firebase-admin dependencies
   webpack: (config, { isServer }) => {
     // Only apply these configurations in production builds or non-Turbopack dev
