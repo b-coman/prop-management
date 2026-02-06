@@ -132,11 +132,21 @@ service cloud.firestore {
     }
 
     // ============================================================================
-    // SyncCalendars Collection
+    // SyncCalendars Collection (legacy)
     // ============================================================================
 
     match /syncCalendars/{documentId} {
       allow read, write: if isSignedIn() && canManageProperty(resource.data.propertyId);
+    }
+
+    // ============================================================================
+    // iCal Feeds Collection
+    // ============================================================================
+
+    match /icalFeeds/{feedId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && canManageProperty(request.resource.data.propertyId);
+      allow update, delete: if isSignedIn() && canManageProperty(resource.data.propertyId);
     }
 
     // ============================================================================

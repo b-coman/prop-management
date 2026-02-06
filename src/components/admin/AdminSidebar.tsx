@@ -12,6 +12,7 @@ import {
   Ticket,
   MessageSquare,
   Sliders,
+  RefreshCw,
   LogOut,
   ChevronRight,
 } from 'lucide-react';
@@ -44,6 +45,11 @@ const navigationItems = [
     title: 'Pricing',
     href: '/admin/pricing',
     icon: Sliders,
+  },
+  {
+    title: 'Calendar Sync',
+    href: '/admin/calendar',
+    icon: RefreshCw,
   },
   {
     title: 'Bookings',

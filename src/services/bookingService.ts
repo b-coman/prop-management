@@ -24,7 +24,7 @@ import { db } from '@/lib/firebase';
 import type { Booking, Availability, Property, SerializableTimestamp, CurrencyCode } from '@/types';
 import { SUPPORTED_CURRENCIES } from '@/types';
 import { differenceInCalendarDays, eachDayOfInterval, format, parse, subDays, startOfMonth, endOfMonth, parseISO, startOfDay } from 'date-fns';
-import { updateAirbnbListingAvailability, updateBookingComListingAvailability, getPropertyForSync } from './booking-sync';
+
 import { sanitizeEmail, sanitizePhone, sanitizeText } from '@/lib/sanitize';
 import { revalidatePath } from 'next/cache'; // Import for revalidating cached data
 import { loggers } from '@/lib/logger';
@@ -218,11 +218,6 @@ export async function updateBookingPaymentInfo(
                  logger.error('Failed to update availability', availabilityError as Error, { propertyId, bookingId, status: newStatus });
              }
 
-             if (newStatus === 'confirmed') {
-                 logger.debug('Triggering external sync', { propertyId, bookingId });
-                 await triggerExternalSyncForDateUpdate(propertyId, checkInDate, checkOutDate, false);
-             }
-
         } else {
              logger.warn('Missing or invalid check-in/out dates', { bookingId });
         }
@@ -325,8 +320,6 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
 
          // Only sync externally if it's confirmed (not just a hold) and not a simulation
          if (docData.status === 'confirmed' && docData.source !== 'simulation' && docData.source !== 'test-button') {
-             logger.debug('Starting external platform sync', { propertyId, bookingId });
-             await triggerExternalSyncForDateUpdate(propertyId, checkInDate, checkOutDate, false); // Mark as unavailable
          }
       }
 
@@ -422,7 +415,6 @@ export async function updateBookingStatus(bookingId: string, status: Booking['st
                  try {
                      await updatePropertyAvailability(propertyId, checkInDate, checkOutDate, true); // Mark as available
                      logger.info('Availability released for cancelled booking', { bookingId });
-                     await triggerExternalSyncForDateUpdate(propertyId, checkInDate, checkOutDate, true); // Mark as available externally
                  } catch (availError) {
                       logger.error('Failed to update availability for cancelled booking', availError as Error, { bookingId });
                  }
@@ -700,33 +692,6 @@ export async function updatePropertyAvailability(
     throw new Error(`Failed to update local property availability using Client SDK: ${errorMessage}`);
   }
 }
-
-// --- triggerExternalSyncForDateUpdate ---
-export async function triggerExternalSyncForDateUpdate(propertyId: string, checkInDate: Date, checkOutDate: Date, isAvailable: boolean): Promise<void> {
-    logger.debug('Syncing availability change externally', { propertyId, action: isAvailable ? 'release' : 'block' });
-     try {
-       const propertyDetails = await getPropertyForSync(propertyId); // Uses slug
-       if (propertyDetails) {
-           const airbnbId = propertyDetails.channelIds?.airbnb;
-           const bookingComId = propertyDetails.channelIds?.booking_com;
-
-           if (airbnbId) {
-                logger.debug('Updating Airbnb listing', { airbnbId });
-               await updateAirbnbListingAvailability(airbnbId, isAvailable, checkInDate, checkOutDate);
-           }
-
-           if (bookingComId) { // Corrected property name
-                logger.debug('Updating Booking.com listing', { bookingComId });
-               await updateBookingComListingAvailability(bookingComId, isAvailable, checkInDate, checkOutDate); // Corrected property name
-           }
-       } else {
-           logger.warn('Could not find property for external sync', { propertyId });
-       }
-   } catch (syncError) {
-        logger.error('Error syncing externally', syncError as Error, { propertyId });
-   }
-}
-
 
 // --- getUnavailableDatesForProperty ---
 export async function getUnavailableDatesForProperty(propertySlug: string, monthsToFetch: number = 12): Promise<Date[]> {

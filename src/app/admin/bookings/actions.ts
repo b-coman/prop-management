@@ -4,7 +4,8 @@
 import { z } from "zod";
 import { getAdminDb, Timestamp, FieldValue } from "@/lib/firebaseAdminSafe";
 import type { Booking, SerializableTimestamp } from "@/types";
-import { updatePropertyAvailability, triggerExternalSyncForDateUpdate } from '@/services/bookingService';
+import { updatePropertyAvailability } from '@/services/bookingService';
+
 import { revalidatePath } from "next/cache";
 import { addHours, parseISO, isValid } from 'date-fns';
 import { loggers } from '@/lib/logger';
@@ -224,8 +225,7 @@ export async function cancelBookingHoldAction(
             try {
                 logger.debug('Releasing availability for cancelled hold', { bookingId });
                 await updatePropertyAvailability(propertyId, checkInDate, checkOutDate, true); // Mark as available
-                await triggerExternalSyncForDateUpdate(propertyId, checkInDate, checkOutDate, true); // Sync release
-                logger.info('Availability released and synced', { bookingId });
+                logger.info('Availability released', { bookingId });
             } catch (availError) {
                  logger.error('Failed to release/sync availability', availError as Error, { bookingId });
                  // Log the error, but the booking status is already cancelled.
@@ -291,15 +291,6 @@ export async function convertHoldToBookingAction(
         const checkInDate = toDate(bookingData.checkInDate);
         const checkOutDate = toDate(bookingData.checkOutDate);
         const propertyId = bookingData.propertyId;
-
-        if (checkInDate && checkOutDate && propertyId && isValid(checkInDate) && isValid(checkOutDate)) {
-            try {
-                logger.debug('Triggering external sync for confirmed booking', { bookingId });
-                await triggerExternalSyncForDateUpdate(propertyId, checkInDate, checkOutDate, false); // Ensure blocked
-            } catch (syncError) {
-                 logger.error('Failed to sync externally', syncError as Error, { bookingId });
-            }
-        }
 
         return { success: true };
 

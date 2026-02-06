@@ -88,6 +88,8 @@ export interface Property {
   holdFeeRefundable?: boolean; // Whether the hold fee is refundable when booking is completed
   enableHoldOption?: boolean; // Toggle for enabling the hold option
   enableContactOption?: boolean; // Toggle for enabling the contact option
+  icalExportToken?: string; // Secret token for iCal export URL
+  icalExportEnabled?: boolean; // Toggle iCal export on/off
   createdAt?: SerializableTimestamp;
   updatedAt?: SerializableTimestamp;
 }
@@ -108,7 +110,24 @@ export interface Availability {
   minimumStay?: {
     [day: number]: number; // Day of month -> minimum nights
   };
+  externalBlocks?: {
+    [day: number]: string | null; // Day of month -> feedId (source of external block)
+  };
   updatedAt?: SerializableTimestamp;
+}
+
+export interface ICalFeed {
+  id: string; // Firestore document ID
+  propertyId: string; // Property slug
+  name: string; // User label, e.g. "Airbnb", "Booking.com"
+  url: string; // External iCal feed URL
+  enabled: boolean;
+  lastSyncAt?: string | null;
+  lastSyncStatus?: 'success' | 'error' | 'pending';
+  lastSyncError?: string | null;
+  lastSyncEventsCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface GuestInfo {
