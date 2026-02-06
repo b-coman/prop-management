@@ -46,7 +46,16 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "propertyId", "order": "ASCENDING" },
-        { "fieldPath": "isPublished", "order": "ASCENDING" }
+        { "fieldPath": "isPublished", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "reviews",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "propertyId", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "DESCENDING" }
       ]
     }
   ],
