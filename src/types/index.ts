@@ -99,6 +99,8 @@ export interface Property {
   holdFeeRefundable?: boolean; // Whether the hold fee is refundable when booking is completed
   enableHoldOption?: boolean; // Toggle for enabling the hold option
   enableContactOption?: boolean; // Toggle for enabling the contact option
+  contactPhone?: string; // Per-property contact phone (used in structured data & footer)
+  contactEmail?: string; // Per-property contact email (used in structured data & footer)
   icalExportToken?: string; // Secret token for iCal export URL
   icalExportEnabled?: boolean; // Toggle iCal export on/off
   googlePlaceId?: string;

@@ -91,6 +91,8 @@ const propertyFormSchema = z.object({
     status: z.enum(['active', 'inactive', 'draft']).default('draft'),
     ownerId: z.string().optional(), // This might be set automatically based on logged-in user
     ownerEmail: z.string().email("Invalid email address").optional().or(z.literal('')).transform(val => val || null), // Email for notifications
+    contactPhone: z.string().optional().transform(val => val ? sanitizeText(val) : ''), // Public contact phone (structured data & footer)
+    contactEmail: z.string().email("Invalid email address").optional().or(z.literal('')).transform(val => val || null), // Public contact email (structured data & footer)
     // Channel IDs might need separate inputs
     // airbnbListingId: z.string().optional(),
     // bookingComListingId: z.string().optional(),
@@ -284,6 +286,8 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
         status: initialData?.status ?? 'draft',
         ownerId: initialData?.ownerId ?? '', // Handle owner ID logic
         ownerEmail: initialData?.ownerEmail ?? '', // Email for notifications
+        contactPhone: initialData?.contactPhone ?? '',
+        contactEmail: initialData?.contactEmail ?? '',
         customDomain: initialData?.customDomain ?? null,
         useCustomDomain: initialData?.useCustomDomain ?? false,
         analytics: {
@@ -532,6 +536,14 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
          <FormField control={form.control} name="enableContactOption" render={({ field }) => ( <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4"><div className="space-y-0.5"><FormLabel className="text-base">Enable "Contact Host" Option</FormLabel><FormDescription>Allow guests to send inquiries.</FormDescription></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem> )} />
          <FormField control={form.control} name="ownerEmail" render={({ field }) => ( <FormItem><FormLabel>Owner/Notification Email</FormLabel><FormControl><Input type="email" placeholder="owner@example.com" {...field} value={field.value ?? ''} /></FormControl><FormDescription>Email address to receive inquiry and booking notifications.</FormDescription><FormMessage /></FormItem> )} />
 
+         {/* --- Section: Public Contact Info --- */}
+        <Separator className="my-6" />
+        <h3 className="text-lg font-medium border-b pb-2">Public Contact Info</h3>
+        <p className="text-sm text-muted-foreground">Displayed on the website footer and in Google structured data. If empty, falls back to template defaults.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+         <FormField control={form.control} name="contactPhone" render={({ field }) => ( <FormItem><FormLabel>Contact Phone</FormLabel><FormControl><Input type="tel" placeholder="e.g., +40 722 123 456" {...field} value={field.value ?? ''} /></FormControl><FormDescription>Public phone number for this property.</FormDescription><FormMessage /></FormItem> )} />
+         <FormField control={form.control} name="contactEmail" render={({ field }) => ( <FormItem><FormLabel>Contact Email</FormLabel><FormControl><Input type="email" placeholder="e.g., bookings@yourproperty.com" {...field} value={field.value ?? ''} /></FormControl><FormDescription>Public email for this property.</FormDescription><FormMessage /></FormItem> )} />
+        </div>
 
         {/* --- Submit Button --- */}
         <Separator className="my-6" />

@@ -93,7 +93,9 @@ function isPlaceholderValue(value?: string): boolean {
 
 export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions): Record<string, unknown> {
   const { property, amenities = [], canonicalUrl, telephone, publishedReviewCount, publishedReviews = [] } = options;
-  const validTelephone = telephone && !isPlaceholderValue(telephone) ? telephone : undefined;
+  // Prefer per-property contactPhone, fall back to template-level telephone
+  const rawPhone = property.contactPhone || telephone;
+  const validTelephone = rawPhone && !isPlaceholderValue(rawPhone) ? rawPhone : undefined;
 
   const name = typeof property.name === 'string'
     ? property.name
