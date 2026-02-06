@@ -8,6 +8,7 @@ import { getWebsiteTemplate, getPropertyOverrides } from '@/app/properties/[slug
 import { getPropertyBySlug, getPublishedReviewCount } from '@/lib/property-utils';
 import { buildVacationRentalJsonLd, buildBreadcrumbJsonLd, getCanonicalUrl, getBaseUrl } from '@/lib/structured-data';
 import { getAmenitiesByRefs } from '@/lib/amenity-utils';
+import { getPublishedReviewsForProperty } from '@/services/reviewService';
 
 export const dynamic = 'force-dynamic'; // Ensures the page is always dynamically rendered
 
@@ -132,16 +133,17 @@ export default async function HomePage() {
     ? property.name
     : (property.name.en || property.name.ro || 'Property');
 
-  const [amenities, publishedReviewCount] = await Promise.all([
+  const [amenities, publishedReviewCount, publishedReviews] = await Promise.all([
     property.amenityRefs?.length ? getAmenitiesByRefs(property.amenityRefs) : [],
     getPublishedReviewCount(defaultPropertySlug),
+    getPublishedReviewsForProperty(defaultPropertySlug, 10),
   ]);
 
   const customDomain = property.useCustomDomain ? property.customDomain : null;
   const canonicalUrl = getCanonicalUrl(defaultPropertySlug, customDomain);
   const baseUrl = getBaseUrl(customDomain);
   const telephone = template?.footer?.contactInfo?.phone || undefined;
-  const vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl, telephone, publishedReviewCount });
+  const vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl, telephone, publishedReviewCount, publishedReviews });
   const breadcrumbJsonLd = buildBreadcrumbJsonLd(propertyNameStr, defaultPropertySlug, baseUrl);
 
   return (

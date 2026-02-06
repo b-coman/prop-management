@@ -149,19 +149,23 @@ export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions):
   const isMetric = property.baseCurrency === 'EUR' || property.baseCurrency === 'RON';
   const floorSizeUnit = isMetric ? 'MTK' : 'FTK';
 
-  // Map propertyType to Schema.org additionalType
-  const PROPERTY_TYPE_TO_SCHEMA: Record<string, string> = {
+  // Map propertyType to Google-accepted Accommodation additionalType enum values.
+  // Valid values: EntirePlace, PrivateRoom, SharedRoom, HotelRoom
+  const PROPERTY_TYPE_TO_ACCOMMODATION: Record<string, string> = {
     entire_place: 'EntirePlace',
-    chalet: 'Chalet',
-    cabin: 'Cabin',
-    villa: 'Villa',
-    apartment: 'Apartment',
-    house: 'House',
-    cottage: 'Cottage',
-    studio: 'Studio',
-    bungalow: 'Bungalow',
+    chalet: 'EntirePlace',
+    cabin: 'EntirePlace',
+    villa: 'EntirePlace',
+    apartment: 'EntirePlace',
+    house: 'EntirePlace',
+    cottage: 'EntirePlace',
+    studio: 'EntirePlace',
+    bungalow: 'EntirePlace',
+    private_room: 'PrivateRoom',
+    shared_room: 'SharedRoom',
+    hotel_room: 'HotelRoom',
   };
-  const accommodationType = PROPERTY_TYPE_TO_SCHEMA[property.propertyType || ''] || 'EntirePlace';
+  const accommodationType = PROPERTY_TYPE_TO_ACCOMMODATION[property.propertyType || ''] || 'EntirePlace';
 
   // Build bed details from bedConfiguration (flatten rooms into bed type totals)
   const bedDetails: Record<string, unknown>[] = [];
