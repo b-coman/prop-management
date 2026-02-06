@@ -5,8 +5,11 @@ import type { Review, ReviewSource } from '@/types';
 import { usePropertySelector } from '@/contexts/PropertySelectorContext';
 import { ReviewTable } from './review-table';
 import { EmptyState } from '@/components/admin';
-import { Star } from 'lucide-react';
+import { Star, Upload, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ImportReviewsDialog } from './import-reviews-dialog';
+import { GoogleSyncDialog } from './google-sync-dialog';
 
 interface ReviewsWithFilterProps {
   reviews: Review[];
@@ -31,6 +34,8 @@ export function ReviewsWithFilter({ reviews }: ReviewsWithFilterProps) {
   const { selectedPropertyId } = usePropertySelector();
   const [sourceFilter, setSourceFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [googleSyncOpen, setGoogleSyncOpen] = useState(false);
 
   let filtered = reviews;
 
@@ -58,6 +63,9 @@ export function ReviewsWithFilter({ reviews }: ReviewsWithFilterProps) {
           onSourceChange={setSourceFilter}
           statusFilter={statusFilter}
           onStatusChange={setStatusFilter}
+          onImport={() => setImportDialogOpen(true)}
+          onGoogleSync={() => setGoogleSyncOpen(true)}
+          googleSyncDisabled={!selectedPropertyId}
         />
         <EmptyState
           icon={Star}
@@ -68,6 +76,10 @@ export function ReviewsWithFilter({ reviews }: ReviewsWithFilterProps) {
               : 'Reviews will appear here when they are added'
           }
         />
+        <ImportReviewsDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} />
+        {selectedPropertyId && (
+          <GoogleSyncDialog open={googleSyncOpen} onOpenChange={setGoogleSyncOpen} propertyId={selectedPropertyId} />
+        )}
       </>
     );
   }
@@ -79,8 +91,15 @@ export function ReviewsWithFilter({ reviews }: ReviewsWithFilterProps) {
         onSourceChange={setSourceFilter}
         statusFilter={statusFilter}
         onStatusChange={setStatusFilter}
+        onImport={() => setImportDialogOpen(true)}
+        onGoogleSync={() => setGoogleSyncOpen(true)}
+        googleSyncDisabled={!selectedPropertyId}
       />
       <ReviewTable reviews={filtered} />
+      <ImportReviewsDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} />
+      {selectedPropertyId && (
+        <GoogleSyncDialog open={googleSyncOpen} onOpenChange={setGoogleSyncOpen} propertyId={selectedPropertyId} />
+      )}
     </>
   );
 }
@@ -90,11 +109,17 @@ function FilterBar({
   onSourceChange,
   statusFilter,
   onStatusChange,
+  onImport,
+  onGoogleSync,
+  googleSyncDisabled,
 }: {
   sourceFilter: string;
   onSourceChange: (v: string) => void;
   statusFilter: string;
   onStatusChange: (v: string) => void;
+  onImport: () => void;
+  onGoogleSync: () => void;
+  googleSyncDisabled: boolean;
 }) {
   return (
     <div className="flex items-center gap-3 mb-4">
@@ -118,6 +143,16 @@ function FilterBar({
           ))}
         </SelectContent>
       </Select>
+      <div className="ml-auto flex items-center gap-2">
+        <Button variant="outline" size="sm" onClick={onGoogleSync} disabled={googleSyncDisabled} title={googleSyncDisabled ? 'Select a property first' : 'Sync Google Reviews'}>
+          <RefreshCw className="h-4 w-4 mr-1" />
+          Google Sync
+        </Button>
+        <Button variant="outline" size="sm" onClick={onImport}>
+          <Upload className="h-4 w-4 mr-1" />
+          Import
+        </Button>
+      </div>
     </div>
   );
 }

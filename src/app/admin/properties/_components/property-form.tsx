@@ -105,6 +105,9 @@ const propertyFormSchema = z.object({
         googleAnalyticsId: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
      }).optional(),
 
+    // Google Places
+    googlePlaceId: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
+
     // Booking Options
      holdFeeAmount: z.coerce.number().nonnegative("Hold fee cannot be negative.").optional().default(0),
      enableHoldOption: z.boolean().default(false),
@@ -287,6 +290,7 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
             enabled: initialData?.analytics?.enabled ?? false,
             googleAnalyticsId: initialData?.analytics?.googleAnalyticsId ?? '',
         },
+        googlePlaceId: initialData?.googlePlaceId ?? '',
         holdFeeAmount: initialData?.holdFeeAmount ?? 0,
         enableHoldOption: initialData?.enableHoldOption ?? false,
         enableContactOption: initialData?.enableContactOption ?? true,
@@ -518,6 +522,7 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
         <h3 className="text-lg font-medium border-b pb-2">Analytics</h3>
         <FormField control={form.control} name="analytics.enabled" render={({ field }) => ( <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4"><div className="space-y-0.5"><FormLabel className="text-base">Enable Google Analytics</FormLabel><FormDescription>Track visits using Google Analytics.</FormDescription></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem> )} />
         <FormField control={form.control} name="analytics.googleAnalyticsId" render={({ field }) => ( <FormItem><FormLabel>Google Analytics ID</FormLabel><FormControl><Input placeholder="e.g., G-XXXXXXXXXX" {...field} /></FormControl><FormMessage /></FormItem> )} />
+        <FormField control={form.control} name="googlePlaceId" render={({ field }) => ( <FormItem><FormLabel>Google Place ID</FormLabel><FormControl><Input placeholder="e.g., ChIJ..." {...field} /></FormControl><FormDescription>Google Places ID for syncing Google Reviews.</FormDescription><FormMessage /></FormItem> )} />
 
          {/* --- Section: Booking Options --- */}
         <Separator className="my-6" />

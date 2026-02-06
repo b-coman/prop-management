@@ -118,6 +118,12 @@ env:
     availability:
         - RUNTIME
 
+# Google Places API for review sync
+  - variable: GOOGLE_PLACES_API_KEY
+    secret: projects/1061532538391/secrets/GOOGLE_PLACES_API_KEY/versions/latest
+    availability:
+        - RUNTIME
+
 # Grant access to secrets in Cloud Secret Manager.
 # See https://firebase.google.com/docs/app-hosting/configure#secret-parameters
 # - variable: MY_SECRET

@@ -69,6 +69,7 @@ const propertyActionSchema = z.object({
         enabled: z.boolean().optional(),
         googleAnalyticsId: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
     }).optional(),
+     googlePlaceId: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
      holdFeeAmount: z.coerce.number().nonnegative().optional(),
      enableHoldOption: z.boolean().optional(),
      enableContactOption: z.boolean().optional(),

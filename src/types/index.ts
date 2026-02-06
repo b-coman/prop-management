@@ -101,6 +101,7 @@ export interface Property {
   enableContactOption?: boolean; // Toggle for enabling the contact option
   icalExportToken?: string; // Secret token for iCal export URL
   icalExportEnabled?: boolean; // Toggle iCal export on/off
+  googlePlaceId?: string;
   createdAt?: SerializableTimestamp;
   updatedAt?: SerializableTimestamp;
 }
