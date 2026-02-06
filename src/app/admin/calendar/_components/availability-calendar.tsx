@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback, useTransition } from 'react';
+import { useState, useCallback, useTransition, useMemo } from 'react';
 import { format, addMonths, subMonths, getDaysInMonth } from 'date-fns';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,8 +13,11 @@ import {
   Globe,
   Ban,
   Loader2,
+  DollarSign,
+  Settings2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { formatPrice } from '@/lib/utils';
 import type { MonthAvailabilityData, AvailabilityDayData, DayStatus } from '../_lib/availability-types';
 import { fetchAvailabilityCalendarData, toggleDateBlocked, toggleDateRangeBlocked } from '../actions';
 import { DayDetailPopover } from './day-detail-popover';
@@ -58,6 +62,15 @@ const STATUS_CONFIG: Record<DayStatus, { bg: string; border: string; icon: React
 
 const WEEKDAY_HEADERS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
+const getPriceColor = (price: number, min: number, max: number): string => {
+  if (!min || !max || min === max) return '';
+  const ratio = (price - min) / (max - min);
+  if (ratio < 0.25) return 'bg-emerald-50/80';
+  if (ratio < 0.5) return 'bg-sky-50/80';
+  if (ratio < 0.75) return 'bg-amber-50/80';
+  return 'bg-rose-50/80';
+};
+
 export function AvailabilityCalendar({ propertyId, initialMonths }: AvailabilityCalendarProps) {
   // monthsData is keyed by yearMonth string
   const [monthsData, setMonthsData] = useState<Record<string, MonthAvailabilityData>>(() => {
@@ -78,7 +91,10 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
   const [popoverKey, setPopoverKey] = useState<string | null>(null); // "YYYY-MM:day"
   const [anchor, setAnchor] = useState<{ yearMonth: string; day: number; action: 'block' | 'unblock' } | null>(null);
   const [pendingKeys, setPendingKeys] = useState<Set<string>>(new Set());
+  const [showPrices, setShowPrices] = useState(false);
   const { toast } = useToast();
+
+  const currency = Object.values(monthsData).find(m => m.currency)?.currency || 'EUR';
 
   const today = new Date();
   const todayYM = format(today, 'yyyy-MM');
@@ -235,6 +251,18 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
     { available: 0, booked: 0, onHold: 0, externallyBlocked: 0, manuallyBlocked: 0 }
   );
 
+  const globalPriceRange = useMemo(() => {
+    let min = Infinity, max = -Infinity;
+    for (const ym of visibleMonths) {
+      const m = monthsData[ym];
+      if (m?.priceRange) {
+        min = Math.min(min, m.priceRange.min);
+        max = Math.max(max, m.priceRange.max);
+      }
+    }
+    return min !== Infinity ? { min, max } : null;
+  }, [visibleMonths, monthsData]);
+
   const renderMonthGrid = (yearMonth: string) => {
     const [y, m] = yearMonth.split('-').map(Number);
     const date = new Date(y, m - 1, 1);
@@ -284,12 +312,12 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
               <tr key={wi}>
                 {week.map((day, di) => {
                   if (day === null) {
-                    return <td key={`e-${wi}-${di}`} className="p-0.5"><div className="h-[56px]" /></td>;
+                    return <td key={`e-${wi}-${di}`} className="p-0.5"><div className={`${showPrices ? 'h-[64px]' : 'h-[56px]'} transition-all duration-200`} /></td>;
                   }
 
                   const dayData = mData?.days[day];
                   if (!dayData) {
-                    return <td key={`nd-${day}`} className="p-0.5"><div className="h-[56px]" /></td>;
+                    return <td key={`nd-${day}`} className="p-0.5"><div className={`${showPrices ? 'h-[64px]' : 'h-[56px]'} transition-all duration-200`} /></td>;
                   }
 
                   const config = STATUS_CONFIG[dayData.status];
@@ -300,11 +328,15 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
                   const isPending = pendingKeys.has(cellKey);
                   const isClickable = !past;
 
+                  const priceOverlayBg = showPrices && dayData.price != null && dayData.status === 'available' && globalPriceRange
+                    ? getPriceColor(dayData.price, globalPriceRange.min, globalPriceRange.max)
+                    : '';
+
                   const cellContent = (
                     <div
                       className={`
-                        h-[56px] rounded border p-1 flex flex-col transition-all select-none
-                        ${config.bg} ${config.border}
+                        ${showPrices ? 'h-[64px]' : 'h-[56px]'} rounded border p-1 flex flex-col transition-all duration-200 select-none
+                        ${priceOverlayBg || config.bg} ${config.border}
                         ${past ? 'opacity-40' : ''}
                         ${isTodayCell ? 'ring-2 ring-blue-500 ring-offset-1' : ''}
                         ${isAnchor ? 'ring-2 ring-blue-400' : ''}
@@ -327,6 +359,15 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
                         )}
                         {config.label && dayData.status !== 'external-block' && (
                           <span className="text-[9px] text-muted-foreground leading-tight">{config.label}</span>
+                        )}
+                        {showPrices && dayData.price != null && (
+                          <span className={`text-[10px] font-semibold leading-tight ${
+                            dayData.status === 'available'
+                              ? 'text-slate-700'
+                              : 'text-slate-500'
+                          }`}>
+                            {formatPrice(dayData.price, currency)}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -363,12 +404,29 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
         <div className="flex items-center justify-between">
           <CardTitle>Availability Calendar</CardTitle>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => navigate(-1)} disabled={isLoading}>
-              <ChevronLeft className="h-4 w-4" />
+            <Button
+              variant={showPrices ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setShowPrices(p => !p)}
+              className="gap-1.5"
+            >
+              <DollarSign className="h-3.5 w-3.5" />
+              Prices
             </Button>
-            <Button variant="outline" size="icon" onClick={() => navigate(1)} disabled={isLoading}>
-              <ChevronRight className="h-4 w-4" />
+            <Button variant="ghost" size="sm" asChild>
+              <Link href={`/admin/pricing?propertyId=${propertyId}`}>
+                <Settings2 className="h-3.5 w-3.5 mr-1" />
+                Edit Pricing
+              </Link>
             </Button>
+            <div className="flex items-center gap-1 ml-1 border-l pl-2">
+              <Button variant="outline" size="icon" onClick={() => navigate(-1)} disabled={isLoading}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="icon" onClick={() => navigate(1)} disabled={isLoading}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -407,6 +465,27 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
                 <div className="w-3.5 h-3.5 rounded border border-slate-400 bg-slate-200" />
                 <span>Blocked ({totalSummary.manuallyBlocked})</span>
               </div>
+              {showPrices && globalPriceRange && (
+                <div className="flex items-center gap-3 border-l pl-3 ml-3">
+                  <span className="text-muted-foreground font-medium">Price:</span>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3.5 h-3.5 rounded bg-emerald-100 border border-emerald-300" />
+                    <span>Low</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3.5 h-3.5 rounded bg-sky-100 border border-sky-300" />
+                    <span>Mid</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3.5 h-3.5 rounded bg-amber-100 border border-amber-300" />
+                    <span>High</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3.5 h-3.5 rounded bg-rose-100 border border-rose-300" />
+                    <span>Peak</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {anchor && (

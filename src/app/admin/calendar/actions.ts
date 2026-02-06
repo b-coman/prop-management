@@ -437,6 +437,15 @@ export async function fetchAvailabilityCalendarData(
     feedNames[doc.id] = doc.data().name || 'External';
   }
 
+  // 4. Fetch price calendar + property currency
+  const priceDocId = `${propertyId}_${yearMonth}`;
+  const [priceDoc, propertyDoc] = await Promise.all([
+    db.collection('priceCalendars').doc(priceDocId).get(),
+    db.collection('properties').doc(propertyId).get(),
+  ]);
+  const priceData = priceDoc.exists ? priceDoc.data() : null;
+  const currency = propertyDoc.data()?.baseCurrency || 'EUR';
+
   // 4. Build day data using resolution logic
   const days: Record<number, AvailabilityDayData> = {};
   const summary = { available: 0, booked: 0, onHold: 0, externallyBlocked: 0, manuallyBlocked: 0 };
@@ -479,14 +488,27 @@ export async function fetchAvailabilityCalendarData(
       summary.available++;
     }
 
+    // Attach price from price calendar
+    if (priceData?.days?.[String(d)]) {
+      dayData.price = priceData.days[String(d)].adjustedPrice;
+    }
+
     days[d] = dayData;
   }
+
+  // Compute price range for color coding
+  const prices = Object.values(days).map(d => d.price).filter((p): p is number => p != null);
+  const priceRange = prices.length > 0
+    ? { min: Math.min(...prices), max: Math.max(...prices) }
+    : undefined;
 
   return {
     propertyId,
     month: yearMonth,
     days,
     summary,
+    currency,
+    priceRange,
   };
 }
 

@@ -1,5 +1,6 @@
 // src/app/admin/pricing/page.tsx
 import Link from 'next/link';
+import { CalendarDays } from 'lucide-react';
 import { fetchSeasonalPricing, fetchDateOverrides } from './server-actions-hybrid';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,6 +48,14 @@ export default async function PricingPage({
           <h1 className="text-2xl font-bold tracking-tight">Pricing Management</h1>
           <p className="text-muted-foreground mt-1">Manage seasonal pricing, date overrides, and price calendars</p>
         </div>
+        {propertyId && (
+          <Button variant="outline" asChild>
+            <Link href={`/admin/calendar?propertyId=${propertyId}`}>
+              <CalendarDays className="mr-2 h-4 w-4" />
+              View Calendar
+            </Link>
+          </Button>
+        )}
       </div>
 
       <PropertyUrlSync />

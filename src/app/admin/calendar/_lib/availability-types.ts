@@ -13,6 +13,7 @@ export interface AvailabilityDayData {
     holdUntil?: string;
   };
   externalFeedName?: string;
+  price?: number;
 }
 
 export interface MonthAvailabilityData {
@@ -25,5 +26,10 @@ export interface MonthAvailabilityData {
     onHold: number;
     externallyBlocked: number;
     manuallyBlocked: number;
+  };
+  currency?: string;
+  priceRange?: {
+    min: number;
+    max: number;
   };
 }
