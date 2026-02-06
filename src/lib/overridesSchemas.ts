@@ -1,13 +1,16 @@
 import { z } from "zod";
 
+// Reusable type: accepts both plain string and {en, ro, ...} multilingual objects
+const multilingualString = z.union([z.string(), z.record(z.string(), z.string())]);
+
 // --- Hero block
 export const heroSchema = z.object({
   backgroundImage: z.string().optional().nullable(), // Removed .url() validation
   price: z.number().optional(),
   showRating: z.boolean().optional(),
   showBookingForm: z.boolean().optional(),
-  title: z.string().optional(),
-  subtitle: z.string().optional(),
+  title: multilingualString.optional(),
+  subtitle: multilingualString.optional(),
   bookingForm: z
       .object({
         position: z.enum(['center', 'top', 'bottom', 'top-left', 'top-right', 'bottom-left', 'bottom-right']).optional(),
@@ -21,37 +24,37 @@ export const heroSchema = z.object({
 // --- Experience block
 export const experienceHighlightSchema = z.object({
       icon: z.string(),
-      title: z.string(),
-      description: z.string()
+      title: multilingualString,
+      description: multilingualString
 }).passthrough(); // Allow extra fields
 
 export const experienceSchema = z.object({
-  title: z.string(),
-  description: z.string(), // This maps to welcomeText in the component
+  title: multilingualString,
+  description: multilingualString, // This maps to welcomeText in the component
   highlights: z.array(experienceHighlightSchema)
 }).passthrough(); // Allow extra fields
 
 // --- Host block
 export const hostSchema = z.object({
-  title: z.string().optional(),
-  name: z.string(),
+  title: multilingualString.optional(),
+  name: multilingualString,
   image: z.string().optional().nullable(), // Removed .url() validation
   'data-ai-hint': z.string().optional(),
-  description: z.string(), // This maps to welcomeMessage in the component
-  backstory: z.string().optional(),
+  description: multilingualString, // This maps to welcomeMessage in the component
+  backstory: multilingualString.optional(),
   contact: z.object({
     phone: z.string().optional(),
     email: z.string().optional()
   }).passthrough().optional(),
-  ctaText: z.string().optional(),
+  ctaText: multilingualString.optional(),
   ctaUrl: z.string().optional()
 }).passthrough(); // Allow extra fields
 
 // --- Feature block item
 export const featureItemSchema = z.object({
     icon: z.string().optional(),
-    title: z.string(),
-    description: z.string(),
+    title: multilingualString,
+    description: multilingualString,
     image: z.string().optional().nullable(), // Removed .url() validation
     'data-ai-hint': z.string().optional(),
 }).passthrough(); // Allow extra fields
@@ -61,22 +64,22 @@ export const featuresSchema = z.array(featureItemSchema);
 
 // --- Location block
 export const locationSchema = z.object({
-  title: z.string(),
+  title: multilingualString,
   mapCenter: z.object({
     lat: z.number(),
     lng: z.number()
   }).passthrough().optional(),
-  ctaText: z.string().optional(),
+  ctaText: multilingualString.optional(),
   ctaUrl: z.string().optional()
 }).passthrough(); // Allow extra fields
 
 // --- Attraction block item
 export const attractionItemSchema = z.object({
-     name: z.string(),
+     name: multilingualString,
      distance: z.string().optional(),
      image: z.string().optional().nullable(), // Removed .url() validation
      'data-ai-hint': z.string().optional(),
-     description: z.string()
+     description: multilingualString
 }).passthrough(); // Allow extra fields
 
 // Separate schema for attractions array
@@ -87,26 +90,26 @@ export const reviewItemSchema = z.object({
      name: z.string(),
      date: z.string().optional(), // Date is optional
      rating: z.number().min(1).max(5),
-     text: z.string(),
+     text: multilingualString,
      imageUrl: z.string().optional().nullable(), // Removed .url() validation
      'data-ai-hint': z.string().optional(),
 }).passthrough(); // Allow extra fields
 
 // --- Testimonials block structure (containing reviews)
 export const testimonialsSchema = z.object({
-  title: z.string(),
+  title: multilingualString,
   showRating: z.boolean().optional(), // Overall rating display toggle
   // Note: The actual overallRating value comes from the Property object
   reviews: z.array(reviewItemSchema).optional(), // The array of reviews is OPTIONAL here
-  ctaText: z.string().optional(),
+  ctaText: multilingualString.optional(),
   ctaUrl: z.string().optional()
 }).passthrough(); // Allow extra fields
 
 // --- CTA block
 export const ctaSchema = z.object({
-  title: z.string(),
-  description: z.string(),
-  buttonText: z.string(),
+  title: multilingualString,
+  description: multilingualString,
+  buttonText: multilingualString,
   buttonUrl: z.string().optional(),
   backgroundImage: z.string().optional().nullable(), // Removed .url() validation
   'data-ai-hint': z.string().optional(),
@@ -114,19 +117,19 @@ export const ctaSchema = z.object({
 
 // --- Text block (example)
 export const textSchema = z.object({
-  title: z.string(),
-  description: z.string()
+  title: multilingualString,
+  description: multilingualString
 }).passthrough(); // Allow extra fields
 
 // --- Gallery block config
 export const gallerySchema = z.object({
-  title: z.string().optional()
+  title: multilingualString.optional()
 }).passthrough(); // Allow extra fields
 
 // --- Image block item (for gallery)
 export const imageItemSchema = z.object({
     url: z.string(), // Removed .url() validation
-    alt: z.string(),
+    alt: multilingualString,
     isFeatured: z.boolean().optional(), // May not be needed for overrides gallery
     tags: z.array(z.string()).optional(),
     sortOrder: z.number().optional(),
@@ -138,8 +141,8 @@ export const imagesSchema = z.array(imageItemSchema);
 
 // --- FAQ block item
 export const faqItemSchema = z.object({
-    question: z.string(),
-    answer: z.string()
+    question: multilingualString,
+    answer: multilingualString
 }).passthrough(); // Allow extra fields
 
 // --- FAQ block (array of items)

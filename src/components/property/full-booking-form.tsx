@@ -8,6 +8,7 @@ import { FullBookingFormBlock } from '@/lib/overridesSchemas-multipage';
 import { Property } from '@/types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CalendarX } from 'lucide-react';
+import { useLanguage } from '@/hooks/useLanguage';
 
 interface FullBookingFormProps {
   content: FullBookingFormBlock;
@@ -25,14 +26,15 @@ export function FullBookingForm({ content, property }: FullBookingFormProps) {
     return null;
   }
 
-  const { 
-    title = "Book Your Stay [TEST]", 
-    description = "Check availability and book your stay with us", 
-    showCalendar = true, 
-    showSummary = true, 
-    enableCoupons = false 
+  const {
+    title = "Book Your Stay [TEST]",
+    description = "Check availability and book your stay with us",
+    showCalendar = true,
+    showSummary = true,
+    enableCoupons = false
   } = content;
 
+  const { tc } = useLanguage();
   const [isClient, setIsClient] = useState(false);
   const [hasError, setHasError] = useState(false);
 
@@ -63,8 +65,8 @@ export function FullBookingForm({ content, property }: FullBookingFormProps) {
     <section className="py-16 bg-background" id="booking-section">
       <div className="container mx-auto px-4">
         <div className="text-center max-w-3xl mx-auto mb-12">
-          <h2 className="text-3xl font-bold mb-4">{title}</h2>
-          {description && <p className="text-muted-foreground">{description}</p>}
+          <h2 className="text-3xl font-bold mb-4">{tc(title)}</h2>
+          {description && <p className="text-muted-foreground">{tc(description)}</p>}
         </div>
         
         <div className="max-w-4xl mx-auto">

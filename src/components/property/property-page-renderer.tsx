@@ -154,6 +154,7 @@ export function PropertyPageRenderer({
   property, // Homepage-specific property data
   publishedReviews, // Real reviews from Firestore
 }: PropertyPageRendererProps) {
+  const { tc } = useLanguage();
   const [isClient, setIsClient] = useState(false);
   const [effectiveThemeId, setEffectiveThemeId] = useState<string | null>(null);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
@@ -295,7 +296,7 @@ export function PropertyPageRenderer({
 
   // Logo - use template defaults
   const logoSrc = template.header.logo?.src;
-  const logoAlt = template.header.logo?.alt;
+  const logoAlt = template.header.logo?.alt ? tc(template.header.logo.alt) : undefined;
 
   // Render function for a specific block
   const renderBlock = (block: BlockReference) => {
@@ -420,23 +421,23 @@ export function PropertyPageRenderer({
         // Homepage-specific enhancements for other component types
         if (type === 'experience') {
           blockContent = {
-            title: blockContent?.title || "Experience Our Property",
-            description: blockContent?.description || "Discover the unique charm and comfort of your stay.",
+            title: blockContent?.title || { en: "Experience Our Property", ro: "Experimentați proprietatea noastră" },
+            description: blockContent?.description || { en: "Discover the unique charm and comfort of your stay.", ro: "Descoperiți farmecul unic și confortul sejurului dumneavoastră." },
             highlights: blockContent?.highlights || [],
             ...blockContent
           };
         } else if (type === 'host') {
           blockContent = {
-            name: blockContent?.name || "Your Host",
+            name: blockContent?.name || { en: "Your Host", ro: "Gazda dumneavoastră" },
             imageUrl: blockContent?.imageUrl || blockContent?.image || null,
-            description: blockContent?.description || "We're delighted to welcome you!",
-            backstory: blockContent?.backstory || "We strive to make your stay exceptional.",
+            description: blockContent?.description || { en: "We're delighted to welcome you!", ro: "Suntem încântați să vă primim!" },
+            backstory: blockContent?.backstory || { en: "We strive to make your stay exceptional.", ro: "Ne străduim să facem sejurul dumneavoastră excepțional." },
             'data-ai-hint': blockContent?.['data-ai-hint'] || 'host portrait friendly',
             ...blockContent
           };
         } else if (type === 'location') {
           blockContent = {
-            title: blockContent?.title || "Explore the Surroundings",
+            title: blockContent?.title || { en: "Explore the Surroundings", ro: "Explorează împrejurimile" },
             propertyLocation: property.location,
             attractions: blockContent?.attractions || [],
             ...blockContent
@@ -456,13 +457,9 @@ export function PropertyPageRenderer({
           const overrideReviews = blockContent?.reviews || [];
           const combinedReviews = realReviews.length > 0 ? realReviews : overrideReviews;
 
-          // Ensure title is multilingual (template default may be a plain English string)
-          const defaultTitle = { en: "What Our Guests Say", ro: "Ce spun oaspeții noștri" };
-          const title = typeof blockContent?.title === 'string' ? defaultTitle : (blockContent?.title || defaultTitle);
-
           blockContent = {
             ...blockContent,
-            title,
+            title: blockContent?.title || { en: "What Our Guests Say", ro: "Ce spun oaspeții noștri" },
             overallRating: property.ratings?.average || 0,
             reviewCount: property.ratings?.count || 0,
             showRating: blockContent?.showRating,

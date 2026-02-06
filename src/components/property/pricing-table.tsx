@@ -40,8 +40,8 @@ export function PricingTable({ content }: PricingTableProps) {
                 <TableRow key={index}>
                   <TableCell className="font-medium">{tc(season.name)}</TableCell>
                   <TableCell>{tc(season.period)}</TableCell>
-                  <TableCell>{season.rate}</TableCell>
-                  <TableCell className="text-right">{season.minimumStay}</TableCell>
+                  <TableCell>{tc(season.rate)}</TableCell>
+                  <TableCell className="text-right">{tc(season.minimumStay)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

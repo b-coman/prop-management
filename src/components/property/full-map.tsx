@@ -132,7 +132,7 @@ export function FullMap({ content }: FullMapProps) {
       new window.google.maps.Marker({
         position: { lat: coordinates.lat, lng: coordinates.lng },
         map: map,
-        title: address,
+        title: tc(address),
         animation: window.google.maps.Animation.DROP,
       });
     } catch (error) {

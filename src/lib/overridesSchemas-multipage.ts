@@ -1,6 +1,9 @@
 // src/lib/overridesSchemas-multipage.ts
 import { z } from 'zod';
 
+// Reusable type: accepts both plain string and {en, ro, ...} multilingual objects
+const multilingualString = z.union([z.string(), z.record(z.string(), z.string())]);
+
 // Base schema for a block reference within a page
 export const blockReferenceSchema = z.object({
   id: z.string(),
@@ -10,13 +13,13 @@ export const blockReferenceSchema = z.object({
 // Schema for a page within a template
 export const pageSchema = z.object({
   path: z.string(),
-  title: z.string(),
+  title: multilingualString,
   blocks: z.array(blockReferenceSchema),
 });
 
 // Menu item schema
 export const menuItemSchema = z.object({
-  label: z.string(),
+  label: multilingualString,
   url: z.string(),
   isButton: z.boolean().optional(),
 });
@@ -26,7 +29,7 @@ export const headerSchema = z.object({
   menuItems: z.array(menuItemSchema),
   logo: z.object({
     src: z.string(),
-    alt: z.string(),
+    alt: multilingualString,
   }),
 });
 
@@ -49,8 +52,8 @@ export const footerSchema = z.object({
 // These are re-used from the existing schemas and extended as needed
 export const heroSchema = z.object({
   backgroundImage: z.string(),
-  title: z.string(),
-  subtitle: z.string().optional(),
+  title: multilingualString,
+  subtitle: multilingualString.optional(),
   price: z.number().optional(),
   showRating: z.boolean().optional(),
   showBookingForm: z.boolean().optional(),
@@ -62,35 +65,35 @@ export const heroSchema = z.object({
 });
 
 export const experienceSchema = z.object({
-  title: z.string(),
-  description: z.string(),
+  title: multilingualString,
+  description: multilingualString,
   highlights: z.array(
     z.object({
       icon: z.string(),
-      title: z.string(),
-      description: z.string(),
+      title: multilingualString,
+      description: multilingualString,
     })
   ),
 });
 
 export const hostSchema = z.object({
-  name: z.string(),
+  name: multilingualString,
   imageUrl: z.string(),
-  description: z.string(),
-  backstory: z.string(),
+  description: multilingualString,
+  backstory: multilingualString,
   'data-ai-hint': z.string().optional(),
 });
 
 export const featureSchema = z.object({
   icon: z.string(),
-  title: z.string(),
-  description: z.string(),
+  title: multilingualString,
+  description: multilingualString,
   image: z.string(),
   'data-ai-hint': z.string().optional(),
 });
 
 export const locationSchema = z.object({
-  title: z.string(),
+  title: multilingualString,
   mapCenter: z.object({
     lat: z.number(),
     lng: z.number(),
@@ -98,8 +101,8 @@ export const locationSchema = z.object({
 });
 
 export const attractionSchema = z.object({
-  name: z.string(),
-  description: z.string(),
+  name: multilingualString,
+  description: multilingualString,
   image: z.string(),
   'data-ai-hint': z.string().optional(),
 });
@@ -108,32 +111,32 @@ export const reviewSchema = z.object({
   name: z.string(),
   date: z.string().optional(),
   rating: z.number().min(1).max(5),
-  text: z.string(),
+  text: multilingualString,
   imageUrl: z.string().optional(),
   'data-ai-hint': z.string().optional(),
 });
 
 export const testimonialsSchema = z.object({
-  title: z.string(),
+  title: multilingualString,
   showRating: z.boolean().optional(),
   reviews: z.array(reviewSchema),
 });
 
 export const galleryImageSchema = z.object({
   url: z.string(),
-  alt: z.string(),
+  alt: multilingualString,
   'data-ai-hint': z.string().optional(),
 });
 
 export const gallerySchema = z.object({
-  title: z.string(),
+  title: multilingualString,
   images: z.array(galleryImageSchema),
 });
 
 export const ctaSchema = z.object({
-  title: z.string(),
-  description: z.string(),
-  buttonText: z.string(),
+  title: multilingualString,
+  description: multilingualString,
+  buttonText: multilingualString,
   buttonUrl: z.string(),
   backgroundImage: z.string(),
   'data-ai-hint': z.string().optional(),
@@ -141,20 +144,20 @@ export const ctaSchema = z.object({
 
 // New schemas for multi-page support
 export const pageHeaderSchema = z.object({
-  title: z.string(),
-  subtitle: z.string(),
+  title: multilingualString,
+  subtitle: multilingualString,
   backgroundImage: z.string(),
 });
 
 export const amenitiesListSchema = z.object({
-  title: z.string(),
+  title: multilingualString,
   categories: z.array(
     z.object({
-      name: z.string(),
+      name: multilingualString,
       amenities: z.array(
         z.object({
           icon: z.string(),
-          name: z.string(),
+          name: multilingualString,
         })
       ),
     })
@@ -162,44 +165,44 @@ export const amenitiesListSchema = z.object({
 });
 
 export const roomsListSchema = z.object({
-  title: z.string(),
+  title: multilingualString,
   rooms: z.array(
     z.object({
-      name: z.string(),
-      description: z.string(),
-      features: z.array(z.string()),
+      name: multilingualString,
+      description: multilingualString,
+      features: z.array(multilingualString),
       image: z.string(),
     })
   ),
 });
 
 export const specificationsListSchema = z.object({
-  title: z.string(),
+  title: multilingualString,
   specifications: z.array(
     z.object({
-      name: z.string(),
-      value: z.string(),
+      name: multilingualString,
+      value: multilingualString,
     })
   ),
 });
 
 export const pricingTableSchema = z.object({
-  title: z.string(),
-  description: z.string().optional(),
+  title: multilingualString,
+  description: multilingualString.optional(),
   seasons: z.array(
     z.object({
-      name: z.string(),
-      period: z.string(),
-      rate: z.string(),
-      minimumStay: z.string(),
+      name: multilingualString,
+      period: multilingualString,
+      rate: multilingualString,
+      minimumStay: multilingualString,
     })
   ),
 });
 
 export const fullMapSchema = z.object({
-  title: z.string(),
-  description: z.string().optional(),
-  address: z.string(),
+  title: multilingualString,
+  description: multilingualString.optional(),
+  address: multilingualString,
   coordinates: z.object({
     lat: z.number(),
     lng: z.number(),
@@ -209,55 +212,55 @@ export const fullMapSchema = z.object({
 });
 
 export const attractionsListSchema = z.object({
-  title: z.string(),
-  description: z.string().optional(),
+  title: multilingualString,
+  description: multilingualString.optional(),
   attractions: z.array(
     z.object({
-      name: z.string(),
-      description: z.string(),
-      distance: z.string(),
+      name: multilingualString,
+      description: multilingualString,
+      distance: multilingualString,
       image: z.string(),
     })
   ),
 });
 
 export const transportOptionsSchema = z.object({
-  title: z.string(),
-  description: z.string().optional(),
+  title: multilingualString,
+  description: multilingualString.optional(),
   options: z.array(
     z.object({
       icon: z.string(),
-      name: z.string(),
-      description: z.string(),
+      name: multilingualString,
+      description: multilingualString,
     })
   ),
 });
 
 export const distancesListSchema = z.object({
-  title: z.string(),
+  title: multilingualString,
   distances: z.array(
     z.object({
-      place: z.string(),
-      distance: z.string(),
-      time: z.string(),
+      place: multilingualString,
+      distance: multilingualString,
+      time: multilingualString,
     })
   ),
 });
 
 export const galleryGridSchema = z.object({
-  title: z.string(),
-  description: z.string().optional(),
+  title: multilingualString,
+  description: multilingualString.optional(),
   layout: z.enum(['grid', 'masonry', 'slider']),
   enableLightbox: z.boolean().optional(),
   images: z.array(galleryImageSchema).optional(),
 });
 
 export const photoCategoriesSchema = z.object({
-  title: z.string(),
+  title: multilingualString,
   categories: z.array(
     z.object({
-      name: z.string(),
-      description: z.string(),
+      name: multilingualString,
+      description: multilingualString,
       thumbnail: z.string(),
       images: z.array(galleryImageSchema),
     })
@@ -265,19 +268,19 @@ export const photoCategoriesSchema = z.object({
 });
 
 export const fullBookingFormSchema = z.object({
-  title: z.string(),
-  description: z.string().optional(),
+  title: multilingualString,
+  description: multilingualString.optional(),
   showCalendar: z.boolean().optional(),
   showSummary: z.boolean().optional(),
   enableCoupons: z.boolean().optional(),
 });
 
 export const policiesListSchema = z.object({
-  title: z.string().optional(),
+  title: multilingualString.optional(),
   policies: z.array(
     z.object({
-      title: z.string(),
-      description: z.string(),
+      title: multilingualString,
+      description: multilingualString,
     })
   ),
 });

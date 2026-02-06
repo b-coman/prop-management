@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { X, ArrowLeft, ArrowRight } from 'lucide-react';
+import { useLanguage } from '@/hooks/useLanguage';
 
 interface PhotoCategoriesProps {
   content: PhotoCategoriesBlock;
@@ -15,12 +16,13 @@ interface PhotoCategoriesProps {
 
 export function PhotoCategories({ content }: PhotoCategoriesProps) {
   const { title, categories } = content;
-  const [selectedCategory, setSelectedCategory] = useState(categories[0]?.name || '');
+  const { tc } = useLanguage();
+  const [selectedCategoryIndex, setSelectedCategoryIndex] = useState(0);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
-  // Find the current category object
-  const currentCategory = categories.find(cat => cat.name === selectedCategory);
+  // Find the current category object by index
+  const currentCategory = categories[selectedCategoryIndex];
   
   const openLightbox = (index: number) => {
     setCurrentImageIndex(index);
@@ -44,11 +46,11 @@ export function PhotoCategories({ content }: PhotoCategoriesProps) {
   return (
     <section className="py-16 bg-background">
       <div className="container mx-auto px-4">
-        <h2 className="text-3xl font-bold text-center mb-12">{title}</h2>
-        
-        <Tabs 
-          defaultValue={selectedCategory} 
-          onValueChange={setSelectedCategory}
+        <h2 className="text-3xl font-bold text-center mb-12">{tc(title)}</h2>
+
+        <Tabs
+          defaultValue="0"
+          onValueChange={(val) => setSelectedCategoryIndex(Number(val))}
           className="max-w-6xl mx-auto"
         >
           {/* Category Selector */}
@@ -56,43 +58,43 @@ export function PhotoCategories({ content }: PhotoCategoriesProps) {
             <div className="md:w-1/3">
               <h3 className="text-xl font-semibold mb-4">Browse by Category</h3>
               <TabsList className="flex flex-col w-full h-auto space-y-1">
-                {categories.map((category) => (
-                  <TabsTrigger 
-                    key={category.name} 
-                    value={category.name}
+                {categories.map((category, idx) => (
+                  <TabsTrigger
+                    key={idx}
+                    value={String(idx)}
                     className="justify-start px-4 py-3 text-left h-auto"
                   >
-                    {category.name}
+                    {tc(category.name)}
                   </TabsTrigger>
                 ))}
               </TabsList>
             </div>
-            
+
             <div className="md:w-2/3">
-              {categories.map((category) => (
-                <TabsContent key={category.name} value={category.name} className="mt-0">
+              {categories.map((category, idx) => (
+                <TabsContent key={idx} value={String(idx)} className="mt-0">
                   <div className="bg-card rounded-lg p-6 border">
                     <div className="relative w-full h-48 mb-4 rounded-md overflow-hidden">
-                      <Image 
-                        src={category.thumbnail} 
-                        alt={category.name}
+                      <Image
+                        src={category.thumbnail}
+                        alt={tc(category.name)}
                         fill
                         className="object-cover"
                       />
                     </div>
-                    <h3 className="text-xl font-semibold mb-2">{category.name}</h3>
-                    <p className="text-muted-foreground mb-6">{category.description}</p>
-                    
+                    <h3 className="text-xl font-semibold mb-2">{tc(category.name)}</h3>
+                    <p className="text-muted-foreground mb-6">{tc(category.description)}</p>
+
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {category.images.map((image, index) => (
-                        <div 
+                        <div
                           key={index}
                           className="relative h-32 rounded-md overflow-hidden cursor-pointer transition-transform hover:scale-[1.05]"
                           onClick={() => openLightbox(index)}
                         >
-                          <Image 
-                            src={image.url} 
-                            alt={image.alt || ''}
+                          <Image
+                            src={image.url}
+                            alt={tc(image.alt) || ''}
                             fill
                             className="object-cover"
                           />
@@ -139,12 +141,12 @@ export function PhotoCategories({ content }: PhotoCategoriesProps) {
                 <div className="relative h-full w-full max-h-[80vh]">
                   <Image
                     src={currentCategory.images[currentImageIndex].url}
-                    alt={currentCategory.images[currentImageIndex].alt || ''}
+                    alt={tc(currentCategory.images[currentImageIndex].alt) || ''}
                     fill
                     className="object-contain"
                   />
                   <div className="absolute bottom-4 left-0 right-0 text-center text-white bg-black/50 py-2">
-                    {currentCategory.images[currentImageIndex].alt}
+                    {tc(currentCategory.images[currentImageIndex].alt)}
                   </div>
                 </div>
               )}

@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { X, ArrowLeft, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SafeImage } from '@/components/ui/safe-image';
+import { useLanguage } from '@/hooks/useLanguage';
 
 interface GalleryGridProps {
   content: GalleryGridBlock;
@@ -20,6 +21,7 @@ interface GalleryGridProps {
 
 export function GalleryGrid({ content }: GalleryGridProps) {
   const { title, description, layout = 'grid', enableLightbox = true, images = [] } = content;
+  const { tc } = useLanguage();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
@@ -52,8 +54,8 @@ export function GalleryGrid({ content }: GalleryGridProps) {
     <section className="py-16 bg-background" onKeyDown={lightboxOpen ? handleKeyDown : undefined}>
       <div className="container mx-auto px-4">
         <div className="text-center max-w-3xl mx-auto mb-12">
-          <h2 className="text-3xl font-bold mb-4">{title}</h2>
-          {description && <p className="text-muted-foreground">{description}</p>}
+          <h2 className="text-3xl font-bold mb-4">{tc(title)}</h2>
+          {description && <p className="text-muted-foreground">{tc(description)}</p>}
         </div>
         
         {/* Grid Layout */}
@@ -74,7 +76,7 @@ export function GalleryGrid({ content }: GalleryGridProps) {
               >
                 <SafeImage
                   src={image.url}
-                  alt={image.alt || `Property image ${index + 1}`}
+                  alt={tc(image.alt) || `Property image ${index + 1}`}
                   fill
                   className="object-cover"
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -96,7 +98,7 @@ export function GalleryGrid({ content }: GalleryGridProps) {
               >
                 <SafeImage
                   src={image.url}
-                  alt={image.alt || `Property image ${index + 1}`}
+                  alt={tc(image.alt) || `Property image ${index + 1}`}
                   width={800}
                   height={600}
                   className="w-full h-auto object-cover hover:scale-[1.02] transition-transform"
@@ -140,7 +142,7 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                 >
                   <SafeImage
                     src={image.url}
-                    alt={image.alt || `Property image ${index + 1}`}
+                    alt={tc(image.alt) || `Property image ${index + 1}`}
                     fill
                     className="object-cover"
                     fallbackText="Property image not available"
@@ -184,13 +186,13 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                 <div className="relative h-full w-full max-h-[80vh]">
                   <SafeImage
                     src={images[currentImageIndex].url}
-                    alt={images[currentImageIndex].alt || `Property image ${currentImageIndex + 1}`}
+                    alt={tc(images[currentImageIndex].alt) || `Property image ${currentImageIndex + 1}`}
                     fill
                     className="object-contain"
                     fallbackText="Property image not available"
                   />
                   <div className="absolute bottom-4 left-0 right-0 text-center text-white bg-black/50 py-2">
-                    {images[currentImageIndex].alt}
+                    {tc(images[currentImageIndex].alt)}
                   </div>
                 </div>
               )}

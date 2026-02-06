@@ -41,7 +41,7 @@ export function AttractionsList({ content }: AttractionsListProps) {
                 
                 <div className="flex items-center mt-auto text-sm">
                   <MapPin size={16} className="text-primary mr-2" />
-                  <span>{attraction.distance}</span>
+                  <span>{tc(attraction.distance)}</span>
                 </div>
               </CardContent>
             </Card>

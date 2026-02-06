@@ -241,7 +241,7 @@
   "defaults": {
     "hero": {
       "backgroundImage": "/images/templates/holiday-house/default-hero.jpg",
-      "title": "Welcome to Your Holiday House",
+      "title": { "en": "Welcome to Your Holiday House", "ro": "Bine ați venit la Casa de Vacanță" },
       "price": 150,
       "showRating": true,
       "showBookingForm": true,
@@ -251,53 +251,53 @@
       }
     },
     "experience": {
-      "title": "Experience Relaxation",
-      "description": "A cozy holiday house perfect for family getaways.",
+      "title": { "en": "Experience Relaxation", "ro": "Experimentați relaxarea" },
+      "description": { "en": "A cozy holiday house perfect for family getaways.", "ro": "O casă de vacanță confortabilă, perfectă pentru escapade în familie." },
       "highlights": [
         {
           "icon": "Leaf",
-          "title": "Nature",
-          "description": "Surrounded by beautiful nature."
+          "title": { "en": "Nature", "ro": "Natură" },
+          "description": { "en": "Surrounded by beautiful nature.", "ro": "Înconjurați de natură frumoasă." }
         },
         {
           "icon": "Users",
-          "title": "Family Friendly",
-          "description": "Ideal for family vacations."
+          "title": { "en": "Family Friendly", "ro": "Prietenos cu familia" },
+          "description": { "en": "Ideal for family vacations.", "ro": "Ideal pentru vacanțe în familie." }
         }
       ]
     },
     "host": {
-      "name": "Your Host",
+      "name": { "en": "Your Host", "ro": "Gazda dumneavoastră" },
       "imageUrl": "/images/templates/holiday-house/default-host.jpg",
-      "description": "Welcome to my holiday house!",
-      "backstory": "I've been hosting for over 5 years and love helping guests create memorable experiences.",
+      "description": { "en": "Welcome to my holiday house!", "ro": "Bine ați venit la casa mea de vacanță!" },
+      "backstory": { "en": "I've been hosting for over 5 years and love helping guests create memorable experiences.", "ro": "Sunt gazdă de peste 5 ani și îmi place să ajut oaspeții să creeze experiențe memorabile." },
       "data-ai-hint": "friendly host portrait outdoors"
     },
     "features": [
       {
         "icon": "firepit",
-        "title": "Fire Pit",
-        "description": "Gather around the fire for evening conversations.",
+        "title": { "en": "Fire Pit", "ro": "Vatră de foc" },
+        "description": { "en": "Gather around the fire for evening conversations.", "ro": "Adunați-vă în jurul focului pentru conversații de seară." },
         "image": "/images/templates/holiday-house/default-firepit.jpg",
         "data-ai-hint": "fire pit night"
       },
       {
         "icon": "hammock",
-        "title": "Hammock",
-        "description": "Relax with a book in our comfortable hammock.",
+        "title": { "en": "Hammock", "ro": "Hamac" },
+        "description": { "en": "Relax with a book in our comfortable hammock.", "ro": "Relaxați-vă cu o carte în hamacul nostru confortabil." },
         "image": "/images/templates/holiday-house/default-hammock.jpg",
         "data-ai-hint": "hammock forest relax"
       },
       {
         "icon": "bbq",
-        "title": "BBQ Area",
-        "description": "Enjoy outdoor dining with our gas grill.",
+        "title": { "en": "BBQ Area", "ro": "Zona de grătar" },
+        "description": { "en": "Enjoy outdoor dining with our gas grill.", "ro": "Bucurați-vă de masa în aer liber cu grătarul nostru pe gaz." },
         "image": "/images/templates/holiday-house/default-bbq.jpg",
         "data-ai-hint": "bbq grill outdoor cooking"
       }
     ],
     "location": {
-      "title": "Discover Nearby Attractions",
+      "title": { "en": "Discover Nearby Attractions", "ro": "Descoperă atracțiile din apropiere" },
       "mapCenter": {
         "lat": 45.253,
         "lng": 25.6346
@@ -305,46 +305,46 @@
     },
     "attractions": [
       {
-        "name": "Local Attraction",
-        "description": "A popular destination for tourists",
+        "name": { "en": "Local Attraction", "ro": "Atracție locală" },
+        "description": { "en": "A popular destination for tourists", "ro": "O destinație populară pentru turiști" },
         "image": "/images/templates/holiday-house/default-attraction.jpg",
         "data-ai-hint": "landmark"
       },
       {
-        "name": "Outdoor Adventure",
-        "description": "Perfect for nature lovers",
+        "name": { "en": "Outdoor Adventure", "ro": "Aventură în aer liber" },
+        "description": { "en": "Perfect for nature lovers", "ro": "Perfect pentru iubitorii de natură" },
         "image": "/images/templates/holiday-house/default-adventure.jpg",
         "data-ai-hint": "nature trail"
       }
     ],
     "testimonials": {
-      "title": "What Guests Say",
+      "title": { "en": "What Guests Say", "ro": "Ce spun oaspeții" },
       "showRating": true,
       "reviews": [
         {
           "name": "Jane D.",
           "date": "2025-01",
           "rating": 5,
-          "text": "Wonderful stay! Clean, comfortable, and the host was very responsive.",
+          "text": { "en": "Wonderful stay! Clean, comfortable, and the host was very responsive.", "ro": "Sejur minunat! Curat, confortabil, iar gazda a fost foarte receptivă." },
           "imageUrl": "/images/templates/holiday-house/default-guest.jpg",
           "data-ai-hint": "happy guest"
         }
       ]
     },
     "gallery": {
-      "title": "Property Gallery",
+      "title": { "en": "Property Gallery", "ro": "Galerie foto" },
       "images": [
         {
           "url": "/images/templates/holiday-house/default-gallery-1.jpg",
-          "alt": "Living Room",
+          "alt": { "en": "Living Room", "ro": "Sufragerie" },
           "data-ai-hint": "chalet living room"
         }
       ]
     },
     "cta": {
-      "title": "Book Your Stay",
-      "description": "Secure your dates now for an unforgettable vacation experience.",
-      "buttonText": "Book Now",
+      "title": { "en": "Book Your Stay", "ro": "Rezervă sejurul" },
+      "description": { "en": "Secure your dates now for an unforgettable vacation experience.", "ro": "Asigurați-vă datele acum pentru o experiență de vacanță de neuitat." },
+      "buttonText": { "en": "Book Now", "ro": "Rezervă acum" },
       "buttonUrl": "/booking",
       "backgroundImage": "/images/templates/holiday-house/default-cta.jpg",
       "data-ai-hint": "mountain panorama"

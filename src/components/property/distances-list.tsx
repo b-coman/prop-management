@@ -32,17 +32,17 @@ export function DistancesList({ content }: DistancesListProps) {
             <TableBody>
               {distances.map((item, index) => (
                 <TableRow key={index}>
-                  <TableCell className="font-medium">{item.place}</TableCell>
+                  <TableCell className="font-medium">{tc(item.place)}</TableCell>
                   <TableCell>
                     <div className="flex items-center">
                       <MapPin size={16} className="mr-2 text-primary" />
-                      {item.distance}
+                      {tc(item.distance)}
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end">
                       <Clock size={16} className="mr-2 text-primary" />
-                      {item.time}
+                      {tc(item.time)}
                     </div>
                   </TableCell>
                 </TableRow>
