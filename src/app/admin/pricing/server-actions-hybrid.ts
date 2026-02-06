@@ -7,7 +7,6 @@
  * implementing data fetching and mutations using the Firebase Admin SDK.
  *
  * Functions:
- * - fetchProperties: Get all properties
  * - fetchSeasonalPricing: Get seasonal pricing for a property
  * - fetchDateOverrides: Get date overrides for a property
  * - toggleSeasonalPricingStatus: Toggle a seasonal pricing rule on/off
@@ -19,7 +18,7 @@ import { getAdminDb, FieldValue } from "@/lib/firebaseAdminSafe";
 import { convertTimestampsToISOStrings } from "@/lib/utils"; // Import the timestamp converter
 import { format, parse } from "date-fns"; // Import date-fns
 import { loggers } from '@/lib/logger';
-import { requireAdmin, requirePropertyAccess, filterPropertiesForUser, AuthorizationError } from '@/lib/authorization';
+import { requirePropertyAccess, AuthorizationError } from '@/lib/authorization';
 import { calculateDayPrice } from '@/lib/pricing/price-calculation';
 import type { PropertyPricing, SeasonalPricing, DateOverride, MinimumStayRule } from '@/lib/pricing/price-calculation';
 
@@ -62,48 +61,6 @@ export async function fetchProperty(propertyId: string) {
     }
     logger.error('Error fetching property', error as Error, { propertyId });
     return null;
-  }
-}
-
-/**
- * Fetch all properties - server action using Admin SDK
- * Filters results based on user access
- */
-export async function fetchProperties() {
-  try {
-    // Check admin access
-    const user = await requireAdmin();
-
-    const db = await getAdminDb();
-    const propertiesSnapshot = await db.collection('properties').get();
-
-    const allProperties = propertiesSnapshot.docs.map(docSnap => {
-      const data = docSnap.data();
-      // Use our utility function to convert all timestamps to ISO strings
-      const serializedData = convertTimestampsToISOStrings(data);
-
-      return {
-        id: docSnap.id,
-        slug: docSnap.id,
-        name: serializedData.name || docSnap.id,
-        location: serializedData.location || '',
-        status: serializedData.status || 'active',
-        pricePerNight: serializedData.pricePerNight,
-        ...serializedData
-      };
-    });
-
-    // Filter based on user access
-    const filteredProperties = filterPropertiesForUser(allProperties, user);
-    logger.debug('Fetched properties', { count: filteredProperties.length, total: allProperties.length, role: user.role });
-    return filteredProperties;
-  } catch (error) {
-    if (error instanceof AuthorizationError) {
-      logger.warn('Authorization failed for fetchProperties');
-      return [];
-    }
-    logger.error('Error fetching properties', error as Error);
-    return [];
   }
 }
 

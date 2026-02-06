@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { getAdminDb, FieldValue, Timestamp } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
-import { requireAdmin, requirePropertyAccess, filterPropertiesForUser, AuthorizationError } from '@/lib/authorization';
+import { requirePropertyAccess, AuthorizationError } from '@/lib/authorization';
 import { convertTimestampsToISOStrings } from '@/lib/utils';
 import { randomUUID } from 'crypto';
 import type { ICalFeed, SerializableTimestamp } from '@/types';
@@ -24,42 +24,6 @@ const addFeedSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
   url: z.string().url('Must be a valid URL').max(2048),
 });
-
-// ============================================================================
-// Property Fetching (reused pattern from pricing)
-// ============================================================================
-
-export async function fetchProperties() {
-  try {
-    const user = await requireAdmin();
-    const db = await getAdminDb();
-    const propertiesSnapshot = await db.collection('properties').get();
-
-    const allProperties = propertiesSnapshot.docs.map(docSnap => {
-      const data = docSnap.data();
-      const serializedData = convertTimestampsToISOStrings(data);
-      return {
-        id: docSnap.id,
-        slug: docSnap.id,
-        name: serializedData.name || docSnap.id,
-        location: serializedData.location || '',
-        status: serializedData.status || 'active',
-        pricePerNight: serializedData.pricePerNight,
-        ...serializedData,
-      };
-    });
-
-    const filteredProperties = filterPropertiesForUser(allProperties, user);
-    return filteredProperties;
-  } catch (error) {
-    if (error instanceof AuthorizationError) {
-      logger.warn('Authorization failed for fetchProperties');
-      return [];
-    }
-    logger.error('Error fetching properties', error as Error);
-    return [];
-  }
-}
 
 // ============================================================================
 // iCal Feed CRUD

@@ -1,11 +1,10 @@
 // src/app/admin/pricing/page.tsx
-import { Suspense } from 'react';
 import Link from 'next/link';
-import { fetchProperties, fetchSeasonalPricing, fetchDateOverrides } from './server-actions-hybrid';
+import { fetchSeasonalPricing, fetchDateOverrides } from './server-actions-hybrid';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PropertyDisplay } from './_components/property-display';
+import { PropertyUrlSync } from '@/components/admin/PropertyUrlSync';
 import { SeasonalPricingTable } from './_components/seasonal-pricing-table';
 import { DateOverridesTable } from './_components/date-overrides-table';
 import { PriceCalendarManager } from './_components/price-calendar-manager';
@@ -29,9 +28,6 @@ export default async function PricingPage({
     ? params.propertyId
     : undefined;
 
-  // Fetch properties server-side using the client SDK
-  const properties = await fetchProperties();
-
   // Fetch seasonal pricing and date overrides if a property is selected
   let seasonalPricing = [];
   let dateOverrides = [];
@@ -53,10 +49,7 @@ export default async function PricingPage({
         </div>
       </div>
 
-      {/* Property Selector */}
-      <Suspense fallback={<div>Loading properties...</div>}>
-        <PropertyDisplay properties={properties} selectedPropertyId={propertyId} />
-      </Suspense>
+      <PropertyUrlSync />
 
       {propertyId ? (
         <Tabs defaultValue="seasons">

@@ -2,9 +2,8 @@
 import { Suspense } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { getInquiries } from '@/services/inquiryService';
-import { InquiryTable } from './_components/inquiry-table';
-import { AdminPage, EmptyState, TableSkeleton } from '@/components/admin';
-import { MessageSquare } from 'lucide-react';
+import { InquiriesWithFilter } from './_components/inquiries-with-filter';
+import { AdminPage, TableSkeleton } from '@/components/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,15 +13,7 @@ async function InquiriesContent() {
   return (
     <Card>
       <CardContent className="pt-6">
-        {inquiries.length > 0 ? (
-          <InquiryTable inquiries={inquiries} />
-        ) : (
-          <EmptyState
-            icon={MessageSquare}
-            title="No inquiries yet"
-            description="Guest inquiries will appear here when they submit questions"
-          />
-        )}
+        <InquiriesWithFilter inquiries={inquiries} />
       </CardContent>
     </Card>
   );

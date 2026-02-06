@@ -2,9 +2,8 @@
 import { Suspense } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { fetchBookings } from './actions';
-import { BookingTable } from './_components/booking-table';
-import { AdminPage, EmptyState, TableSkeleton } from '@/components/admin';
-import { CalendarCheck } from 'lucide-react';
+import { BookingsWithFilter } from './_components/bookings-with-filter';
+import { AdminPage, TableSkeleton } from '@/components/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,15 +13,7 @@ async function BookingsContent() {
   return (
     <Card>
       <CardContent className="pt-6">
-        {bookings.length > 0 ? (
-          <BookingTable bookings={bookings} />
-        ) : (
-          <EmptyState
-            icon={CalendarCheck}
-            title="No bookings yet"
-            description="Bookings will appear here when guests make reservations"
-          />
-        )}
+        <BookingsWithFilter bookings={bookings} />
       </CardContent>
     </Card>
   );

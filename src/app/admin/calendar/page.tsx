@@ -1,11 +1,10 @@
-import { Suspense } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PropertyDisplay } from '../pricing/_components/property-display';
+import { PropertyUrlSync } from '@/components/admin/PropertyUrlSync';
 import { ExportUrlCard } from './_components/export-url-card';
 import { ICalFeedsTable } from './_components/ical-feeds-table';
 import { AddFeedDialog } from './_components/add-feed-dialog';
-import { fetchProperties, fetchICalFeeds, fetchExportConfig, fetchAvailabilityCalendarData } from './actions';
+import { fetchICalFeeds, fetchExportConfig, fetchAvailabilityCalendarData } from './actions';
 import { AvailabilityCalendar } from './_components/availability-calendar';
 import { format, addMonths } from 'date-fns';
 import type { MonthAvailabilityData } from './_lib/availability-types';
@@ -19,8 +18,6 @@ export default async function CalendarSyncPage({
 }) {
   const params = await Promise.resolve(searchParams);
   const propertyId = typeof params.propertyId === 'string' ? params.propertyId : undefined;
-
-  const properties = await fetchProperties();
 
   let feeds: Awaited<ReturnType<typeof fetchICalFeeds>> = [];
   let exportConfig: Awaited<ReturnType<typeof fetchExportConfig>> = {};
@@ -48,9 +45,7 @@ export default async function CalendarSyncPage({
         </p>
       </div>
 
-      <Suspense fallback={<div>Loading properties...</div>}>
-        <PropertyDisplay properties={properties} selectedPropertyId={propertyId} />
-      </Suspense>
+      <PropertyUrlSync />
 
       {propertyId ? (
         <Tabs defaultValue="ical-sync">

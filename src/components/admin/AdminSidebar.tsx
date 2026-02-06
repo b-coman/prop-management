@@ -8,6 +8,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   Building,
+  Building2,
   CalendarCheck,
   Ticket,
   MessageSquare,
@@ -17,6 +18,8 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/SimpleAuthContext';
+import { usePropertySelector } from '@/contexts/PropertySelectorContext';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Sidebar,
   SidebarContent,
@@ -31,6 +34,11 @@ import {
   SidebarRail,
   useSidebar,
 } from '@/components/ui/sidebar';
+
+function getDisplayName(name: string | { en?: string; ro?: string }): string {
+  if (typeof name === 'string') return name;
+  return name.en || name.ro || 'Unnamed';
+}
 
 // Navigation items grouped by section
 const navigationGroups = [
@@ -63,6 +71,7 @@ export function AdminSidebar() {
   const { signOut, user } = useAuth();
   const { state } = useSidebar();
   const isCollapsed = state === 'collapsed';
+  const { properties, selectedPropertyId, setSelectedProperty } = usePropertySelector();
 
   const handleLogout = async () => {
     await signOut();
@@ -88,6 +97,50 @@ export function AdminSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
+        {/* Property Selector */}
+        <SidebarGroup>
+          <SidebarGroupLabel>
+            <Building2 className="h-3.5 w-3.5 mr-1" />
+            Property
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            {!isCollapsed ? (
+              <div className="px-2 pb-1">
+                <Select
+                  value={selectedPropertyId || 'all'}
+                  onValueChange={(v) => setSelectedProperty(v === 'all' ? null : v)}
+                >
+                  <SelectTrigger className="w-full h-8 text-xs">
+                    <SelectValue placeholder="Select property" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Properties</SelectItem>
+                    {properties.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {getDisplayName(p.name)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    tooltip={
+                      selectedPropertyId
+                        ? getDisplayName(properties.find(p => p.id === selectedPropertyId)?.name || 'Unknown')
+                        : 'All Properties'
+                    }
+                  >
+                    <Building2 className="h-4 w-4" />
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            )}
+          </SidebarGroupContent>
+        </SidebarGroup>
+
         {navigationGroups.map((group) => (
           <SidebarGroup key={group.label}>
             <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
