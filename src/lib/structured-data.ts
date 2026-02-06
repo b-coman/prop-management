@@ -134,8 +134,22 @@ export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions):
   // Format check-in/out times to ISO 8601 (HH:MM:SS)
   const formatTime = (time?: string) => {
     if (!time) return undefined;
-    // Input is "HH:MM", output should be "HH:MM:00"
-    return time.includes(':') && time.length === 5 ? `${time}:00` : time;
+    // Handle "HH:MM" 24h format
+    if (/^\d{1,2}:\d{2}$/.test(time)) {
+      const [h, m] = time.split(':');
+      return `${h.padStart(2, '0')}:${m}:00`;
+    }
+    // Handle "3:00 PM" / "11:00 AM" format
+    const match = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (match) {
+      let hours = parseInt(match[1], 10);
+      const minutes = match[2];
+      const period = match[3].toUpperCase();
+      if (period === 'PM' && hours !== 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+      return `${String(hours).padStart(2, '0')}:${minutes}:00`;
+    }
+    return time;
   };
 
   // Build aggregate rating
@@ -197,14 +211,20 @@ export function buildBreadcrumbJsonLd(
   };
 }
 
-export function getCanonicalUrl(slug: string): string {
-  const host = process.env.NEXT_PUBLIC_MAIN_APP_HOST || 'localhost:3000';
+function normalizeHost(): string {
+  let host = process.env.NEXT_PUBLIC_MAIN_APP_HOST || 'localhost:3000';
+  // Strip protocol if already included
+  host = host.replace(/^https?:\/\//, '');
+  // Strip trailing slash
+  host = host.replace(/\/+$/, '');
   const protocol = host.includes('localhost') ? 'http' : 'https';
-  return `${protocol}://${host}/properties/${slug}`;
+  return `${protocol}://${host}`;
+}
+
+export function getCanonicalUrl(slug: string): string {
+  return `${normalizeHost()}/properties/${slug}`;
 }
 
 export function getBaseUrl(): string {
-  const host = process.env.NEXT_PUBLIC_MAIN_APP_HOST || 'localhost:3000';
-  const protocol = host.includes('localhost') ? 'http' : 'https';
-  return `${protocol}://${host}`;
+  return normalizeHost();
 }

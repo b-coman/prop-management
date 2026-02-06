@@ -1,20 +1,60 @@
 // src/app/page.tsx - Renders a specific property based on slug (defaulting to prahova)
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
+import type { Metadata } from 'next';
 import type { Property, WebsiteTemplate, PropertyOverrides } from '@/types';
 import { PropertyPageRenderer } from '@/components/property/property-page-renderer';
 import { getWebsiteTemplate, getPropertyOverrides } from '@/app/properties/[slug]/[[...path]]/page'; // Import shared functions
 import { getPropertyBySlug } from '@/lib/property-utils';
-// AuthProvider removed, context will be consumed from root layout
+import { buildVacationRentalJsonLd, buildBreadcrumbJsonLd, getCanonicalUrl, getBaseUrl } from '@/lib/structured-data';
+import { getAmenitiesByRefs } from '@/lib/amenity-utils';
 
 export const dynamic = 'force-dynamic'; // Ensures the page is always dynamically rendered
 
+const defaultPropertySlug = "prahova-mountain-chalet";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const property = await getPropertyBySlug(defaultPropertySlug);
+  if (!property) {
+    return { title: 'RentalSpot - Your Vacation Getaway' };
+  }
+
+  const propertyName = typeof property.name === 'string'
+    ? property.name
+    : (property.name.en || property.name.ro || 'Property');
+  const description = property.description
+    ? (typeof property.description === 'string'
+        ? property.description
+        : (property.description.en || property.description.ro || ''))
+    : `Book ${propertyName} - vacation rental`;
+
+  const canonicalUrl = getCanonicalUrl(defaultPropertySlug);
+  const featuredImage = property.images?.find(img => img.isFeatured)?.url
+    || property.images?.[0]?.url;
+
+  return {
+    title: propertyName,
+    description,
+    openGraph: {
+      title: propertyName,
+      description,
+      url: canonicalUrl,
+      type: 'website',
+      images: featuredImage ? [{ url: featuredImage, alt: propertyName }] : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: propertyName,
+      description,
+      images: featuredImage ? [featuredImage] : [],
+    },
+    alternates: {
+      canonical: canonicalUrl,
+    },
+  };
+}
+
 export default async function HomePage() {
-  // Define the default property slug for the homepage
-  const defaultPropertySlug = "prahova-mountain-chalet"; // Or dynamically determine this later
-
-  // console.log(`[HomePage] Rendering default property: ${defaultPropertySlug}`);
-
   // Fetch all necessary data for the default property using the reusable functions
   const [property, overrides] = await Promise.all([
       getPropertyBySlug(defaultPropertySlug),
@@ -86,20 +126,41 @@ export default async function HomePage() {
     );
   }
 
-  // console.log(`[HomePage] Data fetched successfully for ${defaultPropertySlug}.`);
+  // Build structured data (JSON-LD)
+  const propertyNameStr = typeof property.name === 'string'
+    ? property.name
+    : (property.name.en || property.name.ro || 'Property');
+
+  const amenities = property.amenityRefs?.length
+    ? await getAmenitiesByRefs(property.amenityRefs)
+    : [];
+
+  const canonicalUrl = getCanonicalUrl(defaultPropertySlug);
+  const baseUrl = getBaseUrl();
+  const vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl });
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd(propertyNameStr, defaultPropertySlug, baseUrl);
 
   return (
-    // AuthProvider removed
-    <Suspense fallback={<div>Loading homepage...</div>}>
-      <PropertyPageRenderer
-        template={template}
-        overrides={overrides}
-        propertyName={typeof property.name === 'string' ? property.name : (property.name.en || property.name.ro || 'Property')}
-        propertySlug={defaultPropertySlug}
-        pageName="homepage"
-        themeId={property.themeId}
-        property={property}
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(vacationRentalJsonLd) }}
       />
-    </Suspense>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <Suspense fallback={<div>Loading homepage...</div>}>
+        <PropertyPageRenderer
+          template={template}
+          overrides={overrides}
+          propertyName={propertyNameStr}
+          propertySlug={defaultPropertySlug}
+          pageName="homepage"
+          themeId={property.themeId}
+          property={property}
+        />
+      </Suspense>
+    </>
   );
 }
