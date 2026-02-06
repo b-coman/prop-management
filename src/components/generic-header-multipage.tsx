@@ -54,10 +54,7 @@ export function Header({
   const processedMenuItems = menuItems.map(item => ({
     ...item,
     url: processMenuUrl(item.url),
-    // If label is an object with language keys, get the current language
-    label: typeof item.label === 'object' && item.label[currentLang] 
-      ? item.label[currentLang] 
-      : (typeof item.label === 'object' && (item.label as any).en ? (item.label as any).en : item.label)
+    label: tc(item.label),
   }));
 
   // Find button items (if any) - filter out "Book Now" buttons

@@ -1,6 +1,7 @@
 "use client";
 
 import { useLanguage as useUnifiedLanguage } from '@/lib/language-system';
+import type { ContentTranslationFunction } from '@/lib/language-system/language-types';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
 
 interface LanguageHook {
@@ -9,7 +10,7 @@ interface LanguageHook {
   switchLanguage: (lang: string) => void;
   changeLanguage: (lang: string) => void; // alias for compatibility
   t: (key: string, fallback?: string, variables?: Record<string, string | number>) => string;
-  tc: (content: any) => string;
+  tc: ContentTranslationFunction;
   getLocalizedPath: (path: string, lang?: string) => string;
   isLanguageSupported: (lang: string) => boolean;
 }

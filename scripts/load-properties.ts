@@ -3,7 +3,7 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as admin from 'firebase-admin';
-import { blockSchemas } from '../src/lib/overridesSchemas'; // Corrected path
+import { blockSchemas } from '../src/lib/overridesSchemas-multipage';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 console.log('✅ Environment variables loaded.');

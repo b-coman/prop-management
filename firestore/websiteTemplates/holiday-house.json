@@ -4,238 +4,90 @@
   "pages": {
     "homepage": {
       "path": "/",
-      "title": "Welcome",
+      "title": { "en": "Welcome", "ro": "Bine ați venit" },
       "blocks": [
-        {
-          "id": "hero",
-          "type": "hero"
-        },
-        {
-          "id": "experience",
-          "type": "experience"
-        },
-        {
-          "id": "host",
-          "type": "host"
-        },
-        {
-          "id": "features",
-          "type": "features"
-        },
-        {
-          "id": "location",
-          "type": "location"
-        },
-        {
-          "id": "testimonials",
-          "type": "testimonials"
-        },
-        {
-          "id": "gallery",
-          "type": "gallery"
-        },
-        {
-          "id": "cta",
-          "type": "cta"
-        }
+        { "id": "hero", "type": "hero" },
+        { "id": "experience", "type": "experience" },
+        { "id": "host", "type": "host" },
+        { "id": "features", "type": "features" },
+        { "id": "location", "type": "location" },
+        { "id": "testimonials", "type": "testimonials" },
+        { "id": "gallery", "type": "gallery" },
+        { "id": "cta", "type": "cta" }
       ]
     },
     "details": {
       "path": "/details",
-      "title": "Property Details",
+      "title": { "en": "Property Details", "ro": "Detalii proprietate" },
       "blocks": [
-        {
-          "id": "details-header",
-          "type": "pageHeader"
-        },
-        {
-          "id": "amenities",
-          "type": "amenitiesList"
-        },
-        {
-          "id": "rooms",
-          "type": "roomsList"
-        },
-        {
-          "id": "specifications",
-          "type": "specificationsList"
-        },
-        {
-          "id": "pricing-detail",
-          "type": "pricingTable"
-        },
-        {
-          "id": "cta",
-          "type": "cta"
-        }
+        { "id": "details-header", "type": "pageHeader" },
+        { "id": "amenities", "type": "amenitiesList" },
+        { "id": "rooms", "type": "roomsList" },
+        { "id": "specifications", "type": "specificationsList" },
+        { "id": "pricing-detail", "type": "pricingTable" },
+        { "id": "cta", "type": "cta" }
       ]
     },
     "location": {
       "path": "/location",
-      "title": "Location",
+      "title": { "en": "Location", "ro": "Locație" },
       "blocks": [
-        {
-          "id": "location-header",
-          "type": "pageHeader"
-        },
-        {
-          "id": "map-large",
-          "type": "fullMap"
-        },
-        {
-          "id": "attractions",
-          "type": "attractionsList"
-        },
-        {
-          "id": "transport",
-          "type": "transportOptions"
-        },
-        {
-          "id": "distances",
-          "type": "distancesList"
-        },
-        {
-          "id": "cta",
-          "type": "cta"
-        }
+        { "id": "location-header", "type": "pageHeader" },
+        { "id": "map-large", "type": "fullMap" },
+        { "id": "attractions", "type": "attractionsList" },
+        { "id": "transport", "type": "transportOptions" },
+        { "id": "distances", "type": "distancesList" },
+        { "id": "cta", "type": "cta" }
       ]
     },
     "gallery": {
       "path": "/gallery",
-      "title": "Photo Gallery",
+      "title": { "en": "Photo Gallery", "ro": "Galerie foto" },
       "blocks": [
-        {
-          "id": "gallery-header",
-          "type": "pageHeader"
-        },
-        {
-          "id": "full-gallery",
-          "type": "galleryGrid"
-        },
-        {
-          "id": "photo-categories",
-          "type": "photoCategories"
-        },
-        {
-          "id": "cta",
-          "type": "cta"
-        }
+        { "id": "gallery-header", "type": "pageHeader" },
+        { "id": "full-gallery", "type": "galleryGrid" },
+        { "id": "photo-categories", "type": "photoCategories" },
+        { "id": "cta", "type": "cta" }
       ]
     },
     "booking": {
       "path": "/booking",
-      "title": "Book Your Stay",
+      "title": { "en": "Book Your Stay", "ro": "Rezervă sejurul" },
       "blocks": [
-        {
-          "id": "booking-header",
-          "type": "pageHeader"
-        },
-        {
-          "id": "booking-form",
-          "type": "fullBookingForm"
-        },
-        {
-          "id": "booking-policies",
-          "type": "policiesList"
-        }
+        { "id": "booking-header", "type": "pageHeader" },
+        { "id": "booking-form", "type": "fullBookingForm" },
+        { "id": "booking-policies", "type": "policiesList" }
       ]
     }
   },
   "header": {
     "menuItems": [
-      {
-        "label": {
-          "en": "Home",
-          "ro": "Acasă"
-        },
-        "url": "/"
-      },
-      {
-        "label": {
-          "en": "Property Details",
-          "ro": "Detalii Proprietate"
-        },
-        "url": "/details"
-      },
-      {
-        "label": {
-          "en": "Location",
-          "ro": "Locație"
-        },
-        "url": "/location"
-      },
-      {
-        "label": {
-          "en": "Gallery",
-          "ro": "Galerie"
-        },
-        "url": "/gallery"
-      },
-      {
-        "label": {
-          "en": "Book Now",
-          "ro": "Rezervă Acum"
-        },
-        "url": "/booking",
-        "isButton": true
-      }
+      { "label": { "en": "Home", "ro": "Acasă" }, "url": "/" },
+      { "label": { "en": "Property Details", "ro": "Detalii Proprietate" }, "url": "/details" },
+      { "label": { "en": "Location", "ro": "Locație" }, "url": "/location" },
+      { "label": { "en": "Gallery", "ro": "Galerie" }, "url": "/gallery" },
+      { "label": { "en": "Book Now", "ro": "Rezervă Acum" }, "url": "/booking", "isButton": true }
     ],
     "logo": {
       "src": "/images/templates/holiday-house/logo-dynamic.svg",
-      "alt": "Holiday House"
+      "alt": { "en": "Holiday House", "ro": "Casă de vacanță" }
     }
   },
   "footer": {
     "quickLinks": [
-      {
-        "label": {
-          "en": "Home",
-          "ro": "Acasă"
-        },
-        "url": "/"
-      },
-      {
-        "label": {
-          "en": "Property Details",
-          "ro": "Detalii Proprietate"
-        },
-        "url": "/details"
-      },
-      {
-        "label": {
-          "en": "Location",
-          "ro": "Locație"
-        },
-        "url": "/location"
-      },
-      {
-        "label": {
-          "en": "Gallery",
-          "ro": "Galerie"
-        },
-        "url": "/gallery"
-      },
-      {
-        "label": {
-          "en": "Book Now",
-          "ro": "Rezervă Acum"
-        },
-        "url": "/booking"
-      }
+      { "label": { "en": "Home", "ro": "Acasă" }, "url": "/" },
+      { "label": { "en": "Property Details", "ro": "Detalii Proprietate" }, "url": "/details" },
+      { "label": { "en": "Location", "ro": "Locație" }, "url": "/location" },
+      { "label": { "en": "Gallery", "ro": "Galerie" }, "url": "/gallery" },
+      { "label": { "en": "Book Now", "ro": "Rezervă Acum" }, "url": "/booking" }
     ],
     "contactInfo": {
       "email": "contact@example.com",
       "phone": "+1 (555) 123-4567"
     },
     "socialLinks": [
-      {
-        "platform": "facebook",
-        "url": "https://facebook.com/example"
-      },
-      {
-        "platform": "instagram",
-        "url": "https://instagram.com/example"
-      }
+      { "platform": "facebook", "url": "https://facebook.com/example" },
+      { "platform": "instagram", "url": "https://instagram.com/example" }
     ]
   },
   "defaults": {
@@ -350,144 +202,105 @@
       "data-ai-hint": "mountain panorama"
     },
     "pageHeader": {
-      "title": "Page Title",
-      "subtitle": "Page description goes here",
+      "title": { "en": "Page Title", "ro": "Titlul paginii" },
+      "subtitle": { "en": "Page description goes here", "ro": "Descrierea paginii" },
       "backgroundImage": "/images/templates/holiday-house/default-header.jpg"
     },
     "amenitiesList": {
-      "title": "Amenities",
+      "title": { "en": "Amenities", "ro": "Facilități" },
       "categories": [
         {
-          "name": "Indoor",
+          "name": { "en": "Indoor", "ro": "Interior" },
           "amenities": [
-            {
-              "icon": "Wifi",
-              "name": "Free WiFi"
-            },
-            {
-              "icon": "Tv",
-              "name": "Smart TV"
-            },
-            {
-              "icon": "Thermometer",
-              "name": "Air Conditioning"
-            },
-            {
-              "icon": "ShowerHead",
-              "name": "Hot Water"
-            }
+            { "icon": "Wifi", "name": { "en": "Free WiFi", "ro": "WiFi gratuit" } },
+            { "icon": "Tv", "name": { "en": "Smart TV", "ro": "Smart TV" } },
+            { "icon": "Thermometer", "name": { "en": "Air Conditioning", "ro": "Aer condiționat" } },
+            { "icon": "ShowerHead", "name": { "en": "Hot Water", "ro": "Apă caldă" } }
           ]
         },
         {
-          "name": "Outdoor",
+          "name": { "en": "Outdoor", "ro": "Exterior" },
           "amenities": [
-            {
-              "icon": "ParkingSquare",
-              "name": "Free Parking"
-            },
-            {
-              "icon": "Trees",
-              "name": "Garden"
-            },
-            {
-              "icon": "Flame",
-              "name": "BBQ"
-            }
+            { "icon": "ParkingSquare", "name": { "en": "Free Parking", "ro": "Parcare gratuită" } },
+            { "icon": "Trees", "name": { "en": "Garden", "ro": "Grădină" } },
+            { "icon": "Flame", "name": { "en": "BBQ", "ro": "Grătar" } }
           ]
         }
       ]
     },
     "roomsList": {
-      "title": "Rooms",
+      "title": { "en": "Rooms", "ro": "Camere" },
       "rooms": [
         {
-          "name": "Master Bedroom",
-          "description": "Spacious room with king-size bed",
+          "name": { "en": "Master Bedroom", "ro": "Dormitor principal" },
+          "description": { "en": "Spacious room with king-size bed", "ro": "Cameră spațioasă cu pat king-size" },
           "features": [
-            "King Bed",
-            "Ensuite Bathroom",
-            "TV"
+            { "en": "King Bed", "ro": "Pat king-size" },
+            { "en": "Ensuite Bathroom", "ro": "Baie proprie" },
+            { "en": "TV", "ro": "TV" }
           ],
           "image": "/images/templates/holiday-house/default-master.jpg"
         },
         {
-          "name": "Second Bedroom",
-          "description": "Comfortable room with two single beds",
+          "name": { "en": "Second Bedroom", "ro": "Al doilea dormitor" },
+          "description": { "en": "Comfortable room with two single beds", "ro": "Cameră confortabilă cu două paturi single" },
           "features": [
-            "Two Single Beds",
-            "Closet"
+            { "en": "Two Single Beds", "ro": "Două paturi single" },
+            { "en": "Closet", "ro": "Dulap" }
           ],
           "image": "/images/templates/holiday-house/default-second.jpg"
         },
         {
-          "name": "Living Room",
-          "description": "Cozy space with fireplace",
+          "name": { "en": "Living Room", "ro": "Sufragerie" },
+          "description": { "en": "Cozy space with fireplace", "ro": "Spațiu confortabil cu șemineu" },
           "features": [
-            "Sofa",
-            "Fireplace",
-            "TV"
+            { "en": "Sofa", "ro": "Canapea" },
+            { "en": "Fireplace", "ro": "Șemineu" },
+            { "en": "TV", "ro": "TV" }
           ],
           "image": "/images/templates/holiday-house/default-living.jpg"
         }
       ]
     },
     "specificationsList": {
-      "title": "Property Specifications",
+      "title": { "en": "Property Specifications", "ro": "Specificații proprietate" },
       "specifications": [
-        {
-          "name": "Size",
-          "value": "150 m²"
-        },
-        {
-          "name": "Bedrooms",
-          "value": "2"
-        },
-        {
-          "name": "Bathrooms",
-          "value": "2"
-        },
-        {
-          "name": "Max Guests",
-          "value": "4"
-        },
-        {
-          "name": "Built",
-          "value": "2010"
-        },
-        {
-          "name": "Renovated",
-          "value": "2022"
-        }
+        { "name": { "en": "Size", "ro": "Suprafață" }, "value": { "en": "150 m²", "ro": "150 m²" } },
+        { "name": { "en": "Bedrooms", "ro": "Dormitoare" }, "value": { "en": "2", "ro": "2" } },
+        { "name": { "en": "Bathrooms", "ro": "Băi" }, "value": { "en": "2", "ro": "2" } },
+        { "name": { "en": "Max Guests", "ro": "Oaspeți maxim" }, "value": { "en": "4", "ro": "4" } },
+        { "name": { "en": "Built", "ro": "Construit" }, "value": { "en": "2010", "ro": "2010" } },
+        { "name": { "en": "Renovated", "ro": "Renovat" }, "value": { "en": "2022", "ro": "2022" } }
       ]
     },
     "pricingTable": {
-      "title": "Pricing",
-      "description": "Our rates vary by season. All prices include cleaning fee and taxes.",
+      "title": { "en": "Pricing", "ro": "Prețuri" },
+      "description": { "en": "Our rates vary by season. All prices include cleaning fee and taxes.", "ro": "Tarifele noastre variază în funcție de sezon. Toate prețurile includ taxa de curățenie și impozitele." },
       "seasons": [
         {
-          "name": "Low Season",
-          "period": "November - March (except holidays)",
-          "rate": "€120 per night",
-          "minimumStay": "2 nights"
+          "name": { "en": "Low Season", "ro": "Extrasezon" },
+          "period": { "en": "November - March (except holidays)", "ro": "Noiembrie - Martie (cu excepția sărbătorilor)" },
+          "rate": { "en": "€120 per night", "ro": "120€ pe noapte" },
+          "minimumStay": { "en": "2 nights", "ro": "2 nopți" }
         },
         {
-          "name": "Mid Season",
-          "period": "April - June, September - October",
-          "rate": "€150 per night",
-          "minimumStay": "2 nights"
+          "name": { "en": "Mid Season", "ro": "Sezon mediu" },
+          "period": { "en": "April - June, September - October", "ro": "Aprilie - Iunie, Septembrie - Octombrie" },
+          "rate": { "en": "€150 per night", "ro": "150€ pe noapte" },
+          "minimumStay": { "en": "2 nights", "ro": "2 nopți" }
         },
         {
-          "name": "High Season",
-          "period": "July - August, Christmas, New Year",
-          "rate": "€180 per night",
-          "minimumStay": "3 nights"
+          "name": { "en": "High Season", "ro": "Sezon de vârf" },
+          "period": { "en": "July - August, Christmas, New Year", "ro": "Iulie - August, Crăciun, Revelion" },
+          "rate": { "en": "€180 per night", "ro": "180€ pe noapte" },
+          "minimumStay": { "en": "3 nights", "ro": "3 nopți" }
         }
       ]
     },
     "fullMap": {
-      "title": "Our Location",
-      "description": "Centrally located with easy access to attractions",
-      "address": "123 Main St, Example City, Country",
+      "title": { "en": "Our Location", "ro": "Locația noastră" },
+      "description": { "en": "Centrally located with easy access to attractions", "ro": "Amplasare centrală cu acces ușor la atracții" },
+      "address": { "en": "123 Main St, Example City, Country", "ro": "Str. Principală 123, Oraș Exemplu" },
       "coordinates": {
         "lat": 45.253,
         "lng": 25.6346
@@ -496,148 +309,144 @@
       "showDirections": true
     },
     "attractionsList": {
-      "title": "Nearby Attractions",
-      "description": "Discover these amazing places just a short distance away",
+      "title": { "en": "Nearby Attractions", "ro": "Atracții din apropiere" },
+      "description": { "en": "Discover these amazing places just a short distance away", "ro": "Descoperă aceste locuri uimitoare aflate la mică distanță" },
       "attractions": [
         {
-          "name": "Mountain Hiking Trail",
-          "description": "Beautiful trails with panoramic views",
-          "distance": "2 km",
+          "name": { "en": "Mountain Hiking Trail", "ro": "Traseu montan" },
+          "description": { "en": "Beautiful trails with panoramic views", "ro": "Trasee frumoase cu vedere panoramică" },
+          "distance": { "en": "2 km", "ro": "2 km" },
           "image": "/images/templates/holiday-house/default-hiking.jpg"
         },
         {
-          "name": "Historical Museum",
-          "description": "Learn about local history",
-          "distance": "5 km",
+          "name": { "en": "Historical Museum", "ro": "Muzeu istoric" },
+          "description": { "en": "Learn about local history", "ro": "Aflați despre istoria locală" },
+          "distance": { "en": "5 km", "ro": "5 km" },
           "image": "/images/templates/holiday-house/default-museum.jpg"
         },
         {
-          "name": "Local Winery",
-          "description": "Wine tasting and tours available",
-          "distance": "8 km",
+          "name": { "en": "Local Winery", "ro": "Cramă locală" },
+          "description": { "en": "Wine tasting and tours available", "ro": "Degustări de vin și tururi disponibile" },
+          "distance": { "en": "8 km", "ro": "8 km" },
           "image": "/images/templates/holiday-house/default-winery.jpg"
         }
       ]
     },
     "transportOptions": {
-      "title": "Getting Around",
-      "description": "Various transportation options are available",
+      "title": { "en": "Getting Around", "ro": "Cum ajungi" },
+      "description": { "en": "Various transportation options are available", "ro": "Sunt disponibile diverse opțiuni de transport" },
       "options": [
         {
           "icon": "Car",
-          "name": "Car",
-          "description": "Recommended for maximum flexibility"
+          "name": { "en": "Car", "ro": "Mașină" },
+          "description": { "en": "Recommended for maximum flexibility", "ro": "Recomandat pentru flexibilitate maximă" }
         },
         {
           "icon": "Bus",
-          "name": "Bus",
-          "description": "The #42 bus stops 200m from the property"
+          "name": { "en": "Bus", "ro": "Autobuz" },
+          "description": { "en": "The #42 bus stops 200m from the property", "ro": "Autobuzul #42 oprește la 200m de proprietate" }
         },
         {
           "icon": "Train",
-          "name": "Train",
-          "description": "The nearest station is 3km away"
+          "name": { "en": "Train", "ro": "Tren" },
+          "description": { "en": "The nearest station is 3km away", "ro": "Cea mai apropiată gară este la 3km" }
         }
       ]
     },
     "distancesList": {
-      "title": "Distances",
+      "title": { "en": "Distances", "ro": "Distanțe" },
       "distances": [
         {
-          "place": "City Center",
-          "distance": "10 km",
-          "time": "15 min by car"
+          "place": { "en": "City Center", "ro": "Centrul orașului" },
+          "distance": { "en": "10 km", "ro": "10 km" },
+          "time": { "en": "15 min by car", "ro": "15 min cu mașina" }
         },
         {
-          "place": "Beach",
-          "distance": "5 km",
-          "time": "10 min by car"
+          "place": { "en": "Beach", "ro": "Plajă" },
+          "distance": { "en": "5 km", "ro": "5 km" },
+          "time": { "en": "10 min by car", "ro": "10 min cu mașina" }
         },
         {
-          "place": "Airport",
-          "distance": "35 km",
-          "time": "40 min by car"
+          "place": { "en": "Airport", "ro": "Aeroport" },
+          "distance": { "en": "35 km", "ro": "35 km" },
+          "time": { "en": "40 min by car", "ro": "40 min cu mașina" }
         },
         {
-          "place": "Supermarket",
-          "distance": "1 km",
-          "time": "5 min walk"
+          "place": { "en": "Supermarket", "ro": "Supermarket" },
+          "distance": { "en": "1 km", "ro": "1 km" },
+          "time": { "en": "5 min walk", "ro": "5 min pe jos" }
         },
         {
-          "place": "Restaurant",
-          "distance": "0.5 km",
-          "time": "3 min walk"
+          "place": { "en": "Restaurant", "ro": "Restaurant" },
+          "distance": { "en": "0.5 km", "ro": "0,5 km" },
+          "time": { "en": "3 min walk", "ro": "3 min pe jos" }
         }
       ]
     },
     "galleryGrid": {
-      "title": "Photo Gallery",
-      "description": "Browse through images of our beautiful property",
+      "title": { "en": "Photo Gallery", "ro": "Galerie foto" },
+      "description": { "en": "Browse through images of our beautiful property", "ro": "Răsfoiți imagini cu proprietatea noastră frumoasă" },
       "layout": "grid",
       "enableLightbox": true
     },
     "photoCategories": {
-      "title": "Browse by Category",
+      "title": { "en": "Browse by Category", "ro": "Răsfoiți pe categorii" },
       "categories": [
         {
-          "name": "Interior",
-          "description": "Inside our beautiful property",
+          "name": { "en": "Interior", "ro": "Interior" },
+          "description": { "en": "Inside our beautiful property", "ro": "În interiorul proprietății noastre" },
           "thumbnail": "/images/templates/holiday-house/default-interior.jpg",
           "images": [
             {
               "url": "/images/templates/holiday-house/default-living.jpg",
-              "alt": "Living Room"
+              "alt": { "en": "Living Room", "ro": "Sufragerie" }
             },
             {
               "url": "/images/templates/holiday-house/default-kitchen.jpg",
-              "alt": "Kitchen"
+              "alt": { "en": "Kitchen", "ro": "Bucătărie" }
             }
           ]
         },
         {
-          "name": "Exterior",
-          "description": "Outside areas and views",
+          "name": { "en": "Exterior", "ro": "Exterior" },
+          "description": { "en": "Outside areas and views", "ro": "Zone exterioare și priveliști" },
           "thumbnail": "/images/templates/holiday-house/default-exterior.jpg",
           "images": [
             {
               "url": "/images/templates/holiday-house/default-garden.jpg",
-              "alt": "Garden"
+              "alt": { "en": "Garden", "ro": "Grădină" }
             },
             {
               "url": "/images/templates/holiday-house/default-terrace.jpg",
-              "alt": "Terrace"
+              "alt": { "en": "Terrace", "ro": "Terasă" }
             }
           ]
         }
       ]
     },
     "fullBookingForm": {
-      "title": "Book Your Stay",
-      "description": "Select your dates and complete your booking",
+      "title": { "en": "Book Your Stay", "ro": "Rezervă sejurul" },
+      "description": { "en": "Select your dates and complete your booking", "ro": "Selectați datele și finalizați rezervarea" },
       "showCalendar": true,
       "showSummary": true,
       "enableCoupons": true
     },
     "policiesList": {
-      "title": "Booking Policies",
+      "title": { "en": "Booking Policies", "ro": "Politici de rezervare" },
       "policies": [
         {
-          "title": "Cancellation Policy",
-          "description": "Free cancellation up to 14 days before check-in. Cancellations made within 14 days of check-in receive a 50% refund."
+          "title": { "en": "Cancellation Policy", "ro": "Politica de anulare" },
+          "description": { "en": "Free cancellation up to 14 days before check-in. Cancellations made within 14 days of check-in receive a 50% refund.", "ro": "Anulare gratuită cu până la 14 zile înainte de check-in. Anulările efectuate în mai puțin de 14 zile de la check-in primesc o rambursare de 50%." }
         },
         {
-          "title": "Check-in/Check-out",
-          "description": "Check-in: 3:00 PM - 8:00 PM, Check-out: by 11:00 AM"
+          "title": { "en": "Check-in/Check-out", "ro": "Check-in/Check-out" },
+          "description": { "en": "Check-in: 3:00 PM - 8:00 PM, Check-out: by 11:00 AM", "ro": "Check-in: 15:00 - 20:00, Check-out: până la 11:00" }
         },
         {
-          "title": "House Rules",
-          "description": "No smoking, no parties or events, pets not allowed."
+          "title": { "en": "House Rules", "ro": "Regulile casei" },
+          "description": { "en": "No smoking, no parties or events, pets not allowed.", "ro": "Fumatul interzis, fără petreceri sau evenimente, animalele de companie nu sunt permise." }
         }
       ]
     }
-  },
-  "_translationStatus": {
-    "needsManualTranslation": false,
-    "lastMigrated": "2025-05-16T12:28:04.085Z"
   }
 }

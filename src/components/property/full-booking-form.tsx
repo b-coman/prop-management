@@ -16,10 +16,6 @@ interface FullBookingFormProps {
 }
 
 export function FullBookingForm({ content, property }: FullBookingFormProps) {
-  // Add PROMINENT debug log to track component rendering
-  console.log(`%c[TRACK_RENDERED_COMPONENT] FullBookingForm RENDERED at ${new Date().toISOString()}`, 'color: green; font-weight: bold; font-size: 14px;');
-  console.log(`%c[TRACK_RENDERED_COMPONENT] property: ${property?.slug}`, 'color: green;');
-
   // Ensure content is valid with defaults
   if (!content) {
     console.warn("FullBookingForm received invalid content");
@@ -27,7 +23,7 @@ export function FullBookingForm({ content, property }: FullBookingFormProps) {
   }
 
   const {
-    title = "Book Your Stay [TEST]",
+    title = "Book Your Stay",
     description = "Check availability and book your stay with us",
     showCalendar = true,
     showSummary = true,

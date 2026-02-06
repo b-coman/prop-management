@@ -1,64 +1,108 @@
+"use client";
 
 import Link from 'next/link';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Facebook, Instagram, Twitter } from 'lucide-react'; // Add social icons
+import { Facebook, Instagram, Twitter } from 'lucide-react';
+import { useLanguage } from '@/hooks/useLanguage';
 
-export function Footer() {
+const socialIcons: Record<string, React.FC<{ size?: string | number }>> = {
+  facebook: Facebook,
+  instagram: Instagram,
+  twitter: Twitter,
+};
+
+interface FooterProps {
+  quickLinks?: Array<{ label: string | Record<string, string>; url: string }>;
+  contactInfo?: { email?: string; phone?: string };
+  socialLinks?: Array<{ platform: string; url: string }>;
+  propertyName?: string;
+  propertySlug?: string;
+}
+
+export function Footer({
+  quickLinks,
+  contactInfo,
+  socialLinks,
+  propertyName,
+  propertySlug,
+}: FooterProps) {
+  const { t, tc, getLocalizedPath } = useLanguage();
+
+  const basePath = propertySlug ? `/properties/${propertySlug}` : '';
+
+  const resolveUrl = (url: string) => {
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    return getLocalizedPath(`${basePath}${url}`);
+  };
+
+  const hasQuickLinks = quickLinks && quickLinks.length > 0;
+  const hasContact = contactInfo && (contactInfo.email || contactInfo.phone);
+  const hasSocial = socialLinks && socialLinks.length > 0;
+
   return (
     <footer className="border-t bg-muted/50 pt-16 pb-8">
       <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
           {/* Quick Links */}
-          <div>
-            <h4 className="font-semibold mb-4 text-foreground">Quick Links</h4>
-            <nav className="flex flex-col gap-2 text-sm text-muted-foreground">
-              <Link href="/" className="hover:text-foreground">Home</Link>
-              <Link href="#experience" className="hover:text-foreground">Experience</Link> {/* Assuming section IDs */}
-              <Link href="#features" className="hover:text-foreground">Features</Link>
-              <Link href="#location" className="hover:text-foreground">Location</Link>
-              <Link href="#testimonials" className="hover:text-foreground">Reviews</Link>
-            </nav>
-          </div>
+          {hasQuickLinks && (
+            <div>
+              <h4 className="font-semibold mb-4 text-foreground">
+                {t('footer.quickLinks', 'Quick Links')}
+              </h4>
+              <nav className="flex flex-col gap-2 text-sm text-muted-foreground">
+                {quickLinks.map((link, i) => (
+                  <Link key={i} href={resolveUrl(link.url)} className="hover:text-foreground">
+                    {tc(link.label)}
+                  </Link>
+                ))}
+              </nav>
+            </div>
+          )}
 
           {/* Contact Info */}
-          <div>
-            <h4 className="font-semibold mb-4 text-foreground">Contact Us</h4>
-            <address className="not-italic text-sm text-muted-foreground space-y-1">
-              {/* Add actual contact info or link */}
-              <p>info@prahovachalet.com</p> {/* Placeholder */}
-              <p>+40 123 456 789</p> {/* Placeholder */}
-              <p>Comarnic, Prahova, Romania</p> {/* Placeholder */}
-            </address>
-          </div>
+          {hasContact && (
+            <div>
+              <h4 className="font-semibold mb-4 text-foreground">
+                {t('footer.contact', 'Contact Us')}
+              </h4>
+              <address className="not-italic text-sm text-muted-foreground space-y-1">
+                {contactInfo.email && <p>{contactInfo.email}</p>}
+                {contactInfo.phone && <p>{contactInfo.phone}</p>}
+              </address>
+            </div>
+          )}
 
-           {/* Social Media */}
-           <div>
-             <h4 className="font-semibold mb-4 text-foreground">Follow Us</h4>
-             <div className="flex gap-4 text-muted-foreground">
-               <a href="#" target="_blank" rel="noopener noreferrer" className="hover:text-primary"><Facebook size={20} /></a>
-               <a href="#" target="_blank" rel="noopener noreferrer" className="hover:text-primary"><Instagram size={20} /></a>
-               <a href="#" target="_blank" rel="noopener noreferrer" className="hover:text-primary"><Twitter size={20} /></a>
-             </div>
-           </div>
-
-           {/* Newsletter Signup */}
-          <div>
-            <h4 className="font-semibold mb-4 text-foreground">Stay Updated</h4>
-            <p className="text-sm text-muted-foreground mb-3">Get special offers and updates.</p>
-            <form className="flex gap-2">
-              <Input type="email" placeholder="Enter your email" className="bg-background" />
-              <Button type="submit" variant="secondary" size="sm">Subscribe</Button>
-            </form>
-          </div>
+          {/* Social Media */}
+          {hasSocial && (
+            <div>
+              <h4 className="font-semibold mb-4 text-foreground">
+                {t('footer.social', 'Follow Us')}
+              </h4>
+              <div className="flex gap-4 text-muted-foreground">
+                {socialLinks.map((link, i) => {
+                  const Icon = socialIcons[link.platform.toLowerCase()];
+                  if (!Icon) return null;
+                  return (
+                    <a
+                      key={i}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-primary"
+                    >
+                      <Icon size={20} />
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="border-t border-border pt-8 text-center text-xs text-muted-foreground md:flex md:items-center md:justify-between">
-          <p>&copy; {new Date().getFullYear()} Prahova Mountain Chalet. All rights reserved.</p> {/* Update name */}
-          <nav className="mt-4 flex justify-center gap-4 md:mt-0">
-            <Link href="/privacy" className="hover:text-foreground">Privacy Policy</Link> {/* Add links if needed */}
-            <Link href="/terms" className="hover:text-foreground">Terms of Service</Link>
-          </nav>
+        <div className="border-t border-border pt-8 text-center text-xs text-muted-foreground">
+          <p>
+            &copy; {new Date().getFullYear()} {propertyName || 'RentalSpot'}.{' '}
+            {t('footer.rights', 'All rights reserved.')}
+          </p>
         </div>
       </div>
     </footer>

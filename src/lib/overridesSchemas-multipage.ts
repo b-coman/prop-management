@@ -2,7 +2,8 @@
 import { z } from 'zod';
 
 // Reusable type: accepts both plain string and {en, ro, ...} multilingual objects
-const multilingualString = z.union([z.string(), z.record(z.string(), z.string())]);
+export const multilingualString = z.union([z.string(), z.record(z.string(), z.string())]);
+export type MultilingualStringValue = z.infer<typeof multilingualString>;
 
 // Base schema for a block reference within a page
 export const blockReferenceSchema = z.object({
@@ -51,96 +52,112 @@ export const footerSchema = z.object({
 // Base schema for content blocks
 // These are re-used from the existing schemas and extended as needed
 export const heroSchema = z.object({
-  backgroundImage: z.string(),
-  title: multilingualString,
+  backgroundImage: z.string().optional().nullable(),
+  title: multilingualString.optional(),
   subtitle: multilingualString.optional(),
   price: z.number().optional(),
   showRating: z.boolean().optional(),
   showBookingForm: z.boolean().optional(),
   bookingForm: z.object({
-    position: z.enum(['top', 'bottom', 'center']),
-    size: z.enum(['small', 'medium', 'large']),
-  }).optional(),
+    position: z.enum(['center', 'top', 'bottom', 'top-left', 'top-right', 'bottom-left', 'bottom-right']).optional(),
+    size: z.enum(['compressed', 'small', 'medium', 'large']).optional(),
+  }).passthrough().optional(),
   'data-ai-hint': z.string().optional(),
-});
+}).passthrough();
+
+export const experienceHighlightSchema = z.object({
+  icon: z.string(),
+  title: multilingualString,
+  description: multilingualString,
+}).passthrough();
 
 export const experienceSchema = z.object({
   title: multilingualString,
   description: multilingualString,
-  highlights: z.array(
-    z.object({
-      icon: z.string(),
-      title: multilingualString,
-      description: multilingualString,
-    })
-  ),
-});
+  highlights: z.array(experienceHighlightSchema),
+}).passthrough();
 
 export const hostSchema = z.object({
+  title: multilingualString.optional(),
   name: multilingualString,
-  imageUrl: z.string(),
+  image: z.string().optional().nullable(),
+  imageUrl: z.string().optional().nullable(),
   description: multilingualString,
-  backstory: multilingualString,
+  backstory: multilingualString.optional(),
+  contact: z.object({
+    phone: z.string().optional(),
+    email: z.string().optional(),
+  }).passthrough().optional(),
+  ctaText: multilingualString.optional(),
+  ctaUrl: z.string().optional(),
   'data-ai-hint': z.string().optional(),
-});
+}).passthrough();
 
 export const featureSchema = z.object({
-  icon: z.string(),
+  icon: z.string().optional(),
   title: multilingualString,
   description: multilingualString,
-  image: z.string(),
+  image: z.string().optional().nullable(),
   'data-ai-hint': z.string().optional(),
-});
+}).passthrough();
 
 export const locationSchema = z.object({
   title: multilingualString,
   mapCenter: z.object({
     lat: z.number(),
     lng: z.number(),
-  }),
-});
+  }).passthrough().optional(),
+  ctaText: multilingualString.optional(),
+  ctaUrl: z.string().optional(),
+}).passthrough();
 
 export const attractionSchema = z.object({
   name: multilingualString,
+  distance: z.string().optional(),
   description: multilingualString,
-  image: z.string(),
+  image: z.string().optional().nullable(),
   'data-ai-hint': z.string().optional(),
-});
+}).passthrough();
 
 export const reviewSchema = z.object({
   name: z.string(),
   date: z.string().optional(),
   rating: z.number().min(1).max(5),
   text: multilingualString,
-  imageUrl: z.string().optional(),
+  imageUrl: z.string().optional().nullable(),
   'data-ai-hint': z.string().optional(),
-});
+}).passthrough();
 
 export const testimonialsSchema = z.object({
   title: multilingualString,
   showRating: z.boolean().optional(),
-  reviews: z.array(reviewSchema),
-});
+  reviews: z.array(reviewSchema).optional(),
+  ctaText: multilingualString.optional(),
+  ctaUrl: z.string().optional(),
+}).passthrough();
 
 export const galleryImageSchema = z.object({
   url: z.string(),
   alt: multilingualString,
+  isFeatured: z.boolean().optional(),
+  tags: z.array(z.string()).optional(),
+  sortOrder: z.number().optional(),
   'data-ai-hint': z.string().optional(),
-});
+}).passthrough();
 
 export const gallerySchema = z.object({
-  title: multilingualString,
-  images: z.array(galleryImageSchema),
-});
+  title: multilingualString.optional(),
+  images: z.array(galleryImageSchema).optional(),
+}).passthrough();
 
 export const ctaSchema = z.object({
   title: multilingualString,
   description: multilingualString,
   buttonText: multilingualString,
-  buttonUrl: z.string(),
-  backgroundImage: z.string(),
+  buttonUrl: z.string().optional(),
+  backgroundImage: z.string().optional().nullable(),
   'data-ai-hint': z.string().optional(),
-});
+}).passthrough();
 
 // New schemas for multi-page support
 export const pageHeaderSchema = z.object({
@@ -285,17 +302,43 @@ export const policiesListSchema = z.object({
   ),
 });
 
+// --- Text block
+export const textSchema = z.object({
+  title: multilingualString,
+  description: multilingualString,
+}).passthrough();
+
+// --- FAQ block
+export const faqItemSchema = z.object({
+  question: multilingualString,
+  answer: multilingualString,
+}).passthrough();
+
+export const faqSchema = z.array(faqItemSchema);
+
+// --- Standalone array schemas (for legacy flat overrides)
+export const featuresSchema = z.array(featureSchema);
+export const attractionsSchema = z.array(attractionSchema);
+export const imagesSchema = z.array(galleryImageSchema);
+
 // Map of block types to their schemas
 export const blockSchemas: Record<string, z.ZodTypeAny> = {
+  // Homepage blocks
   hero: heroSchema,
   experience: experienceSchema,
   host: hostSchema,
-  features: z.array(featureSchema),
+  features: featuresSchema,
   location: locationSchema,
-  attractions: z.array(attractionSchema),
+  attractions: attractionsSchema,
   testimonials: testimonialsSchema,
   gallery: gallerySchema,
   cta: ctaSchema,
+  // Standalone arrays
+  reviews: z.array(reviewSchema),
+  images: imagesSchema,
+  text: textSchema,
+  faq: faqSchema,
+  // Multipage blocks
   pageHeader: pageHeaderSchema,
   amenitiesList: amenitiesListSchema,
   roomsList: roomsListSchema,
@@ -321,11 +364,30 @@ export const websiteTemplateSchema = z.object({
   defaults: z.record(z.string(), z.any()),
 });
 
-// Schema for a property override
+// Schema for a property override (modern hierarchical format)
 export const propertyOverridesSchema = z.object({
   visiblePages: z.array(z.string()),
   menuItems: z.array(menuItemSchema).optional(),
 }).catchall(z.any());
+
+// Legacy flat property overrides schema (used by override-transformers for migration)
+export const legacyPropertyOverridesSchema = z.object({
+  visibleBlocks: z.array(z.string()).optional(),
+  hero: heroSchema.optional(),
+  experience: experienceSchema.optional(),
+  host: hostSchema.optional(),
+  features: featuresSchema.optional(),
+  location: locationSchema.optional(),
+  attractions: attractionsSchema.optional(),
+  testimonials: testimonialsSchema.optional(),
+  gallery: gallerySchema.optional(),
+  images: imagesSchema.optional(),
+  cta: ctaSchema.optional(),
+  faq: faqSchema.optional(),
+  text: textSchema.optional(),
+  createdAt: z.any().optional(),
+  updatedAt: z.any().optional(),
+}).passthrough();
 
 // TypeScript types derived from the Zod schemas
 export type BlockReference = z.infer<typeof blockReferenceSchema>;
@@ -361,3 +423,6 @@ export type GalleryGridBlock = z.infer<typeof galleryGridSchema>;
 export type PhotoCategoriesBlock = z.infer<typeof photoCategoriesSchema>;
 export type FullBookingFormBlock = z.infer<typeof fullBookingFormSchema>;
 export type PoliciesListBlock = z.infer<typeof policiesListSchema>;
+
+// Legacy type (used by override-transformers)
+export type LegacyPropertyOverridesData = z.infer<typeof legacyPropertyOverridesSchema>;

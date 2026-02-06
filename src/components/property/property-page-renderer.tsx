@@ -556,7 +556,13 @@ export function PropertyPageRenderer({
           {/* Only show theme switcher in development environment */}
           {isDev && <ThemeSwitcher />}
         </main>
-        <Footer />
+        <Footer
+          quickLinks={template.footer?.quickLinks}
+          contactInfo={template.footer?.contactInfo}
+          socialLinks={template.footer?.socialLinks}
+          propertyName={propertyName}
+          propertySlug={propertySlug}
+        />
       </div>
     </ThemeProvider>
   );
