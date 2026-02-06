@@ -20,7 +20,7 @@ import { DayDetailPopover } from './day-detail-popover';
 
 interface AvailabilityCalendarProps {
   propertyId: string;
-  initialData: MonthAvailabilityData;
+  initialMonths: MonthAvailabilityData[];
 }
 
 const STATUS_CONFIG: Record<DayStatus, { bg: string; border: string; icon: React.ReactNode; label: string }> = {
@@ -56,75 +56,109 @@ const STATUS_CONFIG: Record<DayStatus, { bg: string; border: string; icon: React
   },
 };
 
-const WEEKDAY_HEADERS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const WEEKDAY_HEADERS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
-export function AvailabilityCalendar({ propertyId, initialData }: AvailabilityCalendarProps) {
-  const [data, setData] = useState<MonthAvailabilityData>(initialData);
-  const [currentDate, setCurrentDate] = useState(() => {
-    const [y, m] = initialData.month.split('-').map(Number);
+export function AvailabilityCalendar({ propertyId, initialMonths }: AvailabilityCalendarProps) {
+  // monthsData is keyed by yearMonth string
+  const [monthsData, setMonthsData] = useState<Record<string, MonthAvailabilityData>>(() => {
+    const map: Record<string, MonthAvailabilityData> = {};
+    for (const m of initialMonths) {
+      map[m.month] = m;
+    }
+    return map;
+  });
+
+  // startDate is the first of the 3 visible months
+  const [startDate, setStartDate] = useState(() => {
+    const [y, m] = initialMonths[0].month.split('-').map(Number);
     return new Date(y, m - 1, 1);
   });
+
   const [isLoading, startTransition] = useTransition();
-  const [popoverDay, setPopoverDay] = useState<number | null>(null);
+  const [popoverKey, setPopoverKey] = useState<string | null>(null); // "YYYY-MM:day"
   const [anchor, setAnchor] = useState<{ yearMonth: string; day: number; action: 'block' | 'unblock' } | null>(null);
-  const [pendingDays, setPendingDays] = useState<Set<number>>(new Set());
+  const [pendingKeys, setPendingKeys] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
-  const yearMonth = format(currentDate, 'yyyy-MM');
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth(); // 0-based
-  const daysInMonth = getDaysInMonth(currentDate);
-  const firstDayOfWeek = new Date(year, month, 1).getDay();
-
   const today = new Date();
-  const todayDay = today.getFullYear() === year && today.getMonth() === month ? today.getDate() : null;
+  const todayYM = format(today, 'yyyy-MM');
+  const todayDay = today.getDate();
 
-  const loadMonth = useCallback((date: Date) => {
-    const ym = format(date, 'yyyy-MM');
+  // The 3 visible months
+  const visibleMonths = [0, 1, 2].map(i => {
+    const d = addMonths(startDate, i);
+    return format(d, 'yyyy-MM');
+  });
+
+  const loadVisibleMonths = useCallback((base: Date) => {
+    const yms = [0, 1, 2].map(i => format(addMonths(base, i), 'yyyy-MM'));
     startTransition(async () => {
       try {
-        const newData = await fetchAvailabilityCalendarData(propertyId, ym);
-        setData(newData);
+        const results = await Promise.all(
+          yms.map(ym => fetchAvailabilityCalendarData(propertyId, ym))
+        );
+        setMonthsData(prev => {
+          const next = { ...prev };
+          for (const r of results) {
+            next[r.month] = r;
+          }
+          return next;
+        });
       } catch {
         toast({ title: 'Error', description: 'Failed to load calendar data', variant: 'destructive' });
       }
     });
   }, [propertyId, toast]);
 
-  const navigateMonth = useCallback((direction: -1 | 1) => {
-    const newDate = direction === 1 ? addMonths(currentDate, 1) : subMonths(currentDate, 1);
-    setCurrentDate(newDate);
+  const navigate = useCallback((direction: -1 | 1) => {
+    const newStart = direction === 1 ? addMonths(startDate, 1) : subMonths(startDate, 1);
+    setStartDate(newStart);
     setAnchor(null);
-    setPopoverDay(null);
-    loadMonth(newDate);
-  }, [currentDate, loadMonth]);
+    setPopoverKey(null);
+    loadVisibleMonths(newStart);
+  }, [startDate, loadVisibleMonths]);
 
-  const isPast = (day: number) => {
-    const dayDate = new Date(year, month, day);
+  const isPast = (yearMonth: string, day: number) => {
+    const [y, m] = yearMonth.split('-').map(Number);
+    const dayDate = new Date(y, m - 1, day);
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     return dayDate < todayStart;
   };
 
-  const handleDayClick = useCallback(async (day: number, e: React.MouseEvent) => {
-    const dayData = data.days[day];
-    if (!dayData || isPast(day)) return;
+  const reloadMonth = useCallback((yearMonth: string) => {
+    startTransition(async () => {
+      try {
+        const result = await fetchAvailabilityCalendarData(propertyId, yearMonth);
+        setMonthsData(prev => ({ ...prev, [yearMonth]: result }));
+      } catch {
+        // silent
+      }
+    });
+  }, [propertyId]);
 
+  const handleDayClick = useCallback(async (yearMonth: string, day: number, e: React.MouseEvent) => {
+    const mData = monthsData[yearMonth];
+    if (!mData) return;
+    const dayData = mData.days[day];
+    if (!dayData || isPast(yearMonth, day)) return;
+
+    const key = `${yearMonth}:${day}`;
     const { status } = dayData;
 
     // For booked/held/external: show popover
     if (status === 'booked' || status === 'on-hold' || status === 'external-block') {
-      setPopoverDay(popoverDay === day ? null : day);
+      setPopoverKey(popoverKey === key ? null : key);
       return;
     }
 
-    // Shift+click: range selection
+    // Shift+click: range selection (same month only)
     if (e.shiftKey && anchor && anchor.yearMonth === yearMonth) {
       const from = Math.min(anchor.day, day);
       const to = Math.max(anchor.day, day);
       const dates: { yearMonth: string; day: number }[] = [];
       for (let d = from; d <= to; d++) {
-        if (isPast(d)) continue;
-        const ds = data.days[d];
+        if (isPast(yearMonth, d)) continue;
+        const ds = mData.days[d];
         if (!ds) continue;
         if (anchor.action === 'block' && ds.status === 'available') {
           dates.push({ yearMonth, day: d });
@@ -135,15 +169,16 @@ export function AvailabilityCalendar({ propertyId, initialData }: AvailabilityCa
 
       if (dates.length === 0) return;
 
-      // Optimistic update
       const block = anchor.action === 'block';
-      setData(prev => {
-        const updated = { ...prev, days: { ...prev.days }, summary: { ...prev.summary } };
+      setMonthsData(prev => {
+        const updated = { ...prev };
+        const m = { ...updated[yearMonth], days: { ...updated[yearMonth].days }, summary: { ...updated[yearMonth].summary } };
         for (const { day: d } of dates) {
-          updated.days[d] = { ...updated.days[d], status: block ? 'manual-block' : 'available' };
-          if (block) { updated.summary.available--; updated.summary.manuallyBlocked++; }
-          else { updated.summary.manuallyBlocked--; updated.summary.available++; }
+          m.days[d] = { ...m.days[d], status: block ? 'manual-block' : 'available' };
+          if (block) { m.summary.available--; m.summary.manuallyBlocked++; }
+          else { m.summary.manuallyBlocked--; m.summary.available++; }
         }
+        updated[yearMonth] = m;
         return updated;
       });
       setAnchor(null);
@@ -151,10 +186,10 @@ export function AvailabilityCalendar({ propertyId, initialData }: AvailabilityCa
       const result = await toggleDateRangeBlocked(propertyId, dates, block);
       if (result.error) {
         toast({ title: 'Error', description: result.error, variant: 'destructive' });
-        loadMonth(currentDate); // revert
+        reloadMonth(yearMonth);
       } else if (result.skippedCount > 0) {
         toast({ title: 'Partial update', description: `${result.blockedCount} updated, ${result.skippedCount} skipped` });
-        loadMonth(currentDate);
+        reloadMonth(yearMonth);
       }
       return;
     }
@@ -162,110 +197,164 @@ export function AvailabilityCalendar({ propertyId, initialData }: AvailabilityCa
     // Single click: toggle
     const block = status === 'available';
     const action = block ? 'block' : 'unblock';
-
-    // Set anchor for potential shift-click
     setAnchor({ yearMonth, day, action });
 
-    // Optimistic update
-    setPendingDays(prev => new Set(prev).add(day));
-    setData(prev => {
-      const updated = { ...prev, days: { ...prev.days }, summary: { ...prev.summary } };
-      updated.days[day] = { ...updated.days[day], status: block ? 'manual-block' : 'available' };
-      if (block) { updated.summary.available--; updated.summary.manuallyBlocked++; }
-      else { updated.summary.manuallyBlocked--; updated.summary.available++; }
+    setPendingKeys(prev => new Set(prev).add(key));
+    setMonthsData(prev => {
+      const updated = { ...prev };
+      const m = { ...updated[yearMonth], days: { ...updated[yearMonth].days }, summary: { ...updated[yearMonth].summary } };
+      m.days[day] = { ...m.days[day], status: block ? 'manual-block' : 'available' };
+      if (block) { m.summary.available--; m.summary.manuallyBlocked++; }
+      else { m.summary.manuallyBlocked--; m.summary.available++; }
+      updated[yearMonth] = m;
       return updated;
     });
 
     const result = await toggleDateBlocked(propertyId, yearMonth, day, block);
-    setPendingDays(prev => { const s = new Set(prev); s.delete(day); return s; });
+    setPendingKeys(prev => { const s = new Set(prev); s.delete(key); return s; });
 
     if (result.error) {
       toast({ title: 'Error', description: result.error, variant: 'destructive' });
-      loadMonth(currentDate); // revert
+      reloadMonth(yearMonth);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, anchor, yearMonth, propertyId, toast, currentDate, loadMonth]);
+  }, [monthsData, anchor, propertyId, toast, popoverKey, reloadMonth]);
 
-  // Build weeks for the grid
-  const weeks: (number | null)[][] = [];
-  let dayCounter = 1;
-  for (let week = 0; week < 6 && dayCounter <= daysInMonth; week++) {
-    const row: (number | null)[] = [];
-    for (let wd = 0; wd < 7; wd++) {
-      if ((week === 0 && wd < firstDayOfWeek) || dayCounter > daysInMonth) {
-        row.push(null);
-      } else {
-        row.push(dayCounter++);
+  // Aggregate summary across visible months
+  const totalSummary = visibleMonths.reduce(
+    (acc, ym) => {
+      const m = monthsData[ym];
+      if (!m) return acc;
+      acc.available += m.summary.available;
+      acc.booked += m.summary.booked;
+      acc.onHold += m.summary.onHold;
+      acc.externallyBlocked += m.summary.externallyBlocked;
+      acc.manuallyBlocked += m.summary.manuallyBlocked;
+      return acc;
+    },
+    { available: 0, booked: 0, onHold: 0, externallyBlocked: 0, manuallyBlocked: 0 }
+  );
+
+  const renderMonthGrid = (yearMonth: string) => {
+    const [y, m] = yearMonth.split('-').map(Number);
+    const date = new Date(y, m - 1, 1);
+    const dim = getDaysInMonth(date);
+    const firstDow = date.getDay();
+    const isCurrentMonth = yearMonth === todayYM;
+
+    const mData = monthsData[yearMonth];
+
+    // Build weeks
+    const weeks: (number | null)[][] = [];
+    let dc = 1;
+    for (let w = 0; w < 6 && dc <= dim; w++) {
+      const row: (number | null)[] = [];
+      for (let wd = 0; wd < 7; wd++) {
+        if ((w === 0 && wd < firstDow) || dc > dim) {
+          row.push(null);
+        } else {
+          row.push(dc++);
+        }
       }
-    }
-    weeks.push(row);
-  }
-
-  const renderDayCell = (day: number | null) => {
-    if (day === null) {
-      return <td key={`empty-${Math.random()}`} className="p-0.5"><div className="h-[72px]" /></td>;
+      weeks.push(row);
     }
 
-    const dayData = data.days[day];
-    if (!dayData) {
-      return <td key={`no-data-${day}`} className="p-0.5"><div className="h-[72px]" /></td>;
-    }
+    return (
+      <div key={yearMonth} className="flex-1 min-w-0">
+        <h3 className="text-sm font-semibold text-center mb-2">
+          {format(date, 'MMMM yyyy')}
+        </h3>
+        <table className="w-full border-separate border-spacing-0" style={{ tableLayout: 'fixed' }}>
+          <thead>
+            <tr>
+              {WEEKDAY_HEADERS.map((d, i) => (
+                <th
+                  key={d}
+                  className={`text-center text-[10px] font-medium py-1 ${
+                    i === 0 || i === 6 ? 'text-rose-500' : 'text-muted-foreground'
+                  }`}
+                >
+                  {d}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {weeks.map((week, wi) => (
+              <tr key={wi}>
+                {week.map((day, di) => {
+                  if (day === null) {
+                    return <td key={`e-${wi}-${di}`} className="p-0.5"><div className="h-[56px]" /></td>;
+                  }
 
-    const config = STATUS_CONFIG[dayData.status];
-    const past = isPast(day);
-    const isToday = day === todayDay;
-    const isAnchor = anchor?.day === day && anchor?.yearMonth === yearMonth;
-    const isPending = pendingDays.has(day);
-    const isClickable = !past && (dayData.status === 'available' || dayData.status === 'manual-block' || dayData.status === 'booked' || dayData.status === 'on-hold' || dayData.status === 'external-block');
+                  const dayData = mData?.days[day];
+                  if (!dayData) {
+                    return <td key={`nd-${day}`} className="p-0.5"><div className="h-[56px]" /></td>;
+                  }
 
-    const cellContent = (
-      <div
-        className={`
-          h-[72px] rounded-lg border p-1.5 flex flex-col transition-all select-none
-          ${config.bg} ${config.border}
-          ${past ? 'opacity-40' : ''}
-          ${isToday ? 'ring-2 ring-blue-500 ring-offset-1' : ''}
-          ${isAnchor ? 'ring-2 ring-blue-400' : ''}
-          ${isClickable && !past ? 'cursor-pointer' : ''}
-          ${isPending ? 'animate-pulse' : ''}
-        `}
-        onClick={(e) => handleDayClick(day, e)}
-      >
-        <div className="flex items-center justify-between">
-          <span className={`text-sm font-semibold ${isToday ? 'text-blue-700' : 'text-slate-700'}`}>
-            {day}
-          </span>
-          {config.icon}
-        </div>
-        <div className="mt-auto">
-          {dayData.status === 'external-block' && dayData.externalFeedName && (
-            <span className="text-[10px] text-blue-600 font-medium truncate block">
-              {dayData.externalFeedName}
-            </span>
-          )}
-          {config.label && dayData.status !== 'external-block' && (
-            <span className="text-[10px] text-muted-foreground">{config.label}</span>
-          )}
-        </div>
+                  const config = STATUS_CONFIG[dayData.status];
+                  const past = isPast(yearMonth, day);
+                  const isTodayCell = isCurrentMonth && day === todayDay;
+                  const cellKey = `${yearMonth}:${day}`;
+                  const isAnchor = anchor?.day === day && anchor?.yearMonth === yearMonth;
+                  const isPending = pendingKeys.has(cellKey);
+                  const isClickable = !past;
+
+                  const cellContent = (
+                    <div
+                      className={`
+                        h-[56px] rounded border p-1 flex flex-col transition-all select-none
+                        ${config.bg} ${config.border}
+                        ${past ? 'opacity-40' : ''}
+                        ${isTodayCell ? 'ring-2 ring-blue-500 ring-offset-1' : ''}
+                        ${isAnchor ? 'ring-2 ring-blue-400' : ''}
+                        ${isClickable && !past ? 'cursor-pointer' : ''}
+                        ${isPending ? 'animate-pulse' : ''}
+                      `}
+                      onClick={(e) => handleDayClick(yearMonth, day, e)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className={`text-xs font-semibold ${isTodayCell ? 'text-blue-700' : 'text-slate-700'}`}>
+                          {day}
+                        </span>
+                        {config.icon}
+                      </div>
+                      <div className="mt-auto">
+                        {dayData.status === 'external-block' && dayData.externalFeedName && (
+                          <span className="text-[9px] text-blue-600 font-medium truncate block leading-tight">
+                            {dayData.externalFeedName}
+                          </span>
+                        )}
+                        {config.label && dayData.status !== 'external-block' && (
+                          <span className="text-[9px] text-muted-foreground leading-tight">{config.label}</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+
+                  // Wrap booked/held/external in popover
+                  if ((dayData.status === 'booked' || dayData.status === 'on-hold' || dayData.status === 'external-block') && !past) {
+                    return (
+                      <td key={`d-${day}`} className="p-0.5">
+                        <DayDetailPopover
+                          dayData={dayData}
+                          open={popoverKey === cellKey}
+                          onOpenChange={(open) => setPopoverKey(open ? cellKey : null)}
+                        >
+                          {cellContent}
+                        </DayDetailPopover>
+                      </td>
+                    );
+                  }
+
+                  return <td key={`d-${day}`} className="p-0.5">{cellContent}</td>;
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     );
-
-    // Wrap booked/held/external in popover
-    if ((dayData.status === 'booked' || dayData.status === 'on-hold' || dayData.status === 'external-block') && !past) {
-      return (
-        <td key={`day-${day}`} className="p-0.5">
-          <DayDetailPopover
-            dayData={dayData}
-            open={popoverDay === day}
-            onOpenChange={(open) => setPopoverDay(open ? day : null)}
-          >
-            {cellContent}
-          </DayDetailPopover>
-        </td>
-      );
-    }
-
-    return <td key={`day-${day}`} className="p-0.5">{cellContent}</td>;
   };
 
   return (
@@ -274,13 +363,10 @@ export function AvailabilityCalendar({ propertyId, initialData }: AvailabilityCa
         <div className="flex items-center justify-between">
           <CardTitle>Availability Calendar</CardTitle>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => navigateMonth(-1)} disabled={isLoading}>
+            <Button variant="outline" size="icon" onClick={() => navigate(-1)} disabled={isLoading}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-sm font-medium w-36 text-center">
-              {format(currentDate, 'MMMM yyyy')}
-            </span>
-            <Button variant="outline" size="icon" onClick={() => navigateMonth(1)} disabled={isLoading}>
+            <Button variant="outline" size="icon" onClick={() => navigate(1)} disabled={isLoading}>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
@@ -295,53 +381,31 @@ export function AvailabilityCalendar({ propertyId, initialData }: AvailabilityCa
 
         {!isLoading && (
           <>
-            <div className="overflow-auto">
-              <table className="w-full border-separate border-spacing-0" style={{ tableLayout: 'fixed' }}>
-                <thead>
-                  <tr>
-                    {WEEKDAY_HEADERS.map((day, i) => (
-                      <th
-                        key={day}
-                        className={`text-center text-xs font-medium py-2 ${
-                          i === 0 || i === 6 ? 'text-rose-500' : 'text-muted-foreground'
-                        }`}
-                      >
-                        {day}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {weeks.map((week, wi) => (
-                    <tr key={wi}>
-                      {week.map((day, di) => renderDayCell(day))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="flex gap-4">
+              {visibleMonths.map(ym => renderMonthGrid(ym))}
             </div>
 
             {/* Legend + summary */}
             <div className="mt-4 pt-4 border-t flex flex-wrap items-center gap-4 text-xs">
               <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 rounded border border-slate-200 bg-white" />
-                <span>Available ({data.summary.available})</span>
+                <div className="w-3.5 h-3.5 rounded border border-slate-200 bg-white" />
+                <span>Available ({totalSummary.available})</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 rounded border border-emerald-300 bg-emerald-50" />
-                <span>Booked ({data.summary.booked})</span>
+                <div className="w-3.5 h-3.5 rounded border border-emerald-300 bg-emerald-50" />
+                <span>Booked ({totalSummary.booked})</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 rounded border border-amber-300 bg-amber-50" />
-                <span>On Hold ({data.summary.onHold})</span>
+                <div className="w-3.5 h-3.5 rounded border border-amber-300 bg-amber-50" />
+                <span>On Hold ({totalSummary.onHold})</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 rounded border border-blue-300 bg-blue-50" />
-                <span>External ({data.summary.externallyBlocked})</span>
+                <div className="w-3.5 h-3.5 rounded border border-blue-300 bg-blue-50" />
+                <span>External ({totalSummary.externallyBlocked})</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 rounded border border-slate-400 bg-slate-200" />
-                <span>Blocked ({data.summary.manuallyBlocked})</span>
+                <div className="w-3.5 h-3.5 rounded border border-slate-400 bg-slate-200" />
+                <span>Blocked ({totalSummary.manuallyBlocked})</span>
               </div>
             </div>
 

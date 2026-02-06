@@ -7,7 +7,7 @@ import { ICalFeedsTable } from './_components/ical-feeds-table';
 import { AddFeedDialog } from './_components/add-feed-dialog';
 import { fetchProperties, fetchICalFeeds, fetchExportConfig, fetchAvailabilityCalendarData } from './actions';
 import { AvailabilityCalendar } from './_components/availability-calendar';
-import { format } from 'date-fns';
+import { format, addMonths } from 'date-fns';
 import type { MonthAvailabilityData } from './_lib/availability-types';
 
 export const dynamic = 'force-dynamic';
@@ -24,15 +24,19 @@ export default async function CalendarSyncPage({
 
   let feeds: Awaited<ReturnType<typeof fetchICalFeeds>> = [];
   let exportConfig: Awaited<ReturnType<typeof fetchExportConfig>> = {};
-  let availabilityData: MonthAvailabilityData | null = null;
+  let initialMonths: MonthAvailabilityData[] = [];
 
   if (propertyId) {
-    const currentYearMonth = format(new Date(), 'yyyy-MM');
-    [feeds, exportConfig, availabilityData] = await Promise.all([
+    const now = new Date();
+    const months = [0, 1, 2].map(i => format(addMonths(now, i), 'yyyy-MM'));
+    const [feedsResult, exportResult, ...monthResults] = await Promise.all([
       fetchICalFeeds(propertyId),
       fetchExportConfig(propertyId),
-      fetchAvailabilityCalendarData(propertyId, currentYearMonth),
+      ...months.map(ym => fetchAvailabilityCalendarData(propertyId, ym)),
     ]);
+    feeds = feedsResult;
+    exportConfig = exportResult;
+    initialMonths = monthResults;
   }
 
   return (
@@ -84,10 +88,10 @@ export default async function CalendarSyncPage({
           </TabsContent>
 
           <TabsContent value="calendar-view">
-            {availabilityData && (
+            {initialMonths.length > 0 && (
               <AvailabilityCalendar
                 propertyId={propertyId}
-                initialData={availabilityData}
+                initialMonths={initialMonths}
               />
             )}
           </TabsContent>
