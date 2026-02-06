@@ -1,5 +1,6 @@
 // src/app/properties/[slug]/[[...path]]/page.tsx
 import { Suspense } from 'react';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { collection, doc, getDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -7,6 +8,9 @@ import { PropertyPageRenderer } from '@/components/property/property-page-render
 import { websiteTemplateSchema, propertyOverridesSchema } from '@/lib/overridesSchemas-multipage';
 import { LanguageProvider } from '@/lib/language-system';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
+import { serverTranslateContent } from '@/lib/server-language-utils';
+import { buildVacationRentalJsonLd, buildBreadcrumbJsonLd, getCanonicalUrl, getBaseUrl } from '@/lib/structured-data';
+import { getAmenitiesByRefs } from '@/lib/amenity-utils';
 
 export const dynamic = 'force-dynamic'; // Ensures the page is always dynamically rendered
 
@@ -115,9 +119,60 @@ async function getPropertyOverrides(slug: string) {
 }
 
 interface PropertyPageProps {
-  params: { 
+  params: Promise<{
     slug: string;
     path?: string[];
+  }>;
+}
+
+// Generate metadata for SEO (Open Graph, Twitter Cards, canonical URL)
+export async function generateMetadata({ params }: PropertyPageProps): Promise<Metadata> {
+  const { slug, path = [] } = await params;
+
+  let language = DEFAULT_LANGUAGE;
+  if (path.length > 0 && SUPPORTED_LANGUAGES.includes(path[0])) {
+    language = path[0];
+  }
+
+  const property = await getProperty(slug);
+  if (!property) {
+    return { title: 'Property Not Found' };
+  }
+
+  const propertyName = serverTranslateContent(property.name, language);
+  const description = serverTranslateContent(
+    property.shortDescription || property.description,
+    language,
+  ) || `Book ${propertyName} - vacation rental`;
+
+  const canonicalUrl = getCanonicalUrl(slug);
+  const featuredImage = property.images?.find(img => img.isFeatured)?.url
+    || property.images?.[0]?.url;
+
+  return {
+    title: propertyName,
+    description,
+    openGraph: {
+      title: propertyName,
+      description,
+      url: canonicalUrl,
+      type: 'website',
+      images: featuredImage ? [{ url: featuredImage, alt: propertyName }] : [],
+      locale: language === 'ro' ? 'ro_RO' : 'en_US',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: propertyName,
+      description,
+      images: featuredImage ? [featuredImage] : [],
+    },
+    alternates: {
+      canonical: canonicalUrl,
+      languages: {
+        'en': canonicalUrl,
+        'ro': `${canonicalUrl}/ro`,
+      },
+    },
   };
 }
 
@@ -129,9 +184,7 @@ export async function getWebsiteTemplate(templateId: string) {
 export { getPropertyOverrides };
 
 export default async function PropertyPage({ params }: PropertyPageProps) {
-  // Await the params object to ensure it's fully resolved
-  const resolvedParams = await Promise.resolve(params);
-  const { slug, path = [] } = resolvedParams;
+  const { slug, path = [] } = await params;
 
   // Extract language from path if present
   let language = DEFAULT_LANGUAGE;
@@ -291,36 +344,78 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     console.warn('[PropertyPage] ⚠️ No hero data found in overrides');
   }
 
+  // Build structured data (JSON-LD)
+  const canonicalUrl = getCanonicalUrl(slug);
+  const baseUrl = getBaseUrl();
+  const propertyNameStr = typeof property.name === 'string'
+    ? property.name
+    : (property.name.en || property.name.ro || 'Property');
+
+  // Build VacationRental JSON-LD only on homepage
+  let vacationRentalJsonLd: Record<string, unknown> | null = null;
+  if (pageName === 'homepage') {
+    const amenities = property.amenityRefs?.length
+      ? await getAmenitiesByRefs(property.amenityRefs)
+      : [];
+    vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl });
+  }
+
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd(propertyNameStr, slug, baseUrl);
+
   // For homepage with default language, use the exact pattern from [slug]/page.tsx
   if (pageName === 'homepage' && language === DEFAULT_LANGUAGE) {
     return (
-      <Suspense fallback={<div>Loading property details...</div>}>
-        <PropertyPageRenderer
-          template={template}
-          overrides={overrides}
-          propertyName={typeof property.name === 'string' ? property.name : (property.name.en || property.name.ro || 'Property')}
-          propertySlug={slug}
-          pageName="homepage"
-          themeId={property.themeId}
+      <>
+        {vacationRentalJsonLd && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(vacationRentalJsonLd) }}
+          />
+        )}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
         />
-      </Suspense>
+        <Suspense fallback={<div>Loading property details...</div>}>
+          <PropertyPageRenderer
+            template={template}
+            overrides={overrides}
+            propertyName={propertyNameStr}
+            propertySlug={slug}
+            pageName="homepage"
+            themeId={property.themeId}
+          />
+        </Suspense>
+      </>
     );
   }
 
   // For all other cases (non-homepage or with language), wrap in LanguageProvider
   return (
-    <LanguageProvider initialLanguage={language}>
-      <Suspense fallback={<div>Loading property details...</div>}>
-        <PropertyPageRenderer
-          template={template}
-          overrides={overrides}
-          propertyName={typeof property.name === 'string' ? property.name : (property.name[language] || property.name.en || property.name.ro || 'Property')}
-          propertySlug={slug}
-          pageName={pageName}
-          themeId={property.themeId}
-          language={language}
+    <>
+      {vacationRentalJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(vacationRentalJsonLd) }}
         />
-      </Suspense>
-    </LanguageProvider>
+      )}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <LanguageProvider initialLanguage={language}>
+        <Suspense fallback={<div>Loading property details...</div>}>
+          <PropertyPageRenderer
+            template={template}
+            overrides={overrides}
+            propertyName={typeof property.name === 'string' ? property.name : (property.name[language] || property.name.en || property.name.ro || 'Property')}
+            propertySlug={slug}
+            pageName={pageName}
+            themeId={property.themeId}
+            language={language}
+          />
+        </Suspense>
+      </LanguageProvider>
+    </>
   );
 }
