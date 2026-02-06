@@ -456,9 +456,13 @@ export function PropertyPageRenderer({
           const overrideReviews = blockContent?.reviews || [];
           const combinedReviews = realReviews.length > 0 ? realReviews : overrideReviews;
 
+          // Ensure title is multilingual (template default may be a plain English string)
+          const defaultTitle = { en: "What Our Guests Say", ro: "Ce spun oaspeții noștri" };
+          const title = typeof blockContent?.title === 'string' ? defaultTitle : (blockContent?.title || defaultTitle);
+
           blockContent = {
             ...blockContent,
-            title: blockContent?.title || "What Our Guests Say",
+            title,
             overallRating: property.ratings?.average || 0,
             reviewCount: property.ratings?.count || 0,
             showRating: blockContent?.showRating,

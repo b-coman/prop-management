@@ -424,6 +424,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
             themeId={property.themeId}
             language={language}
             property={property}
+            publishedReviews={publishedReviews}
           />
         </Suspense>
       </LanguageProvider>
