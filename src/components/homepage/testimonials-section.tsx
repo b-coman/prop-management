@@ -8,13 +8,15 @@ import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/hooks/useLanguage';
 
 interface Review {
-  id?: string; // Make optional if not always present
+  id?: string;
   name: string;
-  date?: string; // Add date field
+  date?: string;
   rating: number;
-  text: string | { [key: string]: string }; // Renamed from comment for consistency
-  imageUrl?: string | null; // Optional guest image
-   'data-ai-hint'?: string; // Optional AI hint for image generation
+  text: string | { [key: string]: string };
+  imageUrl?: string | null;
+  'data-ai-hint'?: string;
+  source?: string;
+  sourceUrl?: string;
 }
 
 interface TestimonialsContent {
@@ -69,6 +71,9 @@ export function TestimonialsSection({ content, language = 'en' }: TestimonialsSe
     return null;
   }
 
+  // Detect if reviews are real (have a source field) vs override-only
+  const hasRealReviews = reviews.some(r => r.source);
+
   return (
     <section className="py-16 md:py-24 bg-secondary/50" id="testimonials"> {/* Added ID */}
       <div className="container mx-auto px-4">
@@ -91,8 +96,8 @@ export function TestimonialsSection({ content, language = 'en' }: TestimonialsSe
 
          {/* Use a fluid grid layout */}
         <div className="grid gap-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
-          {reviews.slice(0, 3).map((review, index) => ( // Show first 3 reviews
-            <Card key={review.id || index} className="flex flex-col border-border"> {/* Use index as fallback key */}
+          {reviews.slice(0, hasRealReviews ? 6 : 3).map((review, index) => (
+            <Card key={review.id || index} className="flex flex-col border-border">
               <CardContent className="p-6 flex-grow flex flex-col">
                 <div className="flex items-center mb-4">
                   <div className="flex-shrink-0 w-12 h-12 relative rounded-full overflow-hidden mr-4 border-2 border-primary/20 bg-muted">
@@ -107,20 +112,35 @@ export function TestimonialsSection({ content, language = 'en' }: TestimonialsSe
                         />
                     ) : (
                          <div className="flex items-center justify-center h-full w-full">
-                             <UserCircle className="h-8 w-8 text-muted-foreground/50" /> {/* Fallback Icon */}
+                             <UserCircle className="h-8 w-8 text-muted-foreground/50" />
                          </div>
                     )}
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground">{review.name}</p>
-                     {review.date && <p className="text-xs text-muted-foreground">{review.date}</p>} {/* Display date */}
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-foreground">{review.name}</p>
+                      {review.source && review.source !== 'direct' && review.source !== 'manual' && (
+                        review.sourceUrl ? (
+                          <a href={review.sourceUrl} target="_blank" rel="noopener noreferrer">
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                              {review.source === 'booking.com' ? 'Booking.com' : review.source.charAt(0).toUpperCase() + review.source.slice(1)}
+                            </Badge>
+                          </a>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                            {review.source === 'booking.com' ? 'Booking.com' : review.source.charAt(0).toUpperCase() + review.source.slice(1)}
+                          </Badge>
+                        )
+                      )}
+                    </div>
+                     {review.date && <p className="text-xs text-muted-foreground">{review.date}</p>}
                     <div className="flex mt-1">
                        {renderStars(review.rating)}
                     </div>
                   </div>
                 </div>
                 <p className="text-muted-foreground text-sm italic flex-grow">
-                  "{tc(review.text)}"
+                  &quot;{tc(review.text)}&quot;
                 </p>
               </CardContent>
             </Card>

@@ -59,7 +59,7 @@
 
 import { useEffect, useState } from 'react';
 import { WebsiteTemplate, PropertyOverrides, BlockReference } from '@/lib/overridesSchemas-multipage';
-import type { Property } from '@/types';
+import type { Property, Review } from '@/types';
 import { blockSchemas } from '@/lib/overridesSchemas-multipage';
 import { Header } from '@/components/generic-header-multipage';
 import { Footer } from '@/components/footer';
@@ -140,6 +140,7 @@ interface PropertyPageRendererProps {
   language?: string; // The current language
   // Homepage-specific props for property data integration
   property?: Property; // Full property object for homepage rendering
+  publishedReviews?: Review[]; // Real reviews from Firestore
 }
 
 export function PropertyPageRenderer({
@@ -151,6 +152,7 @@ export function PropertyPageRenderer({
   themeId = DEFAULT_THEME_ID,
   language = 'en',
   property, // Homepage-specific property data
+  publishedReviews, // Real reviews from Firestore
 }: PropertyPageRendererProps) {
   const [isClient, setIsClient] = useState(false);
   const [effectiveThemeId, setEffectiveThemeId] = useState<string | null>(null);
@@ -440,12 +442,26 @@ export function PropertyPageRenderer({
             ...blockContent
           };
         } else if (type === 'testimonials') {
+          // Convert real reviews to testimonials format
+          const realReviews = publishedReviews?.map(r => ({
+            name: r.guestName,
+            date: typeof r.date === 'string' ? new Date(r.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short' }) : undefined,
+            rating: r.rating,
+            text: r.comment,
+            source: r.source,
+            sourceUrl: r.sourceUrl,
+          })) || [];
+
+          // Real reviews take priority, override reviews as fallback
+          const overrideReviews = blockContent?.reviews || [];
+          const combinedReviews = realReviews.length > 0 ? realReviews : overrideReviews;
+
           blockContent = {
+            ...blockContent,
             title: blockContent?.title || "What Our Guests Say",
             overallRating: property.ratings?.average || 0,
-            reviews: blockContent?.reviews || [],
             showRating: blockContent?.showRating,
-            ...blockContent
+            reviews: combinedReviews,
           };
         }
       }

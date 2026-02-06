@@ -250,20 +250,27 @@ export interface User {
   lastLogin?: SerializableTimestamp;
 }
 
+export type ReviewSource = 'direct' | 'google' | 'booking.com' | 'airbnb' | 'manual';
+
 export interface Review {
   id: string;
   propertyId: string;
   bookingId?: string;
-  guestName: string; // Or userId if linked to a User
-  rating: number; // e.g., 1-5
+  guestName: string;
+  rating: number;             // 1-5
   comment: string;
-  photos?: string[]; // URLs to review photos
+  photos?: string[];
   date: SerializableTimestamp;
+  source: ReviewSource;
+  sourceUrl?: string;
+  language?: string;
   ownerResponse?: {
     comment: string;
     date: SerializableTimestamp;
   };
-  isPublished?: boolean;
+  isPublished: boolean;
+  createdAt: SerializableTimestamp;
+  updatedAt?: SerializableTimestamp;
 }
 
 export interface WebsiteTemplate {

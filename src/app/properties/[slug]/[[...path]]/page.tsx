@@ -15,7 +15,9 @@ import { getAmenitiesByRefs } from '@/lib/amenity-utils';
 export const dynamic = 'force-dynamic'; // Ensures the page is always dynamically rendered
 
 // Import the utility function
+import type { Review } from '@/types';
 import { getPropertyBySlug, getPublishedReviewCount } from '@/lib/property-utils';
+import { getPublishedReviewsForProperty } from '@/services/reviewService';
 
 // Alias for backward compatibility
 const getProperty = getPropertyBySlug;
@@ -354,13 +356,16 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
 
   // Build VacationRental JSON-LD only on homepage
   let vacationRentalJsonLd: Record<string, unknown> | null = null;
+  let publishedReviews: Review[] = [];
   if (pageName === 'homepage') {
-    const [amenities, publishedReviewCount] = await Promise.all([
+    const [amenities, publishedReviewCount, fetchedReviews] = await Promise.all([
       property.amenityRefs?.length ? getAmenitiesByRefs(property.amenityRefs) : [],
       getPublishedReviewCount(slug),
+      getPublishedReviewsForProperty(slug, 10),
     ]);
+    publishedReviews = fetchedReviews;
     const telephone = template?.footer?.contactInfo?.phone || undefined;
-    vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl, telephone, publishedReviewCount });
+    vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl, telephone, publishedReviewCount, publishedReviews });
   }
 
   const breadcrumbJsonLd = buildBreadcrumbJsonLd(propertyNameStr, slug, baseUrl);
@@ -387,6 +392,8 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
             propertySlug={slug}
             pageName="homepage"
             themeId={property.themeId}
+            property={property}
+            publishedReviews={publishedReviews}
           />
         </Suspense>
       </>
@@ -416,6 +423,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
             pageName={pageName}
             themeId={property.themeId}
             language={language}
+            property={property}
           />
         </Suspense>
       </LanguageProvider>

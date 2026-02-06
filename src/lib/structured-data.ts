@@ -1,4 +1,4 @@
-import type { Property, Amenity } from '@/types';
+import type { Property, Amenity, Review } from '@/types';
 
 // Map full country names to ISO 3166-1 alpha-2 codes (Google requires ISO codes)
 const COUNTRY_TO_ISO: Record<string, string> = {
@@ -82,6 +82,7 @@ interface VacationRentalJsonLdOptions {
   canonicalUrl: string;
   telephone?: string;
   publishedReviewCount?: number;
+  publishedReviews?: Review[];
 }
 
 function isPlaceholderValue(value?: string): boolean {
@@ -91,7 +92,7 @@ function isPlaceholderValue(value?: string): boolean {
 }
 
 export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions): Record<string, unknown> {
-  const { property, amenities = [], canonicalUrl, telephone, publishedReviewCount } = options;
+  const { property, amenities = [], canonicalUrl, telephone, publishedReviewCount, publishedReviews = [] } = options;
   const validTelephone = telephone && !isPlaceholderValue(telephone) ? telephone : undefined;
 
   const name = typeof property.name === 'string'
@@ -244,6 +245,24 @@ export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions):
     ? `${property.pricePerNight} ${property.baseCurrency}/night`
     : undefined;
 
+  // Build individual Review objects (up to 5) from published reviews
+  const reviewJsonLd = publishedReviews.slice(0, 5).map((review) => {
+    const dateStr = typeof review.date === 'string'
+      ? review.date.split('T')[0]  // ISO date to YYYY-MM-DD
+      : undefined;
+    return {
+      '@type': 'Review' as const,
+      author: { '@type': 'Person' as const, name: review.guestName },
+      ...(dateStr && { datePublished: dateStr }),
+      reviewBody: review.comment,
+      reviewRating: {
+        '@type': 'Rating' as const,
+        ratingValue: review.rating,
+        bestRating: 5,
+      },
+    };
+  });
+
   // Assemble the full JSON-LD
   const jsonLd: Record<string, unknown> = {
     '@context': 'https://schema.org',
@@ -264,6 +283,7 @@ export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions):
     ...(formatTime(property.checkOutTime) && { checkoutTime: formatTime(property.checkOutTime) }),
     containsPlace,
     ...(aggregateRating && { aggregateRating }),
+    ...(reviewJsonLd.length > 0 && { review: reviewJsonLd }),
     knowsLanguage: ['en', 'ro'],
   };
 

@@ -17,6 +17,7 @@ import {
   LogOut,
   ChevronRight,
   Loader2,
+  Star,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/SimpleAuthContext';
 import { usePropertySelector } from '@/contexts/PropertySelectorContext';
@@ -56,6 +57,7 @@ const navigationGroups = [
     items: [
       { title: 'Bookings', href: '/admin/bookings', icon: CalendarCheck },
       { title: 'Inquiries', href: '/admin/inquiries', icon: MessageSquare },
+      { title: 'Reviews', href: '/admin/reviews', icon: Star },
     ],
   },
   {

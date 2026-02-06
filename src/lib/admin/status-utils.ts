@@ -34,7 +34,10 @@ export type StatusType =
   | 'inactive'
   | 'draft'
   // Coupon statuses
-  | 'expired';
+  | 'expired'
+  // Review statuses
+  | 'published'
+  | 'unpublished';
 
 export interface StatusConfig {
   label: string;
@@ -164,6 +167,24 @@ export const STATUS_CONFIGS: Record<string, StatusConfig> = {
     textColor: 'text-red-800',
     borderColor: 'border-red-300',
     icon: XCircle,
+  },
+
+  // Review statuses
+  published: {
+    label: 'Published',
+    color: 'green',
+    bgColor: 'bg-green-100',
+    textColor: 'text-green-800',
+    borderColor: 'border-green-300',
+    icon: CheckCircle,
+  },
+  unpublished: {
+    label: 'Unpublished',
+    color: 'yellow',
+    bgColor: 'bg-yellow-100',
+    textColor: 'text-yellow-800',
+    borderColor: 'border-yellow-300',
+    icon: PauseCircle,
   },
 };
 
