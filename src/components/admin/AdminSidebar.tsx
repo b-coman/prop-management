@@ -16,6 +16,7 @@ import {
   RefreshCw,
   LogOut,
   ChevronRight,
+  Loader2,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/SimpleAuthContext';
 import { usePropertySelector } from '@/contexts/PropertySelectorContext';
@@ -71,7 +72,7 @@ export function AdminSidebar() {
   const { signOut, user } = useAuth();
   const { state } = useSidebar();
   const isCollapsed = state === 'collapsed';
-  const { properties, selectedPropertyId, setSelectedProperty } = usePropertySelector();
+  const { properties, selectedPropertyId, setSelectedProperty, isPending } = usePropertySelector();
 
   const handleLogout = async () => {
     await signOut();
@@ -109,9 +110,17 @@ export function AdminSidebar() {
                 <Select
                   value={selectedPropertyId || 'all'}
                   onValueChange={(v) => setSelectedProperty(v === 'all' ? null : v)}
+                  disabled={isPending}
                 >
                   <SelectTrigger className="w-full h-8 text-xs">
-                    <SelectValue placeholder="Select property" />
+                    {isPending ? (
+                      <div className="flex items-center gap-1.5">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <span className="text-muted-foreground">Loading...</span>
+                      </div>
+                    ) : (
+                      <SelectValue placeholder="Select property" />
+                    )}
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Properties</SelectItem>
@@ -128,12 +137,18 @@ export function AdminSidebar() {
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     tooltip={
-                      selectedPropertyId
-                        ? getDisplayName(properties.find(p => p.id === selectedPropertyId)?.name || 'Unknown')
-                        : 'All Properties'
+                      isPending
+                        ? 'Loading...'
+                        : selectedPropertyId
+                          ? getDisplayName(properties.find(p => p.id === selectedPropertyId)?.name || 'Unknown')
+                          : 'All Properties'
                     }
                   >
-                    <Building2 className="h-4 w-4" />
+                    {isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Building2 className="h-4 w-4" />
+                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>

@@ -12,6 +12,7 @@ import { SimpleAdminAuth } from '@/components/SimpleAdminAuth';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminHeader } from '@/components/admin/AdminHeader';
+import { AdminContentWrapper } from '@/components/admin/AdminContentWrapper';
 import { checkAuthentication } from '@/lib/simple-auth-helpers';
 import { cookies } from 'next/headers';
 import { fetchAdminProperties } from './_actions';
@@ -44,7 +45,9 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
 
           {/* Main content */}
           <main className="flex-1 p-6">
-            {children}
+            <AdminContentWrapper>
+              {children}
+            </AdminContentWrapper>
           </main>
 
           {/* Footer */}

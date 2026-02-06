@@ -9,3 +9,4 @@ export { DataTable, type ColumnDef } from './DataTable';
 export { EmptyState } from './EmptyState';
 export { StatusBadge } from './StatusBadge';
 export { TableSkeleton, TableRowsSkeleton } from './TableSkeleton';
+export { AdminContentWrapper } from './AdminContentWrapper';
