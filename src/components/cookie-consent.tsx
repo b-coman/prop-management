@@ -111,13 +111,13 @@ export function CookieConsent() {
               <div className="flex items-center gap-2 flex-shrink-0">
                 <button
                   onClick={handleRejectAll}
-                  className="px-4 py-1.5 text-sm rounded-md border border-border bg-background hover:bg-muted transition-colors"
+                  className="px-4 py-1.5 text-sm rounded-md text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {t('cookieConsent.rejectAll', 'Reject All')}
                 </button>
                 <button
                   onClick={handleAcceptAll}
-                  className="px-4 py-1.5 text-sm rounded-md border border-border bg-background hover:bg-muted transition-colors"
+                  className="px-4 py-1.5 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                 >
                   {t('cookieConsent.acceptAll', 'Accept All')}
                 </button>
