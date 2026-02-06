@@ -48,7 +48,7 @@ export function PropertyTable({ properties }: PropertyTableProps) {
         {properties.map((property) => (
           <TableRow key={property.slug}>
             <TableCell className="font-medium">
-              <Link href={`/properties/${property.slug}`} className="hover:underline" target="_blank">
+              <Link href={`/admin/properties/${property.slug}`} className="hover:underline">
                  {typeof property.name === 'string' ? property.name : property.name?.en || property.name?.ro || 'Unnamed'}
               </Link>
               <p className="text-xs text-muted-foreground">{property.slug}</p>
