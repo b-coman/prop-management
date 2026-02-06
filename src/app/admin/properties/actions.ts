@@ -64,7 +64,7 @@ const propertyActionSchema = z.object({
     ownerId: z.string().optional(),
     ownerEmail: z.string().email().optional().or(z.literal('')).transform(val => val || null),
     contactPhone: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
-    contactEmail: z.string().email().optional().or(z.literal('')).transform(val => val || null),
+    contactEmail: z.string().email().optional().or(z.literal('')).nullable().transform(val => val || null),
     customDomain: z.string().optional().nullable().transform(val => val ? sanitizeText(val) : null),
     useCustomDomain: z.boolean().optional(),
     analytics: z.object({
