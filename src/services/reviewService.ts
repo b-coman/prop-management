@@ -8,6 +8,13 @@ import { loggers } from '@/lib/logger';
 
 const logger = loggers.review;
 
+/** Strip undefined values from an object (Firestore rejects undefined). */
+function stripUndefined<T extends Record<string, unknown>>(obj: T): T {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as T;
+}
+
 /**
  * Get published reviews for a property (public-facing).
  */
@@ -77,12 +84,12 @@ export async function createReview(data: {
     const db = await getAdminDb();
     const now = FieldValue.serverTimestamp();
 
-    const docRef = await db.collection('reviews').add({
+    const docRef = await db.collection('reviews').add(stripUndefined({
       ...data,
       date: Timestamp.fromDate(new Date(data.date)),
       createdAt: now,
       updatedAt: now,
-    });
+    }));
 
     logger.info('Review created', { id: docRef.id, propertyId: data.propertyId });
 
@@ -121,12 +128,12 @@ export async function batchCreateReviews(
 
     for (const review of reviews) {
       const ref = db.collection('reviews').doc();
-      batch.set(ref, {
+      batch.set(ref, stripUndefined({
         ...review,
         date: Timestamp.fromDate(new Date(review.date)),
         createdAt: now,
         updatedAt: now,
-      });
+      }));
       if (review.isPublished) {
         affectedProperties.add(review.propertyId);
       }
