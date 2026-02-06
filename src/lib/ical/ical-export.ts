@@ -53,6 +53,8 @@ export function generateICalExport(
  */
 function collectBlockedDates(docs: Availability[]): Date[] {
   const dates: Date[] = [];
+  const now = new Date();
+  const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
   for (const doc of docs) {
     if (!doc.month || !doc.available) continue;
@@ -74,8 +76,8 @@ function collectBlockedDates(docs: Availability[]): Date[] {
       if (isExternalOnly) continue;
 
       const date = new Date(Date.UTC(year, month, day));
-      // Sanity check the date
-      if (date.getUTCFullYear() === year && date.getUTCMonth() === month && date.getUTCDate() === day) {
+      // Only export today or future, sanity check the date
+      if (date >= todayUtc && date.getUTCFullYear() === year && date.getUTCMonth() === month && date.getUTCDate() === day) {
         dates.push(date);
       }
     }
