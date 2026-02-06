@@ -54,12 +54,12 @@ export async function fetchGoogleReviews(placeId: string): Promise<FetchGoogleRe
       for (const r of data.reviews) {
         const guestName = r.authorAttribution?.displayName || 'Anonymous';
         const rating = r.rating || 0;
-        const comment = r.text?.text || '';
+        const comment = r.text?.text || '(Rating only)';
         const publishTime = r.publishTime || '';
         const sourceUrl = r.googleMapsUri || undefined;
         const language = r.text?.languageCode || undefined;
 
-        if (rating >= 1 && rating <= 5 && comment) {
+        if (rating >= 1 && rating <= 5) {
           reviews.push({
             guestName,
             rating,
