@@ -5,7 +5,10 @@ import { PropertyDisplay } from '../pricing/_components/property-display';
 import { ExportUrlCard } from './_components/export-url-card';
 import { ICalFeedsTable } from './_components/ical-feeds-table';
 import { AddFeedDialog } from './_components/add-feed-dialog';
-import { fetchProperties, fetchICalFeeds, fetchExportConfig } from './actions';
+import { fetchProperties, fetchICalFeeds, fetchExportConfig, fetchAvailabilityCalendarData } from './actions';
+import { AvailabilityCalendar } from './_components/availability-calendar';
+import { format } from 'date-fns';
+import type { MonthAvailabilityData } from './_lib/availability-types';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,11 +24,14 @@ export default async function CalendarSyncPage({
 
   let feeds: Awaited<ReturnType<typeof fetchICalFeeds>> = [];
   let exportConfig: Awaited<ReturnType<typeof fetchExportConfig>> = {};
+  let availabilityData: MonthAvailabilityData | null = null;
 
   if (propertyId) {
-    [feeds, exportConfig] = await Promise.all([
+    const currentYearMonth = format(new Date(), 'yyyy-MM');
+    [feeds, exportConfig, availabilityData] = await Promise.all([
       fetchICalFeeds(propertyId),
       fetchExportConfig(propertyId),
+      fetchAvailabilityCalendarData(propertyId, currentYearMonth),
     ]);
   }
 
@@ -46,7 +52,7 @@ export default async function CalendarSyncPage({
         <Tabs defaultValue="ical-sync">
           <TabsList>
             <TabsTrigger value="ical-sync">iCal Sync</TabsTrigger>
-            <TabsTrigger value="calendar-view" disabled>Calendar View (Coming Soon)</TabsTrigger>
+            <TabsTrigger value="calendar-view">Calendar View</TabsTrigger>
           </TabsList>
 
           <TabsContent value="ical-sync" className="space-y-6">
@@ -75,6 +81,15 @@ export default async function CalendarSyncPage({
                 <ICalFeedsTable feeds={feeds} />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="calendar-view">
+            {availabilityData && (
+              <AvailabilityCalendar
+                propertyId={propertyId}
+                initialData={availabilityData}
+              />
+            )}
           </TabsContent>
         </Tabs>
       ) : (

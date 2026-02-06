@@ -2,15 +2,18 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
+import { getAdminDb, FieldValue, Timestamp } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
 import { requireAdmin, requirePropertyAccess, filterPropertiesForUser, AuthorizationError } from '@/lib/authorization';
 import { convertTimestampsToISOStrings } from '@/lib/utils';
 import { randomUUID } from 'crypto';
-import type { ICalFeed } from '@/types';
+import type { ICalFeed, SerializableTimestamp } from '@/types';
+import type { MonthAvailabilityData, AvailabilityDayData, DayStatus } from './_lib/availability-types';
 import { fetchAndParseICalFeed, syncFeedToAvailability } from '@/lib/ical/ical-import';
+import { getDaysInMonth, parseISO } from 'date-fns';
 
 const logger = loggers.icalSync;
+const availLogger = loggers.availability;
 
 // ============================================================================
 // Zod Schemas
@@ -378,5 +381,319 @@ export async function triggerManualSync(feedId: string): Promise<{
     logger.error('Manual sync failed', error as Error, { feedId });
     revalidatePath('/admin/calendar');
     return { error: `Sync failed: ${error instanceof Error ? error.message : 'Unknown error'}` };
+  }
+}
+
+// ============================================================================
+// Availability Calendar Data
+// ============================================================================
+
+const toDate = (timestamp: SerializableTimestamp | undefined | null): Date | null => {
+  if (!timestamp) return null;
+  if (timestamp instanceof Date) return timestamp;
+  if (timestamp instanceof Timestamp) return timestamp.toDate();
+  if (typeof timestamp === 'string') {
+    try { return parseISO(timestamp); } catch { return null; }
+  }
+  if (typeof timestamp === 'number') return new Date(timestamp);
+  if (typeof timestamp === 'object' && '_seconds' in timestamp) {
+    return new Date((timestamp as any)._seconds * 1000);
+  }
+  return null;
+};
+
+export async function fetchAvailabilityCalendarData(
+  propertyId: string,
+  yearMonth: string
+): Promise<MonthAvailabilityData> {
+  await requirePropertyAccess(propertyId);
+  const db = await getAdminDb();
+
+  const [year, month] = yearMonth.split('-').map(Number);
+  const daysInMonth = getDaysInMonth(new Date(year, month - 1));
+
+  // 1. Fetch availability doc
+  const availDocId = `${propertyId}_${yearMonth}`;
+  const availDoc = await db.collection('availability').doc(availDocId).get();
+  const availData = availDoc.exists ? availDoc.data() : null;
+
+  const availableMap: Record<number, boolean> = availData?.available || {};
+  const holdsMap: Record<number, string | null> = availData?.holds || {};
+  const externalBlocksMap: Record<number, string | null> = availData?.externalBlocks || {};
+
+  // 2. Fetch non-cancelled bookings overlapping this month
+  const monthStart = new Date(year, month - 1, 1);
+  const monthEnd = new Date(year, month, 0, 23, 59, 59); // last day of month
+
+  const bookingsSnapshot = await db.collection('bookings')
+    .where('propertyId', '==', propertyId)
+    .where('status', 'in', ['confirmed', 'completed', 'on-hold'])
+    .get();
+
+  // Build a map: day number -> booking data (for bookings overlapping this month)
+  const bookingsByDay: Record<number, { id: string; guestName: string; checkIn: string; checkOut: string; source?: string; status: string; holdUntil?: string }> = {};
+
+  for (const doc of bookingsSnapshot.docs) {
+    const data = doc.data();
+    const checkIn = toDate(data.checkInDate);
+    const checkOut = toDate(data.checkOutDate);
+    if (!checkIn || !checkOut) continue;
+
+    // Check if booking overlaps with this month
+    // Booking occupies nights from checkIn to checkOut-1
+    if (checkOut <= monthStart || checkIn > monthEnd) continue;
+
+    const guestName = [data.guestInfo?.firstName, data.guestInfo?.lastName].filter(Boolean).join(' ') || 'Unknown';
+    const holdUntilDate = toDate(data.holdUntil);
+
+    // Mark each occupied day in this month
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dayDate = new Date(year, month - 1, d);
+      // A booking occupies the night of checkIn through the night before checkOut
+      if (dayDate >= checkIn && dayDate < checkOut) {
+        bookingsByDay[d] = {
+          id: doc.id,
+          guestName,
+          checkIn: checkIn.toISOString().split('T')[0],
+          checkOut: checkOut.toISOString().split('T')[0],
+          source: data.source,
+          status: data.status,
+          holdUntil: holdUntilDate ? holdUntilDate.toISOString() : undefined,
+        };
+      }
+    }
+  }
+
+  // 3. Fetch iCal feeds for this property (to resolve feedId -> name)
+  const feedsSnapshot = await db.collection('icalFeeds')
+    .where('propertyId', '==', propertyId)
+    .get();
+  const feedNames: Record<string, string> = {};
+  for (const doc of feedsSnapshot.docs) {
+    feedNames[doc.id] = doc.data().name || 'External';
+  }
+
+  // 4. Build day data using resolution logic
+  const days: Record<number, AvailabilityDayData> = {};
+  const summary = { available: 0, booked: 0, onHold: 0, externallyBlocked: 0, manuallyBlocked: 0 };
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    let status: DayStatus;
+    let dayData: AvailabilityDayData = { day: d, status: 'available' };
+
+    if (holdsMap[d]) {
+      // Priority 1: on-hold
+      status = 'on-hold';
+      const booking = bookingsByDay[d];
+      if (booking) {
+        dayData = { day: d, status, bookingId: booking.id, bookingDetails: booking };
+      } else {
+        dayData = { day: d, status, bookingId: holdsMap[d] || undefined };
+      }
+      summary.onHold++;
+    } else if (availableMap[d] === false && externalBlocksMap[d]) {
+      // Priority 2: external block
+      status = 'external-block';
+      const feedName = feedNames[externalBlocksMap[d] as string] || 'External';
+      dayData = { day: d, status, externalFeedName: feedName };
+      summary.externallyBlocked++;
+    } else if (availableMap[d] === false && bookingsByDay[d]) {
+      // Priority 3: booked (confirmed/completed)
+      status = 'booked';
+      const booking = bookingsByDay[d];
+      dayData = { day: d, status, bookingId: booking.id, bookingDetails: booking };
+      summary.booked++;
+    } else if (availableMap[d] === false) {
+      // Priority 4: manual block
+      status = 'manual-block';
+      dayData = { day: d, status };
+      summary.manuallyBlocked++;
+    } else {
+      // Priority 5: available
+      status = 'available';
+      dayData = { day: d, status };
+      summary.available++;
+    }
+
+    days[d] = dayData;
+  }
+
+  return {
+    propertyId,
+    month: yearMonth,
+    days,
+    summary,
+  };
+}
+
+export async function toggleDateBlocked(
+  propertyId: string,
+  yearMonth: string,
+  day: number,
+  block: boolean
+): Promise<{ error?: string }> {
+  try {
+    await requirePropertyAccess(propertyId);
+    const db = await getAdminDb();
+    const docId = `${propertyId}_${yearMonth}`;
+    const docRef = db.collection('availability').doc(docId);
+    const doc = await docRef.get();
+
+    if (!block) {
+      // Unblocking: guard against holds, external blocks, and active bookings
+      if (doc.exists) {
+        const data = doc.data()!;
+        if (data.holds?.[day]) {
+          return { error: 'Cannot unblock a day with an active hold' };
+        }
+        if (data.externalBlocks?.[day]) {
+          return { error: 'Cannot unblock a day blocked by an external calendar' };
+        }
+      }
+
+      // Check for active bookings on this day
+      const [year, month] = yearMonth.split('-').map(Number);
+      const dayDate = new Date(year, month - 1, day);
+      const bookingsSnapshot = await db.collection('bookings')
+        .where('propertyId', '==', propertyId)
+        .where('status', 'in', ['confirmed', 'completed'])
+        .get();
+
+      for (const bookingDoc of bookingsSnapshot.docs) {
+        const data = bookingDoc.data();
+        const checkIn = toDate(data.checkInDate);
+        const checkOut = toDate(data.checkOutDate);
+        if (checkIn && checkOut && dayDate >= checkIn && dayDate < checkOut) {
+          return { error: 'Cannot unblock a day with an active booking' };
+        }
+      }
+    }
+
+    if (doc.exists) {
+      await docRef.update({
+        [`available.${day}`]: !block,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    } else {
+      // Create the doc
+      const [year, month] = yearMonth.split('-').map(Number);
+      await docRef.set({
+        propertyId,
+        month: yearMonth,
+        available: { [day]: !block },
+        holds: {},
+        externalBlocks: {},
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+
+    availLogger.info('Date toggled', { propertyId, yearMonth, day, blocked: block });
+    revalidatePath('/admin/calendar');
+    return {};
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      return { error: error.message };
+    }
+    availLogger.error('Error toggling date', error as Error, { propertyId, yearMonth, day });
+    return { error: 'Failed to toggle date' };
+  }
+}
+
+export async function toggleDateRangeBlocked(
+  propertyId: string,
+  dates: { yearMonth: string; day: number }[],
+  block: boolean
+): Promise<{ success: boolean; blockedCount: number; skippedCount: number; error?: string }> {
+  try {
+    await requirePropertyAccess(propertyId);
+    const db = await getAdminDb();
+
+    // Group dates by yearMonth
+    const byMonth: Record<string, number[]> = {};
+    for (const { yearMonth, day } of dates) {
+      if (!byMonth[yearMonth]) byMonth[yearMonth] = [];
+      byMonth[yearMonth].push(day);
+    }
+
+    // Fetch all relevant availability docs
+    const monthKeys = Object.keys(byMonth);
+    const availDocs: Record<string, FirebaseFirestore.DocumentSnapshot> = {};
+    for (const ym of monthKeys) {
+      const docId = `${propertyId}_${ym}`;
+      availDocs[ym] = await db.collection('availability').doc(docId).get();
+    }
+
+    // If unblocking, fetch bookings to check conflicts
+    let activeBookings: { checkIn: Date; checkOut: Date }[] = [];
+    if (!block) {
+      const bookingsSnapshot = await db.collection('bookings')
+        .where('propertyId', '==', propertyId)
+        .where('status', 'in', ['confirmed', 'completed'])
+        .get();
+      activeBookings = bookingsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          checkIn: toDate(data.checkInDate)!,
+          checkOut: toDate(data.checkOutDate)!,
+        };
+      }).filter(b => b.checkIn && b.checkOut);
+    }
+
+    const batch = db.batch();
+    let blockedCount = 0;
+    let skippedCount = 0;
+
+    for (const ym of monthKeys) {
+      const docId = `${propertyId}_${ym}`;
+      const docRef = db.collection('availability').doc(docId);
+      const doc = availDocs[ym];
+      const existingData = doc.exists ? doc.data() : null;
+      const [year, month] = ym.split('-').map(Number);
+
+      const updates: Record<string, any> = {};
+
+      for (const day of byMonth[ym]) {
+        if (!block) {
+          // Check guards for unblocking
+          if (existingData?.holds?.[day]) { skippedCount++; continue; }
+          if (existingData?.externalBlocks?.[day]) { skippedCount++; continue; }
+
+          const dayDate = new Date(year, month - 1, day);
+          const hasBooking = activeBookings.some(b => dayDate >= b.checkIn && dayDate < b.checkOut);
+          if (hasBooking) { skippedCount++; continue; }
+        }
+
+        updates[`available.${day}`] = !block;
+        blockedCount++;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        updates.updatedAt = FieldValue.serverTimestamp();
+        if (doc.exists) {
+          batch.update(docRef, updates);
+        } else {
+          batch.set(docRef, {
+            propertyId,
+            month: ym,
+            available: {},
+            holds: {},
+            externalBlocks: {},
+            ...updates,
+          });
+        }
+      }
+    }
+
+    await batch.commit();
+
+    availLogger.info('Date range toggled', { propertyId, blockedCount, skippedCount, block });
+    revalidatePath('/admin/calendar');
+    return { success: true, blockedCount, skippedCount };
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      return { success: false, blockedCount: 0, skippedCount: 0, error: error.message };
+    }
+    availLogger.error('Error toggling date range', error as Error, { propertyId });
+    return { success: false, blockedCount: 0, skippedCount: 0, error: 'Failed to toggle dates' };
   }
 }
