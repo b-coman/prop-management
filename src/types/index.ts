@@ -200,6 +200,7 @@ export interface Booking {
   holdPaymentId?: string | null; // Stripe PaymentIntent ID for the hold fee
   convertedFromHold?: boolean; // Flag if this booking was converted from a hold
   convertedFromInquiry?: string | null; // Inquiry ID if converted from an inquiry
+  reviewRequestSentAt?: SerializableTimestamp; // When review request email was sent
   createdAt?: SerializableTimestamp;
   updatedAt?: SerializableTimestamp;
 }

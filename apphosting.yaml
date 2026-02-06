@@ -124,6 +124,12 @@ env:
     availability:
         - RUNTIME
 
+# Review token secret for post-stay review URLs
+  - variable: REVIEW_TOKEN_SECRET
+    secret: projects/1061532538391/secrets/REVIEW_TOKEN_SECRET/versions/latest
+    availability:
+        - RUNTIME
+
 # Grant access to secrets in Cloud Secret Manager.
 # See https://firebase.google.com/docs/app-hosting/configure#secret-parameters
 # - variable: MY_SECRET

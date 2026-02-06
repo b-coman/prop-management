@@ -80,6 +80,14 @@ const emailTranslations = {
     cancelledBookingDetails: 'Cancelled Booking Details',
     refundAmount: 'Refund Amount',
     refundProcessingTime: 'Your refund will be processed within 5-10 business days.',
+
+    // Review request
+    reviewRequest: 'How Was Your Stay?',
+    reviewRequestMessage: 'We hope you enjoyed your stay at {propertyName}! We would love to hear about your experience.',
+    reviewStayDetails: 'Your Stay',
+    leaveReview: 'Leave a Review',
+    reviewRequestThanks: 'Your feedback helps future guests and helps us improve.',
+    reviewRequestPrompt: 'It only takes a minute to share your thoughts.',
   },
   ro: {
     // Common
@@ -153,6 +161,14 @@ const emailTranslations = {
     cancelledBookingDetails: 'Detalii Rezervare Anulată',
     refundAmount: 'Sumă Rambursată',
     refundProcessingTime: 'Rambursarea va fi procesată în 5-10 zile lucrătoare.',
+
+    // Review request
+    reviewRequest: 'Cum a Fost Sejurul Dvs.?',
+    reviewRequestMessage: 'Sperăm că v-a plăcut sejurul la {propertyName}! Ne-ar plăcea să aflăm despre experiența dvs.',
+    reviewStayDetails: 'Detalii Sejur',
+    leaveReview: 'Lăsați o Recenzie',
+    reviewRequestThanks: 'Feedback-ul dvs. ajută viitorii oaspeți și ne ajută să ne îmbunătățim.',
+    reviewRequestPrompt: 'Durează doar un minut să vă împărtășiți gândurile.',
   }
 } as const;
 
@@ -176,6 +192,14 @@ function t(lang: LanguageCode, key: TranslationKey, replacements?: Record<string
 function tArray(lang: LanguageCode, key: TranslationKey): readonly string[] {
   const translations = emailTranslations[lang] || emailTranslations.en;
   return translations[key] as readonly string[];
+}
+
+interface ReviewRequestEmailData {
+  guestName: string;
+  propertyName: string;
+  checkInDate: string;
+  checkOutDate: string;
+  reviewUrl: string;
 }
 
 interface BookingEmailData {
@@ -625,6 +649,66 @@ ${createHeader(t(lang, 'bookingCancellation'))}
     <div class="highlight">
       <p>${t(lang, 'refundProcessingTime')}</p>
     </div>
+  </div>
+${createFooter(lang)}
+`;
+
+  return { text, html, subject };
+}
+
+/**
+ * Creates review request email template
+ */
+export function createReviewRequestTemplate(
+  data: ReviewRequestEmailData,
+  language: LanguageCode = 'en'
+): { text: string; html: string; subject: string } {
+  const lang = language;
+
+  const subject = lang === 'ro'
+    ? `Cum a Fost Sejurul la ${data.propertyName}?`
+    : `How Was Your Stay at ${data.propertyName}?`;
+
+  const text = `
+${t(lang, 'reviewRequest')}
+
+${t(lang, 'dear')} ${data.guestName},
+
+${t(lang, 'reviewRequestMessage', { propertyName: data.propertyName })}
+
+${t(lang, 'reviewStayDetails')}:
+- ${t(lang, 'checkIn')}: ${data.checkInDate}
+- ${t(lang, 'checkOut')}: ${data.checkOutDate}
+
+${t(lang, 'reviewRequestPrompt')}
+
+${data.reviewUrl}
+
+${t(lang, 'reviewRequestThanks')}
+
+${t(lang, 'thankYou')}
+${t(lang, 'theTeam')}
+`;
+
+  const html = `
+${createHeader(t(lang, 'reviewRequest'))}
+  <div class="content">
+    <p>${t(lang, 'dear')} ${data.guestName},</p>
+    <p>${t(lang, 'reviewRequestMessage', { propertyName: data.propertyName })}</p>
+
+    <div class="info-box">
+      <h2>${t(lang, 'reviewStayDetails')}</h2>
+      <p><strong>${t(lang, 'checkIn')}:</strong> ${data.checkInDate}</p>
+      <p><strong>${t(lang, 'checkOut')}:</strong> ${data.checkOutDate}</p>
+    </div>
+
+    <p>${t(lang, 'reviewRequestPrompt')}</p>
+
+    <div style="text-align: center; margin-top: 30px;">
+      <a href="${data.reviewUrl}" class="button">${t(lang, 'leaveReview')}</a>
+    </div>
+
+    <p style="margin-top: 20px; color: #6b7280; font-size: 14px;">${t(lang, 'reviewRequestThanks')}</p>
   </div>
 ${createFooter(lang)}
 `;

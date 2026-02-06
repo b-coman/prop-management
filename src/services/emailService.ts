@@ -10,7 +10,8 @@ import {
   createHoldConfirmationTemplate,
   createInquiryConfirmationTemplate,
   createInquiryResponseTemplate,
-  createBookingCancellationTemplate
+  createBookingCancellationTemplate,
+  createReviewRequestTemplate
 } from './emailTemplates';
 
 // Development transporter for testing - uses Ethereal
@@ -648,6 +649,52 @@ export async function sendCalendarExpiryAlert(
     return sendEmail(recipientEmail, subject, text, html);
   } catch (error) {
     console.error('[EmailService] Error sending calendar expiry alert:', error);
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/**
+ * Sends a post-stay review request email to the guest
+ */
+export async function sendReviewRequestEmail(
+  bookingId: string,
+  recipientEmail?: string
+): Promise<{ success: boolean; messageId?: string; previewUrl?: string; error?: string }> {
+  try {
+    console.log(`[EmailService] Preparing review request for ${bookingId}`);
+
+    const booking = await getBookingById(bookingId);
+    if (!booking) {
+      return { success: false, error: 'Booking not found' };
+    }
+
+    const email = recipientEmail || booking.guestInfo.email;
+    if (!email) {
+      return { success: false, error: 'No recipient email' };
+    }
+
+    const property = await getPropertyBySlug(booking.propertyId);
+    const propertyName = getPropertyName(property, booking.propertyId);
+
+    const { generateReviewToken } = await import('@/lib/review-token');
+    const token = generateReviewToken(bookingId, email);
+    const reviewUrl = `${process.env.NEXT_PUBLIC_APP_URL}/review/${bookingId}?token=${token}`;
+
+    const language: LanguageCode = booking.language || 'en';
+
+    const { text, html, subject } = createReviewRequestTemplate({
+      guestName: `${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''}`.trim(),
+      propertyName,
+      checkInDate: formatDate(booking.checkInDate),
+      checkOutDate: formatDate(booking.checkOutDate),
+      reviewUrl,
+    }, language);
+
+    console.log(`[EmailService] Sending review request (${language}) to ${email}`);
+
+    return sendEmail(email, subject, text, html);
+  } catch (error) {
+    console.error('[EmailService] Error sending review request:', error);
     return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
