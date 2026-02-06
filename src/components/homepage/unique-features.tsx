@@ -25,7 +25,7 @@ interface UniqueFeaturesProps {
 }
 
 export function UniqueFeatures({ content, language = 'en' }: UniqueFeaturesProps) {
-  const { tc, t } = useLanguage();
+  const { t, tc } = useLanguage();
   
   // Don't render if content is missing
   if (!content) {
@@ -40,13 +40,13 @@ export function UniqueFeatures({ content, language = 'en' }: UniqueFeaturesProps
 
   if (Array.isArray(content)) {
     // Content is a direct array of features
-    title = 'Unique Features';
-    description = 'Discover what makes this place special';
+    title = t('property.features', 'Unique Features');
+    description = t('features.discoverSpecial', 'Discover what makes this place special');
     features = content;
   } else {
     // Content is an object with title, description, and features properties
-    title = content.title || 'Unique Features';
-    description = content.description || 'Discover what makes this place special';
+    title = content.title || t('property.features', 'Unique Features');
+    description = content.description || t('features.discoverSpecial', 'Discover what makes this place special');
     features = content.features || [];
   }
 

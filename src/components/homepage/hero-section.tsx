@@ -69,7 +69,7 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
   // Extract properties with defaults to prevent destructuring errors
   const {
     backgroundImage = null,
-    title = "Welcome",
+    title = null,
     subtitle = null,
     price = null,
     showRating = false,

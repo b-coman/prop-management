@@ -460,6 +460,12 @@
     "loading": "Se încarcă harta...",
     "unavailable": "Hartă indisponibilă"
   },
+  "features": {
+    "discoverSpecial": "Descoperă ce face acest loc special"
+  },
+  "testimonials": {
+    "title": "Ce Spun Oaspeții Noștri"
+  },
   "gallery": {
     "browseByCategory": "Răsfoiește pe Categorii"
   },

@@ -62,7 +62,7 @@ export function TestimonialsSection({ content, language = 'en' }: TestimonialsSe
 
   // Extract properties with defaults to prevent destructuring errors
   const {
-    title = "What Our Guests Say",
+    title = t('testimonials.title', 'What Our Guests Say'),
     overallRating = 0,
     reviewCount = 0,
     reviews = []

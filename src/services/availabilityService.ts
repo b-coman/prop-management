@@ -277,14 +277,6 @@ export async function getPricingForDateRange(
   // Generate a unique request ID for tracing
   const requestId = Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
   
-  // Always log this to see when the function is called - should appear in console
-  console.log(`======== [availabilityService] [DEBUG] 🚨 getPricingForDateRange called ========`);
-  console.log(`[availabilityService] [DEBUG] 👥 Guest count: ${guestCount}`);
-  console.log(`[availabilityService] [DEBUG] 📆 Dates: ${startDate.toISOString()} to ${endDate.toISOString()}`);
-  console.log(`[availabilityService] [DEBUG] 🏠 Property: ${propertySlug}`);
-  console.log(`[availabilityService] [DEBUG] 🆔 Request ID: ${requestId}`);
-  console.log(`==================================================================`);
-  
   try {
     // Only run in browser environment
     if (typeof window === 'undefined') {

@@ -447,6 +447,12 @@
     "loading": "Loading map...",
     "unavailable": "Map unavailable"
   },
+  "features": {
+    "discoverSpecial": "Discover what makes this place special"
+  },
+  "testimonials": {
+    "title": "What Our Guests Say"
+  },
   "gallery": {
     "browseByCategory": "Browse by Category"
   },
