@@ -357,6 +357,7 @@ export const loggers = {
   icalSync: createLogger('ical:sync'),
   adminReviews: createLogger('admin:reviews'),
   review: createLogger('review'),
+  tracking: createLogger('tracking'),
 };
 
 // Type-safe logger categories

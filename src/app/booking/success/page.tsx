@@ -28,6 +28,7 @@ import {
   type StatusMessageData
 } from './components';
 import BookingSuccessClient from './booking-success-client';
+import { TrackPurchase } from '@/components/tracking/track-purchase';
 
 function BookingSuccessContent() {
   const searchParams = useSearchParams();
@@ -215,14 +216,17 @@ function BookingSuccessContent() {
             ) : (
               <>
                 {booking && (
-                  <BookingInfoCard
-                    booking={booking}
-                    property={property}
-                    bookingType={bookingType}
-                    sessionId={sessionId}
-                    verifying={verifying}
-                    onVerify={verifyBookingStatus}
-                  />
+                  <>
+                    {property && <TrackPurchase booking={booking} property={property} />}
+                    <BookingInfoCard
+                      booking={booking}
+                      property={property}
+                      bookingType={bookingType}
+                      sessionId={sessionId}
+                      verifying={verifying}
+                      onVerify={verifyBookingStatus}
+                    />
+                  </>
                 )}
 
                 {!booking && !error && (

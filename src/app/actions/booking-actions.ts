@@ -9,9 +9,28 @@ import { SUPPORTED_CURRENCIES, SUPPORTED_LANGUAGES } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { sanitizeEmail, sanitizePhone, sanitizeText } from '@/lib/sanitize';
 import { loggers } from '@/lib/logger';
+import { sendMetaEvent } from '@/lib/meta-capi';
 
 const logger = loggers.booking;
 
+const TouchDataSchema = z.object({
+  source: z.string().nullable(),
+  medium: z.string().nullable(),
+  campaign: z.string().nullable(),
+  term: z.string().nullable(),
+  content: z.string().nullable(),
+  referrer: z.string().nullable(),
+  landingPage: z.string().nullable(),
+  timestamp: z.string(),
+}).optional().nullable();
+
+const AttributionSchema = z.object({
+  firstTouch: TouchDataSchema,
+  lastTouch: TouchDataSchema,
+  gclid: z.string().nullable().optional(),
+  fbclid: z.string().nullable().optional(),
+  deviceType: z.enum(['mobile', 'tablet', 'desktop']).optional(),
+}).optional();
 
 // Schema for creating a PENDING booking (used for the final "Book Now" path)
 const CreatePendingBookingSchema = z.object({
@@ -44,6 +63,7 @@ const CreatePendingBookingSchema = z.object({
   // Fields related to holds or inquiries might be passed if converting, but not strictly needed by this schema
   convertedFromHold: z.boolean().optional(),
   convertedFromInquiry: z.string().optional(),
+  attribution: AttributionSchema,
 });
 
 type CreatePendingBookingInput = z.infer<typeof CreatePendingBookingSchema>;
@@ -90,6 +110,7 @@ export async function createPendingBookingAction(
     language,
     convertedFromHold, // Capture conversion flags
     convertedFromInquiry,
+    attribution,
   } = validationResult.data;
 
   try {
@@ -154,10 +175,7 @@ export async function createPendingBookingAction(
       // Include conversion flags if provided
       convertedFromHold: convertedFromHold ?? false,
       convertedFromInquiry: convertedFromInquiry ?? null,
-      // We don't need to include these fields if they're undefined
-      // holdFee: undefined,
-      // holdUntil: undefined,
-      // holdPaymentId: undefined,
+      ...(attribution ? { attribution } : {}),
     };
     logger.debug('Preparing to save booking data', { propertyId });
 
@@ -175,6 +193,26 @@ export async function createPendingBookingAction(
     ]) as any;
 
     logger.info('Pending booking created successfully', { bookingId: docRef.id, propertyId });
+
+    // Fire Meta CAPI InitiateCheckout event (non-blocking)
+    const eventId = crypto.randomUUID();
+    sendMetaEvent({
+      eventName: 'InitiateCheckout',
+      eventId,
+      userData: {
+        email: guestInfo.email,
+        phone: guestInfo.phone,
+        firstName: guestInfo.firstName,
+        lastName: guestInfo.lastName,
+      },
+      customData: {
+        value: pricing.total,
+        currency: pricing.currency,
+        contentIds: [propertyId],
+        contentType: 'product',
+        orderId: docRef.id,
+      },
+    }).catch(() => {}); // Never fail the booking for tracking
 
     // Revalidate relevant pages
     try {

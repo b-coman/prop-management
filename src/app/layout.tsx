@@ -7,6 +7,9 @@ import { CurrencyProvider } from '@/contexts/CurrencyContext'; // Import Currenc
 import { ThemeProvider } from '@/contexts/ThemeContext'; // Import ThemeProvider
 import { ErrorBoundary } from '@/components/error-boundary'; // Import ErrorBoundary
 import { LanguageProvider } from '@/lib/language-system'; // Import unified language system
+import { GoogleTagManager, GoogleTagManagerNoscript } from '@/components/tracking/gtm';
+import { CookieConsent } from '@/components/cookie-consent';
+import { UTMCapture } from '@/components/tracking/utm-capture';
 
 // Instantiate the Inter font
 const inter = Inter({
@@ -26,18 +29,24 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <GoogleTagManager />
+      </head>
       {/* Apply font variable to body */}
       <body className={`${inter.variable} font-sans antialiased`}>
+        <GoogleTagManagerNoscript />
         <ErrorBoundary>
           <AuthProvider> {/* Wrap children with AuthProvider */}
             <CurrencyProvider> {/* Wrap with CurrencyProvider */}
               <ThemeProvider> {/* Wrap with ThemeProvider */}
-                <LanguageProvider 
+                <LanguageProvider
                   enablePerformanceTracking={true}
                   enableDebugMode={process.env.NODE_ENV === 'development'}
                 >
                   {children}
-                  <Toaster /> {/* Add Toaster here */}
+                  <Toaster />
+                  <CookieConsent />
+                  <UTMCapture />
                 </LanguageProvider>
               </ThemeProvider>
             </CurrencyProvider>

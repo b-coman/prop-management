@@ -428,7 +428,22 @@
     "subscribeNewsletter": "Subscribe to our newsletter",
     "emailPlaceholder": "Enter your email",
     "subscribe": "Subscribe",
-    "copyright": "© {{year}} RentalSpot. All rights reserved."
+    "copyright": "© {{year}} RentalSpot. All rights reserved.",
+    "cookieSettings": "Cookie Settings"
+  },
+  "cookieConsent": {
+    "message": "We use cookies for analytics and marketing.",
+    "acceptAll": "Accept All",
+    "rejectAll": "Reject All",
+    "manage": "More",
+    "policy": "Cookie Policy",
+    "savePreferences": "Save Preferences",
+    "necessary": "Necessary",
+    "necessaryDesc": "Essential cookies required for the website to function properly.",
+    "analytics": "Analytics",
+    "analyticsDesc": "Help us understand how visitors interact with our website.",
+    "marketing": "Marketing",
+    "marketingDesc": "Used to deliver relevant advertisements and track campaign performance."
   },
   "pricing": {
     "caption": "Seasonal rates and minimum stay requirements.",

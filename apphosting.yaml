@@ -130,6 +130,31 @@ env:
     availability:
         - RUNTIME
 
+# Google Tag Manager (client-side, public)
+  - variable: NEXT_PUBLIC_GTM_ID
+    value: ""
+    availability:
+      - BUILD
+      - RUNTIME
+
+# Meta Pixel ID (client-side for GTM reference)
+  - variable: NEXT_PUBLIC_META_PIXEL_ID
+    value: ""
+    availability:
+      - BUILD
+      - RUNTIME
+
+# Meta Conversions API (server-side only)
+  - variable: META_PIXEL_ID
+    secret: projects/1061532538391/secrets/META_PIXEL_ID/versions/latest
+    availability:
+      - RUNTIME
+
+  - variable: META_CAPI_ACCESS_TOKEN
+    secret: projects/1061532538391/secrets/META_CAPI_ACCESS_TOKEN/versions/latest
+    availability:
+      - RUNTIME
+
 # Grant access to secrets in Cloud Secret Manager.
 # See https://firebase.google.com/docs/app-hosting/configure#secret-parameters
 # - variable: MY_SECRET

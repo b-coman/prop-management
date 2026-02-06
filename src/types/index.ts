@@ -181,6 +181,25 @@ export interface PaymentInfo {
 export const SUPPORTED_LANGUAGES = ['en', 'ro'] as const;
 export type LanguageCode = typeof SUPPORTED_LANGUAGES[number];
 
+export interface TouchData {
+  source: string | null;
+  medium: string | null;
+  campaign: string | null;
+  term: string | null;
+  content: string | null;
+  referrer: string | null;
+  landingPage: string | null;
+  timestamp: string;
+}
+
+export interface BookingAttribution {
+  firstTouch?: TouchData | null;
+  lastTouch?: TouchData | null;
+  gclid?: string | null;
+  fbclid?: string | null;
+  deviceType?: 'mobile' | 'tablet' | 'desktop';
+}
+
 export interface Booking {
   id: string; // Document ID from Firestore
   propertyId: string; // Slug of the property
@@ -203,6 +222,7 @@ export interface Booking {
   convertedFromHold?: boolean; // Flag if this booking was converted from a hold
   convertedFromInquiry?: string | null; // Inquiry ID if converted from an inquiry
   reviewRequestSentAt?: SerializableTimestamp; // When review request email was sent
+  attribution?: BookingAttribution;
   createdAt?: SerializableTimestamp;
   updatedAt?: SerializableTimestamp;
 }
@@ -232,6 +252,7 @@ export interface Inquiry {
   // New fields for inquiry
   totalPrice?: number;
   currency?: CurrencyCode;
+  attribution?: BookingAttribution;
 }
 
 

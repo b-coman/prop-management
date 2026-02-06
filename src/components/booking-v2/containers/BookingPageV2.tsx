@@ -28,6 +28,8 @@ import { ArrowLeft, Calendar, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { CurrencySwitcherSimple } from '@/components/currency-switcher-simple';
 import { LanguageSelector } from '@/components/language-selector';
+import { trackBeginCheckout, trackGenerateLead } from '@/lib/tracking';
+import { getAttributionFromCookies } from '@/lib/utm';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Card, CardContent } from '@/components/ui/card';
@@ -344,7 +346,8 @@ function BookingPageContent({ className }: { className?: string }) {
                     
                     try {
                       const { createInquiryAction } = await import('@/app/actions/createInquiryAction');
-                      
+                      const attribution = getAttributionFromCookies();
+
                       const result = await createInquiryAction({
                         propertySlug: property.slug,
                         checkInDate: checkInDate!.toISOString(),
@@ -359,7 +362,8 @@ function BookingPageContent({ className }: { className?: string }) {
                         message: values.message,
                         totalPrice: pricingDetails?.totalPrice,
                         currency: selectedCurrency as any,
-                        language: currentLang as 'en' | 'ro'
+                        language: currentLang as 'en' | 'ro',
+                        attribution
                       });
                       
                       if (result.error) {
@@ -371,6 +375,7 @@ function BookingPageContent({ className }: { className?: string }) {
                         });
                       } else {
                         loggers.bookingContext.info('[V2] Contact form submitted successfully', { inquiryId: result.inquiryId });
+                        trackGenerateLead(property, pricingDetails?.totalPrice);
                         setFormStatus({
                           show: true,
                           type: 'success',
@@ -406,6 +411,17 @@ function BookingPageContent({ className }: { className?: string }) {
 
                     try {
                       const { createHoldBookingAction } = await import('@/app/actions/createHoldBookingAction');
+                      const attribution = getAttributionFromCookies();
+
+                      trackBeginCheckout(property, {
+                        total: property.holdFeeAmount || 50,
+                        currency: selectedCurrency,
+                        baseRate: property.holdFeeAmount || 50,
+                        numberOfNights: 0,
+                      }, {
+                        checkIn: checkInDate!.toISOString(),
+                        checkOut: checkOutDate!.toISOString(),
+                      }, guestCount);
 
                       const holdResult = await createHoldBookingAction({
                         propertySlug: property.slug,
@@ -422,7 +438,8 @@ function BookingPageContent({ className }: { className?: string }) {
                         holdDurationHours: property.holdDurationHours || 24,
                         holdFeeRefundable: property.holdFeeRefundable ?? true,
                         selectedCurrency,
-                        language: currentLang as 'en' | 'ro'
+                        language: currentLang as 'en' | 'ro',
+                        attribution
                       });
 
                       if (holdResult.error || !holdResult.bookingId) {
@@ -484,6 +501,17 @@ function BookingPageContent({ className }: { className?: string }) {
 
                     try {
                       const { createPendingBookingAction } = await import('@/app/actions/booking-actions');
+                      const attribution = getAttributionFromCookies();
+
+                      trackBeginCheckout(property, {
+                        total: pricingDetails!.totalPrice || pricingDetails!.total || 0,
+                        currency: selectedCurrency,
+                        baseRate: pricingDetails!.baseRate || pricingDetails!.basePrice || 0,
+                        numberOfNights: pricingDetails!.numberOfNights,
+                      }, {
+                        checkIn: checkInDate!.toISOString(),
+                        checkOut: checkOutDate!.toISOString(),
+                      }, guestCount);
 
                       // Convert all pricing values from property's base currency to selected currency
                       const baseCurrency = pricingDetails!.currency;
@@ -523,7 +551,8 @@ function BookingPageContent({ className }: { className?: string }) {
                         },
                         status: 'pending',
                         appliedCouponCode: appliedCoupon?.code || null,
-                        language: currentLang as 'en' | 'ro'
+                        language: currentLang as 'en' | 'ro',
+                        attribution
                       });
 
                       if (bookingResult.error || !bookingResult.bookingId) {

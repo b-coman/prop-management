@@ -30,6 +30,31 @@ const CreateHoldBookingSchema = z.object({
   holdFeeRefundable: z.boolean().optional(), // Whether hold fee is refundable (default true)
   selectedCurrency: z.string().optional(), // User's selected currency from header dropdown
   language: z.enum(SUPPORTED_LANGUAGES).optional().default('en'), // User's language preference for emails
+  attribution: z.object({
+    firstTouch: z.object({
+      source: z.string().nullable(),
+      medium: z.string().nullable(),
+      campaign: z.string().nullable(),
+      term: z.string().nullable(),
+      content: z.string().nullable(),
+      referrer: z.string().nullable(),
+      landingPage: z.string().nullable(),
+      timestamp: z.string(),
+    }).optional().nullable(),
+    lastTouch: z.object({
+      source: z.string().nullable(),
+      medium: z.string().nullable(),
+      campaign: z.string().nullable(),
+      term: z.string().nullable(),
+      content: z.string().nullable(),
+      referrer: z.string().nullable(),
+      landingPage: z.string().nullable(),
+      timestamp: z.string(),
+    }).optional().nullable(),
+    gclid: z.string().nullable().optional(),
+    fbclid: z.string().nullable().optional(),
+    deviceType: z.enum(['mobile', 'tablet', 'desktop']).optional(),
+  }).optional(),
 }).refine(data => new Date(data.checkOutDate) > new Date(data.checkInDate), {
   message: "Check-out date must be after check-in date.",
   path: ["checkOutDate"],
@@ -60,6 +85,7 @@ export async function createHoldBookingAction(
     holdFeeRefundable = true, // Default to refundable
     selectedCurrency,
     language,
+    attribution,
   } = validationResult.data;
 
   try {
@@ -113,6 +139,7 @@ export async function createHoldBookingAction(
       holdFeeRefundable: holdFeeRefundable, // Store whether the hold fee is refundable
       holdDurationHours: holdDurationHours, // Store the hold duration for reference
       language: language, // User's language preference for emails
+      ...(attribution ? { attribution } : {}),
     };
 
     logger.debug('Prepared Firestore data', { propertySlug, holdFeeAmount });

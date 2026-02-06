@@ -10,6 +10,7 @@ import { sanitizeEmail, sanitizePhone, sanitizeText } from "@/lib/sanitize";
 import { revalidatePath } from "next/cache";
 // Import email service functions
 import { sendInquiryConfirmationEmail, sendInquiryNotificationEmail } from "@/services/emailService";
+import { sendMetaEvent } from "@/lib/meta-capi";
 
 // Schema for creating an inquiry
 const CreateInquirySchema = z.object({
@@ -27,6 +28,31 @@ const CreateInquirySchema = z.object({
   totalPrice: z.number().nonnegative("Total price must be a non-negative number.").optional(),
   currency: z.enum(SUPPORTED_CURRENCIES).optional(),
   language: z.enum(SUPPORTED_LANGUAGES).optional().default('en'), // User's language preference for emails
+  attribution: z.object({
+    firstTouch: z.object({
+      source: z.string().nullable(),
+      medium: z.string().nullable(),
+      campaign: z.string().nullable(),
+      term: z.string().nullable(),
+      content: z.string().nullable(),
+      referrer: z.string().nullable(),
+      landingPage: z.string().nullable(),
+      timestamp: z.string(),
+    }).optional().nullable(),
+    lastTouch: z.object({
+      source: z.string().nullable(),
+      medium: z.string().nullable(),
+      campaign: z.string().nullable(),
+      term: z.string().nullable(),
+      content: z.string().nullable(),
+      referrer: z.string().nullable(),
+      landingPage: z.string().nullable(),
+      timestamp: z.string(),
+    }).optional().nullable(),
+    gclid: z.string().nullable().optional(),
+    fbclid: z.string().nullable().optional(),
+    deviceType: z.enum(['mobile', 'tablet', 'desktop']).optional(),
+  }).optional(),
 }).refine(data => new Date(data.checkOutDate) > new Date(data.checkInDate), {
   message: "Check-out date must be after check-in date.",
   path: ["checkOutDate"],
@@ -56,6 +82,7 @@ export async function createInquiryAction(
     totalPrice,
     currency,
     language,
+    attribution,
   } = validationResult.data;
 
   try {
@@ -77,11 +104,30 @@ export async function createInquiryAction(
       totalPrice: totalPrice, // Add totalPrice
       currency: currency, // Add currency
       language: language, // User's language preference for emails
+      ...(attribution ? { attribution } : {}),
     };
     console.log("[Action createInquiryAction] Prepared Firestore Data:", inquiryData);
 
     const docRef = await addDoc(inquiriesCollection, inquiryData);
     console.log(`[Action createInquiryAction] Inquiry created successfully with ID: ${docRef.id}`);
+
+    // Fire Meta CAPI Lead event (non-blocking)
+    sendMetaEvent({
+      eventName: 'Lead',
+      eventId: crypto.randomUUID(),
+      userData: {
+        email: guestInfo.email,
+        phone: guestInfo.phone,
+        firstName: guestInfo.firstName,
+        lastName: guestInfo.lastName,
+      },
+      customData: {
+        value: totalPrice,
+        currency: currency,
+        contentIds: [propertySlug],
+        contentType: 'product',
+      },
+    }).catch(() => {}); // Never fail the inquiry for tracking
 
     // Send email notifications
     try {

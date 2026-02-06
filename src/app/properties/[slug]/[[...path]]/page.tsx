@@ -11,6 +11,7 @@ import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants'
 import { serverTranslateContent } from '@/lib/server-language-utils';
 import { buildVacationRentalJsonLd, buildBreadcrumbJsonLd, getCanonicalUrl, getBaseUrl } from '@/lib/structured-data';
 import { getAmenitiesByRefs } from '@/lib/amenity-utils';
+import { TrackViewItem } from '@/components/tracking/track-page-view';
 
 export const dynamic = 'force-dynamic'; // Ensures the page is always dynamically rendered
 
@@ -384,6 +385,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
         />
+        <TrackViewItem property={property} />
         <Suspense fallback={<div>Loading property details...</div>}>
           <PropertyPageRenderer
             template={template}
@@ -413,6 +415,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
+      <TrackViewItem property={property} />
       <LanguageProvider initialLanguage={language}>
         <Suspense fallback={<div>Loading property details...</div>}>
           <PropertyPageRenderer

@@ -441,7 +441,22 @@
     "subscribeNewsletter": "Abonează-te la newsletter",
     "emailPlaceholder": "Introdu adresa ta de email",
     "subscribe": "Abonează-te",
-    "copyright": "© {{year}} RentalSpot. Toate drepturile rezervate."
+    "copyright": "© {{year}} RentalSpot. Toate drepturile rezervate.",
+    "cookieSettings": "Setări Cookie"
+  },
+  "cookieConsent": {
+    "message": "Folosim cookie-uri pentru analiză și marketing.",
+    "acceptAll": "Acceptă Toate",
+    "rejectAll": "Respinge Toate",
+    "manage": "Mai Mult",
+    "policy": "Politica de Cookie-uri",
+    "savePreferences": "Salvează Preferințele",
+    "necessary": "Necesare",
+    "necessaryDesc": "Cookie-uri esențiale necesare pentru funcționarea corectă a site-ului.",
+    "analytics": "Analitice",
+    "analyticsDesc": "Ne ajută să înțelegem cum interacționează vizitatorii cu site-ul nostru.",
+    "marketing": "Marketing",
+    "marketingDesc": "Folosite pentru a livra reclame relevante și a urmări performanța campaniilor."
   },
   "pricing": {
     "caption": "Tarife sezoniere și cerințe de sejur minim.",

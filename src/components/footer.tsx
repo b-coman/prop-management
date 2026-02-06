@@ -102,6 +102,14 @@ export function Footer({
           <p>
             &copy; {new Date().getFullYear()} {propertyName || 'RentalSpot'}.{' '}
             {t('footer.rights', 'All rights reserved.')}
+            {' · '}
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new Event('open-cookie-settings'))}
+              className="underline hover:text-foreground transition-colors"
+            >
+              {t('footer.cookieSettings', 'Cookie Settings')}
+            </button>
           </p>
         </div>
       </div>

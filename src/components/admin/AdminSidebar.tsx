@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Loader2,
   Star,
+  BarChart3,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/SimpleAuthContext';
 import { usePropertySelector } from '@/contexts/PropertySelectorContext';
@@ -64,6 +65,7 @@ const navigationGroups = [
     label: 'Marketing',
     items: [
       { title: 'Coupons', href: '/admin/coupons', icon: Ticket },
+      { title: 'Attribution', href: '/admin/attribution', icon: BarChart3 },
     ],
   },
 ];

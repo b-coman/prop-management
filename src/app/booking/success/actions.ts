@@ -4,6 +4,7 @@ import { getBookingById, updateBookingPaymentInfo } from '@/services/bookingServ
 import type { Booking } from '@/types';
 import Stripe from 'stripe';
 import { loggers } from '@/lib/logger';
+import { sendMetaEvent } from '@/lib/meta-capi';
 
 const logger = loggers.booking;
 
@@ -236,6 +237,27 @@ export async function verifyAndUpdateBooking(
 
     // Fetch the updated booking
     const updatedBooking = await getBookingById(bookingId);
+
+    // Fire Meta CAPI Purchase event (non-blocking)
+    if (updatedBooking) {
+      sendMetaEvent({
+        eventName: 'Purchase',
+        eventId: crypto.randomUUID(),
+        userData: {
+          email: updatedBooking.guestInfo?.email,
+          phone: updatedBooking.guestInfo?.phone,
+          firstName: updatedBooking.guestInfo?.firstName,
+          lastName: updatedBooking.guestInfo?.lastName,
+        },
+        customData: {
+          value: updatedBooking.pricing?.total ?? 0,
+          currency: updatedBooking.pricing?.currency ?? 'EUR',
+          contentIds: [updatedBooking.propertyId],
+          contentType: 'product',
+          orderId: bookingId,
+        },
+      }).catch(() => {});
+    }
 
     return {
       success: true,
