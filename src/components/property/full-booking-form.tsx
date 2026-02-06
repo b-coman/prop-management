@@ -30,7 +30,7 @@ export function FullBookingForm({ content, property }: FullBookingFormProps) {
     enableCoupons = false
   } = content;
 
-  const { tc } = useLanguage();
+  const { t, tc } = useLanguage();
   const [isClient, setIsClient] = useState(false);
   const [hasError, setHasError] = useState(false);
 
@@ -70,28 +70,25 @@ export function FullBookingForm({ content, property }: FullBookingFormProps) {
             <>
               {property ? (
                 <div className="p-8 bg-muted/50 rounded-lg text-center">
-                  <p className="text-lg font-medium mb-4">Ready to book your stay?</p>
-                  <a 
+                  <p className="text-lg font-medium mb-4">{t('booking.readyToBook', 'Ready to book your stay?')}</p>
+                  <a
                     href={`/booking/check/${property.slug}`}
                     className="inline-block px-6 py-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
                   >
-                    Check Availability & Book
+                    {t('booking.checkAvailability', 'Check Availability & Book')}
                   </a>
                 </div>
               ) : hasError ? (
                 <Alert variant="destructive" className="mb-6">
                   <CalendarX className="h-4 w-4 mr-2" />
                   <AlertDescription>
-                    Unable to load booking information. Please refresh the page or contact us directly to book.
+                    {t('booking.loadError', 'Unable to load booking information. Please refresh the page or contact us directly to book.')}
                   </AlertDescription>
                 </Alert>
               ) : (
                 <div className="p-8 border rounded-lg text-center animate-pulse">
                   <p className="text-muted-foreground mb-4">
-                    Loading booking information...
-                  </p>
-                  <p className="text-sm">
-                    Please wait while we check availability for this property.
+                    {t('booking.loading', 'Loading booking information...')}
                   </p>
                 </div>
               )}
@@ -99,7 +96,7 @@ export function FullBookingForm({ content, property }: FullBookingFormProps) {
           ) : (
             <div className="p-8 border rounded-lg text-center">
               <p className="text-muted-foreground">
-                Booking calendar will appear here
+                {t('booking.loading', 'Loading booking information...')}
               </p>
             </div>
           )}

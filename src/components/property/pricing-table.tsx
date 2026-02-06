@@ -12,7 +12,7 @@ interface PricingTableProps {
 
 export function PricingTable({ content }: PricingTableProps) {
   const { title, description, seasons } = content;
-  const { tc } = useLanguage();
+  const { t, tc } = useLanguage();
 
   return (
     <section className="py-16 bg-background">
@@ -26,13 +26,13 @@ export function PricingTable({ content }: PricingTableProps) {
         
         <Card className="overflow-hidden max-w-4xl mx-auto">
           <Table>
-            <TableCaption>Seasonal rates and minimum stay requirements.</TableCaption>
+            <TableCaption>{t('pricing.caption', 'Seasonal rates and minimum stay requirements.')}</TableCaption>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[250px]">Season</TableHead>
-                <TableHead>Period</TableHead>
-                <TableHead>Nightly Rate</TableHead>
-                <TableHead className="text-right">Minimum Stay</TableHead>
+                <TableHead className="w-[250px]">{t('pricing.season', 'Season')}</TableHead>
+                <TableHead>{t('pricing.period', 'Period')}</TableHead>
+                <TableHead>{t('pricing.rate', 'Nightly Rate')}</TableHead>
+                <TableHead className="text-right">{t('pricing.minimumStay', 'Minimum Stay')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

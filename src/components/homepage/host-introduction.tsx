@@ -18,7 +18,7 @@ interface HostIntroductionProps {
 }
 
 export function HostIntroduction({ content }: HostIntroductionProps) {
-  const { tc } = useLanguage();
+  const { t, tc } = useLanguage();
   
   // Don't render if required host info is missing
   if (!content || !content.name || !content.backstory) {
@@ -53,7 +53,7 @@ export function HostIntroduction({ content }: HostIntroductionProps) {
           {/* Host Message */}
           <div className="text-center md:text-left">
             <h3 className="text-2xl md:text-3xl font-semibold text-foreground mb-4">
-              A Warm Welcome from {tc(content.name)}
+              {t('host.warmWelcome', 'A Warm Welcome from')} {tc(content.name)}
             </h3>
             <p className="text-lg text-muted-foreground mb-4 italic">
               "{tc(welcomeMessage)}"

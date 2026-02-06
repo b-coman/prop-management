@@ -20,7 +20,7 @@ interface FullMapProps {
 }
 
 export function FullMap({ content }: FullMapProps) {
-  const { tc } = useLanguage();
+  const { t, tc } = useLanguage();
 
   // Add safety check for missing content
   if (!content) {
@@ -173,7 +173,7 @@ export function FullMap({ content }: FullMapProps) {
               className="gap-2"
             >
               <Navigation size={16} />
-              {tc("Get Directions")}
+              {t('map.getDirections', 'Get Directions')}
             </Button>
           )}
         </div>
@@ -189,11 +189,11 @@ export function FullMap({ content }: FullMapProps) {
               justifyContent: 'center',
             }}
           >
-            {!mapLoaded && <p>Loading map...</p>}
+            {!mapLoaded && <p>{t('map.loading', 'Loading map...')}</p>}
           </div>
         ) : (
           <div className="w-full h-[500px] rounded-lg border shadow-sm bg-muted flex items-center justify-center">
-            <p className="text-muted-foreground">Map unavailable</p>
+            <p className="text-muted-foreground">{t('map.unavailable', 'Map unavailable')}</p>
           </div>
         )}
       </div>

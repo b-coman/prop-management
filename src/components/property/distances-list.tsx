@@ -13,7 +13,7 @@ interface DistancesListProps {
 
 export function DistancesList({ content }: DistancesListProps) {
   const { title, distances } = content;
-  const { tc } = useLanguage();
+  const { t, tc } = useLanguage();
 
   return (
     <section className="py-16 bg-background">
@@ -24,9 +24,9 @@ export function DistancesList({ content }: DistancesListProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[250px]">Place</TableHead>
-                <TableHead>Distance</TableHead>
-                <TableHead className="text-right">Travel Time</TableHead>
+                <TableHead className="w-[250px]">{t('distances.place', 'Place')}</TableHead>
+                <TableHead>{t('distances.distance', 'Distance')}</TableHead>
+                <TableHead className="text-right">{t('distances.travelTime', 'Travel Time')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

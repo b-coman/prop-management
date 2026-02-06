@@ -3,7 +3,7 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as admin from 'firebase-admin';
-import { blockSchemas } from '../lib/overridesSchemas';
+import { blockSchemas } from '../lib/overridesSchemas-multipage';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 

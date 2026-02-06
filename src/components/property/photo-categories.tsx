@@ -16,7 +16,7 @@ interface PhotoCategoriesProps {
 
 export function PhotoCategories({ content }: PhotoCategoriesProps) {
   const { title, categories } = content;
-  const { tc } = useLanguage();
+  const { t, tc } = useLanguage();
   const [selectedCategoryIndex, setSelectedCategoryIndex] = useState(0);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -56,7 +56,7 @@ export function PhotoCategories({ content }: PhotoCategoriesProps) {
           {/* Category Selector */}
           <div className="flex flex-col md:flex-row gap-8 mb-10">
             <div className="md:w-1/3">
-              <h3 className="text-xl font-semibold mb-4">Browse by Category</h3>
+              <h3 className="text-xl font-semibold mb-4">{t('gallery.browseByCategory', 'Browse by Category')}</h3>
               <TabsList className="flex flex-col w-full h-auto space-y-1">
                 {categories.map((category, idx) => (
                   <TabsTrigger

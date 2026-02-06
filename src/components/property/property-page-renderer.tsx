@@ -173,8 +173,6 @@ export function PropertyPageRenderer({
       const previewTheme = url.searchParams.get('preview_theme');
       
       if (previewTheme) {
-        console.log(`[Theme Preview] Setting preview theme: ${previewTheme}`);
-        
         // Validate that the theme exists
         const themeExists = predefinedThemes.some(t => t.id === previewTheme);
         if (themeExists) {
@@ -186,7 +184,6 @@ export function PropertyPageRenderer({
           setIsPreviewMode(false);
         }
       } else {
-        console.log(`[Theme Preview] Using default theme: ${themeId}`);
         setEffectiveThemeId(themeId);
         setIsPreviewMode(false);
       }
@@ -197,75 +194,6 @@ export function PropertyPageRenderer({
     }
   }, [themeId, isClient]);
   
-  // Log the current theme being used
-  useEffect(() => {
-    if (isClient && effectiveThemeId) {
-      console.log(`[Theme Debug] Current theme ID: ${effectiveThemeId}`);
-      console.log('[Theme Debug] Available themes:', predefinedThemes.map(t => t.id));
-      
-      // Log the theme object being used
-      const theme = predefinedThemes.find(t => t.id === effectiveThemeId);
-      console.log('[Theme Debug] Theme object:', theme);
-    }
-  }, [effectiveThemeId, isClient]);
-  
-  // Debug layout and spacing issues
-  useEffect(() => {
-    if (isClient && isPreviewMode) {
-      // Run after a short delay to ensure elements are rendered
-      setTimeout(() => {
-        console.log('[Layout Debug] Checking layout elements...');
-        
-        // Check preview banner
-        const banner = document.getElementById('theme-preview-banner');
-        if (banner) {
-          const bannerStyles = window.getComputedStyle(banner);
-          console.log('[Layout Debug] Banner computed styles:', {
-            marginTop: bannerStyles.marginTop,
-            marginBottom: bannerStyles.marginBottom,
-            paddingTop: bannerStyles.paddingTop,
-            paddingBottom: bannerStyles.paddingBottom,
-            height: bannerStyles.height,
-            position: bannerStyles.position,
-            display: bannerStyles.display,
-          });
-        }
-        
-        // Check main content
-        const main = document.getElementById('main-content');
-        if (main) {
-          const mainStyles = window.getComputedStyle(main);
-          console.log('[Layout Debug] Main content computed styles:', {
-            marginTop: mainStyles.marginTop,
-            paddingTop: mainStyles.paddingTop,
-            position: mainStyles.position,
-            display: mainStyles.display,
-          });
-          
-          // Get the first child of main to check its styles
-          if (main.firstElementChild) {
-            const firstChildStyles = window.getComputedStyle(main.firstElementChild);
-            console.log('[Layout Debug] First content block styles:', {
-              marginTop: firstChildStyles.marginTop,
-              paddingTop: firstChildStyles.paddingTop,
-              element: main.firstElementChild.tagName,
-              className: main.firstElementChild.className,
-            });
-          }
-        }
-        
-        // Check header
-        console.log('[Layout Debug] Adjacent elements:', {
-          headerHeight: document.querySelector('header')?.getBoundingClientRect().height,
-          bannerTop: banner?.getBoundingClientRect().top,
-          mainTop: main?.getBoundingClientRect().top,
-          viewportHeight: window.innerHeight,
-        });
-        
-      }, 1000);
-    }
-  }, [isClient, isPreviewMode]);
-
   // Check if template has pages
   if (!template.pages) {
     console.error("Template is missing pages structure", template);

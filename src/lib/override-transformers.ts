@@ -36,14 +36,15 @@
  */
 
 import { z } from 'zod';
-import { 
-  propertyOverridesSchema as legacySchema,
-  blockSchemas as legacyBlockSchemas
-} from './overridesSchemas';
-import { 
+import {
+  legacyPropertyOverridesSchema as legacySchema,
   propertyOverridesSchema as modernSchema,
-  blockSchemas as modernBlockSchemas
+  blockSchemas,
 } from './overridesSchemas-multipage';
+
+// blockSchemas is the same for both legacy and modern
+const legacyBlockSchemas = blockSchemas;
+const modernBlockSchemas = blockSchemas;
 
 // Type definitions for transformation inputs/outputs
 export type LegacyOverrides = z.infer<typeof legacySchema>;
