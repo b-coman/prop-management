@@ -293,6 +293,7 @@
     "yearBuilt": "Year Built"
   },
   "reviews": {
+    "review": "review",
     "reviews": "Reviews",
     "rating": "Rating",
     "writeReview": "Write a Review",

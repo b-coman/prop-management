@@ -1,6 +1,6 @@
 
 import Image from 'next/image';
-import { Star, StarHalf, UserCircle } from 'lucide-react'; // Added UserCircle
+import { Star, StarHalf, UserCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
@@ -22,6 +22,7 @@ interface Review {
 interface TestimonialsContent {
   title: string | { [key: string]: string }; // Title for the section
   overallRating: number; // Overall rating for the property
+  reviewCount?: number; // Total number of reviews
   reviews: Review[]; // Array of review objects
   'data-ai-hint'?: string;
 }
@@ -63,6 +64,7 @@ export function TestimonialsSection({ content, language = 'en' }: TestimonialsSe
   const {
     title = "What Our Guests Say",
     overallRating = 0,
+    reviewCount = 0,
     reviews = []
   } = content;
 
@@ -82,12 +84,15 @@ export function TestimonialsSection({ content, language = 'en' }: TestimonialsSe
              {tc(title)}
           </h2>
           {overallRating > 0 && (
-             <div className="flex items-center justify-center gap-2">
-                <Badge variant="secondary" className="text-lg px-3 py-1">
-                 {t('testimonials.overallRating')}: {overallRating.toFixed(1)} / 5
-                </Badge>
-                <div className="flex">
-                 {renderStars(overallRating)}
+             <div className="flex items-center justify-center gap-3">
+                <span className="text-4xl font-bold text-foreground">{overallRating.toFixed(1)}</span>
+                <div>
+                  <div className="flex">{renderStars(overallRating)}</div>
+                  {(reviewCount || reviews.length) > 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      {reviewCount || reviews.length} {(reviewCount || reviews.length) === 1 ? t('reviews.review') : t('reviews.reviews').toLowerCase()}
+                    </p>
+                  )}
                 </div>
             </div>
           )}
@@ -95,7 +100,7 @@ export function TestimonialsSection({ content, language = 'en' }: TestimonialsSe
         </div>
 
          {/* Use a fluid grid layout */}
-        <div className="grid gap-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {reviews.slice(0, hasRealReviews ? 6 : 3).map((review, index) => (
             <Card key={review.id || index} className="flex flex-col border-border">
               <CardContent className="p-6 flex-grow flex flex-col">
@@ -139,9 +144,11 @@ export function TestimonialsSection({ content, language = 'en' }: TestimonialsSe
                     </div>
                   </div>
                 </div>
-                <p className="text-muted-foreground text-sm italic flex-grow">
-                  &quot;{tc(review.text)}&quot;
-                </p>
+                {review.text && tc(review.text) !== '(Rating only)' && (
+                  <p className="text-muted-foreground text-sm italic line-clamp-4">
+                    &quot;{tc(review.text)}&quot;
+                  </p>
+                )}
               </CardContent>
             </Card>
           ))}

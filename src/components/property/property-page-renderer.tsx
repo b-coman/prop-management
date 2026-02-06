@@ -460,6 +460,7 @@ export function PropertyPageRenderer({
             ...blockContent,
             title: blockContent?.title || "What Our Guests Say",
             overallRating: property.ratings?.average || 0,
+            reviewCount: property.ratings?.count || 0,
             showRating: blockContent?.showRating,
             reviews: combinedReviews,
           };
