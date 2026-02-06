@@ -148,10 +148,46 @@ export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions):
   const isMetric = property.baseCurrency === 'EUR' || property.baseCurrency === 'RON';
   const floorSizeUnit = isMetric ? 'MTK' : 'FTK';
 
+  // Map propertyType to Schema.org additionalType
+  const PROPERTY_TYPE_TO_SCHEMA: Record<string, string> = {
+    entire_place: 'EntirePlace',
+    chalet: 'Chalet',
+    cabin: 'Cabin',
+    villa: 'Villa',
+    apartment: 'Apartment',
+    house: 'House',
+    cottage: 'Cottage',
+    studio: 'Studio',
+    bungalow: 'Bungalow',
+  };
+  const accommodationType = PROPERTY_TYPE_TO_SCHEMA[property.propertyType || ''] || 'EntirePlace';
+
+  // Build bed details from bedConfiguration (flatten rooms into bed type totals)
+  const bedDetails: Record<string, unknown>[] = [];
+  if (property.bedConfiguration?.length) {
+    const bedTotals = new Map<string, number>();
+    for (const room of property.bedConfiguration) {
+      for (const bed of room.beds) {
+        bedTotals.set(bed.type, (bedTotals.get(bed.type) || 0) + bed.count);
+      }
+    }
+    const BED_TYPE_TO_SCHEMA: Record<string, string> = {
+      king: 'King', queen: 'Queen', double: 'Double', single: 'Single',
+      sofa_bed: 'SofaBed', bunk: 'BunkBed', crib: 'Crib',
+    };
+    for (const [type, count] of bedTotals) {
+      bedDetails.push({
+        '@type': 'BedDetails',
+        typeOfBed: BED_TYPE_TO_SCHEMA[type] || type,
+        numberOfBeds: count,
+      });
+    }
+  }
+
   // Build containsPlace (Accommodation)
   const containsPlace: Record<string, unknown> = {
     '@type': 'Accommodation',
-    additionalType: 'EntirePlace',
+    additionalType: accommodationType,
     occupancy: {
       '@type': 'QuantitativeValue',
       value: property.maxGuests,
@@ -159,6 +195,7 @@ export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions):
     ...(property.bedrooms && { numberOfBedrooms: property.bedrooms }),
     ...(property.beds && { numberOfBeds: property.beds }),
     ...(property.bathrooms && { numberOfBathroomsTotal: property.bathrooms }),
+    ...(bedDetails.length > 0 && { bed: bedDetails }),
     ...(property.squareFeet && {
       floorSize: {
         '@type': 'QuantitativeValue',

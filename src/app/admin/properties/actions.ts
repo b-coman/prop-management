@@ -49,6 +49,14 @@ const propertyActionSchema = z.object({
     beds: z.coerce.number().int().nonnegative().optional(),
     bathrooms: z.coerce.number().int().nonnegative().optional(),
     squareFeet: z.coerce.number().nonnegative().optional(),
+    propertyType: z.enum(['entire_place', 'chalet', 'cabin', 'villa', 'apartment', 'house', 'cottage', 'studio', 'bungalow']).optional(),
+    bedConfiguration: z.array(z.object({
+      roomName: z.string().min(1).transform(sanitizeText),
+      beds: z.array(z.object({
+        type: z.enum(['king', 'queen', 'double', 'single', 'sofa_bed', 'bunk', 'crib']),
+        count: z.coerce.number().int().positive(),
+      })).min(1),
+    })).optional(),
     checkInTime: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
     checkOutTime: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
     cancellationPolicy: z.string().optional().transform(val => val ? sanitizeText(val) : ''),

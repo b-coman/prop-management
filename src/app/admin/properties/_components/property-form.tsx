@@ -7,7 +7,7 @@ import { z } from "zod";
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { ThemeSelector } from "@/components/ui/theme-selector";
 import { DEFAULT_THEME_ID } from "@/lib/themes/theme-definitions";
 
@@ -71,6 +71,14 @@ const propertyFormSchema = z.object({
     beds: z.coerce.number().int().nonnegative("Beds cannot be negative.").optional(),
     bathrooms: z.coerce.number().int().nonnegative("Bathrooms cannot be negative.").optional(),
     squareFeet: z.coerce.number().nonnegative("Square feet cannot be negative.").optional(),
+    propertyType: z.enum(['entire_place', 'chalet', 'cabin', 'villa', 'apartment', 'house', 'cottage', 'studio', 'bungalow']).optional(),
+    bedConfiguration: z.array(z.object({
+      roomName: z.string().min(1, "Room name is required."),
+      beds: z.array(z.object({
+        type: z.enum(['king', 'queen', 'double', 'single', 'sofa_bed', 'bunk', 'crib']),
+        count: z.coerce.number().int().positive("Count must be at least 1."),
+      })).min(1, "Each room must have at least one bed."),
+    })).optional(),
 
     // Rules & Policies
     checkInTime: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
@@ -109,6 +117,117 @@ const propertyFormSchema = z.object({
 
 
 type PropertyFormValues = z.infer<typeof propertyFormSchema>;
+
+const BED_TYPE_LABELS: Record<string, string> = {
+  king: 'King',
+  queen: 'Queen',
+  double: 'Double',
+  single: 'Single',
+  sofa_bed: 'Sofa Bed',
+  bunk: 'Bunk',
+  crib: 'Crib',
+};
+
+const BED_TYPES = Object.keys(BED_TYPE_LABELS) as Array<keyof typeof BED_TYPE_LABELS>;
+
+type BedEntry = { type: 'king' | 'queen' | 'double' | 'single' | 'sofa_bed' | 'bunk' | 'crib'; count: number };
+type RoomConfig = { roomName: string; beds: BedEntry[] };
+
+function BedConfigurationEditor({ value, onChange }: { value: RoomConfig[]; onChange: (val: RoomConfig[]) => void }) {
+  const addRoom = () => {
+    onChange([...value, { roomName: '', beds: [{ type: 'double', count: 1 }] }]);
+  };
+
+  const removeRoom = (roomIndex: number) => {
+    onChange(value.filter((_, i) => i !== roomIndex));
+  };
+
+  const updateRoom = (roomIndex: number, field: keyof RoomConfig, val: unknown) => {
+    const updated = value.map((room, i) => {
+      if (i !== roomIndex) return room;
+      return { ...room, [field]: val };
+    });
+    onChange(updated);
+  };
+
+  const addBed = (roomIndex: number) => {
+    const updated = value.map((room, i) => {
+      if (i !== roomIndex) return room;
+      return { ...room, beds: [...room.beds, { type: 'single' as const, count: 1 }] };
+    });
+    onChange(updated);
+  };
+
+  const removeBed = (roomIndex: number, bedIndex: number) => {
+    const updated = value.map((room, i) => {
+      if (i !== roomIndex) return room;
+      return { ...room, beds: room.beds.filter((_, bi) => bi !== bedIndex) };
+    });
+    onChange(updated);
+  };
+
+  const updateBed = (roomIndex: number, bedIndex: number, field: keyof BedEntry, val: unknown) => {
+    const updated = value.map((room, i) => {
+      if (i !== roomIndex) return room;
+      return {
+        ...room,
+        beds: room.beds.map((bed, bi) => {
+          if (bi !== bedIndex) return bed;
+          return { ...bed, [field]: val };
+        }),
+      };
+    });
+    onChange(updated);
+  };
+
+  return (
+    <div className="space-y-4">
+      {value.map((room, roomIndex) => (
+        <div key={roomIndex} className="rounded-lg border p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <Input
+              placeholder="Room name (e.g., Master Bedroom)"
+              value={room.roomName}
+              onChange={(e) => updateRoom(roomIndex, 'roomName', e.target.value)}
+              className="flex-1"
+            />
+            <Button type="button" variant="ghost" size="icon" onClick={() => removeRoom(roomIndex)} title="Remove room">
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+          {room.beds.map((bed, bedIndex) => (
+            <div key={bedIndex} className="flex items-center gap-2 ml-4">
+              <Select value={bed.type} onValueChange={(v) => updateBed(roomIndex, bedIndex, 'type', v)}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {BED_TYPES.map(t => <SelectItem key={t} value={t}>{BED_TYPE_LABELS[t]}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Input
+                type="number"
+                min="1"
+                value={bed.count}
+                onChange={(e) => updateBed(roomIndex, bedIndex, 'count', parseInt(e.target.value) || 1)}
+                className="w-[70px]"
+              />
+              <Button type="button" variant="ghost" size="icon" onClick={() => removeBed(roomIndex, bedIndex)} disabled={room.beds.length <= 1} title="Remove bed">
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+          ))}
+          <Button type="button" variant="outline" size="sm" onClick={() => addBed(roomIndex)} className="ml-4">
+            <Plus className="h-3 w-3 mr-1" /> Add Bed
+          </Button>
+        </div>
+      ))}
+      <Button type="button" variant="outline" onClick={addRoom}>
+        <Plus className="h-4 w-4 mr-1" /> Add Room
+      </Button>
+    </div>
+  );
+}
 
 interface PropertyFormProps {
   mode: 'create' | 'edit';
@@ -154,6 +273,8 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
         beds: initialData?.beds ?? undefined,
         bathrooms: initialData?.bathrooms ?? undefined,
         squareFeet: initialData?.squareFeet ?? undefined,
+        propertyType: initialData?.propertyType ?? undefined,
+        bedConfiguration: initialData?.bedConfiguration ?? [],
         checkInTime: initialData?.checkInTime ?? '',
         checkOutTime: initialData?.checkOutTime ?? '',
         cancellationPolicy: typeof initialData?.cancellationPolicy === 'string' ? initialData.cancellationPolicy : initialData?.cancellationPolicy?.en ?? '',
@@ -235,6 +356,33 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
             <FormField control={form.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Property Name *</FormLabel><FormControl><Input placeholder="e.g., Cozy Mountain Retreat" {...field} /></FormControl><FormMessage /></FormItem> )} />
             <FormField control={form.control} name="slug" render={({ field }) => ( <FormItem><FormLabel>Slug *</FormLabel><FormControl><Input placeholder="e.g., cozy-mountain-retreat" {...field} disabled={mode === 'edit'} /></FormControl><FormDescription>URL-friendly identifier (auto-generated from name if empty, cannot be changed after creation).</FormDescription><FormMessage /></FormItem> )} />
         </div>
+
+        <FormField control={form.control} name="propertyType" render={({ field }) => (
+          <FormItem>
+            <FormLabel>Property Type</FormLabel>
+            <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select property type" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <SelectItem value="entire_place">Entire Place</SelectItem>
+                <SelectItem value="chalet">Chalet</SelectItem>
+                <SelectItem value="cabin">Cabin</SelectItem>
+                <SelectItem value="villa">Villa</SelectItem>
+                <SelectItem value="apartment">Apartment</SelectItem>
+                <SelectItem value="house">House</SelectItem>
+                <SelectItem value="cottage">Cottage</SelectItem>
+                <SelectItem value="studio">Studio</SelectItem>
+                <SelectItem value="bungalow">Bungalow</SelectItem>
+              </SelectContent>
+            </Select>
+            <FormDescription>Used in Google structured data for rich results.</FormDescription>
+            <FormMessage />
+          </FormItem>
+        )} />
+
         <FormField control={form.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="Detailed description of the property..." {...field} rows={5} /></FormControl><FormMessage /></FormItem> )} />
         <FormField control={form.control} name="shortDescription" render={({ field }) => ( <FormItem><FormLabel>Short Description</FormLabel><FormControl><Input placeholder="A brief summary..." {...field} /></FormControl><FormMessage /></FormItem> )} />
          <FormField control={form.control} name="templateId" render={({ field }) => ( <FormItem><FormLabel>Website Template *</FormLabel><FormControl>
@@ -316,6 +464,15 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
              <FormField control={form.control} name="bathrooms" render={({ field }) => ( <FormItem><FormLabel>Bathrooms</FormLabel><FormControl><Input type="number" min="0" placeholder="e.g., 2" {...field} /></FormControl><FormMessage /></FormItem> )} />
              <FormField control={form.control} name="squareFeet" render={({ field }) => ( <FormItem><FormLabel>Square Feet</FormLabel><FormControl><Input type="number" min="0" placeholder="e.g., 1500" {...field} /></FormControl><FormMessage /></FormItem> )} />
         </div>
+
+        {/* --- Section: Bed Configuration --- */}
+        <Separator className="my-6" />
+        <h3 className="text-lg font-medium border-b pb-2">Bed Configuration</h3>
+        <FormDescription className="mb-4">Optional: specify bed types per room for Google rich results. The total beds count above is used as fallback.</FormDescription>
+        <BedConfigurationEditor
+          value={form.watch('bedConfiguration') || []}
+          onChange={(val) => form.setValue('bedConfiguration', val, { shouldDirty: true })}
+        />
 
          {/* --- Section: Rules & Policies --- */}
         <Separator className="my-6" />

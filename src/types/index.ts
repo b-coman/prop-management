@@ -58,6 +58,14 @@ export interface Property {
   beds?: number;
   bathrooms?: number;
   squareFeet?: number;
+  propertyType?: 'entire_place' | 'chalet' | 'cabin' | 'villa' | 'apartment' | 'house' | 'cottage' | 'studio' | 'bungalow';
+  bedConfiguration?: Array<{
+    roomName: string;
+    beds: Array<{
+      type: 'king' | 'queen' | 'double' | 'single' | 'sofa_bed' | 'bunk' | 'crib';
+      count: number;
+    }>;
+  }>;
   checkInTime?: string;
   checkOutTime?: string;
   houseRules?: MultilingualString[];
