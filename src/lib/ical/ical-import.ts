@@ -4,7 +4,6 @@
  * Handles conflict resolution (our bookings win) and stale block cleanup.
  */
 
-import { format } from 'date-fns';
 import { FieldValue } from 'firebase-admin/firestore';
 import { loggers } from '@/lib/logger';
 import type { ICalFeed } from '@/types';
@@ -131,7 +130,10 @@ export async function syncFeedToAvailability(
   for (const event of externalEvents) {
     const current = new Date(event.startDate);
     while (current < event.endDate) {
-      const monthKey = format(current, 'yyyy-MM');
+      // Use UTC consistently to avoid timezone mismatch
+      const year = current.getUTCFullYear();
+      const month = current.getUTCMonth() + 1;
+      const monthKey = `${year}-${String(month).padStart(2, '0')}`;
       const day = current.getUTCDate();
       datesToBlock.add(`${monthKey}:${day}`);
       current.setUTCDate(current.getUTCDate() + 1);
@@ -233,13 +235,15 @@ export async function syncFeedToAvailability(
       if (currentDoc.exists) {
         batch.update(docRef, updateData);
       } else {
-        // Create the availability doc if it doesn't exist
+        // Create the availability doc if it doesn't exist.
+        // First create the base doc, then update with dot-notation fields.
+        // Cannot mix full field (available: {}) with dot-notation (available.2: false) in set().
         batch.set(docRef, {
           propertyId: feed.propertyId,
           month: monthKey,
-          available: {},
-          ...updateData,
         }, { merge: true });
+        batch.update(docRef, updateData);
+        batchOps++; // extra op for the two-step create
       }
       batchOps++;
 
