@@ -81,6 +81,7 @@ interface VacationRentalJsonLdOptions {
   amenities?: Amenity[];
   canonicalUrl: string;
   telephone?: string;
+  publishedReviewCount?: number;
 }
 
 function isPlaceholderValue(value?: string): boolean {
@@ -90,7 +91,7 @@ function isPlaceholderValue(value?: string): boolean {
 }
 
 export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions): Record<string, unknown> {
-  const { property, amenities = [], canonicalUrl, telephone } = options;
+  const { property, amenities = [], canonicalUrl, telephone, publishedReviewCount } = options;
   const validTelephone = telephone && !isPlaceholderValue(telephone) ? telephone : undefined;
 
   const name = typeof property.name === 'string'
@@ -156,6 +157,7 @@ export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions):
       value: property.maxGuests,
     },
     ...(property.bedrooms && { numberOfBedrooms: property.bedrooms }),
+    ...(property.beds && { numberOfBeds: property.beds }),
     ...(property.bathrooms && { numberOfBathroomsTotal: property.bathrooms }),
     ...(property.squareFeet && {
       floorSize: {
@@ -188,12 +190,14 @@ export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions):
     return time;
   };
 
-  // Build aggregate rating
-  const aggregateRating = property.ratings && property.ratings.average > 0 && property.ratings.count > 0
+  // Build aggregate rating — only when actual published reviews exist in Firestore.
+  // property.ratings may contain stale/manual data; publishedReviewCount is the source of truth.
+  const hasRealReviews = typeof publishedReviewCount === 'number' && publishedReviewCount > 0;
+  const aggregateRating = hasRealReviews && property.ratings && property.ratings.average > 0
     ? {
         '@type': 'AggregateRating',
         ratingValue: property.ratings.average,
-        ratingCount: property.ratings.count,
+        ratingCount: publishedReviewCount,
         bestRating: 5,
       }
     : undefined;

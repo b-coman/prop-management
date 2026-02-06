@@ -1,5 +1,5 @@
 // src/lib/property-utils.ts
-import { doc, getDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getCountFromServer, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Property, SerializableTimestamp } from '@/types';
 
@@ -263,5 +263,24 @@ export async function getPropertyHeroImage(slug: string, debugMode = false): Pro
   } catch (error) {
     console.error(`[PropertyUtils] Error fetching property hero image for ${slug}:`, error);
     return null;
+  }
+}
+
+/**
+ * Counts published reviews for a property from the reviews collection.
+ * Used to guard aggregateRating in JSON-LD structured data.
+ */
+export async function getPublishedReviewCount(propertySlug: string): Promise<number> {
+  try {
+    const reviewsRef = collection(db, 'reviews');
+    const q = query(
+      reviewsRef,
+      where('propertyId', '==', propertySlug),
+      where('isPublished', '==', true)
+    );
+    const snapshot = await getCountFromServer(q);
+    return snapshot.data().count;
+  } catch {
+    return 0;
   }
 }

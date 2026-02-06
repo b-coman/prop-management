@@ -15,7 +15,7 @@ import { getAmenitiesByRefs } from '@/lib/amenity-utils';
 export const dynamic = 'force-dynamic'; // Ensures the page is always dynamically rendered
 
 // Import the utility function
-import { getPropertyBySlug } from '@/lib/property-utils';
+import { getPropertyBySlug, getPublishedReviewCount } from '@/lib/property-utils';
 
 // Alias for backward compatibility
 const getProperty = getPropertyBySlug;
@@ -355,11 +355,12 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   // Build VacationRental JSON-LD only on homepage
   let vacationRentalJsonLd: Record<string, unknown> | null = null;
   if (pageName === 'homepage') {
-    const amenities = property.amenityRefs?.length
-      ? await getAmenitiesByRefs(property.amenityRefs)
-      : [];
+    const [amenities, publishedReviewCount] = await Promise.all([
+      property.amenityRefs?.length ? getAmenitiesByRefs(property.amenityRefs) : [],
+      getPublishedReviewCount(slug),
+    ]);
     const telephone = template?.footer?.contactInfo?.phone || undefined;
-    vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl, telephone });
+    vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl, telephone, publishedReviewCount });
   }
 
   const breadcrumbJsonLd = buildBreadcrumbJsonLd(propertyNameStr, slug, baseUrl);
