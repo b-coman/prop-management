@@ -267,10 +267,26 @@ export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions):
     };
   });
 
+  // Map propertyType to VacationRental additionalType (human-readable subtype).
+  // This is different from Accommodation additionalType which uses a strict enum.
+  const PROPERTY_TYPE_TO_RENTAL_SUBTYPE: Record<string, string> = {
+    chalet: 'Chalet',
+    cabin: 'Cabin',
+    villa: 'Villa',
+    apartment: 'Apartment',
+    house: 'House',
+    cottage: 'Cottage',
+    studio: 'Studio',
+    bungalow: 'Bungalow',
+    entire_place: 'VacationRental',
+  };
+  const rentalSubtype = PROPERTY_TYPE_TO_RENTAL_SUBTYPE[property.propertyType || ''];
+
   // Assemble the full JSON-LD
   const jsonLd: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'VacationRental',
+    ...(rentalSubtype && { additionalType: rentalSubtype }),
     name,
     identifier: property.slug || property.id,
     url: canonicalUrl,
