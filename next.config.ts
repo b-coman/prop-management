@@ -21,6 +21,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'firebasestorage.googleapis.com',
       },
+      {
+        protocol: 'https',
+        hostname: '*.firebasestorage.app',
+      },
     ],
   },
   // Support for multi-page structure and custom domains

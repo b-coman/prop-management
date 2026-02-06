@@ -90,6 +90,18 @@ export async function getAdminDb(): Promise<admin.firestore.Firestore> {
 }
 
 /**
+ * Get Admin Storage instance - initializes SDK if needed
+ * Throws error if initialization fails
+ */
+export async function getAdminStorage() {
+  const adminApp = await initializeFirebaseAdminSafe();
+  if (!adminApp) {
+    throw new Error('Admin SDK not available - check server configuration');
+  }
+  return admin.storage(adminApp);
+}
+
+/**
  * Re-export commonly used Admin SDK types for convenience
  */
 export { FieldValue, Timestamp } from 'firebase-admin/firestore';

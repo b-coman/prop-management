@@ -394,6 +394,20 @@ export function PropertyPageRenderer({
             maxGuests: 6
           }
         };
+      } else if ((type === 'gallery' || type === 'galleryGrid' || type === 'full-gallery') && property?.images?.length) {
+        // Fallback to property.images when gallery has no override images
+        const existingImages = blockContent?.images;
+        if (!existingImages || existingImages.length === 0) {
+          const propertyGalleryImages = property.images.map((img) => ({
+            url: img.url,
+            alt: img.alt || '',
+            'data-ai-hint': img['data-ai-hint'],
+          }));
+          blockContent = {
+            ...blockContent,
+            images: propertyGalleryImages,
+          };
+        }
       } else if (type === 'cta') {
         // For CTA buttons
         blockContent = {

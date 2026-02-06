@@ -42,6 +42,9 @@
     "manage-availability": "./scripts/manage-availability-data.sh"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@firebasegen/default-connector": "file:dataconnect-generated/js/default-connector",
     "@genkit-ai/googleai": "^1.6.2",
     "@genkit-ai/next": "^1.6.2",

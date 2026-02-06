@@ -17,6 +17,7 @@ import {
   BedDouble,
   Bath,
   Clock,
+  ImageIcon,
 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -349,6 +350,13 @@ export default async function PropertyOverviewPage({ params }: PageProps) {
               <CardTitle className="text-base">Quick Links</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
+              <Link href={`/admin/properties/${slug}/images`} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50 transition-colors">
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Manage Images</span>
+                </div>
+                <ArrowRight className="h-4 w-4 text-muted-foreground" />
+              </Link>
               <Link href={`/admin/pricing`} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50 transition-colors">
                 <div className="flex items-center gap-2">
                   <Sliders className="h-4 w-4 text-muted-foreground" />
