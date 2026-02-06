@@ -132,7 +132,7 @@ env:
 
 # Google Tag Manager (client-side, public)
   - variable: NEXT_PUBLIC_GTM_ID
-    value: ""
+    value: "GTM-PF38CG84"
     availability:
       - BUILD
       - RUNTIME
