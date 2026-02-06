@@ -31,40 +31,29 @@ import {
   SidebarRail,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 
-// Navigation items configuration
-const navigationItems = [
+// Navigation items grouped by section
+const navigationGroups = [
   {
-    title: 'Properties',
-    href: '/admin/properties',
-    icon: Building,
+    label: 'Properties',
+    items: [
+      { title: 'Properties', href: '/admin/properties', icon: Building },
+      { title: 'Pricing', href: '/admin/pricing', icon: Sliders },
+      { title: 'Calendar', href: '/admin/calendar', icon: RefreshCw },
+    ],
   },
   {
-    title: 'Pricing',
-    href: '/admin/pricing',
-    icon: Sliders,
+    label: 'Operations',
+    items: [
+      { title: 'Bookings', href: '/admin/bookings', icon: CalendarCheck },
+      { title: 'Inquiries', href: '/admin/inquiries', icon: MessageSquare },
+    ],
   },
   {
-    title: 'Calendar Sync',
-    href: '/admin/calendar',
-    icon: RefreshCw,
-  },
-  {
-    title: 'Bookings',
-    href: '/admin/bookings',
-    icon: CalendarCheck,
-  },
-  {
-    title: 'Coupons',
-    href: '/admin/coupons',
-    icon: Ticket,
-  },
-  {
-    title: 'Inquiries',
-    href: '/admin/inquiries',
-    icon: MessageSquare,
+    label: 'Marketing',
+    items: [
+      { title: 'Coupons', href: '/admin/coupons', icon: Ticket },
+    ],
   },
 ];
 
@@ -99,30 +88,32 @@ export function AdminSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navigationItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive(item.href)}
-                    tooltip={item.title}
-                  >
-                    <Link href={item.href}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                      {isActive(item.href) && (
-                        <ChevronRight className="ml-auto h-4 w-4" />
-                      )}
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {navigationGroups.map((group) => (
+          <SidebarGroup key={group.label}>
+            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {group.items.map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive(item.href)}
+                      tooltip={item.title}
+                    >
+                      <Link href={item.href}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                        {isActive(item.href) && (
+                          <ChevronRight className="ml-auto h-4 w-4" />
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
 
       <SidebarFooter className="border-t">
