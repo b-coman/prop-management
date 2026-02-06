@@ -267,3 +267,88 @@ export async function updateCouponExclusionsAction(
         return { success: false, error: "Failed to update coupon exclusion periods." };
     }
 }
+
+// ============================================================================
+// Bulk Actions
+// ============================================================================
+
+const bulkIdsSchema = z.array(z.string().min(1)).min(1).max(50);
+
+interface BulkActionResult {
+  success: boolean;
+  successCount: number;
+  failCount: number;
+}
+
+export async function bulkDeactivateCoupons(couponIds: string[]): Promise<BulkActionResult> {
+  const parsed = bulkIdsSchema.safeParse(couponIds);
+  if (!parsed.success) {
+    return { success: false, successCount: 0, failCount: couponIds.length };
+  }
+
+  try {
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      logger.warn('Auth failed for bulkDeactivateCoupons', { error: error.message });
+    }
+    return { success: false, successCount: 0, failCount: parsed.data.length };
+  }
+
+  try {
+    const db = await getAdminDb();
+    const batch = db.batch();
+
+    for (const couponId of parsed.data) {
+      const ref = db.collection('coupons').doc(couponId);
+      batch.update(ref, {
+        isActive: false,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+
+    await batch.commit();
+    revalidatePath('/admin/coupons');
+    logger.info('Bulk deactivate coupons completed', { count: parsed.data.length });
+
+    return { success: true, successCount: parsed.data.length, failCount: 0 };
+  } catch (error) {
+    logger.error('Error in bulk deactivate coupons', error as Error);
+    return { success: false, successCount: 0, failCount: parsed.data.length };
+  }
+}
+
+export async function bulkDeleteCoupons(couponIds: string[]): Promise<BulkActionResult> {
+  const parsed = bulkIdsSchema.safeParse(couponIds);
+  if (!parsed.success) {
+    return { success: false, successCount: 0, failCount: couponIds.length };
+  }
+
+  try {
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      logger.warn('Auth failed for bulkDeleteCoupons', { error: error.message });
+    }
+    return { success: false, successCount: 0, failCount: parsed.data.length };
+  }
+
+  try {
+    const db = await getAdminDb();
+    const batch = db.batch();
+
+    for (const couponId of parsed.data) {
+      const ref = db.collection('coupons').doc(couponId);
+      batch.delete(ref);
+    }
+
+    await batch.commit();
+    revalidatePath('/admin/coupons');
+    logger.info('Bulk delete coupons completed', { count: parsed.data.length });
+
+    return { success: true, successCount: parsed.data.length, failCount: 0 };
+  } catch (error) {
+    logger.error('Error in bulk delete coupons', error as Error);
+    return { success: false, successCount: 0, failCount: parsed.data.length };
+  }
+}
