@@ -145,7 +145,8 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
     language,
   ) || `Book ${propertyName} - vacation rental`;
 
-  const canonicalUrl = getCanonicalUrl(slug);
+  const customDomain = property.useCustomDomain ? property.customDomain : null;
+  const canonicalUrl = getCanonicalUrl(slug, customDomain);
   const featuredImage = property.images?.find(img => img.isFeatured)?.url
     || property.images?.[0]?.url;
 
@@ -168,10 +169,9 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
     },
     alternates: {
       canonical: canonicalUrl,
-      languages: {
-        'en': canonicalUrl,
-        'ro': `${canonicalUrl}/ro`,
-      },
+      languages: customDomain
+        ? { 'en': canonicalUrl, 'ro': `${canonicalUrl}/ro` }
+        : { 'en': canonicalUrl, 'ro': `${canonicalUrl}/ro` },
     },
   };
 }
@@ -345,8 +345,9 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   }
 
   // Build structured data (JSON-LD)
-  const canonicalUrl = getCanonicalUrl(slug);
-  const baseUrl = getBaseUrl();
+  const customDomain = property.useCustomDomain ? property.customDomain : null;
+  const canonicalUrl = getCanonicalUrl(slug, customDomain);
+  const baseUrl = getBaseUrl(customDomain);
   const propertyNameStr = typeof property.name === 'string'
     ? property.name
     : (property.name.en || property.name.ro || 'Property');
@@ -357,7 +358,8 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     const amenities = property.amenityRefs?.length
       ? await getAmenitiesByRefs(property.amenityRefs)
       : [];
-    vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl });
+    const telephone = template?.footer?.contactInfo?.phone || undefined;
+    vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl, telephone });
   }
 
   const breadcrumbJsonLd = buildBreadcrumbJsonLd(propertyNameStr, slug, baseUrl);

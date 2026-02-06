@@ -52,10 +52,11 @@ interface VacationRentalJsonLdOptions {
   property: Property;
   amenities?: Amenity[];
   canonicalUrl: string;
+  telephone?: string;
 }
 
 export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions): Record<string, unknown> {
-  const { property, amenities = [], canonicalUrl } = options;
+  const { property, amenities = [], canonicalUrl, telephone } = options;
 
   const name = typeof property.name === 'string'
     ? property.name
@@ -162,6 +163,11 @@ export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions):
       }
     : undefined;
 
+  // Build price range from base price
+  const priceRange = property.pricePerNight
+    ? `${property.pricePerNight} ${property.baseCurrency}/night`
+    : undefined;
+
   // Assemble the full JSON-LD
   const jsonLd: Record<string, unknown> = {
     '@context': 'https://schema.org',
@@ -171,6 +177,8 @@ export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions):
     url: canonicalUrl,
     ...(description && { description }),
     ...(images.length > 0 && { image: images }),
+    ...(telephone && { telephone }),
+    ...(priceRange && { priceRange }),
     ...(property.location?.coordinates && {
       latitude: String(property.location.coordinates.latitude),
       longitude: String(property.location.coordinates.longitude),
@@ -221,10 +229,19 @@ function normalizeHost(): string {
   return `${protocol}://${host}`;
 }
 
-export function getCanonicalUrl(slug: string): string {
+export function getCanonicalUrl(slug: string, customDomain?: string | null): string {
+  if (customDomain) {
+    // Custom domain serves the property at the root
+    const domain = customDomain.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    return `https://${domain}`;
+  }
   return `${normalizeHost()}/properties/${slug}`;
 }
 
-export function getBaseUrl(): string {
+export function getBaseUrl(customDomain?: string | null): string {
+  if (customDomain) {
+    const domain = customDomain.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    return `https://${domain}`;
+  }
   return normalizeHost();
 }

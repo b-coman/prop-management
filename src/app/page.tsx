@@ -28,7 +28,8 @@ export async function generateMetadata(): Promise<Metadata> {
         : (property.description.en || property.description.ro || ''))
     : `Book ${propertyName} - vacation rental`;
 
-  const canonicalUrl = getCanonicalUrl(defaultPropertySlug);
+  const customDomain = property.useCustomDomain ? property.customDomain : null;
+  const canonicalUrl = getCanonicalUrl(defaultPropertySlug, customDomain);
   const featuredImage = property.images?.find(img => img.isFeatured)?.url
     || property.images?.[0]?.url;
 
@@ -135,9 +136,11 @@ export default async function HomePage() {
     ? await getAmenitiesByRefs(property.amenityRefs)
     : [];
 
-  const canonicalUrl = getCanonicalUrl(defaultPropertySlug);
-  const baseUrl = getBaseUrl();
-  const vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl });
+  const customDomain = property.useCustomDomain ? property.customDomain : null;
+  const canonicalUrl = getCanonicalUrl(defaultPropertySlug, customDomain);
+  const baseUrl = getBaseUrl(customDomain);
+  const telephone = template?.footer?.contactInfo?.phone || undefined;
+  const vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl, telephone });
   const breadcrumbJsonLd = buildBreadcrumbJsonLd(propertyNameStr, defaultPropertySlug, baseUrl);
 
   return (
