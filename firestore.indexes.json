@@ -40,13 +40,6 @@
         { "fieldPath": "propertyId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
-    },
-    {
-      "collectionGroup": "icalFeeds",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "enabled", "order": "ASCENDING" }
-      ]
     }
   ],
   "fieldOverrides": []
