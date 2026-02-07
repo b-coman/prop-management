@@ -15,8 +15,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import {
-  Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription,
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -24,7 +26,6 @@ import {
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from '@/components/ui/popover';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { createExternalBookingAction, editBookingAction } from '../actions';
@@ -65,6 +66,7 @@ interface ExternalBookingFormProps {
   booking?: Booking;
   properties: Array<{ id: string; name: string; currency: string }>;
   onSuccess?: () => void;
+  compact?: boolean;
 }
 
 function parseDateStr(val: string | null | undefined): Date | undefined {
@@ -77,7 +79,7 @@ function parseDateStr(val: string | null | undefined): Date | undefined {
   }
 }
 
-export function ExternalBookingForm({ mode, booking, properties, onSuccess }: ExternalBookingFormProps) {
+export function ExternalBookingForm({ mode, booking, properties, onSuccess, compact }: ExternalBookingFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
@@ -149,7 +151,7 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess }: Ex
         if (result.success) {
           toast({ title: 'Booking Created', description: `Booking ${result.bookingId?.substring(0, 8)}... created successfully.` });
           onSuccess?.();
-          router.push('/admin/bookings');
+          if (!compact) router.push('/admin/bookings');
         } else {
           toast({ title: 'Error', description: result.error, variant: 'destructive' });
         }
@@ -166,6 +168,198 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess }: Ex
     });
   };
 
+  if (compact) {
+    return <CompactForm form={form} mode={mode} properties={properties} nights={nights} isPending={isPending} onSubmit={onSubmit} onCancel={onSuccess} />;
+  }
+
+  return <FullForm form={form} mode={mode} properties={properties} nights={nights} isPending={isPending} onSubmit={onSubmit} onCancel={onSuccess || (() => router.back())} />;
+}
+
+// ============================================================
+// Compact layout — fits in a dialog without scrolling
+// ============================================================
+
+function CompactForm({ form, mode, properties, nights, isPending, onSubmit, onCancel }: FormLayoutProps) {
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {/* Row 1: Property, Source, Confirmation Code */}
+        <div className="grid grid-cols-3 gap-3">
+          <FormField control={form.control} name="propertyId" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">Property</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value} disabled={mode === 'edit'}>
+                <FormControl><SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
+                <SelectContent>
+                  {properties.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="source" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">Source</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl><SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
+                <SelectContent>
+                  {SOURCES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="externalId" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">Confirmation Code</FormLabel>
+              <FormControl><Input className="h-9" placeholder="e.g. HM5ABC123" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+        </div>
+
+        <Separator />
+
+        {/* Row 2: Check-in, Check-out, Guests, Booking Date */}
+        <div className="grid grid-cols-4 gap-3">
+          <FormField control={form.control} name="checkInDate" render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel className="text-xs">Check-in</FormLabel>
+              <DatePickerField value={field.value} onChange={field.onChange} compact />
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="checkOutDate" render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel className="text-xs">
+                Check-out {nights > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0">{nights}n</Badge>}
+              </FormLabel>
+              <DatePickerField value={field.value} onChange={field.onChange} compact />
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="numberOfGuests" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">Guests</FormLabel>
+              <FormControl><Input className="h-9" type="number" min={1} {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="bookedAt" render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel className="text-xs">Booked on</FormLabel>
+              <DatePickerField value={field.value || ''} onChange={field.onChange} compact />
+              <FormMessage />
+            </FormItem>
+          )} />
+        </div>
+
+        <Separator />
+
+        {/* Row 3: Payout, Currency, First Name, Last Name */}
+        <div className="grid grid-cols-4 gap-3">
+          <FormField control={form.control} name="netPayout" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">Net Payout</FormLabel>
+              <FormControl><Input className="h-9" type="number" step="0.01" min={0} {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="currency" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">Currency</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl>
+                <SelectContent>
+                  <SelectItem value="RON">RON</SelectItem>
+                  <SelectItem value="EUR">EUR</SelectItem>
+                  <SelectItem value="USD">USD</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="firstName" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">First Name *</FormLabel>
+              <FormControl><Input className="h-9" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="lastName" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">Last Name</FormLabel>
+              <FormControl><Input className="h-9" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+        </div>
+
+        {/* Row 4: Email, Phone, Country, Notes */}
+        <div className="grid grid-cols-4 gap-3">
+          <FormField control={form.control} name="email" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">Email</FormLabel>
+              <FormControl><Input className="h-9" type="email" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="phone" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">Phone</FormLabel>
+              <FormControl><Input className="h-9" type="tel" placeholder="+40..." {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="country" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">Country</FormLabel>
+              <FormControl><Input className="h-9" placeholder="e.g. Romania" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="notes" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">Notes</FormLabel>
+              <FormControl><Input className="h-9" placeholder="Optional" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-end gap-3 pt-2">
+          <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button type="submit" size="sm" disabled={isPending}>
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {mode === 'create' ? 'Create Booking' : 'Save Changes'}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
+
+// ============================================================
+// Full layout — used on the standalone page and edit dialog
+// ============================================================
+
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { FormDescription } from '@/components/ui/form';
+
+interface FormLayoutProps {
+  form: ReturnType<typeof useForm<FormValues>>;
+  mode: 'create' | 'edit';
+  properties: Array<{ id: string; name: string; currency: string }>;
+  nights: number;
+  isPending: boolean;
+  onSubmit: (values: FormValues) => void;
+  onCancel?: () => void;
+}
+
+function FullForm({ form, mode, properties, nights, isPending, onSubmit, onCancel }: FormLayoutProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -348,7 +542,7 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess }: Ex
 
         {/* Submit */}
         <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={() => onSuccess ? onSuccess() : router.back()} disabled={isPending}>
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
@@ -364,15 +558,19 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess }: Ex
 /**
  * Date picker field using Calendar + Popover.
  */
-function DatePickerField({ value, onChange }: { value: string; onChange: (val: string) => void }) {
+function DatePickerField({ value, onChange, compact }: { value: string; onChange: (val: string) => void; compact?: boolean }) {
   const date = parseDateStr(value);
 
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !date && 'text-muted-foreground')}>
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {date ? format(date, 'PPP') : 'Pick a date'}
+        <Button variant="outline" className={cn(
+          'w-full justify-start text-left font-normal',
+          compact && 'h-9 text-xs',
+          !date && 'text-muted-foreground'
+        )}>
+          <CalendarIcon className={cn('mr-2', compact ? 'h-3 w-3' : 'h-4 w-4')} />
+          {date ? format(date, compact ? 'dd MMM yyyy' : 'PPP') : 'Pick a date'}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">

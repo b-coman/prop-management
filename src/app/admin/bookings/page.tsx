@@ -1,11 +1,9 @@
 // src/app/admin/bookings/page.tsx
 import { Suspense } from 'react';
-import Link from 'next/link';
-import { Plus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { fetchBookings } from './actions';
+import { fetchBookings, fetchPropertiesForBookingForm } from './actions';
 import { BookingsWithFilter } from './_components/bookings-with-filter';
+import { AddBookingDialog } from './_components/add-booking-dialog';
 import { AdminPage, TableSkeleton } from '@/components/admin';
 
 export const dynamic = 'force-dynamic';
@@ -22,19 +20,14 @@ async function BookingsContent() {
   );
 }
 
-export default function ManageBookingsPage() {
+export default async function ManageBookingsPage() {
+  const properties = await fetchPropertiesForBookingForm();
+
   return (
     <AdminPage
       title="Bookings"
       description="View, confirm, cancel, and manage booking holds"
-      actions={
-        <Button asChild>
-          <Link href="/admin/bookings/add-external">
-            <Plus className="h-4 w-4 mr-1" />
-            Add Booking
-          </Link>
-        </Button>
-      }
+      actions={<AddBookingDialog properties={properties} />}
     >
       <Suspense fallback={<Card><CardContent className="pt-6"><TableSkeleton columns={6} rows={5} /></CardContent></Card>}>
         <BookingsContent />
