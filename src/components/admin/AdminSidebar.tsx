@@ -100,7 +100,17 @@ export function AdminSidebar() {
     router.push('/login');
   };
 
-  const isActive = (href: string) => pathname.startsWith(href);
+  // Collect all nav hrefs for most-specific-match logic
+  const allHrefs = navigationGroups.flatMap((g) => g.items.map((i) => i.href));
+
+  const isActive = (href: string) => {
+    if (!pathname.startsWith(href)) return false;
+    // If another href is a more specific match, this one shouldn't be active
+    // e.g. /admin/website should NOT match when /admin/website/navigation does
+    return !allHrefs.some(
+      (other) => other !== href && other.startsWith(href) && pathname.startsWith(other)
+    );
+  };
 
   return (
     <Sidebar collapsible="icon">
