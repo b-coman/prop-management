@@ -25,9 +25,10 @@ interface SortableItemProps {
   id: string;
   children: ReactNode;
   onRemove: () => void;
+  compact?: boolean;
 }
 
-function SortableItem({ id, children, onRemove }: SortableItemProps) {
+function SortableItem({ id, children, onRemove, compact }: SortableItemProps) {
   const {
     attributes,
     listeners,
@@ -47,7 +48,7 @@ function SortableItem({ id, children, onRemove }: SortableItemProps) {
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex gap-2 items-start border rounded-lg p-4 bg-background ${isDragging ? 'z-50 shadow-lg' : ''}`}
+      className={`flex gap-2 items-start border rounded-lg bg-background ${compact ? 'p-3' : 'p-4'} ${isDragging ? 'z-50 shadow-lg' : ''}`}
     >
       <button
         type="button"
@@ -76,6 +77,7 @@ interface SortableListProps<T> {
   onAdd: () => void;
   renderItem: (item: T, index: number) => ReactNode;
   addLabel?: string;
+  compact?: boolean;
 }
 
 export function SortableList<T>({
@@ -85,6 +87,7 @@ export function SortableList<T>({
   onAdd,
   renderItem,
   addLabel = 'Add Item',
+  compact = false,
 }: SortableListProps<T>) {
   const nextId = useRef(0);
   const idsRef = useRef<string[]>(items.map(() => `s-${nextId.current++}`));
@@ -133,6 +136,7 @@ export function SortableList<T>({
               key={idsRef.current[index]}
               id={idsRef.current[index]}
               onRemove={() => handleRemove(index)}
+              compact={compact}
             >
               {renderItem(item, index)}
             </SortableItem>

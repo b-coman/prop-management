@@ -112,28 +112,31 @@ export function NavigationEditor({ propertyId, initialOverrides }: NavigationEdi
             onRemove={(i) => updateMenuItems(menuItems.filter((_, idx) => idx !== i))}
             onAdd={() => updateMenuItems([...menuItems, { label: { en: '' }, url: '' }])}
             addLabel="Add Menu Item"
+            compact
             renderItem={(item, i) => (
-              <div className="space-y-3">
-                <MultilingualInput
-                  label="Label"
-                  value={item.label}
-                  onChange={(v) => {
-                    const updated = [...menuItems];
-                    updated[i] = { ...updated[i], label: v };
-                    updateMenuItems(updated);
-                  }}
-                />
-                <div className="space-y-1.5">
-                  <Label className="text-sm">URL</Label>
-                  <Input
-                    value={item.url}
-                    onChange={(e) => {
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-3">
+                  <MultilingualInput
+                    label="Label"
+                    value={item.label}
+                    onChange={(v) => {
                       const updated = [...menuItems];
-                      updated[i] = { ...updated[i], url: e.target.value };
+                      updated[i] = { ...updated[i], label: v };
                       updateMenuItems(updated);
                     }}
-                    placeholder="/booking or https://..."
                   />
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">URL</Label>
+                    <Input
+                      value={item.url}
+                      onChange={(e) => {
+                        const updated = [...menuItems];
+                        updated[i] = { ...updated[i], url: e.target.value };
+                        updateMenuItems(updated);
+                      }}
+                      placeholder="/booking or https://..."
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Switch
@@ -144,7 +147,7 @@ export function NavigationEditor({ propertyId, initialOverrides }: NavigationEdi
                       updateMenuItems(updated);
                     }}
                   />
-                  <Label className="text-sm">Show as button</Label>
+                  <Label className="text-sm text-muted-foreground">Show as button</Label>
                 </div>
               </div>
             )}
@@ -165,8 +168,9 @@ export function NavigationEditor({ propertyId, initialOverrides }: NavigationEdi
             onRemove={(i) => updateQuickLinks(quickLinks.filter((_, idx) => idx !== i))}
             onAdd={() => updateQuickLinks([...quickLinks, { label: { en: '' }, url: '' }])}
             addLabel="Add Quick Link"
+            compact
             renderItem={(link, i) => (
-              <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
                 <MultilingualInput
                   label="Label"
                   value={link.label}
@@ -207,6 +211,7 @@ export function NavigationEditor({ propertyId, initialOverrides }: NavigationEdi
             onRemove={(i) => updateSocialLinks(socialLinks.filter((_, idx) => idx !== i))}
             onAdd={() => updateSocialLinks([...socialLinks, { platform: 'facebook', url: '' }])}
             addLabel="Add Social Link"
+            compact
             renderItem={(link, i) => (
               <div className="flex items-center gap-3">
                 <Select
