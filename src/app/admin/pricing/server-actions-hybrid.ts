@@ -21,6 +21,9 @@ import { loggers } from '@/lib/logger';
 import { requirePropertyAccess, AuthorizationError } from '@/lib/authorization';
 import { calculateDayPrice } from '@/lib/pricing/price-calculation';
 import type { PropertyPricing, SeasonalPricing, DateOverride, MinimumStayRule } from '@/lib/pricing/price-calculation';
+import { LengthOfStayDiscountSchema } from '@/lib/pricing/pricing-schemas';
+import type { LengthOfStayDiscount } from '@/lib/pricing/pricing-schemas';
+import { z } from 'zod';
 
 const logger = loggers.adminPricing;
 
@@ -668,5 +671,79 @@ export async function generatePriceCalendar(propertyId: string) {
     }
     logger.error('Error generating price calendars', error as Error, { propertyId });
     return { success: false, error: `Failed to generate price calendars: ${error}` };
+  }
+}
+
+/**
+ * Fetch length-of-stay discounts for a property
+ * Requires property access
+ */
+export async function fetchLengthOfStayDiscounts(propertyId: string): Promise<LengthOfStayDiscount[]> {
+  try {
+    await requirePropertyAccess(propertyId);
+
+    const db = await getAdminDb();
+    const propertyDoc = await db.collection('properties').doc(propertyId).get();
+
+    if (!propertyDoc.exists) {
+      logger.debug('Property not found', { propertyId });
+      return [];
+    }
+
+    const data = propertyDoc.data()!;
+    const discounts = data.pricingConfig?.lengthOfStayDiscounts || [];
+
+    logger.debug('Fetched length-of-stay discounts', { propertyId, count: discounts.length });
+    return discounts as LengthOfStayDiscount[];
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      logger.warn('Authorization failed for fetchLengthOfStayDiscounts', { propertyId });
+      return [];
+    }
+    logger.error('Error fetching length-of-stay discounts', error as Error, { propertyId });
+    return [];
+  }
+}
+
+/**
+ * Update length-of-stay discounts for a property
+ * Requires property access
+ */
+export async function updateLengthOfStayDiscounts(
+  propertyId: string,
+  discounts: LengthOfStayDiscount[]
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requirePropertyAccess(propertyId);
+
+    // Validate with Zod
+    const validated = z.array(LengthOfStayDiscountSchema).parse(discounts);
+
+    // Sort by nightsThreshold ascending
+    validated.sort((a, b) => a.nightsThreshold - b.nightsThreshold);
+
+    const db = await getAdminDb();
+    await db.collection('properties').doc(propertyId).update({
+      'pricingConfig.lengthOfStayDiscounts': validated,
+      updatedAt: FieldValue.serverTimestamp()
+    });
+
+    logger.info('Updated length-of-stay discounts', { propertyId, count: validated.length });
+
+    revalidatePath('/admin/pricing');
+    revalidatePath(`/admin/pricing?propertyId=${propertyId}`);
+
+    return { success: true };
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      logger.warn('Authorization failed for updateLengthOfStayDiscounts', { propertyId });
+      return { success: false, error: 'You do not have access to this property' };
+    }
+    if (error instanceof z.ZodError) {
+      logger.warn('Validation failed for length-of-stay discounts', { propertyId, errors: error.errors });
+      return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };
+    }
+    logger.error('Error updating length-of-stay discounts', error as Error, { propertyId });
+    return { success: false, error: `Failed to update discounts: ${error}` };
   }
 }

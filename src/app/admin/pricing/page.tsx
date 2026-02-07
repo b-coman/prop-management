@@ -1,7 +1,7 @@
 // src/app/admin/pricing/page.tsx
 import Link from 'next/link';
 import { CalendarDays } from 'lucide-react';
-import { fetchSeasonalPricing, fetchDateOverrides } from './server-actions-hybrid';
+import { fetchSeasonalPricing, fetchDateOverrides, fetchLengthOfStayDiscounts } from './server-actions-hybrid';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -10,6 +10,7 @@ import { SeasonalPricingTable } from './_components/seasonal-pricing-table';
 import { DateOverridesTable } from './_components/date-overrides-table';
 import { PriceCalendarManager } from './_components/price-calendar-manager';
 import { PricingTestPanel } from './_components/pricing-test-panel';
+import { LengthOfStayDiscounts } from './_components/length-of-stay-discounts';
 
 export const dynamic = 'force-dynamic'; // Ensure the page is dynamically rendered
 
@@ -32,12 +33,14 @@ export default async function PricingPage({
   // Fetch seasonal pricing and date overrides if a property is selected
   let seasonalPricing = [];
   let dateOverrides = [];
+  let lengthOfStayDiscounts: Awaited<ReturnType<typeof fetchLengthOfStayDiscounts>> = [];
 
   if (propertyId) {
     // Fetch in parallel
-    [seasonalPricing, dateOverrides] = await Promise.all([
+    [seasonalPricing, dateOverrides, lengthOfStayDiscounts] = await Promise.all([
       fetchSeasonalPricing(propertyId),
-      fetchDateOverrides(propertyId)
+      fetchDateOverrides(propertyId),
+      fetchLengthOfStayDiscounts(propertyId)
     ]);
   }
 
@@ -65,6 +68,7 @@ export default async function PricingPage({
           <TabsList>
             <TabsTrigger value="seasons">Seasonal Pricing</TabsTrigger>
             <TabsTrigger value="overrides">Date Overrides</TabsTrigger>
+            <TabsTrigger value="discounts">Discounts</TabsTrigger>
             <TabsTrigger value="calendar">Price Calendar</TabsTrigger>
             <TabsTrigger value="testing">Testing</TabsTrigger>
           </TabsList>
@@ -114,6 +118,23 @@ export default async function PricingPage({
                   </Link>
                 </Button>
               </CardFooter>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="discounts">
+            <Card>
+              <CardHeader>
+                <CardTitle>Length-of-Stay Discounts</CardTitle>
+                <CardDescription>
+                  Offer percentage discounts for longer bookings
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <LengthOfStayDiscounts
+                  discounts={lengthOfStayDiscounts}
+                  propertyId={propertyId}
+                />
+              </CardContent>
             </Card>
           </TabsContent>
 
