@@ -8,7 +8,7 @@ import {
   filterPropertiesForUser,
   AuthorizationError,
 } from '@/lib/authorization';
-import { getDaysInMonth, format } from 'date-fns';
+import { getDaysInMonth, addDays, startOfDay } from 'date-fns';
 import type { SerializableTimestamp } from '@/types';
 
 const logger = loggers.admin;
@@ -348,6 +348,7 @@ export async function fetchRevenueData(
         propertyId: data.propertyId as string,
         status: data.status as string,
         checkInDate: parseTimestampToDate(data.checkInDate),
+        checkOutDate: parseTimestampToDate(data.checkOutDate),
         pricing: {
           total: (data.pricing?.total ?? 0) as number,
           accommodationTotal: (data.pricing?.accommodationTotal ?? 0) as number,
@@ -382,12 +383,12 @@ export async function fetchRevenueData(
       b => b.status === 'confirmed' || b.status === 'completed'
     );
 
-    // Detect available years
+    // Detect available years (include both check-in and check-out years
+    // since a booking can span Dec→Jan)
     const yearsSet = new Set<number>();
     for (const b of revenueBookings) {
-      if (b.checkInDate) {
-        yearsSet.add(b.checkInDate.getFullYear());
-      }
+      if (b.checkInDate) yearsSet.add(b.checkInDate.getFullYear());
+      if (b.checkOutDate) yearsSet.add(b.checkOutDate.getFullYear());
     }
     const availableYears = Array.from(yearsSet).sort((a, b) => a - b);
 
@@ -398,7 +399,10 @@ export async function fetchRevenueData(
     // Detect currency
     const currency = revenueBookings[0]?.pricing.currency || 'RON';
 
-    // Bucket by month
+    // Bucket by month using night-by-night splitting.
+    // A booking spanning Dec 28 → Jan 3 (6 nights) splits proportionally:
+    //   Dec gets 4/6 of revenue, Jan gets 2/6 of revenue.
+    // Booking count is attributed to the check-in month.
     const currentYearMonths = new Map<number, MonthBucket>();
     const prevYearMonths = new Map<number, MonthBucket>();
     const prevYear = year - 1;
@@ -406,27 +410,68 @@ export async function fetchRevenueData(
     // Also collect per-year totals for multi-year insight
     const yearTotals = new Map<number, { revenue: number; nights: number }>();
 
+    // Helper to get/init a bucket in a map
+    const getBucket = (map: Map<number, MonthBucket>, month: number): MonthBucket => {
+      let bucket = map.get(month);
+      if (!bucket) {
+        bucket = { revenue: 0, accommodationRevenue: 0, nights: 0, bookings: 0 };
+        map.set(month, bucket);
+      }
+      return bucket;
+    };
+
     for (const b of revenueBookings) {
       if (!b.checkInDate) continue;
-      const bYear = b.checkInDate.getFullYear();
-      const bMonth = b.checkInDate.getMonth() + 1;
+      const totalNightsInBooking = b.pricing.numberOfNights || 1;
 
-      // Year totals
-      const yt = yearTotals.get(bYear) || { revenue: 0, nights: 0 };
-      yt.revenue += b.pricing.total;
-      yt.nights += b.pricing.numberOfNights;
-      yearTotals.set(bYear, yt);
+      // Count nights per year-month by walking each night
+      const nightsByYearMonth = new Map<string, number>(); // "YYYY-MM" -> count
+      const checkIn = startOfDay(b.checkInDate);
+      const checkOut = b.checkOutDate ? startOfDay(b.checkOutDate) : addDays(checkIn, totalNightsInBooking);
 
-      // Monthly buckets
-      const targetMap = bYear === year ? currentYearMonths : bYear === prevYear ? prevYearMonths : null;
-      if (!targetMap) continue;
+      let cursor = checkIn;
+      let nightCount = 0;
+      while (cursor < checkOut && nightCount < 365) {
+        const y = cursor.getFullYear();
+        const m = cursor.getMonth() + 1;
+        const key = `${y}-${m}`;
+        nightsByYearMonth.set(key, (nightsByYearMonth.get(key) || 0) + 1);
+        cursor = addDays(cursor, 1);
+        nightCount++;
+      }
 
-      const existing = targetMap.get(bMonth) || { revenue: 0, accommodationRevenue: 0, nights: 0, bookings: 0 };
-      existing.revenue += b.pricing.total;
-      existing.accommodationRevenue += b.pricing.accommodationTotal;
-      existing.nights += b.pricing.numberOfNights;
-      existing.bookings += 1;
-      targetMap.set(bMonth, existing);
+      // Distribute revenue proportionally across year-months
+      const actualTotalNights = nightCount || 1;
+      for (const [key, nights] of nightsByYearMonth) {
+        const [yStr, mStr] = key.split('-');
+        const bYear = parseInt(yStr);
+        const bMonth = parseInt(mStr);
+        const fraction = nights / actualTotalNights;
+
+        // Year totals
+        const yt = yearTotals.get(bYear) || { revenue: 0, nights: 0 };
+        yt.revenue += b.pricing.total * fraction;
+        yt.nights += nights;
+        yearTotals.set(bYear, yt);
+
+        // Monthly buckets — only for selected year and previous year
+        const targetMap = bYear === year ? currentYearMonths : bYear === prevYear ? prevYearMonths : null;
+        if (!targetMap) continue;
+
+        const bucket = getBucket(targetMap, bMonth);
+        bucket.revenue += b.pricing.total * fraction;
+        bucket.accommodationRevenue += b.pricing.accommodationTotal * fraction;
+        bucket.nights += nights;
+      }
+
+      // Booking count goes to the check-in month (not split)
+      const checkInYear = b.checkInDate.getFullYear();
+      const checkInMonth = b.checkInDate.getMonth() + 1;
+      const countMap = checkInYear === year ? currentYearMonths : checkInYear === prevYear ? prevYearMonths : null;
+      if (countMap) {
+        const bucket = getBucket(countMap, checkInMonth);
+        bucket.bookings += 1;
+      }
     }
 
     // Build monthly data
