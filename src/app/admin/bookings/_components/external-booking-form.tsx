@@ -256,7 +256,41 @@ function CompactForm({ form, mode, properties, nights, isPending, onSubmit, onCa
 
         <Separator />
 
-        {/* Row 3: Payout, Currency, First Name, Last Name */}
+        {/* Row 3: Guest Info */}
+        <div className="grid grid-cols-4 gap-3">
+          <FormField control={form.control} name="firstName" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">First Name *</FormLabel>
+              <FormControl><Input className="h-9" placeholder="Guest first name" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="lastName" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">Last Name</FormLabel>
+              <FormControl><Input className="h-9" placeholder="Guest last name" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="email" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">Email</FormLabel>
+              <FormControl><Input className="h-9" type="email" placeholder="guest@email.com" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="phone" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">Phone</FormLabel>
+              <FormControl><Input className="h-9" type="tel" placeholder="+40..." {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+        </div>
+
+        <Separator />
+
+        {/* Row 4: Pricing + Misc */}
         <div className="grid grid-cols-4 gap-3">
           <FormField control={form.control} name="netPayout" render={({ field }) => (
             <FormItem>
@@ -276,38 +310,6 @@ function CompactForm({ form, mode, properties, nights, isPending, onSubmit, onCa
                   <SelectItem value="USD">USD</SelectItem>
                 </SelectContent>
               </Select>
-              <FormMessage />
-            </FormItem>
-          )} />
-          <FormField control={form.control} name="firstName" render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-xs">First Name *</FormLabel>
-              <FormControl><Input className="h-9" {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )} />
-          <FormField control={form.control} name="lastName" render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-xs">Last Name</FormLabel>
-              <FormControl><Input className="h-9" {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )} />
-        </div>
-
-        {/* Row 4: Email, Phone, Country, Notes */}
-        <div className="grid grid-cols-4 gap-3">
-          <FormField control={form.control} name="email" render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-xs">Email</FormLabel>
-              <FormControl><Input className="h-9" type="email" {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )} />
-          <FormField control={form.control} name="phone" render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-xs">Phone</FormLabel>
-              <FormControl><Input className="h-9" type="tel" placeholder="+40..." {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
