@@ -325,6 +325,75 @@ export function PropertyPageRenderer({
             maxGuests: 6
           }
         };
+      } else if (type === 'specificationsList' && property) {
+        // Auto-populate specifications from property data when override has none
+        const existingSpecs = blockContent?.specifications;
+        if (!existingSpecs || existingSpecs.length === 0) {
+          const autoSpecs: Array<{ name: string | Record<string, string>; value: string | Record<string, string> }> = [];
+          if (property.bedrooms) autoSpecs.push({ name: { en: 'Bedrooms', ro: 'Dormitoare' }, value: String(property.bedrooms) });
+          if (property.beds) autoSpecs.push({ name: { en: 'Beds', ro: 'Paturi' }, value: String(property.beds) });
+          if (property.bathrooms) autoSpecs.push({ name: { en: 'Bathrooms', ro: 'Băi' }, value: String(property.bathrooms) });
+          if (property.squareFeet) autoSpecs.push({ name: { en: 'Area', ro: 'Suprafață' }, value: `${property.squareFeet} sqft` });
+          if (property.maxGuests) autoSpecs.push({ name: { en: 'Max Guests', ro: 'Oaspeți max.' }, value: String(property.maxGuests) });
+          if (property.checkInTime) autoSpecs.push({ name: { en: 'Check-in', ro: 'Check-in' }, value: property.checkInTime });
+          if (property.checkOutTime) autoSpecs.push({ name: { en: 'Check-out', ro: 'Check-out' }, value: property.checkOutTime });
+          blockContent = {
+            ...blockContent,
+            specifications: autoSpecs,
+          };
+        }
+      } else if (type === 'policiesList' && property) {
+        // Auto-populate policies from property data when override has none
+        const existingPolicies = blockContent?.policies;
+        if (!existingPolicies || existingPolicies.length === 0) {
+          const autoPolicies: Array<{ title: string | Record<string, string>; description: string | Record<string, string> }> = [];
+          if (property.checkInTime || property.checkOutTime) {
+            autoPolicies.push({
+              title: { en: 'Check-in / Check-out', ro: 'Check-in / Check-out' },
+              description: {
+                en: `Check-in: ${property.checkInTime || 'Flexible'}\nCheck-out: ${property.checkOutTime || 'Flexible'}`,
+                ro: `Check-in: ${property.checkInTime || 'Flexibil'}\nCheck-out: ${property.checkOutTime || 'Flexibil'}`,
+              },
+            });
+          }
+          if (property.cancellationPolicy) {
+            const cp = property.cancellationPolicy;
+            autoPolicies.push({
+              title: { en: 'Cancellation Policy', ro: 'Politica de anulare' },
+              description: { en: cp.en, ro: cp.ro || cp.en },
+            });
+          }
+          if (property.houseRules && property.houseRules.length > 0) {
+            autoPolicies.push({
+              title: { en: 'House Rules', ro: 'Regulile casei' },
+              description: {
+                en: property.houseRules.map(r => typeof r === 'string' ? r : (r.en || '')).join('\n'),
+                ro: property.houseRules.map(r => typeof r === 'string' ? r : (r.ro || r.en || '')).join('\n'),
+              },
+            });
+          }
+          if (autoPolicies.length > 0) {
+            blockContent = {
+              ...blockContent,
+              policies: autoPolicies,
+            };
+          }
+        }
+      } else if (type === 'fullMap' && property?.location) {
+        // Auto-populate map coordinates and address from property location
+        const loc = property.location;
+        if (!blockContent?.coordinates && loc.coordinates) {
+          blockContent = {
+            ...blockContent,
+            coordinates: { lat: loc.coordinates.latitude, lng: loc.coordinates.longitude },
+            address: blockContent?.address || loc.address || `${loc.city || ''}, ${loc.country || ''}`.trim().replace(/^,\s*/, ''),
+          };
+        } else if (!blockContent?.address && loc.address) {
+          blockContent = {
+            ...blockContent,
+            address: loc.address,
+          };
+        }
       } else if ((type === 'gallery' || type === 'galleryGrid' || type === 'full-gallery') && property?.images?.length) {
         // Fallback to property.images when gallery has no override images
         const existingImages = blockContent?.images;
@@ -485,9 +554,15 @@ export function PropertyPageRenderer({
           {isDev && <ThemeSwitcher />}
         </main>
         <Footer
-          quickLinks={template.footer?.quickLinks}
-          contactInfo={template.footer?.contactInfo}
-          socialLinks={template.footer?.socialLinks}
+          quickLinks={overrides.footer?.quickLinks || template.footer?.quickLinks}
+          contactInfo={
+            overrides.footer?.contactInfo ||
+            template.footer?.contactInfo ||
+            (property?.contactPhone || property?.contactEmail
+              ? { phone: property.contactPhone, email: property.contactEmail }
+              : undefined)
+          }
+          socialLinks={overrides.footer?.socialLinks || template.footer?.socialLinks}
           propertyName={propertyName}
           propertySlug={propertySlug}
         />

@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import React from 'react';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
-import { ThemeSelector } from "@/components/ui/theme-selector";
 import { DEFAULT_THEME_ID } from "@/lib/themes/theme-definitions";
 
 import { Button } from "@/components/ui/button";
@@ -398,28 +397,12 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
             <Input {...field} disabled />
             </FormControl><FormDescription>Currently fixed template.</FormDescription><FormMessage /></FormItem> )} />
             
-        {/* Theme Selection */}
-        <Separator className="my-6" />
-        <h3 className="text-lg font-medium border-b pb-2">Website Theme</h3>
-        <FormField
-          control={form.control}
-          name="themeId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Choose a design theme for your property website</FormLabel>
-              <FormControl>
-                <ThemeSelector
-                  selectedThemeId={field.value || ''}
-                  onThemeChange={field.onChange}
-                />
-              </FormControl>
-              <FormDescription>
-                The selected theme will determine the colors, typography, and styling of your property website.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <p className="text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
+          Theme, domain, and analytics settings are managed in{' '}
+          <a href="/admin/website/settings" className="text-primary underline underline-offset-4 hover:text-primary/80">
+            Website &gt; Settings
+          </a>.
+        </p>
 
         {/* --- Section: Location --- */}
         <Separator className="my-6" />
@@ -514,19 +497,6 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
                 <FormMessage />
             </FormItem>
          )} />
-
-         {/* --- Section: Multi-Domain --- */}
-        <Separator className="my-6" />
-        <h3 className="text-lg font-medium border-b pb-2">Domain Configuration</h3>
-         <FormField control={form.control} name="customDomain" render={({ field }) => ( <FormItem><FormLabel>Custom Domain</FormLabel><FormControl><Input placeholder="e.g., your-property.com (without https://)" {...field} value={field.value ?? ''} /></FormControl><FormDescription>Assign a custom domain (requires DNS setup).</FormDescription><FormMessage /></FormItem> )} />
-         <FormField control={form.control} name="useCustomDomain" render={({ field }) => ( <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4"><div className="space-y-0.5"><FormLabel className="text-base">Use Custom Domain</FormLabel><FormDescription>Enable routing via the custom domain.</FormDescription></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem> )} />
-
-          {/* --- Section: Analytics --- */}
-        <Separator className="my-6" />
-        <h3 className="text-lg font-medium border-b pb-2">Analytics</h3>
-        <FormField control={form.control} name="analytics.enabled" render={({ field }) => ( <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4"><div className="space-y-0.5"><FormLabel className="text-base">Enable Google Analytics</FormLabel><FormDescription>Track visits using Google Analytics.</FormDescription></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem> )} />
-        <FormField control={form.control} name="analytics.googleAnalyticsId" render={({ field }) => ( <FormItem><FormLabel>Google Analytics ID</FormLabel><FormControl><Input placeholder="e.g., G-XXXXXXXXXX" {...field} /></FormControl><FormMessage /></FormItem> )} />
-        <FormField control={form.control} name="googlePlaceId" render={({ field }) => ( <FormItem><FormLabel>Google Place ID</FormLabel><FormControl><Input placeholder="e.g., ChIJ..." {...field} /></FormControl><FormDescription>Google Places ID for syncing Google Reviews.</FormDescription><FormMessage /></FormItem> )} />
 
          {/* --- Section: Booking Options --- */}
         <Separator className="my-6" />

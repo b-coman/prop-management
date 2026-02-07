@@ -19,7 +19,7 @@ interface PropertySelectorContextType {
 const PropertySelectorContext = createContext<PropertySelectorContextType | undefined>(undefined);
 
 // Pages that need propertyId in the URL (server components reading searchParams)
-const URL_PROPERTY_PAGES = ['/admin/pricing', '/admin/calendar'];
+const URL_PROPERTY_PAGES = ['/admin/pricing', '/admin/calendar', '/admin/website', '/admin/website/navigation', '/admin/website/settings'];
 
 interface Props {
   children: ReactNode;

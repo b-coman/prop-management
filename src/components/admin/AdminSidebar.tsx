@@ -22,6 +22,9 @@ import {
   Users,
   Sparkles,
   DollarSign,
+  FileText,
+  PanelTop,
+  Settings,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/SimpleAuthContext';
 import { usePropertySelector } from '@/contexts/PropertySelectorContext';
@@ -54,6 +57,14 @@ const navigationGroups = [
       { title: 'Properties', href: '/admin/properties', icon: Building },
       { title: 'Pricing', href: '/admin/pricing', icon: Sliders },
       { title: 'Calendar', href: '/admin/calendar', icon: RefreshCw },
+    ],
+  },
+  {
+    label: 'Website',
+    items: [
+      { title: 'Pages & Content', href: '/admin/website', icon: FileText },
+      { title: 'Navigation', href: '/admin/website/navigation', icon: PanelTop },
+      { title: 'Settings', href: '/admin/website/settings', icon: Settings },
     ],
   },
   {
