@@ -39,6 +39,11 @@ const SOURCES = [
   { value: 'other', label: 'Other' },
 ];
 
+const LANGUAGES = [
+  { value: 'en', label: 'English' },
+  { value: 'ro', label: 'Romanian' },
+];
+
 const formSchema = z.object({
   propertyId: z.string().min(1, 'Property is required'),
   source: z.string().min(1, 'Source is required'),
@@ -51,6 +56,7 @@ const formSchema = z.object({
   numberOfChildren: z.coerce.number().int().min(0).optional(),
   netPayout: z.coerce.number().min(0, 'Net payout must be 0 or more'),
   currency: z.string().min(1),
+  language: z.string().min(1).default('en'),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().optional(),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
@@ -100,6 +106,7 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess, comp
       numberOfChildren: booking.numberOfChildren || undefined,
       netPayout: booking.pricing?.total || 0,
       currency: booking.pricing?.currency || defaultProperty?.currency || 'RON',
+      language: booking.language || 'en',
       firstName: booking.guestInfo?.firstName || '',
       lastName: booking.guestInfo?.lastName || '',
       email: booking.guestInfo?.email || '',
@@ -116,6 +123,7 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess, comp
       numberOfGuests: 1,
       netPayout: 0,
       currency: defaultProperty?.currency || 'RON',
+      language: 'en',
       firstName: '',
       lastName: '',
       email: '',
@@ -179,6 +187,8 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess, comp
 // Compact layout — fits in a dialog without scrolling
 // ============================================================
 
+const compactInput = "h-9 border border-gray-300";
+
 function CompactForm({ form, mode, properties, nights, isPending, onSubmit, onCancel }: FormLayoutProps) {
   return (
     <Form {...form}>
@@ -212,7 +222,7 @@ function CompactForm({ form, mode, properties, nights, isPending, onSubmit, onCa
           <FormField control={form.control} name="externalId" render={({ field }) => (
             <FormItem>
               <FormLabel className="text-xs">Confirmation Code</FormLabel>
-              <FormControl><Input className="h-9" placeholder="e.g. HM5ABC123" {...field} /></FormControl>
+              <FormControl><Input className={compactInput} placeholder="e.g. HM5ABC123" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
@@ -241,7 +251,7 @@ function CompactForm({ form, mode, properties, nights, isPending, onSubmit, onCa
           <FormField control={form.control} name="numberOfGuests" render={({ field }) => (
             <FormItem>
               <FormLabel className="text-xs">Guests</FormLabel>
-              <FormControl><Input className="h-9" type="number" min={1} {...field} /></FormControl>
+              <FormControl><Input className={compactInput} type="number" min={1} {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
@@ -261,28 +271,28 @@ function CompactForm({ form, mode, properties, nights, isPending, onSubmit, onCa
           <FormField control={form.control} name="firstName" render={({ field }) => (
             <FormItem>
               <FormLabel className="text-xs">First Name *</FormLabel>
-              <FormControl><Input className="h-9" placeholder="Guest first name" {...field} /></FormControl>
+              <FormControl><Input className={compactInput} placeholder="Guest first name" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
           <FormField control={form.control} name="lastName" render={({ field }) => (
             <FormItem>
               <FormLabel className="text-xs">Last Name</FormLabel>
-              <FormControl><Input className="h-9" placeholder="Guest last name" {...field} /></FormControl>
+              <FormControl><Input className={compactInput} placeholder="Guest last name" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
           <FormField control={form.control} name="email" render={({ field }) => (
             <FormItem>
               <FormLabel className="text-xs">Email</FormLabel>
-              <FormControl><Input className="h-9" type="email" placeholder="guest@email.com" {...field} /></FormControl>
+              <FormControl><Input className={compactInput} type="email" placeholder="guest@email.com" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
           <FormField control={form.control} name="phone" render={({ field }) => (
             <FormItem>
               <FormLabel className="text-xs">Phone</FormLabel>
-              <FormControl><Input className="h-9" type="tel" placeholder="+40..." {...field} /></FormControl>
+              <FormControl><Input className={compactInput} type="tel" placeholder="+40..." {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
@@ -295,7 +305,7 @@ function CompactForm({ form, mode, properties, nights, isPending, onSubmit, onCa
           <FormField control={form.control} name="netPayout" render={({ field }) => (
             <FormItem>
               <FormLabel className="text-xs">Net Payout</FormLabel>
-              <FormControl><Input className="h-9" type="number" step="0.01" min={0} {...field} /></FormControl>
+              <FormControl><Input className={compactInput} type="number" step="0.01" min={0} {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
@@ -313,21 +323,35 @@ function CompactForm({ form, mode, properties, nights, isPending, onSubmit, onCa
               <FormMessage />
             </FormItem>
           )} />
-          <FormField control={form.control} name="country" render={({ field }) => (
+          <FormField control={form.control} name="language" render={({ field }) => (
             <FormItem>
-              <FormLabel className="text-xs">Country</FormLabel>
-              <FormControl><Input className="h-9" placeholder="e.g. Romania" {...field} /></FormControl>
+              <FormLabel className="text-xs">Language</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl>
+                <SelectContent>
+                  {LANGUAGES.map(l => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )} />
-          <FormField control={form.control} name="notes" render={({ field }) => (
+          <FormField control={form.control} name="country" render={({ field }) => (
             <FormItem>
-              <FormLabel className="text-xs">Notes</FormLabel>
-              <FormControl><Input className="h-9" placeholder="Optional" {...field} /></FormControl>
+              <FormLabel className="text-xs">Country</FormLabel>
+              <FormControl><Input className={compactInput} placeholder="e.g. Romania" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
         </div>
+
+        {/* Notes — full width */}
+        <FormField control={form.control} name="notes" render={({ field }) => (
+          <FormItem>
+            <FormLabel className="text-xs">Notes</FormLabel>
+            <FormControl><Input className={compactInput} placeholder="Optional notes about this booking" {...field} /></FormControl>
+            <FormMessage />
+          </FormItem>
+        )} />
 
         {/* Actions */}
         <div className="flex justify-end gap-3 pt-2">
@@ -453,15 +477,15 @@ function FullForm({ form, mode, properties, nights, isPending, onSubmit, onCance
           </CardContent>
         </Card>
 
-        {/* Pricing */}
+        {/* Pricing & Language */}
         <Card>
-          <CardHeader><CardTitle className="text-base">Pricing</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <CardHeader><CardTitle className="text-base">Pricing & Communication</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <FormField control={form.control} name="netPayout" render={({ field }) => (
               <FormItem>
                 <FormLabel>Net Payout</FormLabel>
                 <FormControl><Input type="number" step="0.01" min={0} {...field} /></FormControl>
-                <FormDescription>Revenue received after platform commission</FormDescription>
+                <FormDescription>Revenue after platform commission</FormDescription>
                 <FormMessage />
               </FormItem>
             )} />
@@ -477,6 +501,20 @@ function FullForm({ form, mode, properties, nights, isPending, onSubmit, onCance
                     <SelectItem value="USD">USD</SelectItem>
                   </SelectContent>
                 </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="language" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Language</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    {LANGUAGES.map(l => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <FormDescription>For guest communications</FormDescription>
                 <FormMessage />
               </FormItem>
             )} />
