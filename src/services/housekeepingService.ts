@@ -532,13 +532,14 @@ export async function sendChangeNotification(
   bookingId: string,
   changeType: 'new' | 'cancelled'
 ): Promise<{ sent: number; failed: number }> {
-  // Duplicate prevention: check if same bookingId+changeType was sent within the last hour
+  // Duplicate prevention: check if same bookingId+changeType was successfully sent within the last hour
   const db = await getAdminDb();
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
   const existingMessages = await db
     .collection('housekeepingMessages')
     .where('bookingId', '==', bookingId)
     .where('changeType', '==', changeType)
+    .where('status', '==', 'sent')
     .where('createdAt', '>=', AdminTimestamp.fromDate(oneHourAgo))
     .limit(1)
     .get();

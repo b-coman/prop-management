@@ -72,6 +72,7 @@
       "fields": [
         { "fieldPath": "bookingId", "order": "ASCENDING" },
         { "fieldPath": "changeType", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "ASCENDING" }
       ]
     }
