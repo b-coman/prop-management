@@ -79,10 +79,17 @@ export default async function GuestDetailPage({ params }: PageProps) {
               <CardTitle className="text-lg">Contact Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center gap-2 text-sm">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <span>{guest.email}</span>
-              </div>
+              {guest.email ? (
+                <div className="flex items-center gap-2 text-sm">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  <span>{guest.email}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Mail className="h-4 w-4" />
+                  <span className="italic">No email</span>
+                </div>
+              )}
               {guest.phone && (
                 <div className="flex items-center gap-2 text-sm">
                   <Phone className="h-4 w-4 text-muted-foreground" />
@@ -106,6 +113,18 @@ export default async function GuestDetailPage({ params }: PageProps) {
                   </Badge>
                 )}
               </div>
+              {guest.sources && guest.sources.length > 0 && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Sources:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {guest.sources.map((src) => (
+                      <Badge key={src} variant="outline" className="text-xs">
+                        {src}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -175,6 +194,7 @@ export default async function GuestDetailPage({ params }: PageProps) {
                       <TableHead>Check-in</TableHead>
                       <TableHead>Check-out</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Source</TableHead>
                       <TableHead className="text-right">Total</TableHead>
                       <TableHead className="w-[60px]"></TableHead>
                     </TableRow>
@@ -198,6 +218,13 @@ export default async function GuestDetailPage({ params }: PageProps) {
                           >
                             {booking.status}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {booking.source && (
+                            <Badge variant="outline" className="text-xs">
+                              {booking.source}
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           {formatCurrency(

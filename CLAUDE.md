@@ -22,6 +22,7 @@ Next.js 15 multi-property vacation rental platform with Stripe payments, Firebas
 3. **Test before claiming done** - `npm run build` must pass
 4. **Use structured logger** - `loggers.*` from `src/lib/logger.ts`
 5. **Update docs only when requested** - focus on code changes
+6. **Query live Firestore, not local JSON** - seed files in `firestore/` can be stale; use `npx tsx scripts/query-firestore.ts <collection> [docId] [-- field1 field2]` to check real data
 
 ## User Keywords
 
@@ -61,7 +62,9 @@ Next.js 15 multi-property vacation rental platform with Stripe payments, Firebas
 | Logger | `src/lib/logger.ts` |
 | Rate Limiter | `src/lib/rate-limiter.ts` |
 | Booking Service | `src/services/bookingService.ts` |
+| Guest Service | `src/services/guestService.ts` |
 | Hold Cleanup Cron | `src/app/api/cron/release-holds/route.ts` |
+| Firestore Query Tool | `scripts/query-firestore.ts` |
 
 ## GitHub Issues
 

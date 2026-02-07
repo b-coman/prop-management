@@ -4,6 +4,7 @@ import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
 import type { Booking, Guest, CurrencyCode, LanguageCode } from '@/types';
 import { Timestamp as AdminTimestamp } from 'firebase-admin/firestore';
+import { normalizePhone } from '@/lib/sanitize';
 
 const logger = loggers.guest;
 
@@ -25,14 +26,43 @@ function parseFirestoreDate(raw: unknown): Date | null {
 }
 
 /**
+ * Find a guest by normalized phone number.
+ */
+export async function findGuestByPhone(phone: string): Promise<Guest | null> {
+  const normalized = normalizePhone(phone);
+  if (!normalized) return null;
+
+  try {
+    const db = await getAdminDb();
+    const snapshot = await db
+      .collection('guests')
+      .where('normalizedPhone', '==', normalized)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) return null;
+
+    const doc = snapshot.docs[0];
+    return { id: doc.id, ...doc.data() } as Guest;
+  } catch (error) {
+    logger.error('Error finding guest by phone', error as Error, { phone: normalized });
+    return null;
+  }
+}
+
+/**
  * Upsert a guest record from a booking.
- * Deduplicates by normalized email. Creates or updates aggregates.
+ * Deduplicates by: 1) normalized email, 2) normalized phone (fallback).
+ * Creates or updates aggregates.
  * Will NOT overwrite unsubscribed: true on existing records.
  */
 export async function upsertGuestFromBooking(booking: Booking): Promise<string | null> {
-  const email = booking.guestInfo?.email?.toLowerCase().trim();
-  if (!email) {
-    logger.warn('Cannot upsert guest: no email on booking', { bookingId: booking.id });
+  const email = booking.guestInfo?.email?.toLowerCase().trim() || undefined;
+  const phone = booking.guestInfo?.phone || undefined;
+  const normalized = phone ? normalizePhone(phone) : undefined;
+
+  if (!email && !phone) {
+    logger.warn('Cannot upsert guest: no email or phone on booking', { bookingId: booking.id });
     return null;
   }
 
@@ -40,16 +70,25 @@ export async function upsertGuestFromBooking(booking: Booking): Promise<string |
     const db = await getAdminDb();
     const guestsRef = db.collection('guests');
 
-    // Find existing guest by email
-    const existingSnap = await guestsRef.where('email', '==', email).limit(1).get();
+    // Layered dedup: email first, then phone
+    let existingSnap = null;
+    if (email) {
+      const snap = await guestsRef.where('email', '==', email).limit(1).get();
+      if (!snap.empty) existingSnap = snap;
+    }
+    if (!existingSnap && normalized) {
+      const snap = await guestsRef.where('normalizedPhone', '==', normalized).limit(1).get();
+      if (!snap.empty) existingSnap = snap;
+    }
 
     const bookingDate = parseFirestoreDate(booking.createdAt) || new Date();
     const checkOutDate = parseFirestoreDate(booking.checkOutDate);
     const total = booking.pricing?.total || 0;
-    const currency = booking.pricing?.currency || 'EUR';
+    const currency = booking.pricing?.currency || 'RON';
     const language = booking.language || 'en';
+    const source = booking.source || undefined;
 
-    if (!existingSnap.empty) {
+    if (existingSnap) {
       // Update existing guest
       const guestDoc = existingSnap.docs[0];
       const guestData = guestDoc.data();
@@ -63,15 +102,27 @@ export async function upsertGuestFromBooking(booking: Booking): Promise<string |
         updatedAt: FieldValue.serverTimestamp(),
       };
 
-      // Update name if not set
+      // Fill in missing fields (don't overwrite existing)
       if (!guestData.firstName && booking.guestInfo.firstName) {
         updateData.firstName = booking.guestInfo.firstName;
       }
       if (!guestData.lastName && booking.guestInfo.lastName) {
         updateData.lastName = booking.guestInfo.lastName;
       }
-      if (!guestData.phone && booking.guestInfo.phone) {
-        updateData.phone = booking.guestInfo.phone;
+      if (!guestData.phone && phone) {
+        updateData.phone = phone;
+      }
+      if (!guestData.normalizedPhone && normalized) {
+        updateData.normalizedPhone = normalized;
+      }
+      // Fill in email if guest didn't have one (e.g., imported guest later books directly)
+      if (!guestData.email && email) {
+        updateData.email = email;
+      }
+
+      // Track booking sources
+      if (source) {
+        updateData.sources = FieldValue.arrayUnion(source);
       }
 
       // Update lastStayDate if this booking is completed
@@ -83,15 +134,13 @@ export async function upsertGuestFromBooking(booking: Booking): Promise<string |
       // (we simply don't touch the unsubscribed field on update)
 
       await guestDoc.ref.update(updateData);
-      logger.info('Updated existing guest', { guestId: guestDoc.id, email, bookingId: booking.id });
+      logger.info('Updated existing guest', { guestId: guestDoc.id, email, phone: normalized, bookingId: booking.id });
       return guestDoc.id;
     } else {
       // Create new guest
-      const newGuest: Omit<Guest, 'id'> = {
-        email,
+      const newGuest: Record<string, unknown> = {
         firstName: booking.guestInfo.firstName || '',
-        lastName: booking.guestInfo.lastName,
-        phone: booking.guestInfo.phone,
+        lastName: booking.guestInfo.lastName || undefined,
         language: language as LanguageCode,
         bookingIds: [booking.id],
         propertyIds: [booking.propertyId],
@@ -104,12 +153,18 @@ export async function upsertGuestFromBooking(booking: Booking): Promise<string |
         reviewSubmitted: false,
         tags: [],
         unsubscribed: false,
-        createdAt: FieldValue.serverTimestamp() as any,
-        updatedAt: FieldValue.serverTimestamp() as any,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       };
 
+      // Only set fields that have values
+      if (email) newGuest.email = email;
+      if (phone) newGuest.phone = phone;
+      if (normalized) newGuest.normalizedPhone = normalized;
+      if (source) newGuest.sources = [source];
+
       const docRef = await guestsRef.add(newGuest);
-      logger.info('Created new guest', { guestId: docRef.id, email, bookingId: booking.id });
+      logger.info('Created new guest', { guestId: docRef.id, email, phone: normalized, bookingId: booking.id });
       return docRef.id;
     }
   } catch (error) {
@@ -284,10 +339,19 @@ export async function backfillGuestsFromBookings(): Promise<{ processed: number;
       processed++;
 
       const email = booking.guestInfo?.email?.toLowerCase().trim();
-      if (!email) continue;
+      const phone = booking.guestInfo?.phone;
 
-      // Check if guest already has this booking
-      const existingGuest = await findGuestByEmail(email);
+      // Need at least email or phone to identify a guest
+      if (!email && !phone) continue;
+
+      // Check if guest already has this booking (by email or phone)
+      let existingGuest: Guest | null = null;
+      if (email) {
+        existingGuest = await findGuestByEmail(email);
+      }
+      if (!existingGuest && phone) {
+        existingGuest = await findGuestByPhone(phone);
+      }
       if (existingGuest?.bookingIds?.includes(booking.id)) {
         continue; // Already processed
       }

@@ -147,7 +147,7 @@ export interface ICalFeed {
 export interface GuestInfo {
   firstName: string;
   lastName?: string;
-  email: string;
+  email?: string;
   phone?: string;
   userId?: string; // If the guest is a registered user
   address?: string;
@@ -211,8 +211,11 @@ export interface Booking {
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'payment_failed' | 'on-hold'; // Added 'on-hold' status
   paymentInfo: PaymentInfo;
   notes?: string;
-  source?: string; // e.g., 'website', 'airbnb', 'booking.com', 'test-button'
+  source?: string; // e.g., 'website', 'airbnb', 'booking.com', 'direct', 'travelmint'
   externalId?: string; // ID from external platform if applicable
+  imported?: boolean; // true for historically imported bookings (skip email crons)
+  numberOfAdults?: number;
+  numberOfChildren?: number;
   appliedCouponCode?: string | null; // Store the applied coupon code
   language?: LanguageCode; // User's preferred language at time of booking (for emails)
   // New fields for holds
@@ -233,11 +236,13 @@ export interface Booking {
 
 export interface Guest {
   id: string;
-  email: string; // Normalized lowercase
+  email?: string; // Normalized lowercase (optional for imported guests without email)
   firstName: string;
   lastName?: string;
   phone?: string;
+  normalizedPhone?: string; // E.164 format for dedup (e.g., +40723184334)
   language: LanguageCode;
+  sources?: string[]; // Platforms guest has booked through (airbnb, booking.com, direct, etc.)
   bookingIds: string[];
   propertyIds: string[];
   totalBookings: number;

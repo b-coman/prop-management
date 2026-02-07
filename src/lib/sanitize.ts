@@ -67,3 +67,64 @@ export function sanitizePhone(phone: string | null | undefined): string {
   }
   return sanitized;
 }
+
+/**
+ * Normalize a phone number to E.164 format.
+ * Strips invisible Unicode characters (RTL marks, zero-width spaces),
+ * handles Romanian number formats, and ensures international prefix.
+ *
+ * Examples:
+ *   "0723184334"           → "+40723184334"
+ *   "‭0729122829‬"         → "+40729122829"  (had RTL marks)
+ *   "(+972) 54 549 3899"  → "+972545493899"
+ *   "+44 7425 752603"     → "+447425752603"
+ *   "0040712345678"       → "+40712345678"
+ */
+export function normalizePhone(phone: string | null | undefined): string {
+  if (!phone) return '';
+
+  // 1. Strip invisible Unicode characters (RTL marks, zero-width spaces, etc.)
+  let cleaned = phone.replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '');
+
+  // 2. Strip all non-digit, non-+ characters
+  cleaned = cleaned.replace(/[^\d+]/g, '');
+
+  // 3. Remove any '+' that isn't at the start
+  if (cleaned.startsWith('+')) {
+    cleaned = '+' + cleaned.substring(1).replace(/\+/g, '');
+  } else {
+    cleaned = cleaned.replace(/\+/g, '');
+  }
+
+  // 4. Handle Romanian number formats
+  // 0040... → +40...
+  if (cleaned.startsWith('0040')) {
+    cleaned = '+40' + cleaned.substring(4);
+  }
+  // 07XXXXXXXX (10 digits, Romanian mobile) → +407XXXXXXXX
+  else if (cleaned.startsWith('0') && cleaned.length === 10 && cleaned[1] === '7') {
+    cleaned = '+40' + cleaned.substring(1);
+  }
+  // 40XXXXXXXXX (11 digits starting with 40, no prefix) → +40XXXXXXXXX
+  else if (!cleaned.startsWith('+') && cleaned.startsWith('40') && cleaned.length === 11) {
+    cleaned = '+' + cleaned;
+  }
+  // Already has + prefix — leave as is
+  else if (cleaned.startsWith('+')) {
+    // Already in international format
+  }
+  // Bare digits with known country code lengths (best effort)
+  else if (cleaned.length >= 10 && !cleaned.startsWith('+')) {
+    // Assume needs + prefix if starts with a known country code
+    // Common codes: 972 (IL), 44 (UK), 49 (DE), 33 (FR), 31 (NL), 48 (PL), 39 (IT), 34 (ES), 380 (UA), 32 (BE), 7 (RU), 966 (SA), 1 (US/CA)
+    const knownPrefixes = ['972', '44', '49', '33', '31', '48', '39', '34', '380', '32', '966', '1'];
+    for (const prefix of knownPrefixes) {
+      if (cleaned.startsWith(prefix)) {
+        cleaned = '+' + cleaned;
+        break;
+      }
+    }
+  }
+
+  return cleaned;
+}

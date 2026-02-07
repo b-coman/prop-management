@@ -73,7 +73,9 @@ export function GuestTable({ guests }: GuestTableProps) {
         (g) =>
           g.firstName?.toLowerCase().includes(q) ||
           g.lastName?.toLowerCase().includes(q) ||
-          g.email?.toLowerCase().includes(q)
+          g.email?.toLowerCase().includes(q) ||
+          g.phone?.toLowerCase().includes(q) ||
+          g.normalizedPhone?.includes(q)
       );
     }
 
@@ -119,7 +121,7 @@ export function GuestTable({ guests }: GuestTableProps) {
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search by name or email..."
+          placeholder="Search by name, email, or phone..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-9"
@@ -131,7 +133,8 @@ export function GuestTable({ guests }: GuestTableProps) {
           <TableHeader>
             <TableRow>
               <TableHead><SortButton field="name" label="Name" /></TableHead>
-              <TableHead>Email</TableHead>
+              <TableHead>Contact</TableHead>
+              <TableHead>Source</TableHead>
               <TableHead className="text-center"><SortButton field="totalBookings" label="Bookings" /></TableHead>
               <TableHead className="text-right"><SortButton field="totalSpent" label="Spent" /></TableHead>
               <TableHead><SortButton field="lastBookingDate" label="Last Booking" /></TableHead>
@@ -143,7 +146,7 @@ export function GuestTable({ guests }: GuestTableProps) {
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
                   {search ? 'No guests match your search.' : 'No guests found.'}
                 </TableCell>
               </TableRow>
@@ -153,7 +156,24 @@ export function GuestTable({ guests }: GuestTableProps) {
                   <TableCell className="font-medium">
                     {guest.firstName} {guest.lastName || ''}
                   </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">{guest.email}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {guest.email ? (
+                      <span>{guest.email}</span>
+                    ) : guest.phone ? (
+                      <span>{guest.phone}</span>
+                    ) : (
+                      <span className="italic">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {guest.sources?.map((src) => (
+                        <Badge key={src} variant="outline" className="text-xs">
+                          {src}
+                        </Badge>
+                      ))}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-center">{guest.totalBookings || 0}</TableCell>
                   <TableCell className="text-right">
                     {formatCurrency(guest.totalSpent || 0, guest.currency || 'EUR')}

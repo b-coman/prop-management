@@ -53,6 +53,12 @@ export async function GET(request: NextRequest) {
       const bookingId = doc.id;
       const data = doc.data();
 
+      // Skip imported bookings — they are historical and should not trigger email sequences
+      if (data.imported) {
+        stats.skipped++;
+        continue;
+      }
+
       const checkOutDate = parseFirestoreDate(data.checkOutDate);
       if (!checkOutDate || isNaN(checkOutDate.getTime())) {
         stats.skipped++;

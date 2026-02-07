@@ -50,6 +50,12 @@ export async function GET(request: NextRequest) {
       const bookingId = doc.id;
       const data = doc.data();
 
+      // Skip imported bookings — they are historical
+      if (data.imported) {
+        skipped++;
+        continue;
+      }
+
       // Skip if review request already sent
       if (data.reviewRequestSentAt) {
         skipped++;
