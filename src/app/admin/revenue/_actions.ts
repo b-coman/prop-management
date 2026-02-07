@@ -86,10 +86,29 @@ export interface ExtendedMetrics {
   weekdayRevenuePercent: number;
 }
 
+export interface YTDComparison {
+  ytdRevenue: number;
+  prevYtdRevenue: number;
+  ytdNights: number;
+  prevYtdNights: number;
+  ytdAdr: number;
+  prevYtdAdr: number;
+  ytdOccupancy: number;
+  prevYtdOccupancy: number;
+  ytdRevpar: number;
+  prevYtdRevpar: number;
+  revenueChangePercent: number | null;
+  nightsChangePercent: number | null;
+  adrChangePercent: number | null;
+  occupancyChangePercent: number | null;
+  periodLabel: string; // e.g., "Jan-Feb"
+}
+
 export interface RevenueData {
   selectedYear: number;
   availableYears: number[];
   kpis: YearKPIs;
+  ytdComparison: YTDComparison | null; // null for past years
   monthlyData: MonthlyData[];
   chartData: ChartDataPoint[];
   insights: Insight[];
@@ -408,10 +427,10 @@ function computeExtendedMetrics(
   }
   const avgLeadTime = leadTimes.length > 0
     ? Math.round(leadTimes.reduce((s, d) => s + d, 0) / leadTimes.length)
-    : 0;
+    : -1; // -1 = no data (distinct from 0 days)
   const prevAvgLeadTime = prevLeadTimes.length > 0
     ? Math.round(prevLeadTimes.reduce((s, d) => s + d, 0) / prevLeadTimes.length)
-    : 0;
+    : -1;
 
   // Cancellation rate
   const cancelledCurrent = currentYearAllBookings.filter(b => b.status === 'cancelled').length;
@@ -659,16 +678,54 @@ function generateInsights(
     }
   }
 
-  // 9. Revenue projection
-  if (isCurrentYear && currentMonth >= 2 && totalRevenue > 0 && prevTotalRevenue > 0) {
-    const monthsElapsed = currentMonth;
-    const projectedAnnual = Math.round((totalRevenue / monthsElapsed) * 12);
-    const vsPrev = Math.round(((projectedAnnual - prevTotalRevenue) / prevTotalRevenue) * 100);
-    insights.push({
-      type: vsPrev >= 0 ? 'forward' : 'neutral',
-      title: `Projected ${selectedYear}: ~${formatCurrencyShort(projectedAnnual, currency)}`,
-      description: `Based on ${monthsElapsed}-month run rate — ${vsPrev >= 0 ? '+' : ''}${vsPrev}% vs ${selectedYear - 1} total of ${formatCurrencyShort(prevTotalRevenue, currency)}`,
-    });
+  // 9. Revenue projection (seasonal-aware)
+  if (isCurrentYear && currentMonth >= 2 && prevTotalRevenue > 0) {
+    // YTD = only past months' revenue
+    let ytdRevenue = 0;
+    for (let m = 1; m <= currentMonth; m++) {
+      ytdRevenue += currentYearMonths.get(m)?.revenue ?? 0;
+    }
+    // Same period last year
+    let prevYtdRevenue = 0;
+    for (let m = 1; m <= currentMonth; m++) {
+      prevYtdRevenue += prevYearMonths.get(m)?.revenue ?? 0;
+    }
+    // Future confirmed (beyond current month)
+    let futureConfirmed = 0;
+    for (let m = currentMonth + 1; m <= 12; m++) {
+      futureConfirmed += currentYearMonths.get(m)?.revenue ?? 0;
+    }
+
+    let projectedAnnual: number;
+    let method: string;
+
+    if (prevYtdRevenue > 0) {
+      // Seasonal method: apply same-period ratio to last year's full total
+      const paceRatio = ytdRevenue / prevYtdRevenue;
+      const seasonalProjection = Math.round(prevTotalRevenue * paceRatio);
+      // Ensure at least YTD + confirmed future
+      projectedAnnual = Math.max(seasonalProjection, Math.round(ytdRevenue + futureConfirmed));
+      const paceLabel = paceRatio >= 1
+        ? `tracking ${Math.round((paceRatio - 1) * 100)}% ahead`
+        : `tracking ${Math.round((1 - paceRatio) * 100)}% behind`;
+      method = `${paceLabel} of ${selectedYear - 1} pace`;
+    } else {
+      // Fallback: simple run rate on YTD only
+      projectedAnnual = Math.round((ytdRevenue / currentMonth) * 12);
+      method = `based on ${currentMonth}-month run rate`;
+    }
+
+    if (projectedAnnual > 0) {
+      const vsPrev = Math.round(((projectedAnnual - prevTotalRevenue) / prevTotalRevenue) * 100);
+      const desc = futureConfirmed > 0
+        ? `${formatCurrencyShort(Math.round(futureConfirmed), currency)} already confirmed ahead · ${method}`
+        : method;
+      insights.push({
+        type: vsPrev >= 0 ? 'forward' : 'neutral',
+        title: `Projected ${selectedYear}: ~${formatCurrencyShort(projectedAnnual, currency)}`,
+        description: `${vsPrev >= 0 ? '+' : ''}${vsPrev}% vs ${selectedYear - 1} · ${desc}`,
+      });
+    }
   }
 
   // 10. Multi-year growth trajectory
@@ -696,7 +753,7 @@ function generateInsights(
 
 const EMPTY_EXTENDED_METRICS: ExtendedMetrics = {
   avgLengthOfStay: 0, prevAvgLengthOfStay: 0,
-  avgLeadTimeDays: 0, prevAvgLeadTimeDays: 0,
+  avgLeadTimeDays: -1, prevAvgLeadTimeDays: -1,
   cancellationRate: 0, prevCancellationRate: 0,
   weekendRevenuePercent: 0, weekdayRevenuePercent: 0,
 };
@@ -730,6 +787,7 @@ export async function fetchRevenueData(
     insights: [],
     sourceBreakdown: [],
     extendedMetrics: EMPTY_EXTENDED_METRICS,
+    ytdComparison: null,
     propertyCount: 0,
     currency: 'RON',
   };
@@ -845,6 +903,58 @@ export async function fetchRevenueData(
       propertyCount, currency, allYearBookingsList, extendedMetrics,
     );
 
+    // YTD same-period comparison (only for current calendar year)
+    const now = new Date();
+    const isCurrentYear = year === now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    let ytdComparison: YTDComparison | null = null;
+
+    if (isCurrentYear && currentMonth >= 1) {
+      let ytdRev = 0, ytdAccom = 0, ytdNights = 0;
+      let prevYtdRev = 0, prevYtdAccom = 0, prevYtdNights = 0;
+      for (let m = 1; m <= currentMonth; m++) {
+        const cur = currentYearMonths.get(m);
+        const prev = prevYearMonths.get(m);
+        if (cur) { ytdRev += cur.revenue; ytdAccom += cur.accommodationRevenue; ytdNights += cur.nights; }
+        if (prev) { prevYtdRev += prev.revenue; prevYtdAccom += prev.accommodationRevenue; prevYtdNights += prev.nights; }
+      }
+      const ytdAvailableDays = Array.from({ length: currentMonth }, (_, i) =>
+        getDaysInMonth(new Date(year, i))
+      ).reduce((s, d) => s + d, 0) * propertyCount;
+      const prevYtdAvailableDays = Array.from({ length: currentMonth }, (_, i) =>
+        getDaysInMonth(new Date(year - 1, i))
+      ).reduce((s, d) => s + d, 0) * propertyCount;
+
+      const ytdAdr = ytdNights > 0 ? Math.round(ytdAccom / ytdNights) : 0;
+      const prevYtdAdr = prevYtdNights > 0 ? Math.round(prevYtdAccom / prevYtdNights) : 0;
+      const ytdOcc = ytdAvailableDays > 0 ? Math.round((ytdNights / ytdAvailableDays) * 100) : 0;
+      const prevYtdOcc = prevYtdAvailableDays > 0 ? Math.round((prevYtdNights / prevYtdAvailableDays) * 100) : 0;
+      const ytdRevpar = ytdAvailableDays > 0 ? Math.round(ytdRev / (ytdAvailableDays / propertyCount)) : 0;
+      const prevYtdRevpar = prevYtdAvailableDays > 0 ? Math.round(prevYtdRev / (prevYtdAvailableDays / propertyCount)) : 0;
+
+      const periodLabel = currentMonth === 1
+        ? MONTH_LABELS[0]
+        : `${MONTH_LABELS[0]}-${MONTH_LABELS[currentMonth - 1]}`;
+
+      ytdComparison = {
+        ytdRevenue: Math.round(ytdRev),
+        prevYtdRevenue: Math.round(prevYtdRev),
+        ytdNights,
+        prevYtdNights,
+        ytdAdr,
+        prevYtdAdr,
+        ytdOccupancy: ytdOcc,
+        prevYtdOccupancy: prevYtdOcc,
+        ytdRevpar,
+        prevYtdRevpar,
+        revenueChangePercent: pctChange(ytdRev, prevYtdRev),
+        nightsChangePercent: pctChange(ytdNights, prevYtdNights),
+        adrChangePercent: pctChange(ytdAdr, prevYtdAdr),
+        occupancyChangePercent: pctChange(ytdOcc, prevYtdOcc),
+        periodLabel,
+      };
+    }
+
     logger.info('Revenue data fetched', {
       year, propertyId: propertyId || 'all',
       bookings: totalBookings, revenue: totalRevenue,
@@ -852,6 +962,7 @@ export async function fetchRevenueData(
 
     return {
       selectedYear: year, availableYears, kpis,
+      ytdComparison,
       monthlyData, chartData, insights,
       sourceBreakdown, extendedMetrics,
       propertyCount, currency,

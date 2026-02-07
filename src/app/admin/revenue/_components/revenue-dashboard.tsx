@@ -116,13 +116,14 @@ function SingleYearView({ data }: { data: RevenueData }) {
   return (
     <>
       {/* Primary KPI Cards */}
-      <RevenueKPICards kpis={data.kpis} />
+      <RevenueKPICards kpis={data.kpis} ytdComparison={data.ytdComparison} />
 
       {/* Secondary Metrics */}
       <SecondaryMetrics
         metrics={data.extendedMetrics}
         kpis={data.kpis}
         currency={data.currency}
+        ytdComparison={data.ytdComparison}
       />
 
       {/* Monthly Revenue Chart */}
@@ -185,6 +186,7 @@ function SingleYearView({ data }: { data: RevenueData }) {
             data={data.monthlyData}
             currency={data.currency}
             selectedYear={data.selectedYear}
+            propertyCount={data.propertyCount}
           />
         </CardContent>
       </Card>

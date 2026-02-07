@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import type { ExtendedMetrics, YearKPIs } from '../_actions';
+import type { ExtendedMetrics, YearKPIs, YTDComparison } from '../_actions';
 
 function formatCurrency(amount: number, currency: string): string {
   return new Intl.NumberFormat('en-US', {
@@ -63,20 +63,25 @@ interface SecondaryMetricsProps {
   metrics: ExtendedMetrics;
   kpis: YearKPIs;
   currency: string;
+  ytdComparison?: YTDComparison | null;
 }
 
-export function SecondaryMetrics({ metrics, kpis, currency }: SecondaryMetricsProps) {
+export function SecondaryMetrics({ metrics, kpis, currency, ytdComparison }: SecondaryMetricsProps) {
   const losChange = metrics.prevAvgLengthOfStay > 0
     ? Math.round(((metrics.avgLengthOfStay - metrics.prevAvgLengthOfStay) / metrics.prevAvgLengthOfStay) * 100)
     : null;
 
-  const leadChange = metrics.prevAvgLeadTimeDays > 0
+  const hasLeadTimeData = metrics.avgLeadTimeDays >= 0;
+  const hasPrevLeadTimeData = metrics.prevAvgLeadTimeDays >= 0;
+  const leadChange = hasLeadTimeData && hasPrevLeadTimeData && metrics.prevAvgLeadTimeDays > 0
     ? Math.round(((metrics.avgLeadTimeDays - metrics.prevAvgLeadTimeDays) / metrics.prevAvgLeadTimeDays) * 100)
     : null;
 
-  const revparChange = kpis.prevYearRevpar > 0
-    ? Math.round(((kpis.revpar - kpis.prevYearRevpar) / kpis.prevYearRevpar) * 100)
-    : null;
+  const ytd = ytdComparison;
+  const revparChange = ytd
+    ? (ytd.prevYtdRevpar > 0 ? Math.round(((ytd.ytdRevpar - ytd.prevYtdRevpar) / ytd.prevYtdRevpar) * 100) : null)
+    : (kpis.prevYearRevpar > 0 ? Math.round(((kpis.revpar - kpis.prevYearRevpar) / kpis.prevYearRevpar) * 100) : null);
+  const occChange = ytd ? ytd.occupancyChangePercent : kpis.occupancyChangePercent;
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
@@ -90,7 +95,7 @@ export function SecondaryMetrics({ metrics, kpis, currency }: SecondaryMetricsPr
         label="Occupancy"
         value={`${kpis.occupancyRate}%`}
         icon={CalendarRange}
-        changePercent={kpis.occupancyChangePercent}
+        changePercent={occChange}
       />
       <SmallMetric
         label="Avg Stay"
@@ -100,9 +105,9 @@ export function SecondaryMetrics({ metrics, kpis, currency }: SecondaryMetricsPr
       />
       <SmallMetric
         label="Lead Time"
-        value={`${metrics.avgLeadTimeDays} days`}
+        value={hasLeadTimeData ? `${metrics.avgLeadTimeDays} days` : 'N/A'}
         icon={CalendarRange}
-        changePercent={leadChange}
+        changePercent={hasLeadTimeData ? leadChange : null}
       />
       <SmallMetric
         label="Wknd / Wkday"

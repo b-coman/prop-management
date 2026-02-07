@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { YearKPIs } from '../_actions';
+import type { YearKPIs, YTDComparison } from '../_actions';
 
 function formatCurrency(amount: number, currency: string): string {
   return new Intl.NumberFormat('en-US', {
@@ -24,11 +24,13 @@ function MetricCard({
   title,
   value,
   changePercent,
+  changeLabel,
   icon: Icon,
 }: {
   title: string;
   value: string | number;
   changePercent: number | null;
+  changeLabel?: string;
   icon: LucideIcon;
 }) {
   let changeDisplay: React.ReactNode = null;
@@ -38,7 +40,7 @@ function MetricCard({
     changeDisplay = (
       <span className={`text-xs flex items-center gap-0.5 ${isUp ? 'text-green-600' : 'text-red-600'}`}>
         {isUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-        {isUp ? '+' : ''}{changePercent}% vs last year
+        {isUp ? '+' : ''}{changePercent}% {changeLabel || 'vs last year'}
       </span>
     );
   }
@@ -59,33 +61,44 @@ function MetricCard({
 
 interface RevenueKPICardsProps {
   kpis: YearKPIs;
+  ytdComparison?: YTDComparison | null;
 }
 
-export function RevenueKPICards({ kpis }: RevenueKPICardsProps) {
+export function RevenueKPICards({ kpis, ytdComparison }: RevenueKPICardsProps) {
+  // For current year: use same-period comparison, show YTD label
+  const ytd = ytdComparison;
+  const changeLabel = ytd ? `vs ${ytd.periodLabel} ${parseInt(kpis.currency) || new Date().getFullYear() - 1}` : undefined;
+  // Actually derive the previous year from the data
+  const prevYearLabel = ytd ? `vs ${ytd.periodLabel} last year` : undefined;
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <MetricCard
         title="Total Revenue"
         value={formatCurrency(kpis.totalRevenue, kpis.currency)}
-        changePercent={kpis.revenueChangePercent}
+        changePercent={ytd ? ytd.revenueChangePercent : kpis.revenueChangePercent}
+        changeLabel={prevYearLabel}
         icon={DollarSign}
       />
       <MetricCard
         title="Nights Booked"
         value={kpis.totalNights}
-        changePercent={kpis.nightsChangePercent}
+        changePercent={ytd ? ytd.nightsChangePercent : kpis.nightsChangePercent}
+        changeLabel={prevYearLabel}
         icon={Moon}
       />
       <MetricCard
         title="Avg Daily Rate"
         value={formatCurrency(kpis.adr, kpis.currency)}
-        changePercent={kpis.adrChangePercent}
+        changePercent={ytd ? ytd.adrChangePercent : kpis.adrChangePercent}
+        changeLabel={prevYearLabel}
         icon={TrendingUp}
       />
       <MetricCard
         title="Occupancy Rate"
         value={`${kpis.occupancyRate}%`}
-        changePercent={kpis.occupancyChangePercent}
+        changePercent={ytd ? ytd.occupancyChangePercent : kpis.occupancyChangePercent}
+        changeLabel={prevYearLabel}
         icon={BarChart3}
       />
     </div>
