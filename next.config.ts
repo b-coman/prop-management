@@ -29,7 +29,10 @@ const nextConfig: NextConfig = {
   },
   // Support for multi-page structure and custom domains
   experimental: {
-    allowedDevOrigins: ["*"]
+    allowedDevOrigins: ["*"],
+    serverActions: {
+      allowedOrigins: ['prahova-chalet.ro', 'www.prahova-chalet.ro'],
+    },
   },
   // External packages that need special handling
   serverExternalPackages: ['firebase-admin', 'node-ical'],
