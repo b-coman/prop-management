@@ -51,14 +51,22 @@ export interface PricingConfig {
 }
 
 /**
+ * Parses a YYYY-MM-DD string as local midnight (not UTC).
+ * new Date("YYYY-MM-DD") parses as UTC, causing off-by-one in non-UTC timezones.
+ */
+function parseDateLocal(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/**
  * Checks if a date falls within a date range
  */
 export function isDateInRange(date: Date, startDateStr: string, endDateStr: string): boolean {
-  const startDate = new Date(startDateStr);
-  // Note: For end date, we consider the entire day (up to midnight)
-  const endDate = new Date(endDateStr);
+  const startDate = parseDateLocal(startDateStr);
+  const endDate = parseDateLocal(endDateStr);
   endDate.setHours(23, 59, 59, 999);
-  
+
   return date >= startDate && date <= endDate;
 }
 
@@ -82,10 +90,11 @@ export function findMatchingSeason(
  * Finds a date override for a specific date
  */
 export function findDateOverride(
-  date: Date, 
+  date: Date,
   overrides: DateOverride[]
 ): DateOverride | null {
-  const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
+  // Use local date components to avoid UTC timezone shift (toISOString shifts in non-UTC timezones)
+  const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   return overrides.find(override => override.date === dateStr) || null;
 }
 
@@ -207,7 +216,10 @@ export function calculateDayPrice(
     minimumStay = Math.max(minimumStay, matchingMinStayRule.minimumStay);
   }
 
-  // 5. Calculate prices for different occupancy levels
+  // 5. Round adjustedPrice to 2 decimal places to avoid floating point drift
+  adjustedPrice = Math.round(adjustedPrice * 100) / 100;
+
+  // 6. Calculate prices for different occupancy levels (using rounded adjustedPrice)
   const extraGuestFee = property.extraGuestFee || 0;
   const occupancyPrices = calculateOccupancyPrices(
     adjustedPrice,
@@ -216,9 +228,6 @@ export function calculateDayPrice(
     maxGuests,
     dateOverride?.flatRate || false
   );
-
-  // 6. Round adjustedPrice to 2 decimal places to avoid floating point drift
-  adjustedPrice = Math.round(adjustedPrice * 100) / 100;
 
   return {
     basePrice,
