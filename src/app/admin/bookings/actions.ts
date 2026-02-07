@@ -506,7 +506,7 @@ export async function createExternalBookingAction(
       const { upsertGuestFromBooking } = await import('@/services/guestService');
       await upsertGuestFromBooking({ id: bookingId, ...bookingDoc } as Booking);
     } catch (guestErr) {
-      logger.warn('Guest upsert failed (non-blocking)', { bookingId });
+      logger.warn('Guest upsert failed (non-blocking)', { bookingId, error: guestErr instanceof Error ? guestErr.message : String(guestErr) });
     }
 
     // Housekeeping notification (non-blocking, future bookings only)

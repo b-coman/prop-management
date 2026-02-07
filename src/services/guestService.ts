@@ -140,7 +140,6 @@ export async function upsertGuestFromBooking(booking: Booking): Promise<string |
       // Create new guest
       const newGuest: Record<string, unknown> = {
         firstName: booking.guestInfo.firstName || '',
-        lastName: booking.guestInfo.lastName || undefined,
         language: language as LanguageCode,
         bookingIds: [booking.id],
         propertyIds: [booking.propertyId],
@@ -149,13 +148,16 @@ export async function upsertGuestFromBooking(booking: Booking): Promise<string |
         currency: currency as CurrencyCode,
         firstBookingDate: bookingDate,
         lastBookingDate: bookingDate,
-        lastStayDate: booking.status === 'completed' && checkOutDate ? checkOutDate : undefined,
         reviewSubmitted: false,
         tags: [],
         unsubscribed: false,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       };
+
+      // Only set optional fields that have values (Firestore rejects undefined)
+      if (booking.guestInfo.lastName) newGuest.lastName = booking.guestInfo.lastName;
+      if (booking.status === 'completed' && checkOutDate) newGuest.lastStayDate = checkOutDate;
 
       // Only set fields that have values
       if (email) newGuest.email = email;
