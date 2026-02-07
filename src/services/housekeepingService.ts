@@ -360,8 +360,12 @@ async function logMessage(
 ): Promise<void> {
   try {
     const db = await getAdminDb();
+    // Strip undefined values — Firestore rejects them
+    const clean = Object.fromEntries(
+      Object.entries(message).filter(([, v]) => v !== undefined)
+    );
     await db.collection('housekeepingMessages').add({
-      ...message,
+      ...clean,
       createdAt: FieldValue.serverTimestamp(),
     });
   } catch (error) {

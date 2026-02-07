@@ -278,9 +278,9 @@ export async function sendTestMessage(
       contactPhone: contactData.phone,
       type: 'manual',
       messageBody: 'Test message from RentalSpot. WhatsApp notifications are working!',
-      twilioSid: result.sid,
+      ...(result.sid && { twilioSid: result.sid }),
       status: result.success ? 'sent' : 'failed',
-      error: result.error,
+      ...(result.error && { error: result.error }),
       createdAt: FieldValue.serverTimestamp(),
     });
 
