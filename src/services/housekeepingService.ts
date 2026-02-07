@@ -8,6 +8,24 @@ import type { HousekeepingContact, HousekeepingMessage } from '@/types';
 const logger = loggers.housekeeping;
 
 // ============================================================================
+// Property name helper
+// ============================================================================
+
+async function getPropertyName(propertyId: string): Promise<string> {
+  try {
+    const db = await getAdminDb();
+    const doc = await db.collection('properties').doc(propertyId).get();
+    if (!doc.exists) return propertyId;
+    const name = doc.data()?.name;
+    if (!name) return propertyId;
+    if (typeof name === 'string') return name;
+    return name.en || name.ro || propertyId;
+  } catch {
+    return propertyId;
+  }
+}
+
+// ============================================================================
 // Date helpers
 // ============================================================================
 
@@ -143,12 +161,14 @@ export async function buildMonthlyScheduleMessage(
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  const propertyName = await getPropertyName(propertyId);
   const bookings = await getBookingsForProperty(propertyId, monthStart, monthEnd);
   const monthName = language === 'ro'
     ? ROMANIAN_MONTHS[monthIndex]
     : month.toLocaleString('en', { month: 'long' });
 
   const lines: string[] = [];
+  lines.push(`[${propertyName}]`);
 
   if (language === 'ro') {
     lines.push(`Programul pentru luna ${monthName}:`);
@@ -250,8 +270,9 @@ export async function buildDailyNotificationMessage(
     return null; // Nothing happening today
   }
 
+  const propertyName = await getPropertyName(propertyId);
   const dateStr = formatDD_MM(date);
-  const parts: string[] = [];
+  const parts: string[] = [`[${propertyName}]`];
 
   if (language === 'ro') {
     for (const co of checkOuts) {
@@ -275,7 +296,7 @@ export async function buildDailyNotificationMessage(
     }
   }
 
-  return parts.join(' ');
+  return parts.join('\n');
 }
 
 export async function buildChangeNotificationMessage(
@@ -293,24 +314,26 @@ export async function buildChangeNotificationMessage(
   const checkOut = parseFirestoreDate(data.checkOutDate);
   if (!checkIn || !checkOut) return null;
 
+  const propertyName = await getPropertyName(propertyId);
   const guestName = [data.guestInfo?.firstName, data.guestInfo?.lastName]
     .filter(Boolean)
     .join(' ') || 'Unknown';
   const adults = data.numberOfAdults || data.numberOfGuests || 1;
   const children = data.numberOfChildren || 0;
   const guests = formatGuestCount(adults, children, language);
+  const prefix = `[${propertyName}]\n`;
 
   if (language === 'ro') {
     if (changeType === 'new') {
-      return `Rezervare noua: ${guestName} (${guests}), ${formatDD_MM(checkIn)} - ${formatDD_MM(checkOut)}.`;
+      return `${prefix}Rezervare noua: ${guestName} (${guests}), ${formatDD_MM(checkIn)} - ${formatDD_MM(checkOut)}.`;
     } else {
-      return `Rezervare anulata: ${guestName}, ${formatDD_MM(checkIn)} - ${formatDD_MM(checkOut)}.`;
+      return `${prefix}Rezervare anulata: ${guestName}, ${formatDD_MM(checkIn)} - ${formatDD_MM(checkOut)}.`;
     }
   } else {
     if (changeType === 'new') {
-      return `New booking: ${guestName} (${guests}), ${formatDD_MM(checkIn)} - ${formatDD_MM(checkOut)}.`;
+      return `${prefix}New booking: ${guestName} (${guests}), ${formatDD_MM(checkIn)} - ${formatDD_MM(checkOut)}.`;
     } else {
-      return `Booking cancelled: ${guestName}, ${formatDD_MM(checkIn)} - ${formatDD_MM(checkOut)}.`;
+      return `${prefix}Booking cancelled: ${guestName}, ${formatDD_MM(checkIn)} - ${formatDD_MM(checkOut)}.`;
     }
   }
 }
