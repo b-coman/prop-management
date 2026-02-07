@@ -359,6 +359,8 @@ export const loggers = {
   review: createLogger('review'),
   tracking: createLogger('tracking'),
   guest: createLogger('guest'),
+  whatsapp: createLogger('whatsapp'),
+  housekeeping: createLogger('housekeeping'),
 };
 
 // Type-safe logger categories

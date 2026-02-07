@@ -279,6 +279,14 @@ export async function cancelBookingHoldAction(
             }
         }
 
+        // Housekeeping WhatsApp notification (non-blocking)
+        try {
+            const { sendChangeNotification } = await import('@/services/housekeepingService');
+            await sendChangeNotification(propertyId, bookingId, 'cancelled');
+        } catch (hkErr) {
+            logger.warn('Housekeeping notification failed (non-blocking)', { bookingId });
+        }
+
         return { success: true };
 
     } catch (error) {

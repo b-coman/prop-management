@@ -137,6 +137,22 @@ env:
       - BUILD
       - RUNTIME
 
+# Twilio WhatsApp (housekeeping notifications)
+  - variable: TWILIO_ACCOUNT_SID
+    secret: projects/1061532538391/secrets/TWILIO_ACCOUNT_SID/versions/latest
+    availability:
+        - RUNTIME
+
+  - variable: TWILIO_AUTH_TOKEN
+    secret: projects/1061532538391/secrets/TWILIO_AUTH_TOKEN/versions/latest
+    availability:
+        - RUNTIME
+
+  - variable: TWILIO_WHATSAPP_NUMBER
+    secret: projects/1061532538391/secrets/TWILIO_WHATSAPP_NUMBER/versions/latest
+    availability:
+        - RUNTIME
+
 # Meta Pixel + CAPI secrets: add these after creating secrets in Secret Manager
 # - variable: NEXT_PUBLIC_META_PIXEL_ID
 # - variable: META_PIXEL_ID

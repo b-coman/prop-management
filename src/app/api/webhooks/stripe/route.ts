@@ -165,6 +165,16 @@ export async function POST(req: NextRequest) {
 
         // TODO: Send notification to property owner/admin
         // This could be implemented similarly, using the owner's email from the property details
+
+        // Housekeeping WhatsApp notification (non-blocking)
+        if (!isHold && propertyId) {
+          try {
+            const { sendChangeNotification } = await import('@/services/housekeepingService');
+            await sendChangeNotification(propertyId, bookingId, 'new');
+          } catch (hkErr) {
+            logger.warn('Housekeeping notification failed (non-blocking)', { bookingId });
+          }
+        }
       } catch (emailError) {
         logger.error('Error sending confirmation email', emailError as Error, { bookingId });
         // Don't fail the webhook if just the email fails

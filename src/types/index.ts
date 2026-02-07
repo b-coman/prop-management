@@ -538,3 +538,34 @@ export interface PriceCalculationResult {
   numberOfNights: number;
   numberOfExtraGuests: number;
 }
+
+export interface HousekeepingContact {
+  id: string;
+  propertyId: string;
+  name: string;
+  phone: string;              // E.164 format
+  language: 'ro' | 'en';
+  role: string;               // 'cleaning', 'maintenance', etc.
+  enabled: boolean;
+  notifyMonthly: boolean;
+  notifyDaily: boolean;
+  notifyChanges: boolean;
+  createdAt: SerializableTimestamp;
+  updatedAt: SerializableTimestamp;
+}
+
+export interface HousekeepingMessage {
+  id: string;
+  propertyId: string;
+  contactId: string;
+  contactName: string;
+  contactPhone: string;
+  type: 'monthly' | 'daily' | 'change' | 'manual';
+  messageBody: string;
+  twilioSid?: string;
+  status: 'sent' | 'failed';
+  error?: string;
+  bookingId?: string;
+  changeType?: 'new' | 'cancelled';
+  createdAt: SerializableTimestamp;
+}
