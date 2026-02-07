@@ -766,9 +766,10 @@ function generateInsights(
     }
   }
 
-  // 10. Multi-year growth trajectory
-  if (allYearBookings.length >= 3) {
-    const sorted = [...allYearBookings].sort((a, b) => a.year - b.year);
+  // 10. Multi-year growth trajectory (exclude current incomplete year)
+  const completedYearBookings = allYearBookings.filter(y => y.year < currentCalendarYear);
+  if (completedYearBookings.length >= 3) {
+    const sorted = [...completedYearBookings].sort((a, b) => a.year - b.year);
     const first = sorted[0];
     const last = sorted[sorted.length - 1];
     if (first.revenue > 0 && last.revenue > first.revenue) {
@@ -1097,17 +1098,19 @@ export async function fetchAllYearsData(
     // All-years insights
     const insights: Insight[] = [];
 
-    // CAGR
-    if (yearlySummaries.length >= 2) {
-      const first = yearlySummaries[0];
-      const last = yearlySummaries[yearlySummaries.length - 1];
+    // CAGR — exclude current year (incomplete data skews the calculation)
+    const currentCalendarYear = new Date().getFullYear();
+    const completedYears = yearlySummaries.filter(y => y.year < currentCalendarYear);
+    if (completedYears.length >= 2) {
+      const first = completedYears[0];
+      const last = completedYears[completedYears.length - 1];
       if (first.revenue > 0 && last.revenue > 0) {
         const years = last.year - first.year;
         if (years > 0) {
           const cagr = Math.round((Math.pow(last.revenue / first.revenue, 1 / years) - 1) * 100);
           insights.push({
             type: cagr > 0 ? 'positive' : 'negative',
-            title: `${cagr}% compound annual growth rate`,
+            title: `${cagr > 0 ? '+' : ''}${cagr}% compound annual growth rate`,
             description: `From ${formatCurrencyShort(first.revenue, currency)} (${first.year}) to ${formatCurrencyShort(last.revenue, currency)} (${last.year}) over ${years} years`,
           });
         }
