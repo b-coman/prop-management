@@ -65,6 +65,15 @@
         { "fieldPath": "propertyId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "housekeepingMessages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "bookingId", "order": "ASCENDING" },
+        { "fieldPath": "changeType", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

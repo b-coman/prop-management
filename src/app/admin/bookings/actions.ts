@@ -290,7 +290,7 @@ export async function cancelBookingHoldAction(
             const { sendChangeNotification } = await import('@/services/housekeepingService');
             await sendChangeNotification(propertyId, bookingId, 'cancelled');
         } catch (hkErr) {
-            logger.warn('Housekeeping notification failed (non-blocking)', { bookingId });
+            logger.warn('Housekeeping notification failed (non-blocking)', { bookingId, error: hkErr instanceof Error ? hkErr.message : String(hkErr) });
         }
 
         return { success: true };
@@ -515,7 +515,7 @@ export async function createExternalBookingAction(
         const { sendChangeNotification } = await import('@/services/housekeepingService');
         await sendChangeNotification(data.propertyId, bookingId, 'new');
       } catch (hkErr) {
-        logger.warn('Housekeeping notification failed (non-blocking)', { bookingId });
+        logger.warn('Housekeeping notification failed (non-blocking)', { bookingId, error: hkErr instanceof Error ? hkErr.message : String(hkErr) });
       }
     }
 
@@ -755,7 +755,7 @@ export async function cancelBookingAction(
         const { sendChangeNotification } = await import('@/services/housekeepingService');
         await sendChangeNotification(propertyId, bookingId, 'cancelled');
       } catch (hkErr) {
-        logger.warn('Housekeeping notification failed (non-blocking)', { bookingId });
+        logger.warn('Housekeeping notification failed (non-blocking)', { bookingId, error: hkErr instanceof Error ? hkErr.message : String(hkErr) });
       }
     }
 
