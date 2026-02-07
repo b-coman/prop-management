@@ -138,7 +138,6 @@ export function WebsiteContentEditor({
       toast({ title: 'Error', description: result.error, variant: 'destructive' });
     } else {
       toast({ title: 'Initialized', description: `${PAGE_LABELS[activePage] || activePage} initialized from template defaults.` });
-      // Reload from server would be ideal, but for now just clear dirty
       window.location.reload();
     }
     setIsInitializing(false);
@@ -155,71 +154,53 @@ export function WebsiteContentEditor({
   const hasPageContent = Object.keys(currentPageOverrides).length > 0;
 
   return (
-    <div className="flex gap-6 min-h-[600px]">
-      {/* Left sidebar - Page list */}
-      <div className="w-[250px] shrink-0 space-y-1">
-        <h3 className="text-sm font-medium text-muted-foreground px-3 pb-2">Pages</h3>
+    <div className="space-y-4">
+      {/* Page tabs */}
+      <div className="flex items-center gap-1 border-b">
         {Object.keys(pages).map((pageKey) => {
           const isVisible = visiblePages.includes(pageKey);
           const isActive = activePage === pageKey;
           return (
             <div
               key={pageKey}
-              className={`flex items-center justify-between rounded-md px-3 py-2 text-sm cursor-pointer transition-colors ${
+              role="tab"
+              tabIndex={0}
+              onClick={() => setActivePage(pageKey)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setActivePage(pageKey); }}
+              className={`relative flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors rounded-t-md cursor-pointer select-none ${
                 isActive
-                  ? 'bg-primary text-primary-foreground'
-                  : 'hover:bg-muted'
+                  ? 'text-foreground bg-background border border-b-0 border-border -mb-px'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
               }`}
             >
+              <span>{getPageTitle(pageKey)}</span>
               <button
-                className="flex-1 text-left"
-                onClick={() => setActivePage(pageKey)}
-              >
-                {getPageTitle(pageKey)}
-              </button>
-              <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleVisibilityToggle(pageKey);
                 }}
-                className={`p-1 rounded-sm transition-colors ${
+                className={`p-0.5 rounded transition-colors ${
                   isActive
-                    ? 'hover:bg-primary-foreground/20'
+                    ? 'hover:bg-muted'
                     : 'hover:bg-muted-foreground/20'
                 }`}
-                title={isVisible ? 'Hide page' : 'Show page'}
+                title={isVisible ? 'Page visible — click to hide' : 'Page hidden — click to show'}
               >
                 {isVisible ? (
-                  <Eye className="h-3.5 w-3.5" />
+                  <Eye className="h-3 w-3" />
                 ) : (
-                  <EyeOff className="h-3.5 w-3.5 opacity-50" />
+                  <EyeOff className="h-3 w-3 opacity-40" />
                 )}
               </button>
             </div>
           );
         })}
-
-        {/* Preview button */}
-        <div className="pt-4 px-3">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full"
-            onClick={() => {
-              const pagePath = activePage === 'homepage' ? '' : `/${activePage}`;
-              window.open(`/properties/${propertySlug}${pagePath}`, '_blank');
-            }}
-          >
-            <ExternalLink className="h-3.5 w-3.5 mr-2" />
-            Preview Page
-          </Button>
-        </div>
       </div>
 
-      {/* Right area - Block editors */}
-      <div className="flex-1 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{getPageTitle(activePage)}</h2>
+      {/* Toolbar row */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
           {!hasPageContent && (
             <Button
               variant="outline"
@@ -236,28 +217,48 @@ export function WebsiteContentEditor({
             </Button>
           )}
         </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            const pagePath = activePage === 'homepage' ? '' : `/${activePage}`;
+            window.open(`/properties/${propertySlug}${pagePath}`, '_blank');
+          }}
+        >
+          <ExternalLink className="h-3.5 w-3.5 mr-2" />
+          Preview
+        </Button>
+      </div>
 
-        {currentPageBlocks.length > 0 ? (
-          <Accordion type="multiple" className="space-y-2">
-            {currentPageBlocks.map((block) => {
-              const blockContent = (currentPageOverrides[block.id] || templateDefaults[block.id] || {}) as Record<string, unknown>;
-              const isHidden = blockContent._hidden === true;
+      {/* Block editors */}
+      {currentPageBlocks.length > 0 ? (
+        <Accordion type="multiple" className="space-y-2">
+          {currentPageBlocks.map((block) => {
+            const blockContent = (currentPageOverrides[block.id] || templateDefaults[block.id] || {}) as Record<string, unknown>;
+            const isHidden = blockContent._hidden === true;
 
-              return (
-                <AccordionItem
-                  key={block.id}
-                  value={block.id}
-                  className="border rounded-lg px-4"
-                >
-                  <AccordionTrigger className="hover:no-underline">
-                    <div className="flex items-center gap-2">
-                      <span>{getBlockLabel(block)}</span>
-                      <Badge variant={isHidden ? 'secondary' : 'outline'} className="text-xs">
-                        {isHidden ? 'Hidden' : 'Visible'}
+            return (
+              <AccordionItem
+                key={block.id}
+                value={block.id}
+                className="border rounded-lg overflow-hidden data-[state=open]:border-primary/30 data-[state=open]:shadow-sm transition-all"
+              >
+                <AccordionTrigger className="px-4 hover:no-underline data-[state=open]:bg-muted/40">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{getBlockLabel(block)}</span>
+                    {isHidden ? (
+                      <Badge variant="secondary" className="text-xs gap-1">
+                        <EyeOff className="h-3 w-3" /> Hidden
                       </Badge>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="pt-2 pb-4">
+                    ) : (
+                      <Badge variant="outline" className="text-xs text-muted-foreground">
+                        Visible
+                      </Badge>
+                    )}
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="border-t bg-muted/10">
+                  <div className="px-4 pt-4 pb-4">
                     <div className="flex justify-end mb-3">
                       <Button
                         variant="ghost"
@@ -283,44 +284,44 @@ export function WebsiteContentEditor({
                       propertySlug={propertySlug}
                       propertyImages={propertyImages}
                     />
-                  </AccordionContent>
-                </AccordionItem>
-              );
-            })}
-          </Accordion>
-        ) : (
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-center text-muted-foreground py-8">
-                No blocks defined for this page in the template.
-              </p>
-            </CardContent>
-          </Card>
-        )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            );
+          })}
+        </Accordion>
+      ) : (
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-muted-foreground py-8">
+              No blocks defined for this page in the template.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
-        {/* Sticky save bar */}
-        {isDirty && (
-          <div className="sticky bottom-4 z-40">
-            <div className="flex items-center justify-between gap-4 rounded-lg border bg-background p-4 shadow-lg">
-              <span className="text-sm text-muted-foreground">Unsaved changes</span>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={handleDiscard} disabled={isSaving}>
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Discard
-                </Button>
-                <Button onClick={handleSave} disabled={isSaving}>
-                  {isSaving ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4 mr-2" />
-                  )}
-                  {isSaving ? 'Saving...' : 'Save Changes'}
-                </Button>
-              </div>
+      {/* Sticky save bar */}
+      {isDirty && (
+        <div className="sticky bottom-4 z-40">
+          <div className="flex items-center justify-between gap-4 rounded-lg border bg-background p-4 shadow-lg">
+            <span className="text-sm text-muted-foreground">Unsaved changes</span>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={handleDiscard} disabled={isSaving}>
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Discard
+              </Button>
+              <Button onClick={handleSave} disabled={isSaving}>
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
