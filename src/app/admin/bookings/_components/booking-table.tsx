@@ -7,15 +7,15 @@ import type { Booking, SerializableTimestamp } from "@/types";
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Eye, Ban, CheckCheck } from "lucide-react";
+import { Eye, Ban, CheckCheck, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { format, parseISO, formatDistanceToNow, isPast } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ExtendHoldDialog } from './extend-hold-dialog';
@@ -30,6 +30,9 @@ import { bulkCancelBookings, bulkCompleteBookings } from '../bulk-actions';
 
 interface BookingTableProps {
   bookings: Booking[];
+  sortColumn?: string | null;
+  sortDirection?: 'asc' | 'desc' | null;
+  onSort?: (column: string) => void;
 }
 
 // Helper function to parse date safely
@@ -39,7 +42,38 @@ const parseDateSafe = (dateStr: SerializableTimestamp | null | undefined): Date 
     try { return parseISO(String(dateStr)); } catch { return null; }
 };
 
-export function BookingTable({ bookings }: BookingTableProps) {
+const SOURCE_LABELS: Record<string, string> = {
+  'airbnb': 'Airbnb',
+  'booking.com': 'Booking.com',
+  'vrbo': 'Vrbo',
+  'direct': 'Direct',
+  'stripe': 'Stripe',
+};
+
+function SortableHeader({ label, columnKey, sortColumn, sortDirection, onSort }: {
+  label: string;
+  columnKey: string;
+  sortColumn?: string | null;
+  sortDirection?: 'asc' | 'desc' | null;
+  onSort?: (column: string) => void;
+}) {
+  const isActive = sortColumn === columnKey;
+  const Icon = isActive
+    ? (sortDirection === 'asc' ? ArrowUp : ArrowDown)
+    : ArrowUpDown;
+
+  return (
+    <div
+      className={cn('flex items-center cursor-pointer select-none', onSort && 'hover:text-foreground')}
+      onClick={() => onSort?.(columnKey)}
+    >
+      {label}
+      <Icon className={cn('ml-1 h-3.5 w-3.5', isActive ? 'opacity-100' : 'opacity-40')} />
+    </div>
+  );
+}
+
+export function BookingTable({ bookings, sortColumn, sortDirection, onSort }: BookingTableProps) {
   const { toast } = useToast();
   const rowIds = React.useMemo(() => bookings.map(b => b.id), [bookings]);
   const { selectedIds, selectedCount, isSelected, toggle, toggleAll, clearSelection, allState } = useRowSelection(rowIds);
@@ -76,7 +110,6 @@ export function BookingTable({ bookings }: BookingTableProps) {
         onClearSelection={clearSelection}
       />
       <Table>
-        <TableCaption>A list of property bookings.</TableCaption>
         <TableHeader>
           <TableRow>
             <TableHead className="w-[40px]">
@@ -87,20 +120,33 @@ export function BookingTable({ bookings }: BookingTableProps) {
               />
             </TableHead>
             <TableHead>ID / Property</TableHead>
-            <TableHead>Guest</TableHead>
-            <TableHead>Dates</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead>
+              <SortableHeader label="Guest" columnKey="guest" sortColumn={sortColumn} sortDirection={sortDirection} onSort={onSort} />
+            </TableHead>
+            <TableHead>
+              <SortableHeader label="Dates" columnKey="checkInDate" sortColumn={sortColumn} sortDirection={sortDirection} onSort={onSort} />
+            </TableHead>
+            <TableHead>
+              <SortableHeader label="Status" columnKey="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={onSort} />
+            </TableHead>
             <TableHead>Hold Expires</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {bookings.map((booking) => {
+          {bookings.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                No bookings found.
+              </TableCell>
+            </TableRow>
+          ) : bookings.map((booking) => {
             const checkInDate = parseDateSafe(booking.checkInDate);
             const checkOutDate = parseDateSafe(booking.checkOutDate);
             const holdUntilDate = parseDateSafe(booking.holdUntil);
             const isHoldExpired = holdUntilDate ? isPast(holdUntilDate) : false;
             const status = booking.status || 'unknown';
+            const sourceLabel = booking.source ? SOURCE_LABELS[booking.source] || booking.source : null;
 
             return (
               <TableRow key={booking.id} data-state={isSelected(booking.id) ? 'selected' : undefined}>
@@ -119,10 +165,15 @@ export function BookingTable({ bookings }: BookingTableProps) {
                 </TableCell>
                 <TableCell>
                   <p>{booking.guestInfo.firstName} {booking.guestInfo.lastName || ''}</p>
-                  <p className="text-xs text-muted-foreground">{booking.guestInfo.email}</p>
+                  {sourceLabel && (
+                    <Badge variant="outline" className="text-[10px] px-1 py-0 font-normal">{sourceLabel}</Badge>
+                  )}
+                  {!sourceLabel && booking.guestInfo.email && (
+                    <p className="text-xs text-muted-foreground">{booking.guestInfo.email}</p>
+                  )}
                 </TableCell>
                 <TableCell>
-                   {checkInDate ? format(checkInDate, 'MMM d, y') : '-'} to
+                   {checkInDate ? format(checkInDate, 'MMM d, y') : '-'} to{' '}
                    {checkOutDate ? format(checkOutDate, 'MMM d, y') : '-'}
                 </TableCell>
                 <TableCell>
