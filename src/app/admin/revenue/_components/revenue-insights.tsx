@@ -23,19 +23,19 @@ export function RevenueInsights({ insights }: RevenueInsightsProps) {
   if (insights.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div className="space-y-2">
       {insights.map((insight, i) => {
         const style = insightStyles[insight.type];
         const Icon = style.icon;
         return (
           <div
             key={i}
-            className={`flex items-start gap-3 p-3 rounded-lg ${style.bgColor}`}
+            className={`flex items-start gap-2.5 p-2.5 rounded-lg ${style.bgColor}`}
           >
-            <Icon className={`h-5 w-5 shrink-0 mt-0.5 ${style.iconColor}`} />
+            <Icon className={`h-4 w-4 shrink-0 mt-0.5 ${style.iconColor}`} />
             <div className="min-w-0">
-              <p className="text-sm font-medium">{insight.title}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{insight.description}</p>
+              <p className="text-sm font-medium leading-tight">{insight.title}</p>
+              <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{insight.description}</p>
             </div>
           </div>
         );

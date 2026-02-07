@@ -425,10 +425,11 @@ function computeExtendedMetrics(
       if (days >= 0) prevLeadTimes.push(days);
     }
   }
-  const avgLeadTime = leadTimes.length > 0
+  // Require at least 2 bookings with real lead time data for a meaningful average
+  const avgLeadTime = leadTimes.length >= 2
     ? Math.round(leadTimes.reduce((s, d) => s + d, 0) / leadTimes.length)
-    : -1; // -1 = no data (distinct from 0 days)
-  const prevAvgLeadTime = prevLeadTimes.length > 0
+    : -1; // -1 = insufficient data (distinct from 0 days)
+  const prevAvgLeadTime = prevLeadTimes.length >= 2
     ? Math.round(prevLeadTimes.reduce((s, d) => s + d, 0) / prevLeadTimes.length)
     : -1;
 

@@ -15,7 +15,6 @@ import { RevenueKPICards } from './revenue-kpi-cards';
 import { RevenueChart } from './revenue-chart';
 import { RevenueInsights } from './revenue-insights';
 import { MonthlyBreakdownTable } from './monthly-breakdown-table';
-import { SecondaryMetrics } from './secondary-metrics';
 import { SourceBreakdown } from './source-breakdown';
 import { AllYearsChart } from './all-years-chart';
 import { AllYearsTable } from './all-years-table';
@@ -67,7 +66,7 @@ export function RevenueDashboard() {
     : allYearsData?.availableYears ?? [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Year selector + All Years toggle */}
       <div className="flex items-center gap-2 flex-wrap">
         <Button
@@ -113,73 +112,73 @@ export function RevenueDashboard() {
 // ============================================================================
 
 function SingleYearView({ data }: { data: RevenueData }) {
+  const hasChart = data.chartData.some(d => d.revenue > 0);
+  const hasSource = data.sourceBreakdown.length > 0;
+  const hasInsights = data.insights.length > 0;
+
   return (
-    <>
+    <div className="space-y-4">
       {/* Primary KPI Cards */}
       <RevenueKPICards kpis={data.kpis} ytdComparison={data.ytdComparison} />
 
-      {/* Secondary Metrics */}
-      <SecondaryMetrics
-        metrics={data.extendedMetrics}
-        kpis={data.kpis}
-        currency={data.currency}
-        ytdComparison={data.ytdComparison}
-      />
+      {/* Two-column: Chart + Sidebar (Sources & Insights) */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        {/* Left: Monthly Revenue Chart (3/5 width) */}
+        <Card className="lg:col-span-3">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Monthly Revenue</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {hasChart ? (
+              <RevenueChart
+                data={data.chartData}
+                selectedYear={data.selectedYear}
+                currency={data.currency}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-12">
+                No revenue data for {data.selectedYear}
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Monthly Revenue Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Monthly Revenue</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {data.chartData.some(d => d.revenue > 0) ? (
-            <RevenueChart
-              data={data.chartData}
-              selectedYear={data.selectedYear}
-              currency={data.currency}
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-12">
-              No revenue data for {data.selectedYear}
-            </p>
+        {/* Right: Sources + Insights stacked (2/5 width) */}
+        <div className="lg:col-span-2 space-y-4">
+          {hasSource && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <PieChart className="h-4 w-4" />
+                  Sources
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <SourceBreakdown data={data.sourceBreakdown} currency={data.currency} />
+              </CardContent>
+            </Card>
           )}
-        </CardContent>
-      </Card>
 
-      {/* Revenue by Source */}
-      {data.sourceBreakdown.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <PieChart className="h-5 w-5" />
-              Revenue by Source
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <SourceBreakdown data={data.sourceBreakdown} currency={data.currency} />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Smart Insights */}
-      {data.insights.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Lightbulb className="h-5 w-5" />
-              Insights
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <RevenueInsights insights={data.insights} />
-          </CardContent>
-        </Card>
-      )}
+          {hasInsights && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Lightbulb className="h-4 w-4" />
+                  Insights
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <RevenueInsights insights={data.insights} />
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
 
       {/* Monthly Breakdown Table */}
       <Card>
-        <CardHeader>
-          <CardTitle>Monthly Breakdown</CardTitle>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Monthly Breakdown</CardTitle>
         </CardHeader>
         <CardContent>
           <MonthlyBreakdownTable
@@ -191,7 +190,7 @@ function SingleYearView({ data }: { data: RevenueData }) {
           />
         </CardContent>
       </Card>
-    </>
+    </div>
   );
 }
 
@@ -201,7 +200,7 @@ function SingleYearView({ data }: { data: RevenueData }) {
 
 function AllYearsView({ data }: { data: AllYearsData }) {
   return (
-    <>
+    <div className="space-y-4">
       {/* Yearly summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {data.yearlySummaries.map(summary => (
@@ -267,6 +266,6 @@ function AllYearsView({ data }: { data: AllYearsData }) {
           />
         </CardContent>
       </Card>
-    </>
+    </div>
   );
 }

@@ -65,11 +65,8 @@ interface RevenueKPICardsProps {
 }
 
 export function RevenueKPICards({ kpis, ytdComparison }: RevenueKPICardsProps) {
-  // For current year: use same-period comparison, show YTD label
   const ytd = ytdComparison;
-  const changeLabel = ytd ? `vs ${ytd.periodLabel} ${parseInt(kpis.currency) || new Date().getFullYear() - 1}` : undefined;
-  // Actually derive the previous year from the data
-  const prevYearLabel = ytd ? `vs ${ytd.periodLabel} last year` : undefined;
+  const prevYearLabel = ytd ? `vs ${ytd.periodLabel} ${new Date().getFullYear() - 1}` : undefined;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

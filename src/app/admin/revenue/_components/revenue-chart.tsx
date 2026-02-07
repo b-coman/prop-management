@@ -56,7 +56,7 @@ export function RevenueChart({ data, selectedYear, currency }: RevenueChartProps
   });
 
   return (
-    <ChartContainer config={chartConfig} className="h-[350px] w-full">
+    <ChartContainer config={chartConfig} className="h-[280px] w-full">
       <BarChart data={chartData} barGap={2}>
         <CartesianGrid strokeDasharray="3 3" vertical={false} />
         <XAxis dataKey="month" tickLine={false} axisLine={false} />
