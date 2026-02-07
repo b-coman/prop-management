@@ -84,6 +84,21 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
+      // Check if guest is unsubscribed
+      const guestEmail = data.guestInfo?.email;
+      if (guestEmail) {
+        try {
+          const { isGuestUnsubscribed } = await import('@/services/guestService');
+          if (await isGuestUnsubscribed(guestEmail)) {
+            logger.info('Guest unsubscribed, skipping review request', { bookingId });
+            skipped++;
+            continue;
+          }
+        } catch (unsubError) {
+          logger.warn('Failed to check unsubscribe status, proceeding', { bookingId });
+        }
+      }
+
       // Send review request email
       try {
         const { sendReviewRequestEmail } = await import('@/services/emailService');

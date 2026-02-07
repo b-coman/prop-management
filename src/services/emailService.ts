@@ -11,7 +11,10 @@ import {
   createInquiryConfirmationTemplate,
   createInquiryResponseTemplate,
   createBookingCancellationTemplate,
-  createReviewRequestTemplate
+  createReviewRequestTemplate,
+  createCheckoutConfirmationTemplate,
+  createReturnIncentiveTemplate,
+  createSeasonalReminderTemplate,
 } from './emailTemplates';
 
 // Development transporter for testing - uses Ethereal
@@ -680,6 +683,9 @@ export async function sendReviewRequestEmail(
     const token = generateReviewToken(bookingId, email);
     const reviewUrl = `${process.env.NEXT_PUBLIC_APP_URL}/review/${bookingId}?token=${token}`;
 
+    const { getUnsubscribeUrl } = await import('@/lib/unsubscribe-token');
+    const unsubscribeUrl = getUnsubscribeUrl(email);
+
     const language: LanguageCode = booking.language || 'en';
 
     const { text, html, subject } = createReviewRequestTemplate({
@@ -688,6 +694,7 @@ export async function sendReviewRequestEmail(
       checkInDate: formatDate(booking.checkInDate),
       checkOutDate: formatDate(booking.checkOutDate),
       reviewUrl,
+      unsubscribeUrl,
     }, language);
 
     console.log(`[EmailService] Sending review request (${language}) to ${email}`);
@@ -695,6 +702,133 @@ export async function sendReviewRequestEmail(
     return sendEmail(email, subject, text, html);
   } catch (error) {
     console.error('[EmailService] Error sending review request:', error);
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/**
+ * Sends a checkout confirmation / thank-you email (Day 0)
+ */
+export async function sendCheckoutConfirmationEmail(
+  bookingId: string
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  try {
+    const booking = await getBookingById(bookingId);
+    if (!booking) return { success: false, error: 'Booking not found' };
+
+    const email = booking.guestInfo.email;
+    if (!email) return { success: false, error: 'No recipient email' };
+
+    const { isGuestUnsubscribed } = await import('@/services/guestService');
+    if (await isGuestUnsubscribed(email)) {
+      return { success: false, error: 'Guest is unsubscribed' };
+    }
+
+    const property = await getPropertyBySlug(booking.propertyId);
+    const propertyName = getPropertyName(property, booking.propertyId);
+    const { getUnsubscribeUrl } = await import('@/lib/unsubscribe-token');
+
+    const language: LanguageCode = booking.language || 'en';
+
+    const { text, html, subject } = createCheckoutConfirmationTemplate({
+      guestName: `${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''}`.trim(),
+      propertyName,
+      propertyId: booking.propertyId,
+      checkInDate: formatDate(booking.checkInDate),
+      checkOutDate: formatDate(booking.checkOutDate),
+      totalAmount: formatCurrency(booking.pricing.total, booking.pricing.currency),
+      currency: booking.pricing.currency,
+      unsubscribeUrl: getUnsubscribeUrl(email),
+    }, language);
+
+    console.log(`[EmailService] Sending checkout confirmation (${language}) to ${email}`);
+    return sendEmail(email, subject, text, html);
+  } catch (error) {
+    console.error('[EmailService] Error sending checkout confirmation:', error);
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/**
+ * Sends a return incentive email with coupon code (Day 14)
+ */
+export async function sendReturnIncentiveEmail(
+  bookingId: string,
+  couponCode: string,
+  discount: number,
+  expiryDate: string
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  try {
+    const booking = await getBookingById(bookingId);
+    if (!booking) return { success: false, error: 'Booking not found' };
+
+    const email = booking.guestInfo.email;
+    if (!email) return { success: false, error: 'No recipient email' };
+
+    const { isGuestUnsubscribed } = await import('@/services/guestService');
+    if (await isGuestUnsubscribed(email)) {
+      return { success: false, error: 'Guest is unsubscribed' };
+    }
+
+    const property = await getPropertyBySlug(booking.propertyId);
+    const propertyName = getPropertyName(property, booking.propertyId);
+    const { getUnsubscribeUrl } = await import('@/lib/unsubscribe-token');
+
+    const language: LanguageCode = booking.language || 'en';
+
+    const { text, html, subject } = createReturnIncentiveTemplate({
+      guestName: `${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''}`.trim(),
+      propertyName,
+      propertyId: booking.propertyId,
+      couponCode,
+      discount,
+      expiryDate,
+      unsubscribeUrl: getUnsubscribeUrl(email),
+    }, language);
+
+    console.log(`[EmailService] Sending return incentive (${language}) to ${email}`);
+    return sendEmail(email, subject, text, html);
+  } catch (error) {
+    console.error('[EmailService] Error sending return incentive:', error);
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/**
+ * Sends a seasonal reminder email (Day 90)
+ */
+export async function sendSeasonalReminderEmail(
+  bookingId: string
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  try {
+    const booking = await getBookingById(bookingId);
+    if (!booking) return { success: false, error: 'Booking not found' };
+
+    const email = booking.guestInfo.email;
+    if (!email) return { success: false, error: 'No recipient email' };
+
+    const { isGuestUnsubscribed } = await import('@/services/guestService');
+    if (await isGuestUnsubscribed(email)) {
+      return { success: false, error: 'Guest is unsubscribed' };
+    }
+
+    const property = await getPropertyBySlug(booking.propertyId);
+    const propertyName = getPropertyName(property, booking.propertyId);
+    const { getUnsubscribeUrl } = await import('@/lib/unsubscribe-token');
+
+    const language: LanguageCode = booking.language || 'en';
+
+    const { text, html, subject } = createSeasonalReminderTemplate({
+      guestName: `${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''}`.trim(),
+      propertyName,
+      propertyId: booking.propertyId,
+      unsubscribeUrl: getUnsubscribeUrl(email),
+    }, language);
+
+    console.log(`[EmailService] Sending seasonal reminder (${language}) to ${email}`);
+    return sendEmail(email, subject, text, html);
+  } catch (error) {
+    console.error('[EmailService] Error sending seasonal reminder:', error);
     return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }

@@ -154,6 +154,14 @@ export async function bulkCompleteBookings(bookingIds: string[]): Promise<BulkAc
         status: 'completed',
         updatedAt: FieldValue.serverTimestamp(),
       });
+
+      // Sync guest record (non-blocking within allSettled)
+      try {
+        const { upsertGuestFromBooking } = await import('@/services/guestService');
+        await upsertGuestFromBooking({ ...data, id: bookingId, status: 'completed' } as Booking);
+      } catch (guestError) {
+        logger.warn('Non-blocking: failed to sync guest on bulk complete', { bookingId, error: (guestError as Error).message });
+      }
     })
   );
 

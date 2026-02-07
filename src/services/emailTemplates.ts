@@ -88,6 +88,28 @@ const emailTranslations = {
     leaveReview: 'Leave a Review',
     reviewRequestThanks: 'Your feedback helps future guests and helps us improve.',
     reviewRequestPrompt: 'It only takes a minute to share your thoughts.',
+
+    // Checkout confirmation (Day 0)
+    checkoutConfirmation: 'Thank You for Your Stay!',
+    checkoutConfirmationMessage: 'We hope you had a wonderful time at {propertyName}. Have a safe journey home!',
+    checkoutSafeTravel: 'We wish you safe travels and hope to welcome you back soon.',
+
+    // Return incentive (Day 14)
+    returnIncentive: 'A Special Offer Just for You',
+    returnIncentiveMessage: 'We loved hosting you at {propertyName} and would like to offer you a special discount on your next stay.',
+    returnIncentiveCoupon: 'Your Coupon Code',
+    returnIncentiveDiscount: '{discount}% off your next booking',
+    returnIncentiveExpiry: 'Valid until {expiryDate}',
+    returnIncentiveBook: 'Book Again',
+
+    // Seasonal reminder (Day 90)
+    seasonalReminder: 'We Miss You at {propertyName}!',
+    seasonalReminderMessage: "It's been a while since your stay at {propertyName}. We'd love to welcome you back for another memorable experience.",
+    seasonalReminderBook: 'Check Availability',
+
+    // Unsubscribe
+    unsubscribeText: 'If you no longer wish to receive these emails, you can',
+    unsubscribeLink: 'unsubscribe here',
   },
   ro: {
     // Common
@@ -169,6 +191,28 @@ const emailTranslations = {
     leaveReview: 'Lăsați o Recenzie',
     reviewRequestThanks: 'Feedback-ul dvs. ajută viitorii oaspeți și ne ajută să ne îmbunătățim.',
     reviewRequestPrompt: 'Durează doar un minut să vă împărtășiți gândurile.',
+
+    // Checkout confirmation (Day 0)
+    checkoutConfirmation: 'Vă Mulțumim pentru Sejur!',
+    checkoutConfirmationMessage: 'Sperăm că ați avut o experiență minunată la {propertyName}. Drum bun spre casă!',
+    checkoutSafeTravel: 'Vă dorim călătorie plăcută și sperăm să vă revedem curând.',
+
+    // Return incentive (Day 14)
+    returnIncentive: 'O Ofertă Specială pentru Dvs.',
+    returnIncentiveMessage: 'Ne-a făcut plăcere să vă găzduim la {propertyName} și am dori să vă oferim o reducere specială pentru următorul sejur.',
+    returnIncentiveCoupon: 'Codul Dvs. de Cupon',
+    returnIncentiveDiscount: '{discount}% reducere la următoarea rezervare',
+    returnIncentiveExpiry: 'Valabil până la {expiryDate}',
+    returnIncentiveBook: 'Rezervă Din Nou',
+
+    // Seasonal reminder (Day 90)
+    seasonalReminder: 'Ne Lipsești la {propertyName}!',
+    seasonalReminderMessage: 'A trecut ceva timp de la sejurul dvs. la {propertyName}. Ne-ar plăcea să vă primim înapoi pentru o nouă experiență de neuitat.',
+    seasonalReminderBook: 'Verifică Disponibilitatea',
+
+    // Unsubscribe
+    unsubscribeText: 'Dacă nu mai doriți să primiți aceste emailuri, puteți',
+    unsubscribeLink: 'dezabona aici',
   }
 } as const;
 
@@ -200,6 +244,35 @@ interface ReviewRequestEmailData {
   checkInDate: string;
   checkOutDate: string;
   reviewUrl: string;
+  unsubscribeUrl?: string;
+}
+
+interface CheckoutConfirmationEmailData {
+  guestName: string;
+  propertyName: string;
+  propertyId: string;
+  checkInDate: string;
+  checkOutDate: string;
+  totalAmount: string;
+  currency: string;
+  unsubscribeUrl: string;
+}
+
+interface ReturnIncentiveEmailData {
+  guestName: string;
+  propertyName: string;
+  propertyId: string;
+  couponCode: string;
+  discount: number;
+  expiryDate: string;
+  unsubscribeUrl: string;
+}
+
+interface SeasonalReminderEmailData {
+  guestName: string;
+  propertyName: string;
+  propertyId: string;
+  unsubscribeUrl: string;
 }
 
 interface BookingEmailData {
@@ -285,10 +358,15 @@ function createHeader(title: string): string {
 /**
  * Creates email footer
  */
-function createFooter(lang: LanguageCode): string {
+function createFooter(lang: LanguageCode, unsubscribeUrl?: string): string {
   return `
   <div class="footer">
     <p>${t(lang, 'thankYouForChoosing')}</p>
+    ${unsubscribeUrl ? `
+    <p style="margin-top: 10px; font-size: 11px; color: #9ca3af;">
+      ${t(lang, 'unsubscribeText')} <a href="${unsubscribeUrl}" style="color: #6b7280; text-decoration: underline;">${t(lang, 'unsubscribeLink')}</a>.
+    </p>
+    ` : ''}
     <p style="margin-top: 10px; font-size: 11px; color: #9ca3af;">
       ${t(lang, 'automatedMessage')}
     </p>
@@ -710,7 +788,152 @@ ${createHeader(t(lang, 'reviewRequest'))}
 
     <p style="margin-top: 20px; color: #6b7280; font-size: 14px;">${t(lang, 'reviewRequestThanks')}</p>
   </div>
-${createFooter(lang)}
+${createFooter(lang, data.unsubscribeUrl)}
+`;
+
+  return { text, html, subject };
+}
+
+/**
+ * Creates checkout confirmation email template (Day 0)
+ */
+export function createCheckoutConfirmationTemplate(
+  data: CheckoutConfirmationEmailData,
+  language: LanguageCode = 'en'
+): { text: string; html: string; subject: string } {
+  const lang = language;
+
+  const subject = t(lang, 'checkoutConfirmation');
+
+  const text = `
+${t(lang, 'checkoutConfirmation')}
+
+${t(lang, 'dear')} ${data.guestName},
+
+${t(lang, 'checkoutConfirmationMessage', { propertyName: data.propertyName })}
+
+${t(lang, 'reviewStayDetails')}:
+- ${t(lang, 'property')}: ${data.propertyName}
+- ${t(lang, 'checkIn')}: ${data.checkInDate}
+- ${t(lang, 'checkOut')}: ${data.checkOutDate}
+- ${t(lang, 'total')}: ${data.totalAmount} ${data.currency}
+
+${t(lang, 'checkoutSafeTravel')}
+
+${t(lang, 'thankYou')}
+${t(lang, 'theTeam')}
+`;
+
+  const html = `
+${createHeader(t(lang, 'checkoutConfirmation'))}
+  <div class="content">
+    <p>${t(lang, 'dear')} ${data.guestName},</p>
+    <p>${t(lang, 'checkoutConfirmationMessage', { propertyName: data.propertyName })}</p>
+
+    <div class="info-box">
+      <h2>${t(lang, 'reviewStayDetails')}</h2>
+      <p><strong>${t(lang, 'property')}:</strong> ${data.propertyName}</p>
+      <p><strong>${t(lang, 'checkIn')}:</strong> ${data.checkInDate}</p>
+      <p><strong>${t(lang, 'checkOut')}:</strong> ${data.checkOutDate}</p>
+      <p><strong>${t(lang, 'total')}:</strong> ${data.totalAmount} ${data.currency}</p>
+    </div>
+
+    <p>${t(lang, 'checkoutSafeTravel')}</p>
+  </div>
+${createFooter(lang, data.unsubscribeUrl)}
+`;
+
+  return { text, html, subject };
+}
+
+/**
+ * Creates return incentive email template (Day 14)
+ */
+export function createReturnIncentiveTemplate(
+  data: ReturnIncentiveEmailData,
+  language: LanguageCode = 'en'
+): { text: string; html: string; subject: string } {
+  const lang = language;
+
+  const subject = t(lang, 'returnIncentive');
+  const bookUrl = `${process.env.NEXT_PUBLIC_APP_URL || ''}/booking/check/${data.propertyId}`;
+
+  const text = `
+${t(lang, 'returnIncentive')}
+
+${t(lang, 'dear')} ${data.guestName},
+
+${t(lang, 'returnIncentiveMessage', { propertyName: data.propertyName })}
+
+${t(lang, 'returnIncentiveCoupon')}: ${data.couponCode}
+${t(lang, 'returnIncentiveDiscount', { discount: String(data.discount) })}
+${t(lang, 'returnIncentiveExpiry', { expiryDate: data.expiryDate })}
+
+${bookUrl}
+
+${t(lang, 'thankYou')}
+${t(lang, 'theTeam')}
+`;
+
+  const html = `
+${createHeader(t(lang, 'returnIncentive'))}
+  <div class="content">
+    <p>${t(lang, 'dear')} ${data.guestName},</p>
+    <p>${t(lang, 'returnIncentiveMessage', { propertyName: data.propertyName })}</p>
+
+    <div class="info-box" style="text-align: center;">
+      <h2>${t(lang, 'returnIncentiveCoupon')}</h2>
+      <p style="font-size: 24px; font-weight: bold; color: #4f46e5; letter-spacing: 2px; margin: 15px 0;">${data.couponCode}</p>
+      <p>${t(lang, 'returnIncentiveDiscount', { discount: String(data.discount) })}</p>
+      <p style="color: #6b7280; font-size: 13px;">${t(lang, 'returnIncentiveExpiry', { expiryDate: data.expiryDate })}</p>
+    </div>
+
+    <div style="text-align: center; margin-top: 30px;">
+      <a href="${bookUrl}" class="button">${t(lang, 'returnIncentiveBook')}</a>
+    </div>
+  </div>
+${createFooter(lang, data.unsubscribeUrl)}
+`;
+
+  return { text, html, subject };
+}
+
+/**
+ * Creates seasonal reminder email template (Day 90)
+ */
+export function createSeasonalReminderTemplate(
+  data: SeasonalReminderEmailData,
+  language: LanguageCode = 'en'
+): { text: string; html: string; subject: string } {
+  const lang = language;
+
+  const subject = t(lang, 'seasonalReminder', { propertyName: data.propertyName });
+  const bookUrl = `${process.env.NEXT_PUBLIC_APP_URL || ''}/booking/check/${data.propertyId}`;
+
+  const text = `
+${t(lang, 'seasonalReminder', { propertyName: data.propertyName })}
+
+${t(lang, 'dear')} ${data.guestName},
+
+${t(lang, 'seasonalReminderMessage', { propertyName: data.propertyName })}
+
+${bookUrl}
+
+${t(lang, 'thankYou')}
+${t(lang, 'theTeam')}
+`;
+
+  const html = `
+${createHeader(t(lang, 'seasonalReminder', { propertyName: data.propertyName }))}
+  <div class="content">
+    <p>${t(lang, 'dear')} ${data.guestName},</p>
+    <p>${t(lang, 'seasonalReminderMessage', { propertyName: data.propertyName })}</p>
+
+    <div style="text-align: center; margin-top: 30px;">
+      <a href="${bookUrl}" class="button">${t(lang, 'seasonalReminderBook')}</a>
+    </div>
+  </div>
+${createFooter(lang, data.unsubscribeUrl)}
 `;
 
   return { text, html, subject };

@@ -358,6 +358,7 @@ export const loggers = {
   adminReviews: createLogger('admin:reviews'),
   review: createLogger('review'),
   tracking: createLogger('tracking'),
+  guest: createLogger('guest'),
 };
 
 // Type-safe logger categories

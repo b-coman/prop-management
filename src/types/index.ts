@@ -222,9 +222,36 @@ export interface Booking {
   convertedFromHold?: boolean; // Flag if this booking was converted from a hold
   convertedFromInquiry?: string | null; // Inquiry ID if converted from an inquiry
   reviewRequestSentAt?: SerializableTimestamp; // When review request email was sent
+  checkoutEmailSentAt?: SerializableTimestamp;
+  returnIncentiveSentAt?: SerializableTimestamp;
+  returnIncentiveCouponCode?: string;
+  seasonalReminderSentAt?: SerializableTimestamp;
   attribution?: BookingAttribution;
   createdAt?: SerializableTimestamp;
   updatedAt?: SerializableTimestamp;
+}
+
+export interface Guest {
+  id: string;
+  email: string; // Normalized lowercase
+  firstName: string;
+  lastName?: string;
+  phone?: string;
+  language: LanguageCode;
+  bookingIds: string[];
+  propertyIds: string[];
+  totalBookings: number;
+  totalSpent: number;
+  currency: CurrencyCode;
+  firstBookingDate: SerializableTimestamp;
+  lastBookingDate: SerializableTimestamp;
+  lastStayDate?: SerializableTimestamp;
+  reviewSubmitted: boolean;
+  tags: string[];
+  unsubscribed: boolean;
+  unsubscribedAt?: SerializableTimestamp;
+  createdAt: SerializableTimestamp;
+  updatedAt: SerializableTimestamp;
 }
 
 export interface Inquiry {

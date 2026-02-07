@@ -392,6 +392,19 @@ export async function updateBookingStatus(bookingId: string, status: Booking['st
         });
         logger.info('Successfully updated booking status', { bookingId, status });
 
+        // Sync guest record for relevant status changes
+        if (status === 'confirmed' || status === 'completed' || status === 'cancelled') {
+          try {
+            const { upsertGuestFromBooking } = await import('@/services/guestService');
+            const bookingForGuest = await getBookingById(bookingId);
+            if (bookingForGuest) {
+              await upsertGuestFromBooking({ ...bookingForGuest, status });
+            }
+          } catch (guestError) {
+            logger.warn('Non-blocking: failed to sync guest record', { bookingId, error: (guestError as Error).message });
+          }
+        }
+
         // Revalidate paths related to bookings
         revalidatePath('/admin/bookings'); // Assuming an admin bookings page
         revalidatePath(`/my-bookings`); // Assuming a user bookings page
