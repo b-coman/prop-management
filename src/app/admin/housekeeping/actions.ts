@@ -34,38 +34,33 @@ export async function fetchHousekeepingContacts(
       logger.warn('Authorization failed for fetchHousekeepingContacts', { propertyId });
       return [];
     }
-    logger.error('Error fetching housekeeping contacts', error as Error, { propertyId });
+    console.error('[housekeeping] fetchContacts error:', error);
     return [];
   }
 }
 
 export async function addHousekeepingContact(formData: FormData): Promise<{ error?: string }> {
-  const propertyId = formData.get('propertyId')?.toString() || '';
-  const name = formData.get('name')?.toString()?.trim() || '';
-  const phone = formData.get('phone')?.toString()?.trim() || '';
-  const language = (formData.get('language')?.toString() || 'ro') as 'ro' | 'en';
-  const role = formData.get('role')?.toString()?.trim() || 'cleaning';
-  const notifyMonthly = formData.get('notifyMonthly') === 'on';
-  const notifyDaily = formData.get('notifyDaily') === 'on';
-  const notifyChanges = formData.get('notifyChanges') === 'on';
-
-  if (!propertyId) return { error: 'Property ID is required' };
-  if (!name) return { error: 'Name is required' };
-  if (!phone) return { error: 'Phone number is required' };
-
-  // Basic E.164 validation
-  if (!phone.startsWith('+') || phone.length < 10) {
-    return { error: 'Phone must be in E.164 format (e.g., +40712345678)' };
-  }
-
   try {
+    const propertyId = formData.get('propertyId')?.toString() || '';
+    const name = formData.get('name')?.toString()?.trim() || '';
+    const phone = formData.get('phone')?.toString()?.trim() || '';
+    const language = (formData.get('language')?.toString() || 'ro') as 'ro' | 'en';
+    const role = formData.get('role')?.toString()?.trim() || 'cleaning';
+    const notifyMonthly = formData.get('notifyMonthly') === 'on';
+    const notifyDaily = formData.get('notifyDaily') === 'on';
+    const notifyChanges = formData.get('notifyChanges') === 'on';
+
+    if (!propertyId) return { error: 'Property ID is required' };
+    if (!name) return { error: 'Name is required' };
+    if (!phone) return { error: 'Phone number is required' };
+
+    // Basic E.164 validation
+    if (!phone.startsWith('+') || phone.length < 10) {
+      return { error: 'Phone must be in E.164 format (e.g., +40712345678)' };
+    }
+
     await requirePropertyAccess(propertyId);
-  } catch (error) {
-    if (error instanceof AuthorizationError) return { error: error.message };
-    throw error;
-  }
 
-  try {
     const db = await getAdminDb();
     await db.collection('housekeepingContacts').add({
       propertyId,
@@ -85,7 +80,8 @@ export async function addHousekeepingContact(formData: FormData): Promise<{ erro
     revalidatePath('/admin/housekeeping');
     return {};
   } catch (error) {
-    logger.error('Error adding housekeeping contact', error as Error, { propertyId });
+    if (error instanceof AuthorizationError) return { error: error.message };
+    console.error('[housekeeping] addHousekeepingContact error:', error);
     return { error: 'Failed to add contact' };
   }
 }
@@ -199,7 +195,7 @@ export async function fetchHousekeepingMessages(
       logger.warn('Authorization failed for fetchHousekeepingMessages', { propertyId });
       return [];
     }
-    logger.error('Error fetching housekeeping messages', error as Error, { propertyId });
+    console.error('[housekeeping] fetchMessages error:', error);
     return [];
   }
 }

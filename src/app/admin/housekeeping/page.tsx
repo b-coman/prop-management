@@ -21,10 +21,14 @@ export default async function HousekeepingPage({
   let messages: Awaited<ReturnType<typeof fetchHousekeepingMessages>> = [];
 
   if (propertyId) {
-    [contacts, messages] = await Promise.all([
-      fetchHousekeepingContacts(propertyId),
-      fetchHousekeepingMessages(propertyId),
-    ]);
+    try {
+      [contacts, messages] = await Promise.all([
+        fetchHousekeepingContacts(propertyId),
+        fetchHousekeepingMessages(propertyId),
+      ]);
+    } catch (error) {
+      console.error('[housekeeping] page render fetch error:', error);
+    }
   }
 
   return (
