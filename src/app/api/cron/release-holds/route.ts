@@ -11,9 +11,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestoreForPricing } from '@/lib/firebaseAdminPricing';
-import { format, isValid, parseISO } from 'date-fns';
-import { FieldValue, Timestamp as AdminTimestamp } from 'firebase-admin/firestore';
+import { isValid, parseISO } from 'date-fns';
+import { Timestamp as AdminTimestamp } from 'firebase-admin/firestore';
 import { loggers } from '@/lib/logger';
+import { updateAvailabilityAdmin } from '@/lib/availability-admin';
 
 const logger = loggers.booking;
 
@@ -113,7 +114,7 @@ export async function GET(request: NextRequest) {
 
         // Add availability update to the queue
         availabilityUpdates.push(
-          updateAvailabilityAdmin(db, propertyId, checkInDate, checkOutDate, true)
+          updateAvailabilityAdmin(propertyId, checkInDate, checkOutDate, true)
             .then(() => logger.info('Released availability for booking', { bookingId }))
             .catch(err => logger.error('Failed to release availability', err as Error, { bookingId }))
         );
@@ -152,74 +153,6 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-/**
- * Update property availability using Admin SDK
- */
-async function updateAvailabilityAdmin(
-  db: FirebaseFirestore.Firestore,
-  propertyId: string,
-  checkInDate: Date,
-  checkOutDate: Date,
-  available: boolean
-): Promise<void> {
-  logger.debug('Updating availability', { propertyId, action: available ? 'releasing' : 'blocking' });
-  
-  // Get date range (excluding check-out date)
-  const dates: Date[] = [];
-  const currentDate = new Date(checkInDate);
-  
-  while (currentDate < checkOutDate) {
-    dates.push(new Date(currentDate));
-    currentDate.setDate(currentDate.getDate() + 1);
-  }
-  
-  if (dates.length === 0) {
-    logger.debug('No dates to update', { propertyId });
-    return;
-  }
-  
-  // Group updates by month
-  const updatesByMonth: { [monthKey: string]: { [day: number]: boolean } } = {};
-  
-  dates.forEach(date => {
-    const monthKey = format(date, 'yyyy-MM');
-    const day = date.getDate();
-    
-    if (!updatesByMonth[monthKey]) {
-      updatesByMonth[monthKey] = {};
-    }
-    updatesByMonth[monthKey][day] = available;
-  });
-  
-  // Apply updates
-  const batch = db.batch();
-  
-  for (const [monthKey, dayUpdates] of Object.entries(updatesByMonth)) {
-    const docId = `${propertyId}_${monthKey}`;
-    const docRef = db.collection('availability').doc(docId);
-    
-    // Prepare update object
-    const updateData: { [key: string]: any } = {
-      updatedAt: new Date()
-    };
-    
-    for (const [day, isAvailable] of Object.entries(dayUpdates)) {
-      updateData[`available.${day}`] = isAvailable;
-      // Clear hold when making available - use FieldValue.delete() to remove the field
-      if (isAvailable) {
-        updateData[`holds.${day}`] = FieldValue.delete();
-      }
-    }
-    
-    logger.debug('Updating availability document', { docId, daysCount: Object.keys(dayUpdates).length });
-    // Use update() instead of set() with merge - update() properly handles dot notation for nested maps
-    batch.update(docRef, updateData);
-  }
-
-  await batch.commit();
-  logger.info('Completed availability updates', { propertyId });
 }
 
 // POST method for manual testing (protected)

@@ -13,7 +13,9 @@ import { BookingStatusUpdate } from '../_components/booking-status-update';
 import { ExtendHoldDialog } from '../_components/extend-hold-dialog';
 import { CancelHoldButton } from '../_components/cancel-hold-button';
 import { ConvertHoldButton } from '../_components/convert-hold-button';
-import { fetchBookingById } from '../actions';
+import { EditBookingDialog } from '../_components/edit-booking-dialog';
+import { CancelBookingButton } from '../_components/cancel-booking-button';
+import { fetchBookingById, fetchPropertiesForBookingForm } from '../actions';
 import type { SerializableTimestamp } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -60,7 +62,10 @@ interface PageProps {
 
 export default async function BookingDetailPage({ params }: PageProps) {
   const { bookingId } = await params;
-  const booking = await fetchBookingById(bookingId);
+  const [booking, properties] = await Promise.all([
+    fetchBookingById(bookingId),
+    fetchPropertiesForBookingForm(),
+  ]);
 
   if (!booking) {
     notFound();
@@ -71,8 +76,12 @@ export default async function BookingDetailPage({ params }: PageProps) {
   const checkOutDate = parseDateSafe(booking.checkOutDate);
   const holdUntilDate = parseDateSafe(booking.holdUntil);
   const createdAtDate = parseDateSafe(booking.createdAt);
+  const bookedAtDate = parseDateSafe(booking.bookedAt);
+  const cancelledAtDate = parseDateSafe(booking.cancelledAt);
   const paidAtDate = parseDateSafe(booking.paymentInfo?.paidAt);
   const isHoldExpired = holdUntilDate ? isPast(holdUntilDate) : false;
+  const canEdit = ['confirmed', 'completed'].includes(status);
+  const canCancel = ['confirmed', 'completed'].includes(status);
   const { guestInfo, pricing, paymentInfo } = booking;
   const currency = pricing?.currency || 'EUR';
 
@@ -80,7 +89,13 @@ export default async function BookingDetailPage({ params }: PageProps) {
     <AdminPage
       title="Booking Details"
       description={`${bookingId.substring(0, 8)}... · ${booking.propertyId} · Created ${createdAtDate ? format(createdAtDate, 'PPP') : 'N/A'}`}
-      actions={<BookingStatusUpdate bookingId={booking.id} currentStatus={status} />}
+      actions={
+        <div className="flex items-center gap-2">
+          {canEdit && <EditBookingDialog booking={booking} properties={properties} />}
+          {canCancel && <CancelBookingButton bookingId={booking.id} />}
+          <BookingStatusUpdate bookingId={booking.id} currentStatus={status} />
+        </div>
+      }
     >
       {/* Back link */}
       <div className="-mt-4">
@@ -172,6 +187,24 @@ export default async function BookingDetailPage({ params }: PageProps) {
                 <div>
                   <p className="text-sm text-muted-foreground">Source</p>
                   <p className="font-medium capitalize">{booking.source}</p>
+                </div>
+              )}
+              {booking.externalId && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Confirmation Code</p>
+                  <p className="font-medium font-mono">{booking.externalId}</p>
+                </div>
+              )}
+              {bookedAtDate && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Booked On</p>
+                  <p className="font-medium">{format(bookedAtDate, 'PPP')}</p>
+                </div>
+              )}
+              {cancelledAtDate && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Cancelled On</p>
+                  <p className="font-medium text-destructive">{format(cancelledAtDate, 'PPP')}</p>
                 </div>
               )}
               {booking.language && (

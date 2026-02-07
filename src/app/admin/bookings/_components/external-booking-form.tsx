@@ -1,0 +1,388 @@
+// src/app/admin/bookings/_components/external-booking-form.tsx
+"use client";
+
+import * as React from 'react';
+import { useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { format, differenceInCalendarDays, parseISO } from 'date-fns';
+import { CalendarIcon, Loader2 } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription,
+} from '@/components/ui/form';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from '@/components/ui/popover';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import { createExternalBookingAction, editBookingAction } from '../actions';
+import type { Booking } from '@/types';
+
+const SOURCES = [
+  { value: 'airbnb', label: 'Airbnb' },
+  { value: 'booking.com', label: 'Booking.com' },
+  { value: 'vrbo', label: 'Vrbo' },
+  { value: 'direct', label: 'Direct' },
+  { value: 'other', label: 'Other' },
+];
+
+const formSchema = z.object({
+  propertyId: z.string().min(1, 'Property is required'),
+  source: z.string().min(1, 'Source is required'),
+  externalId: z.string().optional(),
+  checkInDate: z.string().min(1, 'Check-in date is required'),
+  checkOutDate: z.string().min(1, 'Check-out date is required'),
+  bookedAt: z.string().optional(),
+  numberOfGuests: z.coerce.number().int().min(1).default(1),
+  numberOfAdults: z.coerce.number().int().min(1).optional(),
+  numberOfChildren: z.coerce.number().int().min(0).optional(),
+  netPayout: z.coerce.number().min(0, 'Net payout must be 0 or more'),
+  currency: z.string().min(1),
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().optional(),
+  email: z.string().email('Invalid email').optional().or(z.literal('')),
+  phone: z.string().optional(),
+  country: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+type FormValues = z.infer<typeof formSchema>;
+
+interface ExternalBookingFormProps {
+  mode: 'create' | 'edit';
+  booking?: Booking;
+  properties: Array<{ id: string; name: string; currency: string }>;
+  onSuccess?: () => void;
+}
+
+function parseDateStr(val: string | null | undefined): Date | undefined {
+  if (!val) return undefined;
+  try {
+    const d = parseISO(val);
+    return isNaN(d.getTime()) ? undefined : d;
+  } catch {
+    return undefined;
+  }
+}
+
+export function ExternalBookingForm({ mode, booking, properties, onSuccess }: ExternalBookingFormProps) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [isPending, startTransition] = useTransition();
+
+  const defaultProperty = properties[0];
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: mode === 'edit' && booking ? {
+      propertyId: booking.propertyId,
+      source: booking.source || '',
+      externalId: booking.externalId || '',
+      checkInDate: booking.checkInDate ? String(booking.checkInDate).split('T')[0] : '',
+      checkOutDate: booking.checkOutDate ? String(booking.checkOutDate).split('T')[0] : '',
+      bookedAt: booking.bookedAt ? String(booking.bookedAt).split('T')[0] : '',
+      numberOfGuests: booking.numberOfGuests || 1,
+      numberOfAdults: booking.numberOfAdults || undefined,
+      numberOfChildren: booking.numberOfChildren || undefined,
+      netPayout: booking.pricing?.total || 0,
+      currency: booking.pricing?.currency || defaultProperty?.currency || 'RON',
+      firstName: booking.guestInfo?.firstName || '',
+      lastName: booking.guestInfo?.lastName || '',
+      email: booking.guestInfo?.email || '',
+      phone: booking.guestInfo?.phone || '',
+      country: booking.guestInfo?.country || '',
+      notes: booking.notes || '',
+    } : {
+      propertyId: defaultProperty?.id || '',
+      source: '',
+      externalId: '',
+      checkInDate: '',
+      checkOutDate: '',
+      bookedAt: format(new Date(), 'yyyy-MM-dd'),
+      numberOfGuests: 1,
+      netPayout: 0,
+      currency: defaultProperty?.currency || 'RON',
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      country: '',
+      notes: '',
+    },
+  });
+
+  const watchCheckIn = form.watch('checkInDate');
+  const watchCheckOut = form.watch('checkOutDate');
+  const watchPropertyId = form.watch('propertyId');
+
+  const nights = React.useMemo(() => {
+    const ci = parseDateStr(watchCheckIn);
+    const co = parseDateStr(watchCheckOut);
+    if (ci && co && co > ci) return differenceInCalendarDays(co, ci);
+    return 0;
+  }, [watchCheckIn, watchCheckOut]);
+
+  // Update currency when property changes
+  React.useEffect(() => {
+    const prop = properties.find(p => p.id === watchPropertyId);
+    if (prop) {
+      form.setValue('currency', prop.currency);
+    }
+  }, [watchPropertyId, properties, form]);
+
+  const onSubmit = (values: FormValues) => {
+    startTransition(async () => {
+      if (mode === 'create') {
+        const result = await createExternalBookingAction(values);
+        if (result.success) {
+          toast({ title: 'Booking Created', description: `Booking ${result.bookingId?.substring(0, 8)}... created successfully.` });
+          onSuccess?.();
+          router.push('/admin/bookings');
+        } else {
+          toast({ title: 'Error', description: result.error, variant: 'destructive' });
+        }
+      } else if (booking) {
+        const result = await editBookingAction({ ...values, bookingId: booking.id });
+        if (result.success) {
+          toast({ title: 'Booking Updated', description: 'Booking updated successfully.' });
+          onSuccess?.();
+          router.refresh();
+        } else {
+          toast({ title: 'Error', description: result.error, variant: 'destructive' });
+        }
+      }
+    });
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Property & Source */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">Property & Source</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <FormField control={form.control} name="propertyId" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Property</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value} disabled={mode === 'edit'}>
+                  <FormControl><SelectTrigger><SelectValue placeholder="Select property" /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    {properties.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="source" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Source</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl><SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    {SOURCES.map(s => (
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="externalId" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Confirmation Code</FormLabel>
+                <FormControl><Input placeholder="e.g. HM5ABC123" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+          </CardContent>
+        </Card>
+
+        {/* Dates & Guests */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-base">Dates & Guests</CardTitle>
+              {nights > 0 && <Badge variant="secondary">{nights} night{nights !== 1 ? 's' : ''}</Badge>}
+            </div>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <FormField control={form.control} name="checkInDate" render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Check-in</FormLabel>
+                <DatePickerField value={field.value} onChange={field.onChange} />
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="checkOutDate" render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Check-out</FormLabel>
+                <DatePickerField value={field.value} onChange={field.onChange} />
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="numberOfGuests" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Total Guests</FormLabel>
+                <FormControl><Input type="number" min={1} {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="bookedAt" render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Booking Date</FormLabel>
+                <DatePickerField value={field.value || ''} onChange={field.onChange} />
+                <FormDescription>When reservation was made</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )} />
+          </CardContent>
+        </Card>
+
+        {/* Pricing */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">Pricing</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField control={form.control} name="netPayout" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Net Payout</FormLabel>
+                <FormControl><Input type="number" step="0.01" min={0} {...field} /></FormControl>
+                <FormDescription>Revenue received after platform commission</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="currency" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Currency</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    <SelectItem value="RON">RON</SelectItem>
+                    <SelectItem value="EUR">EUR</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+          </CardContent>
+        </Card>
+
+        {/* Guest Info */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">Guest Information</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <FormField control={form.control} name="firstName" render={({ field }) => (
+              <FormItem>
+                <FormLabel>First Name *</FormLabel>
+                <FormControl><Input {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="lastName" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Last Name</FormLabel>
+                <FormControl><Input {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="email" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl><Input type="email" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="phone" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Phone</FormLabel>
+                <FormControl><Input type="tel" placeholder="+40..." {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="country" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Country</FormLabel>
+                <FormControl><Input placeholder="e.g. Romania" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+          </CardContent>
+        </Card>
+
+        {/* Notes */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">Notes</CardTitle></CardHeader>
+          <CardContent>
+            <FormField control={form.control} name="notes" render={({ field }) => (
+              <FormItem>
+                <FormControl><Textarea placeholder="Optional notes..." rows={3} {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+          </CardContent>
+        </Card>
+
+        {/* Submit */}
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="outline" onClick={() => onSuccess ? onSuccess() : router.back()} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {mode === 'create' ? 'Create Booking' : 'Save Changes'}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
+
+/**
+ * Date picker field using Calendar + Popover.
+ */
+function DatePickerField({ value, onChange }: { value: string; onChange: (val: string) => void }) {
+  const date = parseDateStr(value);
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !date && 'text-muted-foreground')}>
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {date ? format(date, 'PPP') : 'Pick a date'}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={date}
+          onSelect={(d) => { if (d) onChange(format(d, 'yyyy-MM-dd')); }}
+          initialFocus
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}

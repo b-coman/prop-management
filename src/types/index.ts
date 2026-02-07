@@ -230,6 +230,8 @@ export interface Booking {
   returnIncentiveCouponCode?: string;
   seasonalReminderSentAt?: SerializableTimestamp;
   attribution?: BookingAttribution;
+  bookedAt?: SerializableTimestamp; // When the reservation was made on the platform
+  cancelledAt?: SerializableTimestamp; // When the cancellation happened
   createdAt?: SerializableTimestamp;
   updatedAt?: SerializableTimestamp;
 }
