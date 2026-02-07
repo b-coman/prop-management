@@ -187,6 +187,7 @@ function SingleYearView({ data }: { data: RevenueData }) {
             currency={data.currency}
             selectedYear={data.selectedYear}
             propertyCount={data.propertyCount}
+            ytdComparison={data.ytdComparison}
           />
         </CardContent>
       </Card>

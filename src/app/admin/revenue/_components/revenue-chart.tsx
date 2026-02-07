@@ -43,9 +43,21 @@ export function RevenueChart({ data, selectedYear, currency }: RevenueChartProps
 
   const hasAnyPrevData = data.some(d => d.prevRevenue > 0);
 
+  // For current year: don't draw bars for future months with no data
+  const now = new Date();
+  const currentMonth = now.getMonth(); // 0-indexed
+  const isCurrentYear = selectedYear === now.getFullYear();
+
+  const chartData = data.map((d, i) => {
+    if (isCurrentYear && i > currentMonth && d.revenue === 0) {
+      return { ...d, revenue: undefined as unknown as number };
+    }
+    return d;
+  });
+
   return (
     <ChartContainer config={chartConfig} className="h-[350px] w-full">
-      <BarChart data={data} barGap={2}>
+      <BarChart data={chartData} barGap={2}>
         <CartesianGrid strokeDasharray="3 3" vertical={false} />
         <XAxis dataKey="month" tickLine={false} axisLine={false} />
         <YAxis

@@ -3,7 +3,6 @@
 import {
   Clock,
   CalendarRange,
-  XCircle,
   Sun,
   TrendingUp,
   TrendingDown,
@@ -27,12 +26,14 @@ function SmallMetric({
   subtext,
   icon: Icon,
   changePercent,
+  changeLabel,
 }: {
   label: string;
   value: string;
   subtext?: string;
   icon: LucideIcon;
   changePercent?: number | null;
+  changeLabel?: string;
 }) {
   return (
     <Card>
@@ -48,7 +49,7 @@ function SmallMetric({
                   ? <TrendingUp className="h-3 w-3" />
                   : <TrendingDown className="h-3 w-3" />
                 }
-                {changePercent >= 0 ? '+' : ''}{changePercent}% vs last year
+                {changePercent >= 0 ? '+' : ''}{changePercent}% {changeLabel || 'vs last year'}
               </span>
             )}
           </div>
@@ -67,6 +68,9 @@ interface SecondaryMetricsProps {
 }
 
 export function SecondaryMetrics({ metrics, kpis, currency, ytdComparison }: SecondaryMetricsProps) {
+  const ytd = ytdComparison;
+  const changeLabel = ytd ? `vs ${ytd.periodLabel} ${new Date().getFullYear() - 1}` : 'vs last year';
+
   const losChange = metrics.prevAvgLengthOfStay > 0
     ? Math.round(((metrics.avgLengthOfStay - metrics.prevAvgLengthOfStay) / metrics.prevAvgLengthOfStay) * 100)
     : null;
@@ -77,37 +81,32 @@ export function SecondaryMetrics({ metrics, kpis, currency, ytdComparison }: Sec
     ? Math.round(((metrics.avgLeadTimeDays - metrics.prevAvgLeadTimeDays) / metrics.prevAvgLeadTimeDays) * 100)
     : null;
 
-  const ytd = ytdComparison;
   const revparChange = ytd
     ? (ytd.prevYtdRevpar > 0 ? Math.round(((ytd.ytdRevpar - ytd.prevYtdRevpar) / ytd.prevYtdRevpar) * 100) : null)
     : (kpis.prevYearRevpar > 0 ? Math.round(((kpis.revpar - kpis.prevYearRevpar) / kpis.prevYearRevpar) * 100) : null);
-  const occChange = ytd ? ytd.occupancyChangePercent : kpis.occupancyChangePercent;
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       <SmallMetric
         label="RevPAR"
         value={formatCurrency(kpis.revpar, currency)}
         icon={TrendingUp}
         changePercent={revparChange}
-      />
-      <SmallMetric
-        label="Occupancy"
-        value={`${kpis.occupancyRate}%`}
-        icon={CalendarRange}
-        changePercent={occChange}
+        changeLabel={changeLabel}
       />
       <SmallMetric
         label="Avg Stay"
         value={`${metrics.avgLengthOfStay} nights`}
         icon={Clock}
         changePercent={losChange}
+        changeLabel={changeLabel}
       />
       <SmallMetric
         label="Lead Time"
         value={hasLeadTimeData ? `${metrics.avgLeadTimeDays} days` : 'N/A'}
         icon={CalendarRange}
         changePercent={hasLeadTimeData ? leadChange : null}
+        changeLabel={changeLabel}
       />
       <SmallMetric
         label="Wknd / Wkday"

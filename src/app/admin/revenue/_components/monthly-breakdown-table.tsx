@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { getDaysInMonth } from 'date-fns';
-import type { MonthlyData } from '../_actions';
+import type { MonthlyData, YTDComparison } from '../_actions';
 
 function formatCurrency(amount: number, currency: string): string {
   return new Intl.NumberFormat('en-US', {
@@ -26,9 +26,10 @@ interface MonthlyBreakdownTableProps {
   currency: string;
   selectedYear: number;
   propertyCount: number;
+  ytdComparison?: YTDComparison | null;
 }
 
-export function MonthlyBreakdownTable({ data, currency, selectedYear, propertyCount }: MonthlyBreakdownTableProps) {
+export function MonthlyBreakdownTable({ data, currency, selectedYear, propertyCount, ytdComparison }: MonthlyBreakdownTableProps) {
   const now = new Date();
   const currentCalendarYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
@@ -51,10 +52,14 @@ export function MonthlyBreakdownTable({ data, currency, selectedYear, propertyCo
     getDaysInMonth(new Date(selectedYear, i))
   ).reduce((s, d) => s + d, 0) * (propertyCount || 1);
   const totalOccupancy = totalAvailableDays > 0 ? Math.round((totalNights / totalAvailableDays) * 100) : 0;
-  const totalPrevRevenue = relevantMonths.reduce((s, m) => s + m.prevYearRevenue, 0);
-  const totalChangePercent = totalPrevRevenue > 0
-    ? Math.round(((totalRevenue - totalPrevRevenue) / totalPrevRevenue) * 100)
-    : null;
+
+  // For current year: total comparison uses same-period (YTD)
+  const totalChangePercent = isCurrentYear && ytdComparison
+    ? ytdComparison.revenueChangePercent
+    : (() => {
+        const prev = relevantMonths.reduce((s, m) => s + m.prevYearRevenue, 0);
+        return prev > 0 ? Math.round(((totalRevenue - prev) / prev) * 100) : null;
+      })();
 
   return (
     <Table>
@@ -71,8 +76,10 @@ export function MonthlyBreakdownTable({ data, currency, selectedYear, propertyCo
       <TableBody>
         {relevantMonths.map(m => {
           const isFuture = isCurrentYear && m.month > currentMonth;
+          // Future months without data: don't show -100%, show "-"
+          const showComparison = !isFuture || m.revenue > 0;
           return (
-            <TableRow key={m.month} className={isFuture ? 'opacity-60' : undefined}>
+            <TableRow key={m.month} className={isFuture ? 'opacity-50' : undefined}>
               <TableCell className="font-medium">{m.monthLabel}</TableCell>
               <TableCell className="text-right tabular-nums">
                 {m.revenue > 0 ? formatCurrency(m.revenue, currency) : '-'}
@@ -87,7 +94,10 @@ export function MonthlyBreakdownTable({ data, currency, selectedYear, propertyCo
                 {m.occupancy > 0 ? `${m.occupancy}%` : '-'}
               </TableCell>
               <TableCell className="text-right">
-                <ChangeIndicator percent={m.revenueChangePercent} />
+                {showComparison
+                  ? <ChangeIndicator percent={m.revenueChangePercent} />
+                  : <span className="text-muted-foreground text-xs">-</span>
+                }
               </TableCell>
             </TableRow>
           );

@@ -524,20 +524,38 @@ function generateInsights(
     prevTotalNights += bucket.nights;
   }
 
-  // 1. YoY Revenue Growth
-  if (prevTotalRevenue > 0) {
-    const growthPct = Math.round(((totalRevenue - prevTotalRevenue) / prevTotalRevenue) * 100);
+  // For current year: compute same-period totals for fair comparisons
+  let ytdRevenue = totalRevenue;
+  let prevYtdRevenue = prevTotalRevenue;
+  if (isCurrentYear) {
+    ytdRevenue = 0;
+    prevYtdRevenue = 0;
+    for (let m = 1; m <= currentMonth; m++) {
+      ytdRevenue += currentYearMonths.get(m)?.revenue ?? 0;
+      prevYtdRevenue += prevYearMonths.get(m)?.revenue ?? 0;
+    }
+  }
+
+  // 1. YoY Revenue Growth (same-period for current year)
+  const compareRevenue = isCurrentYear ? ytdRevenue : totalRevenue;
+  const comparePrevRevenue = isCurrentYear ? prevYtdRevenue : prevTotalRevenue;
+  if (comparePrevRevenue > 0) {
+    const growthPct = Math.round(((compareRevenue - comparePrevRevenue) / comparePrevRevenue) * 100);
+    const periodLabel = isCurrentYear
+      ? `${currentMonth <= 1 ? MONTH_LABELS[0] : `${MONTH_LABELS[0]}-${MONTH_LABELS[currentMonth - 1]}`}`
+      : '';
+    const vsLabel = isCurrentYear ? `(${periodLabel} vs same period)` : 'year-over-year';
     if (growthPct > 0) {
       insights.push({
         type: 'positive',
-        title: `Revenue grew ${growthPct}% year-over-year`,
-        description: `${selectedYear}: ${Math.round(totalRevenue).toLocaleString()} ${currency} vs ${selectedYear - 1}: ${Math.round(prevTotalRevenue).toLocaleString()} ${currency}`,
+        title: `Revenue up ${growthPct}% ${vsLabel}`,
+        description: `${Math.round(compareRevenue).toLocaleString()} ${currency} vs ${Math.round(comparePrevRevenue).toLocaleString()} ${currency} in ${selectedYear - 1}`,
       });
     } else if (growthPct < 0) {
       insights.push({
         type: 'negative',
-        title: `Revenue declined ${Math.abs(growthPct)}% year-over-year`,
-        description: `${selectedYear}: ${Math.round(totalRevenue).toLocaleString()} ${currency} vs ${selectedYear - 1}: ${Math.round(prevTotalRevenue).toLocaleString()} ${currency}`,
+        title: `Revenue down ${Math.abs(growthPct)}% ${vsLabel}`,
+        description: `${Math.round(compareRevenue).toLocaleString()} ${currency} vs ${Math.round(comparePrevRevenue).toLocaleString()} ${currency} in ${selectedYear - 1}`,
       });
     }
   }
@@ -594,23 +612,42 @@ function generateInsights(
     }
   }
 
-  // 4. ADR Trend
-  if (prevTotalNights > 0 && totalNights > 0) {
-    let currentAccom = 0;
-    let prevAccom = 0;
-    for (const [, b] of currentYearMonths) currentAccom += b.accommodationRevenue;
-    for (const [, b] of prevYearMonths) prevAccom += b.accommodationRevenue;
+  // 4. ADR Trend (same-period for current year)
+  {
+    let compareNights = totalNights;
+    let comparePrevNights = prevTotalNights;
+    let compareAccom = 0;
+    let comparePrevAccom = 0;
 
-    const currentAdr = currentAccom / totalNights;
-    const prevAdr = prevAccom / prevTotalNights;
-    const adrChange = Math.round(((currentAdr - prevAdr) / prevAdr) * 100);
+    if (isCurrentYear) {
+      compareNights = 0;
+      comparePrevNights = 0;
+      for (let m = 1; m <= currentMonth; m++) {
+        compareNights += currentYearMonths.get(m)?.nights ?? 0;
+        comparePrevNights += prevYearMonths.get(m)?.nights ?? 0;
+        compareAccom += currentYearMonths.get(m)?.accommodationRevenue ?? 0;
+        comparePrevAccom += prevYearMonths.get(m)?.accommodationRevenue ?? 0;
+      }
+    } else {
+      for (const [, b] of currentYearMonths) compareAccom += b.accommodationRevenue;
+      for (const [, b] of prevYearMonths) comparePrevAccom += b.accommodationRevenue;
+    }
 
-    if (Math.abs(adrChange) >= 3) {
-      insights.push({
-        type: adrChange > 0 ? 'positive' : 'negative',
-        title: `ADR ${adrChange > 0 ? 'increased' : 'decreased'} ${Math.abs(adrChange)}%`,
-        description: `${Math.round(currentAdr)} ${currency}/night vs ${Math.round(prevAdr)} ${currency}/night last year`,
-      });
+    if (comparePrevNights > 0 && compareNights > 0) {
+      const currentAdr = compareAccom / compareNights;
+      const prevAdr = comparePrevAccom / comparePrevNights;
+      const adrChange = Math.round(((currentAdr - prevAdr) / prevAdr) * 100);
+
+      if (Math.abs(adrChange) >= 3) {
+        const periodNote = isCurrentYear
+          ? ` (${currentMonth <= 1 ? MONTH_LABELS[0] : `${MONTH_LABELS[0]}-${MONTH_LABELS[currentMonth - 1]}`})`
+          : '';
+        insights.push({
+          type: adrChange > 0 ? 'positive' : 'negative',
+          title: `ADR ${adrChange > 0 ? 'up' : 'down'} ${Math.abs(adrChange)}%${periodNote}`,
+          description: `${Math.round(currentAdr)} ${currency}/night vs ${Math.round(prevAdr)} ${currency}/night in ${selectedYear - 1}`,
+        });
+      }
     }
   }
 
@@ -742,6 +779,17 @@ function generateInsights(
         description: `From ${formatCurrencyShort(first.revenue, currency)} (${first.year}) to ${formatCurrencyShort(last.revenue, currency)} (${last.year})`,
       });
     }
+  }
+
+  // For current year: reorder so forward-looking comes first, negative last
+  if (isCurrentYear) {
+    const typeOrder: Record<Insight['type'], number> = {
+      forward: 0,
+      positive: 1,
+      neutral: 2,
+      negative: 3,
+    };
+    insights.sort((a, b) => typeOrder[a.type] - typeOrder[b.type]);
   }
 
   return insights;
