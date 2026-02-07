@@ -4,8 +4,8 @@ import { useState, useCallback, useMemo } from 'react';
 import { Save, Loader2, Info, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -114,41 +114,46 @@ export function NavigationEditor({ propertyId, initialOverrides }: NavigationEdi
             addLabel="Add Menu Item"
             compact
             renderItem={(item, i) => (
-              <div className="space-y-2">
-                <div className="grid grid-cols-2 gap-3">
-                  <MultilingualInput
-                    label="Label"
-                    value={item.label}
-                    onChange={(v) => {
-                      const updated = [...menuItems];
-                      updated[i] = { ...updated[i], label: v };
-                      updateMenuItems(updated);
-                    }}
-                  />
-                  <div className="space-y-1.5">
-                    <Label className="text-sm">URL</Label>
-                    <Input
-                      value={item.url}
-                      onChange={(e) => {
-                        const updated = [...menuItems];
-                        updated[i] = { ...updated[i], url: e.target.value };
-                        updateMenuItems(updated);
-                      }}
-                      placeholder="/booking or https://..."
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={item.isButton || false}
-                    onCheckedChange={(checked) => {
-                      const updated = [...menuItems];
-                      updated[i] = { ...updated[i], isButton: checked };
-                      updateMenuItems(updated);
-                    }}
-                  />
-                  <Label className="text-sm text-muted-foreground">Show as button</Label>
-                </div>
+              <div className="flex items-center gap-4">
+                <MultilingualInput
+                  label="Menu label"
+                  value={item.label}
+                  onChange={(v) => {
+                    const updated = [...menuItems];
+                    updated[i] = { ...updated[i], label: v };
+                    updateMenuItems(updated);
+                  }}
+                  inline
+                  placeholder="Menu label"
+                  className="flex-1 min-w-0"
+                />
+                <Input
+                  value={item.url}
+                  onChange={(e) => {
+                    const updated = [...menuItems];
+                    updated[i] = { ...updated[i], url: e.target.value };
+                    updateMenuItems(updated);
+                  }}
+                  placeholder="URL, e.g. /booking"
+                  className="flex-1 min-w-0"
+                />
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="shrink-0">
+                        <Switch
+                          checked={item.isButton || false}
+                          onCheckedChange={(checked) => {
+                            const updated = [...menuItems];
+                            updated[i] = { ...updated[i], isButton: checked };
+                            updateMenuItems(updated);
+                          }}
+                        />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>Show as button</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             )}
           />
@@ -170,28 +175,29 @@ export function NavigationEditor({ propertyId, initialOverrides }: NavigationEdi
             addLabel="Add Quick Link"
             compact
             renderItem={(link, i) => (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center gap-4">
                 <MultilingualInput
-                  label="Label"
+                  label="Link label"
                   value={link.label}
                   onChange={(v) => {
                     const updated = [...quickLinks];
                     updated[i] = { ...updated[i], label: v };
                     updateQuickLinks(updated);
                   }}
+                  inline
+                  placeholder="Link label"
+                  className="flex-1 min-w-0"
                 />
-                <div className="space-y-1.5">
-                  <Label className="text-sm">URL</Label>
-                  <Input
-                    value={link.url}
-                    onChange={(e) => {
-                      const updated = [...quickLinks];
-                      updated[i] = { ...updated[i], url: e.target.value };
-                      updateQuickLinks(updated);
-                    }}
-                    placeholder="/details or https://..."
-                  />
-                </div>
+                <Input
+                  value={link.url}
+                  onChange={(e) => {
+                    const updated = [...quickLinks];
+                    updated[i] = { ...updated[i], url: e.target.value };
+                    updateQuickLinks(updated);
+                  }}
+                  placeholder="URL, e.g. /details"
+                  className="flex-1 min-w-0"
+                />
               </div>
             )}
           />

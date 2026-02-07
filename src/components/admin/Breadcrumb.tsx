@@ -30,6 +30,15 @@ const pathLabels: Record<string, string> = {
   edit: 'Edit',
   seasons: 'Seasons',
   'date-overrides': 'Date Overrides',
+  website: 'Website',
+  navigation: 'Navigation',
+  settings: 'Settings',
+  calendar: 'Calendar',
+  guests: 'Guests',
+  reviews: 'Reviews',
+  housekeeping: 'Housekeeping',
+  revenue: 'Revenue',
+  attribution: 'Attribution',
 };
 
 /**
@@ -46,7 +55,9 @@ function generateBreadcrumbsFromPath(pathname: string): BreadcrumbItem[] {
     currentPath += `/${segment}`;
 
     // Skip if it's a dynamic ID (e.g., looks like a document ID)
-    const isDynamicId = segment.length > 20 || /^[a-zA-Z0-9-_]{10,}$/.test(segment);
+    // Known path segments are never treated as dynamic IDs
+    const isKnownSegment = segment in pathLabels;
+    const isDynamicId = !isKnownSegment && (segment.length > 20 || /^[a-zA-Z0-9-_]{10,}$/.test(segment));
 
     if (isDynamicId && i === segments.length - 1) {
       // Last segment is an ID, add as "Details"
