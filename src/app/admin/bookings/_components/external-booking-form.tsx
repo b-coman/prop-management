@@ -674,7 +674,7 @@ function DatePickerField({ value, onChange, compact }: { value: string; onChange
           {date ? format(date, compact ? 'dd MMM yyyy' : 'PPP') : 'Pick a date'}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent className="w-auto p-0 z-[60]" align="start">
         <Calendar
           mode="single"
           selected={date}
