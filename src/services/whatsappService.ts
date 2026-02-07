@@ -1,5 +1,3 @@
-'use server';
-
 import { loggers } from '@/lib/logger';
 
 const logger = loggers.whatsapp;
