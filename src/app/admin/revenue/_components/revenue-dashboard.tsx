@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Loader2, Lightbulb, PieChart } from 'lucide-react';
+import { Loader2, Lightbulb, PieChart, Table2, BarChart3 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { usePropertySelector } from '@/contexts/PropertySelectorContext';
 import {
@@ -118,47 +119,62 @@ function SingleYearView({ data }: { data: RevenueData }) {
 
   return (
     <div className="space-y-4">
-      {/* Primary KPI Cards */}
+      {/* Primary KPI Cards — always visible */}
       <RevenueKPICards kpis={data.kpis} ytdComparison={data.ytdComparison} />
 
-      {/* Two-column: Chart + Sidebar (Sources & Insights) */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        {/* Left: Monthly Revenue Chart (3/5 width) */}
-        <Card className="lg:col-span-3">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Monthly Revenue</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {hasChart ? (
-              <RevenueChart
-                data={data.chartData}
-                selectedYear={data.selectedYear}
-                currency={data.currency}
-              />
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-12">
-                No revenue data for {data.selectedYear}
-              </p>
-            )}
-          </CardContent>
-        </Card>
+      {/* Tabbed content */}
+      <Tabs defaultValue="overview">
+        <TabsList>
+          <TabsTrigger value="overview" className="gap-1.5">
+            <BarChart3 className="h-3.5 w-3.5" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="monthly" className="gap-1.5">
+            <Table2 className="h-3.5 w-3.5" />
+            Monthly Data
+          </TabsTrigger>
+        </TabsList>
 
-        {/* Right: Sources + Insights stacked (2/5 width) */}
-        <div className="lg:col-span-2 space-y-4">
-          {hasSource && (
-            <Card>
+        {/* Overview Tab: Chart + Sources + Insights */}
+        <TabsContent value="overview" className="space-y-4 mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+            {/* Left: Monthly Revenue Chart (3/5) */}
+            <Card className="lg:col-span-3">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <PieChart className="h-4 w-4" />
-                  Sources
-                </CardTitle>
+                <CardTitle className="text-base">Monthly Revenue</CardTitle>
               </CardHeader>
               <CardContent>
-                <SourceBreakdown data={data.sourceBreakdown} currency={data.currency} />
+                {hasChart ? (
+                  <RevenueChart
+                    data={data.chartData}
+                    selectedYear={data.selectedYear}
+                    currency={data.currency}
+                  />
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-12">
+                    No revenue data for {data.selectedYear}
+                  </p>
+                )}
               </CardContent>
             </Card>
-          )}
 
+            {/* Right: Sources only (2/5) — height matches chart */}
+            {hasSource && (
+              <Card className="lg:col-span-2">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <PieChart className="h-4 w-4" />
+                    Sources
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <SourceBreakdown data={data.sourceBreakdown} currency={data.currency} />
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Insights strip below the two-column area */}
           {hasInsights && (
             <Card>
               <CardHeader className="pb-2">
@@ -172,24 +188,26 @@ function SingleYearView({ data }: { data: RevenueData }) {
               </CardContent>
             </Card>
           )}
-        </div>
-      </div>
+        </TabsContent>
 
-      {/* Monthly Breakdown Table */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Monthly Breakdown</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <MonthlyBreakdownTable
-            data={data.monthlyData}
-            currency={data.currency}
-            selectedYear={data.selectedYear}
-            propertyCount={data.propertyCount}
-            ytdComparison={data.ytdComparison}
-          />
-        </CardContent>
-      </Card>
+        {/* Monthly Data Tab: Full-width table */}
+        <TabsContent value="monthly" className="mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Monthly Breakdown</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <MonthlyBreakdownTable
+                data={data.monthlyData}
+                currency={data.currency}
+                selectedYear={data.selectedYear}
+                propertyCount={data.propertyCount}
+                ytdComparison={data.ytdComparison}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
