@@ -11,16 +11,17 @@
  *   npx tsx scripts/test-check-pricing.ts http://localhost:9002
  */
 
-const BASE_URL = process.argv[2] || 'http://localhost:3000';
+const BASE_URL = process.argv[2] || 'http://localhost:9002';
 const PROPERTY_ID = 'prahova-mountain-chalet';
 
-// Known property config (from Firestore backup)
+// Known property config (from Firestore, updated Feb 2026)
 const EXPECTED = {
-  pricePerNight: 180,
-  weekendAdjustment: 1.2,
+  pricePerNight: 523,
+  weekendAdjustment: 1.3155,
   weekendDays: ['friday', 'saturday'],
   baseOccupancy: 4,
   extraGuestFee: 25,
+  cleaningFee: 200,
 };
 
 // Helper: format a local Date as YYYY-MM-DD without UTC timezone shift
@@ -75,11 +76,12 @@ async function run() {
   console.log(`  Property: ${PROPERTY_ID}`);
   console.log('===========================================\n');
 
-  // Check server
+  // Check server (use check-pricing with invalid body — just needs a connection)
   try {
-    await fetch(`${BASE_URL}/api/health`);
-  } catch {
-    console.error('ERROR: Cannot reach server at ' + BASE_URL + '\n');
+    const healthCheck = await fetch(`${BASE_URL}/api/check-pricing`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    if (!healthCheck.ok && healthCheck.status !== 400) throw new Error(`status ${healthCheck.status}`);
+  } catch (e: any) {
+    console.error('ERROR: Cannot reach server at ' + BASE_URL + ': ' + e.message + '\n');
     process.exit(1);
   }
 
@@ -157,7 +159,7 @@ async function run() {
   // Test 3: Weekend/Weekday price ratio = 1.2x
   // =========================================================================
   {
-    process.stdout.write('  [3] Weekend/weekday price ratio = 1.2x ... ');
+    process.stdout.write(`  [3] Weekend/weekday price ratio = ${EXPECTED.weekendAdjustment}x ... `);
 
     const weekdayR = await callCheckPricing(wed, addDays(wed, 2), EXPECTED.baseOccupancy);
     const weekendR = await callCheckPricing(fri, addDays(fri, 2), EXPECTED.baseOccupancy);
@@ -244,7 +246,7 @@ async function run() {
       if (friRate) {
         // Friday is a weekend day. The rate should be >= basePrice * weekendAdjustment
         // If there's also a season, it could be even higher
-        // The BUG was: rate = basePrice (180) instead of adjustedPrice (216+)
+        // The BUG was: rate = raw basePrice instead of adjustedPrice
         const minExpected = EXPECTED.pricePerNight * EXPECTED.weekendAdjustment;
 
         if (friRate >= minExpected - 0.01) {
@@ -325,6 +327,57 @@ async function run() {
         }
       } else {
         console.log(`FAIL: accommodationTotal ${p.accommodationTotal} != sum of daily rates ${dailySum}`);
+        failed++;
+      }
+    }
+  }
+
+  // =========================================================================
+  // Test 8: Length-of-stay discount (7 nights = 5%)
+  // =========================================================================
+  {
+    process.stdout.write('  [8] Length-of-stay discount: 7 nights = 5% ... ');
+
+    const r = await callCheckPricing(wed, addDays(wed, 7), EXPECTED.baseOccupancy);
+
+    if (!r.available) {
+      console.log(`SKIP (dates unavailable: ${r.reason})`);
+    } else {
+      const p = r.pricing;
+      if (p.lengthOfStayDiscount) {
+        const expectedDiscount = p.subtotal * 0.05;
+        if (p.lengthOfStayDiscount.discountPercentage === 5 &&
+            Math.abs(p.lengthOfStayDiscount.discountAmount - expectedDiscount) < 0.01) {
+          console.log(`PASS (discount=${p.lengthOfStayDiscount.discountAmount.toFixed(2)}, total=${p.total.toFixed(2)})`);
+          passed++;
+        } else {
+          console.log(`FAIL: discount=${JSON.stringify(p.lengthOfStayDiscount)}`);
+          failed++;
+        }
+      } else {
+        console.log('FAIL: no lengthOfStayDiscount applied');
+        failed++;
+      }
+    }
+  }
+
+  // =========================================================================
+  // Test 9: No discount for short stays (< 7 nights)
+  // =========================================================================
+  {
+    process.stdout.write('  [9] No discount for stays < 7 nights ... ');
+
+    const r = await callCheckPricing(wed, addDays(wed, 3), EXPECTED.baseOccupancy);
+
+    if (!r.available) {
+      console.log(`SKIP (dates unavailable)`);
+    } else {
+      const p = r.pricing;
+      if (p.lengthOfStayDiscount === null) {
+        console.log(`PASS (total=${p.total.toFixed(2)}, no discount)`);
+        passed++;
+      } else {
+        console.log(`FAIL: unexpected discount applied: ${JSON.stringify(p.lengthOfStayDiscount)}`);
         failed++;
       }
     }

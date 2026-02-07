@@ -187,10 +187,13 @@ export async function POST(request: NextRequest) {
     // Calculate pricing (availability already confirmed)
     if (meetsMinimumStay) {
       // Calculate booking price with any applicable discounts
+      // Read discounts from pricingConfig (canonical) or legacy pricing path
+      const discounts = (property.pricingConfig?.lengthOfStayDiscounts
+        || (property as any).pricing?.lengthOfStayDiscounts) as LengthOfStayDiscount[] | undefined;
       const pricingDetails = calculateBookingPrice(
         dailyPrices,
         (property as any).cleaningFee || 0,
-        property.pricingConfig?.lengthOfStayDiscounts as LengthOfStayDiscount[]
+        discounts
       );
       
       // Log the complete pricing response for debugging
