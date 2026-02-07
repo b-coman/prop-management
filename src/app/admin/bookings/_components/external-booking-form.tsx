@@ -249,7 +249,7 @@ function CompactForm({ form, mode, properties, nights, isPending, onSubmit, onCa
             </FormItem>
           )} />
           <FormField control={form.control} name="numberOfGuests" render={({ field }) => (
-            <FormItem>
+            <FormItem className="flex flex-col">
               <FormLabel className="text-xs">Guests</FormLabel>
               <FormControl><Input className={compactInput} type="number" min={1} {...field} /></FormControl>
               <FormMessage />
