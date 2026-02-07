@@ -123,6 +123,14 @@ function SingleYearView({ data }: { data: RevenueData }) {
       {/* Primary KPI Cards — always visible */}
       <RevenueKPICards kpis={data.kpis} ytdComparison={data.ytdComparison} />
 
+      {/* Secondary metrics — compact row under KPIs */}
+      <SecondaryMetrics
+        metrics={data.extendedMetrics}
+        kpis={data.kpis}
+        currency={data.currency}
+        ytdComparison={data.ytdComparison}
+      />
+
       {/* Tabbed content */}
       <Tabs defaultValue="overview">
         <TabsList>
@@ -191,14 +199,8 @@ function SingleYearView({ data }: { data: RevenueData }) {
           )}
         </TabsContent>
 
-        {/* Monthly Data Tab: Secondary metrics + table */}
-        <TabsContent value="monthly" className="space-y-4 mt-4">
-          <SecondaryMetrics
-            metrics={data.extendedMetrics}
-            kpis={data.kpis}
-            currency={data.currency}
-            ytdComparison={data.ytdComparison}
-          />
+        {/* Monthly Data Tab: Full-width table */}
+        <TabsContent value="monthly" className="mt-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Monthly Breakdown</CardTitle>

@@ -8,7 +8,6 @@ import {
   TrendingDown,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
 import type { ExtendedMetrics, YearKPIs, YTDComparison } from '../_actions';
 
 function formatCurrency(amount: number, currency: string): string {
@@ -36,27 +35,25 @@ function SmallMetric({
   changeLabel?: string;
 }) {
   return (
-    <Card>
-      <CardContent className="pt-4 pb-3 px-4">
-        <div className="flex items-start justify-between">
-          <div className="min-w-0">
-            <p className="text-xs text-muted-foreground mb-1">{label}</p>
-            <p className="text-lg font-semibold">{value}</p>
-            {subtext && <p className="text-xs text-muted-foreground mt-0.5">{subtext}</p>}
-            {changePercent !== undefined && changePercent !== null && (
-              <span className={`text-xs flex items-center gap-0.5 mt-0.5 ${changePercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {changePercent >= 0
-                  ? <TrendingUp className="h-3 w-3" />
-                  : <TrendingDown className="h-3 w-3" />
-                }
-                {changePercent >= 0 ? '+' : ''}{changePercent}% {changeLabel || 'vs last year'}
-              </span>
-            )}
-          </div>
-          <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+    <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2">
+      <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+      <div className="min-w-0">
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-xs text-muted-foreground">{label}</span>
+          <span className="text-sm font-semibold">{value}</span>
+          {subtext && <span className="text-xs text-muted-foreground">({subtext})</span>}
         </div>
-      </CardContent>
-    </Card>
+        {changePercent !== undefined && changePercent !== null && (
+          <span className={`text-[11px] flex items-center gap-0.5 ${changePercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {changePercent >= 0
+              ? <TrendingUp className="h-2.5 w-2.5" />
+              : <TrendingDown className="h-2.5 w-2.5" />
+            }
+            {changePercent >= 0 ? '+' : ''}{changePercent}% {changeLabel || 'vs last year'}
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
 
