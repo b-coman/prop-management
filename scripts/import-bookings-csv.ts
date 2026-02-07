@@ -59,9 +59,55 @@ function normalizePhone(phone: string | null | undefined): string {
   return cleaned;
 }
 
+/**
+ * Greek-to-Latin transliteration map.
+ */
+const GREEK_MAP: Record<string, string> = {
+  'Α': 'A', 'Β': 'V', 'Γ': 'G', 'Δ': 'D', 'Ε': 'E', 'Ζ': 'Z', 'Η': 'I', 'Θ': 'Th',
+  'Ι': 'I', 'Κ': 'K', 'Λ': 'L', 'Μ': 'M', 'Ν': 'N', 'Ξ': 'X', 'Ο': 'O', 'Π': 'P',
+  'Ρ': 'R', 'Σ': 'S', 'Τ': 'T', 'Υ': 'Y', 'Φ': 'F', 'Χ': 'Ch', 'Ψ': 'Ps', 'Ω': 'O',
+  'α': 'a', 'β': 'v', 'γ': 'g', 'δ': 'd', 'ε': 'e', 'ζ': 'z', 'η': 'i', 'θ': 'th',
+  'ι': 'i', 'κ': 'k', 'λ': 'l', 'μ': 'm', 'ν': 'n', 'ξ': 'x', 'ο': 'o', 'π': 'p',
+  'ρ': 'r', 'σ': 's', 'ς': 's', 'τ': 't', 'υ': 'y', 'φ': 'f', 'χ': 'ch', 'ψ': 'ps', 'ω': 'o',
+};
+
+function transliterateGreek(text: string): string {
+  return text.replace(/[Α-ωςΆ-ώ]/g, (ch) => GREEK_MAP[ch] || ch);
+}
+
+/**
+ * Normalize case per word: ALL CAPS words (2+ letters) become Title Case.
+ * Also capitalizes lowercase first letters. Preserves short particles like "de", "van".
+ */
+function normalizeCase(name: string): string {
+  return name.split(/(\s+)/).map((part) => {
+    // Preserve whitespace segments
+    if (/^\s+$/.test(part)) return part;
+    const letters = part.replace(/[^a-zA-ZÀ-ÿ]/g, '');
+    if (letters.length > 1 && letters === letters.toUpperCase()) {
+      // ALL CAPS word → Title Case
+      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+    }
+    if (letters.length > 0 && part[0] === part[0].toLowerCase() && !/^(de|del|di|da|van|von|la|le|el)$/.test(part)) {
+      // Lowercase first letter (not a particle) → capitalize
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    }
+    return part;
+  }).join('');
+}
+
 function parseName(fullName: string): { firstName: string; lastName?: string } {
-  const trimmed = fullName.trim();
+  let trimmed = fullName.trim();
   if (!trimmed) return { firstName: '' };
+
+  // Transliterate Greek script to Latin
+  if (/[Α-ωςΆ-ώ]/.test(trimmed)) {
+    trimmed = transliterateGreek(trimmed);
+  }
+
+  // Normalize ALL CAPS to Title Case
+  trimmed = normalizeCase(trimmed);
+
   const parts = trimmed.split(/\s+/);
   if (parts.length === 1) return { firstName: parts[0] };
   return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
@@ -113,6 +159,7 @@ function mapCountry(csvCountry: string): string | undefined {
   const trimmed = csvCountry?.trim();
   if (!trimmed || trimmed === '?') return undefined;
   if (trimmed === 'UC') return 'UA';
+  if (trimmed === 'UK') return 'GB';
   return trimmed;
 }
 
@@ -389,7 +436,7 @@ async function main() {
       const source = mapSource(row.source);
       const country = mapCountry(row.country);
       const isFuture = checkOutDate > now;
-      const nights = row.nights || Math.round((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+      const nights = Math.round((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)) || row.nights;
 
       // Build booking document
       const bookingData: Record<string, unknown> = {
@@ -485,7 +532,7 @@ async function main() {
           firstName,
           ...(lastName && { lastName }),
           ...(normalized && { phone: normalized, normalizedPhone: normalized }),
-          language: 'ro', // Default Romanian for historical guests
+          language: country === 'RO' ? 'ro' : 'en',
           bookingIds: [bookingRef.id],
           propertyIds: [propertySlug],
           totalBookings: 1,
