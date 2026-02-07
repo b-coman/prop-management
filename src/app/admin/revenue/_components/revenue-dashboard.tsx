@@ -217,10 +217,12 @@ function SingleYearView({ data }: { data: RevenueData }) {
 // ============================================================================
 
 function AllYearsView({ data }: { data: AllYearsData }) {
+  const hasInsights = data.insights.length > 0;
+
   return (
     <div className="space-y-4">
-      {/* Yearly summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* Yearly summary cards — always visible */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {data.yearlySummaries.map(summary => (
           <Card key={summary.year}>
             <CardContent className="pt-4 pb-3 px-4">
@@ -241,49 +243,66 @@ function AllYearsView({ data }: { data: AllYearsData }) {
         ))}
       </div>
 
-      {/* Multi-year line chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Revenue Comparison</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AllYearsChart
-            monthlyGrid={data.monthlyGrid}
-            years={data.availableYears}
-            currency={data.currency}
-          />
-        </CardContent>
-      </Card>
+      {/* Tabbed content */}
+      <Tabs defaultValue="overview">
+        <TabsList>
+          <TabsTrigger value="overview" className="gap-1.5">
+            <BarChart3 className="h-3.5 w-3.5" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="yoy" className="gap-1.5">
+            <Table2 className="h-3.5 w-3.5" />
+            Year-over-Year Data
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Insights */}
-      {data.insights.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Lightbulb className="h-5 w-5" />
-              Insights
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <RevenueInsights insights={data.insights} />
-          </CardContent>
-        </Card>
-      )}
+        {/* Overview Tab: Chart + Insights */}
+        <TabsContent value="overview" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Revenue Comparison</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AllYearsChart
+                monthlyGrid={data.monthlyGrid}
+                years={data.availableYears}
+                currency={data.currency}
+              />
+            </CardContent>
+          </Card>
 
-      {/* All-years grid table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Year-over-Year Breakdown</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AllYearsTable
-            monthlyGrid={data.monthlyGrid}
-            yearlySummaries={data.yearlySummaries}
-            years={data.availableYears}
-            currency={data.currency}
-          />
-        </CardContent>
-      </Card>
+          {hasInsights && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Lightbulb className="h-4 w-4" />
+                  Insights
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <RevenueInsights insights={data.insights} />
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Year-over-Year Data Tab */}
+        <TabsContent value="yoy" className="mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Year-over-Year Breakdown</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AllYearsTable
+                monthlyGrid={data.monthlyGrid}
+                yearlySummaries={data.yearlySummaries}
+                years={data.availableYears}
+                currency={data.currency}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
