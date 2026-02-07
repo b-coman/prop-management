@@ -408,7 +408,9 @@ const externalBookingSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().optional(),
   email: z.string().email().optional().or(z.literal('')),
-  phone: z.string().optional(),
+  phone: z.string().optional()
+    .transform(v => v ? v.replace(/[\s()\-]/g, '') : v)
+    .refine(v => !v || /^\+\d{7,15}$/.test(v), { message: 'Phone must start with + and country code' }),
   country: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -547,7 +549,9 @@ const editBookingSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().optional(),
   email: z.string().email().optional().or(z.literal('')),
-  phone: z.string().optional(),
+  phone: z.string().optional()
+    .transform(v => v ? v.replace(/[\s()\-]/g, '') : v)
+    .refine(v => !v || /^\+\d{7,15}$/.test(v), { message: 'Phone must start with + and country code' }),
   country: z.string().optional(),
   notes: z.string().optional(),
 });

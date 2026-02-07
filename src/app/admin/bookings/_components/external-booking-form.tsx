@@ -44,6 +44,18 @@ const LANGUAGES = [
   { value: 'ro', label: 'Romanian' },
 ];
 
+const COUNTRIES = [
+  'Romania', 'Germany', 'France', 'United Kingdom', 'Italy', 'Spain',
+  'Netherlands', 'Austria', 'Belgium', 'Switzerland', 'Poland', 'Hungary',
+  'Czech Republic', 'Israel', 'United States', 'Canada', 'Sweden',
+  'Denmark', 'Norway', 'Ireland',
+];
+
+/** Strip spaces, parens, dashes from phone; keep + and digits */
+function cleanPhone(raw: string): string {
+  return raw.replace(/[\s()\-]/g, '');
+}
+
 const formSchema = z.object({
   propertyId: z.string().min(1, 'Property is required'),
   source: z.string().min(1, 'Source is required'),
@@ -60,7 +72,10 @@ const formSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().optional(),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
-  phone: z.string().optional(),
+  phone: z.string().optional().transform(v => v ? cleanPhone(v) : v).refine(
+    v => !v || /^\+\d{7,15}$/.test(v),
+    { message: 'Phone must start with + and country code (e.g. +40723...)' }
+  ),
   country: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -292,7 +307,12 @@ function CompactForm({ form, mode, properties, nights, isPending, onSubmit, onCa
           <FormField control={form.control} name="phone" render={({ field }) => (
             <FormItem>
               <FormLabel className="text-xs">Phone</FormLabel>
-              <FormControl><Input className={compactInput} type="tel" placeholder="+40..." {...field} /></FormControl>
+              <FormControl>
+                <Input className={compactInput} type="tel" placeholder="+40723..."
+                  {...field}
+                  onBlur={(e) => { field.onBlur(); form.setValue('phone', cleanPhone(e.target.value)); }}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )} />
@@ -301,7 +321,7 @@ function CompactForm({ form, mode, properties, nights, isPending, onSubmit, onCa
         <Separator />
 
         {/* Row 4: Pricing + Misc */}
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-5 gap-3">
           <FormField control={form.control} name="netPayout" render={({ field }) => (
             <FormItem>
               <FormLabel className="text-xs">Net Payout</FormLabel>
@@ -335,13 +355,7 @@ function CompactForm({ form, mode, properties, nights, isPending, onSubmit, onCa
               <FormMessage />
             </FormItem>
           )} />
-          <FormField control={form.control} name="country" render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-xs">Country</FormLabel>
-              <FormControl><Input className={compactInput} placeholder="e.g. Romania" {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )} />
+          <CountryField form={form} compact />
         </div>
 
         {/* Notes — full width */}
@@ -552,18 +566,17 @@ function FullForm({ form, mode, properties, nights, isPending, onSubmit, onCance
             <FormField control={form.control} name="phone" render={({ field }) => (
               <FormItem>
                 <FormLabel>Phone</FormLabel>
-                <FormControl><Input type="tel" placeholder="+40..." {...field} /></FormControl>
+                <FormControl>
+                  <Input type="tel" placeholder="+40723..."
+                    {...field}
+                    onBlur={(e) => { field.onBlur(); form.setValue('phone', cleanPhone(e.target.value)); }}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )} />
 
-            <FormField control={form.control} name="country" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Country</FormLabel>
-                <FormControl><Input placeholder="e.g. Romania" {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
+            <CountryField form={form} />
           </CardContent>
         </Card>
 
@@ -596,15 +609,63 @@ function FullForm({ form, mode, properties, nights, isPending, onSubmit, onCance
 }
 
 /**
+ * Country field — Select with common countries + "Other" shows a text input.
+ */
+function CountryField({ form, compact }: { form: ReturnType<typeof useForm<FormValues>>; compact?: boolean }) {
+  const value = form.watch('country');
+  const isOther = !!value && !COUNTRIES.includes(value);
+  const [showCustom, setShowCustom] = React.useState(isOther);
+
+  if (showCustom) {
+    return (
+      <FormField control={form.control} name="country" render={({ field }) => (
+        <FormItem>
+          <FormLabel className={compact ? 'text-xs' : undefined}>Country</FormLabel>
+          <div className="flex gap-1">
+            <FormControl>
+              <Input className={compact ? compactInput : undefined} placeholder="Type country" {...field} />
+            </FormControl>
+            <Button type="button" variant="ghost" size="sm" className={compact ? 'h-9 px-2 text-xs' : 'px-2'}
+              onClick={() => { form.setValue('country', ''); setShowCustom(false); }}>
+              List
+            </Button>
+          </div>
+          <FormMessage />
+        </FormItem>
+      )} />
+    );
+  }
+
+  return (
+    <FormField control={form.control} name="country" render={({ field }) => (
+      <FormItem>
+        <FormLabel className={compact ? 'text-xs' : undefined}>Country</FormLabel>
+        <Select onValueChange={(v) => {
+          if (v === '__other__') { setShowCustom(true); form.setValue('country', ''); }
+          else field.onChange(v);
+        }} value={field.value || ''}>
+          <FormControl><SelectTrigger className={compact ? 'h-9' : undefined}><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
+          <SelectContent>
+            {COUNTRIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            <SelectItem value="__other__">Other...</SelectItem>
+          </SelectContent>
+        </Select>
+        <FormMessage />
+      </FormItem>
+    )} />
+  );
+}
+
+/**
  * Date picker field using Calendar + Popover.
  */
 function DatePickerField({ value, onChange, compact }: { value: string; onChange: (val: string) => void; compact?: boolean }) {
   const date = parseDateStr(value);
 
   return (
-    <Popover>
+    <Popover modal>
       <PopoverTrigger asChild>
-        <Button variant="outline" className={cn(
+        <Button type="button" variant="outline" className={cn(
           'w-full justify-start text-left font-normal',
           compact && 'h-9 text-xs',
           !date && 'text-muted-foreground'
