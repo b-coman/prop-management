@@ -21,6 +21,7 @@ import {
   BarChart3,
   Users,
   Sparkles,
+  DollarSign,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/SimpleAuthContext';
 import { usePropertySelector } from '@/contexts/PropertySelectorContext';
@@ -66,10 +67,11 @@ const navigationGroups = [
     ],
   },
   {
-    label: 'Marketing',
+    label: 'Analytics',
     items: [
-      { title: 'Coupons', href: '/admin/coupons', icon: Ticket },
+      { title: 'Revenue', href: '/admin/revenue', icon: DollarSign },
       { title: 'Attribution', href: '/admin/attribution', icon: BarChart3 },
+      { title: 'Coupons', href: '/admin/coupons', icon: Ticket },
     ],
   },
 ];
