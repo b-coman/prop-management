@@ -16,6 +16,7 @@ import { RevenueKPICards } from './revenue-kpi-cards';
 import { RevenueChart } from './revenue-chart';
 import { RevenueInsights } from './revenue-insights';
 import { MonthlyBreakdownTable } from './monthly-breakdown-table';
+import { SecondaryMetrics } from './secondary-metrics';
 import { SourceBreakdown } from './source-breakdown';
 import { AllYearsChart } from './all-years-chart';
 import { AllYearsTable } from './all-years-table';
@@ -190,8 +191,14 @@ function SingleYearView({ data }: { data: RevenueData }) {
           )}
         </TabsContent>
 
-        {/* Monthly Data Tab: Full-width table */}
-        <TabsContent value="monthly" className="mt-4">
+        {/* Monthly Data Tab: Secondary metrics + table */}
+        <TabsContent value="monthly" className="space-y-4 mt-4">
+          <SecondaryMetrics
+            metrics={data.extendedMetrics}
+            kpis={data.kpis}
+            currency={data.currency}
+            ytdComparison={data.ytdComparison}
+          />
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Monthly Breakdown</CardTitle>
