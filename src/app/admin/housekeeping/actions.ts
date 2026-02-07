@@ -264,12 +264,15 @@ export async function sendTestMessage(
     const contactData = contactDoc.data()!;
     await requirePropertyAccess(contactData.propertyId);
 
-    const testBody = contactData.language === 'ro'
-      ? 'Mesaj de test de la RentalSpot. Notificarile WhatsApp functioneaza!'
-      : 'Test message from RentalSpot. WhatsApp notifications are working!';
+    const firstName = contactData.name.split(' ')[0];
 
-    const { sendWhatsAppMessage } = await import('@/services/whatsappService');
-    const result = await sendWhatsAppMessage(contactData.phone, testBody);
+    const { sendWhatsAppTemplate } = await import('@/services/whatsappService');
+    const result = await sendWhatsAppTemplate(contactData.phone, 'curatenie_test', {
+      '1': firstName,
+      '2': 'RentSpot',
+    });
+
+    const messageBody = result.messageBody || `Test message to ${firstName}`;
 
     // Log the test message
     await db.collection('housekeepingMessages').add({
@@ -278,7 +281,7 @@ export async function sendTestMessage(
       contactName: contactData.name,
       contactPhone: contactData.phone,
       type: 'manual',
-      messageBody: testBody,
+      messageBody,
       ...(result.sid && { twilioSid: result.sid }),
       status: result.success ? 'sent' : 'failed',
       ...(result.error && { error: result.error }),

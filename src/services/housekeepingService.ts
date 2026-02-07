@@ -4,8 +4,17 @@ import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { Timestamp as AdminTimestamp } from 'firebase-admin/firestore';
 import { loggers } from '@/lib/logger';
 import type { HousekeepingContact, HousekeepingMessage } from '@/types';
+import type { WhatsAppTemplateName } from '@/services/whatsappService';
 
 const logger = loggers.housekeeping;
+
+// Template message result — used by all message builders
+interface TemplateMessage {
+  templateName: WhatsAppTemplateName;
+  variables: Record<string, string>;
+  // Human-readable summary for logging
+  summary: string;
+}
 
 // ============================================================================
 // Property name helper
@@ -149,11 +158,12 @@ function formatGuestCount(adults: number, children: number, language: 'ro' | 'en
 // Message builders
 // ============================================================================
 
-export async function buildMonthlyScheduleMessage(
+export async function buildMonthlyScheduleTemplate(
   propertyId: string,
   month: Date,
+  contactName: string,
   language: 'ro' | 'en' = 'ro'
-): Promise<string> {
+): Promise<TemplateMessage> {
   const year = month.getFullYear();
   const monthIndex = month.getMonth();
   const monthStart = new Date(year, monthIndex, 1);
@@ -167,86 +177,81 @@ export async function buildMonthlyScheduleMessage(
     ? ROMANIAN_MONTHS[monthIndex]
     : month.toLocaleString('en', { month: 'long' });
 
-  const lines: string[] = [];
-  lines.push(`[${propertyName}]`);
+  // Find current guest
+  const currentGuest = bookings.find(
+    b => b.checkIn <= today && b.checkOut > today
+  );
 
-  if (language === 'ro') {
-    lines.push(`Programul pentru luna ${monthName}:`);
-    lines.push('');
+  // Filter to bookings with check-in in this month
+  const monthBookings = bookings.filter(
+    b => b.checkIn >= monthStart && b.checkIn <= monthEnd
+  );
 
-    // Check if there's a current guest (checked in before today, checking out after today)
-    const currentGuest = bookings.find(
-      b => b.checkIn <= today && b.checkOut > today
-    );
-    if (currentGuest) {
-      lines.push(
-        `In prezent, ${currentGuest.guestName} este cazat pana pe ${formatDD_MM(currentGuest.checkOut)}.`
-      );
-      lines.push('');
-    }
+  const firstName = contactName.split(' ')[0];
+  const bookingCount = monthBookings.length;
 
-    // Upcoming bookings for this month
-    const monthBookings = bookings.filter(
-      b => b.checkIn >= monthStart && b.checkIn <= monthEnd
-    );
-
-    if (monthBookings.length > 0) {
-      lines.push(`Rezervarile pentru luna ${monthName}:`);
-      for (const b of monthBookings) {
-        const guests = formatGuestCount(b.numberOfAdults, b.numberOfChildren, 'ro');
-        lines.push(
-          `${formatDD_MM(b.checkIn)} - ${formatDD_MM(b.checkOut)} / ${b.guestName} (${guests})`
-        );
-      }
-    } else {
-      lines.push(`Nu sunt rezervari in luna ${monthName}.`);
-    }
-  } else {
-    lines.push(`Schedule for ${monthName}:`);
-    lines.push('');
-
-    const currentGuest = bookings.find(
-      b => b.checkIn <= today && b.checkOut > today
-    );
-    if (currentGuest) {
-      lines.push(
-        `Currently, ${currentGuest.guestName} is staying until ${formatDD_MM(currentGuest.checkOut)}.`
-      );
-      lines.push('');
-    }
-
-    const monthBookings = bookings.filter(
-      b => b.checkIn >= monthStart && b.checkIn <= monthEnd
-    );
-
-    if (monthBookings.length > 0) {
-      lines.push(`Bookings for ${monthName}:`);
-      for (const b of monthBookings) {
-        const guests = formatGuestCount(b.numberOfAdults, b.numberOfChildren, 'en');
-        lines.push(
-          `${formatDD_MM(b.checkIn)} - ${formatDD_MM(b.checkOut)} / ${b.guestName} (${guests})`
-        );
-      }
-    } else {
-      lines.push(`No bookings for ${monthName}.`);
-    }
+  // No bookings → program_0
+  if (bookingCount === 0) {
+    return {
+      templateName: 'program_0',
+      variables: {
+        '1': firstName,
+        '2': propertyName,
+        '3': monthName,
+      },
+      summary: `[${propertyName}] No bookings for ${monthName}`,
+    };
   }
 
-  return lines.join('\n');
+  // Build "currently staying" variable
+  const currentlyStaying = currentGuest
+    ? language === 'ro'
+      ? `In prezent, ${currentGuest.guestName} este cazat pana pe ${formatDD_MM(currentGuest.checkOut)}.`
+      : `Currently, ${currentGuest.guestName} is staying until ${formatDD_MM(currentGuest.checkOut)}.`
+    : language === 'ro'
+      ? 'Rezervari:'
+      : 'Bookings:';
+
+  // Format booking lines
+  const bookingLines = monthBookings.map(b => {
+    const guests = formatGuestCount(b.numberOfAdults, b.numberOfChildren, language);
+    return `${formatDD_MM(b.checkIn)} - ${formatDD_MM(b.checkOut)} / ${b.guestName} (${guests})`;
+  });
+
+  // Cap at 6 bookings (our max template)
+  const cappedCount = Math.min(bookingCount, 6);
+  const templateName = `program_${cappedCount}` as WhatsAppTemplateName;
+
+  const variables: Record<string, string> = {
+    '1': firstName,
+    '2': propertyName,
+    '3': monthName,
+    '4': currentlyStaying,
+  };
+
+  for (let i = 0; i < cappedCount; i++) {
+    variables[String(i + 5)] = bookingLines[i] || '-';
+  }
+
+  return {
+    templateName,
+    variables,
+    summary: `[${propertyName}] ${monthName}: ${bookingCount} bookings`,
+  };
 }
 
-export async function buildDailyNotificationMessage(
+export async function buildDailyNotificationTemplate(
   propertyId: string,
   date: Date,
+  contactName: string,
   language: 'ro' | 'en' = 'ro'
-): Promise<string | null> {
+): Promise<TemplateMessage | null> {
   const dayStart = new Date(date);
   dayStart.setHours(0, 0, 0, 0);
   const dayEnd = new Date(date);
   dayEnd.setHours(23, 59, 59, 999);
 
   // Get bookings that have check-in or check-out on this date
-  // We need a wider range to catch check-outs
   const rangeStart = new Date(dayStart);
   rangeStart.setDate(rangeStart.getDate() - 30);
   const rangeEnd = new Date(dayEnd);
@@ -272,7 +277,8 @@ export async function buildDailyNotificationMessage(
 
   const propertyName = await getPropertyName(propertyId);
   const dateStr = formatDD_MM(date);
-  const parts: string[] = [`[${propertyName}]`];
+  const firstName = contactName.split(' ')[0];
+  const parts: string[] = [];
 
   if (language === 'ro') {
     for (const co of checkOuts) {
@@ -296,15 +302,27 @@ export async function buildDailyNotificationMessage(
     }
   }
 
-  return parts.join('\n');
+  // Combine all parts into a single line for the template variable
+  const messageContent = parts.join(' ');
+
+  return {
+    templateName: 'curatenie_zilnic',
+    variables: {
+      '1': firstName,
+      '2': propertyName,
+      '3': messageContent,
+    },
+    summary: `[${propertyName}] ${messageContent}`,
+  };
 }
 
-export async function buildChangeNotificationMessage(
+export async function buildChangeNotificationTemplate(
   propertyId: string,
   bookingId: string,
   changeType: 'new' | 'cancelled',
+  contactName: string,
   language: 'ro' | 'en' = 'ro'
-): Promise<string | null> {
+): Promise<TemplateMessage | null> {
   const db = await getAdminDb();
   const bookingDoc = await db.collection('bookings').doc(bookingId).get();
   if (!bookingDoc.exists) return null;
@@ -321,21 +339,28 @@ export async function buildChangeNotificationMessage(
   const adults = data.numberOfAdults || data.numberOfGuests || 1;
   const children = data.numberOfChildren || 0;
   const guests = formatGuestCount(adults, children, language);
-  const prefix = `[${propertyName}]\n`;
+  const firstName = contactName.split(' ')[0];
 
+  let changeText: string;
   if (language === 'ro') {
-    if (changeType === 'new') {
-      return `${prefix}Rezervare noua: ${guestName} (${guests}), ${formatDD_MM(checkIn)} - ${formatDD_MM(checkOut)}.`;
-    } else {
-      return `${prefix}Rezervare anulata: ${guestName}, ${formatDD_MM(checkIn)} - ${formatDD_MM(checkOut)}.`;
-    }
+    changeText = changeType === 'new'
+      ? `Rezervare noua - ${guestName} (${guests}), ${formatDD_MM(checkIn)} - ${formatDD_MM(checkOut)}.`
+      : `Rezervare anulata - ${guestName}, ${formatDD_MM(checkIn)} - ${formatDD_MM(checkOut)}.`;
   } else {
-    if (changeType === 'new') {
-      return `${prefix}New booking: ${guestName} (${guests}), ${formatDD_MM(checkIn)} - ${formatDD_MM(checkOut)}.`;
-    } else {
-      return `${prefix}Booking cancelled: ${guestName}, ${formatDD_MM(checkIn)} - ${formatDD_MM(checkOut)}.`;
-    }
+    changeText = changeType === 'new'
+      ? `New booking - ${guestName} (${guests}), ${formatDD_MM(checkIn)} - ${formatDD_MM(checkOut)}.`
+      : `Booking cancelled - ${guestName}, ${formatDD_MM(checkIn)} - ${formatDD_MM(checkOut)}.`;
   }
+
+  return {
+    templateName: 'curatenie_modificare',
+    variables: {
+      '1': firstName,
+      '2': propertyName,
+      '3': changeText,
+    },
+    summary: `[${propertyName}] ${changeText}`,
+  };
 }
 
 // ============================================================================
@@ -416,14 +441,15 @@ export async function sendMonthlyScheduleToProperty(
   let failed = 0;
 
   for (const contact of contacts) {
-    const messageBody = await buildMonthlyScheduleMessage(
+    const template = await buildMonthlyScheduleTemplate(
       propertyId,
       targetMonth,
+      contact.name,
       contact.language
     );
 
-    const { sendWhatsAppMessage } = await import('@/services/whatsappService');
-    const result = await sendWhatsAppMessage(contact.phone, messageBody);
+    const { sendWhatsAppTemplate } = await import('@/services/whatsappService');
+    const result = await sendWhatsAppTemplate(contact.phone, template.templateName, template.variables);
 
     await logMessage({
       propertyId,
@@ -431,7 +457,7 @@ export async function sendMonthlyScheduleToProperty(
       contactName: contact.name,
       contactPhone: contact.phone,
       type: 'monthly',
-      messageBody,
+      messageBody: result.messageBody || template.summary,
       twilioSid: result.sid,
       status: result.success ? 'sent' : 'failed',
       error: result.error,
@@ -464,18 +490,19 @@ export async function sendDailyNotificationToProperty(
   let failed = 0;
 
   for (const contact of contacts) {
-    const messageBody = await buildDailyNotificationMessage(
+    const template = await buildDailyNotificationTemplate(
       propertyId,
       targetDate,
+      contact.name,
       contact.language
     );
 
-    if (!messageBody) {
+    if (!template) {
       return { sent: 0, failed: 0, skipped: true };
     }
 
-    const { sendWhatsAppMessage } = await import('@/services/whatsappService');
-    const result = await sendWhatsAppMessage(contact.phone, messageBody);
+    const { sendWhatsAppTemplate } = await import('@/services/whatsappService');
+    const result = await sendWhatsAppTemplate(contact.phone, template.templateName, template.variables);
 
     await logMessage({
       propertyId,
@@ -483,7 +510,7 @@ export async function sendDailyNotificationToProperty(
       contactName: contact.name,
       contactPhone: contact.phone,
       type: 'daily',
-      messageBody,
+      messageBody: result.messageBody || template.summary,
       twilioSid: result.sid,
       status: result.success ? 'sent' : 'failed',
       error: result.error,
@@ -530,17 +557,23 @@ export async function sendChangeNotification(
   let failed = 0;
 
   for (const contact of contacts) {
-    const messageBody = await buildChangeNotificationMessage(
+    // Message 1: The change notification
+    const changeTemplate = await buildChangeNotificationTemplate(
       propertyId,
       bookingId,
       changeType,
+      contact.name,
       contact.language
     );
 
-    if (!messageBody) continue;
+    if (!changeTemplate) continue;
 
-    const { sendWhatsAppMessage } = await import('@/services/whatsappService');
-    const result = await sendWhatsAppMessage(contact.phone, messageBody);
+    const { sendWhatsAppTemplate } = await import('@/services/whatsappService');
+    const changeResult = await sendWhatsAppTemplate(
+      contact.phone,
+      changeTemplate.templateName,
+      changeTemplate.variables
+    );
 
     await logMessage({
       propertyId,
@@ -548,15 +581,49 @@ export async function sendChangeNotification(
       contactName: contact.name,
       contactPhone: contact.phone,
       type: 'change',
-      messageBody,
-      twilioSid: result.sid,
-      status: result.success ? 'sent' : 'failed',
-      error: result.error,
+      messageBody: changeResult.messageBody || changeTemplate.summary,
+      twilioSid: changeResult.sid,
+      status: changeResult.success ? 'sent' : 'failed',
+      error: changeResult.error,
       bookingId,
       changeType,
     });
 
-    if (result.success) {
+    if (changeResult.success) {
+      sent++;
+    } else {
+      failed++;
+    }
+
+    // Message 2: Updated schedule for the current month
+    const scheduleTemplate = await buildMonthlyScheduleTemplate(
+      propertyId,
+      new Date(),
+      contact.name,
+      contact.language
+    );
+
+    const scheduleResult = await sendWhatsAppTemplate(
+      contact.phone,
+      scheduleTemplate.templateName,
+      scheduleTemplate.variables
+    );
+
+    await logMessage({
+      propertyId,
+      contactId: contact.id,
+      contactName: contact.name,
+      contactPhone: contact.phone,
+      type: 'change',
+      messageBody: scheduleResult.messageBody || scheduleTemplate.summary,
+      twilioSid: scheduleResult.sid,
+      status: scheduleResult.success ? 'sent' : 'failed',
+      error: scheduleResult.error,
+      bookingId,
+      changeType,
+    });
+
+    if (scheduleResult.success) {
       sent++;
     } else {
       failed++;
