@@ -79,13 +79,13 @@ export function MultilingualInput({
   if (inline) {
     return (
       <div className={cn('flex items-center gap-2', className)}>
+        {langSwitcher}
         <InputComp
           value={normalized[activeTab] || ''}
           onChange={(e) => handleChange(activeTab, e.target.value)}
           placeholder={placeholder || `${label} (${activeTab.toUpperCase()})`}
           rows={multiline ? 3 : undefined}
         />
-        {langSwitcher}
       </div>
     );
   }

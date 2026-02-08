@@ -5,7 +5,6 @@ import { Save, Loader2, Info, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -137,23 +136,17 @@ export function NavigationEditor({ propertyId, initialOverrides }: NavigationEdi
                   placeholder="URL, e.g. /booking"
                   className="flex-1 min-w-0"
                 />
-                <TooltipProvider delayDuration={300}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="shrink-0">
-                        <Switch
-                          checked={item.isButton || false}
-                          onCheckedChange={(checked) => {
-                            const updated = [...menuItems];
-                            updated[i] = { ...updated[i], isButton: checked };
-                            updateMenuItems(updated);
-                          }}
-                        />
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>Show as button</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <label className="flex items-center gap-1.5 shrink-0 cursor-pointer">
+                  <Switch
+                    checked={item.isButton || false}
+                    onCheckedChange={(checked) => {
+                      const updated = [...menuItems];
+                      updated[i] = { ...updated[i], isButton: checked };
+                      updateMenuItems(updated);
+                    }}
+                  />
+                  <span className="text-xs text-muted-foreground">Button</span>
+                </label>
               </div>
             )}
           />
