@@ -34,7 +34,7 @@ export async function fetchHousekeepingContacts(
       logger.warn('Authorization failed for fetchHousekeepingContacts', { propertyId });
       return [];
     }
-    console.error('[housekeeping] fetchContacts error:', error);
+    logger.error('Error fetching housekeeping contacts', error as Error, { propertyId });
     return [];
   }
 }
@@ -81,7 +81,7 @@ export async function addHousekeepingContact(formData: FormData): Promise<{ erro
     return {};
   } catch (error) {
     if (error instanceof AuthorizationError) return { error: error.message };
-    console.error('[housekeeping] addHousekeepingContact error:', error);
+    logger.error('Error adding housekeeping contact', error as Error);
     return { error: 'Failed to add contact' };
   }
 }
@@ -195,7 +195,7 @@ export async function fetchHousekeepingMessages(
       logger.warn('Authorization failed for fetchHousekeepingMessages', { propertyId });
       return [];
     }
-    console.error('[housekeeping] fetchMessages error:', error);
+    logger.error('Error fetching housekeeping messages', error as Error, { propertyId });
     return [];
   }
 }
