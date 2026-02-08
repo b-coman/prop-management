@@ -200,21 +200,29 @@ export function GuestTable({ guests }: GuestTableProps) {
       </div>
 
       {/* Table */}
-      <Table>
+      <Table className="table-fixed">
+        <colgroup>
+          <col className="w-[30%]" />
+          <col className="w-[14%]" />
+          <col className="w-[16%]" />
+          <col className="w-[14%]" />
+          <col className="w-[20%]" />
+          <col className="w-[6%]" />
+        </colgroup>
         <TableHeader>
           <TableRow>
             <TableHead>
               <SortableHeader label="Guest" columnKey="name" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
             </TableHead>
-            <TableHead className="w-[120px]">Source</TableHead>
-            <TableHead className="w-[120px] text-right">
+            <TableHead>Source</TableHead>
+            <TableHead className="text-right">
               <SortableHeader label="Activity" columnKey="activity" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className="justify-end" />
             </TableHead>
-            <TableHead className="w-[110px]">
+            <TableHead>
               <SortableHeader label="Last Booking" columnKey="lastBookingDate" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
             </TableHead>
-            <TableHead className="w-[160px]">Language</TableHead>
-            <TableHead className="w-[50px]"></TableHead>
+            <TableHead>Language</TableHead>
+            <TableHead></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
