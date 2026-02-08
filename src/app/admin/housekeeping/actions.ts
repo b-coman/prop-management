@@ -260,12 +260,16 @@ export async function sendTestMessage(
     const contactData = contactDoc.data()!;
     await requirePropertyAccess(contactData.propertyId);
 
+    // Fetch property name
+    const propertyDoc = await db.collection('properties').doc(contactData.propertyId).get();
+    const propertyName = propertyDoc.exists ? (propertyDoc.data()!.name || contactData.propertyId) : contactData.propertyId;
+
     const firstName = contactData.name.split(' ')[0];
 
     const { sendWhatsAppTemplate } = await import('@/services/whatsappService');
     const result = await sendWhatsAppTemplate(contactData.phone, 'curatenie_test', {
       '1': firstName,
-      '2': 'RentSpot',
+      '2': propertyName,
     });
 
     const messageBody = result.messageBody || `Test message to ${firstName}`;
