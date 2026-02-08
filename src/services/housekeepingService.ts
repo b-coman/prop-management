@@ -196,8 +196,7 @@ export async function buildMonthlyScheduleTemplate(
       templateName: 'program_0',
       variables: {
         '1': firstName,
-        '2': propertyName,
-        '3': monthName,
+        '2': monthName,
       },
       summary: `[${propertyName}] No bookings for ${monthName}`,
     };
@@ -224,13 +223,12 @@ export async function buildMonthlyScheduleTemplate(
 
   const variables: Record<string, string> = {
     '1': firstName,
-    '2': propertyName,
-    '3': monthName,
-    '4': currentlyStaying,
+    '2': monthName,
+    '3': currentlyStaying,
   };
 
   for (let i = 0; i < cappedCount; i++) {
-    variables[String(i + 5)] = bookingLines[i] || '-';
+    variables[String(i + 4)] = bookingLines[i] || '-';
   }
 
   return {

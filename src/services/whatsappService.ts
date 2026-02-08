@@ -28,13 +28,13 @@ export const WHATSAPP_TEMPLATES = {
   curatenie_test: 'HX59f1abe62543a4fa25dca11bc18e776e',
   curatenie_zilnic: 'HXfde05c39892320be10304d1fb4bb9a4e',
   curatenie_modificare: 'HX30b0bf3c0c4d21b7f5f9ade2bcf7b216',
-  program_0: 'HX97ece4348d3e1599b601dfbd6c6761d8',
-  program_1: 'HX0b392a7a4c2dabcbcd5a7a02c60d4d6d',
-  program_2: 'HX56c488f20980ac5ee85f0ec096882eaf',
-  program_3: 'HXb5b216e8ab9d062d3aaa15f283677208',
-  program_4: 'HX852e73976e24c95ae5c7b1344420ad18',
-  program_5: 'HX5a7bab389948656441d562232ee90cf4',
-  program_6: 'HX46f98ecaa6a736b2db2ae92a06bf7925',
+  program_0: 'HXc4de78581cb3c13f62edeaa4541bda40',
+  program_1: 'HXc1376e3107c73dba9a68557fefab7656',
+  program_2: 'HXb719041f666c821c28f0b044948e4968',
+  program_3: 'HX7fecff44de0d97937121b0ea9f2996cf',
+  program_4: 'HX8d5d94a3e644ebb8f174c4c14059561d',
+  program_5: 'HX0907e5a890426069545f5528168f1870',
+  program_6: 'HX6008e5bed8001a1a4fcf05c277964e20',
 } as const;
 
 export type WhatsAppTemplateName = keyof typeof WHATSAPP_TEMPLATES;
