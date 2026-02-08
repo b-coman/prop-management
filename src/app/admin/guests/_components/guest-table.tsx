@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/select';
 import { Eye, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MailX } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getCountryName } from '@/lib/country-utils';
 
 interface GuestTableProps {
   guests: Guest[];
@@ -57,16 +58,19 @@ function formatAmount(amount: number, currency: string): string {
 
 /** Format phone for display: +40723200868 → +40 723 200 868 */
 function formatPhone(phone: string): string {
-  // Simple grouping: country code (2-3 digits) then groups of 3
   const clean = phone.replace(/\s/g, '');
   if (!clean.startsWith('+')) return clean;
-  // Try to format as: +XX XXX XXX XXX
   const digits = clean.substring(1);
-  if (digits.length <= 6) return clean;
-  const cc = digits.length > 10 ? digits.substring(0, 2) : digits.substring(0, 2);
-  const rest = digits.substring(cc.length);
-  const groups = rest.match(/.{1,3}/g) || [];
-  return `+${cc} ${groups.join(' ')}`;
+  if (digits.length <= 4) return clean;
+  // Group from right in 3s so remainder goes to first group (no orphan trailing digits)
+  const groups: string[] = [];
+  let i = digits.length;
+  while (i > 0) {
+    const start = Math.max(0, i - 3);
+    groups.unshift(digits.substring(start, i));
+    i = start;
+  }
+  return `+${groups.join(' ')}`;
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -202,15 +206,15 @@ export function GuestTable({ guests }: GuestTableProps) {
             <TableHead>
               <SortableHeader label="Guest" columnKey="name" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
             </TableHead>
-            <TableHead>Source</TableHead>
-            <TableHead className="text-right">
+            <TableHead className="w-[120px]">Source</TableHead>
+            <TableHead className="w-[120px] text-right">
               <SortableHeader label="Activity" columnKey="activity" sortField={sortField} sortDir={sortDir} onSort={toggleSort} className="justify-end" />
             </TableHead>
-            <TableHead>
+            <TableHead className="w-[110px]">
               <SortableHeader label="Last Booking" columnKey="lastBookingDate" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
             </TableHead>
-            <TableHead>Language</TableHead>
-            <TableHead className="w-[60px]"></TableHead>
+            <TableHead className="w-[100px]">Language</TableHead>
+            <TableHead className="w-[50px]"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -262,7 +266,7 @@ export function GuestTable({ guests }: GuestTableProps) {
                   <div className="flex items-center gap-1 text-sm">
                     <span>{LANGUAGE_LABELS[guest.language] || guest.language?.toUpperCase() || '-'}</span>
                     {guest.country && (
-                      <span className="text-muted-foreground">· {guest.country}</span>
+                      <span className="text-muted-foreground">· {getCountryName(guest.country)}</span>
                     )}
                   </div>
                 </TableCell>

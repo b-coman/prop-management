@@ -18,6 +18,7 @@ import { CancelBookingButton } from '../_components/cancel-booking-button';
 import { fetchBookingById, fetchPropertiesForBookingForm } from '../actions';
 import type { SerializableTimestamp } from '@/types';
 import { cn } from '@/lib/utils';
+import { getCountryName } from '@/lib/country-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -141,7 +142,7 @@ export default async function BookingDetailPage({ params }: PageProps) {
                 <div>
                   <p className="text-sm text-muted-foreground">Address</p>
                   <p className="font-medium">
-                    {[guestInfo.address, guestInfo.city, guestInfo.state, guestInfo.zipCode, guestInfo.country]
+                    {[guestInfo.address, guestInfo.city, guestInfo.state, guestInfo.zipCode, guestInfo.country ? getCountryName(guestInfo.country) : null]
                       .filter(Boolean)
                       .join(', ')}
                   </p>

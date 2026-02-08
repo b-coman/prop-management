@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { getCountryOptions, normalizeCountryCode } from '@/lib/country-utils';
 import { createExternalBookingAction, editBookingAction } from '../actions';
 import type { Booking } from '@/types';
 
@@ -44,12 +45,7 @@ const LANGUAGES = [
   { value: 'ro', label: 'Romanian' },
 ];
 
-const COUNTRIES = [
-  'Romania', 'Germany', 'France', 'United Kingdom', 'Italy', 'Spain',
-  'Netherlands', 'Austria', 'Belgium', 'Switzerland', 'Poland', 'Hungary',
-  'Czech Republic', 'Israel', 'United States', 'Canada', 'Sweden',
-  'Denmark', 'Norway', 'Ireland',
-];
+const COUNTRIES = getCountryOptions();
 
 /** Strip spaces, parens, dashes from phone; keep + and digits */
 function cleanPhone(raw: string): string {
@@ -613,7 +609,7 @@ function FullForm({ form, mode, properties, nights, isPending, onSubmit, onCance
  */
 function CountryField({ form, compact }: { form: ReturnType<typeof useForm<FormValues>>; compact?: boolean }) {
   const value = form.watch('country');
-  const isOther = !!value && !COUNTRIES.includes(value);
+  const isOther = !!value && !COUNTRIES.some(c => c.code === value);
   const [showCustom, setShowCustom] = React.useState(isOther);
 
   if (showCustom) {
@@ -623,7 +619,14 @@ function CountryField({ form, compact }: { form: ReturnType<typeof useForm<FormV
           <FormLabel className={compact ? 'text-xs' : undefined}>Country</FormLabel>
           <div className="flex gap-1">
             <FormControl>
-              <Input className={compact ? compactInput : undefined} placeholder="Type country" {...field} />
+              <Input className={compact ? compactInput : undefined} placeholder="Type country"
+                {...field}
+                onBlur={(e) => {
+                  field.onBlur();
+                  const normalized = normalizeCountryCode(e.target.value);
+                  if (normalized) form.setValue('country', normalized);
+                }}
+              />
             </FormControl>
             <Button type="button" variant="ghost" size="sm" className={compact ? 'h-9 px-2 text-xs' : 'px-2'}
               onClick={() => { form.setValue('country', ''); setShowCustom(false); }}>
@@ -646,7 +649,7 @@ function CountryField({ form, compact }: { form: ReturnType<typeof useForm<FormV
         }} value={field.value || ''}>
           <FormControl><SelectTrigger className={compact ? 'h-9' : undefined}><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
           <SelectContent>
-            {COUNTRIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}
             <SelectItem value="__other__">Other...</SelectItem>
           </SelectContent>
         </Select>

@@ -10,6 +10,7 @@ import { updateAvailabilityAdmin } from '@/lib/availability-admin';
 import { revalidatePath } from "next/cache";
 import { addHours, parseISO, isValid, differenceInCalendarDays } from 'date-fns';
 import { loggers } from '@/lib/logger';
+import { normalizeCountryCode } from '@/lib/country-utils';
 import {
   requireAdmin,
   requirePropertyAccess,
@@ -465,7 +466,7 @@ export async function createExternalBookingAction(
         lastName: data.lastName || null,
         email: data.email || null,
         phone: data.phone || null,
-        country: data.country || null,
+        country: data.country ? normalizeCountryCode(data.country) || data.country : null,
       },
       checkInDate: Timestamp.fromDate(checkIn),
       checkOutDate: Timestamp.fromDate(checkOut),
@@ -626,7 +627,7 @@ export async function editBookingAction(
       'guestInfo.lastName': data.lastName || null,
       'guestInfo.email': data.email || null,
       'guestInfo.phone': data.phone || null,
-      'guestInfo.country': data.country || null,
+      'guestInfo.country': data.country ? normalizeCountryCode(data.country) || data.country : null,
       // Use dot notation for pricing to preserve fields we don't manage (extraGuestFee, taxes, etc.)
       'pricing.baseRate': data.netPayout / numberOfNights,
       'pricing.numberOfNights': numberOfNights,

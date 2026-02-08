@@ -2,6 +2,8 @@
  * Utilities for importing historical booking data from CSV.
  */
 
+import { normalizeCountryCode } from '@/lib/country-utils';
+
 /**
  * Parse a full name string into firstName and lastName.
  * Handles single names, multi-part names, and hyphenated names.
@@ -100,10 +102,10 @@ export function mapSource(csvSource: string): string {
 
 /**
  * Map and clean country codes from CSV.
+ * Normalizes to ISO 3166-1 alpha-2 codes.
  */
 export function mapCountry(csvCountry: string): string | undefined {
   const trimmed = csvCountry?.trim();
   if (!trimmed || trimmed === '?') return undefined;
-  if (trimmed === 'UC') return 'UA'; // Ukraine
-  return trimmed;
+  return normalizeCountryCode(trimmed) || trimmed;
 }

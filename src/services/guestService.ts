@@ -5,6 +5,7 @@ import { loggers } from '@/lib/logger';
 import type { Booking, Guest, CurrencyCode, LanguageCode } from '@/types';
 import { Timestamp as AdminTimestamp } from 'firebase-admin/firestore';
 import { normalizePhone } from '@/lib/sanitize';
+import { normalizeCountryCode } from '@/lib/country-utils';
 
 const logger = loggers.guest;
 
@@ -86,7 +87,8 @@ export async function upsertGuestFromBooking(booking: Booking): Promise<string |
     const total = booking.pricing?.total || 0;
     const currency = booking.pricing?.currency || 'RON';
     const language = booking.language || 'en';
-    const country = booking.guestInfo?.country || undefined;
+    const rawCountry = booking.guestInfo?.country;
+    const country = rawCountry ? normalizeCountryCode(rawCountry) || rawCountry : undefined;
     const source = booking.source || undefined;
 
     if (existingSnap) {
@@ -376,4 +378,46 @@ export async function backfillGuestsFromBookings(): Promise<{ processed: number;
 
   logger.info('Guest backfill completed', { processed, created, updated });
   return { processed, created, updated };
+}
+
+/**
+ * Backfill country onto existing guests from their bookings.
+ * For guests without a country field, finds their most recent booking that has country data.
+ */
+export async function backfillGuestCountries(): Promise<{ updated: number; skipped: number }> {
+  logger.info('Starting guest country backfill');
+  const db = await getAdminDb();
+
+  // Get all guests without country
+  const guestsSnap = await db.collection('guests').get();
+  let updated = 0;
+  let skipped = 0;
+
+  for (const guestDoc of guestsSnap.docs) {
+    const guest = guestDoc.data();
+    if (guest.country) { skipped++; continue; }
+
+    const bookingIds: string[] = guest.bookingIds || [];
+    if (bookingIds.length === 0) { skipped++; continue; }
+
+    // Find country from any of their bookings
+    let country: string | undefined;
+    for (const bookingId of bookingIds) {
+      const bookingDoc = await db.collection('bookings').doc(bookingId).get();
+      if (bookingDoc.exists) {
+        const c = bookingDoc.data()?.guestInfo?.country;
+        if (c) { country = c; break; }
+      }
+    }
+
+    if (country) {
+      await guestDoc.ref.update({ country, updatedAt: FieldValue.serverTimestamp() });
+      updated++;
+    } else {
+      skipped++;
+    }
+  }
+
+  logger.info('Guest country backfill completed', { updated, skipped });
+  return { updated, skipped };
 }

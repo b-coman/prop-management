@@ -1,32 +1,5 @@
 import type { Property, Amenity, Review } from '@/types';
-
-// Map full country names to ISO 3166-1 alpha-2 codes (Google requires ISO codes)
-const COUNTRY_TO_ISO: Record<string, string> = {
-  'romania': 'RO',
-  'united states': 'US',
-  'united kingdom': 'GB',
-  'france': 'FR',
-  'germany': 'DE',
-  'italy': 'IT',
-  'spain': 'ES',
-  'greece': 'GR',
-  'portugal': 'PT',
-  'austria': 'AT',
-  'switzerland': 'CH',
-  'netherlands': 'NL',
-  'belgium': 'BE',
-  'hungary': 'HU',
-  'bulgaria': 'BG',
-  'croatia': 'HR',
-  'czech republic': 'CZ',
-  'poland': 'PL',
-};
-
-function normalizeCountry(country: string): string {
-  // If already an ISO code (2 letters), return as-is
-  if (/^[A-Z]{2}$/.test(country)) return country;
-  return COUNTRY_TO_ISO[country.toLowerCase()] || country;
-}
+import { normalizeCountryCode } from '@/lib/country-utils';
 
 // Map amenity English names (lowercased) to schema.org LocationFeatureSpecification names
 // Reference: https://developers.google.com/search/docs/appearance/structured-data/vacation-rental
@@ -123,7 +96,7 @@ export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions):
     ...(property.location.address && { streetAddress: property.location.address }),
     ...(property.location.city && { addressLocality: property.location.city }),
     ...(property.location.state && { addressRegion: property.location.state }),
-    ...(property.location.country && { addressCountry: normalizeCountry(property.location.country) }),
+    ...(property.location.country && { addressCountry: normalizeCountryCode(property.location.country) || property.location.country }),
     ...(property.location.zipCode && { postalCode: property.location.zipCode }),
   } : undefined;
 
