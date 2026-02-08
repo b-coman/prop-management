@@ -213,7 +213,7 @@ export function GuestTable({ guests }: GuestTableProps) {
             <TableHead className="w-[110px]">
               <SortableHeader label="Last Booking" columnKey="lastBookingDate" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
             </TableHead>
-            <TableHead className="w-[100px]">Language</TableHead>
+            <TableHead className="w-[160px]">Language</TableHead>
             <TableHead className="w-[50px]"></TableHead>
           </TableRow>
         </TableHeader>
