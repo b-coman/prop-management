@@ -44,7 +44,18 @@ function parseDateSafe(dateStr: SerializableTimestamp | null | undefined): Date 
 }
 
 export function BookingsWithFilter({ bookings }: BookingsWithFilterProps) {
-  const { selectedPropertyId } = usePropertySelector();
+  const { selectedPropertyId, properties } = usePropertySelector();
+
+  // Build property name lookup map
+  const propertyNames = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const prop of properties) {
+      map[prop.id] = typeof prop.name === 'string'
+        ? prop.name
+        : prop.name?.en || prop.name?.ro || prop.id;
+    }
+    return map;
+  }, [properties]);
 
   // Filter/sort/pagination state
   const [statusFilter, setStatusFilter] = React.useState('all');
@@ -128,6 +139,11 @@ export function BookingsWithFilter({ bookings }: BookingsWithFilterProps) {
         case 'status': {
           aVal = a.status || '';
           bVal = b.status || '';
+          break;
+        }
+        case 'amount': {
+          aVal = a.pricing?.total || 0;
+          bVal = b.pricing?.total || 0;
           break;
         }
         default:
@@ -225,6 +241,7 @@ export function BookingsWithFilter({ bookings }: BookingsWithFilterProps) {
       {/* Table */}
       <BookingTable
         bookings={paginated}
+        propertyNames={propertyNames}
         sortColumn={sortColumn}
         sortDirection={sortDirection}
         onSort={handleSort}
