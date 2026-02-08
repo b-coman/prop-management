@@ -11,7 +11,7 @@ Next.js 15 multi-property vacation rental platform with Stripe payments, Firebas
 | Booking System | Production ready, single implementation |
 | Availability | Single-source (`availability` collection) |
 | Security Rules | Hardened, admin-only writes on sensitive collections |
-| Logging | Structured logger with namespaces (not console.*) |
+| Logging | Structured JSON logger → Cloud Logging (not console.*) |
 | Rate Limiting | Public APIs protected (60 req/min per IP) |
 | Hold Cleanup | Cloud Scheduler at 00:00/12:00 UTC |
 
@@ -48,8 +48,28 @@ Next.js 15 multi-property vacation rental platform with Stripe payments, Firebas
 - Secrets: 15 in Secret Manager
 - Storage: Firebase Storage bucket
 
+**Logging:**
+- Use `loggers.*` from `src/lib/logger.ts` — never raw `console.log`
+- Production: outputs structured JSON to stdout → Cloud Run logging agent → Cloud Logging
+- Dev: outputs human-readable text to console
+- Cloud Logging retention: 30 days, DEBUG excluded, INFO/WARN/ERROR captured
+- `'use server'` files can ONLY export async functions — never export objects/constants (silent 500 crash)
+
+**Query production logs:**
+```bash
+# All app logs (last hour)
+gcloud logging read 'logName:"run.googleapis.com/stdout"' --limit=20 \
+  --format="table(timestamp, severity, jsonPayload.component, jsonPayload.message)" --freshness=1h
+
+# Errors only
+gcloud logging read 'logName:"run.googleapis.com/stdout" AND severity>=ERROR' --freshness=24h
+
+# Specific component
+gcloud logging read 'logName:"run.googleapis.com/stdout" AND jsonPayload.component="housekeeping"' --freshness=1h
+```
+
 **Logger Namespaces:**
-`booking`, `bookingContext`, `bookingAPI`, `bookingStorage`, `bookingUI`, `pricing`, `availability`, `auth`, `authorization`, `stripe`, `email`, `admin`, `adminBookings`, `adminPricing`, `performance`, `error`, `languageSystem`
+`booking`, `bookingContext`, `bookingAPI`, `bookingStorage`, `bookingUI`, `pricing`, `availability`, `auth`, `authorization`, `stripe`, `email`, `admin`, `adminBookings`, `adminPricing`, `performance`, `error`, `languageSystem`, `whatsapp`, `housekeeping`, `icalSync`, `review`, `guest`, `tracking`
 
 ## Key Files
 
