@@ -202,8 +202,36 @@ class Logger {
       return;
     }
 
+    // Cloud Run: output structured JSON so Cloud Logging picks it up
+    const isServer = typeof window === 'undefined';
+    if (isServer && process.env.NODE_ENV === 'production') {
+      const severityMap: Record<string, string> = {
+        DEBUG: 'DEBUG',
+        INFO: 'INFO',
+        WARN: 'WARNING',
+        ERROR: 'ERROR',
+      };
+      const entry: Record<string, any> = {
+        severity: severityMap[levelName] || 'DEFAULT',
+        message,
+        component: this.namespace,
+      };
+      if (metadata) {
+        const { error: _err, ...rest } = metadata;
+        if (Object.keys(rest).length > 0) entry.metadata = rest;
+        if (_err) {
+          entry.error = typeof _err === 'object' && _err.message
+            ? { message: _err.message, stack: _err.stack }
+            : _err;
+        }
+      }
+      // Single-line JSON to stdout — Cloud Run logging agent parses this
+      process.stdout.write(JSON.stringify(entry) + '\n');
+      return;
+    }
+
     const formattedMessage = this.formatMessage(levelName, message, metadata);
-    
+
     switch (level) {
       case LogLevel.DEBUG:
         console.debug(formattedMessage);
