@@ -270,6 +270,7 @@
       "notes": "Notițe"
     },
 
+    "checkInCheckOut": "Check-in și Check-out",
     "sendMessageToHost": "Trimite un mesaj gazdei",
     "holdYourStay": "Blochează sejurul",
     "completeYourBooking": "Finalizează rezervarea",
@@ -474,6 +475,11 @@
     "getDirections": "Obține Indicații",
     "loading": "Se încarcă harta...",
     "unavailable": "Hartă indisponibilă"
+  },
+  "location": {
+    "nestledIn": "Situat în {{city}}, {{state}}",
+    "discoverNearby": "Descoperă ce este în apropiere",
+    "mapKeyMissing": "Harta nu este disponibilă - cheia API nu este configurată"
   },
   "features": {
     "discoverSpecial": "Descoperă ce face acest loc special"

@@ -16,15 +16,15 @@
     },
     {
       "label": {
-        "en": "About the Chalet",
-        "ro": "Despre Cabană"
+        "ro": "Despre Cabană",
+        "en": "About the Chalet"
       },
       "url": "/details"
     },
     {
       "label": {
-        "en": "Where We Are",
-        "ro": "Unde Suntem"
+        "ro": "Unde Suntem",
+        "en": "Where We Are"
       },
       "url": "/location"
     },
@@ -41,7 +41,7 @@
         "ro": "Rezervă Acum"
       },
       "url": "/booking",
-      "isButton": true
+      "isButton": false
     }
   ],
   "homepage": {
@@ -52,18 +52,17 @@
       "features",
       "location",
       "testimonials",
-      "gallery",
       "cta"
     ],
     "hero": {
       "backgroundImage": "/images/properties/prahova-mountain-chalet/comarnic-hero-1.jpg",
       "title": {
-        "en": "Prahova Mountain Chalet",
-        "ro": "Prahova Mountain Chalet"
+        "en": "Coman's Mountain Retreat",
+        "ro": "Refugiul Montan al Familiei Coman"
       },
       "subtitle": {
-        "en": "Experience the majestic beauty of the Carpathian Mountains",
-        "ro": "Experience the majestic beauty of the Carpathian Mountains"
+        "en": "Settle in, unwind, and let the magic of this place weave its spell",
+        "ro": "Relaxează-te și lasă farmecul locului să te cucerească"
       },
       "data-ai-hint": "mountain chalet exterior view carpathian mountains",
       "showBookingForm": true,
@@ -75,45 +74,45 @@
     },
     "experience": {
       "title": {
-        "en": "Experience Prahova's Majesty",
-        "ro": "Experience Prahova's Majesty"
+        "en": "A Place Close to Our Hearts",
+        "ro": "Un Loc Aproape de Inima Noastră"
       },
       "description": {
-        "en": "Nestled in the foothills of the Carpathian Mountains, our chalet offers a perfect blend of rustic charm and modern comfort, with breathtaking views of the Prahova Valley.",
-        "ro": "Nestled in the foothills of the Carpathian Mountains, our chalet offers a perfect blend of rustic charm and modern comfort, with breathtaking views of the Prahova Valley."
+        "en": "The house offers the perfect backdrop for family and friends to relish the outdoors and unwind. The terrace provides stunning views of sunsets over the hills, while evenings are best spent by the cozy indoor fireplace or grilling on the outdoor BBQ. The yard, with its playground, zip line, and hammocks, is ideal for fun and relaxation.",
+        "ro": "Casa oferă cadrul perfect pentru familie și prieteni care vor să se bucure de natură și să se relaxeze. De pe terasă ai parte de apusuri spectaculoase peste dealuri, iar serile le poți petrece lângă focul din șemineu sau la grătarul din curte. Curtea, cu loc de joacă, tiroliana și hamace, e locul ideal și pentru distracție, și pentru liniște."
       },
       "highlights": [
         {
           "icon": "Mountain",
           "title": {
             "en": "Mountain Retreat",
-            "ro": "Mountain Retreat"
+            "ro": "Refugiu Montan"
           },
           "description": {
-            "en": "Situated at 800m altitude with panoramic views",
-            "ro": "Situated at 800m altitude with panoramic views"
+            "en": "Nestled at 800m altitude among the Carpathian foothills, with panoramic views of the Prahova Valley.",
+            "ro": "La 800m altitudine, la poalele Carpaților, cu priveliști panoramice asupra Văii Prahovei."
           }
         },
         {
           "icon": "Trees",
           "title": {
-            "en": "Forest Surroundings",
-            "ro": "Forest Surroundings"
+            "en": "Forest & Nature",
+            "ro": "Pădure și Natură"
           },
           "description": {
-            "en": "Surrounded by pine forests with hiking trails",
-            "ro": "Surrounded by pine forests with hiking trails"
+            "en": "Surrounded by forests, with hiking trails, fresh air, and starry skies with almost no light pollution.",
+            "ro": "Înconjurat de păduri, cu poteci de drumeție, aer curat și cerul plin de stele departe de luminile orașului."
           }
         },
         {
           "icon": "Home",
           "title": {
-            "en": "Cozy Comfort",
-            "ro": "Cozy Comfort"
+            "en": "Family Friendly",
+            "ro": "Perfect pentru Familii"
           },
           "description": {
-            "en": "Modern amenities in a traditional mountain setting",
-            "ro": "Modern amenities in a traditional mountain setting"
+            "en": "Playground, zip line, board games, books, and a yard designed for children and adults alike.",
+            "ro": "Loc de joacă, tiroliana, jocuri de societate, cărți și o curte gândită și pentru copii, și pentru adulți."
           }
         }
       ]
@@ -122,64 +121,67 @@
       "name": "Bogdan C.",
       "imageUrl": "/images/templates/holiday-house/default-host.jpg",
       "description": {
-        "en": "Welcome to my mountain chalet!",
-        "ro": "Welcome to my mountain chalet!"
+        "en": "Welcome to our home!",
+        "ro": "Bine ați venit la noi acasă!"
       },
-      "backstory": "I'm passionate about sharing the beauty of the Carpathian Mountains with visitors. This chalet has been in my family for generations, and we've lovingly restored it to provide authentic mountain experiences with modern comforts.",
+      "backstory": {
+        "en": "Hello, my name is Bogdan and I'm happy to share my house with you. I built this place some years ago as a family retreat and basecamp for our mountain adventures. It's a place where each stone tells a tale, and every corner holds some warmth. For me, you're more than just guests — you're part of the story that continues to grow with the joy of all who stay. Enjoy, and respect the warmth in the corners :)",
+        "ro": "Salut, eu sunt Bogdan și mă bucur să împart casa asta cu voi. Am construit-o acum câțiva ani, ca un refugiu de familie și ca punct de plecare pentru aventurile noastre montane. E un loc în care fiecare piatră are o poveste, iar fiecare colț păstrează ceva căldură. Pentru mine, nu sunteți simpli oaspeți — faceți parte din povestea care crește cu bucuria fiecăruia care trece pragul. Bucurați-vă de ea, și respectați-i căldura din colțuri :)"
+      },
       "data-ai-hint": "friendly male host mountain background"
     },
     "features": {
       "title": {
-        "en": "Unique Features",
-        "ro": "Caracteristici Unice"
+        "en": "What Makes This Place Special",
+        "ro": "Ce Face Locul Special"
       },
       "description": {
-        "en": "Discover what makes this chalet special",
-        "ro": "Descoperă ce face această cabană specială"
+        "en": "Discover why you'll want to come back",
+        "ro": "Descoperă de ce te vei întoarce aici"
       },
       "features": [
         {
           "icon": "firepit",
           "title": {
-            "en": "Traditional Fireplace",
-            "ro": "Semineu"
+            "en": "Indoor Fireplace",
+            "ro": "Șemineul din Sufragerie"
           },
           "description": {
-            "en": "Cozy up by the authentic Romanian fireplace during cold evenings.",
-            "ro": "Încălzește-te lângă șemineul autentic românesc în serile răcoroase."
+            "en": "The indoor fireplace adds a cozy touch to evenings, perfect for family and friends' gatherings. It's equipped with everything for fire-starting, and wood chunks are provided upon request.",
+            "ro": "Șemineul adaugă un farmec aparte serilor, perfect pentru întâlnirile cu familia și prietenii. Vine echipat cu tot ce trebuie pentru aprins focul, iar lemnele se pot cere la nevoie."
           },
           "image": "/images/properties/prahova-mountain-chalet/IMG_3864.jpg"
         },
         {
-          "icon": "bbq",
-          "title": {
-            "en": "Outdoor BBQ Area",
-            "ro": "Grătar exterior"
-          },
-          "description": {
-            "en": "Enjoy traditional Romanian grilled specialties on our dedicated outdoor BBQ.",
-            "ro": "Bucură-te de specialități tradiționale românești la grătar, pregătite pe BBQ-ul nostru în aer liber."
-          },
-          "image": "/images/properties/prahova-mountain-chalet/IMG_3868.jpg"
-        },
-        {
           "icon": "view",
           "title": {
-            "en": "Panoramic Terrace",
-            "ro": "Terasă Panoramică"
+            "en": "The Terrace",
+            "ro": "Terasa"
           },
           "description": {
-            "en": "Take in breathtaking views of the Carpathian Mountains from our spacious terrace.",
-            "ro": "Admiră privelițile spectaculoase ale Munților Carpați de pe terasa noastră spațioasă."
+            "en": "Our favourite spot. Mornings begin with coffee at a table for six, overlooking the hills. In the evening, the BBQ area invites you for laid-back dinners. As night falls, the low light pollution reveals a spectacular starry sky.",
+            "ro": "Locul nostru preferat. Dimineața începe cu cafeaua la masa de șase, cu dealurile în față. Seara, zona de grătar te cheamă la cine relaxate. Când se lasă noaptea, cerul fără poluare luminoasă dezvăluie un spectacol de stele."
           },
           "image": "/images/properties/prahova-mountain-chalet/IMG_3889.jpg"
+        },
+        {
+          "icon": "bbq",
+          "title": {
+            "en": "Yard & Playground",
+            "ro": "Curtea și Locul de Joacă"
+          },
+          "description": {
+            "en": "A 30-meter zip line, wooden playground with swings, hammocks among the trees, and a three-seater garden swing. For adults and children alike — there's room for everyone.",
+            "ro": "Tiroliana de 30 de metri, loc de joacă din lemn cu leagăne, hamace printre copaci și un balansoar de grădină. Pentru copii și adulți deopotrivă — e loc pentru toată lumea."
+          },
+          "image": "/images/properties/prahova-mountain-chalet/IMG_3868.jpg"
         }
       ]
     },
     "location": {
       "title": {
         "en": "Explore Comarnic & Beyond",
-        "ro": "Explore Comarnic & Beyond"
+        "ro": "Explorează Comarnic și Împrejurimile"
       },
       "mapCenter": {
         "lat": 45.253,
@@ -189,15 +191,15 @@
     "cta": {
       "title": {
         "en": "Ready for Your Mountain Getaway?",
-        "ro": "Ready for Your Mountain Getaway?"
+        "ro": "Pregătit pentru Evadarea la Munte?"
       },
       "description": {
-        "en": "Book now and experience the majesty of the Carpathian Mountains in our comfortable chalet.",
-        "ro": "Book now and experience the majesty of the Carpathian Mountains in our comfortable chalet."
+        "en": "Book now and discover the warmth of the Carpathian Mountains in our family retreat.",
+        "ro": "Rezervă acum și descoperă căldura Munților Carpați în refugiul nostru de familie."
       },
       "buttonText": {
         "en": "Check Availability",
-        "ro": "Check Availability"
+        "ro": "Verifică Disponibilitatea"
       },
       "buttonUrl": "/booking",
       "backgroundImage": "/images/properties/prahova-mountain-chalet/sfinx.jpg",
@@ -215,12 +217,12 @@
     ],
     "details-header": {
       "title": {
-        "en": "About Prahova Mountain Chalet",
-        "ro": "Despre Cabana din Prahova"
+        "en": "About the Chalet",
+        "ro": "Despre Cabană"
       },
       "subtitle": {
-        "en": "Authentic mountain living with modern comforts",
-        "ro": "Viață autentică la munte cu confort modern"
+        "en": "A family retreat where each stone tells a tale",
+        "ro": "Un refugiu de familie în care fiecare piatră are o poveste"
       },
       "backgroundImage": "/images/properties/prahova-mountain-chalet/IMG_3864.jpg"
     },
@@ -257,67 +259,110 @@
       ]
     },
     "rooms": {
-      "title": "Accommodation",
+      "title": {
+        "en": "Rooms & Spaces",
+        "ro": "Camere și Spații"
+      },
       "rooms": [
         {
-          "name": "Master Bedroom",
-          "description": "Spacious room with queen-size bed and mountain views",
+          "name": {
+            "en": "Main Bedroom",
+            "ro": "Dormitorul Principal"
+          },
+          "description": {
+            "en": "First-floor bedroom with double king-size bed, wood-clad walls, storage cabinets, and a private balcony with chairs and a coffee table.",
+            "ro": "Dormitor la etaj cu pat dublu king-size, pereți îmbrăcați în lemn, dulapuri și un balcon privat cu scaune și măsuță de cafea."
+          },
           "features": [
-            "Queen Bed",
-            "Mountain View",
-            "Wardrobe"
+            { "en": "King Bed", "ro": "Pat King-Size" },
+            { "en": "Private Balcony", "ro": "Balcon Privat" },
+            { "en": "Wood-Clad Walls", "ro": "Pereți din Lemn" },
+            { "en": "Mountain View", "ro": "Vedere la Munte" }
           ],
           "image": "/images/properties/prahova-mountain-chalet/IMG_3864.jpg"
         },
         {
-          "name": "Second Bedroom",
-          "description": "Cozy room with two single beds",
+          "name": {
+            "en": "Guest Bedroom",
+            "ro": "Dormitorul de Oaspeți"
+          },
+          "description": {
+            "en": "Ground floor bedroom that sleeps 3-4, with a double bed and a bunk bed. Designed for friends' visits, with a cozy, welcoming atmosphere.",
+            "ro": "Dormitor la parter, cu un pat dublu și un pat supraetajat, ideal pentru 3-4 persoane. Gândit pentru vizite cu prietenii, cu o atmosferă caldă și primitoare."
+          },
           "features": [
-            "Two Single Beds",
-            "Desk",
-            "Closet"
+            { "en": "Double Bed", "ro": "Pat Dublu" },
+            { "en": "Bunk Bed", "ro": "Pat Supraetajat" },
+            { "en": "Sleeps 3-4", "ro": "3-4 Persoane" }
           ],
           "image": "/images/properties/prahova-mountain-chalet/IMG_3868.jpg"
         },
         {
-          "name": "Living Area",
-          "description": "Open-plan living area with traditional fireplace",
+          "name": {
+            "en": "Kids' Bedroom",
+            "ro": "Camera Copiilor"
+          },
+          "description": {
+            "en": "First-floor room with a bunk bed, desk, swing, toys, and pillows — ideal for children and cozy for one adult. Please don't use the upper bed if you weigh more than 50 kg.",
+            "ro": "Cameră la etaj cu pat supraetajat, birou, leagăn, jucării și perne — ideală pentru copii și confortabilă pentru un adult. Vă rugăm să nu folosiți patul de sus dacă aveți peste 50 kg."
+          },
           "features": [
-            "Fireplace",
-            "Sofa Bed",
-            "Dining Table",
-            "Smart TV"
+            { "en": "Bunk Bed", "ro": "Pat Supraetajat" },
+            { "en": "Desk", "ro": "Birou" },
+            { "en": "Toys & Games", "ro": "Jucării" },
+            { "en": "Indoor Swing", "ro": "Leagăn" }
+          ],
+          "image": "/images/properties/prahova-mountain-chalet/IMG_3868.jpg"
+        },
+        {
+          "name": {
+            "en": "Living Room & Kitchen",
+            "ro": "Sufrageria și Bucătăria"
+          },
+          "description": {
+            "en": "Spacious living room with fireplace, TV, sound system, board games, and a book collection. The modern kitchen and dining area comfortably accommodates families, seating five with additional chairs on the terrace.",
+            "ro": "Sufragerie spațioasă cu șemineu, TV, sistem audio, jocuri de societate și o colecție de cărți. Bucătăria modernă și zona de dining acomodează confortabil familii, cu loc la masă pentru cinci persoane și scaune suplimentare pe terasă."
+          },
+          "features": [
+            { "en": "Fireplace", "ro": "Șemineu" },
+            { "en": "Smart TV & Apple TV", "ro": "Smart TV și Apple TV" },
+            { "en": "Apple HomePods", "ro": "Apple HomePods" },
+            { "en": "Full Kitchen", "ro": "Bucătărie Completă" },
+            { "en": "Dining for 5+", "ro": "Loc de Masă 5+" }
           ],
           "image": "/images/properties/prahova-mountain-chalet/IMG_3889.jpg"
         }
       ]
     },
     "specifications": {
-      "title": "Chalet Specifications",
+      "title": {
+        "en": "Chalet Specifications",
+        "ro": "Specificații Cabană"
+      },
       "specifications": [
         {
-          "name": "Size",
-          "value": "120 m²"
+          "name": { "en": "Bedrooms", "ro": "Dormitoare" },
+          "value": "3"
         },
         {
-          "name": "Bedrooms",
+          "name": { "en": "Bathrooms", "ro": "Băi" },
           "value": "2"
         },
         {
-          "name": "Bathrooms",
-          "value": "1"
-        },
-        {
-          "name": "Max Guests",
+          "name": { "en": "Max Guests", "ro": "Capacitate Maximă" },
           "value": "6"
         },
         {
-          "name": "Built",
-          "value": "1985"
+          "name": { "en": "Internet", "ro": "Internet" },
+          "value": { "en": "High-speed fibre, Wi-Fi 6", "ro": "Fibră optică, Wi-Fi 6" }
         },
         {
-          "name": "Renovated",
-          "value": "2023"
+          "name": { "en": "Heating", "ro": "Încălzire" },
+          "value": { "en": "Automated gas boiler, smart thermostats", "ro": "Centrală pe gaz automată, termostate inteligente" }
+        },
+        {
+          "name": { "en": "Parking", "ro": "Parcare" },
+          "value": { "en": "Free, on the street in front of the property", "ro": "Gratuită, pe stradă în fața proprietății" }
         }
       ]
     }
@@ -337,31 +382,43 @@
         "ro": "Locația Noastră"
       },
       "subtitle": {
-        "en": "Perfectly positioned in the Carpathian Mountains",
-        "ro": "Perfect poziționată în Munții Carpați"
+        "en": "In the heart of the Prahova Valley, gateway to the Carpathian Mountains",
+        "ro": "În inima Văii Prahovei, la porțile Munților Carpați"
       },
       "backgroundImage": "/images/properties/prahova-mountain-chalet/comarnic-position.jpg"
     },
     "attractions": {
       "title": {
-        "en": "Nearby Attractions",
-        "ro": "Atracții în Apropiere"
+        "en": "Places to See",
+        "ro": "Locuri de Vizitat"
       },
       "description": {
-        "en": "Discover these spectacular places near our chalet",
-        "ro": "Descoperă aceste locuri spectaculoase lângă cabana noastră"
+        "en": "Discover spectacular places within easy reach of our chalet",
+        "ro": "Descoperă locuri spectaculoase la distanță scurtă de cabana noastră"
       },
       "attractions": [
         {
           "name": {
-            "en": "Cantacuzino Castle",
-            "ro": "Castelul Cantacuzino"
+            "en": "Peles Castle",
+            "ro": "Castelul Peleș"
           },
           "description": {
-            "en": "Historic castle with beautiful architecture",
-            "ro": "Castel istoric cu arhitectură frumoasă"
+            "en": "One of Romania's most beautiful castles, a Neo-Renaissance masterpiece nestled in the mountains of Sinaia. A must-see on any visit to the Prahova Valley.",
+            "ro": "Unul dintre cele mai frumoase castele din România, o capodoperă neo-renascentistă în inima munților din Sinaia. De neratat în orice vizită în Valea Prahovei."
           },
-          "distance": "15 km",
+          "distance": "30 min",
+          "image": "/images/properties/prahova-mountain-chalet/comarnic-position.jpg"
+        },
+        {
+          "name": {
+            "en": "Bran Castle (Dracula's Castle)",
+            "ro": "Castelul Bran (Castelul lui Dracula)"
+          },
+          "description": {
+            "en": "Steeped in myth as the reputed home of Dracula, this 14th-century fortress houses medieval artifacts and offers a deep dive into Romanian history.",
+            "ro": "Învăluit în mitul lui Dracula, această cetate din secolul al XIV-lea adăpostește artefacte medievale și oferă o incursiune fascinantă în istoria României."
+          },
+          "distance": "2.5 h",
           "image": "/images/properties/prahova-mountain-chalet/castelul-bran.jpg"
         },
         {
@@ -370,23 +427,47 @@
             "ro": "Canionul 7 Scări"
           },
           "description": {
-            "en": "Spectacular canyon with metal ladders and walkways",
-            "ro": "Canion spectaculos cu scări metalice și pasarele"
+            "en": "An exhilarating climb through dramatic gorges and waterfalls, with metal ladders aiding the ascent. Also home to one of the longest zip-lines in Europe — 3.8 km across 37 segments.",
+            "ro": "O ascensiune captivantă prin chei spectaculoase și cascade, cu scări metalice pe traseu. Aici se află și una dintre cele mai lungi tiroliene din Europa — 3,8 km pe 37 de segmente."
           },
-          "distance": "30 km",
+          "distance": "2.5 h",
           "image": "/images/properties/prahova-mountain-chalet/canionul_7_scari.jpg"
         },
         {
           "name": {
-            "en": "Sphinx and Babele",
+            "en": "The Sphinx & Babele",
             "ro": "Sfinxul și Babele"
           },
           "description": {
-            "en": "Natural rock formations resembling a sphinx and mushrooms",
-            "ro": "Formațiuni naturale de stâncă asemănătoare unui sfinx și ciuperci"
+            "en": "A natural rock formation resembling a human face, perched at 2,216 meters in the Bucegi Mountains. Reachable by cable car from Busteni or by a medium-difficulty hike.",
+            "ro": "O formațiune stâncoasă naturală ce seamănă cu un chip uman, la 2.216 metri în Munții Bucegi. Accesibilă cu telecabina din Bușteni sau printr-o drumeție de dificultate medie."
           },
-          "distance": "45 km",
+          "distance": "1.5 h",
           "image": "/images/properties/prahova-mountain-chalet/sfinx.jpg"
+        },
+        {
+          "name": {
+            "en": "Ialomita Cave",
+            "ro": "Peștera Ialomiței"
+          },
+          "description": {
+            "en": "A 480-meter-long geological marvel in Bucegi National Park. Known for its stalactites and the historical monastery at its entrance, it offers a captivating 40-minute tour.",
+            "ro": "O minune geologică de 480 de metri în Parcul Național Bucegi. Cunoscută pentru stalactite și mănăstirea de la intrare, oferă un tur fascinant de 40 de minute."
+          },
+          "distance": "2 h",
+          "image": "/images/properties/prahova-mountain-chalet/cheile-dambovicioarei-1.jpg"
+        },
+        {
+          "name": {
+            "en": "Brasov",
+            "ro": "Brașov"
+          },
+          "description": {
+            "en": "Founded in 1211 by the Teutonic Knights, Brasov has rich history and stunning natural beauty. A great option for a day trip. Tip: take the train during peak season to avoid traffic.",
+            "ro": "Fondat în 1211 de cavalerii teutoni, Brașovul are o istorie bogată și o frumusețe naturală de excepție. Ideal pentru o excursie de o zi. Sfat: ia trenul în sezon de vârf ca să eviți traficul."
+          },
+          "distance": "1.5 h",
+          "image": "/images/properties/prahova-mountain-chalet/comarnic-hero-1.jpg"
         }
       ]
     },
@@ -399,27 +480,27 @@
         {
           "place": "Sinaia",
           "distance": "25 km",
-          "time": "30 min by car"
+          "time": { "en": "30 min by car", "ro": "30 min cu mașina" }
         },
         {
-          "place": "Brasov",
-          "distance": "60 km",
-          "time": "1 hour by car"
+          "place": { "en": "Brasov", "ro": "Brașov" },
+          "distance": "90 km",
+          "time": { "en": "1.5 hours by car", "ro": "1,5 ore cu mașina" }
         },
         {
-          "place": "Bucharest",
+          "place": { "en": "Bucharest", "ro": "București" },
           "distance": "120 km",
-          "time": "2 hours by car"
+          "time": { "en": "2 hours by car", "ro": "2 ore cu mașina" }
         },
         {
-          "place": "Bran Castle",
-          "distance": "70 km",
-          "time": "1.5 hours by car"
+          "place": { "en": "Bran Castle", "ro": "Castelul Bran" },
+          "distance": "120 km",
+          "time": { "en": "2.5 hours by car", "ro": "2,5 ore cu mașina" }
         },
         {
-          "place": "Local Restaurant",
-          "distance": "3 km",
-          "time": "5 min by car"
+          "place": { "en": "Paltinul Lake", "ro": "Lacul Paltinu" },
+          "distance": "15 km",
+          "time": { "en": "30 min by car", "ro": "30 min cu mașina" }
         }
       ]
     }
@@ -436,8 +517,8 @@
         "ro": "Galerie Foto"
       },
       "subtitle": {
-        "en": "Explore our mountain chalet through images",
-        "ro": "Explorează cabana noastră montană prin imagini"
+        "en": "Explore our mountain retreat through images",
+        "ro": "Descoperă refugiul nostru montan prin imagini"
       },
       "backgroundImage": "/images/properties/prahova-mountain-chalet/IMG_3889.jpg"
     },
@@ -494,8 +575,8 @@
         "ro": "Rezervă-ți Refugiul de Munte"
       },
       "subtitle": {
-        "en": "Reserve your dates at Prahova Mountain Chalet",
-        "ro": "Rezervă-ți sejurul la Cabana din Prahova"
+        "en": "Reserve your dates at Coman's Mountain Retreat",
+        "ro": "Alege-ți datele la Refugiul Montan al Familiei Coman"
       },
       "backgroundImage": "/images/properties/prahova-mountain-chalet/comarnic-hero-1.jpg"
     },
@@ -508,34 +589,120 @@
           },
           "description": {
             "en": "Free cancellation up to 7 days before check-in. Cancellations made within 7 days of check-in receive a 30% refund.",
-            "ro": "Anulare gratuită cu până la 7 zile înainte de check-in. Anulările făcute în termen de 7 zile de check-in primesc o rambursare de 30%."
+            "ro": "Anulare gratuită cu până la 7 zile înainte de check-in. Anulările făcute în ultimele 7 zile primesc o rambursare de 30%."
           }
         },
         {
           "title": {
-            "en": "Check-in/Check-out",
-            "ro": "Check-in/Check-out"
+            "en": "Check-in / Check-out",
+            "ro": "Check-in / Check-out"
           },
           "description": {
-            "en": "Check-in: 2:00 PM - 8:00 PM, Check-out: by 12:00 PM",
-            "ro": "Check-in: 14:00 - 20:00, Check-out: până la 12:00"
+            "en": "Check-in: 2:00 PM - 8:00 PM. Check-out: by 12:00 PM.",
+            "ro": "Check-in: 14:00 - 20:00. Check-out: până la ora 12:00."
           }
         },
         {
           "title": {
-            "en": "House Rules",
-            "ro": "Reguli ale Casei"
+            "en": "No Smoking",
+            "ro": "Fumatul Interzis"
           },
           "description": {
-            "en": "No smoking inside the chalet, no loud parties after 10 PM, pets allowed with prior notice.",
-            "ro": "Fumatul interzis în interiorul cabanei, fără petreceri zgomotoase după ora 22:00, animalele de companie sunt permise cu notificare prealabilă."
+            "en": "No smoking or vaping inside the house. Please use the designated smoking area outside and the ashtray provided.",
+            "ro": "Fumatul și vaping-ul sunt interzise în casă. Vă rugăm să folosiți zona de fumat amenajată afară și scrumiera pusă la dispoziție."
+          }
+        },
+        {
+          "title": {
+            "en": "No Unregistered Guests",
+            "ro": "Fără Oaspeți Neînregistrați"
+          },
+          "description": {
+            "en": "Please notify the host if you'd like to add any additional guests to your rental agreement.",
+            "ro": "Vă rugăm să anunțați gazda dacă doriți să adăugați oaspeți suplimentari la rezervare."
+          }
+        },
+        {
+          "title": {
+            "en": "No Parties",
+            "ro": "Fără Petreceri"
+          },
+          "description": {
+            "en": "No parties or large gatherings of unregistered guests. Drug use and excessive drinking are prohibited.",
+            "ro": "Fără petreceri sau întruniri mari cu persoane neînregistrate. Consumul de droguri și consumul excesiv de alcool sunt interzise."
+          }
+        },
+        {
+          "title": {
+            "en": "No Pets",
+            "ro": "Fără Animale de Companie"
+          },
+          "description": {
+            "en": "No pets or animals of any kind on the property. Please do not feed stray dogs, cats, or wildlife.",
+            "ro": "Animalele de companie nu sunt permise pe proprietate. Vă rugăm să nu hrăniți câinii, pisicile sau animalele sălbatice."
+          }
+        },
+        {
+          "title": {
+            "en": "Fire Safety",
+            "ro": "Siguranța la Foc"
+          },
+          "description": {
+            "en": "Do not leave any fire unattended. Before going to sleep or leaving the house, please extinguish the BBQ or fireplace.",
+            "ro": "Nu lăsați focul nesupravegheat. Înainte de culcare sau de plecare, vă rugăm să stingeți grătarul sau șemineul."
+          }
+        },
+        {
+          "title": {
+            "en": "Toilets",
+            "ro": "Toalete"
+          },
+          "description": {
+            "en": "Please do not flush any inorganic or oversized items — there is a serious risk of sewage clogging.",
+            "ro": "Vă rugăm să nu aruncați obiecte neorganice sau de mari dimensiuni în toaletă — riscul de înfundare este real."
+          }
+        },
+        {
+          "title": {
+            "en": "Garbage & Waste",
+            "ro": "Gunoi și Deșeuri"
+          },
+          "description": {
+            "en": "The garbage bins are near the entrance gate. Please do not leave garbage outside or dispose of food waste improperly.",
+            "ro": "Pubelele sunt lângă poarta de intrare. Vă rugăm să nu lăsați gunoiul afară și să nu aruncați resturi alimentare necorespunzător."
+          }
+        },
+        {
+          "title": {
+            "en": "Report Damage",
+            "ro": "Raportați Daunele"
+          },
+          "description": {
+            "en": "Please report any damage or malfunction to the host right away, so we can repair or replace the item promptly.",
+            "ro": "Vă rugăm să raportați orice stricăciune sau defecțiune gazdei cât mai repede, ca să putem repara sau înlocui."
+          }
+        },
+        {
+          "title": {
+            "en": "Respect the Neighbours",
+            "ro": "Respectați Vecinii"
+          },
+          "description": {
+            "en": "Please avoid excessive noise, loud music, or rowdy behaviour. We're grateful for not disturbing the neighbours.",
+            "ro": "Vă rugăm să evitați zgomotul excesiv, muzica tare sau comportamentul zgomotos. Vă mulțumim că respectați liniștea vecinilor."
           }
         }
       ]
     }
   },
+  "footer": {
+    "contactInfo": {
+      "email": "coman2904@gmail.com",
+      "phone": "+40 723-200868"
+    }
+  },
   "_translationStatus": {
-    "needsManualTranslation": true,
-    "lastMigrated": "2025-05-16T12:28:04.084Z"
+    "needsManualTranslation": false,
+    "lastUpdated": "2026-02-09"
   }
 }

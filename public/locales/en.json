@@ -223,6 +223,10 @@
     "payToHold": "Pay {{fee}} to Hold Dates",
     "holdRefundable": "This fee is fully refundable if you complete your booking.",
     "ifYouCompleteBooking": "if you complete booking",
+    "checkInCheckOut": "Check-in & Check-out",
+    "sendMessageToHost": "Send a message to the host",
+    "holdYourStay": "Hold your stay",
+    "selectDatesForPricing": "Select dates to see pricing and booking options",
 
     "successPage": {
       "bookingConfirmedTitle": "Booking Confirmed!",
@@ -319,6 +323,13 @@
     "responseRate": "Response Rate",
     "responseTime": "Response Time",
     "contactHost": "Contact Host",
+    "secureBookingInstantly": "Book securely and instantly",
+    "askQuestionBeforeBooking": "Ask the host before booking",
+    "minimumNightsRequired": "Minimum {{nights}} nights required",
+    "checkInDate": "Check-in Date",
+    "checkOutDate": "Check-out Date",
+    "numberOfGuests": "Number of Guests",
+    "maxGuests": "Max {{guests}} guests",
     "hostPolicies": "Host Policies",
     "hostLanguages": "Languages",
     "hostingStyle": "Hosting Style",
@@ -337,7 +348,9 @@
     "faq": "FAQ",
     "privacyPolicy": "Privacy Policy",
     "termsOfService": "Terms of Service",
-    "sitemap": "Sitemap"
+    "sitemap": "Sitemap",
+    "backTo": "Back to {{property}}",
+    "backToOptions": "Back to options"
   },
   "forms": {
     "firstName": "First Name",
@@ -461,6 +474,11 @@
     "getDirections": "Get Directions",
     "loading": "Loading map...",
     "unavailable": "Map unavailable"
+  },
+  "location": {
+    "nestledIn": "Nestled in {{city}}, {{state}}",
+    "discoverNearby": "Discover what's nearby",
+    "mapKeyMissing": "Map unavailable - API key not configured"
   },
   "features": {
     "discoverSpecial": "Discover what makes this place special"
