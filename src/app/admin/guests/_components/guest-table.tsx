@@ -202,11 +202,11 @@ export function GuestTable({ guests }: GuestTableProps) {
       {/* Table */}
       <Table className="table-fixed">
         <colgroup>
+          <col className="w-[22%]" />
+          <col className="w-[14%]" />
+          <col className="w-[14%]" />
+          <col className="w-[14%]" />
           <col className="w-[30%]" />
-          <col className="w-[14%]" />
-          <col className="w-[16%]" />
-          <col className="w-[14%]" />
-          <col className="w-[20%]" />
           <col className="w-[6%]" />
         </colgroup>
         <TableHeader>
