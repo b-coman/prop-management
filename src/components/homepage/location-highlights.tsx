@@ -86,7 +86,7 @@ export function LocationHighlights({ content, language = 'en' }: LocationHighlig
                     </h2>
                     {propertyLocation?.city && propertyLocation?.state && (
                         <p className="text-lg text-muted-foreground mb-4">
-                        {t('location.nestledIn', undefined, { city: propertyLocation.city, state: propertyLocation.state })}
+                        {t('location.nestledIn', `Nestled in ${propertyLocation.city}, ${propertyLocation.state}`, { city: propertyLocation.city, state: propertyLocation.state })}
                         </p>
                     )}
                 </div>
@@ -111,7 +111,7 @@ export function LocationHighlights({ content, language = 'en' }: LocationHighlig
               <div className="aspect-video bg-muted flex flex-col items-center justify-center mb-8 w-full">
                 <MapPin className="h-12 w-12 text-muted-foreground/50 mb-2" />
                  <p className="text-sm text-muted-foreground">
-                    {t('location.mapKeyMissing')}
+                    {t('location.mapKeyMissing', 'Map unavailable')}
                  </p>
               </div>
             ) : null}
@@ -120,7 +120,7 @@ export function LocationHighlights({ content, language = 'en' }: LocationHighlig
             <div className="container mx-auto px-4">
                 <div className="max-w-3xl mx-auto text-center">
                     <p className="text-lg text-muted-foreground">
-                       {t('location.discoverNearby')}
+                       {t('location.discoverNearby', 'Discover what\'s nearby')}
                     </p>
                 </div>
             </div>

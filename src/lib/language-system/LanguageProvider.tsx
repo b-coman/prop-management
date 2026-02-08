@@ -149,24 +149,15 @@ export function LanguageProvider({
   const [backgroundLoadingStatus, setBackgroundLoadingStatus] = useState<Record<SupportedLanguage, 'loading' | 'loaded' | 'failed'>>({});
   
   // ===== STABLE TRANSLATION REFERENCE =====
-  // Use a ref to store current translations to avoid context recreation
+  // Use a ref to store current translations to avoid context recreation.
+  // IMPORTANT: Update synchronously during render (not in useEffect) so that
+  // t() reads the correct data in the same render cycle that loads translations.
   const currentTranslationsRef = useRef<Record<string, any>>({});
-  
-  // Update ref whenever current language translations change
-  useEffect(() => {
-    const currentLangTranslations = allTranslations[currentLang] || translations;
-    if (Object.keys(currentLangTranslations).length > 0) {
-      currentTranslationsRef.current = currentLangTranslations;
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log('\ud83d\udd27 [DIAGNOSTIC] Updated translation ref', {
-          currentLang,
-          translationCount: Object.keys(currentLangTranslations).length,
-          source: allTranslations[currentLang] ? 'allTranslations' : 'fallback'
-        });
-      }
-    }
-  }, [currentLang, allTranslations, translations]);
+
+  const currentLangTranslations = allTranslations[currentLang] || translations;
+  if (Object.keys(currentLangTranslations).length > 0) {
+    currentTranslationsRef.current = currentLangTranslations;
+  }
   
   // ===== Configuration and References =====
   
