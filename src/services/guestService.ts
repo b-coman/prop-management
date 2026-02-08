@@ -86,6 +86,7 @@ export async function upsertGuestFromBooking(booking: Booking): Promise<string |
     const total = booking.pricing?.total || 0;
     const currency = booking.pricing?.currency || 'RON';
     const language = booking.language || 'en';
+    const country = booking.guestInfo?.country || undefined;
     const source = booking.source || undefined;
 
     if (existingSnap) {
@@ -118,6 +119,9 @@ export async function upsertGuestFromBooking(booking: Booking): Promise<string |
       // Fill in email if guest didn't have one (e.g., imported guest later books directly)
       if (!guestData.email && email) {
         updateData.email = email;
+      }
+      if (!guestData.country && country) {
+        updateData.country = country;
       }
 
       // Track booking sources
@@ -163,6 +167,7 @@ export async function upsertGuestFromBooking(booking: Booking): Promise<string |
       if (email) newGuest.email = email;
       if (phone) newGuest.phone = phone;
       if (normalized) newGuest.normalizedPhone = normalized;
+      if (country) newGuest.country = country;
       if (source) newGuest.sources = [source];
 
       const docRef = await guestsRef.add(newGuest);

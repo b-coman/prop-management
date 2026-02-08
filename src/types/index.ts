@@ -244,6 +244,7 @@ export interface Guest {
   phone?: string;
   normalizedPhone?: string; // E.164 format for dedup (e.g., +40723184334)
   language: LanguageCode;
+  country?: string; // Guest country (from booking guestInfo)
   sources?: string[]; // Platforms guest has booked through (airbnb, booking.com, direct, etc.)
   bookingIds: string[];
   propertyIds: string[];
