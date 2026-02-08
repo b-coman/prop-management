@@ -94,7 +94,7 @@ class Logger {
     const defaultConfig: LogConfig = {
       level: LogLevel.INFO,
       namespaces: ['*'], // All namespaces enabled by default
-      enabledInProduction: false,
+      enabledInProduction: true,
       prettyPrint: true,
       includeTimestamp: true,
       includeStackTrace: false
