@@ -43,6 +43,7 @@ Next.js 15 multi-property vacation rental platform with Stripe payments, Firebas
 
 **Firebase Ecosystem:**
 - App Hosting: Cloud Run (europe-west4), auto-deploy on push to main
+- Custom domain: `prahova-chalet.ro` — when adding new custom domains, also add them to `serverActions.allowedOrigins` in `next.config.ts`
 - Scheduler: `/api/cron/release-holds` (twice daily)
 - Secrets: 15 in Secret Manager
 - Storage: Firebase Storage bucket

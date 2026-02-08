@@ -31,6 +31,9 @@ const nextConfig: NextConfig = {
   experimental: {
     allowedDevOrigins: ["*"],
     serverActions: {
+      // When adding a new custom domain, add it here too — otherwise
+      // server actions (form submissions) will fail with a 500 error
+      // due to Next.js CSRF protection (Origin vs Host mismatch).
       allowedOrigins: ['prahova-chalet.ro', 'www.prahova-chalet.ro'],
     },
   },
