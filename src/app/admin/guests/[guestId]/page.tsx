@@ -13,8 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ArrowLeft, Mail, Phone, Globe, Eye } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Globe, MapPin, Eye } from 'lucide-react';
 import { fetchGuestDetailAction } from '../actions';
+import { getCountryName } from '@/lib/country-utils';
+import { EditGuestContactDialog } from '../_components/edit-guest-contact-dialog';
 import type { SerializableTimestamp } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -75,8 +77,9 @@ export default async function GuestDetailPage({ params }: PageProps) {
         {/* Guest Info Card */}
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-lg">Contact Information</CardTitle>
+              <EditGuestContactDialog guest={guest} />
             </CardHeader>
             <CardContent className="space-y-3">
               {guest.email ? (
@@ -98,8 +101,16 @@ export default async function GuestDetailPage({ params }: PageProps) {
               )}
               <div className="flex items-center gap-2 text-sm">
                 <Globe className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Language:</span>
                 <span>{guest.language === 'ro' ? 'Romanian' : 'English'}</span>
               </div>
+              {guest.country && (
+                <div className="flex items-center gap-2 text-sm">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Country:</span>
+                  <span>{getCountryName(guest.country)}</span>
+                </div>
+              )}
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground">Subscription:</span>
                 {guest.unsubscribed ? (
@@ -156,26 +167,6 @@ export default async function GuestDetailPage({ params }: PageProps) {
             </CardContent>
           </Card>
         </div>
-
-        {/* Tags */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Tags</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {guest.tags && guest.tags.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {guest.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No tags assigned.</p>
-            )}
-          </CardContent>
-        </Card>
 
         {/* Booking History */}
         <Card>
@@ -244,6 +235,26 @@ export default async function GuestDetailPage({ params }: PageProps) {
                   </TableBody>
                 </Table>
               </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Tags */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Tags</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {guest.tags && guest.tags.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {guest.tags.map((tag) => (
+                  <Badge key={tag} variant="secondary">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No tags assigned.</p>
             )}
           </CardContent>
         </Card>

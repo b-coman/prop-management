@@ -4,6 +4,8 @@ import { z } from 'zod';
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
 import { convertTimestampsToISOStrings } from '@/lib/utils';
+import { normalizePhone } from '@/lib/sanitize';
+import { normalizeCountryCode } from '@/lib/country-utils';
 import type { Guest, Booking } from '@/types';
 import {
   requireAdmin,
@@ -88,6 +90,79 @@ export async function updateGuestTagsAction(
     if (error instanceof AuthorizationError) return handleAuthError(error);
     logger.error('Error updating guest tags', error as Error, { guestId });
     return { success: false, error: 'Failed to update tags.' };
+  }
+}
+
+const updateContactSchema = z.object({
+  guestId: z.string().min(1),
+  email: z.string().email().or(z.literal('')).optional(),
+  phone: z.string().optional(),
+  country: z.string().optional(),
+  language: z.enum(['en', 'ro']),
+});
+
+export async function updateGuestContactAction(
+  guestId: string,
+  data: { email?: string; phone?: string; country?: string; language: 'en' | 'ro' }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return handleAuthError(error);
+    throw error;
+  }
+
+  const parsed = updateContactSchema.safeParse({ guestId, ...data });
+  if (!parsed.success) {
+    return { success: false, error: 'Invalid input.' };
+  }
+
+  try {
+    const db = await getAdminDb();
+    const docRef = db.collection('guests').doc(parsed.data.guestId);
+    const existing = await docRef.get();
+
+    if (!existing.exists) {
+      return { success: false, error: 'Guest not found.' };
+    }
+
+    const updates: Record<string, unknown> = {
+      language: parsed.data.language,
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+
+    // Email: normalize or set null
+    const emailVal = parsed.data.email?.trim().toLowerCase();
+    updates.email = emailVal || null;
+
+    // Phone: normalize or set null
+    const rawPhone = parsed.data.phone?.trim();
+    if (rawPhone) {
+      const normalized = normalizePhone(rawPhone);
+      updates.phone = rawPhone;
+      updates.normalizedPhone = normalized || null;
+    } else {
+      updates.phone = null;
+      updates.normalizedPhone = null;
+    }
+
+    // Country: normalize or set null
+    const rawCountry = parsed.data.country?.trim();
+    if (rawCountry) {
+      updates.country = normalizeCountryCode(rawCountry) || rawCountry;
+    } else {
+      updates.country = null;
+    }
+
+    await docRef.update(updates);
+
+    revalidatePath('/admin/guests');
+    revalidatePath(`/admin/guests/${guestId}`);
+    return { success: true };
+  } catch (error) {
+    if (error instanceof AuthorizationError) return handleAuthError(error);
+    logger.error('Error updating guest contact', error as Error, { guestId });
+    return { success: false, error: 'Failed to update contact info.' };
   }
 }
 
