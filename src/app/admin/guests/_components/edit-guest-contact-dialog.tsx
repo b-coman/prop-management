@@ -70,7 +70,7 @@ export function EditGuestContactDialog({ guest }: EditGuestContactDialogProps) {
       email: guest.email || '',
       phone: guest.phone || '',
       language: guest.language || 'en',
-      country: guest.country || '',
+      country: guest.country || '__none__',
     },
   });
 
@@ -79,7 +79,7 @@ export function EditGuestContactDialog({ guest }: EditGuestContactDialogProps) {
       const result = await updateGuestContactAction(guest.id, {
         email: values.email,
         phone: values.phone,
-        country: values.country,
+        country: values.country === '__none__' ? '' : values.country,
         language: values.language,
       });
 
@@ -175,7 +175,7 @@ export function EditGuestContactDialog({ guest }: EditGuestContactDialogProps) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">— None —</SelectItem>
+                      <SelectItem value="__none__">— None —</SelectItem>
                       {COUNTRIES.map((c) => (
                         <SelectItem key={c.code} value={c.code}>
                           {c.name}
