@@ -1,10 +1,10 @@
 // src/app/properties/[slug]/[[...path]]/page.tsx
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
 import { collection, doc, getDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { PropertyPageRenderer } from '@/components/property/property-page-renderer';
+import { PropertyNotFoundPage } from '@/components/property/property-not-found-page';
 import { websiteTemplateSchema, propertyOverridesSchema } from '@/lib/overridesSchemas-multipage';
 import { LanguageProvider } from '@/lib/language-system';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
@@ -385,16 +385,46 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   // Resolve amenityRefs to full amenity objects in all override pages
   overrides = await resolveOverrideAmenityRefs(overrides);
 
-  // Check if the page exists in the template
-  if (pageName !== 'homepage' && template.pages && !template.pages[pageName]) {
-    console.error(`[PropertyPage] Page "${pageName}" not found in template for property "${slug}".`);
-    return notFound();
-  }
+  // Detect if request came through a custom domain (needed for 404 and normal rendering)
+  const headersList = await headers();
+  const host = headersList.get('x-forwarded-host') || headersList.get('host') || '';
+  const isCustomDomain = !!(property.useCustomDomain && property.customDomain &&
+    (host === property.customDomain || host === `www.${property.customDomain}`));
 
-  // Check if the page is visible in overrides (only for non-homepage)
-  if (pageName !== 'homepage' && overrides.visiblePages && !overrides.visiblePages.includes(pageName)) {
-    console.log(`[PropertyPage] Page "${pageName}" is not visible in overrides for property "${slug}".`);
-    return notFound();
+  // Check if the page exists in the template or is hidden — show branded 404
+  const pageNotInTemplate = pageName !== 'homepage' && template.pages && !template.pages[pageName];
+  const pageNotVisible = pageName !== 'homepage' && overrides.visiblePages && !overrides.visiblePages.includes(pageName);
+
+  if (pageNotInTemplate || pageNotVisible) {
+    const reason = pageNotInTemplate ? 'not in template' : 'not visible';
+    console.log(`[PropertyPage] Page "${pageName}" ${reason} for property "${slug}", showing branded 404.`);
+
+    const propertyNameSource = overrides.propertyMeta?.name || property.name;
+    const resolvedName = serverTranslateContent(propertyNameSource, language);
+    const menuItems = overrides.menuItems || template.header.menuItems;
+    const logoAlt = template.header.logo?.alt
+      ? serverTranslateContent(template.header.logo.alt, language)
+      : undefined;
+
+    return (
+      <>
+        <meta name="robots" content="noindex, follow" />
+        <LanguageProvider initialLanguage={language}>
+          <PropertyNotFoundPage
+            propertyName={resolvedName}
+            propertySlug={slug}
+            themeId={property.themeId}
+            menuItems={menuItems}
+            logoSrc={template.header.logo?.src}
+            logoAlt={logoAlt}
+            isCustomDomain={isCustomDomain}
+            quickLinks={overrides.footer?.quickLinks || template.footer?.quickLinks}
+            contactInfo={overrides.footer?.contactInfo || template.footer?.contactInfo}
+            socialLinks={overrides.footer?.socialLinks}
+          />
+        </LanguageProvider>
+      </>
+    );
   }
 
   // Debug: Log any _translationStatus in overrides
@@ -455,12 +485,6 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
 
   // Local image blur map for blur placeholders (imported as JSON module)
   const localBlurMap = blurMapData as Record<string, string>;
-
-  // Detect if request came through a custom domain
-  const headersList = await headers();
-  const host = headersList.get('x-forwarded-host') || headersList.get('host') || '';
-  const isCustomDomain = !!(property.useCustomDomain && property.customDomain &&
-    (host === property.customDomain || host === `www.${property.customDomain}`));
 
   // For homepage with default language, use the exact pattern from [slug]/page.tsx
   if (pageName === 'homepage' && language === DEFAULT_LANGUAGE) {

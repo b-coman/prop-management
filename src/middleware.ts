@@ -1,17 +1,7 @@
 // src/middleware.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
-
-// Edge-compatible domain resolution
-// This is a simplified version that uses a map instead of Firestore
-// In production, you would use a KV store or similar Edge-compatible storage
-const DOMAIN_TO_PROPERTY_MAP: Record<string, string> = {
-  // Production custom domains
-  'prahova-chalet.ro': 'prahova-mountain-chalet',
-  'www.prahova-chalet.ro': 'prahova-mountain-chalet',
-  // Add more property domains here as needed:
-  // 'coltei-apartment.ro': 'coltei-apartment-bucharest',
-};
+import { DOMAIN_TO_PROPERTY_MAP } from '@/lib/domain-map';
 
 export const config = {
   matcher: [
