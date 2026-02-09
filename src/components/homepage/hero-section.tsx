@@ -11,6 +11,7 @@ import { BookingContainer } from '@/components/booking-widget';
 
 export interface HeroData {
   backgroundImage?: string | null;
+  backgroundImageBlur?: string | null;
   'data-ai-hint'?: string;
   title?: string | { [key: string]: string } | null;
   subtitle?: string | { [key: string]: string } | null;
@@ -69,6 +70,7 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
   // Extract properties with defaults to prevent destructuring errors
   const {
     backgroundImage = null,
+    backgroundImageBlur = null,
     title = null,
     subtitle = null,
     price = null,
@@ -123,6 +125,7 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
           priority
           className="-z-10"
           data-ai-hint={dataAiHint}
+          {...(backgroundImageBlur ? { placeholder: 'blur' as const, blurDataURL: backgroundImageBlur } : {})}
         />
       )}
       <div className="absolute inset-0 bg-black/40 -z-10"></div>

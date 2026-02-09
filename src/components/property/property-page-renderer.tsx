@@ -142,6 +142,13 @@ interface PropertyPageRendererProps {
   // Homepage-specific props for property data integration
   property?: Property; // Full property object for homepage rendering
   publishedReviews?: Review[]; // Real reviews from Firestore
+  localBlurMap?: Record<string, string>; // Blur placeholders for local images
+}
+
+// Look up blur data URL for a local image path
+function lookupBlur(blurMap: Record<string, string> | undefined, imagePath: string | null | undefined): string | undefined {
+  if (!imagePath || !blurMap) return undefined;
+  return blurMap[imagePath];
 }
 
 export function PropertyPageRenderer({
@@ -154,6 +161,7 @@ export function PropertyPageRenderer({
   language = 'en',
   property, // Homepage-specific property data
   publishedReviews, // Real reviews from Firestore
+  localBlurMap,
 }: PropertyPageRendererProps) {
   const { tc } = useLanguage();
   const { setDefaultCurrency } = useCurrency();
@@ -313,7 +321,9 @@ export function PropertyPageRenderer({
           // Add price if not already set
           price: blockContent.price !== undefined ? blockContent.price : ((property as any)?.pricePerNight || 150),
           // Only use showBookingForm value exactly as provided in Firestore
-          showBookingForm: blockContent.showBookingForm, 
+          showBookingForm: blockContent.showBookingForm,
+          // Blur placeholder for hero background image (local images)
+          backgroundImageBlur: lookupBlur(localBlurMap, blockContent.backgroundImage),
         };
         
       } else if (type === 'fullBookingForm') {
@@ -411,6 +421,7 @@ export function PropertyPageRenderer({
             url: img.url,
             alt: img.alt || '',
             'data-ai-hint': img['data-ai-hint'],
+            blurDataURL: img.blurDataURL,
           }));
           blockContent = {
             ...blockContent,
@@ -423,7 +434,43 @@ export function PropertyPageRenderer({
           ...blockContent,
           propertySlug: propertySlug,
         };
-      } else if (pageName === 'homepage' && property) {
+      }
+
+      // Enrich local image paths with blur data (applies to all pages)
+      if (localBlurMap) {
+        if (type === 'attractionsList' && blockContent?.attractions) {
+          blockContent = {
+            ...blockContent,
+            attractions: blockContent.attractions.map((a: any) => ({
+              ...a,
+              blurDataURL: a.blurDataURL || lookupBlur(localBlurMap, a.image),
+            })),
+          };
+        } else if (type === 'features') {
+          const features = blockContent?.features || (Array.isArray(blockContent) ? blockContent : []);
+          if (features.length > 0) {
+            const enriched = features.map((f: any) => ({
+              ...f,
+              blurDataURL: f.blurDataURL || lookupBlur(localBlurMap, f.image),
+            }));
+            blockContent = Array.isArray(blockContent) ? enriched : { ...blockContent, features: enriched };
+          }
+        } else if (type === 'photoCategories' && blockContent?.categories) {
+          blockContent = {
+            ...blockContent,
+            categories: blockContent.categories.map((cat: any) => ({
+              ...cat,
+              thumbnailBlur: lookupBlur(localBlurMap, cat.thumbnail),
+              images: (cat.images || []).map((img: any) => ({
+                ...img,
+                blurDataURL: img.blurDataURL || lookupBlur(localBlurMap, img.url),
+              })),
+            })),
+          };
+        }
+      }
+
+      if (pageName === 'homepage' && property) {
         // Homepage-specific enhancements for other component types
         if (type === 'experience') {
           blockContent = {
@@ -457,6 +504,13 @@ export function PropertyPageRenderer({
                 }
               }
             }
+          }
+          // Enrich attractions with blur data for local images
+          if (localBlurMap) {
+            homepageAttractions = homepageAttractions.map((a: any) => ({
+              ...a,
+              blurDataURL: lookupBlur(localBlurMap, a.image),
+            }));
           }
           blockContent = {
             ...blockContent,

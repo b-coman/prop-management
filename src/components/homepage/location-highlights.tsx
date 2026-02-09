@@ -147,6 +147,7 @@ export function LocationHighlights({ content, language = 'en' }: LocationHighlig
                                         style={{objectFit: 'cover'}}
                                         className="rounded-lg"
                                         data-ai-hint={attraction['data-ai-hint'] || 'landmark nature attraction'}
+                                        {...((attraction as any).blurDataURL ? { placeholder: 'blur' as const, blurDataURL: (attraction as any).blurDataURL } : {})}
                                     />
                                 ) : (
                                      <div className="flex items-center justify-center h-full w-full">

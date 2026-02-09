@@ -27,12 +27,13 @@ export function AttractionsList({ content }: AttractionsListProps) {
           {attractions.map((attraction, index) => (
             <Card key={index} className="overflow-hidden h-full flex flex-col">
               <div className="relative h-48 w-full">
-                <Image 
-                  src={attraction.image} 
+                <Image
+                  src={attraction.image}
                   alt={typeof attraction.name === 'string' ? attraction.name : tc(attraction.name)}
                   fill
-                  className="object-cover" 
+                  className="object-cover"
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  {...((attraction as any).blurDataURL ? { placeholder: 'blur' as const, blurDataURL: (attraction as any).blurDataURL } : {})}
                 />
               </div>
               <CardContent className="p-6 flex-grow flex flex-col">

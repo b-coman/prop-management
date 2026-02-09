@@ -81,17 +81,18 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                   className="object-cover"
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   fallbackText="Property image not available"
+                  blurDataURL={(image as any).blurDataURL}
                 />
               </div>
             ))}
           </div>
         )}
-        
+
         {/* Masonry Layout */}
         {layout === 'masonry' && (
           <div className="columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
             {images.map((image, index) => (
-              <div 
+              <div
                 key={index}
                 className="relative cursor-pointer overflow-hidden rounded-lg break-inside-avoid"
                 onClick={() => openLightbox(index)}
@@ -103,6 +104,7 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                   height={600}
                   className="w-full h-auto object-cover hover:scale-[1.02] transition-transform"
                   fallbackText="Property image not available"
+                  blurDataURL={(image as any).blurDataURL}
                 />
               </div>
             ))}
@@ -146,13 +148,14 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                     fill
                     className="object-cover"
                     fallbackText="Property image not available"
+                    blurDataURL={(image as any).blurDataURL}
                   />
                 </div>
               ))}
             </div>
           </div>
         )}
-        
+
         {/* Lightbox Dialog */}
         <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
           <DialogContent className="max-w-7xl p-0 bg-transparent border-0">
@@ -190,6 +193,7 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                     fill
                     className="object-contain"
                     fallbackText="Property image not available"
+                    blurDataURL={(images[currentImageIndex] as any).blurDataURL}
                   />
                   <div className="absolute bottom-4 left-0 right-0 text-center text-white bg-black/50 py-2">
                     {tc(images[currentImageIndex].alt)}

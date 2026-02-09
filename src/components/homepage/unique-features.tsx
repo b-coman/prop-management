@@ -82,6 +82,7 @@ export function UniqueFeatures({ content, language = 'en' }: UniqueFeaturesProps
                          style={{objectFit: 'cover'}}
                          className="rounded-lg"
                          data-ai-hint={feature['data-ai-hint'] || 'feature detail amenity'}
+                         {...((feature as any).blurDataURL ? { placeholder: 'blur' as const, blurDataURL: (feature as any).blurDataURL } : {})}
                      />
                  ) : (
                       <div className="flex items-center justify-center h-full w-full">

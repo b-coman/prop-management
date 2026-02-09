@@ -25,6 +25,7 @@ export interface PropertyImage {
   thumbnailUrl?: string; // Resized thumbnail URL from Storage
   storagePath?: string; // Firebase Storage path for full image
   thumbnailStoragePath?: string; // Firebase Storage path for thumbnail
+  blurDataURL?: string; // Tiny base64 blur placeholder for loading UX
 }
 
 export interface Location {

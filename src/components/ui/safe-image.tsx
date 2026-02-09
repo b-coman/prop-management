@@ -6,23 +6,26 @@ import { ImageOff } from 'lucide-react';
 
 interface SafeImageProps extends Omit<ImageProps, 'onError' | 'onLoad'> {
   fallbackText?: string;
+  blurDataURL?: string;
 }
 
 /**
  * A wrapper around Next.js Image component that handles loading errors gracefully
- * and provides a fallback UI when images fail to load
+ * and provides a fallback UI when images fail to load.
+ * Supports blur placeholders when blurDataURL is provided.
  */
 export function SafeImage({
   alt,
   src,
   fallbackText,
+  blurDataURL,
   className,
   style,
   ...props
 }: SafeImageProps) {
   const [error, setError] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  
+
   // Calculate default dimensions based on props
   const defaultHeight = typeof props.height === 'number' ? props.height : 300;
   const defaultWidth = typeof props.width === 'number' ? props.width : 400;
@@ -30,7 +33,7 @@ export function SafeImage({
   // If there's an error or the src is invalid, show fallback
   if (error || !src) {
     return (
-      <div 
+      <div
         className={`flex items-center justify-center bg-muted ${className || ''}`}
         style={{
           ...style,
@@ -51,10 +54,13 @@ export function SafeImage({
     );
   }
 
+  const hasBlur = !!blurDataURL;
+
   return (
     <>
-      {!loaded && (
-        <div 
+      {/* Show pulse animation only when no blur placeholder is available */}
+      {!loaded && !hasBlur && (
+        <div
           className={`flex items-center justify-center bg-muted/50 ${className || ''}`}
           style={{
             ...style,
@@ -68,13 +74,14 @@ export function SafeImage({
       <Image
         src={src}
         alt={alt || ""}
-        className={`${className || ''} ${!loaded ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
+        className={`${className || ''} ${!loaded && !hasBlur ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
         style={{
           ...style,
           objectFit: style?.objectFit || 'cover',
         }}
         onError={() => setError(true)}
         onLoad={() => setLoaded(true)}
+        {...(hasBlur ? { placeholder: 'blur' as const, blurDataURL } : {})}
         {...props}
       />
     </>

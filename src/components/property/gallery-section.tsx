@@ -8,6 +8,7 @@ interface ImageType {
     url: string;
     alt: string | { [key: string]: string };
     'data-ai-hint'?: string;
+    blurDataURL?: string;
 }
 
 interface GalleryContent {
@@ -60,6 +61,7 @@ export function GallerySection({ content, language = 'en' }: GallerySectionProps
                 className="transition-transform duration-300 hover:scale-105"
                 data-ai-hint={image['data-ai-hint']}
                 fallbackText={`${t('gallery.imageUnavailable', 'Image unavailable')}`}
+                blurDataURL={image.blurDataURL}
               />
             </div>
           ))}

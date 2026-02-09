@@ -80,6 +80,7 @@ export function PhotoCategories({ content }: PhotoCategoriesProps) {
                         alt={tc(category.name)}
                         fill
                         className="object-cover"
+                        {...((category as any).thumbnailBlur ? { placeholder: 'blur' as const, blurDataURL: (category as any).thumbnailBlur } : {})}
                       />
                     </div>
                     <h3 className="text-xl font-semibold mb-2">{tc(category.name)}</h3>
@@ -97,6 +98,7 @@ export function PhotoCategories({ content }: PhotoCategoriesProps) {
                             alt={tc(image.alt) || ''}
                             fill
                             className="object-cover"
+                            {...((image as any).blurDataURL ? { placeholder: 'blur' as const, blurDataURL: (image as any).blurDataURL } : {})}
                           />
                         </div>
                       ))}
@@ -144,6 +146,7 @@ export function PhotoCategories({ content }: PhotoCategoriesProps) {
                     alt={tc(currentCategory.images[currentImageIndex].alt) || ''}
                     fill
                     className="object-contain"
+                    {...((currentCategory.images[currentImageIndex] as any).blurDataURL ? { placeholder: 'blur' as const, blurDataURL: (currentCategory.images[currentImageIndex] as any).blurDataURL } : {})}
                   />
                   <div className="absolute bottom-4 left-0 right-0 text-center text-white bg-black/50 py-2">
                     {tc(currentCategory.images[currentImageIndex].alt)}
