@@ -582,15 +582,17 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
             {/* Loading State - Show while checking pricing */}
             {isLoadingPricing && (
               <div className="text-center">
-                <PricingStatusDisplay 
-                  isLoadingPricing={isLoadingPricing} 
-                  pricingError={pricingError} 
+                <PricingStatusDisplay
+                  isLoadingPricing={isLoadingPricing}
+                  pricingError={pricingError}
                   fetchPricing={fetchPricing}
                   checkInDate={checkInDate}
                   checkOutDate={checkOutDate}
                   unavailableDates={unavailableDates}
                   property={property}
-                  t={t} 
+                  setCheckInDate={setCheckInDate}
+                  setCheckOutDate={setCheckOutDate}
+                  t={t}
                 />
               </div>
             )}
@@ -598,15 +600,17 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
             {/* Error State - Show pricing errors */}
             {!isLoadingPricing && pricingError && (
               <div className="text-center">
-                <PricingStatusDisplay 
-                  isLoadingPricing={isLoadingPricing} 
-                  pricingError={pricingError} 
+                <PricingStatusDisplay
+                  isLoadingPricing={isLoadingPricing}
+                  pricingError={pricingError}
                   fetchPricing={fetchPricing}
                   checkInDate={checkInDate}
                   checkOutDate={checkOutDate}
                   unavailableDates={unavailableDates}
                   property={property}
-                  t={t} 
+                  setCheckInDate={setCheckInDate}
+                  setCheckOutDate={setCheckOutDate}
+                  t={t}
                 />
               </div>
             )}
@@ -709,24 +713,28 @@ function findNextAvailablePeriod(
   return null;
 }
 
-const PricingStatusDisplay = memo(function PricingStatusDisplay({ 
-  isLoadingPricing, 
-  pricingError, 
+const PricingStatusDisplay = memo(function PricingStatusDisplay({
+  isLoadingPricing,
+  pricingError,
   fetchPricing,
   checkInDate,
   checkOutDate,
   unavailableDates,
   property,
-  t 
-}: { 
-  isLoadingPricing: boolean; 
-  pricingError: string | null; 
+  setCheckInDate,
+  setCheckOutDate,
+  t
+}: {
+  isLoadingPricing: boolean;
+  pricingError: string | null;
   fetchPricing: () => void;
   checkInDate: Date | null;
   checkOutDate: Date | null;
   unavailableDates: Date[];
   property: any;
-  t: (key: string, fallback: string, options?: any) => string; 
+  setCheckInDate: (date: Date | null) => void;
+  setCheckOutDate: (date: Date | null) => void;
+  t: (key: string, fallback: string, options?: any) => string;
 }) {
   if (isLoadingPricing) {
     return (
@@ -759,26 +767,33 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
       ? t(errorKey, pricingError, errorParams)
       : pricingError;
     
-    // Generate smart date suggestions
-    const suggestions: string[] = [];
-    const nights = checkInDate && checkOutDate ? 
+    // Generate smart date suggestions with clickable date objects
+    interface DateSuggestion {
+      label: string;
+      checkIn: Date;
+      checkOut: Date;
+    }
+    const suggestions: DateSuggestion[] = [];
+    const nights = checkInDate && checkOutDate ?
       Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
     const minimumStay = property?.defaultMinimumStay || 1;
-    
+
     if (checkInDate && checkOutDate) {
       // For minimum stay violations, suggest extending current dates
       if (errorKey === 'booking.minimumStayRequiredFromDate' || nights < minimumStay) {
         const extendedCheckout = addDays(checkInDate, minimumStay);
         if (isDateRangeAvailable(checkInDate, extendedCheckout, unavailableDates || [])) {
-          suggestions.push(
-            t('booking.extendStay', `Extend your stay to ${format(extendedCheckout, 'MMM d')} (${minimumStay} nights minimum)`, {
+          suggestions.push({
+            label: t('booking.extendStay', `Extend your stay to ${format(extendedCheckout, 'MMM d')} (${minimumStay} nights minimum)`, {
               date: format(extendedCheckout, 'MMM d'),
               nights: minimumStay
-            })
-          );
+            }),
+            checkIn: checkInDate,
+            checkOut: extendedCheckout,
+          });
         }
       }
-      
+
       // Find next available period
       const nextAvailable = findNextAvailablePeriod(
         addDays(checkInDate, 1),
@@ -786,16 +801,18 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
         unavailableDates || [],
         minimumStay
       );
-      
+
       if (nextAvailable) {
         const actualNights = Math.max(nights, minimumStay);
         const endDate = addDays(nextAvailable, actualNights);
-        suggestions.push(
-          t('booking.nextAvailable', `Next available: ${format(nextAvailable, 'MMM d')} - ${format(endDate, 'MMM d')}`, {
+        suggestions.push({
+          label: t('booking.nextAvailable', `Next available: ${format(nextAvailable, 'MMM d')} - ${format(endDate, 'MMM d')}`, {
             startDate: format(nextAvailable, 'MMM d'),
             endDate: format(endDate, 'MMM d')
-          })
-        );
+          }),
+          checkIn: nextAvailable,
+          checkOut: endDate,
+        });
       }
     }
 
@@ -811,9 +828,27 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
               </p>
               <div className="space-y-1">
                 {suggestions.map((suggestion, index) => (
-                  <p key={index} className="text-red-600 text-xs">
-                    • {suggestion}
-                  </p>
+                  <button
+                    key={index}
+                    onClick={() => {
+                      // Apply UTC noon normalization (same as handleCheckInChange/handleCheckOutChange)
+                      const ciYear = suggestion.checkIn.getFullYear();
+                      const ciMonth = suggestion.checkIn.getMonth();
+                      const ciDay = suggestion.checkIn.getDate();
+                      const normalizedCheckIn = new Date(Date.UTC(ciYear, ciMonth, ciDay, 12, 0, 0, 0));
+
+                      const coYear = suggestion.checkOut.getFullYear();
+                      const coMonth = suggestion.checkOut.getMonth();
+                      const coDay = suggestion.checkOut.getDate();
+                      const normalizedCheckOut = new Date(Date.UTC(coYear, coMonth, coDay, 12, 0, 0, 0));
+
+                      setCheckInDate(normalizedCheckIn);
+                      setCheckOutDate(normalizedCheckOut);
+                    }}
+                    className="text-red-700 text-xs underline hover:text-red-900 cursor-pointer text-left"
+                  >
+                    • {suggestion.label}
+                  </button>
                 ))}
               </div>
             </div>
