@@ -275,6 +275,11 @@ export async function saveNavigationData(
       quickLinks?: Array<{ label: string | Record<string, string>; url: string }>;
       socialLinks?: Array<{ platform: string; url: string }>;
     };
+    propertyMeta?: {
+      name?: string;
+      description?: string | Record<string, string>;
+      shortDescription?: string | Record<string, string>;
+    };
   }
 ): Promise<{ error?: string }> {
   try {
@@ -295,6 +300,9 @@ export async function saveNavigationData(
     }
     if (data.footer !== undefined) {
       updateData.footer = data.footer;
+    }
+    if (data.propertyMeta !== undefined) {
+      updateData.propertyMeta = data.propertyMeta;
     }
 
     await db.collection('propertyOverrides').doc(propertyId).set(updateData, { merge: true });

@@ -21,8 +21,8 @@ export default async function NavigationPage({
 
   return (
     <AdminPage
-      title="Navigation"
-      description="Manage header menu items, footer links, and social links"
+      title="Navigation & Info"
+      description="Manage property info, header menu items, footer links, and social links"
     >
       <PropertyUrlSync />
 

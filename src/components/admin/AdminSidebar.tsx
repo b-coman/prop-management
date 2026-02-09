@@ -63,7 +63,7 @@ const navigationGroups = [
     label: 'Website',
     items: [
       { title: 'Pages & Content', href: '/admin/website', icon: FileText },
-      { title: 'Navigation', href: '/admin/website/navigation', icon: PanelTop },
+      { title: 'Navigation & Info', href: '/admin/website/navigation', icon: PanelTop },
       { title: 'Settings', href: '/admin/website/settings', icon: Settings },
     ],
   },

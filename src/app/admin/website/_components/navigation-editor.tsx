@@ -23,6 +23,12 @@ type SocialLinkData = {
   url: string;
 };
 
+type PropertyMetaData = {
+  name?: string;
+  description?: string | Record<string, string>;
+  shortDescription?: string | Record<string, string>;
+};
+
 interface NavigationEditorProps {
   propertyId: string;
   initialOverrides: Record<string, unknown>;
@@ -48,10 +54,15 @@ export function NavigationEditor({ propertyId, initialOverrides }: NavigationEdi
     () => (initialFooter.socialLinks as SocialLinkData[]) || [],
     [initialFooter.socialLinks]
   );
+  const initialPropertyMeta = useMemo(
+    () => (initialOverrides.propertyMeta as PropertyMetaData) || {},
+    [initialOverrides.propertyMeta]
+  );
 
   const [menuItems, setMenuItems] = useState<MenuItemData[]>(initialMenuItems);
   const [quickLinks, setQuickLinks] = useState<MenuItemData[]>(initialQuickLinks);
   const [socialLinks, setSocialLinks] = useState<SocialLinkData[]>(initialSocialLinks);
+  const [propertyMeta, setPropertyMeta] = useState<PropertyMetaData>(initialPropertyMeta);
   const [isDirty, setIsDirty] = useState(false);
 
   const markDirty = useCallback(() => setIsDirty(true), []);
@@ -71,6 +82,11 @@ export function NavigationEditor({ propertyId, initialOverrides }: NavigationEdi
     markDirty();
   }, [markDirty]);
 
+  const updatePropertyMeta = useCallback((updates: Partial<PropertyMetaData>) => {
+    setPropertyMeta(prev => ({ ...prev, ...updates }));
+    markDirty();
+  }, [markDirty]);
+
   const handleSave = async () => {
     setIsSaving(true);
     const result = await saveNavigationData(propertyId, {
@@ -79,6 +95,7 @@ export function NavigationEditor({ propertyId, initialOverrides }: NavigationEdi
         quickLinks,
         socialLinks,
       },
+      propertyMeta,
     });
     if (result.error) {
       toast({ title: 'Error', description: result.error, variant: 'destructive' });
@@ -93,11 +110,47 @@ export function NavigationEditor({ propertyId, initialOverrides }: NavigationEdi
     setMenuItems(initialMenuItems);
     setQuickLinks(initialQuickLinks);
     setSocialLinks(initialSocialLinks);
+    setPropertyMeta(initialPropertyMeta);
     setIsDirty(false);
   };
 
   return (
     <div className="space-y-6">
+      {/* Property Info (SEO & Display) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Property Info</CardTitle>
+          <CardDescription>
+            Description and short description used for SEO metadata and page display.
+            The property name is a brand name and should not be translated.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Property Name</label>
+            <Input
+              value={propertyMeta.name || ''}
+              onChange={(e) => updatePropertyMeta({ name: e.target.value })}
+              placeholder="Property name (brand name, same in all languages)"
+            />
+          </div>
+          <MultilingualInput
+            label="Short Description"
+            value={propertyMeta.shortDescription}
+            onChange={(v) => updatePropertyMeta({ shortDescription: v })}
+            placeholder="Brief description for search results and social sharing"
+            multiline
+          />
+          <MultilingualInput
+            label="Full Description"
+            value={propertyMeta.description}
+            onChange={(v) => updatePropertyMeta({ description: v })}
+            placeholder="Detailed property description"
+            multiline
+          />
+        </CardContent>
+      </Card>
+
       {/* Header Menu Items */}
       <Card>
         <CardHeader>
