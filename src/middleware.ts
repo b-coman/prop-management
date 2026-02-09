@@ -15,8 +15,8 @@ const DOMAIN_TO_PROPERTY_MAP: Record<string, string> = {
 
 export const config = {
   matcher: [
-    // Match all paths except for API routes, static files, health checks, etc.
-    '/((?!api|_next/static|_next/image|favicon.ico|locales|health|readiness).*)',
+    // Match all paths except for API routes, static files, public assets, health checks, etc.
+    '/((?!api|_next/static|_next/image|images|favicon.ico|locales|health|readiness).*)',
   ],
 };
 
