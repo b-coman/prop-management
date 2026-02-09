@@ -23,12 +23,13 @@ export const config = {
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
   const pathname = url.pathname;
-  const hostname = request.headers.get('host') || '';
 
-  // Debug: log middleware invocation for /ro paths
-  if (pathname === '/ro' || pathname.startsWith('/ro/')) {
-    console.error(`[Middleware] Invoked for: hostname=${hostname}, pathname=${pathname}, fullUrl=${request.url}`);
-  }
+  // Use x-forwarded-host to get the original client-facing domain.
+  // Firebase App Hosting proxies through CDN, so 'host' header is the
+  // internal Cloud Run URL, while x-forwarded-host is the custom domain.
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  const hostHeader = request.headers.get('host') || '';
+  const hostname = forwardedHost || hostHeader;
 
   // Skip middleware for health check endpoints
   if (pathname === '/api/health' || pathname === '/api/readiness') {
@@ -120,11 +121,6 @@ export async function middleware(request: NextRequest) {
     rewritePath = `/properties/${propertySlug}${language !== DEFAULT_LANGUAGE ? `/${language}` : ''}/${pageType}`;
   } else {
     rewritePath = `/properties/${propertySlug}${language !== DEFAULT_LANGUAGE ? `/${language}` : ''}${pathWithoutLang}`;
-  }
-
-  // Debug: log rewrite for non-root paths to diagnose /ro 404
-  if (pathname !== '/') {
-    console.error(`[Middleware] Rewriting: ${hostname}${pathname} → ${rewritePath} (lang=${language}, pathWithoutLang=${pathWithoutLang})`);
   }
 
   // Rewrite using explicit URL construction
