@@ -24,7 +24,7 @@ import { DateAndGuestSelector, PricingSummary, MobilePriceDrawer, MobileDateSele
 import { ContactFormV2, HoldFormV2, BookingFormV2 } from '../forms';
 import type { Property, CurrencyCode } from '@/types';
 import { loggers } from '@/lib/logger';
-import { ArrowLeft, Calendar, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Calendar, CalendarX2, ChevronDown, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { CurrencySwitcherSimple } from '@/components/currency-switcher-simple';
 import { LanguageSelector } from '@/components/language-selector';
@@ -103,6 +103,8 @@ function BookingPageContent({ className }: { className?: string }) {
     checkOutDate,
     guestCount,
     pricing,
+    isLoadingPricing,
+    pricingError,
     selectedAction,
     setSelectedAction
   } = useBooking();
@@ -298,6 +300,15 @@ function BookingPageContent({ className }: { className?: string }) {
                       </div>
                     </div>
                   </details>
+                </CardContent>
+              </Card>
+            ) : hasValidDates && pricingError ? (
+              <Card className="border-red-200 bg-red-50">
+                <CardContent className="py-8 text-center">
+                  <CalendarX2 className="h-12 w-12 mx-auto text-red-400 mb-4" />
+                  <p className="text-sm text-red-700 font-medium">
+                    {t('booking.datesNotAvailable', "These dates aren't available")}
+                  </p>
                 </CardContent>
               </Card>
             ) : (
@@ -640,8 +651,43 @@ function BookingPageContent({ className }: { className?: string }) {
             </div>
           )}
 
-          {/* No pricing available state */}
-          {!canShowBookingOptions && (
+          {/* Loading state - dates selected, checking pricing */}
+          {!canShowBookingOptions && hasValidDates && isLoadingPricing && (
+            <div className="flex items-center justify-center min-h-96">
+              <Card className="w-full max-w-md">
+                <CardContent className="py-12 text-center">
+                  <div className="mb-4">
+                    <Loader2 className="h-16 w-16 mx-auto text-muted-foreground/30 animate-spin" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">
+                    {t('booking.checkingAvailability', 'Checking Availability...')}
+                  </h3>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Unavailable state - dates selected but not available */}
+          {!canShowBookingOptions && hasValidDates && !isLoadingPricing && (
+            <div className="flex items-center justify-center min-h-96">
+              <Card className="w-full max-w-md border-red-200">
+                <CardContent className="py-12 text-center">
+                  <div className="mb-4">
+                    <CalendarX2 className="h-16 w-16 mx-auto text-red-300" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2 text-red-800">
+                    {t('booking.datesUnavailableTitle', 'These Dates Are Unavailable')}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {t('booking.datesUnavailableHint', "The dates you selected aren't available. Check the suggestions on the left, or try different dates.")}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* No dates selected state */}
+          {!canShowBookingOptions && !hasValidDates && (
             <div className="flex items-center justify-center min-h-96">
               <Card className="w-full max-w-md">
                 <CardContent className="py-12 text-center">
