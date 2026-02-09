@@ -35,6 +35,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Skip if path already targets the internal property route (prevents double-rewrite)
+  if (pathname.startsWith('/properties/')) {
+    return NextResponse.next();
+  }
+
   // Language detection for guest-facing pages
   const preferredLang = detectPreferredLanguage(request);
 
