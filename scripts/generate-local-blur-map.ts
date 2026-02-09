@@ -8,7 +8,7 @@ import * as path from 'path';
 import sharp from 'sharp';
 
 const PUBLIC_DIR = path.resolve(process.cwd(), 'public');
-const OUTPUT_FILE = path.resolve(PUBLIC_DIR, 'images', 'blur-map.json');
+const OUTPUT_FILE = path.resolve(process.cwd(), 'src', 'data', 'blur-map.json');
 
 // Recursively find all image files
 function findImages(dir: string): string[] {

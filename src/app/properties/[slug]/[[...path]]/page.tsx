@@ -12,8 +12,7 @@ import { serverTranslateContent } from '@/lib/server-language-utils';
 import { buildVacationRentalJsonLd, buildBreadcrumbJsonLd, getCanonicalUrl, getBaseUrl } from '@/lib/structured-data';
 import { getAmenitiesByRefs } from '@/lib/amenity-utils';
 import { TrackViewItem } from '@/components/tracking/track-page-view';
-import * as fs from 'fs';
-import * as nodePath from 'path';
+import blurMapData from '@/data/blur-map.json';
 
 export const dynamic = 'force-dynamic'; // Ensures the page is always dynamically rendered
 
@@ -25,18 +24,6 @@ import { getPublishedReviewsForProperty } from '@/services/reviewService';
 // Alias for backward compatibility
 const getProperty = getPropertyBySlug;
 
-// Load blur placeholder map for local images (public/images/blur-map.json)
-let _cachedBlurMap: Record<string, string> | null = null;
-function loadLocalBlurMap(): Record<string, string> {
-  if (_cachedBlurMap) return _cachedBlurMap;
-  try {
-    const blurMapPath = nodePath.join(process.cwd(), 'public/images/blur-map.json');
-    _cachedBlurMap = JSON.parse(fs.readFileSync(blurMapPath, 'utf-8'));
-    return _cachedBlurMap!;
-  } catch {
-    return {};
-  }
-}
 
 // Helper function to serialize timestamps in any object (from [slug]/page.tsx - more robust version)
 const serializeTimestamps = (obj: any): any => {
@@ -465,8 +452,8 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
 
   const breadcrumbJsonLd = buildBreadcrumbJsonLd(propertyNameStr, slug, baseUrl);
 
-  // Load local image blur map for blur placeholders
-  const localBlurMap = loadLocalBlurMap();
+  // Local image blur map for blur placeholders (imported as JSON module)
+  const localBlurMap = blurMapData as Record<string, string>;
 
   // For homepage with default language, use the exact pattern from [slug]/page.tsx
   if (pageName === 'homepage' && language === DEFAULT_LANGUAGE) {
