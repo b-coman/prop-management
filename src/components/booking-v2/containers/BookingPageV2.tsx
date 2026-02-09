@@ -37,7 +37,7 @@ import { Button } from '@/components/ui/button';
 
 import { useBooking } from '../contexts';
 import { useCurrency } from '@/contexts/CurrencyContext';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { RenderTracker } from '@/components/debug/RenderTracker';
 
@@ -226,54 +226,31 @@ function BookingPageContent({ className }: { className?: string }) {
                     </p>
                   </div>
 
-                  {/* Action Buttons - Control Panel */}
-                  <div className="pt-3 border-t space-y-3">
-                    <button
-                      type="button"
-                      onClick={() => handleTabClick('book')}
-                      className={`w-full px-4 py-3 rounded-md font-medium text-sm transition-all duration-200 ${
-                        (selectedAction === 'book' || (!selectedAction && activeTab === 'book'))
-                          ? 'bg-primary text-primary-foreground shadow-sm' 
-                          : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
-                      }`}
-                    >
-                      {t('booking.bookNow', 'Book Now')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleTabClick('hold')}
-                      className={`w-full px-4 py-3 rounded-md font-medium text-sm transition-all duration-200 ${
-                        selectedAction === 'hold'
-                          ? 'bg-primary text-primary-foreground shadow-sm' 
-                          : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
-                      }`}
-                    >
-                      {t('booking.holdDates', 'Hold Dates')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleTabClick('contact')}
-                      className={`w-full px-4 py-3 rounded-md font-medium text-sm transition-all duration-200 ${
-                        selectedAction === 'contact'
-                          ? 'bg-primary text-primary-foreground shadow-sm' 
-                          : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
-                      }`}
-                    >
-                      {t('booking.contactHost', 'Contact Host')}
-                    </button>
-                  </div>
-
-                  {/* Price Breakdown - Moved to bottom */}
-                  <details className="group mt-6">
+                  {/* Price Breakdown - Per-night detail */}
+                  <details open className="group">
                     <summary className="flex items-center justify-between cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors p-2 rounded-md hover:bg-muted/50">
                       <span>{t('booking.viewPriceBreakdown', 'View price breakdown')}</span>
                       <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
                     </summary>
-                    <div className="mt-3 space-y-3 px-2">
-                      <div className="flex justify-between text-sm">
-                        <span>{t('booking.basePrice', `Base price (${numberOfNights} ${numberOfNights === 1 ? 'night' : 'nights'})`)}</span>
-                        <span>{formatPrice(convertToSelectedCurrency(pricing.accommodationTotal || pricing.basePrice || pricing.baseRate || 0, pricing.currency))}</span>
-                      </div>
+                    <div className="mt-3 space-y-2 px-2">
+                      {/* Per-night rates */}
+                      {pricing.dailyRates && Object.keys(pricing.dailyRates).length > 0 ? (
+                        Object.entries(pricing.dailyRates)
+                          .sort(([a], [b]) => a.localeCompare(b))
+                          .map(([dateStr, rate]) => (
+                            <div key={dateStr} className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">
+                                {format(parseISO(dateStr), 'EEE, MMM d', { locale: currentLang === 'ro' ? ro : undefined })}
+                              </span>
+                              <span>{formatPrice(convertToSelectedCurrency(rate, pricing.currency))}</span>
+                            </div>
+                          ))
+                      ) : (
+                        <div className="flex justify-between text-sm">
+                          <span>{t('booking.basePrice', `Base price (${numberOfNights} ${numberOfNights === 1 ? 'night' : 'nights'})`)}</span>
+                          <span>{formatPrice(convertToSelectedCurrency(pricing.accommodationTotal || pricing.basePrice || pricing.baseRate || 0, pricing.currency))}</span>
+                        </div>
+                      )}
                       {pricing.cleaningFee > 0 && (
                         <div className="flex justify-between text-sm">
                           <span>{t('booking.cleaningFee', 'Cleaning fee')}</span>
@@ -300,6 +277,43 @@ function BookingPageContent({ className }: { className?: string }) {
                       </div>
                     </div>
                   </details>
+
+                  {/* Action Buttons - Control Panel */}
+                  <div className="pt-3 border-t space-y-3">
+                    <button
+                      type="button"
+                      onClick={() => handleTabClick('book')}
+                      className={`w-full px-4 py-3 rounded-md font-medium text-sm transition-all duration-200 ${
+                        (selectedAction === 'book' || (!selectedAction && activeTab === 'book'))
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                      }`}
+                    >
+                      {t('booking.bookNow', 'Book Now')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleTabClick('hold')}
+                      className={`w-full px-4 py-3 rounded-md font-medium text-sm transition-all duration-200 ${
+                        selectedAction === 'hold'
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                      }`}
+                    >
+                      {t('booking.holdDates', 'Hold Dates')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleTabClick('contact')}
+                      className={`w-full px-4 py-3 rounded-md font-medium text-sm transition-all duration-200 ${
+                        selectedAction === 'contact'
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                      }`}
+                    >
+                      {t('booking.contactHost', 'Contact Host')}
+                    </button>
+                  </div>
                 </CardContent>
               </Card>
             ) : hasValidDates && pricingError ? (
