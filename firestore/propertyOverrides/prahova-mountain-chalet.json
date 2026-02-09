@@ -695,6 +695,20 @@
       ]
     }
   },
+  "propertyMeta": {
+    "name": {
+      "en": "Prahova Mountain Chalet",
+      "ro": "Cabana de Munte Prahova"
+    },
+    "description": {
+      "en": "Escape to our charming mountain retreat in the heart of the Prahova Valley. A cozy chalet with stunning views, perfect for families and groups looking for an authentic Romanian mountain experience.",
+      "ro": "Evadează la cabana noastră de munte din inima Văii Prahovei. O cabană primitoare cu priveliști superbe, perfectă pentru familii și grupuri care caută o experiență autentică de munte."
+    },
+    "shortDescription": {
+      "en": "Charming mountain chalet in Bușteni with stunning Carpathian views, fireplace, and outdoor spaces for families and groups.",
+      "ro": "Cabană de munte în Bușteni cu priveliști spectaculoase spre Carpați, șemineu și spații în aer liber pentru familii și grupuri."
+    }
+  },
   "footer": {
     "contactInfo": {
       "email": "coman2904@gmail.com",

@@ -562,7 +562,7 @@ export function PropertyPageRenderer({
               ? { phone: property.contactPhone, email: property.contactEmail }
               : undefined)
           }
-          socialLinks={overrides.footer?.socialLinks || template.footer?.socialLinks}
+          socialLinks={overrides.footer?.socialLinks}
           propertyName={propertyName}
           propertySlug={propertySlug}
         />

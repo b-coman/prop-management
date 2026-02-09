@@ -26,7 +26,10 @@
     "viewLess": "View Less",
     "seeAll": "See All",
     "readMore": "Read More",
-    "learnMore": "Learn More"
+    "learnMore": "Learn More",
+    "welcome": "Welcome",
+    "contact": "Contact",
+    "heroBackgroundImage": "Property hero image"
   },
   "booking": {
     "checkAvailability": "Check Availability",
@@ -227,6 +230,16 @@
     "sendMessageToHost": "Send a message to the host",
     "holdYourStay": "Hold your stay",
     "selectDatesForPricing": "Select dates to see pricing and booking options",
+    "basePrice": "Base price",
+    "bookNow": "Book Now",
+    "contactHost": "Contact Host",
+    "extraGuestFee": "Extra guest fee",
+    "selectDatesToSeePricing": "Select your dates to see pricing",
+    "selectActionInControlPanel": "Select an action from the control panel to continue",
+    "errors": {
+      "invalidDates": "Invalid Dates",
+      "invalidDatesDescription": "Please select valid check-in and check-out dates."
+    },
 
     "successPage": {
       "bookingConfirmedTitle": "Booking Confirmed!",

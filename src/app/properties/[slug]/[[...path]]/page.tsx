@@ -137,13 +137,21 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
     language = path[0];
   }
 
-  const property = await getProperty(slug);
+  const [property, overrides] = await Promise.all([
+    getProperty(slug),
+    getPropertyOverrides(slug),
+  ]);
   if (!property) {
     return { title: 'Property Not Found' };
   }
 
-  const propertyName = serverTranslateContent(property.name, language);
+  // Prefer bilingual overrides for name/description, fall back to property fields
+  const propertyName = serverTranslateContent(
+    overrides?.propertyMeta?.name || property.name,
+    language,
+  );
   const description = serverTranslateContent(
+    overrides?.propertyMeta?.shortDescription || overrides?.propertyMeta?.description ||
     property.shortDescription || property.description,
     language,
   ) || `Book ${propertyName} - vacation rental`;
@@ -351,9 +359,11 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   const customDomain = property.useCustomDomain ? property.customDomain : null;
   const canonicalUrl = getCanonicalUrl(slug, customDomain);
   const baseUrl = getBaseUrl(customDomain);
-  const propertyNameStr = typeof property.name === 'string'
-    ? property.name
-    : (property.name.en || property.name.ro || 'Property');
+
+  // Resolve property name: prefer bilingual overrides, fall back to property field
+  const propertyNameSource = overrides.propertyMeta?.name || property.name;
+  const propertyNameStr = serverTranslateContent(propertyNameSource, language);
+  const propertyNameForLang = serverTranslateContent(propertyNameSource, language);
 
   // Build VacationRental JSON-LD only on homepage
   let vacationRentalJsonLd: Record<string, unknown> | null = null;
@@ -421,7 +431,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
           <PropertyPageRenderer
             template={template}
             overrides={overrides}
-            propertyName={typeof property.name === 'string' ? property.name : (property.name[language] || property.name.en || property.name.ro || 'Property')}
+            propertyName={propertyNameForLang}
             propertySlug={slug}
             pageName={pageName}
             themeId={property.themeId}

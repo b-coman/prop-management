@@ -10,6 +10,7 @@ import { LanguageProvider } from '@/lib/language-system'; // Import unified lang
 import { GoogleTagManager, GoogleTagManagerNoscript } from '@/components/tracking/gtm';
 import { CookieConsent } from '@/components/cookie-consent';
 import { UTMCapture } from '@/components/tracking/utm-capture';
+import { LanguageHtmlUpdater } from '@/components/language-html-updater';
 
 // Instantiate the Inter font
 const inter = Inter({
@@ -43,6 +44,7 @@ export default function RootLayout({
                   enablePerformanceTracking={true}
                   enableDebugMode={process.env.NODE_ENV === 'development'}
                 >
+                  <LanguageHtmlUpdater />
                   {children}
                   <Toaster />
                   <CookieConsent />

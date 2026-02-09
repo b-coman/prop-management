@@ -26,7 +26,10 @@
     "viewLess": "Vezi Mai Puțin",
     "seeAll": "Vezi Toate",
     "readMore": "Citește Mai Mult",
-    "learnMore": "Află Mai Multe"
+    "learnMore": "Află Mai Multe",
+    "welcome": "Bun venit",
+    "contact": "Contact",
+    "heroBackgroundImage": "Imagine principală proprietate"
   },
   "booking": {
     "checkAvailability": "Verifică Disponibilitatea",
@@ -275,7 +278,17 @@
     "holdYourStay": "Blochează sejurul",
     "completeYourBooking": "Finalizează rezervarea",
     "selectDatesForPricing": "Selectează datele pentru a vedea prețurile și opțiunile de rezervare",
-    "pleaseSelectCheckoutDate": "Te rugăm să selectezi data de check-out (minim {{nights}} nopți necesare)"
+    "pleaseSelectCheckoutDate": "Te rugăm să selectezi data de check-out (minim {{nights}} nopți necesare)",
+    "basePrice": "Preț de bază",
+    "bookNow": "Rezervă acum",
+    "contactHost": "Contactează gazda",
+    "extraGuestFee": "Taxă oaspete suplimentar",
+    "selectDatesToSeePricing": "Selectează datele pentru a vedea prețul",
+    "selectActionInControlPanel": "Selectează o acțiune din panoul de control pentru a continua",
+    "errors": {
+      "invalidDates": "Date invalide",
+      "invalidDatesDescription": "Te rugăm să selectezi date valide de check-in și check-out."
+    }
   },
   "property": {
     "amenities": "Facilități",

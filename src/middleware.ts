@@ -6,9 +6,11 @@ import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants'
 // This is a simplified version that uses a map instead of Firestore
 // In production, you would use a KV store or similar Edge-compatible storage
 const DOMAIN_TO_PROPERTY_MAP: Record<string, string> = {
-  // Example mappings - update with real domains
-  'mountain-chalet.example.com': 'prahova-mountain-chalet',
-  'apartment-bucharest.example.com': 'coltei-apartment-bucharest'
+  // Production custom domains
+  'prahova-chalet.ro': 'prahova-mountain-chalet',
+  'www.prahova-chalet.ro': 'prahova-mountain-chalet',
+  // Add more property domains here as needed:
+  // 'coltei-apartment.ro': 'coltei-apartment-bucharest',
 };
 
 export const config = {
