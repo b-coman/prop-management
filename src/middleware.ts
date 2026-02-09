@@ -25,6 +25,11 @@ export async function middleware(request: NextRequest) {
   const pathname = url.pathname;
   const hostname = request.headers.get('host') || '';
 
+  // Debug: log middleware invocation for /ro paths
+  if (pathname === '/ro' || pathname.startsWith('/ro/')) {
+    console.error(`[Middleware] Invoked for: hostname=${hostname}, pathname=${pathname}, fullUrl=${request.url}`);
+  }
+
   // Skip middleware for health check endpoints
   if (pathname === '/api/health' || pathname === '/api/readiness') {
     return NextResponse.next();
@@ -91,7 +96,7 @@ export async function middleware(request: NextRequest) {
   // Extract language from path if present
   let language = DEFAULT_LANGUAGE;
   let pathWithoutLang = pathname;
-  
+
   // Check if path starts with a supported language
   for (const lang of SUPPORTED_LANGUAGES) {
     if (pathname.startsWith(`/${lang}/`) || pathname === `/${lang}`) {
@@ -101,27 +106,30 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Rewrite the URL to the correct property page
-  // Handle different path patterns for multi-page structure
+  // Build the rewrite target path
+  let rewritePath: string;
   if (pathWithoutLang === '/' || pathWithoutLang === '') {
-    // Rewrite to the property homepage
-    url.pathname = `/properties/${propertySlug}${language !== DEFAULT_LANGUAGE ? `/${language}` : ''}`;
+    rewritePath = `/properties/${propertySlug}${language !== DEFAULT_LANGUAGE ? `/${language}` : ''}`;
   } else if (
     pathWithoutLang.startsWith('/details') ||
     pathWithoutLang.startsWith('/location') ||
     pathWithoutLang.startsWith('/gallery') ||
     pathWithoutLang.startsWith('/booking')
   ) {
-    // Handle known page types
     const pageType = pathWithoutLang.split('/')[1];
-    url.pathname = `/properties/${propertySlug}${language !== DEFAULT_LANGUAGE ? `/${language}` : ''}/${pageType}`;
+    rewritePath = `/properties/${propertySlug}${language !== DEFAULT_LANGUAGE ? `/${language}` : ''}/${pageType}`;
   } else {
-    // For any other path, maintain it but within the property context
-    url.pathname = `/properties/${propertySlug}${language !== DEFAULT_LANGUAGE ? `/${language}` : ''}${pathWithoutLang}`;
+    rewritePath = `/properties/${propertySlug}${language !== DEFAULT_LANGUAGE ? `/${language}` : ''}${pathWithoutLang}`;
   }
 
-  // Set language cookie if different from current
-  const response = NextResponse.rewrite(url);
+  // Debug: log rewrite for non-root paths to diagnose /ro 404
+  if (pathname !== '/') {
+    console.error(`[Middleware] Rewriting: ${hostname}${pathname} → ${rewritePath} (lang=${language}, pathWithoutLang=${pathWithoutLang})`);
+  }
+
+  // Rewrite using explicit URL construction
+  const rewriteUrl = new URL(rewritePath, request.url);
+  const response = NextResponse.rewrite(rewriteUrl);
   response.cookies.set('preferredLanguage', language, {
     httpOnly: true,
     sameSite: 'lax',
