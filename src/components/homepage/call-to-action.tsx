@@ -34,7 +34,7 @@ export function CallToActionSection({ content }: CallToActionSectionProps) {
   // Style based on backgroundImage if provided
   const sectionStyle = content.backgroundImage
     ? {
-        backgroundImage: `linear-gradient(to right, rgba(var(--primary-rgb), 0.9), rgba(var(--primary-rgb), 0.75)), url('${content.backgroundImage}')`,
+        backgroundImage: `linear-gradient(to right, hsl(var(--primary) / 0.9), hsl(var(--primary) / 0.75)), url('${content.backgroundImage}')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }
