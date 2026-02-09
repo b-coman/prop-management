@@ -143,6 +143,7 @@ interface PropertyPageRendererProps {
   property?: Property; // Full property object for homepage rendering
   publishedReviews?: Review[]; // Real reviews from Firestore
   localBlurMap?: Record<string, string>; // Blur placeholders for local images
+  isCustomDomain?: boolean; // Whether the request came through a custom domain
 }
 
 // Look up blur data URL for a local image path
@@ -162,6 +163,7 @@ export function PropertyPageRenderer({
   property, // Homepage-specific property data
   publishedReviews, // Real reviews from Firestore
   localBlurMap,
+  isCustomDomain = false,
 }: PropertyPageRendererProps) {
   const { tc } = useLanguage();
   const { setDefaultCurrency } = useCurrency();
@@ -429,10 +431,15 @@ export function PropertyPageRenderer({
           };
         }
       } else if (type === 'cta') {
-        // For CTA buttons
+        // For CTA buttons — process buttonUrl for proper routing
+        const rawUrl = blockContent?.buttonUrl || '/booking';
+        const processedUrl = (!rawUrl.startsWith('http') && !isCustomDomain)
+          ? `/properties/${propertySlug}${rawUrl}`
+          : rawUrl;
         blockContent = {
           ...blockContent,
           propertySlug: propertySlug,
+          buttonUrl: processedUrl,
         };
       }
 
@@ -518,7 +525,9 @@ export function PropertyPageRenderer({
             propertyLocation: property.location,
             attractions: homepageAttractions,
             compactPreview: isCompactPreview,
-            locationPageUrl: isCompactPreview ? '/location' : undefined,
+            locationPageUrl: isCompactPreview
+              ? (isCustomDomain ? '/location' : `/properties/${propertySlug}/location`)
+              : undefined,
           };
         } else if (type === 'testimonials') {
           // Convert date from various Firestore formats (string, Timestamp, Date)
@@ -601,12 +610,13 @@ export function PropertyPageRenderer({
     <ThemeProvider initialThemeId={effectiveThemeId}>
       <div className="flex min-h-screen flex-col">
         {/* Header with transparent overlay effect */}
-        <Header 
-          propertyName={propertyName} 
-          propertySlug={propertySlug} 
+        <Header
+          propertyName={propertyName}
+          propertySlug={propertySlug}
           menuItems={menuItems}
           logoSrc={logoSrc}
           logoAlt={logoAlt}
+          isCustomDomain={isCustomDomain}
         />
         
         {isPreviewMode && (
@@ -655,6 +665,7 @@ export function PropertyPageRenderer({
           socialLinks={overrides.footer?.socialLinks}
           propertyName={propertyName}
           propertySlug={propertySlug}
+          isCustomDomain={isCustomDomain}
         />
       </div>
     </ThemeProvider>

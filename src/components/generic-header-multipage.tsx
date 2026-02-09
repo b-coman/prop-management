@@ -13,6 +13,7 @@ import type { MenuItem } from '@/lib/overridesSchemas-multipage';
 import { applyThemeToHeader } from '@/lib/themes/theme-utils';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/hooks/useLanguage';
+import { DEFAULT_LANGUAGE } from '@/lib/language-constants';
 
 interface HeaderProps {
   propertyName: string;
@@ -21,16 +22,18 @@ interface HeaderProps {
   menuItems: MenuItem[];
   logoSrc?: string;
   logoAlt?: string;
+  isCustomDomain?: boolean;
 }
 
-export function Header({ 
-  propertyName, 
+export function Header({
+  propertyName,
   propertySlug,
   menuItems,
   logoSrc = '', // Default empty for fallback SVG
-  logoAlt = 'Property Logo'
+  logoAlt = 'Property Logo',
+  isCustomDomain = false,
 }: HeaderProps) {
-  const basePath = `/properties/${propertySlug}`;
+  const basePath = isCustomDomain ? '' : `/properties/${propertySlug}`;
   const [isScrolled, setIsScrolled] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
   
@@ -40,12 +43,16 @@ export function Header({
   // Get language utilities
   const { currentLang, getLocalizedPath, tc } = useLanguage();
 
-  // Add propertySlug to URLs that don't start with http:// or https://
+  // Build internal URL — short paths on custom domains, full paths on main app
   const processMenuUrl = (url: string) => {
     if (url.startsWith('http://') || url.startsWith('https://')) {
       return url;
     }
-    // If it's just a path like "/details", prepend the property path and localize
+    if (isCustomDomain) {
+      // Short URL: /{lang?}/{page}
+      return currentLang !== DEFAULT_LANGUAGE ? `/${currentLang}${url}` : url;
+    }
+    // Full URL: /properties/{slug}/{lang?}/{page}
     const fullPath = `${basePath}${url}`;
     return getLocalizedPath(fullPath);
   };
@@ -155,7 +162,7 @@ export function Header({
         {/* Use container class for max-width and centering, and add padding */}
         <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
         {/* Link back to the specific property page */}
-        <Link href={getLocalizedPath(basePath)} className="flex items-center gap-2">
+        <Link href={isCustomDomain ? (currentLang !== DEFAULT_LANGUAGE ? `/${currentLang}` : '/') : getLocalizedPath(basePath)} className="flex items-center gap-2">
           {/* Use custom logo if provided, otherwise fallback to SVG */}
           {logoSrc ? (
             logoSrc.endsWith('logo-dynamic.svg') ? (
@@ -281,7 +288,7 @@ export function Header({
           </SheetTrigger>
           <SheetContent side="right" className="bg-background text-foreground">
             <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-            <Link href={getLocalizedPath(basePath)} className="flex items-center gap-2 mb-8">
+            <Link href={isCustomDomain ? (currentLang !== DEFAULT_LANGUAGE ? `/${currentLang}` : '/') : getLocalizedPath(basePath)} className="flex items-center gap-2 mb-8">
               {logoSrc ? (
                 <div className="h-8 w-auto relative">
                   <img

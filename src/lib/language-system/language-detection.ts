@@ -501,14 +501,24 @@ export function createLocalizedPath(
         if (segments[propertyIndex + 2] && isSupportedLanguage(segments[propertyIndex + 2])) {
           segments.splice(propertyIndex + 2, 1);
         }
-        
+
         // Add new language if not default
         if (language !== DEFAULT_LANGUAGE) {
           segments.splice(propertyIndex + 2, 0, language);
         }
-        
+
         return '/' + segments.join('/');
       }
+
+      // Custom domain: property page type but path doesn't include /properties/
+      // Treat like general page for localization (add /{lang} prefix)
+      if (segments.length > 0 && isSupportedLanguage(segments[0])) {
+        segments.shift();
+      }
+      if (language !== DEFAULT_LANGUAGE) {
+        segments.unshift(language);
+      }
+      return segments.length > 0 ? '/' + segments.join('/') : '/';
     }
 
     // General pages: /[lang]/path

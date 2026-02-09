@@ -13,6 +13,7 @@ import { buildVacationRentalJsonLd, buildBreadcrumbJsonLd, getCanonicalUrl, getB
 import { getAmenitiesByRefs } from '@/lib/amenity-utils';
 import { TrackViewItem } from '@/components/tracking/track-page-view';
 import blurMapData from '@/data/blur-map.json';
+import { headers } from 'next/headers';
 
 export const dynamic = 'force-dynamic'; // Ensures the page is always dynamically rendered
 
@@ -455,6 +456,12 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   // Local image blur map for blur placeholders (imported as JSON module)
   const localBlurMap = blurMapData as Record<string, string>;
 
+  // Detect if request came through a custom domain
+  const headersList = await headers();
+  const host = headersList.get('x-forwarded-host') || headersList.get('host') || '';
+  const isCustomDomain = !!(property.useCustomDomain && property.customDomain &&
+    (host === property.customDomain || host === `www.${property.customDomain}`));
+
   // For homepage with default language, use the exact pattern from [slug]/page.tsx
   if (pageName === 'homepage' && language === DEFAULT_LANGUAGE) {
     return (
@@ -481,6 +488,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
             property={property}
             publishedReviews={publishedReviews}
             localBlurMap={localBlurMap}
+            isCustomDomain={isCustomDomain}
           />
         </Suspense>
       </>
@@ -514,6 +522,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
             property={property}
             publishedReviews={publishedReviews}
             localBlurMap={localBlurMap}
+            isCustomDomain={isCustomDomain}
           />
         </Suspense>
       </LanguageProvider>

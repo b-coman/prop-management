@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Facebook, Instagram, Twitter } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
+import { DEFAULT_LANGUAGE } from '@/lib/language-constants';
 
 const socialIcons: Record<string, React.FC<{ size?: string | number }>> = {
   facebook: Facebook,
@@ -16,6 +17,7 @@ interface FooterProps {
   socialLinks?: Array<{ platform: string; url: string }>;
   propertyName?: string;
   propertySlug?: string;
+  isCustomDomain?: boolean;
 }
 
 export function Footer({
@@ -24,13 +26,17 @@ export function Footer({
   socialLinks,
   propertyName,
   propertySlug,
+  isCustomDomain = false,
 }: FooterProps) {
-  const { t, tc, getLocalizedPath } = useLanguage();
+  const { t, tc, currentLang, getLocalizedPath } = useLanguage();
 
-  const basePath = propertySlug ? `/properties/${propertySlug}` : '';
+  const basePath = isCustomDomain ? '' : (propertySlug ? `/properties/${propertySlug}` : '');
 
   const resolveUrl = (url: string) => {
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    if (isCustomDomain) {
+      return currentLang !== DEFAULT_LANGUAGE ? `/${currentLang}${url}` : url;
+    }
     return getLocalizedPath(`${basePath}${url}`);
   };
 
