@@ -332,11 +332,14 @@ export interface AmenityItem {
 export async function fetchAllAmenities(): Promise<AmenityItem[]> {
   try {
     const db = await getAdminDb();
-    const snapshot = await db.collection('amenities').orderBy('order', 'asc').get();
-    return snapshot.docs.map(doc => ({
+    // Don't use orderBy('order') — docs without 'order' field would be excluded
+    const snapshot = await db.collection('amenities').get();
+    const amenities = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
     })) as AmenityItem[];
+    // Sort client-side so docs without 'order' appear last
+    return amenities.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
   } catch (error) {
     logger.error('Error fetching amenities', error as Error);
     return [];

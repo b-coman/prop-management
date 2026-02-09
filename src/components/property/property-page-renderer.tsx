@@ -459,14 +459,12 @@ export function PropertyPageRenderer({
             }
           }
           blockContent = {
+            ...blockContent,
             title: blockContent?.title || { en: "Explore the Surroundings", ro: "Explorează împrejurimile" },
             propertyLocation: property.location,
             attractions: homepageAttractions,
             compactPreview: isCompactPreview,
-            locationPageUrl: isCompactPreview ? `/${propertySlug}/location` : undefined,
-            ...blockContent,
-            // Override attractions after spread to ensure our resolved value wins
-            ...(homepageAttractions.length > 0 ? { attractions: homepageAttractions, compactPreview: isCompactPreview, locationPageUrl: isCompactPreview ? '/location' : undefined } : {}),
+            locationPageUrl: isCompactPreview ? '/location' : undefined,
           };
         } else if (type === 'testimonials') {
           // Convert date from various Firestore formats (string, Timestamp, Date)
