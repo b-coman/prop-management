@@ -1,172 +1,207 @@
-// src/app/page.tsx - Renders a specific property based on slug (defaulting to prahova)
-import { Suspense } from 'react';
-import { notFound } from 'next/navigation';
+// src/app/page.tsx - Property listing page for the main app URL
+import { cookies, headers } from 'next/headers';
+import Link from 'next/link';
+import Image from 'next/image';
 import type { Metadata } from 'next';
-import type { Property, WebsiteTemplate, PropertyOverrides } from '@/types';
-import { PropertyPageRenderer } from '@/components/property/property-page-renderer';
-import { getWebsiteTemplate, getPropertyOverrides } from '@/app/properties/[slug]/[[...path]]/page'; // Import shared functions
-import { getPropertyBySlug, getPublishedReviewCount } from '@/lib/property-utils';
-import { buildVacationRentalJsonLd, buildBreadcrumbJsonLd, getCanonicalUrl, getBaseUrl } from '@/lib/structured-data';
-import { getAmenitiesByRefs } from '@/lib/amenity-utils';
-import { getPublishedReviewsForProperty } from '@/services/reviewService';
+import type { Property } from '@/types';
+import { getAdminProperties } from '@/lib/firebaseClientAdmin';
+import { getLocalizedString } from '@/lib/multilingual-utils';
+import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { MapPin, Users, BedDouble, Bath, Star } from 'lucide-react';
 
-export const dynamic = 'force-dynamic'; // Ensures the page is always dynamically rendered
+export const dynamic = 'force-dynamic';
 
-const defaultPropertySlug = "prahova-mountain-chalet";
+export const metadata: Metadata = {
+  title: 'RentalSpot - Vacation Rentals',
+  description: 'Browse our curated collection of vacation rental properties.',
+};
 
-export async function generateMetadata(): Promise<Metadata> {
-  const property = await getPropertyBySlug(defaultPropertySlug);
-  if (!property) {
-    return { title: 'RentalSpot - Your Vacation Getaway' };
+const PROPERTY_TYPE_LABELS: Record<string, string> = {
+  entire_place: 'Entire Place',
+  chalet: 'Chalet',
+  cabin: 'Cabin',
+  villa: 'Villa',
+  apartment: 'Apartment',
+  house: 'House',
+  cottage: 'Cottage',
+  studio: 'Studio',
+  bungalow: 'Bungalow',
+};
+
+function getPropertyUrl(property: Property): string {
+  if (property.useCustomDomain && property.customDomain) {
+    return `https://${property.customDomain}`;
   }
-
-  const propertyName = typeof property.name === 'string'
-    ? property.name
-    : (property.name.en || property.name.ro || 'Property');
-  const description = property.description
-    ? (typeof property.description === 'string'
-        ? property.description
-        : (property.description.en || property.description.ro || ''))
-    : `Book ${propertyName} - vacation rental`;
-
-  const customDomain = property.useCustomDomain ? property.customDomain : null;
-  const canonicalUrl = getCanonicalUrl(defaultPropertySlug, customDomain);
-  const featuredImage = property.images?.find(img => img.isFeatured)?.url
-    || property.images?.[0]?.url;
-
-  return {
-    title: propertyName,
-    description,
-    openGraph: {
-      title: propertyName,
-      description,
-      url: canonicalUrl,
-      type: 'website',
-      images: featuredImage ? [{ url: featuredImage, alt: propertyName }] : [],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: propertyName,
-      description,
-      images: featuredImage ? [featuredImage] : [],
-    },
-    alternates: {
-      canonical: canonicalUrl,
-    },
-  };
+  return `/properties/${property.slug || property.id}`;
 }
 
 export default async function HomePage() {
-  // Fetch all necessary data for the default property using the reusable functions
-  const [property, overrides] = await Promise.all([
-      getPropertyBySlug(defaultPropertySlug),
-      getPropertyOverrides(defaultPropertySlug),
-  ]);
-
-  if (!property) {
-    console.error(`[HomePage] Default property "${defaultPropertySlug}" not found.`);
-    // Show a clear error message instead of notFound()
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-center p-4">
-        <div className="max-w-md">
-          <h1 className="text-3xl font-bold text-red-600 mb-4">Property Not Found</h1>
-          <p className="text-lg mb-6">
-            We're sorry, but we couldn't find the property you're looking for.
-          </p>
-          <p className="text-sm text-gray-500 mb-8">
-            Our team has been notified and is working on resolving this issue.
-          </p>
-          <p className="text-sm">
-            Error reference: PROPERTY_NOT_FOUND_{defaultPropertySlug.replace(/-/g, '_').toUpperCase()}
-          </p>
-        </div>
-      </div>
-    );
+  // Detect preferred language
+  const cookieStore = await cookies();
+  const headersList = await headers();
+  const cookieLang = cookieStore.get('preferredLanguage')?.value;
+  let lang = DEFAULT_LANGUAGE;
+  if (cookieLang && SUPPORTED_LANGUAGES.includes(cookieLang)) {
+    lang = cookieLang;
+  } else {
+    const acceptLang = headersList.get('accept-language');
+    if (acceptLang) {
+      const primary = acceptLang.split(',')[0].split('-')[0].toLowerCase();
+      if (SUPPORTED_LANGUAGES.includes(primary)) {
+        lang = primary;
+      }
+    }
   }
 
-  const template = await getWebsiteTemplate(property.templateId);
-
-  if (!template) {
-    console.error(`[HomePage] Website template "${property.templateId}" not found for default property "${defaultPropertySlug}".`);
-    // Instead of fallback content, show a clear error page
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-center p-4">
-        <div className="max-w-md">
-          <h1 className="text-3xl font-bold text-red-600 mb-4">Temporarily Unavailable</h1>
-          <p className="text-lg mb-6">
-            We're sorry, but this property is currently unavailable due to a technical issue.
-          </p>
-          <p className="text-sm text-gray-500 mb-8">
-            Our team has been notified and is working on resolving this issue as quickly as possible.
-          </p>
-          <p className="text-sm">
-            Error reference: TEMPLATE_NOT_FOUND_{defaultPropertySlug.replace(/-/g, '_').toUpperCase()}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!overrides) {
-    console.error(`[HomePage] Property overrides for "${defaultPropertySlug}" not found.`);
-    // Instead of passing empty object, show error message
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-center p-4">
-        <div className="max-w-md">
-          <h1 className="text-3xl font-bold text-red-600 mb-4">Configuration Issue</h1>
-          <p className="text-lg mb-6">
-            We're sorry, but this property is currently unavailable due to a configuration issue.
-          </p>
-          <p className="text-sm text-gray-500 mb-8">
-            Our team has been notified and is working on resolving this issue as quickly as possible.
-          </p>
-          <p className="text-sm">
-            Error reference: OVERRIDES_NOT_FOUND_{defaultPropertySlug.replace(/-/g, '_').toUpperCase()}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // Build structured data (JSON-LD)
-  const propertyNameStr = typeof property.name === 'string'
-    ? property.name
-    : (property.name.en || property.name.ro || 'Property');
-
-  const [amenities, publishedReviewCount, publishedReviews] = await Promise.all([
-    property.amenityRefs?.length ? getAmenitiesByRefs(property.amenityRefs) : [],
-    getPublishedReviewCount(defaultPropertySlug),
-    getPublishedReviewsForProperty(defaultPropertySlug, 10),
-  ]);
-
-  const customDomain = property.useCustomDomain ? property.customDomain : null;
-  const canonicalUrl = getCanonicalUrl(defaultPropertySlug, customDomain);
-  const baseUrl = getBaseUrl(customDomain);
-  const telephone = template?.footer?.contactInfo?.phone || undefined;
-  const vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl, telephone, publishedReviewCount, publishedReviews });
-  const breadcrumbJsonLd = buildBreadcrumbJsonLd(propertyNameStr, defaultPropertySlug, baseUrl);
+  // Fetch and filter properties
+  const allProperties = await getAdminProperties();
+  const properties = (allProperties as Property[]).filter(
+    (p) => !p.status || p.status === 'active'
+  );
 
   return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(vacationRentalJsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
-      <Suspense fallback={<div>Loading homepage...</div>}>
-        <PropertyPageRenderer
-          template={template}
-          overrides={overrides}
-          propertyName={propertyNameStr}
-          propertySlug={defaultPropertySlug}
-          pageName="homepage"
-          themeId={property.themeId}
-          property={property}
-        />
-      </Suspense>
-    </>
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b bg-card">
+        <div className="max-w-5xl mx-auto px-4 py-6">
+          <h1 className="text-2xl font-bold text-foreground">RentalSpot</h1>
+          <p className="text-muted-foreground mt-1">
+            {lang === 'ro'
+              ? 'Descoperă proprietățile noastre de vacanță'
+              : 'Discover our vacation rental properties'}
+          </p>
+        </div>
+      </header>
+
+      {/* Property grid */}
+      <main className="max-w-5xl mx-auto px-4 py-8">
+        {properties.length === 0 ? (
+          <div className="text-center py-16">
+            <p className="text-lg text-muted-foreground">
+              {lang === 'ro' ? 'Nu sunt proprietăți disponibile.' : 'No properties available.'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {properties.map((property) => {
+              const name = getLocalizedString(property.name, lang, 'Property');
+              const description = getLocalizedString(
+                property.shortDescription || property.description,
+                lang,
+                ''
+              );
+              const featuredImage =
+                property.images?.find((img) => img.isFeatured)?.url ||
+                property.images?.[0]?.url;
+              const location = [property.location?.city, property.location?.country]
+                .filter(Boolean)
+                .join(', ');
+              const typeLabel = property.propertyType
+                ? PROPERTY_TYPE_LABELS[property.propertyType] || property.propertyType
+                : null;
+              const url = getPropertyUrl(property);
+              const isExternal = url.startsWith('https://');
+
+              const cardContent = (
+                <Card className="overflow-hidden hover:shadow-md transition-shadow">
+                  {/* Image */}
+                  <div className="relative aspect-[16/10] bg-muted">
+                    {featuredImage && (
+                      <Image
+                        src={featuredImage}
+                        alt={name}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, 50vw"
+                      />
+                    )}
+                    {/* Badges */}
+                    <div className="absolute top-3 left-3 flex gap-2">
+                      {typeLabel && (
+                        <Badge variant="secondary" className="bg-white/90 text-foreground backdrop-blur-sm">
+                          {typeLabel}
+                        </Badge>
+                      )}
+                    </div>
+                    {property.ratings && property.ratings.count > 0 && (
+                      <div className="absolute top-3 right-3">
+                        <Badge className="bg-white/90 text-foreground backdrop-blur-sm flex items-center gap-1">
+                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                          {property.ratings.average.toFixed(1)}
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-4 space-y-2">
+                    <h2 className="text-lg font-semibold text-foreground">{name}</h2>
+
+                    {location && (
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <MapPin className="h-3.5 w-3.5 shrink-0" />
+                        {location}
+                      </p>
+                    )}
+
+                    {description && (
+                      <p className="text-sm text-muted-foreground line-clamp-2">{description}</p>
+                    )}
+
+                    {/* Specs */}
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground pt-1">
+                      {property.maxGuests && (
+                        <span className="flex items-center gap-1">
+                          <Users className="h-3.5 w-3.5" />
+                          {property.maxGuests}
+                        </span>
+                      )}
+                      {property.bedrooms && (
+                        <span className="flex items-center gap-1">
+                          <BedDouble className="h-3.5 w-3.5" />
+                          {property.bedrooms}
+                        </span>
+                      )}
+                      {property.bathrooms && (
+                        <span className="flex items-center gap-1">
+                          <Bath className="h-3.5 w-3.5" />
+                          {property.bathrooms}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Price */}
+                    {property.pricePerNight && (
+                      <p className="text-base font-semibold text-foreground pt-1">
+                        {lang === 'ro' ? 'De la' : 'From'}{' '}
+                        {Math.round(property.pricePerNight)} {property.baseCurrency || 'RON'}
+                        <span className="text-sm font-normal text-muted-foreground">
+                          {' '}/ {lang === 'ro' ? 'noapte' : 'night'}
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                </Card>
+              );
+
+              if (isExternal) {
+                return (
+                  <a key={property.id} href={url} className="block">
+                    {cardContent}
+                  </a>
+                );
+              }
+              return (
+                <Link key={property.id} href={url} className="block">
+                  {cardContent}
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </main>
+    </div>
   );
 }
