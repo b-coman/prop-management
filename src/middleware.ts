@@ -108,23 +108,28 @@ export async function middleware(request: NextRequest) {
   }
 
   // Build the rewrite target path
+  // Rule: single-segment paths are property template pages (rewrite to /properties/slug/...),
+  // multi-segment paths are global app routes like /booking/check/slug (pass through).
+  const pathSegments = pathWithoutLang.split('/').filter(Boolean);
+  const langSegment = language !== DEFAULT_LANGUAGE ? `/${language}` : '';
+
   let rewritePath: string;
-  if (pathWithoutLang === '/' || pathWithoutLang === '') {
-    rewritePath = `/properties/${propertySlug}${language !== DEFAULT_LANGUAGE ? `/${language}` : ''}`;
-  } else if (
-    pathWithoutLang.startsWith('/details') ||
-    pathWithoutLang.startsWith('/location') ||
-    pathWithoutLang.startsWith('/gallery') ||
-    pathWithoutLang.startsWith('/booking')
-  ) {
-    const pageType = pathWithoutLang.split('/')[1];
-    rewritePath = `/properties/${propertySlug}${language !== DEFAULT_LANGUAGE ? `/${language}` : ''}/${pageType}`;
+  if (pathSegments.length <= 1) {
+    // Root or single-segment: property template page
+    // e.g., / → /properties/slug, /details → /properties/slug/details
+    rewritePath = pathSegments.length === 0
+      ? `/properties/${propertySlug}${langSegment}`
+      : `/properties/${propertySlug}${langSegment}/${pathSegments[0]}`;
   } else {
-    rewritePath = `/properties/${propertySlug}${language !== DEFAULT_LANGUAGE ? `/${language}` : ''}${pathWithoutLang}`;
+    // Multi-segment: global app route (booking system, reviews, etc.)
+    // e.g., /booking/check/slug → pass through to Next.js router
+    // Strip language prefix if present (already done in pathWithoutLang)
+    rewritePath = pathWithoutLang;
   }
 
   // Rewrite using explicit URL construction
   const rewriteUrl = new URL(rewritePath, request.url);
+  rewriteUrl.search = url.search; // preserve original query parameters
   const response = NextResponse.rewrite(rewriteUrl);
   response.cookies.set('preferredLanguage', language, {
     httpOnly: true,
