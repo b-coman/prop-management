@@ -121,6 +121,72 @@ async function getPropertyOverrides(slug: string) {
   }
 }
 
+/**
+ * Resolves amenityRefs in all override pages to full amenity objects.
+ * Walks all pages, finds blocks with categories[].amenityRefs,
+ * batch-fetches from the amenities collection, and maps back.
+ */
+async function resolveOverrideAmenityRefs(overrides: any): Promise<any> {
+  if (!overrides) return overrides;
+
+  // Collect all unique amenity ref IDs across all pages
+  const allRefs = new Set<string>();
+  for (const [pageKey, pageData] of Object.entries(overrides)) {
+    if (!pageData || typeof pageData !== 'object') continue;
+    for (const [blockKey, blockData] of Object.entries(pageData as Record<string, any>)) {
+      if (!blockData?.categories || !Array.isArray(blockData.categories)) continue;
+      for (const cat of blockData.categories) {
+        if (Array.isArray(cat.amenityRefs)) {
+          cat.amenityRefs.forEach((ref: string) => allRefs.add(ref));
+        }
+      }
+    }
+  }
+
+  if (allRefs.size === 0) return overrides;
+
+  // Batch-fetch all amenity documents
+  const amenityMap = new Map<string, { icon: string; name: any }>();
+  await Promise.all(
+    Array.from(allRefs).map(async (refId) => {
+      try {
+        const docSnap = await getDoc(doc(db, 'amenities', refId));
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          amenityMap.set(refId, { icon: data.icon || 'Building', name: data.name });
+        }
+      } catch {
+        // Skip missing amenities
+      }
+    })
+  );
+
+  // Walk overrides again and populate amenities arrays from refs
+  const enriched = { ...overrides };
+  for (const [pageKey, pageData] of Object.entries(enriched)) {
+    if (!pageData || typeof pageData !== 'object') continue;
+    const pageCopy = { ...(pageData as Record<string, any>) };
+    let pageModified = false;
+    for (const [blockKey, blockData] of Object.entries(pageCopy)) {
+      if (!blockData?.categories || !Array.isArray(blockData.categories)) continue;
+      const newCategories = blockData.categories.map((cat: any) => {
+        if (!Array.isArray(cat.amenityRefs)) return cat;
+        const resolved = cat.amenityRefs
+          .map((ref: string) => amenityMap.get(ref))
+          .filter(Boolean);
+        return { ...cat, amenities: resolved };
+      });
+      pageCopy[blockKey] = { ...blockData, categories: newCategories };
+      pageModified = true;
+    }
+    if (pageModified) {
+      enriched[pageKey] = pageCopy;
+    }
+  }
+
+  return enriched;
+}
+
 interface PropertyPageProps {
   params: Promise<{
     slug: string;
@@ -292,7 +358,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     );
   }
 
-  const overrides = await getPropertyOverrides(slug);
+  let overrides = await getPropertyOverrides(slug);
   if (!overrides) {
     console.error(`[PropertyPage] Property overrides for "${slug}" not found.`);
     return (
@@ -312,6 +378,9 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
       </div>
     );
   }
+
+  // Resolve amenityRefs to full amenity objects in all override pages
+  overrides = await resolveOverrideAmenityRefs(overrides);
 
   // Check if the page exists in the template
   if (pageName !== 'homepage' && template.pages && !template.pages[pageName]) {

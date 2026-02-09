@@ -67,6 +67,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { DEFAULT_THEME_ID, predefinedThemes } from '@/lib/themes/theme-definitions';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 // Import all the block components
 import { HeroSection } from '@/components/homepage/hero-section';
@@ -155,14 +156,22 @@ export function PropertyPageRenderer({
   publishedReviews, // Real reviews from Firestore
 }: PropertyPageRendererProps) {
   const { tc } = useLanguage();
+  const { setDefaultCurrency } = useCurrency();
   const [isClient, setIsClient] = useState(false);
   const [effectiveThemeId, setEffectiveThemeId] = useState<string | null>(null);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
-  
+
   // Initialize state on client-side only to avoid hydration issues
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Set default currency from property's baseCurrency (only if user hasn't explicitly chosen)
+  useEffect(() => {
+    if (property?.baseCurrency) {
+      setDefaultCurrency(property.baseCurrency);
+    }
+  }, [property?.baseCurrency, setDefaultCurrency]);
   
   // Handle theme selection based on URL parameter or prop
   useEffect(() => {
@@ -433,17 +442,46 @@ export function PropertyPageRenderer({
             ...blockContent
           };
         } else if (type === 'location') {
+          // Auto-populate homepage attractions from location page overrides if none exist
+          let homepageAttractions = blockContent?.attractions || [];
+          let isCompactPreview = false;
+          if (homepageAttractions.length === 0) {
+            const locationPageOverrides = overrides.location as Record<string, any> | undefined;
+            // Look for attractions in any block of the location page overrides
+            if (locationPageOverrides) {
+              for (const [, blockVal] of Object.entries(locationPageOverrides)) {
+                if (blockVal?.attractions && Array.isArray(blockVal.attractions) && blockVal.attractions.length > 0) {
+                  homepageAttractions = blockVal.attractions.slice(0, 3);
+                  isCompactPreview = true;
+                  break;
+                }
+              }
+            }
+          }
           blockContent = {
             title: blockContent?.title || { en: "Explore the Surroundings", ro: "Explorează împrejurimile" },
             propertyLocation: property.location,
-            attractions: blockContent?.attractions || [],
-            ...blockContent
+            attractions: homepageAttractions,
+            compactPreview: isCompactPreview,
+            locationPageUrl: isCompactPreview ? `/${propertySlug}/location` : undefined,
+            ...blockContent,
+            // Override attractions after spread to ensure our resolved value wins
+            ...(homepageAttractions.length > 0 ? { attractions: homepageAttractions, compactPreview: isCompactPreview, locationPageUrl: isCompactPreview ? '/location' : undefined } : {}),
           };
         } else if (type === 'testimonials') {
+          // Convert date from various Firestore formats (string, Timestamp, Date)
+          const convertReviewDate = (d: any): string | undefined => {
+            if (!d) return undefined;
+            if (typeof d === 'string') return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+            if (d._seconds) return new Date(d._seconds * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+            if (d instanceof Date) return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+            return undefined;
+          };
+
           // Convert real reviews to testimonials format
           const realReviews = publishedReviews?.map(r => ({
             name: r.guestName,
-            date: typeof r.date === 'string' ? new Date(r.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short' }) : undefined,
+            date: convertReviewDate(r.date),
             rating: r.rating,
             text: r.comment,
             source: r.source,

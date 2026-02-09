@@ -1,7 +1,8 @@
 // src/components/homepage/location-highlights.tsx
-import { MapPin } from 'lucide-react'; // Added MapPin for fallback
+import { MapPin, ArrowRight } from 'lucide-react';
 import Image from 'next/image';
-import type { Property } from '@/types'; // Import Property type to get Location
+import Link from 'next/link';
+import type { Property } from '@/types';
 import { useLanguage } from '@/hooks/useLanguage';
 
 interface Location {
@@ -24,9 +25,11 @@ interface Attraction {
 
 interface LocationHighlightsContent {
     title: string | { [key: string]: string };
-    propertyLocation?: Location; // Use the Location type
+    propertyLocation?: Location;
     attractions?: Attraction[];
-    mapCenter?: { lat: number; lng: number }; // Support current data structure
+    mapCenter?: { lat: number; lng: number };
+    compactPreview?: boolean; // Show compact cards (no description) with "See all" link
+    locationPageUrl?: string; // URL to full location page
     'data-ai-hint'?: string;
 }
 
@@ -49,7 +52,9 @@ export function LocationHighlights({ content, language = 'en' }: LocationHighlig
         title = "",
         propertyLocation,
         attractions = [],
-        mapCenter
+        mapCenter,
+        compactPreview = false,
+        locationPageUrl,
     } = content;
 
     // Don't render if required info is missing
@@ -116,23 +121,24 @@ export function LocationHighlights({ content, language = 'en' }: LocationHighlig
               </div>
             ) : null}
 
-            {/* Bottom text with container */}
-            <div className="container mx-auto px-4">
+            {/* Attractions section with container */}
+            {attractions && attractions.length > 0 && (
+              <>
+              {/* Intro text */}
+              <div className="container mx-auto px-4">
                 <div className="max-w-3xl mx-auto text-center">
                     <p className="text-lg text-muted-foreground">
                        {t('location.discoverNearby', 'Discover what\'s nearby')}
                     </p>
                 </div>
-            </div>
+              </div>
 
-            {/* Attractions section with container */}
-            {attractions && attractions.length > 0 && (
               <div className="container mx-auto px-4 mt-12">
-                <div className="grid gap-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+                <div className={compactPreview ? "grid gap-6" : "grid gap-8"} style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${compactPreview ? '180px' : '200px'}, 1fr))` }}>
                     {attractions.map((attraction, index) => (
-                        <div key={index} className="flex flex-col items-center text-center p-4 bg-card rounded-lg shadow-md border border-border">
+                        <div key={index} className={`flex flex-col items-center text-center bg-card rounded-lg shadow-md border border-border ${compactPreview ? 'p-3' : 'p-4'}`}>
                              {/* Attraction Image */}
-                            <div className="mb-4 h-40 w-full relative rounded-lg overflow-hidden bg-muted">
+                            <div className={`w-full relative rounded-lg overflow-hidden bg-muted ${compactPreview ? 'mb-3 h-32' : 'mb-4 h-40'}`}>
                                 {attraction.image ? (
                                     <Image
                                         src={attraction.image}
@@ -148,17 +154,31 @@ export function LocationHighlights({ content, language = 'en' }: LocationHighlig
                                      </div>
                                 )}
                              </div>
-                            <h3 className="text-lg font-semibold text-foreground mb-1">{tc(attraction.name)}</h3>
+                            <h3 className={`${compactPreview ? 'text-base' : 'text-lg'} font-semibold text-foreground mb-1`}>{tc(attraction.name)}</h3>
                              {attraction.distance && (
                                  <p className="text-xs text-muted-foreground mb-2">{attraction.distance}</p>
                              )}
-                            <p className="text-muted-foreground text-sm flex-grow">
-                                {tc(attraction.description)}
-                            </p>
+                            {!compactPreview && (
+                              <p className="text-muted-foreground text-sm flex-grow">
+                                  {tc(attraction.description)}
+                              </p>
+                            )}
                         </div>
                     ))}
                 </div>
+                {compactPreview && locationPageUrl && (
+                  <div className="text-center mt-8">
+                    <Link
+                      href={locationPageUrl}
+                      className="inline-flex items-center gap-2 text-primary hover:text-primary/80 font-medium transition-colors"
+                    >
+                      {t('location.seeAllAttractions', 'See all attractions')}
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </div>
+                )}
               </div>
+              </>
             )}
         </section>
     );

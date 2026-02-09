@@ -18,6 +18,7 @@ interface CurrencyContextType {
   selectedCurrency: CurrencyCode;
   setSelectedCurrency: (currency: CurrencyCode) => void;
   setSelectedCurrencyTemporary: (currency: CurrencyCode) => void; // Temporary override without saving
+  setDefaultCurrency: (currency: CurrencyCode) => void; // Set default from property data (only if user hasn't chosen)
   exchangeRates: ExchangeRates;
   ratesLoading: boolean; // Add loading state
   ratesError: string | null; // Add error state
@@ -87,12 +88,27 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
   const setSelectedCurrency = useCallback((currency: CurrencyCode) => {
     setSelectedCurrencyState(currency);
     setPersistedCurrency(currency); // Persist to session storage
+    // Mark that user has explicitly chosen a currency
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem('userCurrencyChoice', 'true');
+    }
   }, [setPersistedCurrency]);
 
   const setSelectedCurrencyTemporary = useCallback((currency: CurrencyCode) => {
     setSelectedCurrencyState(currency);
     // Don't persist to session storage - this is a temporary override
   }, []);
+
+  // Set default currency from property data — only applies if user hasn't explicitly chosen
+  const setDefaultCurrency = useCallback((currency: CurrencyCode) => {
+    if (typeof window === 'undefined') return;
+    if (!SUPPORTED_CURRENCIES.includes(currency)) return;
+    const userChose = window.sessionStorage.getItem('userCurrencyChoice');
+    if (!userChose) {
+      setSelectedCurrencyState(currency);
+      setPersistedCurrency(currency);
+    }
+  }, [setPersistedCurrency]);
 
   const convertToSelectedCurrency = useCallback((amount: number, fromCurrency: CurrencyCode): number => {
      if (ratesLoading) return amount; // Return original amount if rates are loading
@@ -156,6 +172,7 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     selectedCurrency,
     setSelectedCurrency,
     setSelectedCurrencyTemporary,
+    setDefaultCurrency,
     exchangeRates,
     ratesLoading,
     ratesError,
@@ -166,6 +183,7 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     selectedCurrency,
     setSelectedCurrency,
     setSelectedCurrencyTemporary,
+    setDefaultCurrency,
     exchangeRates,
     ratesLoading,
     ratesError,
@@ -190,6 +208,7 @@ export const useCurrency = (): CurrencyContextType => {
         selectedCurrency: 'USD' as CurrencyCode,
         setSelectedCurrency: () => {},
         setSelectedCurrencyTemporary: () => {},
+        setDefaultCurrency: () => {},
         exchangeRates: DEFAULT_EXCHANGE_RATES,
         ratesLoading: false,
         ratesError: null,

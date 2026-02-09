@@ -316,3 +316,29 @@ export async function saveNavigationData(
     return { error: 'Failed to save navigation data' };
   }
 }
+
+// ============================================================================
+// Amenities Collection
+// ============================================================================
+
+export interface AmenityItem {
+  id: string;
+  name: { en: string; ro?: string; [key: string]: string | undefined };
+  category: { en: string; ro?: string; [key: string]: string | undefined };
+  icon: string;
+  order?: number;
+}
+
+export async function fetchAllAmenities(): Promise<AmenityItem[]> {
+  try {
+    const db = await getAdminDb();
+    const snapshot = await db.collection('amenities').orderBy('order', 'asc').get();
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as AmenityItem[];
+  } catch (error) {
+    logger.error('Error fetching amenities', error as Error);
+    return [];
+  }
+}
