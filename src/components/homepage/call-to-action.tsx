@@ -42,7 +42,7 @@ export function CallToActionSection({ content }: CallToActionSectionProps) {
 
   return (
     <section
-      className="py-16 md:py-24 bg-gradient-to-r from-primary/80 to-primary"
+      className="py-10 md:py-16 bg-gradient-to-r from-primary/80 to-primary"
       id="cta"
       style={sectionStyle}
     >

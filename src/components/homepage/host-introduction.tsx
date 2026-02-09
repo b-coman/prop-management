@@ -29,7 +29,7 @@ export function HostIntroduction({ content }: HostIntroductionProps) {
   const welcomeMessage = content.welcomeMessage || content.description || "";
 
   return (
-    <section className="py-16 md:py-24 bg-background" id="host"> {/* Added ID */}
+    <section className="py-10 md:py-16 bg-background" id="host"> {/* Added ID */}
       <div className="container mx-auto px-4">
         <div className="flex flex-col md:flex-row items-center gap-8 md:gap-12 max-w-4xl mx-auto">
           {/* Host Photo */}

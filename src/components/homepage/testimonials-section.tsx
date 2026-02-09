@@ -77,9 +77,9 @@ export function TestimonialsSection({ content, language = 'en' }: TestimonialsSe
   const hasRealReviews = reviews.some(r => r.source);
 
   return (
-    <section className="py-16 md:py-24 bg-secondary/50" id="testimonials"> {/* Added ID */}
+    <section className="py-10 md:py-16 bg-secondary/50" id="testimonials"> {/* Added ID */}
       <div className="container mx-auto px-4">
-        <div className="max-w-3xl mx-auto text-center mb-12">
+        <div className="max-w-3xl mx-auto text-center mb-8">
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
              {tc(title)}
           </h2>
