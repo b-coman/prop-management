@@ -769,9 +769,9 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
     
     // Generate smart date suggestions with clickable date objects
     interface DateSuggestion {
-      label: string;
       checkIn: Date;
       checkOut: Date;
+      nights: number;
     }
     const suggestions: DateSuggestion[] = [];
     const nights = checkInDate && checkOutDate ?
@@ -784,12 +784,9 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
         const extendedCheckout = addDays(checkInDate, minimumStay);
         if (isDateRangeAvailable(checkInDate, extendedCheckout, unavailableDates || [])) {
           suggestions.push({
-            label: t('booking.extendStay', `Extend your stay to ${format(extendedCheckout, 'MMM d')} (${minimumStay} nights minimum)`, {
-              date: format(extendedCheckout, 'MMM d'),
-              nights: minimumStay
-            }),
             checkIn: checkInDate,
             checkOut: extendedCheckout,
+            nights: minimumStay,
           });
         }
       }
@@ -806,12 +803,9 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
         const actualNights = Math.max(nights, minimumStay);
         const endDate = addDays(nextAvailable, actualNights);
         suggestions.push({
-          label: t('booking.nextAvailable', `Next available: ${format(nextAvailable, 'MMM d')} - ${format(endDate, 'MMM d')}`, {
-            startDate: format(nextAvailable, 'MMM d'),
-            endDate: format(endDate, 'MMM d')
-          }),
           checkIn: nextAvailable,
           checkOut: endDate,
+          nights: actualNights,
         });
       }
     }
@@ -820,14 +814,16 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
       <div className="text-center py-4">
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg space-y-3">
           <p className="text-red-800 text-sm font-medium">{translatedError}</p>
-          
+
           {suggestions.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-red-700 text-xs font-medium">
-                {t('booking.tryAlternatives', 'Try these alternatives:')}
-              </p>
-              <div className="space-y-1">
-                {suggestions.map((suggestion, index) => (
+            <div className="flex flex-wrap justify-center gap-2">
+              {suggestions.map((suggestion, index) => {
+                const nightCount = suggestion.nights;
+                const nightLabel = nightCount === 1
+                  ? t('booking.night', 'night')
+                  : t('booking.nights', 'nights');
+
+                return (
                   <button
                     key={index}
                     onClick={() => {
@@ -845,18 +841,16 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
                       setCheckInDate(normalizedCheckIn);
                       setCheckOutDate(normalizedCheckOut);
                     }}
-                    className="text-red-700 text-xs underline hover:text-red-900 cursor-pointer text-left"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-red-200 rounded-full text-xs font-medium text-red-800 hover:bg-red-100 hover:border-red-300 transition-colors cursor-pointer"
                   >
-                    • {suggestion.label}
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    {format(suggestion.checkIn, 'MMM d')} – {format(suggestion.checkOut, 'MMM d')}
+                    <span className="text-red-500">({nightCount} {nightLabel})</span>
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
           )}
-          
-          <p className="text-red-700 text-xs">
-            {t('booking.unavailableDatesNote', 'Unavailable dates are marked with strikethrough in the calendar')}
-          </p>
         </div>
       </div>
     );
