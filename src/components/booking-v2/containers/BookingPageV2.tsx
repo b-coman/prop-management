@@ -227,7 +227,7 @@ function BookingPageContent({ className }: { className?: string }) {
                   </div>
 
                   {/* Price Breakdown - Per-night detail */}
-                  <details open className="group">
+                  <details className="group">
                     <summary className="flex items-center justify-between cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors p-2 rounded-md hover:bg-muted/50">
                       <span>{t('booking.viewPriceBreakdown', 'View price breakdown')}</span>
                       <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
