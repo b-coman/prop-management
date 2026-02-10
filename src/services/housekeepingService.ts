@@ -307,8 +307,7 @@ export async function buildDailyNotificationTemplate(
     templateName: 'curatenie_zilnic',
     variables: {
       '1': firstName,
-      '2': propertyName,
-      '3': messageContent,
+      '2': messageContent,
     },
     summary: `[${propertyName}] ${messageContent}`,
   };

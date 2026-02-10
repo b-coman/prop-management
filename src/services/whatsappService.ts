@@ -26,7 +26,7 @@ function getTwilioClient() {
 
 export const WHATSAPP_TEMPLATES = {
   curatenie_test: 'HX59f1abe62543a4fa25dca11bc18e776e',
-  curatenie_zilnic: 'HXfde05c39892320be10304d1fb4bb9a4e',
+  curatenie_zilnic: 'HXf06e572e696fdd3e432179b8c19ba26a',
   curatenie_modificare: 'HX30b0bf3c0c4d21b7f5f9ade2bcf7b216',
   program_0: 'HXc4de78581cb3c13f62edeaa4541bda40',
   program_1: 'HXc1376e3107c73dba9a68557fefab7656',
