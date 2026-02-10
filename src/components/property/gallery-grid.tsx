@@ -1,12 +1,11 @@
 // src/components/property/gallery-grid.tsx
 "use client";
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { GalleryGridBlock } from '@/lib/overridesSchemas-multipage';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogTrigger,
+import {
+  Dialog,
+  DialogContent,
   DialogClose
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -15,15 +14,60 @@ import { cn } from '@/lib/utils';
 import { SafeImage } from '@/components/ui/safe-image';
 import { useLanguage } from '@/hooks/useLanguage';
 
+// Bilingual labels for filterable tags (room-level categories only)
+const TAG_LABELS: Record<string, { en: string; ro: string }> = {
+  bedroom: { en: 'Bedrooms', ro: 'Dormitoare' },
+  'living-room': { en: 'Living Areas', ro: 'Zone de zi' },
+  kitchen: { en: 'Kitchen', ro: 'Bucătărie' },
+  bathroom: { en: 'Bathrooms', ro: 'Băi' },
+  dining: { en: 'Dining', ro: 'Sufragerie' },
+  kids: { en: 'Kids Areas', ro: 'Zone pentru copii' },
+  terrace: { en: 'Terrace', ro: 'Terasă' },
+  garden: { en: 'Garden', ro: 'Grădină' },
+  outdoor: { en: 'Outdoors', ro: 'Exterior' },
+};
+
 interface GalleryGridProps {
   content: GalleryGridBlock;
 }
 
 export function GalleryGrid({ content }: GalleryGridProps) {
   const { title, description, layout = 'grid', enableLightbox = true, images = [] } = content;
-  const { tc } = useLanguage();
+  const { tc, currentLang } = useLanguage();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [activeTag, setActiveTag] = useState<string | null>(null);
+
+  // Compute available filter tags with counts (only tags in TAG_LABELS)
+  const tagCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const image of images) {
+      const tags = (image as any).tags as string[] | undefined;
+      if (!tags) continue;
+      for (const tag of tags) {
+        if (TAG_LABELS[tag]) {
+          counts[tag] = (counts[tag] || 0) + 1;
+        }
+      }
+    }
+    return counts;
+  }, [images]);
+
+  const availableTags = useMemo(() => {
+    // Sort tags by count descending, then alphabetically
+    return Object.keys(tagCounts).sort((a, b) => tagCounts[b] - tagCounts[a] || a.localeCompare(b));
+  }, [tagCounts]);
+
+  const hasTags = availableTags.length > 0;
+
+  // Filter images by active tag
+  const filteredImages = useMemo(() => {
+    if (!activeTag) return images;
+    return images.filter((image) => {
+      const tags = (image as any).tags as string[] | undefined;
+      return tags?.includes(activeTag);
+    });
+  }, [images, activeTag]);
 
   const openLightbox = (index: number) => {
     if (!enableLightbox) return;
@@ -32,11 +76,11 @@ export function GalleryGrid({ content }: GalleryGridProps) {
   };
 
   const handlePrevious = () => {
-    setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+    setCurrentImageIndex((prev) => (prev === 0 ? filteredImages.length - 1 : prev - 1));
   };
 
   const handleNext = () => {
-    setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+    setCurrentImageIndex((prev) => (prev === filteredImages.length - 1 ? 0 : prev + 1));
   };
 
   // Key event handler for lightbox
@@ -50,26 +94,66 @@ export function GalleryGrid({ content }: GalleryGridProps) {
     }
   };
 
+  const handleTagClick = (tag: string | null) => {
+    setActiveTag(tag);
+    setCurrentImageIndex(0);
+  };
+
+  const lang = currentLang || 'en';
+
   return (
     <section className="py-16 bg-background" onKeyDown={lightboxOpen ? handleKeyDown : undefined}>
       <div className="container mx-auto px-4">
-        <div className="text-center max-w-3xl mx-auto mb-12">
+        <div className="text-center max-w-3xl mx-auto mb-8">
           <h2 className="text-3xl font-bold mb-4">{tc(title)}</h2>
           {description && <p className="text-muted-foreground">{tc(description)}</p>}
         </div>
-        
+
+        {/* Tag Filter Pills */}
+        {hasTags && (
+          <div className="mb-8 overflow-x-auto scrollbar-hide">
+            <div className="flex gap-2 justify-center flex-wrap px-1 py-1">
+              <button
+                onClick={() => handleTagClick(null)}
+                className={cn(
+                  "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors",
+                  activeTag === null
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                )}
+              >
+                {lang === 'ro' ? 'Toate' : 'All'} ({images.length})
+              </button>
+              {availableTags.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => handleTagClick(tag)}
+                  className={cn(
+                    "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors",
+                    activeTag === tag
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  )}
+                >
+                  {TAG_LABELS[tag]?.[lang as 'en' | 'ro'] || tag} ({tagCounts[tag]})
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Grid Layout */}
         {layout === 'grid' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 auto-rows-min">
-            {images.map((image, index) => (
-              <div 
+            {filteredImages.map((image, index) => (
+              <div
                 key={index}
                 className={cn(
                   "relative cursor-pointer overflow-hidden rounded-lg",
                   index === 0 && "md:col-span-2 md:row-span-2",
                   "transition-transform hover:scale-[1.02]"
                 )}
-                style={{ 
+                style={{
                   height: index === 0 ? '500px' : '250px'
                 }}
                 onClick={() => openLightbox(index)}
@@ -91,7 +175,7 @@ export function GalleryGrid({ content }: GalleryGridProps) {
         {/* Masonry Layout */}
         {layout === 'masonry' && (
           <div className="columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
-            {images.map((image, index) => (
+            {filteredImages.map((image, index) => (
               <div
                 key={index}
                 className="relative cursor-pointer overflow-hidden rounded-lg break-inside-avoid"
@@ -110,32 +194,32 @@ export function GalleryGrid({ content }: GalleryGridProps) {
             ))}
           </div>
         )}
-        
+
         {/* Slider Layout */}
         {layout === 'slider' && (
           <div className="relative max-w-5xl mx-auto overflow-hidden rounded-lg">
             <div className="flex justify-between absolute top-1/2 left-0 right-0 z-10 px-4 transform -translate-y-1/2">
-              <Button 
-                size="icon" 
-                variant="ghost" 
+              <Button
+                size="icon"
+                variant="ghost"
                 className="bg-black/30 text-white hover:bg-black/50"
                 onClick={handlePrevious}
               >
                 <ArrowLeft />
               </Button>
-              <Button 
-                size="icon" 
-                variant="ghost" 
+              <Button
+                size="icon"
+                variant="ghost"
                 className="bg-black/30 text-white hover:bg-black/50"
                 onClick={handleNext}
               >
                 <ArrowRight />
               </Button>
             </div>
-            
+
             <div className="relative h-[600px] w-full">
-              {images.map((image, index) => (
-                <div 
+              {filteredImages.map((image, index) => (
+                <div
                   key={index}
                   className={cn(
                     "absolute top-0 left-0 w-full h-full transition-opacity duration-500",
@@ -165,38 +249,41 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                   <X />
                 </Button>
               </DialogClose>
-              
+
               <div className="flex justify-between absolute top-1/2 left-0 right-0 z-10 px-4 transform -translate-y-1/2 w-full">
-                <Button 
-                  size="icon" 
-                  variant="ghost" 
+                <Button
+                  size="icon"
+                  variant="ghost"
                   className="bg-black/30 text-white hover:bg-black/50"
                   onClick={handlePrevious}
                 >
                   <ArrowLeft />
                 </Button>
-                <Button 
-                  size="icon" 
-                  variant="ghost" 
+                <Button
+                  size="icon"
+                  variant="ghost"
                   className="bg-black/30 text-white hover:bg-black/50"
                   onClick={handleNext}
                 >
                   <ArrowRight />
                 </Button>
               </div>
-              
-              {images.length > 0 && (
+
+              {filteredImages.length > 0 && currentImageIndex < filteredImages.length && (
                 <div className="relative h-full w-full max-h-[80vh]">
                   <SafeImage
-                    src={images[currentImageIndex].url}
-                    alt={tc(images[currentImageIndex].alt) || `Property image ${currentImageIndex + 1}`}
+                    src={filteredImages[currentImageIndex].url}
+                    alt={tc(filteredImages[currentImageIndex].alt) || `Property image ${currentImageIndex + 1}`}
                     fill
                     className="object-contain"
                     fallbackText="Property image not available"
-                    blurDataURL={(images[currentImageIndex] as any).blurDataURL}
+                    blurDataURL={(filteredImages[currentImageIndex] as any).blurDataURL}
                   />
                   <div className="absolute bottom-4 left-0 right-0 text-center text-white bg-black/50 py-2">
-                    {tc(images[currentImageIndex].alt)}
+                    {tc(filteredImages[currentImageIndex].alt)}
+                    <span className="ml-2 text-white/60 text-sm">
+                      {currentImageIndex + 1} / {filteredImages.length}
+                    </span>
                   </div>
                 </div>
               )}

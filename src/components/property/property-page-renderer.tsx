@@ -430,6 +430,7 @@ export function PropertyPageRenderer({
             alt: img.alt || '',
             'data-ai-hint': img['data-ai-hint'],
             blurDataURL: img.blurDataURL,
+            tags: img.tags,
           }));
           blockContent = {
             ...blockContent,
