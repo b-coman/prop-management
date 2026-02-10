@@ -1,6 +1,7 @@
 
 // src/components/property/gallery-section.tsx
 import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { SafeImage } from '@/components/ui/safe-image';
 
@@ -57,8 +58,7 @@ export function GallerySection({ content, language = 'en' }: GallerySectionProps
     <section className="py-8 md:py-12" id="gallery">
       <div className="container mx-auto px-4">
         <h2 className="text-2xl font-semibold text-foreground mb-6">{tc(title)}</h2>
-         {/* Use a fluid grid layout */}
-        <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {displayImages.map((image, index) => {
             const isLastWithOverlay = hasMore && index === displayImages.length - 1;
 
@@ -69,7 +69,7 @@ export function GallerySection({ content, language = 'en' }: GallerySectionProps
                   alt={tc(image.alt) || `${t('gallery.imageOf', undefined, { index: index + 1 })} ${tc(propertyName)}`}
                   fill
                   style={{ objectFit: "cover" }}
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" // 1-col / 2-col / 3-col
                   loading="lazy"
                   className="transition-transform duration-300 hover:scale-105"
                   data-ai-hint={image['data-ai-hint']}
@@ -79,10 +79,13 @@ export function GallerySection({ content, language = 'en' }: GallerySectionProps
                 {isLastWithOverlay && viewAllUrl && (
                   <Link
                     href={viewAllUrl}
-                    className="absolute inset-0 bg-black/50 flex items-center justify-center transition-colors hover:bg-black/60"
+                    className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center transition-all hover:bg-black/65"
                   >
                     <span className="text-white text-xl font-semibold">
                       +{remainingCount} {t('gallery.morePhotos', 'more photos')}
+                    </span>
+                    <span className="mt-2 inline-flex items-center gap-1 text-white/80 text-sm border border-white/30 rounded-full px-3 py-1">
+                      {t('gallery.viewAll', 'View All Photos')} <ArrowRight size={14} />
                     </span>
                   </Link>
                 )}
