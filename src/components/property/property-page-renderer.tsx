@@ -419,7 +419,13 @@ export function PropertyPageRenderer({
         // Fallback to property.images when gallery has no override images
         const existingImages = blockContent?.images;
         if (!existingImages || existingImages.length === 0) {
-          const propertyGalleryImages = property.images.map((img) => ({
+          // Sort: featured first, then by sortOrder within each group
+          const sorted = [...property.images].sort((a, b) => {
+            if (a.isFeatured && !b.isFeatured) return -1;
+            if (!a.isFeatured && b.isFeatured) return 1;
+            return (a.sortOrder ?? 999) - (b.sortOrder ?? 999);
+          });
+          const propertyGalleryImages = sorted.map((img) => ({
             url: img.url,
             alt: img.alt || '',
             'data-ai-hint': img['data-ai-hint'],
@@ -428,6 +434,16 @@ export function PropertyPageRenderer({
           blockContent = {
             ...blockContent,
             images: propertyGalleryImages,
+          };
+        }
+        // Process viewAllUrl for proper routing (same pattern as CTA buttonUrl)
+        if (blockContent?.viewAllUrl) {
+          const rawUrl = blockContent.viewAllUrl;
+          blockContent = {
+            ...blockContent,
+            viewAllUrl: (!rawUrl.startsWith('http') && !isCustomDomain)
+              ? `/properties/${propertySlug}${rawUrl}`
+              : rawUrl,
           };
         }
       } else if (type === 'cta') {
