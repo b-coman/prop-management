@@ -502,40 +502,11 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   // Local image blur map for blur placeholders (imported as JSON module)
   const localBlurMap = blurMapData as Record<string, string>;
 
-  // For homepage with default language, use the exact pattern from [slug]/page.tsx
-  if (pageName === 'homepage' && language === DEFAULT_LANGUAGE) {
-    return (
-      <>
-        {vacationRentalJsonLd && (
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(vacationRentalJsonLd) }}
-          />
-        )}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-        />
-        <TrackViewItem property={property} />
-        <Suspense fallback={<div>Loading property details...</div>}>
-          <PropertyPageRenderer
-            template={template}
-            overrides={overrides}
-            propertyName={propertyNameStr}
-            propertySlug={slug}
-            pageName="homepage"
-            themeId={property.themeId}
-            property={property}
-            publishedReviews={publishedReviews}
-            localBlurMap={localBlurMap}
-            isCustomDomain={isCustomDomain}
-          />
-        </Suspense>
-      </>
-    );
-  }
+  // Always wrap in LanguageProvider to keep the component tree structure identical
+  // across language switches (prevents React from unmounting/remounting everything)
+  const renderedPageName = pageName === 'homepage' && language === DEFAULT_LANGUAGE ? 'homepage' : pageName;
+  const renderedPropertyName = pageName === 'homepage' && language === DEFAULT_LANGUAGE ? propertyNameStr : propertyNameForLang;
 
-  // For all other cases (non-homepage or with language), wrap in LanguageProvider
   return (
     <>
       {vacationRentalJsonLd && (
@@ -554,9 +525,9 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
           <PropertyPageRenderer
             template={template}
             overrides={overrides}
-            propertyName={propertyNameForLang}
+            propertyName={renderedPropertyName}
             propertySlug={slug}
-            pageName={pageName}
+            pageName={renderedPageName}
             themeId={property.themeId}
             language={language}
             property={property}
