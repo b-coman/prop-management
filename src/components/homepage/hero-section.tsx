@@ -10,6 +10,11 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { BookingContainer } from '@/components/booking-widget';
 import { Users, BedDouble, Bath, Home } from 'lucide-react';
 
+// Module-level flag: survives component remounts (unlike React state).
+// Ensures the fade-in animation only plays on first page load, not on
+// language switches which cause Next.js to remount the component.
+let heroHasBeenShown = false;
+
 export interface HeroData {
   backgroundImage?: string | null;
   backgroundImageBlur?: string | null;
@@ -47,7 +52,8 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
     );
   }
 
-  const [hasMounted, setHasMounted] = useState(false);
+  const isFirstShow = !heroHasBeenShown;
+  const [hasMounted, setHasMounted] = useState(!isFirstShow);
 
   useEffect(() => {
     // Only run the hero content adjustment when the component actually has the booking form
@@ -58,14 +64,18 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
       cleanup = setupHeroContentAdjustment();
     }, 100);
 
-    // Fade in after positioning is done (only on first mount)
-    const fadeTimer = setTimeout(() => {
-      setHasMounted(true);
-    }, 350);
+    // Fade in after positioning is done (only on very first page load)
+    let fadeTimer: ReturnType<typeof setTimeout> | undefined;
+    if (isFirstShow) {
+      fadeTimer = setTimeout(() => {
+        heroHasBeenShown = true;
+        setHasMounted(true);
+      }, 350);
+    }
 
     return () => {
       clearTimeout(positionTimer);
-      clearTimeout(fadeTimer);
+      if (fadeTimer) clearTimeout(fadeTimer);
       if (cleanup) {
         cleanup();
       }
