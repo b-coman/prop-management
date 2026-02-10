@@ -13,8 +13,10 @@ import { LanguageSelector } from '@/components/language-selector';
 import type { MenuItem } from '@/lib/overridesSchemas-multipage';
 import { applyThemeToHeader } from '@/lib/themes/theme-utils';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { useLanguage } from '@/hooks/useLanguage';
 import { DEFAULT_LANGUAGE } from '@/lib/language-constants';
+import type { CurrencyCode } from '@/types';
 
 interface HeaderProps {
   propertyName: string;
@@ -24,6 +26,10 @@ interface HeaderProps {
   logoSrc?: string;
   logoAlt?: string;
   isCustomDomain?: boolean;
+  // Price hint for mobile bottom bar
+  advertisedRate?: number;
+  advertisedRateType?: string | { en: string; ro: string };
+  baseCurrency?: CurrencyCode;
 }
 
 export function Header({
@@ -33,6 +39,9 @@ export function Header({
   logoSrc = '', // Default empty for fallback SVG
   logoAlt = 'Property Logo',
   isCustomDomain = false,
+  advertisedRate,
+  advertisedRateType,
+  baseCurrency,
 }: HeaderProps) {
   const basePath = isCustomDomain ? '' : `/properties/${propertySlug}`;
   const [isScrolled, setIsScrolled] = useState(false);
@@ -45,6 +54,13 @@ export function Header({
   
   // Get language utilities
   const { currentLang, getLocalizedPath, tc, t } = useLanguage();
+
+  // Currency conversion for mobile price hint
+  const { formatPrice, convertToSelectedCurrency } = useCurrency();
+  const displayPrice = advertisedRate && baseCurrency
+    ? Math.round(convertToSelectedCurrency(advertisedRate, baseCurrency))
+    : null;
+  const formattedPrice = displayPrice !== null ? formatPrice(displayPrice, baseCurrency) : null;
 
   // Build internal URL — short paths on custom domains, full paths on main app
   const processMenuUrl = (url: string) => {
@@ -430,6 +446,40 @@ export function Header({
         </Sheet>
       </div>
     </header>
+
+    {/* Mobile sticky bottom bar */}
+    <div
+      className={cn(
+        "fixed bottom-0 left-0 right-0 z-50 md:hidden",
+        "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t",
+        "transition-transform duration-300 ease-in-out",
+        showBookingCTA && hasMounted ? "translate-y-0" : "translate-y-full"
+      )}
+    >
+      <div className="flex items-center justify-between px-4 py-3">
+        {formattedPrice && (
+          <div className="flex flex-col">
+            <span className="text-xs text-muted-foreground">
+              {typeof advertisedRateType === 'object'
+                ? tc(advertisedRateType)
+                : t('common.from')}
+            </span>
+            <span className="text-lg font-bold text-foreground leading-tight">
+              {formattedPrice}
+              <span className="text-sm font-normal text-muted-foreground ml-1">/{t('common.night')}</span>
+            </span>
+          </div>
+        )}
+        <Button
+          size={formattedPrice ? "default" : "lg"}
+          className={cn("gap-1.5", !formattedPrice && "w-full")}
+          onClick={handleBookingCTA}
+        >
+          <Calendar className="h-4 w-4" />
+          {t('booking.checkAvailability', 'Check Availability')}
+        </Button>
+      </div>
+    </div>
     </>
   );
 }

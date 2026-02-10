@@ -634,6 +634,9 @@ export function PropertyPageRenderer({
           logoSrc={logoSrc}
           logoAlt={logoAlt}
           isCustomDomain={isCustomDomain}
+          advertisedRate={(property as any)?.advertisedRate || (property as any)?.pricePerNight}
+          advertisedRateType={(property as any)?.advertisedRateType}
+          baseCurrency={(property as any)?.baseCurrency}
         />
         
         {isPreviewMode && (
