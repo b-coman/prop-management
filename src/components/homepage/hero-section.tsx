@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { setupHeroContentAdjustment } from './hero-helper';
 import { useLanguage } from '@/hooks/useLanguage';
 import { BookingContainer } from '@/components/booking-widget';
+import { Users, BedDouble, Bath, Home } from 'lucide-react';
 
 export interface HeroData {
   backgroundImage?: string | null;
@@ -143,7 +144,37 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
           if (el) setTimeout(() => el.classList.remove('opacity-0'), 350);
         }}> {/* Initially invisible, fades in after positioning */}
           {title && <h1 className="text-2xl md:text-5xl lg:text-6xl font-bold mb-4 drop-shadow-md">{tc(title)}</h1>}
-          {subtitle && <p className="text-lg md:text-xl mb-6 drop-shadow-sm">{tc(subtitle)}</p>}
+          {subtitle && <p className="text-lg md:text-xl mb-4 drop-shadow-sm">{tc(subtitle)}</p>}
+
+          {/* Property specs bar */}
+          {bookingFormProperty && (bookingFormProperty.maxGuests || bookingFormProperty.bedrooms) && (
+            <div className="inline-flex items-center gap-3 md:gap-4 px-5 py-2.5 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 text-white/90 text-sm md:text-base">
+              {bookingFormProperty.maxGuests && (
+                <span className="flex items-center gap-1.5">
+                  <Users className="h-4 w-4" />
+                  <span>{bookingFormProperty.maxGuests} {t('specs.guests', 'guests')}</span>
+                </span>
+              )}
+              {bookingFormProperty.bedrooms && (
+                <>
+                  <span className="text-white/40">·</span>
+                  <span className="flex items-center gap-1.5">
+                    <BedDouble className="h-4 w-4" />
+                    <span>{bookingFormProperty.bedrooms} {bookingFormProperty.bedrooms === 1 ? t('specs.bedroom', 'bedroom') : t('specs.bedrooms', 'bedrooms')}</span>
+                  </span>
+                </>
+              )}
+              {bookingFormProperty.bathrooms && (
+                <>
+                  <span className="text-white/40">·</span>
+                  <span className="flex items-center gap-1.5">
+                    <Bath className="h-4 w-4" />
+                    <span>{bookingFormProperty.bathrooms} {bookingFormProperty.bathrooms === 1 ? t('specs.bathroom', 'bath') : t('specs.bathrooms', 'baths')}</span>
+                  </span>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* V2 Booking Widget for Hero Section */}
