@@ -667,14 +667,14 @@ export function LanguageProvider({
         logger.debug('🔄 Final URL routing decision', {
           finalUrl,
           redirect,
-          method: redirect ? 'push' : 'replace'
+          method: 'historyReplaceState'
         });
-        
-        if (redirect) {
-          router.push(finalUrl, { scroll: false });
-        } else {
-          router.replace(finalUrl, { scroll: false });
-        }
+
+        // Use window.history.replaceState instead of router.replace to avoid
+        // triggering Next.js navigation (server re-render + DOM tree swap + scroll reset).
+        // The language context already updated via setCurrentLang() above, so all
+        // components re-render client-side — same smooth behavior as currency switching.
+        window.history.replaceState(window.history.state, '', finalUrl);
       }
 
       const switchEndTime = performance.now();
