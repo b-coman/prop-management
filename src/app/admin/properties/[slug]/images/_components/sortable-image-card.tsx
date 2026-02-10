@@ -1,13 +1,20 @@
 'use client';
 
+import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Star, Trash2 } from 'lucide-react';
+import { GripVertical, Star, Trash2, X } from 'lucide-react';
 import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import type { PropertyImage } from '@/types';
+
+const SUGGESTED_TAGS = [
+  'bedroom', 'living-room', 'kitchen', 'bathroom', 'dining',
+  'kids', 'terrace', 'garden', 'outdoor', 'pool',
+  'spa', 'balcony', 'parking', 'beach-access', 'deck',
+];
 
 interface SortableImageCardProps {
   image: PropertyImage;
@@ -92,18 +99,9 @@ export function SortableImageCard({
           onChange={(e) => onUpdate(index, { alt: e.target.value })}
           className="text-sm h-8"
         />
-        <Input
-          type="text"
-          placeholder="Tags (comma-separated)"
-          value={image.tags?.join(', ') || ''}
-          onChange={(e) => {
-            const tags = e.target.value
-              .split(',')
-              .map((t) => t.trim())
-              .filter(Boolean);
-            onUpdate(index, { tags: tags.length > 0 ? tags : undefined });
-          }}
-          className="text-sm h-8"
+        <ImageTagInput
+          tags={image.tags || []}
+          onChange={(tags) => onUpdate(index, { tags: tags.length > 0 ? tags : undefined })}
         />
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">
@@ -121,5 +119,80 @@ export function SortableImageCard({
         </div>
       </div>
     </Card>
+  );
+}
+
+function ImageTagInput({ tags, onChange }: { tags: string[]; onChange: (tags: string[]) => void }) {
+  const [customInput, setCustomInput] = useState('');
+
+  const addTag = (tag: string) => {
+    const normalized = tag.trim().toLowerCase().replace(/\s+/g, '-');
+    if (!normalized || tags.includes(normalized)) return;
+    onChange([...tags, normalized]);
+  };
+
+  const removeTag = (tag: string) => {
+    onChange(tags.filter((t) => t !== tag));
+  };
+
+  const handleCustomKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addTag(customInput);
+      setCustomInput('');
+    }
+  };
+
+  const unusedSuggestions = SUGGESTED_TAGS.filter((t) => !tags.includes(t));
+
+  return (
+    <div className="space-y-1.5">
+      {/* Applied tags */}
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {tags.map((tag) => (
+            <span
+              key={tag}
+              className="inline-flex items-center gap-0.5 bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full"
+            >
+              {tag}
+              <button
+                type="button"
+                onClick={() => removeTag(tag)}
+                className="hover:text-destructive ml-0.5"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Suggestions */}
+      {unusedSuggestions.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {unusedSuggestions.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => addTag(tag)}
+              className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+            >
+              + {tag}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Custom tag input */}
+      <Input
+        type="text"
+        placeholder="Custom tag + Enter"
+        value={customInput}
+        onChange={(e) => setCustomInput(e.target.value)}
+        onKeyDown={handleCustomKeyDown}
+        className="text-sm h-7"
+      />
+    </div>
   );
 }
