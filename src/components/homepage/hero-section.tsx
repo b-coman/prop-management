@@ -50,18 +50,22 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
-    setHasMounted(true);
-    
     // Only run the hero content adjustment when the component actually has the booking form
     let cleanup: (() => void) | undefined;
-    
+
     // Small delay to ensure all components are rendered
-    const timer = setTimeout(() => {
+    const positionTimer = setTimeout(() => {
       cleanup = setupHeroContentAdjustment();
     }, 100);
-    
+
+    // Fade in after positioning is done (only on first mount)
+    const fadeTimer = setTimeout(() => {
+      setHasMounted(true);
+    }, 350);
+
     return () => {
-      clearTimeout(timer);
+      clearTimeout(positionTimer);
+      clearTimeout(fadeTimer);
       if (cleanup) {
         cleanup();
       }
@@ -139,10 +143,7 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
         - This layout works with our JS positioning in hero-helper.ts
       */}
       <div className="container mx-auto px-4 flex flex-col h-full w-full justify-start items-center py-6 md:py-12 relative" style={{ position: 'relative', overflow: 'visible' }}>
-        <div className="text-center max-w-2xl mx-auto opacity-0 transition-opacity duration-300" ref={(el) => {
-          // Initial invisible state to prevent flicker
-          if (el) setTimeout(() => el.classList.remove('opacity-0'), 350);
-        }}> {/* Initially invisible, fades in after positioning */}
+        <div className={cn("text-center max-w-2xl mx-auto transition-opacity duration-300", !hasMounted && "opacity-0")}>
           {title && <h1 className="text-2xl md:text-5xl lg:text-6xl font-bold mb-4 drop-shadow-md">{tc(title)}</h1>}
           {subtitle && <p className="text-lg md:text-xl mb-4 drop-shadow-sm">{tc(subtitle)}</p>}
 
@@ -179,16 +180,7 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
 
         {/* V2 Booking Widget for Hero Section */}
         {showBookingForm && property && (
-          <div className="transition-opacity duration-300 opacity-0" 
-            ref={(el) => {
-              // Start invisible and fade in after positioning for smoother appearance
-              if (el) {
-                setTimeout(() => {
-                  el.classList.remove('opacity-0');
-                  el.style.opacity = '1';
-                }, 400);
-              }
-            }}
+          <div className={cn("transition-opacity duration-300", !hasMounted && "opacity-0")}
             style={{ 
               zIndex: 10,
               position: 'absolute',
