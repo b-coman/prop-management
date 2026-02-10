@@ -146,9 +146,9 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
           {title && <h1 className="text-2xl md:text-5xl lg:text-6xl font-bold mb-4 drop-shadow-md">{tc(title)}</h1>}
           {subtitle && <p className="text-lg md:text-xl mb-4 drop-shadow-sm">{tc(subtitle)}</p>}
 
-          {/* Property specs bar */}
+          {/* Property specs bar — hidden on mobile where booking widget overlaps */}
           {bookingFormProperty && (bookingFormProperty.maxGuests || bookingFormProperty.bedrooms) && (
-            <div className="inline-flex items-center gap-3 md:gap-4 px-5 py-2.5 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 text-white/90 text-sm md:text-base">
+            <div className="hidden md:inline-flex items-center gap-4 px-5 py-2.5 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 text-white/90 text-base">
               {bookingFormProperty.maxGuests && (
                 <span className="flex items-center gap-1.5">
                   <Users className="h-4 w-4" />
