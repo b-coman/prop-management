@@ -68,8 +68,10 @@ export function GalleryGrid({ content }: GalleryGridProps) {
   }, [images, tagLabels]);
 
   const availableTags = useMemo(() => {
-    // Sort tags by count descending, then alphabetically
-    return Object.keys(tagCounts).sort((a, b) => tagCounts[b] - tagCounts[a] || a.localeCompare(b));
+    // Only show tags with 2+ images, sorted by count descending
+    return Object.keys(tagCounts)
+      .filter((tag) => tagCounts[tag] >= 2)
+      .sort((a, b) => tagCounts[b] - tagCounts[a] || a.localeCompare(b));
   }, [tagCounts]);
 
   const hasTags = availableTags.length > 0;
@@ -116,17 +118,17 @@ export function GalleryGrid({ content }: GalleryGridProps) {
   const lang = currentLang || 'en';
 
   return (
-    <section className="py-16 bg-background" onKeyDown={lightboxOpen ? handleKeyDown : undefined}>
+    <section className="py-8 md:py-12 bg-background" onKeyDown={lightboxOpen ? handleKeyDown : undefined}>
       <div className="container mx-auto px-4">
-        <div className="text-center max-w-3xl mx-auto mb-8">
+        <div className="text-center max-w-3xl mx-auto mb-6">
           <h2 className="text-3xl font-bold mb-4">{tc(title)}</h2>
           {description && <p className="text-muted-foreground">{tc(description)}</p>}
         </div>
 
-        {/* Tag Filter Pills */}
+        {/* Tag Filter Pills — horizontal scroll on mobile, wrap on desktop */}
         {hasTags && (
-          <div className="mb-8 overflow-x-auto scrollbar-hide">
-            <div className="flex gap-2 justify-center flex-wrap px-1 py-1">
+          <div className="mb-6 overflow-x-auto scrollbar-hide">
+            <div className="flex gap-2 md:justify-center md:flex-wrap px-1 py-1">
               <button
                 onClick={() => handleTagClick(null)}
                 className={cn(
