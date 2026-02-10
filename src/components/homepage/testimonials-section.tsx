@@ -68,7 +68,7 @@ export function TestimonialsSection({ content, language = 'en' }: TestimonialsSe
     reviews = []
   } = content;
 
-  // Don't render if no reviews
+  // Don't render if no reviews at all
   if (!reviews || reviews.length === 0) {
     return null;
   }
@@ -76,8 +76,17 @@ export function TestimonialsSection({ content, language = 'en' }: TestimonialsSe
   // Detect if reviews are real (have a source field) vs override-only
   const hasRealReviews = reviews.some(r => r.source);
 
+  // Filter to only reviews with text for display; reviewCount stays accurate for aggregate
+  const reviewsWithText = reviews.filter(r => {
+    const text = typeof r.text === 'object' ? (r.text.en || r.text.ro || '') : (r.text || '');
+    return text && text !== '(Rating only)';
+  });
+
+  // Use total review count (including text-less) for the aggregate display
+  const totalReviewCount = reviewCount || reviews.length;
+
   return (
-    <section className="py-10 md:py-16 bg-secondary/50" id="testimonials"> {/* Added ID */}
+    <section className="py-10 md:py-16 bg-secondary/50" id="testimonials">
       <div className="container mx-auto px-4">
         <div className="max-w-3xl mx-auto text-center mb-8">
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
@@ -88,9 +97,9 @@ export function TestimonialsSection({ content, language = 'en' }: TestimonialsSe
                 <span className="text-4xl font-bold text-foreground">{overallRating.toFixed(1)}</span>
                 <div>
                   <div className="flex">{renderStars(overallRating)}</div>
-                  {(reviewCount || reviews.length) > 0 && (
+                  {totalReviewCount > 0 && (
                     <p className="text-sm text-muted-foreground">
-                      {reviewCount || reviews.length} {(reviewCount || reviews.length) === 1 ? t('reviews.review') : t('reviews.reviews').toLowerCase()}
+                      {totalReviewCount} {totalReviewCount === 1 ? t('reviews.review') : t('reviews.reviews').toLowerCase()}
                     </p>
                   )}
                 </div>
@@ -99,9 +108,9 @@ export function TestimonialsSection({ content, language = 'en' }: TestimonialsSe
 
         </div>
 
-         {/* Use a fluid grid layout */}
+         {/* Use a fluid grid layout — only show reviews with text */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {reviews.slice(0, hasRealReviews ? 6 : 3).map((review, index) => (
+          {reviewsWithText.slice(0, hasRealReviews ? 6 : 3).map((review, index) => (
             <Card key={review.id || index} className="flex flex-col border-border">
               <CardContent className="p-6 flex-grow flex flex-col">
                 <div className="flex items-center mb-4">
@@ -144,11 +153,9 @@ export function TestimonialsSection({ content, language = 'en' }: TestimonialsSe
                     </div>
                   </div>
                 </div>
-                {review.text && tc(review.text) !== '(Rating only)' && (
-                  <p className="text-muted-foreground text-sm italic line-clamp-4">
-                    &quot;{tc(review.text)}&quot;
-                  </p>
-                )}
+                <p className="text-muted-foreground text-sm italic line-clamp-4">
+                  &quot;{tc(review.text)}&quot;
+                </p>
               </CardContent>
             </Card>
           ))}

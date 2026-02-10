@@ -202,9 +202,14 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
   const { slug, path = [] } = await params;
 
   let language = DEFAULT_LANGUAGE;
-  if (path.length > 0 && SUPPORTED_LANGUAGES.includes(path[0])) {
-    language = path[0];
+  let actualPath = path;
+  if (actualPath.length > 0 && SUPPORTED_LANGUAGES.includes(actualPath[0])) {
+    language = actualPath[0];
+    actualPath = actualPath.slice(1);
   }
+
+  // Determine page name from path
+  const pageName = actualPath.length > 0 ? actualPath[0] : 'homepage';
 
   const [property, overrides] = await Promise.all([
     getProperty(slug),
@@ -213,6 +218,8 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
   if (!property) {
     return { title: 'Property Not Found' };
   }
+
+  const template = pageName !== 'homepage' ? await getTemplate(property.templateId) : null;
 
   // Prefer bilingual overrides for name/description, fall back to property fields
   const propertyName = serverTranslateContent(
@@ -225,16 +232,25 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
     language,
   ) || `Book ${propertyName} - vacation rental`;
 
+  // Build page-specific title: "Page Title - Property Name" for sub-pages
+  let pageTitle = propertyName;
+  if (pageName !== 'homepage' && template?.pages?.[pageName]?.title) {
+    const pageLabel = serverTranslateContent(template.pages[pageName].title, language);
+    if (pageLabel) {
+      pageTitle = `${pageLabel} - ${propertyName}`;
+    }
+  }
+
   const customDomain = property.useCustomDomain ? property.customDomain : null;
   const canonicalUrl = getCanonicalUrl(slug, customDomain);
   const featuredImage = property.images?.find(img => img.isFeatured)?.url
     || property.images?.[0]?.url;
 
   return {
-    title: propertyName,
+    title: pageTitle,
     description,
     openGraph: {
-      title: propertyName,
+      title: pageTitle,
       description,
       url: canonicalUrl,
       type: 'website',
@@ -243,7 +259,7 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
     },
     twitter: {
       card: 'summary_large_image',
-      title: propertyName,
+      title: pageTitle,
       description,
       images: featuredImage ? [featuredImage] : [],
     },

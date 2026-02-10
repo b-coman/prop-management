@@ -153,14 +153,14 @@ export function FullMap({ content }: FullMapProps) {
   };
 
   return (
-    <section className="py-16 bg-background">
+    <section className="py-8 md:py-12 bg-background">
       <div className="container mx-auto px-4">
-        <div className="text-center max-w-2xl mx-auto mb-10">
+        <div className="text-center max-w-2xl mx-auto mb-6">
           <h2 className="text-3xl font-bold mb-4">{tc(title)}</h2>
           {description && <p className="text-muted-foreground">{tc(description)}</p>}
         </div>
-        
-        <div className="mb-6 flex flex-col items-center">
+
+        <div className="mb-4 flex flex-col items-center">
           <div className="flex items-center gap-2 mb-4">
             <MapPin className="text-primary" />
             <span className="text-lg">{tc(address)}</span>
@@ -181,7 +181,7 @@ export function FullMap({ content }: FullMapProps) {
         {isClient && coordinates ? (
           <div 
             id={mapId} 
-            className="w-full h-[500px] rounded-lg border shadow-sm"
+            className="w-full h-[400px] rounded-lg border shadow-sm"
             style={{ 
               background: '#f0f0f0', // Placeholder background
               display: 'flex',
@@ -192,7 +192,7 @@ export function FullMap({ content }: FullMapProps) {
             {!mapLoaded && <p>{t('map.loading', 'Loading map...')}</p>}
           </div>
         ) : (
-          <div className="w-full h-[500px] rounded-lg border shadow-sm bg-muted flex items-center justify-center">
+          <div className="w-full h-[400px] rounded-lg border shadow-sm bg-muted flex items-center justify-center">
             <p className="text-muted-foreground">{t('map.unavailable', 'Map unavailable')}</p>
           </div>
         )}
