@@ -1,11 +1,12 @@
 // src/components/generic-header-multipage.tsx
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
-import { Menu, Home, MapPin, Image as ImageIcon, ListChecks } from 'lucide-react';
+import { Menu, Home, MapPin, Image as ImageIcon, ListChecks, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CurrencySwitcherSimple } from '@/components/currency-switcher-simple';
 import { LanguageSelector } from '@/components/language-selector';
@@ -36,12 +37,14 @@ export function Header({
   const basePath = isCustomDomain ? '' : `/properties/${propertySlug}`;
   const [isScrolled, setIsScrolled] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
+  const [showBookingCTA, setShowBookingCTA] = useState(false);
+  const router = useRouter();
   
   // Get current theme from context
   const { theme } = useTheme();
   
   // Get language utilities
-  const { currentLang, getLocalizedPath, tc } = useLanguage();
+  const { currentLang, getLocalizedPath, tc, t } = useLanguage();
 
   // Build internal URL — short paths on custom domains, full paths on main app
   const processMenuUrl = (url: string) => {
@@ -74,7 +77,7 @@ export function Header({
 
   useEffect(() => {
     setHasMounted(true); // Indicate component has mounted for client-side rendering
-    
+
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
     };
@@ -82,6 +85,40 @@ export function Header({
     handleScroll(); // Initial check
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Show "Check Availability" CTA when hero is not visible
+  useEffect(() => {
+    const hero = document.getElementById('hero');
+    if (hero) {
+      const observer = new IntersectionObserver(
+        ([entry]) => setShowBookingCTA(!entry.isIntersecting),
+        { threshold: 0.1 }
+      );
+      observer.observe(hero);
+      return () => observer.disconnect();
+    }
+    // No hero on this page — show CTA when scrolled
+    setShowBookingCTA(isScrolled);
+  }, [isScrolled]);
+
+  const handleBookingCTA = useCallback(() => {
+    const hero = document.getElementById('hero');
+    if (hero) {
+      hero.scrollIntoView({ behavior: 'smooth' });
+      // Focus the date input after scroll completes
+      setTimeout(() => {
+        const dateInput = hero.querySelector<HTMLElement>('input[type="text"], button[aria-haspopup="dialog"]');
+        dateInput?.focus();
+        dateInput?.click();
+      }, 600);
+    } else {
+      // Navigate to property homepage
+      const homePath = isCustomDomain
+        ? (currentLang !== DEFAULT_LANGUAGE ? `/${currentLang}` : '/')
+        : getLocalizedPath(basePath);
+      router.push(homePath);
+    }
+  }, [isCustomDomain, currentLang, getLocalizedPath, basePath, router]);
 
   // Apply theme-based header styling when scroll state or theme changes
   useEffect(() => {
@@ -257,6 +294,22 @@ export function Header({
             className={currencySwitcherClasses} 
           />
           
+          {/* Check Availability CTA — desktop only */}
+          <Button
+            size="sm"
+            variant={buttonVariant}
+            className={cn(
+              "hidden md:inline-flex items-center gap-1.5 transition-opacity duration-300",
+              buttonExtraClasses,
+              showBookingCTA && hasMounted ? "opacity-100" : "opacity-0 pointer-events-none"
+            )}
+            data-theme-aware="true"
+            onClick={handleBookingCTA}
+          >
+            <Calendar className="h-4 w-4" />
+            {t('booking.checkAvailability', 'Check Availability')}
+          </Button>
+
           {/* Button Items (usually Book Now) */}
           {buttonItems.map(buttonItem => (
             <Button
