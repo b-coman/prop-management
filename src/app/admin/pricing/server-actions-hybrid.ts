@@ -279,6 +279,8 @@ export async function updateDay(dayData: any) {
 
       // Update the availability status for the specific day
       await availabilityRef.set({
+        propertyId: dayData.propertyId,
+        month: `${year}-${month.toString().padStart(2, '0')}`,
         [`available.${day}`]: dayData.available,
         updatedAt: FieldValue.serverTimestamp()
       }, { merge: true });

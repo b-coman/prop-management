@@ -4,7 +4,7 @@
  * Handles conflict resolution (our bookings win) and stale block cleanup.
  */
 
-import { FieldValue } from 'firebase-admin/firestore';
+import { FieldValue, FieldPath } from 'firebase-admin/firestore';
 import { loggers } from '@/lib/logger';
 import type { ICalFeed } from '@/types';
 
@@ -152,15 +152,19 @@ export async function syncFeedToAvailability(
 
   // Also find all months that currently have external blocks from this feed
   // (to clean up stale blocks)
+  // Query by doc ID prefix — some docs may lack a propertyId field
+  const docIdPrefix = `${feed.propertyId}_`;
   const availSnapshot = await db.collection('availability')
-    .where('propertyId', '==', feed.propertyId)
+    .where(FieldPath.documentId(), '>=', docIdPrefix)
+    .where(FieldPath.documentId(), '<', docIdPrefix + '\uf8ff')
     .get();
 
   const existingBlocksByMonth = new Map<string, Map<number, string>>(); // month -> day -> feedId
   for (const doc of availSnapshot.docs) {
     const data = doc.data();
     if (!data.externalBlocks) continue;
-    const month = data.month;
+    // Extract month from doc ID (format: propertyId_YYYY-MM)
+    const month = doc.id.slice(docIdPrefix.length);
     if (!month) continue;
 
     const blocks = new Map<number, string>();
@@ -232,6 +236,9 @@ export async function syncFeedToAvailability(
 
     if (hasUpdates) {
       updateData.updatedAt = FieldValue.serverTimestamp();
+      // Always ensure propertyId and month are set (may be missing on docs created by other code paths)
+      updateData.propertyId = feed.propertyId;
+      updateData.month = monthKey;
       if (currentDoc.exists) {
         batch.update(docRef, updateData);
       } else {

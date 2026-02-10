@@ -104,5 +104,5 @@ export async function getAdminStorage() {
 /**
  * Re-export commonly used Admin SDK types for convenience
  */
-export { FieldValue, Timestamp } from 'firebase-admin/firestore';
+export { FieldValue, FieldPath, Timestamp } from 'firebase-admin/firestore';
 export type { Firestore, DocumentReference, CollectionReference, Query, DocumentSnapshot, QuerySnapshot, WriteBatch } from 'firebase-admin/firestore';

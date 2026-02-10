@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { getAdminDb, FieldValue, Timestamp } from '@/lib/firebaseAdminSafe';
+import { getAdminDb, FieldValue, FieldPath, Timestamp } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
 import { requirePropertyAccess, AuthorizationError } from '@/lib/authorization';
 import { convertTimestampsToISOStrings } from '@/lib/utils';
@@ -146,8 +146,11 @@ export async function deleteICalFeed(feedId: string): Promise<{ error?: string }
     await requirePropertyAccess(propertyId);
 
     // Clean up external blocks from availability docs
+    // Query by doc ID prefix — some docs may lack a propertyId field
+    const docIdPrefix = `${propertyId}_`;
     const availSnapshot = await db.collection('availability')
-      .where('propertyId', '==', propertyId)
+      .where(FieldPath.documentId(), '>=', docIdPrefix)
+      .where(FieldPath.documentId(), '<', docIdPrefix + '\uf8ff')
       .get();
 
     const batch = db.batch();
