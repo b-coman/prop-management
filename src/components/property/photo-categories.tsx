@@ -18,6 +18,11 @@ export function PhotoCategories({ content }: PhotoCategoriesProps) {
   const { title, categories } = content;
   const { t, tc } = useLanguage();
   const [selectedCategoryIndex, setSelectedCategoryIndex] = useState(0);
+
+  // Don't render if no categories configured
+  if (!categories || categories.length === 0) {
+    return null;
+  }
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 

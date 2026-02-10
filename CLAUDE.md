@@ -23,6 +23,7 @@ Next.js 15 multi-property vacation rental platform with Stripe payments, Firebas
 4. **Use structured logger** - `loggers.*` from `src/lib/logger.ts`
 5. **Update docs only when requested** - focus on code changes
 6. **Query live Firestore, not local JSON** - seed files in `firestore/` can be stale; use `npx tsx scripts/query-firestore.ts <collection> [docId] [-- field1 field2]` to check real data
+7. **Multi-property first** - every feature must work for any property, not just the current one. Never hardcode property-specific data in components. Use Firestore config, property overrides, and template defaults. Changes for one property must be viable system-wide.
 
 ## User Keywords
 

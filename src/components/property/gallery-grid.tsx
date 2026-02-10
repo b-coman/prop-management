@@ -14,8 +14,9 @@ import { cn } from '@/lib/utils';
 import { SafeImage } from '@/components/ui/safe-image';
 import { useLanguage } from '@/hooks/useLanguage';
 
-// Bilingual labels for filterable tags (room-level categories only)
-const TAG_LABELS: Record<string, { en: string; ro: string }> = {
+// Default bilingual labels for common image tags.
+// Properties can override/extend via content.tagLabels in Firestore.
+const DEFAULT_TAG_LABELS: Record<string, { en: string; ro: string }> = {
   bedroom: { en: 'Bedrooms', ro: 'Dormitoare' },
   'living-room': { en: 'Living Areas', ro: 'Zone de zi' },
   kitchen: { en: 'Kitchen', ro: 'Bucătărie' },
@@ -25,6 +26,12 @@ const TAG_LABELS: Record<string, { en: string; ro: string }> = {
   terrace: { en: 'Terrace', ro: 'Terasă' },
   garden: { en: 'Garden', ro: 'Grădină' },
   outdoor: { en: 'Outdoors', ro: 'Exterior' },
+  pool: { en: 'Pool', ro: 'Piscină' },
+  spa: { en: 'Spa', ro: 'Spa' },
+  balcony: { en: 'Balcony', ro: 'Balcon' },
+  parking: { en: 'Parking', ro: 'Parcare' },
+  'beach-access': { en: 'Beach', ro: 'Plajă' },
+  deck: { en: 'Deck', ro: 'Terasă' },
 };
 
 interface GalleryGridProps {
@@ -38,20 +45,27 @@ export function GalleryGrid({ content }: GalleryGridProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [activeTag, setActiveTag] = useState<string | null>(null);
 
-  // Compute available filter tags with counts (only tags in TAG_LABELS)
+  // Merge default tag labels with per-property overrides from Firestore
+  const tagLabels = useMemo(() => {
+    const customLabels = (content as any).tagLabels as Record<string, { en: string; ro: string }> | undefined;
+    if (!customLabels) return DEFAULT_TAG_LABELS;
+    return { ...DEFAULT_TAG_LABELS, ...customLabels };
+  }, [content]);
+
+  // Compute available filter tags with counts (only tags with labels)
   const tagCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const image of images) {
       const tags = (image as any).tags as string[] | undefined;
       if (!tags) continue;
       for (const tag of tags) {
-        if (TAG_LABELS[tag]) {
+        if (tagLabels[tag]) {
           counts[tag] = (counts[tag] || 0) + 1;
         }
       }
     }
     return counts;
-  }, [images]);
+  }, [images, tagLabels]);
 
   const availableTags = useMemo(() => {
     // Sort tags by count descending, then alphabetically
@@ -135,7 +149,7 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                       : "bg-muted text-muted-foreground hover:bg-muted/80"
                   )}
                 >
-                  {TAG_LABELS[tag]?.[lang as 'en' | 'ro'] || tag} ({tagCounts[tag]})
+                  {tagLabels[tag]?.[lang as 'en' | 'ro'] || tag} ({tagCounts[tag]})
                 </button>
               ))}
             </div>
