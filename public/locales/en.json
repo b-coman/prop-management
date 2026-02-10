@@ -502,6 +502,14 @@
   "testimonials": {
     "title": "What Our Guests Say"
   },
+  "specs": {
+    "guests": "guests",
+    "bedroom": "bedroom",
+    "bedrooms": "bedrooms",
+    "beds": "beds",
+    "bathroom": "bath",
+    "bathrooms": "baths"
+  },
   "gallery": {
     "browseByCategory": "Browse by Category"
   },

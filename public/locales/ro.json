@@ -503,6 +503,14 @@
   "testimonials": {
     "title": "Ce Spun Oaspeții Noștri"
   },
+  "specs": {
+    "guests": "oaspeți",
+    "bedroom": "dormitor",
+    "bedrooms": "dormitoare",
+    "beds": "paturi",
+    "bathroom": "baie",
+    "bathrooms": "băi"
+  },
   "gallery": {
     "browseByCategory": "Răsfoiește pe Categorii"
   },

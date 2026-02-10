@@ -312,6 +312,7 @@ export const BookingWidget = React.memo(function BookingWidget({
           #date {
             border-color: hsl(var(--border)) !important;
             background-color: hsl(var(--background)) !important;
+            color: hsl(var(--foreground)) !important;
           }
 
           #check-availability-btn {
@@ -383,17 +384,17 @@ export const BookingWidget = React.memo(function BookingWidget({
             )}
             {property.bedrooms && (
               <>
-                <span className="opacity-40">&middot;</span>
+                <span className="opacity-60">&middot;</span>
                 <span className="flex items-center gap-1">
-                  <BedDouble className="h-3 w-3" /> {property.bedrooms} {t('specs.bd', 'bd')}
+                  <BedDouble className="h-3 w-3" /> {property.bedrooms} {property.bedrooms === 1 ? t('specs.bedroom', 'bedroom') : t('specs.bedrooms', 'bedrooms')}
                 </span>
               </>
             )}
             {property.bathrooms && (
               <>
-                <span className="opacity-40">&middot;</span>
+                <span className="opacity-60">&middot;</span>
                 <span className="flex items-center gap-1">
-                  <Bath className="h-3 w-3" /> {property.bathrooms} {t('specs.ba', 'ba')}
+                  <Bath className="h-3 w-3" /> {property.bathrooms} {property.bathrooms === 1 ? t('specs.bathroom', 'bath') : t('specs.bathrooms', 'baths')}
                 </span>
               </>
             )}
@@ -416,7 +417,7 @@ export const BookingWidget = React.memo(function BookingWidget({
             {/* Mobile: Price + Rating on one line */}
             <div className="flex items-center justify-between w-full md:hidden">
               <div className="flex items-baseline gap-1.5">
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                <span className="text-xs text-muted-foreground">
                   {typeof property.advertisedRateType === 'object'
                     ? tc(property.advertisedRateType)
                     : t('common.from')}
@@ -431,8 +432,8 @@ export const BookingWidget = React.memo(function BookingWidget({
               {showRating && rating && reviewsCount && (
                 <div className="flex items-center gap-1 text-sm">
                   <Star className="h-4 w-4 text-primary fill-primary" />
-                  <span className="font-semibold">{rating.toFixed(1)}</span>
-                  <span className="text-muted-foreground text-xs">({reviewsCount})</span>
+                  <span className="font-semibold text-foreground">{rating.toFixed(1)}</span>
+                  <span className="text-foreground/70 text-xs">({reviewsCount})</span>
                 </div>
               )}
             </div>
