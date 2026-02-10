@@ -268,6 +268,27 @@ export function Header({
           <span className={cn("text-lg font-semibold", spanColorClasses)}>{tc(propertyName)}</span>
         </Link>
 
+        {/* Check Availability CTA — collapses to zero width when hidden */}
+        <div
+          className={cn(
+            "hidden md:flex items-center transition-all duration-300 overflow-hidden",
+            showBookingCTA && hasMounted
+              ? "opacity-100 max-w-[280px] ml-6"
+              : "opacity-0 max-w-0"
+          )}
+        >
+          <Button
+            size="sm"
+            variant={buttonVariant}
+            className={cn("whitespace-nowrap items-center gap-1.5", buttonExtraClasses)}
+            data-theme-aware="true"
+            onClick={handleBookingCTA}
+          >
+            <Calendar className="h-4 w-4" />
+            {t('booking.checkAvailability', 'Check Availability')}
+          </Button>
+        </div>
+
         {/* Desktop Navigation */}
         <nav className="ml-auto hidden items-center gap-4 md:flex">
           {/* Regular menu items */}
@@ -294,22 +315,6 @@ export function Header({
             className={currencySwitcherClasses} 
           />
           
-          {/* Check Availability CTA — desktop only */}
-          <Button
-            size="sm"
-            variant={buttonVariant}
-            className={cn(
-              "hidden md:inline-flex items-center gap-1.5 transition-opacity duration-300",
-              buttonExtraClasses,
-              showBookingCTA && hasMounted ? "opacity-100" : "opacity-0 pointer-events-none"
-            )}
-            data-theme-aware="true"
-            onClick={handleBookingCTA}
-          >
-            <Calendar className="h-4 w-4" />
-            {t('booking.checkAvailability', 'Check Availability')}
-          </Button>
-
           {/* Button Items (usually Book Now) */}
           {buttonItems.map(buttonItem => (
             <Button
