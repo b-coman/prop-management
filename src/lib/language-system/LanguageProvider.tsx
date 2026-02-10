@@ -671,9 +671,9 @@ export function LanguageProvider({
         });
         
         if (redirect) {
-          router.push(finalUrl);
+          router.push(finalUrl, { scroll: false });
         } else {
-          router.replace(finalUrl);
+          router.replace(finalUrl, { scroll: false });
         }
       }
 
