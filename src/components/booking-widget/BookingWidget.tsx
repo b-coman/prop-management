@@ -11,7 +11,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { InitialBookingForm } from './InitialBookingForm';
-import { Star } from 'lucide-react';
+import { Star, Users, BedDouble, Bath } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -115,14 +115,18 @@ export const BookingWidget = React.memo(function BookingWidget({
 
         /* Embedded variant in hero section - reduce vertical padding */
         [data-position="${position}"][data-size="${size}"] {
-          padding-top: 1rem !important;
-          padding-bottom: 1rem !important;
+          padding-top: 0.75rem !important;
+          padding-bottom: 0.75rem !important;
+          padding-left: 0.75rem !important;
+          padding-right: 0.75rem !important;
         }
 
         @media (min-width: 768px) {
           [data-position="${position}"][data-size="${size}"] {
             padding-top: 1rem !important;
             padding-bottom: 1rem !important;
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
           }
         }
 
@@ -150,7 +154,7 @@ export const BookingWidget = React.memo(function BookingWidget({
             display: flex !important;
             flex-direction: column !important;
             align-items: center !important;
-            gap: 12px !important;
+            gap: 10px !important;
             width: 100% !important;
           }
 
@@ -206,7 +210,7 @@ export const BookingWidget = React.memo(function BookingWidget({
             display: flex !important;
             flex-direction: column !important;
             align-items: center !important;
-            gap: 16px !important;
+            gap: 12px !important;
             width: 100% !important;
             max-width: 100% !important;
             overflow: hidden !important;
@@ -369,6 +373,33 @@ export const BookingWidget = React.memo(function BookingWidget({
 
       {/* Flex container for price and form */}
       <div className="booking-form-flex-container w-full">
+        {/* Mobile: Property specs row */}
+        {(property.maxGuests || property.bedrooms || property.bathrooms) && (
+          <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground w-full md:hidden">
+            {property.maxGuests && (
+              <span className="flex items-center gap-1">
+                <Users className="h-3 w-3" /> {property.maxGuests} {t('specs.guests', 'guests')}
+              </span>
+            )}
+            {property.bedrooms && (
+              <>
+                <span className="opacity-40">&middot;</span>
+                <span className="flex items-center gap-1">
+                  <BedDouble className="h-3 w-3" /> {property.bedrooms} {t('specs.bd', 'bd')}
+                </span>
+              </>
+            )}
+            {property.bathrooms && (
+              <>
+                <span className="opacity-40">&middot;</span>
+                <span className="flex items-center gap-1">
+                  <Bath className="h-3 w-3" /> {property.bathrooms} {t('specs.ba', 'ba')}
+                </span>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Price Section */}
         <div className="booking-price-container">
           <div className="flex flex-col items-start justify-end">
@@ -382,26 +413,28 @@ export const BookingWidget = React.memo(function BookingWidget({
                 : t('common.from')}
             </p>
 
-            {/* Mobile: FROM -> price with visual balance */}
-            <div className={cn(
-              "flex items-center justify-between w-full md:hidden px-2",
-              size === 'large' ? "text-xl" : "text-lg"
-            )}>
-              <span className="text-muted-foreground uppercase tracking-wider font-normal text-sm opacity-70">
-                {typeof property.advertisedRateType === 'object'
-                  ? tc(property.advertisedRateType)
-                  : t('common.from')}
-              </span>
-              <span className="text-muted-foreground mx-2">{'->'}</span>
-              <div className="font-bold text-foreground leading-none">
-                {hasMounted && formattedDisplayPrice !== null
-                  ? formattedDisplayPrice
-                  : (property.advertisedRate ? formatPrice(Math.round(property.advertisedRate), propertyBaseCcy) : "Loading price...")}
-                <span className={cn(
-                  "font-normal text-muted-foreground ml-1",
-                  size === 'large' ? "text-base" : "text-sm"
-                )}>/{t('common.night')}</span>
+            {/* Mobile: Price + Rating on one line */}
+            <div className="flex items-center justify-between w-full md:hidden">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                  {typeof property.advertisedRateType === 'object'
+                    ? tc(property.advertisedRateType)
+                    : t('common.from')}
+                </span>
+                <span className="font-bold text-foreground text-lg leading-none">
+                  {hasMounted && formattedDisplayPrice !== null
+                    ? formattedDisplayPrice
+                    : (property.advertisedRate ? formatPrice(Math.round(property.advertisedRate), propertyBaseCcy) : "...")}
+                </span>
+                <span className="text-sm text-muted-foreground font-normal">/{t('common.night')}</span>
               </div>
+              {showRating && rating && reviewsCount && (
+                <div className="flex items-center gap-1 text-sm">
+                  <Star className="h-4 w-4 text-primary fill-primary" />
+                  <span className="font-semibold">{rating.toFixed(1)}</span>
+                  <span className="text-muted-foreground text-xs">({reviewsCount})</span>
+                </div>
+              )}
             </div>
 
             {/* Desktop: price on separate line */}
@@ -428,9 +461,9 @@ export const BookingWidget = React.memo(function BookingWidget({
           />
         </div>
 
-        {/* Ratings shown only if needed */}
+        {/* Ratings - desktop only (mobile has it inline with price) */}
         {showRating && rating && reviewsCount && (
-          <div className="booking-rating-container flex items-center gap-1 text-foreground self-end ml-4">
+          <div className="booking-rating-container hidden md:flex items-center gap-1 text-foreground self-end ml-4">
             <Star className="h-5 w-5 text-primary fill-primary" />
             <span className="font-semibold">{rating.toFixed(1)}</span>
             <span className="text-sm text-muted-foreground">({reviewsCount} reviews)</span>
