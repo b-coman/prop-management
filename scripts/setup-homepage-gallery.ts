@@ -83,16 +83,29 @@ async function main() {
     viewAllText: { en: 'View All Photos', ro: 'Vezi Toate Fotografiile' },
   };
 
-  // Use merge so we don't overwrite other homepage overrides
-  await overridesRef.set(
-    { home: { gallery: galleryConfig } },
-    { merge: true }
-  );
+  // Add gallery to visibleBlocks if not present, and set gallery config
+  const overridesDoc = await overridesRef.get();
+  const visibleBlocks = overridesDoc.data()?.homepage?.visibleBlocks;
+  const updates: Record<string, unknown> = {
+    'homepage.gallery': galleryConfig,
+  };
+  if (visibleBlocks && !visibleBlocks.includes('gallery')) {
+    const ctaIndex = visibleBlocks.indexOf('cta');
+    if (ctaIndex >= 0) {
+      visibleBlocks.splice(ctaIndex, 0, 'gallery');
+    } else {
+      visibleBlocks.push('gallery');
+    }
+    updates['homepage.visibleBlocks'] = visibleBlocks;
+  }
+
+  await overridesRef.update(updates);
 
   // Verify
   const updated = await overridesRef.get();
-  const homeGallery = updated.data()?.home?.gallery;
+  const homeGallery = updated.data()?.homepage?.gallery;
   console.log('Homepage gallery config set:', JSON.stringify(homeGallery, null, 2));
+  console.log('visibleBlocks:', updated.data()?.homepage?.visibleBlocks);
   console.log('\nDone! The homepage gallery block will now show featured interior images.');
 }
 
