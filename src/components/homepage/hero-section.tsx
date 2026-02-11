@@ -156,42 +156,12 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
         <div className={cn("text-center max-w-2xl mx-auto transition-opacity duration-300", !hasMounted && "opacity-0")}>
           {title && tc(title) && <h1 className="text-2xl md:text-5xl lg:text-6xl font-bold mb-4 drop-shadow-md">{tc(title)}</h1>}
           {subtitle && tc(subtitle) && <p className="text-lg md:text-xl mb-4 drop-shadow-sm">{tc(subtitle)}</p>}
-
-          {/* Property specs bar — hidden on mobile where booking widget overlaps */}
-          {bookingFormProperty && (bookingFormProperty.maxGuests || bookingFormProperty.bedrooms) && (
-            <div className="hidden md:inline-flex items-center gap-4 px-5 py-2.5 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 text-white/90 text-base">
-              {bookingFormProperty.maxGuests && (
-                <span className="flex items-center gap-1.5">
-                  <Users className="h-4 w-4" />
-                  <span>{bookingFormProperty.maxGuests} {t('specs.guests', 'guests')}</span>
-                </span>
-              )}
-              {bookingFormProperty.bedrooms && (
-                <>
-                  <span className="text-white/40">·</span>
-                  <span className="flex items-center gap-1.5">
-                    <BedDouble className="h-4 w-4" />
-                    <span>{bookingFormProperty.bedrooms} {bookingFormProperty.bedrooms === 1 ? t('specs.bedroom', 'bedroom') : t('specs.bedrooms', 'bedrooms')}</span>
-                  </span>
-                </>
-              )}
-              {bookingFormProperty.bathrooms && (
-                <>
-                  <span className="text-white/40">·</span>
-                  <span className="flex items-center gap-1.5">
-                    <Bath className="h-4 w-4" />
-                    <span>{bookingFormProperty.bathrooms} {bookingFormProperty.bathrooms === 1 ? t('specs.bathroom', 'bath') : t('specs.bathrooms', 'baths')}</span>
-                  </span>
-                </>
-              )}
-            </div>
-          )}
         </div>
 
         {/* V2 Booking Widget for Hero Section */}
         {showBookingForm && property && (
           <div className={cn("transition-opacity duration-300", !hasMounted && "opacity-0")}
-            style={{ 
+            style={{
               zIndex: 10,
               position: 'absolute',
               bottom: '20px',
@@ -202,7 +172,38 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
               minWidth: '320px'
             }}
           >
-            <BookingContainer 
+            {/* Property specs bar — sits above the booking widget, hidden on mobile */}
+            {bookingFormProperty && (bookingFormProperty.maxGuests || bookingFormProperty.bedrooms) && (
+              <div className="hidden md:flex justify-center mb-3">
+                <div className="inline-flex items-center gap-4 px-5 py-2.5 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 text-white/90 text-base">
+                  {bookingFormProperty.maxGuests && (
+                    <span className="flex items-center gap-1.5">
+                      <Users className="h-4 w-4" />
+                      <span>{bookingFormProperty.maxGuests} {t('specs.guests', 'guests')}</span>
+                    </span>
+                  )}
+                  {bookingFormProperty.bedrooms && (
+                    <>
+                      <span className="text-white/40">·</span>
+                      <span className="flex items-center gap-1.5">
+                        <BedDouble className="h-4 w-4" />
+                        <span>{bookingFormProperty.bedrooms} {bookingFormProperty.bedrooms === 1 ? t('specs.bedroom', 'bedroom') : t('specs.bedrooms', 'bedrooms')}</span>
+                      </span>
+                    </>
+                  )}
+                  {bookingFormProperty.bathrooms && (
+                    <>
+                      <span className="text-white/40">·</span>
+                      <span className="flex items-center gap-1.5">
+                        <Bath className="h-4 w-4" />
+                        <span>{bookingFormProperty.bathrooms} {bookingFormProperty.bathrooms === 1 ? t('specs.bathroom', 'bath') : t('specs.bathrooms', 'baths')}</span>
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+            <BookingContainer
               property={property}
               position={formPosition}
               size={formSize}
