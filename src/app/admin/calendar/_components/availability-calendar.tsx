@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatPrice } from '@/lib/utils';
-import type { MonthAvailabilityData, AvailabilityDayData, DayStatus } from '../_lib/availability-types';
+import type { MonthAvailabilityData, DayStatus } from '../_lib/availability-types';
 import { fetchAvailabilityCalendarData, toggleDateBlocked, toggleDateRangeBlocked } from '../actions';
 import { DayDetailPopover } from './day-detail-popover';
 
@@ -27,35 +27,31 @@ interface AvailabilityCalendarProps {
   initialMonths: MonthAvailabilityData[];
 }
 
-const STATUS_CONFIG: Record<DayStatus, { bg: string; border: string; icon: React.ReactNode; label: string }> = {
+// Uniform cell tints — subtle background storytelling
+const STATUS_CONFIG: Record<DayStatus, { bg: string; icon: React.ReactNode; label: string }> = {
   available: {
     bg: 'bg-white hover:bg-slate-50',
-    border: 'border-slate-200',
     icon: null,
     label: '',
   },
   booked: {
-    bg: 'bg-emerald-50',
-    border: 'border-emerald-300',
-    icon: <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />,
-    label: 'Booked',
+    bg: 'bg-emerald-50/60',
+    icon: <CheckCircle className="h-3 w-3 text-emerald-500" />,
+    label: '',
   },
   'on-hold': {
-    bg: 'bg-amber-50',
-    border: 'border-amber-300',
-    icon: <Clock className="h-3.5 w-3.5 text-amber-600" />,
-    label: 'Hold',
+    bg: 'bg-amber-50/60',
+    icon: <Clock className="h-3 w-3 text-amber-500" />,
+    label: '',
   },
   'external-block': {
     bg: 'bg-blue-50',
-    border: 'border-blue-300',
-    icon: <Globe className="h-3.5 w-3.5 text-blue-600" />,
-    label: 'External',
+    icon: <Globe className="h-3 w-3 text-blue-500" />,
+    label: '',
   },
   'manual-block': {
-    bg: 'bg-slate-200 hover:bg-slate-300',
-    border: 'border-slate-400',
-    icon: <Ban className="h-3.5 w-3.5 text-slate-500" />,
+    bg: 'bg-slate-100 hover:bg-slate-200',
+    icon: <Ban className="h-3 w-3 text-slate-400" />,
     label: 'Blocked',
   },
 };
@@ -71,8 +67,157 @@ const getPriceColor = (price: number, min: number, max: number): string => {
   return 'bg-rose-50/80';
 };
 
+// --- Floating bar overlay computation ---
+
+interface BookingInfo {
+  guestName: string;
+  source?: string;
+  barColor: 'emerald' | 'amber';
+  nightDays: number[];
+  checkoutDay: number | null;
+  checkInDay: number | null;
+}
+
+interface BarSegment {
+  bookingId: string;
+  guestName: string;
+  source?: string;
+  barColor: 'emerald' | 'amber';
+  leftPercent: number;
+  rightPercent: number;
+}
+
+function collectBookings(mData: MonthAvailabilityData): Map<string, BookingInfo> {
+  const bookings = new Map<string, BookingInfo>();
+
+  for (const dayStr of Object.keys(mData.days)) {
+    const d = Number(dayStr);
+    const dayData = mData.days[d];
+
+    // Booked nights
+    if ((dayData.status === 'booked' || dayData.status === 'on-hold') && dayData.bookingId) {
+      let booking = bookings.get(dayData.bookingId);
+      if (!booking) {
+        booking = {
+          guestName: dayData.bookingDetails?.guestName || 'Guest',
+          source: dayData.bookingDetails?.source,
+          barColor: dayData.status === 'on-hold' ? 'amber' : 'emerald',
+          nightDays: [],
+          checkoutDay: null,
+          checkInDay: null,
+        };
+        bookings.set(dayData.bookingId, booking);
+      }
+      booking.nightDays.push(d);
+      if (dayData.bookingPosition === 'start' || dayData.bookingPosition === 'single') {
+        booking.checkInDay = d;
+      }
+    }
+
+    // Checkout days
+    if (dayData.checkoutBooking) {
+      const coId = dayData.checkoutBooking.bookingId;
+      let booking = bookings.get(coId);
+      if (!booking) {
+        booking = {
+          guestName: dayData.checkoutBooking.guestName,
+          source: dayData.checkoutBooking.source,
+          barColor: dayData.checkoutBooking.barColor,
+          nightDays: [],
+          checkoutDay: null,
+          checkInDay: null,
+        };
+        bookings.set(coId, booking);
+      }
+      booking.checkoutDay = d;
+    }
+  }
+
+  for (const booking of bookings.values()) {
+    booking.nightDays.sort((a, b) => a - b);
+  }
+
+  return bookings;
+}
+
+function computeBarSegments(
+  week: (number | null)[],
+  bookings: Map<string, BookingInfo>
+): BarSegment[] {
+  const segments: BarSegment[] = [];
+  const colWidth = 100 / 7;
+
+  for (const [bookingId, booking] of bookings) {
+    const colsInRow: { col: number; day: number; isCheckout: boolean }[] = [];
+
+    for (let col = 0; col < 7; col++) {
+      const day = week[col];
+      if (day === null) continue;
+      const isNight = booking.nightDays.includes(day);
+      const isCheckout = booking.checkoutDay === day;
+      if (isNight || isCheckout) {
+        colsInRow.push({ col, day, isCheckout });
+      }
+    }
+
+    if (colsInRow.length === 0) continue;
+
+    const isCheckIn = booking.checkInDay !== null
+      && colsInRow.some(c => c.day === booking.checkInDay);
+    const hasCheckout = colsInRow.some(c => c.isCheckout);
+
+    // Left edge
+    let leftPercent: number;
+    if (isCheckIn) {
+      const checkInCol = colsInRow.find(c => c.day === booking.checkInDay)!.col;
+      leftPercent = checkInCol * colWidth + 0.5 * colWidth;
+    } else {
+      // Continues from previous row/month
+      leftPercent = 0;
+    }
+
+    // Right edge (distance from right)
+    let rightPercent: number;
+    if (hasCheckout) {
+      const checkoutCol = colsInRow.find(c => c.isCheckout)!.col;
+      rightPercent = (7 - checkoutCol - 0.3) * colWidth;
+    } else {
+      // Continues to next row/month
+      rightPercent = 0;
+    }
+
+    segments.push({
+      bookingId,
+      guestName: booking.guestName,
+      source: booking.source,
+      barColor: booking.barColor,
+      leftPercent,
+      rightPercent,
+    });
+  }
+
+  return segments;
+}
+
+function getBarLabel(segment: BarSegment): string {
+  const colWidth = 100 / 7;
+  const widthPercent = 100 - segment.leftPercent - segment.rightPercent;
+  const effectiveCols = widthPercent / colWidth;
+
+  if (effectiveCols >= 2.5) {
+    return segment.source
+      ? `${segment.guestName} \u00b7 ${segment.source}`
+      : segment.guestName;
+  }
+  if (effectiveCols >= 1.3) {
+    return segment.guestName;
+  }
+  return '';
+}
+
+// --- Main component ---
+
 export function AvailabilityCalendar({ propertyId, initialMonths }: AvailabilityCalendarProps) {
-  // monthsData is keyed by yearMonth string
   const [monthsData, setMonthsData] = useState<Record<string, MonthAvailabilityData>>(() => {
     const map: Record<string, MonthAvailabilityData> = {};
     for (const m of initialMonths) {
@@ -81,14 +226,13 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
     return map;
   });
 
-  // startDate is the first of the 3 visible months
   const [startDate, setStartDate] = useState(() => {
     const [y, m] = initialMonths[0].month.split('-').map(Number);
     return new Date(y, m - 1, 1);
   });
 
   const [isLoading, startTransition] = useTransition();
-  const [popoverKey, setPopoverKey] = useState<string | null>(null); // "YYYY-MM:day"
+  const [popoverKey, setPopoverKey] = useState<string | null>(null);
   const [anchor, setAnchor] = useState<{ yearMonth: string; day: number; action: 'block' | 'unblock' } | null>(null);
   const [pendingKeys, setPendingKeys] = useState<Set<string>>(new Set());
   const [showPrices, setShowPrices] = useState(false);
@@ -100,7 +244,6 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
   const todayYM = format(today, 'yyyy-MM');
   const todayDay = today.getDate();
 
-  // The 3 visible months
   const visibleMonths = [0, 1, 2].map(i => {
     const d = addMonths(startDate, i);
     return format(d, 'yyyy-MM');
@@ -263,16 +406,17 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
     return min !== Infinity ? { min, max } : null;
   }, [visibleMonths, monthsData]);
 
+  // --- Render month grid with floating bar overlays ---
   const renderMonthGrid = (yearMonth: string) => {
     const [y, m] = yearMonth.split('-').map(Number);
     const date = new Date(y, m - 1, 1);
     const dim = getDaysInMonth(date);
     const firstDow = date.getDay();
     const isCurrentMonth = yearMonth === todayYM;
-
     const mData = monthsData[yearMonth];
+    const cellH = showPrices ? 'h-[72px]' : 'h-[64px]';
 
-    // Build weeks
+    // Build weeks array
     const weeks: (number | null)[][] = [];
     let dc = 1;
     for (let w = 0; w < 6 && dc <= dim; w++) {
@@ -287,311 +431,160 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
       weeks.push(row);
     }
 
+    // Collect bookings and compute bar segments per week row
+    const bookingsMap = mData ? collectBookings(mData) : new Map<string, BookingInfo>();
+    const weekSegments = weeks.map(week => computeBarSegments(week, bookingsMap));
+
     return (
       <div key={yearMonth} className="flex-1 min-w-0">
         <h3 className="text-sm font-semibold text-center mb-2">
           {format(date, 'MMMM yyyy')}
         </h3>
-        <table className="w-full border-separate border-spacing-0" style={{ tableLayout: 'fixed' }}>
-          <thead>
-            <tr>
-              {WEEKDAY_HEADERS.map((d, i) => (
-                <th
-                  key={d}
-                  className={`text-center text-[10px] font-medium py-1 ${
-                    i === 0 || i === 6 ? 'text-rose-500' : 'text-muted-foreground'
-                  }`}
+
+        {/* Weekday headers */}
+        <div className="grid grid-cols-7">
+          {WEEKDAY_HEADERS.map((d, i) => (
+            <div
+              key={d}
+              className={`text-center text-[10px] font-medium py-1 ${
+                i === 0 || i === 6 ? 'text-rose-500' : 'text-muted-foreground'
+              }`}
+            >
+              {d}
+            </div>
+          ))}
+        </div>
+
+        {/* Week rows — each is position:relative for bar overlays */}
+        {weeks.map((week, wi) => (
+          <div key={wi} className="relative grid grid-cols-7">
+            {/* Uniform cells */}
+            {week.map((day, di) => {
+              if (day === null) {
+                return (
+                  <div key={`e-${wi}-${di}`} className="p-0.5">
+                    <div className={`${cellH} transition-all duration-200`} />
+                  </div>
+                );
+              }
+
+              const dayData = mData?.days[day];
+              if (!dayData) {
+                return (
+                  <div key={`nd-${day}`} className="p-0.5">
+                    <div className={`${cellH} transition-all duration-200`} />
+                  </div>
+                );
+              }
+
+              const config = STATUS_CONFIG[dayData.status];
+              const past = isPast(yearMonth, day);
+              const isTodayCell = isCurrentMonth && day === todayDay;
+              const cellKey = `${yearMonth}:${day}`;
+              const isAnchorCell = anchor?.day === day && anchor?.yearMonth === yearMonth;
+              const isPendingCell = pendingKeys.has(cellKey);
+              const isClickable = !past;
+
+              const priceOverlayBg = showPrices && dayData.price != null
+                && dayData.status === 'available' && globalPriceRange
+                ? getPriceColor(dayData.price, globalPriceRange.min, globalPriceRange.max)
+                : '';
+
+              const cellVisual = (
+                <div
+                  className={`
+                    ${cellH} rounded border border-slate-200 p-1 pb-6 flex flex-col
+                    transition-all duration-200 select-none
+                    ${priceOverlayBg || config.bg}
+                    ${past ? 'opacity-40' : ''}
+                    ${isTodayCell ? 'ring-2 ring-blue-500 ring-offset-1' : ''}
+                    ${isAnchorCell ? 'ring-2 ring-blue-400' : ''}
+                    ${isClickable ? 'cursor-pointer' : ''}
+                    ${isPendingCell ? 'animate-pulse' : ''}
+                  `}
+                  onClick={(e) => handleDayClick(yearMonth, day, e)}
                 >
-                  {d}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {weeks.map((week, wi) => (
-              <tr key={wi}>
-                {week.map((day, di) => {
-                  if (day === null) {
-                    return <td key={`e-${wi}-${di}`} className="p-0.5"><div className={`${showPrices ? 'h-[64px]' : 'h-[56px]'} transition-all duration-200`} /></td>;
-                  }
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-semibold ${
+                      isTodayCell ? 'text-blue-700' : 'text-slate-700'
+                    }`}>
+                      {day}
+                    </span>
+                    {config.icon}
+                  </div>
+                  <div className="mt-auto">
+                    {dayData.status === 'external-block' && dayData.externalFeedName && (
+                      <span className="text-[9px] text-blue-600 font-medium truncate block leading-tight">
+                        {dayData.externalFeedName}
+                      </span>
+                    )}
+                    {config.label && (
+                      <span className="text-[9px] text-muted-foreground leading-tight">
+                        {config.label}
+                      </span>
+                    )}
+                    {showPrices && dayData.price != null && (
+                      <span className={`text-[10px] font-semibold leading-tight ${
+                        dayData.status === 'available' ? 'text-slate-700' : 'text-slate-500'
+                      }`}>
+                        {formatPrice(dayData.price, currency)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
 
-                  const dayData = mData?.days[day];
-                  if (!dayData) {
-                    return <td key={`nd-${day}`} className="p-0.5"><div className={`${showPrices ? 'h-[64px]' : 'h-[56px]'} transition-all duration-200`} /></td>;
-                  }
+              // Popover for booked/held/external/checkout cells
+              const needsPopover = !past && (
+                dayData.status === 'booked' || dayData.status === 'on-hold' ||
+                dayData.status === 'external-block' || !!dayData.checkoutBooking
+              );
 
-                  const config = STATUS_CONFIG[dayData.status];
-                  const past = isPast(yearMonth, day);
-                  const isTodayCell = isCurrentMonth && day === todayDay;
-                  const cellKey = `${yearMonth}:${day}`;
-                  const isAnchor = anchor?.day === day && anchor?.yearMonth === yearMonth;
-                  const isPending = pendingKeys.has(cellKey);
-                  const isClickable = !past;
-                  const cellH = showPrices ? 'h-[64px]' : 'h-[56px]';
+              if (needsPopover) {
+                return (
+                  <div key={`d-${day}`} className="p-0.5">
+                    <DayDetailPopover
+                      dayData={dayData}
+                      open={popoverKey === cellKey}
+                      onOpenChange={(open) => setPopoverKey(open ? cellKey : null)}
+                    >
+                      {cellVisual}
+                    </DayDetailPopover>
+                  </div>
+                );
+              }
 
-                  const isBarCell = dayData.status === 'booked' || dayData.status === 'on-hold';
-                  const hasTail = !!dayData.checkoutBooking;
-                  const isStart = dayData.bookingPosition === 'start' || dayData.bookingPosition === 'single';
-                  const isEnd = dayData.bookingPosition === 'end' || dayData.bookingPosition === 'single';
+              return <div key={`d-${day}`} className="p-0.5">{cellVisual}</div>;
+            })}
 
-                  // Row connectivity for bar cells
-                  const prevDay = di > 0 ? week[di - 1] : null;
-                  const nextDay = di < 6 ? week[di + 1] : null;
-                  const prevDayData = prevDay ? mData?.days[prevDay] : null;
-                  const nextDayData = nextDay ? mData?.days[nextDay] : null;
-
-                  const connectLeft = isBarCell && !!prevDayData
-                    && dayData.bookingId === prevDayData.bookingId
-                    && (prevDayData.status === 'booked' || prevDayData.status === 'on-hold');
-                  const connectRight = isBarCell && !!nextDayData
-                    && dayData.bookingId === nextDayData.bookingId
-                    && (nextDayData.status === 'booked' || nextDayData.status === 'on-hold');
-
-                  // Does bar connect to checkout tail in next cell?
-                  const nextIsCheckout = isBarCell && !connectRight
-                    && nextDayData?.checkoutBooking?.bookingId === dayData.bookingId;
-                  // Does this checkout tail connect from bar in prev cell?
-                  const tailConnectsFromBar = hasTail && !isBarCell
-                    && !!prevDayData && prevDayData.bookingId === dayData.checkoutBooking?.bookingId
-                    && (prevDayData.status === 'booked' || prevDayData.status === 'on-hold');
-
-                  // Bar color classes
-                  const barBgClass = isBarCell
-                    ? (dayData.status === 'on-hold' ? 'bg-amber-50' : 'bg-emerald-50')
-                    : '';
-                  const barBorderClass = isBarCell
-                    ? (dayData.status === 'on-hold' ? 'border-amber-300' : 'border-emerald-300')
-                    : '';
-                  const tailBgClass = hasTail
-                    ? (dayData.checkoutBooking!.barColor === 'amber' ? 'bg-amber-50' : 'bg-emerald-50')
-                    : '';
-                  const tailBorderClass = hasTail
-                    ? (dayData.checkoutBooking!.barColor === 'amber' ? 'border-amber-300' : 'border-emerald-300')
-                    : '';
-
-                  // Source label
-                  const getSourceLabel = () => {
-                    if (!isBarCell || !dayData.bookingDetails) return null;
-                    if (dayData.status === 'on-hold') return 'Hold';
-                    const src = dayData.bookingDetails.source?.toLowerCase();
-                    if (src === 'airbnb') return 'Airbnb';
-                    if (src === 'booking.com' || src === 'booking') return 'Booking';
-                    if (src === 'vrbo') return 'VRBO';
-                    return 'Booked';
-                  };
-
-                  const isRowBarStart = isBarCell && !connectLeft;
-
-                  const priceOverlayBg = showPrices && dayData.price != null && dayData.status === 'available' && globalPriceRange
-                    ? getPriceColor(dayData.price, globalPriceRange.min, globalPriceRange.max)
-                    : '';
-
-                  // --- Compute td padding ---
-                  let tdPadding = 'p-0.5';
-                  if (isBarCell) {
-                    const gapLeft = !connectLeft;
-                    const gapRight = !connectRight && !nextIsCheckout;
-                    if (!gapLeft && !gapRight) tdPadding = 'py-0.5 px-0';
-                    else if (!gapLeft && gapRight) tdPadding = 'py-0.5 pl-0 pr-0.5';
-                    else if (gapLeft && !gapRight) tdPadding = 'py-0.5 pl-0.5 pr-0';
-                    else tdPadding = 'p-0.5';
-                  } else if (tailConnectsFromBar) {
-                    tdPadding = 'py-0.5 pl-0 pr-0.5';
-                  }
-
-                  // --- Determine cell rendering mode ---
-                  // Mode 1: Regular cell (no bar, no tail)
-                  // Mode 2: Bar cell (with optional tail for back-to-back)
-                  // Mode 3: Checkout tail only (non-bar)
-                  let cellContent: React.ReactNode;
-
-                  if (isBarCell) {
-                    // ========== BAR CELL (overlay rendering) ==========
-                    // Determine bar overlay position
-                    const barIsStart = isStart || isRowBarStart; // start or row-wrapped start
-                    const barIsEnd = isEnd && !connectRight && !nextIsCheckout;
-
-                    // Bar overlay classes
-                    const barLeft = barIsStart ? 'left-1/2' : 'left-0';
-                    const barRight = 'right-0';
-                    const barRoundL = barIsStart ? 'rounded-l-md' : '';
-                    const barBorderL = barIsStart ? 'border-l-2' : '';
-                    // No pill-end on bar if it connects to checkout — the tail provides the end
-                    const barRoundR = barIsEnd ? 'rounded-r-md' : '';
-                    const barBorderR = barIsEnd ? 'border-r-2' : '';
-
-                    cellContent = (
-                      <div
-                        className={`
-                          relative ${cellH} transition-all duration-200 select-none
-                          ${past ? 'opacity-40' : ''}
-                          ${isTodayCell ? 'ring-2 ring-blue-500 ring-offset-1 rounded' : ''}
-                          ${isAnchor ? 'ring-2 ring-blue-400 rounded' : ''}
-                          ${isClickable ? 'cursor-pointer' : ''}
-                          ${isPending ? 'animate-pulse' : ''}
-                        `}
-                        onClick={(e) => handleDayClick(yearMonth, day, e)}
-                      >
-                        {/* Neutral base for check-in left portion */}
-                        {barIsStart && (
-                          <div className="absolute top-0 bottom-0 left-0 w-1/2 border-t border-b border-l border-slate-200 rounded-l bg-white pointer-events-none" />
-                        )}
-                        {/* Checkout tail overlay for back-to-back */}
-                        {hasTail && (
-                          <div className={`absolute top-0 bottom-0 left-0 w-[30%] ${tailBgClass} border-t border-b border-r-2 ${tailBorderClass} rounded-r-md pointer-events-none`} />
-                        )}
-                        {/* Bar overlay */}
-                        <div className={`absolute top-0 bottom-0 ${barLeft} ${barRight} ${barBgClass} border-t border-b ${barBorderL} ${barBorderR} ${barBorderClass} ${barRoundL} ${barRoundR} pointer-events-none`} />
-                        {/* Content */}
-                        <div className="relative z-10 p-1 flex flex-col h-full">
-                          <div className="flex items-center justify-between">
-                            <span className={`text-xs font-semibold ${isTodayCell ? 'text-blue-700' : 'text-slate-700'}`}>
-                              {day}
-                            </span>
-                            {isRowBarStart && config.icon}
-                          </div>
-                          <div className="mt-auto">
-                            {isRowBarStart && (
-                              <span className={`text-[9px] font-medium truncate block leading-tight ${
-                                dayData.status === 'on-hold' ? 'text-amber-700' : 'text-emerald-700'
-                              }`}>
-                                {getSourceLabel()}
-                              </span>
-                            )}
-                            {!isRowBarStart && showPrices && dayData.price != null && (
-                              <span className="text-[10px] font-semibold leading-tight text-slate-500">
-                                {formatPrice(dayData.price, currency)}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  } else if (hasTail) {
-                    // ========== CHECKOUT TAIL ONLY (non-bar) ==========
-                    const tailRoundL = !tailConnectsFromBar ? 'rounded-l-md' : '';
-                    const tailBorderL = !tailConnectsFromBar ? 'border-l-2' : '';
-
-                    // Status overlay for right portion (external, manual-block)
-                    const hasStatusOverlay = dayData.status === 'external-block' || dayData.status === 'manual-block';
-
-                    cellContent = (
-                      <div
-                        className={`
-                          relative ${cellH} transition-all duration-200 select-none
-                          ${past ? 'opacity-40' : ''}
-                          ${isTodayCell ? 'ring-2 ring-blue-500 ring-offset-1 rounded' : ''}
-                          ${isAnchor ? 'ring-2 ring-blue-400 rounded' : ''}
-                          ${isClickable ? 'cursor-pointer' : ''}
-                          ${isPending ? 'animate-pulse' : ''}
-                        `}
-                        onClick={(e) => handleDayClick(yearMonth, day, e)}
-                      >
-                        {/* Tail overlay — left 30% */}
-                        <div className={`absolute top-0 bottom-0 left-0 w-[30%] ${tailBgClass} border-t border-b border-r-2 ${tailBorderL} ${tailBorderClass} ${tailRoundL} rounded-r-md pointer-events-none`} />
-                        {/* Status overlay — right portion with gap */}
-                        {hasStatusOverlay && (
-                          <div className={`absolute top-0 bottom-0 right-0 rounded ${config.bg} border ${config.border} pointer-events-none`} style={{ left: 'calc(30% + 4px)' }} />
-                        )}
-                        {/* Available right portion (no overlay needed, white shows through) */}
-                        {!hasStatusOverlay && (
-                          <div className="absolute top-0 bottom-0 right-0 rounded bg-white border border-slate-200 pointer-events-none" style={{ left: 'calc(30% + 4px)' }} />
-                        )}
-                        {/* Content */}
-                        <div className="relative z-10 p-1 flex flex-col h-full">
-                          <div className="flex items-center justify-between">
-                            <span className={`text-xs font-semibold ${isTodayCell ? 'text-blue-700' : 'text-slate-700'}`}>
-                              {day}
-                            </span>
-                            {config.icon}
-                          </div>
-                          <div className="mt-auto">
-                            {dayData.status === 'external-block' && dayData.externalFeedName && (
-                              <span className="text-[9px] text-blue-600 font-medium truncate block leading-tight">
-                                {dayData.externalFeedName}
-                              </span>
-                            )}
-                            {config.label && dayData.status !== 'external-block' && (
-                              <span className="text-[9px] text-muted-foreground leading-tight">{config.label}</span>
-                            )}
-                            {showPrices && dayData.price != null && (
-                              <span className={`text-[10px] font-semibold leading-tight ${
-                                dayData.status === 'available' ? 'text-slate-700' : 'text-slate-500'
-                              }`}>
-                                {formatPrice(dayData.price, currency)}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  } else {
-                    // ========== REGULAR CELL (no bar, no tail) ==========
-                    cellContent = (
-                      <div
-                        className={`
-                          ${cellH} rounded border p-1 flex flex-col transition-all duration-200 select-none
-                          ${priceOverlayBg || config.bg} ${config.border}
-                          ${past ? 'opacity-40' : ''}
-                          ${isTodayCell ? 'ring-2 ring-blue-500 ring-offset-1' : ''}
-                          ${isAnchor ? 'ring-2 ring-blue-400' : ''}
-                          ${isClickable ? 'cursor-pointer' : ''}
-                          ${isPending ? 'animate-pulse' : ''}
-                        `}
-                        onClick={(e) => handleDayClick(yearMonth, day, e)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className={`text-xs font-semibold ${isTodayCell ? 'text-blue-700' : 'text-slate-700'}`}>
-                            {day}
-                          </span>
-                          {config.icon}
-                        </div>
-                        <div className="mt-auto">
-                          {dayData.status === 'external-block' && dayData.externalFeedName && (
-                            <span className="text-[9px] text-blue-600 font-medium truncate block leading-tight">
-                              {dayData.externalFeedName}
-                            </span>
-                          )}
-                          {config.label && dayData.status !== 'external-block' && (
-                            <span className="text-[9px] text-muted-foreground leading-tight">{config.label}</span>
-                          )}
-                          {showPrices && dayData.price != null && (
-                            <span className={`text-[10px] font-semibold leading-tight ${
-                              dayData.status === 'available' ? 'text-slate-700' : 'text-slate-500'
-                            }`}>
-                              {formatPrice(dayData.price, currency)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  // Wrap in popover for interactive cells
-                  const needsPopover = !past && (
-                    isBarCell || dayData.status === 'external-block' || hasTail
-                  );
-
-                  if (needsPopover) {
-                    return (
-                      <td key={`d-${day}`} className={tdPadding}>
-                        <DayDetailPopover
-                          dayData={dayData}
-                          open={popoverKey === cellKey}
-                          onOpenChange={(open) => setPopoverKey(open ? cellKey : null)}
-                        >
-                          {cellContent}
-                        </DayDetailPopover>
-                      </td>
-                    );
-                  }
-
-                  return <td key={`d-${day}`} className={tdPadding}>{cellContent}</td>;
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            {/* Floating bar overlays */}
+            {weekSegments[wi].map(segment => {
+              const label = getBarLabel(segment);
+              return (
+                <div
+                  key={`bar-${segment.bookingId}`}
+                  className={`
+                    absolute z-10 rounded-full pointer-events-none
+                    flex items-center overflow-hidden
+                    ${segment.barColor === 'amber' ? 'bg-amber-400' : 'bg-emerald-500'}
+                  `}
+                  style={{
+                    left: `${segment.leftPercent}%`,
+                    right: `${segment.rightPercent}%`,
+                    bottom: '4px',
+                    height: '20px',
+                  }}
+                >
+                  {label && (
+                    <span className="text-[11px] font-medium text-white truncate px-2 leading-none">
+                      {label}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
     );
   };
@@ -648,15 +641,17 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
                 <span>Available ({totalSummary.available})</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-6 h-3 rounded-full border border-emerald-300 bg-emerald-50" />
+                <div className="w-6 h-3 rounded-full bg-emerald-500" />
                 <span>Booked ({totalSummary.booked})</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-6 h-3 rounded-full border border-amber-300 bg-amber-50" />
+                <div className="w-6 h-3 rounded-full bg-amber-400" />
                 <span>On Hold ({totalSummary.onHold})</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-3.5 h-3.5 rounded border border-blue-300 bg-blue-50" />
+                <div className="w-3.5 h-3.5 rounded border border-blue-300 bg-blue-50 flex items-center justify-center">
+                  <Globe className="h-2.5 w-2.5 text-blue-500" />
+                </div>
                 <span>External ({totalSummary.externallyBlocked})</span>
               </div>
               <div className="flex items-center gap-1.5">
