@@ -97,27 +97,30 @@ export function LocationHighlights({ content, language = 'en' }: LocationHighlig
                 </div>
             </div>
 
-            {/* Full-width map breaking out of container */}
+            {/* Contained map — moderate height, rounded corners */}
             {coordinates && apiKey ? (
-              <div className="aspect-video bg-muted flex items-center justify-center mb-8 w-full overflow-hidden">
-               <iframe
-                 src={`https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${coordinates.latitude},${coordinates.longitude}&zoom=11`} // Use coordinates with balanced zoom
-                 width="100%"
-                 height="100%"
-                 style={{ border: 0 }}
-                 allowFullScreen={false}
-                 loading="lazy"
-                 referrerPolicy="no-referrer-when-downgrade"
-                 title="Property Location Map"
-               ></iframe>
+              <div className="container mx-auto px-4 mb-8">
+                <div className="h-[350px] md:h-[400px] bg-muted rounded-xl overflow-hidden shadow-sm">
+                  <iframe
+                    src={`https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${coordinates.latitude},${coordinates.longitude}&zoom=11`}
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0 }}
+                    allowFullScreen={false}
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    title="Property Location Map"
+                  ></iframe>
+                </div>
               </div>
             ) : coordinates ? (
-              // Display placeholder if coordinates exist but API key is missing
-              <div className="aspect-video bg-muted flex flex-col items-center justify-center mb-8 w-full">
-                <MapPin className="h-12 w-12 text-muted-foreground/50 mb-2" />
-                 <p className="text-sm text-muted-foreground">
+              <div className="container mx-auto px-4 mb-8">
+                <div className="h-[350px] md:h-[400px] bg-muted rounded-xl flex flex-col items-center justify-center">
+                  <MapPin className="h-12 w-12 text-muted-foreground/50 mb-2" />
+                  <p className="text-sm text-muted-foreground">
                     {t('location.mapKeyMissing', 'Map unavailable')}
-                 </p>
+                  </p>
+                </div>
               </div>
             ) : null}
 
