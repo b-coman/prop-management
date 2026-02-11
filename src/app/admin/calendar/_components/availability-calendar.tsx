@@ -35,12 +35,12 @@ const STATUS_CONFIG: Record<DayStatus, { bg: string; icon: React.ReactNode; labe
     label: '',
   },
   booked: {
-    bg: 'bg-emerald-50/60',
+    bg: 'bg-emerald-50',
     icon: <CheckCircle className="h-3 w-3 text-emerald-500" />,
     label: '',
   },
   'on-hold': {
-    bg: 'bg-amber-50/60',
+    bg: 'bg-amber-50',
     icon: <Clock className="h-3 w-3 text-amber-500" />,
     label: '',
   },
@@ -85,6 +85,8 @@ interface BarSegment {
   barColor: 'emerald' | 'amber';
   leftPercent: number;
   rightPercent: number;
+  isCheckIn: boolean;
+  hasCheckout: boolean;
 }
 
 function collectBookings(mData: MonthAvailabilityData): Map<string, BookingInfo> {
@@ -193,6 +195,8 @@ function computeBarSegments(
       barColor: booking.barColor,
       leftPercent,
       rightPercent,
+      isCheckIn,
+      hasCheckout,
     });
   }
 
@@ -560,12 +564,16 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
             {/* Floating bar overlays */}
             {weekSegments[wi].map(segment => {
               const label = getBarLabel(segment);
+              // Pill rounding only at real booking boundaries, flat where it continues
+              const roundL = segment.isCheckIn ? 'rounded-l-full' : '';
+              const roundR = segment.hasCheckout ? 'rounded-r-full' : '';
               return (
                 <div
                   key={`bar-${segment.bookingId}`}
                   className={`
-                    absolute z-10 rounded-full pointer-events-none
+                    absolute z-10 pointer-events-none
                     flex items-center overflow-hidden
+                    ${roundL} ${roundR}
                     ${segment.barColor === 'amber' ? 'bg-amber-400' : 'bg-emerald-500'}
                   `}
                   style={{
