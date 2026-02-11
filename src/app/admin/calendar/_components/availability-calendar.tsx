@@ -328,15 +328,100 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
                   const isPending = pendingKeys.has(cellKey);
                   const isClickable = !past;
 
+                  // Bar connectivity: check if adjacent cells in same row belong to same booking
+                  const isBarCell = dayData.status === 'booked' || dayData.status === 'on-hold';
+                  const prevDay = di > 0 ? week[di - 1] : null;
+                  const nextDay = di < 6 ? week[di + 1] : null;
+
+                  const prevDayData = prevDay ? mData?.days[prevDay] : null;
+                  const nextDayData = nextDay ? mData?.days[nextDay] : null;
+
+                  const prevSameBooking = isBarCell && prevDayData
+                    && dayData.bookingId === prevDayData.bookingId
+                    && (prevDayData.status === 'booked' || prevDayData.status === 'on-hold');
+                  const nextSameBooking = isBarCell && nextDayData
+                    && dayData.bookingId === nextDayData.bookingId
+                    && (nextDayData.status === 'booked' || nextDayData.status === 'on-hold');
+
+                  const connectLeft = !!prevSameBooking;
+                  const connectRight = !!nextSameBooking;
+
+                  // Checkout tail gap bridging: if this is bar end and next cell is the checkout day
+                  const isBarEnd = isBarCell && !connectRight;
+                  const nextIsCheckout = isBarEnd && nextDayData?.checkoutBooking?.bookingId === dayData.bookingId;
+                  // If the previous cell's bar connects to this checkout cell
+                  const prevIsBarEnd = !isBarCell && dayData.checkoutBooking
+                    && prevDay && mData?.days[prevDay]
+                    && mData.days[prevDay].bookingId === dayData.checkoutBooking.bookingId
+                    && (mData.days[prevDay].status === 'booked' || mData.days[prevDay].status === 'on-hold');
+
+                  // Compute td padding
+                  let tdPadding = 'p-0.5';
+                  if (isBarCell) {
+                    if (connectLeft && connectRight) {
+                      tdPadding = 'py-0.5 px-0';
+                    } else if (connectLeft && !connectRight) {
+                      tdPadding = nextIsCheckout ? 'py-0.5 pl-0 pr-0' : 'py-0.5 pl-0 pr-0.5';
+                    } else if (!connectLeft && connectRight) {
+                      tdPadding = 'py-0.5 pl-0.5 pr-0';
+                    } else {
+                      tdPadding = nextIsCheckout ? 'py-0.5 pl-0.5 pr-0' : 'p-0.5';
+                    }
+                  } else if (prevIsBarEnd) {
+                    tdPadding = 'py-0.5 pl-0 pr-0.5';
+                  }
+
+                  // Compute rounding + borders for inner div
+                  let roundingClass = 'rounded';
+                  let borderClass = 'border';
+                  if (isBarCell) {
+                    if (connectLeft && connectRight) {
+                      roundingClass = '';
+                      borderClass = 'border-t border-b';
+                    } else if (connectLeft && !connectRight) {
+                      roundingClass = 'rounded-r';
+                      borderClass = 'border-t border-b border-r';
+                    } else if (!connectLeft && connectRight) {
+                      roundingClass = 'rounded-l';
+                      borderClass = 'border-t border-b border-l';
+                    } else {
+                      roundingClass = 'rounded';
+                      borderClass = 'border';
+                    }
+                  }
+
+                  // Source label for booking bars
+                  const getSourceLabel = () => {
+                    if (!isBarCell || !dayData.bookingDetails) return null;
+                    if (dayData.status === 'on-hold') return 'Hold';
+                    const src = dayData.bookingDetails.source?.toLowerCase();
+                    if (src === 'airbnb') return 'Airbnb';
+                    if (src === 'booking.com' || src === 'booking') return 'Booking';
+                    if (src === 'vrbo') return 'VRBO';
+                    return 'Booked';
+                  };
+
+                  // Is this the first bar cell in this row? (for showing label/icon)
+                  const isRowBarStart = isBarCell && !connectLeft;
+
                   const priceOverlayBg = showPrices && dayData.price != null && dayData.status === 'available' && globalPriceRange
                     ? getPriceColor(dayData.price, globalPriceRange.min, globalPriceRange.max)
+                    : '';
+
+                  const barBg = isBarCell
+                    ? (dayData.status === 'on-hold' ? 'bg-amber-50' : 'bg-emerald-50')
+                    : '';
+                  const barBorder = isBarCell
+                    ? (dayData.status === 'on-hold' ? 'border-amber-300' : 'border-emerald-300')
                     : '';
 
                   const cellContent = (
                     <div
                       className={`
-                        ${showPrices ? 'h-[64px]' : 'h-[56px]'} rounded border p-1 flex flex-col transition-all duration-200 select-none
-                        ${priceOverlayBg || config.bg} ${config.border}
+                        relative
+                        ${showPrices ? 'h-[64px]' : 'h-[56px]'} ${roundingClass} ${borderClass} p-1 flex flex-col transition-all duration-200 select-none
+                        ${isBarCell ? barBg : (priceOverlayBg || config.bg)}
+                        ${isBarCell ? barBorder : config.border}
                         ${past ? 'opacity-40' : ''}
                         ${isTodayCell ? 'ring-2 ring-blue-500 ring-offset-1' : ''}
                         ${isAnchor ? 'ring-2 ring-blue-400' : ''}
@@ -345,38 +430,71 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
                       `}
                       onClick={(e) => handleDayClick(yearMonth, day, e)}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className={`text-xs font-semibold ${isTodayCell ? 'text-blue-700' : 'text-slate-700'}`}>
-                          {day}
-                        </span>
-                        {config.icon}
-                      </div>
-                      <div className="mt-auto">
-                        {dayData.status === 'external-block' && dayData.externalFeedName && (
-                          <span className="text-[9px] text-blue-600 font-medium truncate block leading-tight">
-                            {dayData.externalFeedName}
+                      {/* Checkout tail accent */}
+                      {!isBarCell && dayData.checkoutBooking && (
+                        <div className={`
+                          absolute left-0 top-0 bottom-0 w-[20%]
+                          ${dayData.checkoutBooking.barColor === 'amber' ? 'bg-amber-200/60' : 'bg-emerald-200/60'}
+                          ${roundingClass === 'rounded' ? 'rounded-l' : ''}
+                          z-0
+                        `} />
+                      )}
+                      <div className="relative z-10 flex flex-col h-full">
+                        <div className="flex items-center justify-between">
+                          <span className={`text-xs font-semibold ${isTodayCell ? 'text-blue-700' : 'text-slate-700'}`}>
+                            {day}
                           </span>
-                        )}
-                        {config.label && dayData.status !== 'external-block' && (
-                          <span className="text-[9px] text-muted-foreground leading-tight">{config.label}</span>
-                        )}
-                        {showPrices && dayData.price != null && (
-                          <span className={`text-[10px] font-semibold leading-tight ${
-                            dayData.status === 'available'
-                              ? 'text-slate-700'
-                              : 'text-slate-500'
-                          }`}>
-                            {formatPrice(dayData.price, currency)}
-                          </span>
-                        )}
+                          {isRowBarStart && config.icon}
+                          {!isBarCell && config.icon}
+                        </div>
+                        <div className="mt-auto">
+                          {/* Bar cells: show source label on row-start, price on others */}
+                          {isBarCell && isRowBarStart && (
+                            <span className={`text-[9px] font-medium truncate block leading-tight ${
+                              dayData.status === 'on-hold' ? 'text-amber-700' : 'text-emerald-700'
+                            }`}>
+                              {getSourceLabel()}
+                            </span>
+                          )}
+                          {isBarCell && !isRowBarStart && showPrices && dayData.price != null && (
+                            <span className="text-[10px] font-semibold leading-tight text-slate-500">
+                              {formatPrice(dayData.price, currency)}
+                            </span>
+                          )}
+                          {/* Non-bar cells: original rendering */}
+                          {!isBarCell && dayData.status === 'external-block' && dayData.externalFeedName && (
+                            <span className="text-[9px] text-blue-600 font-medium truncate block leading-tight">
+                              {dayData.externalFeedName}
+                            </span>
+                          )}
+                          {!isBarCell && config.label && dayData.status !== 'external-block' && (
+                            <span className="text-[9px] text-muted-foreground leading-tight">{config.label}</span>
+                          )}
+                          {!isBarCell && showPrices && dayData.price != null && (
+                            <span className={`text-[10px] font-semibold leading-tight ${
+                              dayData.status === 'available'
+                                ? 'text-slate-700'
+                                : 'text-slate-500'
+                            }`}>
+                              {formatPrice(dayData.price, currency)}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
 
-                  // Wrap booked/held/external in popover
-                  if ((dayData.status === 'booked' || dayData.status === 'on-hold' || dayData.status === 'external-block') && !past) {
+                  // Wrap in popover: booked, on-hold, external, or checkout-tail cells
+                  const needsPopover = !past && (
+                    dayData.status === 'booked'
+                    || dayData.status === 'on-hold'
+                    || dayData.status === 'external-block'
+                    || dayData.checkoutBooking
+                  );
+
+                  if (needsPopover) {
                     return (
-                      <td key={`d-${day}`} className="p-0.5">
+                      <td key={`d-${day}`} className={tdPadding}>
                         <DayDetailPopover
                           dayData={dayData}
                           open={popoverKey === cellKey}
@@ -388,7 +506,7 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
                     );
                   }
 
-                  return <td key={`d-${day}`} className="p-0.5">{cellContent}</td>;
+                  return <td key={`d-${day}`} className={tdPadding}>{cellContent}</td>;
                 })}
               </tr>
             ))}
@@ -450,11 +568,11 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
                 <span>Available ({totalSummary.available})</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-3.5 h-3.5 rounded border border-emerald-300 bg-emerald-50" />
+                <div className="w-6 h-3 rounded-full border border-emerald-300 bg-emerald-50" />
                 <span>Booked ({totalSummary.booked})</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-3.5 h-3.5 rounded border border-amber-300 bg-amber-50" />
+                <div className="w-6 h-3 rounded-full border border-amber-300 bg-amber-50" />
                 <span>On Hold ({totalSummary.onHold})</span>
               </div>
               <div className="flex items-center gap-1.5">

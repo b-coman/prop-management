@@ -14,6 +14,17 @@ export interface AvailabilityDayData {
   };
   externalFeedName?: string;
   price?: number;
+
+  // Bar rendering — set on booked/on-hold days
+  bookingPosition?: 'start' | 'middle' | 'end' | 'single';
+
+  // Checkout tail — set on the day after the last night
+  checkoutBooking?: {
+    bookingId: string;
+    guestName: string;
+    source?: string;
+    barColor: 'emerald' | 'amber';
+  };
 }
 
 export interface MonthAvailabilityData {

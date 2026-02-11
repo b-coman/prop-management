@@ -408,7 +408,8 @@ export async function fetchAvailabilityCalendarData(
 
     // Check if booking overlaps with this month
     // Booking occupies nights from checkIn to checkOut-1
-    if (checkOut <= monthStart || checkIn > monthEnd) continue;
+    // Use < instead of <= so checkouts on the 1st are included for tail detection
+    if (checkOut < monthStart || checkIn > monthEnd) continue;
 
     const guestName = [data.guestInfo?.firstName, data.guestInfo?.lastName].filter(Boolean).join(' ') || 'Unknown';
     const holdUntilDate = toDate(data.holdUntil);
@@ -467,18 +468,18 @@ export async function fetchAvailabilityCalendarData(
         dayData = { day: d, status, bookingId: holdsMap[d] || undefined };
       }
       summary.onHold++;
-    } else if (availableMap[d] === false && externalBlocksMap[d]) {
-      // Priority 2: external block
-      status = 'external-block';
-      const feedName = feedNames[externalBlocksMap[d] as string] || 'External';
-      dayData = { day: d, status, externalFeedName: feedName };
-      summary.externallyBlocked++;
     } else if (availableMap[d] === false && bookingsByDay[d]) {
-      // Priority 3: booked (confirmed/completed)
+      // Priority 2: booked (confirmed/completed) — wins over external blocks
       status = 'booked';
       const booking = bookingsByDay[d];
       dayData = { day: d, status, bookingId: booking.id, bookingDetails: booking };
       summary.booked++;
+    } else if (availableMap[d] === false && externalBlocksMap[d]) {
+      // Priority 3: external block
+      status = 'external-block';
+      const feedName = feedNames[externalBlocksMap[d] as string] || 'External';
+      dayData = { day: d, status, externalFeedName: feedName };
+      summary.externallyBlocked++;
     } else if (availableMap[d] === false) {
       // Priority 4: manual block
       status = 'manual-block';
@@ -497,6 +498,65 @@ export async function fetchAvailabilityCalendarData(
     }
 
     days[d] = dayData;
+  }
+
+  // Compute booking bar positions
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dayEntry = days[d];
+    if (!dayEntry) continue;
+    if (dayEntry.status !== 'booked' && dayEntry.status !== 'on-hold') continue;
+
+    const booking = dayEntry.bookingDetails || bookingsByDay[d];
+    if (!booking) continue;
+
+    const [ciY, ciM, ciD] = booking.checkIn.split('-').map(Number);
+    const checkInDay = new Date(ciY, ciM - 1, ciD);
+    const [coY, coM, coD] = booking.checkOut.split('-').map(Number);
+    const lastNight = new Date(coY, coM - 1, coD);
+    lastNight.setDate(lastNight.getDate() - 1);
+
+    const dayDate = new Date(year, month - 1, d);
+    const isCheckIn = dayDate.getTime() === checkInDay.getTime();
+    const isLastNight = dayDate.getTime() === lastNight.getTime();
+
+    if (isCheckIn && isLastNight) {
+      dayEntry.bookingPosition = 'single';
+    } else if (isCheckIn) {
+      dayEntry.bookingPosition = 'start';
+    } else if (isLastNight) {
+      dayEntry.bookingPosition = 'end';
+    } else {
+      dayEntry.bookingPosition = 'middle';
+    }
+  }
+
+  // Compute checkout tails
+  for (const doc of bookingsSnapshot.docs) {
+    const data = doc.data();
+    const checkOut = toDate(data.checkOutDate);
+    if (!checkOut) continue;
+
+    const coYear = checkOut.getFullYear();
+    const coMonth = checkOut.getMonth(); // 0-based
+    if (coYear !== year || coMonth !== month - 1) continue;
+
+    const checkoutDay = checkOut.getDate();
+    if (checkoutDay < 1 || checkoutDay > daysInMonth) continue;
+
+    // Skip if checkout day is itself a booked night (back-to-back)
+    if (days[checkoutDay]?.status === 'booked' || days[checkoutDay]?.status === 'on-hold') continue;
+
+    const guestName = [data.guestInfo?.firstName, data.guestInfo?.lastName].filter(Boolean).join(' ') || 'Unknown';
+    const barColor = data.status === 'on-hold' ? 'amber' as const : 'emerald' as const;
+
+    if (days[checkoutDay]) {
+      days[checkoutDay].checkoutBooking = {
+        bookingId: doc.id,
+        guestName,
+        source: data.source,
+        barColor,
+      };
+    }
   }
 
   // Compute price range for color coding

@@ -3,7 +3,7 @@
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { AvailabilityDayData } from '../_lib/availability-types';
-import { CalendarDays, Globe, User } from 'lucide-react';
+import { CalendarDays, Globe, LogOut, User } from 'lucide-react';
 
 interface DayDetailPopoverProps {
   dayData: AvailabilityDayData;
@@ -19,7 +19,7 @@ const statusBadgeVariant: Record<string, 'default' | 'secondary' | 'destructive'
 };
 
 export function DayDetailPopover({ dayData, children, open, onOpenChange }: DayDetailPopoverProps) {
-  const { status, bookingDetails, externalFeedName } = dayData;
+  const { status, bookingDetails, externalFeedName, checkoutBooking } = dayData;
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -27,6 +27,20 @@ export function DayDetailPopover({ dayData, children, open, onOpenChange }: DayD
         {children}
       </PopoverTrigger>
       <PopoverContent className="w-72" align="start" side="bottom">
+        {/* Checkout note — shown above main content */}
+        {checkoutBooking && (
+          <div className={`flex items-center gap-2 text-sm ${
+            status === 'booked' || status === 'on-hold' || status === 'external-block' ? 'mb-3 pb-3 border-b' : ''
+          }`}>
+            <LogOut className={`h-3.5 w-3.5 ${
+              checkoutBooking.barColor === 'amber' ? 'text-amber-600' : 'text-emerald-600'
+            }`} />
+            <span className="text-muted-foreground">
+              Checkout: <span className="font-medium text-foreground">{checkoutBooking.guestName}</span>
+            </span>
+          </div>
+        )}
+
         {(status === 'booked' || status === 'on-hold') && bookingDetails && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
