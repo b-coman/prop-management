@@ -1,13 +1,11 @@
-import { Mountain, Users, Leaf, Map } from 'lucide-react'; // Import appropriate icons
+import { Leaf } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/hooks/useLanguage';
-
-// Define a type for the icon names we expect
-type IconName = 'Mountain' | 'Users' | 'Leaf' | 'Map' | string; // Allow string for flexibility
+import { ICON_MAP } from '@/lib/icon-map';
 
 interface Highlight {
-  icon: IconName;
+  icon: string;
   title: string | { [key: string]: string };
   description: string | { [key: string]: string };
   'data-ai-hint'?: string;
@@ -24,15 +22,6 @@ interface ExperienceSectionProps {
   content: ExperienceContent;
   language?: string;
 }
-
-// Map icon names to actual Lucide components
-const iconMap: { [key in IconName]: React.ElementType } = {
-  Mountain: Mountain,
-  Users: Users,
-  Leaf: Leaf,
-  Map: Map,
-  // Add more mappings as needed
-};
 
 export function ExperienceSection({ content, language = 'en' }: ExperienceSectionProps) {
   const { tc } = useLanguage();
@@ -70,7 +59,7 @@ export function ExperienceSection({ content, language = 'en' }: ExperienceSectio
         {/* Use a fluid grid layout */}
         <div className="grid gap-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))' }}>
           {highlights.map((highlight, index) => {
-            const IconComponent = iconMap[highlight.icon] || Leaf; // Default to Leaf icon if not found
+            const IconComponent = ICON_MAP[highlight.icon] || Leaf;
             return (
               // Apply text-center to the Card itself
               <Card key={index} className="text-center border-border hover:shadow-lg transition-shadow duration-300">
