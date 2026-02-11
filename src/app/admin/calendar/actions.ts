@@ -531,26 +531,38 @@ export async function fetchAvailabilityCalendarData(
   }
 
   // Compute checkout tails
+  // NOTE: Can't use checkOut.getDate()/getMonth() because Firestore timestamps
+  // may store midnight local time (e.g. 22:00 UTC for EET), causing off-by-one
+  // on UTC servers. Instead, find the checkout day via Date comparison — same
+  // logic bookingsByDay uses (dayDate >= checkOut = first non-occupied day).
   for (const doc of bookingsSnapshot.docs) {
     const data = doc.data();
+    const checkIn = toDate(data.checkInDate);
     const checkOut = toDate(data.checkOutDate);
-    if (!checkOut) continue;
+    if (!checkIn || !checkOut) continue;
 
-    const coYear = checkOut.getFullYear();
-    const coMonth = checkOut.getMonth(); // 0-based
-    if (coYear !== year || coMonth !== month - 1) continue;
+    // Find checkout day: first day d in this month where dayDate >= checkOut
+    let checkoutDayNum = -1;
+    for (let d = 1; d <= daysInMonth; d++) {
+      if (new Date(year, month - 1, d).getTime() >= checkOut.getTime()) {
+        checkoutDayNum = d;
+        break;
+      }
+    }
+    if (checkoutDayNum < 1) continue;
 
-    const checkoutDay = checkOut.getDate();
-    if (checkoutDay < 1 || checkoutDay > daysInMonth) continue;
+    // Verify the night before checkout belongs to this booking
+    const prevNight = new Date(year, month - 1, checkoutDayNum - 1);
+    if (prevNight < checkIn || prevNight >= checkOut) continue;
 
     // Skip if checkout day is itself a booked night (back-to-back)
-    if (days[checkoutDay]?.status === 'booked' || days[checkoutDay]?.status === 'on-hold') continue;
+    if (days[checkoutDayNum]?.status === 'booked' || days[checkoutDayNum]?.status === 'on-hold') continue;
 
     const guestName = [data.guestInfo?.firstName, data.guestInfo?.lastName].filter(Boolean).join(' ') || 'Unknown';
     const barColor = data.status === 'on-hold' ? 'amber' as const : 'emerald' as const;
 
-    if (days[checkoutDay]) {
-      days[checkoutDay].checkoutBooking = {
+    if (days[checkoutDayNum]) {
+      days[checkoutDayNum].checkoutBooking = {
         bookingId: doc.id,
         guestName,
         source: data.source,
