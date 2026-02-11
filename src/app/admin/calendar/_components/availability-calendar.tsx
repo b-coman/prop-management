@@ -18,7 +18,7 @@ import {
   Settings2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { formatPrice } from '@/lib/utils';
+
 import type { MonthAvailabilityData, DayStatus } from '../_lib/availability-types';
 import { fetchAvailabilityCalendarData, toggleDateBlocked, toggleDateRangeBlocked } from '../actions';
 import { DayDetailPopover } from './day-detail-popover';
@@ -59,13 +59,20 @@ const STATUS_CONFIG: Record<DayStatus, { bg: string; icon: React.ReactNode; labe
 
 const WEEKDAY_HEADERS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
-const getPriceColor = (price: number, min: number, max: number): string => {
-  if (!min || !max || min === max) return '';
+const getPriceTextColor = (price: number, min: number, max: number): string => {
+  if (!min || !max || min === max) return 'text-slate-600';
   const ratio = (price - min) / (max - min);
-  if (ratio < 0.25) return 'bg-emerald-50/80';
-  if (ratio < 0.5) return 'bg-sky-50/80';
-  if (ratio < 0.75) return 'bg-amber-50/80';
-  return 'bg-rose-50/80';
+  if (ratio < 0.25) return 'text-emerald-600';
+  if (ratio < 0.5) return 'text-sky-600';
+  if (ratio < 0.75) return 'text-amber-600';
+  return 'text-rose-600';
+};
+
+// Compact price: "$420", "€420", or just "420" for RON and other currencies
+const formatCompactPrice = (price: number, currency: string): string => {
+  const symbols: Record<string, string> = { USD: '$', EUR: '€', GBP: '£' };
+  const sym = symbols[currency];
+  return sym ? `${sym}${Math.round(price)}` : `${Math.round(price)}`;
 };
 
 // --- Floating bar overlay computation ---
@@ -492,17 +499,16 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
               const isPendingCell = pendingKeys.has(cellKey);
               const isClickable = !past;
 
-              const priceOverlayBg = showPrices && dayData.price != null
-                && dayData.status === 'available' && globalPriceRange
-                ? getPriceColor(dayData.price, globalPriceRange.min, globalPriceRange.max)
-                : '';
+              const priceTextColor = showPrices && dayData.price != null && globalPriceRange
+                ? getPriceTextColor(dayData.price, globalPriceRange.min, globalPriceRange.max)
+                : 'text-slate-600';
 
               const cellVisual = (
                 <div
                   className={`
                     ${cellH} rounded border border-slate-200 p-1 ${showPrices ? 'pb-2' : 'pb-6'} flex flex-col
                     transition-all duration-200 select-none
-                    ${priceOverlayBg || config.bg}
+                    ${config.bg}
                     ${past ? 'opacity-40' : ''}
                     ${isTodayCell ? 'ring-2 ring-blue-500 ring-offset-1' : ''}
                     ${isAnchorCell ? 'ring-2 ring-blue-400' : ''}
@@ -531,10 +537,8 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
                       </span>
                     )}
                     {showPrices && dayData.price != null && (
-                      <span className={`text-[10px] font-semibold leading-tight ${
-                        dayData.status === 'available' ? 'text-slate-700' : 'text-slate-500'
-                      }`}>
-                        {formatPrice(dayData.price, currency)}
+                      <span className={`text-[10px] font-bold leading-tight ${priceTextColor}`}>
+                        {formatCompactPrice(dayData.price, currency)}
                       </span>
                     )}
                   </div>
@@ -673,22 +677,10 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
               {showPrices && globalPriceRange && (
                 <div className="flex items-center gap-3 border-l pl-3 ml-3">
                   <span className="text-muted-foreground font-medium">Price:</span>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3.5 h-3.5 rounded bg-emerald-100 border border-emerald-300" />
-                    <span>Low</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3.5 h-3.5 rounded bg-sky-100 border border-sky-300" />
-                    <span>Mid</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3.5 h-3.5 rounded bg-amber-100 border border-amber-300" />
-                    <span>High</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3.5 h-3.5 rounded bg-rose-100 border border-rose-300" />
-                    <span>Peak</span>
-                  </div>
+                  <span className="font-bold text-emerald-600">Low</span>
+                  <span className="font-bold text-sky-600">Mid</span>
+                  <span className="font-bold text-amber-600">High</span>
+                  <span className="font-bold text-rose-600">Peak</span>
                 </div>
               )}
             </div>
