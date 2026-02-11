@@ -99,16 +99,28 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     // Don't persist to session storage - this is a temporary override
   }, []);
 
+  // Detect currency from timezone: Romania → property default (RON), everyone else → EUR
+  const detectCurrencyFromTimezone = useCallback((propertyBaseCurrency: CurrencyCode): CurrencyCode => {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone; // e.g. "Europe/Bucharest"
+      if (tz === 'Europe/Bucharest') return propertyBaseCurrency; // Romanian visitor → RON
+      return 'EUR'; // International visitor → EUR as universal reference
+    } catch {
+      return propertyBaseCurrency; // Fallback if timezone detection fails
+    }
+  }, []);
+
   // Set default currency from property data — only applies if user hasn't explicitly chosen
   const setDefaultCurrency = useCallback((currency: CurrencyCode) => {
     if (typeof window === 'undefined') return;
     if (!SUPPORTED_CURRENCIES.includes(currency)) return;
     const userChose = window.sessionStorage.getItem('userCurrencyChoice');
     if (!userChose) {
-      setSelectedCurrencyState(currency);
-      setPersistedCurrency(currency);
+      const detectedCurrency = detectCurrencyFromTimezone(currency);
+      setSelectedCurrencyState(detectedCurrency);
+      setPersistedCurrency(detectedCurrency);
     }
-  }, [setPersistedCurrency]);
+  }, [setPersistedCurrency, detectCurrencyFromTimezone]);
 
   const convertToSelectedCurrency = useCallback((amount: number, fromCurrency: CurrencyCode): number => {
      if (ratesLoading) return amount; // Return original amount if rates are loading
