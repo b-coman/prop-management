@@ -327,70 +327,49 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
                   const isAnchor = anchor?.day === day && anchor?.yearMonth === yearMonth;
                   const isPending = pendingKeys.has(cellKey);
                   const isClickable = !past;
+                  const cellH = showPrices ? 'h-[64px]' : 'h-[56px]';
 
-                  // Bar connectivity: check if adjacent cells in same row belong to same booking
                   const isBarCell = dayData.status === 'booked' || dayData.status === 'on-hold';
+                  const hasTail = !!dayData.checkoutBooking;
+                  const isStart = dayData.bookingPosition === 'start' || dayData.bookingPosition === 'single';
+                  const isEnd = dayData.bookingPosition === 'end' || dayData.bookingPosition === 'single';
+
+                  // Row connectivity for bar cells
                   const prevDay = di > 0 ? week[di - 1] : null;
                   const nextDay = di < 6 ? week[di + 1] : null;
-
                   const prevDayData = prevDay ? mData?.days[prevDay] : null;
                   const nextDayData = nextDay ? mData?.days[nextDay] : null;
 
-                  const prevSameBooking = isBarCell && prevDayData
+                  const connectLeft = isBarCell && !!prevDayData
                     && dayData.bookingId === prevDayData.bookingId
                     && (prevDayData.status === 'booked' || prevDayData.status === 'on-hold');
-                  const nextSameBooking = isBarCell && nextDayData
+                  const connectRight = isBarCell && !!nextDayData
                     && dayData.bookingId === nextDayData.bookingId
                     && (nextDayData.status === 'booked' || nextDayData.status === 'on-hold');
 
-                  const connectLeft = !!prevSameBooking;
-                  const connectRight = !!nextSameBooking;
+                  // Does bar connect to checkout tail in next cell?
+                  const nextIsCheckout = isBarCell && !connectRight
+                    && nextDayData?.checkoutBooking?.bookingId === dayData.bookingId;
+                  // Does this checkout tail connect from bar in prev cell?
+                  const tailConnectsFromBar = hasTail && !isBarCell
+                    && !!prevDayData && prevDayData.bookingId === dayData.checkoutBooking?.bookingId
+                    && (prevDayData.status === 'booked' || prevDayData.status === 'on-hold');
 
-                  // Checkout tail gap bridging: if this is bar end and next cell is the checkout day
-                  const isBarEnd = isBarCell && !connectRight;
-                  const nextIsCheckout = isBarEnd && nextDayData?.checkoutBooking?.bookingId === dayData.bookingId;
-                  // If the previous cell's bar connects to this checkout cell
-                  const prevIsBarEnd = !isBarCell && dayData.checkoutBooking
-                    && prevDay && mData?.days[prevDay]
-                    && mData.days[prevDay].bookingId === dayData.checkoutBooking.bookingId
-                    && (mData.days[prevDay].status === 'booked' || mData.days[prevDay].status === 'on-hold');
+                  // Bar color classes
+                  const barBgClass = isBarCell
+                    ? (dayData.status === 'on-hold' ? 'bg-amber-50' : 'bg-emerald-50')
+                    : '';
+                  const barBorderClass = isBarCell
+                    ? (dayData.status === 'on-hold' ? 'border-amber-300' : 'border-emerald-300')
+                    : '';
+                  const tailBgClass = hasTail
+                    ? (dayData.checkoutBooking!.barColor === 'amber' ? 'bg-amber-50' : 'bg-emerald-50')
+                    : '';
+                  const tailBorderClass = hasTail
+                    ? (dayData.checkoutBooking!.barColor === 'amber' ? 'border-amber-300' : 'border-emerald-300')
+                    : '';
 
-                  // Compute td padding
-                  let tdPadding = 'p-0.5';
-                  if (isBarCell) {
-                    if (connectLeft && connectRight) {
-                      tdPadding = 'py-0.5 px-0';
-                    } else if (connectLeft && !connectRight) {
-                      tdPadding = nextIsCheckout ? 'py-0.5 pl-0 pr-0' : 'py-0.5 pl-0 pr-0.5';
-                    } else if (!connectLeft && connectRight) {
-                      tdPadding = 'py-0.5 pl-0.5 pr-0';
-                    } else {
-                      tdPadding = nextIsCheckout ? 'py-0.5 pl-0.5 pr-0' : 'p-0.5';
-                    }
-                  } else if (prevIsBarEnd) {
-                    tdPadding = 'py-0.5 pl-0 pr-0.5';
-                  }
-
-                  // Compute rounding + borders for inner div
-                  let roundingClass = 'rounded';
-                  let borderClass = 'border';
-                  if (isBarCell) {
-                    if (connectLeft && connectRight) {
-                      roundingClass = '';
-                      borderClass = 'border-t border-b';
-                    } else if (connectLeft && !connectRight) {
-                      roundingClass = 'rounded-r';
-                      borderClass = 'border-t border-b border-r';
-                    } else if (!connectLeft && connectRight) {
-                      roundingClass = 'rounded-l';
-                      borderClass = 'border-t border-b border-l';
-                    } else {
-                      roundingClass = 'rounded';
-                      borderClass = 'border';
-                    }
-                  }
-
-                  // Source label for booking bars
+                  // Source label
                   const getSourceLabel = () => {
                     if (!isBarCell || !dayData.bookingDetails) return null;
                     if (dayData.status === 'on-hold') return 'Hold';
@@ -401,95 +380,196 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
                     return 'Booked';
                   };
 
-                  // Is this the first bar cell in this row? (for showing label/icon)
                   const isRowBarStart = isBarCell && !connectLeft;
 
                   const priceOverlayBg = showPrices && dayData.price != null && dayData.status === 'available' && globalPriceRange
                     ? getPriceColor(dayData.price, globalPriceRange.min, globalPriceRange.max)
                     : '';
 
-                  const barBg = isBarCell
-                    ? (dayData.status === 'on-hold' ? 'bg-amber-50' : 'bg-emerald-50')
-                    : '';
-                  const barBorder = isBarCell
-                    ? (dayData.status === 'on-hold' ? 'border-amber-300' : 'border-emerald-300')
-                    : '';
+                  // --- Compute td padding ---
+                  let tdPadding = 'p-0.5';
+                  if (isBarCell) {
+                    const gapLeft = !connectLeft;
+                    const gapRight = !connectRight && !nextIsCheckout;
+                    if (!gapLeft && !gapRight) tdPadding = 'py-0.5 px-0';
+                    else if (!gapLeft && gapRight) tdPadding = 'py-0.5 pl-0 pr-0.5';
+                    else if (gapLeft && !gapRight) tdPadding = 'py-0.5 pl-0.5 pr-0';
+                    else tdPadding = 'p-0.5';
+                  } else if (tailConnectsFromBar) {
+                    tdPadding = 'py-0.5 pl-0 pr-0.5';
+                  }
 
-                  const cellContent = (
-                    <div
-                      className={`
-                        relative
-                        ${showPrices ? 'h-[64px]' : 'h-[56px]'} ${roundingClass} ${borderClass} p-1 flex flex-col transition-all duration-200 select-none
-                        ${isBarCell ? barBg : (priceOverlayBg || config.bg)}
-                        ${isBarCell ? barBorder : config.border}
-                        ${past ? 'opacity-40' : ''}
-                        ${isTodayCell ? 'ring-2 ring-blue-500 ring-offset-1' : ''}
-                        ${isAnchor ? 'ring-2 ring-blue-400' : ''}
-                        ${isClickable && !past ? 'cursor-pointer' : ''}
-                        ${isPending ? 'animate-pulse' : ''}
-                      `}
-                      onClick={(e) => handleDayClick(yearMonth, day, e)}
-                    >
-                      {/* Checkout tail accent */}
-                      {!isBarCell && dayData.checkoutBooking && (
-                        <div className={`
-                          absolute left-0 top-0 bottom-0 w-[20%]
-                          ${dayData.checkoutBooking.barColor === 'amber' ? 'bg-amber-200/60' : 'bg-emerald-200/60'}
-                          ${roundingClass === 'rounded' ? 'rounded-l' : ''}
-                          z-0
-                        `} />
-                      )}
-                      <div className="relative z-10 flex flex-col h-full">
+                  // --- Determine cell rendering mode ---
+                  // Mode 1: Regular cell (no bar, no tail)
+                  // Mode 2: Bar cell (with optional tail for back-to-back)
+                  // Mode 3: Checkout tail only (non-bar)
+                  let cellContent: React.ReactNode;
+
+                  if (isBarCell) {
+                    // ========== BAR CELL (overlay rendering) ==========
+                    // Determine bar overlay position
+                    const barIsStart = isStart || isRowBarStart; // start or row-wrapped start
+                    const barIsEnd = isEnd && !connectRight && !nextIsCheckout;
+
+                    // Bar overlay classes
+                    const barLeft = barIsStart ? 'left-1/2' : 'left-0';
+                    const barRight = 'right-0';
+                    const barRoundL = barIsStart ? 'rounded-l-md' : '';
+                    const barBorderL = barIsStart ? 'border-l-2' : '';
+                    // No pill-end on bar if it connects to checkout — the tail provides the end
+                    const barRoundR = barIsEnd ? 'rounded-r-md' : '';
+                    const barBorderR = barIsEnd ? 'border-r-2' : '';
+
+                    cellContent = (
+                      <div
+                        className={`
+                          relative ${cellH} transition-all duration-200 select-none
+                          ${past ? 'opacity-40' : ''}
+                          ${isTodayCell ? 'ring-2 ring-blue-500 ring-offset-1 rounded' : ''}
+                          ${isAnchor ? 'ring-2 ring-blue-400 rounded' : ''}
+                          ${isClickable ? 'cursor-pointer' : ''}
+                          ${isPending ? 'animate-pulse' : ''}
+                        `}
+                        onClick={(e) => handleDayClick(yearMonth, day, e)}
+                      >
+                        {/* Neutral base for check-in left portion */}
+                        {barIsStart && (
+                          <div className="absolute top-0 bottom-0 left-0 w-1/2 border-t border-b border-l border-slate-200 rounded-l bg-white pointer-events-none" />
+                        )}
+                        {/* Checkout tail overlay for back-to-back */}
+                        {hasTail && (
+                          <div className={`absolute top-0 bottom-0 left-0 w-[30%] ${tailBgClass} border-t border-b border-r-2 ${tailBorderClass} rounded-r-md pointer-events-none`} />
+                        )}
+                        {/* Bar overlay */}
+                        <div className={`absolute top-0 bottom-0 ${barLeft} ${barRight} ${barBgClass} border-t border-b ${barBorderL} ${barBorderR} ${barBorderClass} ${barRoundL} ${barRoundR} pointer-events-none`} />
+                        {/* Content */}
+                        <div className="relative z-10 p-1 flex flex-col h-full">
+                          <div className="flex items-center justify-between">
+                            <span className={`text-xs font-semibold ${isTodayCell ? 'text-blue-700' : 'text-slate-700'}`}>
+                              {day}
+                            </span>
+                            {isRowBarStart && config.icon}
+                          </div>
+                          <div className="mt-auto">
+                            {isRowBarStart && (
+                              <span className={`text-[9px] font-medium truncate block leading-tight ${
+                                dayData.status === 'on-hold' ? 'text-amber-700' : 'text-emerald-700'
+                              }`}>
+                                {getSourceLabel()}
+                              </span>
+                            )}
+                            {!isRowBarStart && showPrices && dayData.price != null && (
+                              <span className="text-[10px] font-semibold leading-tight text-slate-500">
+                                {formatPrice(dayData.price, currency)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  } else if (hasTail) {
+                    // ========== CHECKOUT TAIL ONLY (non-bar) ==========
+                    const tailRoundL = !tailConnectsFromBar ? 'rounded-l-md' : '';
+                    const tailBorderL = !tailConnectsFromBar ? 'border-l-2' : '';
+
+                    // Status overlay for right portion (external, manual-block)
+                    const hasStatusOverlay = dayData.status === 'external-block' || dayData.status === 'manual-block';
+
+                    cellContent = (
+                      <div
+                        className={`
+                          relative ${cellH} transition-all duration-200 select-none
+                          ${past ? 'opacity-40' : ''}
+                          ${isTodayCell ? 'ring-2 ring-blue-500 ring-offset-1 rounded' : ''}
+                          ${isAnchor ? 'ring-2 ring-blue-400 rounded' : ''}
+                          ${isClickable ? 'cursor-pointer' : ''}
+                          ${isPending ? 'animate-pulse' : ''}
+                        `}
+                        onClick={(e) => handleDayClick(yearMonth, day, e)}
+                      >
+                        {/* Tail overlay — left 30% */}
+                        <div className={`absolute top-0 bottom-0 left-0 w-[30%] ${tailBgClass} border-t border-b border-r-2 ${tailBorderL} ${tailBorderClass} ${tailRoundL} rounded-r-md pointer-events-none`} />
+                        {/* Status overlay — right portion with gap */}
+                        {hasStatusOverlay && (
+                          <div className={`absolute top-0 bottom-0 right-0 rounded ${config.bg} border ${config.border} pointer-events-none`} style={{ left: 'calc(30% + 4px)' }} />
+                        )}
+                        {/* Available right portion (no overlay needed, white shows through) */}
+                        {!hasStatusOverlay && (
+                          <div className="absolute top-0 bottom-0 right-0 rounded bg-white border border-slate-200 pointer-events-none" style={{ left: 'calc(30% + 4px)' }} />
+                        )}
+                        {/* Content */}
+                        <div className="relative z-10 p-1 flex flex-col h-full">
+                          <div className="flex items-center justify-between">
+                            <span className={`text-xs font-semibold ${isTodayCell ? 'text-blue-700' : 'text-slate-700'}`}>
+                              {day}
+                            </span>
+                            {config.icon}
+                          </div>
+                          <div className="mt-auto">
+                            {dayData.status === 'external-block' && dayData.externalFeedName && (
+                              <span className="text-[9px] text-blue-600 font-medium truncate block leading-tight">
+                                {dayData.externalFeedName}
+                              </span>
+                            )}
+                            {config.label && dayData.status !== 'external-block' && (
+                              <span className="text-[9px] text-muted-foreground leading-tight">{config.label}</span>
+                            )}
+                            {showPrices && dayData.price != null && (
+                              <span className={`text-[10px] font-semibold leading-tight ${
+                                dayData.status === 'available' ? 'text-slate-700' : 'text-slate-500'
+                              }`}>
+                                {formatPrice(dayData.price, currency)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  } else {
+                    // ========== REGULAR CELL (no bar, no tail) ==========
+                    cellContent = (
+                      <div
+                        className={`
+                          ${cellH} rounded border p-1 flex flex-col transition-all duration-200 select-none
+                          ${priceOverlayBg || config.bg} ${config.border}
+                          ${past ? 'opacity-40' : ''}
+                          ${isTodayCell ? 'ring-2 ring-blue-500 ring-offset-1' : ''}
+                          ${isAnchor ? 'ring-2 ring-blue-400' : ''}
+                          ${isClickable ? 'cursor-pointer' : ''}
+                          ${isPending ? 'animate-pulse' : ''}
+                        `}
+                        onClick={(e) => handleDayClick(yearMonth, day, e)}
+                      >
                         <div className="flex items-center justify-between">
                           <span className={`text-xs font-semibold ${isTodayCell ? 'text-blue-700' : 'text-slate-700'}`}>
                             {day}
                           </span>
-                          {isRowBarStart && config.icon}
-                          {!isBarCell && config.icon}
+                          {config.icon}
                         </div>
                         <div className="mt-auto">
-                          {/* Bar cells: show source label on row-start, price on others */}
-                          {isBarCell && isRowBarStart && (
-                            <span className={`text-[9px] font-medium truncate block leading-tight ${
-                              dayData.status === 'on-hold' ? 'text-amber-700' : 'text-emerald-700'
-                            }`}>
-                              {getSourceLabel()}
-                            </span>
-                          )}
-                          {isBarCell && !isRowBarStart && showPrices && dayData.price != null && (
-                            <span className="text-[10px] font-semibold leading-tight text-slate-500">
-                              {formatPrice(dayData.price, currency)}
-                            </span>
-                          )}
-                          {/* Non-bar cells: original rendering */}
-                          {!isBarCell && dayData.status === 'external-block' && dayData.externalFeedName && (
+                          {dayData.status === 'external-block' && dayData.externalFeedName && (
                             <span className="text-[9px] text-blue-600 font-medium truncate block leading-tight">
                               {dayData.externalFeedName}
                             </span>
                           )}
-                          {!isBarCell && config.label && dayData.status !== 'external-block' && (
+                          {config.label && dayData.status !== 'external-block' && (
                             <span className="text-[9px] text-muted-foreground leading-tight">{config.label}</span>
                           )}
-                          {!isBarCell && showPrices && dayData.price != null && (
+                          {showPrices && dayData.price != null && (
                             <span className={`text-[10px] font-semibold leading-tight ${
-                              dayData.status === 'available'
-                                ? 'text-slate-700'
-                                : 'text-slate-500'
+                              dayData.status === 'available' ? 'text-slate-700' : 'text-slate-500'
                             }`}>
                               {formatPrice(dayData.price, currency)}
                             </span>
                           )}
                         </div>
                       </div>
-                    </div>
-                  );
+                    );
+                  }
 
-                  // Wrap in popover: booked, on-hold, external, or checkout-tail cells
+                  // Wrap in popover for interactive cells
                   const needsPopover = !past && (
-                    dayData.status === 'booked'
-                    || dayData.status === 'on-hold'
-                    || dayData.status === 'external-block'
-                    || dayData.checkoutBooking
+                    isBarCell || dayData.status === 'external-block' || hasTail
                   );
 
                   if (needsPopover) {

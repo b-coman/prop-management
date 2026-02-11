@@ -500,46 +500,46 @@ export async function fetchAvailabilityCalendarData(
     days[d] = dayData;
   }
 
-  // Compute booking bar positions
+  // Build booking raw Date lookup for timezone-safe comparisons
+  const bookingDates: Record<string, { checkIn: Date; checkOut: Date }> = {};
+  for (const doc of bookingsSnapshot.docs) {
+    const ci = toDate(doc.data().checkInDate);
+    const co = toDate(doc.data().checkOutDate);
+    if (ci && co) bookingDates[doc.id] = { checkIn: ci, checkOut: co };
+  }
+
+  // Compute booking bar positions using Date comparisons (timezone-safe)
   for (let d = 1; d <= daysInMonth; d++) {
     const dayEntry = days[d];
     if (!dayEntry) continue;
     if (dayEntry.status !== 'booked' && dayEntry.status !== 'on-hold') continue;
+    if (!dayEntry.bookingId || !bookingDates[dayEntry.bookingId]) continue;
 
-    const booking = dayEntry.bookingDetails || bookingsByDay[d];
-    if (!booking) continue;
+    const { checkIn, checkOut } = bookingDates[dayEntry.bookingId];
+    const prevDay = new Date(year, month - 1, d - 1);
+    const nextDay = new Date(year, month - 1, d + 1);
 
-    const [ciY, ciM, ciD] = booking.checkIn.split('-').map(Number);
-    const checkInDay = new Date(ciY, ciM - 1, ciD);
-    const [coY, coM, coD] = booking.checkOut.split('-').map(Number);
-    const lastNight = new Date(coY, coM - 1, coD);
-    lastNight.setDate(lastNight.getDate() - 1);
+    // Previous day is booked by same booking?
+    const prevBooked = prevDay >= checkIn && prevDay < checkOut;
+    // Next day is booked by same booking?
+    const nextBooked = nextDay >= checkIn && nextDay < checkOut;
 
-    const dayDate = new Date(year, month - 1, d);
-    const isCheckIn = dayDate.getTime() === checkInDay.getTime();
-    const isLastNight = dayDate.getTime() === lastNight.getTime();
-
-    if (isCheckIn && isLastNight) {
+    if (!prevBooked && !nextBooked) {
       dayEntry.bookingPosition = 'single';
-    } else if (isCheckIn) {
+    } else if (!prevBooked) {
       dayEntry.bookingPosition = 'start';
-    } else if (isLastNight) {
+    } else if (!nextBooked) {
       dayEntry.bookingPosition = 'end';
     } else {
       dayEntry.bookingPosition = 'middle';
     }
   }
 
-  // Compute checkout tails
-  // NOTE: Can't use checkOut.getDate()/getMonth() because Firestore timestamps
-  // may store midnight local time (e.g. 22:00 UTC for EET), causing off-by-one
-  // on UTC servers. Instead, find the checkout day via Date comparison — same
-  // logic bookingsByDay uses (dayDate >= checkOut = first non-occupied day).
+  // Compute checkout tails using Date comparisons (timezone-safe)
   for (const doc of bookingsSnapshot.docs) {
-    const data = doc.data();
-    const checkIn = toDate(data.checkInDate);
-    const checkOut = toDate(data.checkOutDate);
-    if (!checkIn || !checkOut) continue;
+    const dates = bookingDates[doc.id];
+    if (!dates) continue;
+    const { checkIn, checkOut } = dates;
 
     // Find checkout day: first day d in this month where dayDate >= checkOut
     let checkoutDayNum = -1;
@@ -555,12 +555,11 @@ export async function fetchAvailabilityCalendarData(
     const prevNight = new Date(year, month - 1, checkoutDayNum - 1);
     if (prevNight < checkIn || prevNight >= checkOut) continue;
 
-    // Skip if checkout day is itself a booked night (back-to-back)
-    if (days[checkoutDayNum]?.status === 'booked' || days[checkoutDayNum]?.status === 'on-hold') continue;
-
+    const data = doc.data();
     const guestName = [data.guestInfo?.firstName, data.guestInfo?.lastName].filter(Boolean).join(' ') || 'Unknown';
     const barColor = data.status === 'on-hold' ? 'amber' as const : 'emerald' as const;
 
+    // Set checkout tail (even on back-to-back days — renderer handles both)
     if (days[checkoutDayNum]) {
       days[checkoutDayNum].checkoutBooking = {
         bookingId: doc.id,
