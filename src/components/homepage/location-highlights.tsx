@@ -97,21 +97,27 @@ export function LocationHighlights({ content, language = 'en' }: LocationHighlig
                 </div>
             </div>
 
-            {/* Contained map — moderate height, rounded corners */}
+            {/* Static map image — clean, no chrome, links to Google Maps */}
             {coordinates && apiKey ? (
               <div className="container mx-auto px-4 mb-8">
-                <div className="h-[350px] md:h-[400px] bg-muted rounded-xl overflow-hidden shadow-sm">
-                  <iframe
-                    src={`https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${coordinates.latitude},${coordinates.longitude}&zoom=11`}
-                    width="100%"
-                    height="100%"
-                    style={{ border: 0 }}
-                    allowFullScreen={false}
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${coordinates.latitude},${coordinates.longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block h-[350px] md:h-[400px] bg-muted rounded-xl overflow-hidden shadow-sm relative group"
+                >
+                  <img
+                    src={`https://maps.googleapis.com/maps/api/staticmap?center=${coordinates.latitude},${coordinates.longitude}&zoom=11&size=1200x400&scale=2&markers=color:red%7C${coordinates.latitude},${coordinates.longitude}&key=${apiKey}`}
+                    alt={t('location.mapAlt', 'Property location map')}
+                    className="w-full h-full object-cover"
                     loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    title="Property Location Map"
-                  ></iframe>
-                </div>
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 text-foreground px-4 py-2 rounded-full text-sm font-medium shadow-md">
+                      {t('location.openInMaps', 'Open in Google Maps')}
+                    </span>
+                  </div>
+                </a>
               </div>
             ) : coordinates ? (
               <div className="container mx-auto px-4 mb-8">

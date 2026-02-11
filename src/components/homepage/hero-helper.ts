@@ -591,17 +591,15 @@ export function setupHeroContentAdjustment(): () => void {
       // Initialize finalMargin value for logging
       let finalMargin = 0;
       
-      // Check if this is the bottom position - if so, use a different approach
+      // Check if this is the bottom position
       if (positionAttribute === 'bottom') {
-        // For bottom position, we'll use absolute positioning
-        formWrapperElement.style.position = 'absolute';
-        formWrapperElement.style.bottom = '20px'; // A bit higher from the bottom
-        formWrapperElement.style.left = '50%';
-        formWrapperElement.style.transform = 'translateX(-50%)';
+        // Bottom positioning is handled by the parent wrapper in hero-section.tsx
+        // (absolute, bottom: 20px, left: 50%, translateX(-50%)).
+        // We only apply styling (maxWidth, padding, shadow) here — not positioning.
         formWrapperElement.style.marginTop = '0'; // Clear any existing margin
-        
-        finalMargin = 0; // No margin when using absolute positioning
-        console.log('[Hero Form] Using absolute positioning for bottom position');
+
+        finalMargin = 0;
+        console.log('[Hero Form] Bottom position — parent wrapper handles positioning');
       } else {
         // For other positions, use the calculated margin
         finalMargin = Math.min(verticalMargin, 80); // cap at 80px maximum
