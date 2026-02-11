@@ -61,11 +61,20 @@ export default async function CalendarSyncPage({
       <PropertyUrlSync />
 
       {propertyId ? (
-        <Tabs defaultValue="ical-sync">
+        <Tabs defaultValue="calendar-view">
           <TabsList>
-            <TabsTrigger value="ical-sync">iCal Sync</TabsTrigger>
             <TabsTrigger value="calendar-view">Calendar View</TabsTrigger>
+            <TabsTrigger value="ical-sync">iCal Sync</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="calendar-view">
+            {initialMonths.length > 0 && (
+              <AvailabilityCalendar
+                propertyId={propertyId}
+                initialMonths={initialMonths}
+              />
+            )}
+          </TabsContent>
 
           <TabsContent value="ical-sync" className="space-y-6">
             {/* Export Section */}
@@ -93,15 +102,6 @@ export default async function CalendarSyncPage({
                 <ICalFeedsTable feeds={feeds} />
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="calendar-view">
-            {initialMonths.length > 0 && (
-              <AvailabilityCalendar
-                propertyId={propertyId}
-                initialMonths={initialMonths}
-              />
-            )}
           </TabsContent>
         </Tabs>
       ) : (

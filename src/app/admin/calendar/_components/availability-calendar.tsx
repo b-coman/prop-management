@@ -421,7 +421,7 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
     const firstDow = (date.getDay() + 6) % 7; // Monday=0, Sunday=6
     const isCurrentMonth = yearMonth === todayYM;
     const mData = monthsData[yearMonth];
-    const cellH = showPrices ? 'h-[72px]' : 'h-[64px]';
+    const cellH = 'h-[64px]';
 
     // Build weeks array
     const weeks: (number | null)[][] = [];
@@ -500,7 +500,7 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
               const cellVisual = (
                 <div
                   className={`
-                    ${cellH} rounded border border-slate-200 p-1 pb-6 flex flex-col
+                    ${cellH} rounded border border-slate-200 p-1 ${showPrices ? 'pb-2' : 'pb-6'} flex flex-col
                     transition-all duration-200 select-none
                     ${priceOverlayBg || config.bg}
                     ${past ? 'opacity-40' : ''}
@@ -564,8 +564,8 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
               return <div key={`d-${day}`} className="p-0.5">{cellVisual}</div>;
             })}
 
-            {/* Floating bar overlays — skip entirely-past segments */}
-            {weekSegments[wi].map(segment => {
+            {/* Floating bar overlays — hidden when prices are shown */}
+            {!showPrices && weekSegments[wi].map(segment => {
               if (isPast(yearMonth, segment.lastDay)) return null;
               const label = getBarLabel(segment);
               // Pill rounding only at real booking boundaries, flat where it continues
