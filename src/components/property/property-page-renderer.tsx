@@ -419,8 +419,9 @@ export function PropertyPageRenderer({
         // Fallback to property.images when gallery has no override images
         const existingImages = blockContent?.images;
         if (!existingImages || existingImages.length === 0) {
-          // Sort: featured first, then by sortOrder within each group
-          const sorted = [...property.images].sort((a, b) => {
+          // Filter out images hidden from gallery, then sort: featured first, by sortOrder
+          const galleryVisible = property.images.filter(img => img.showInGallery !== false);
+          const sorted = [...galleryVisible].sort((a, b) => {
             if (a.isFeatured && !b.isFeatured) return -1;
             if (!a.isFeatured && b.isFeatured) return 1;
             return (a.sortOrder ?? 999) - (b.sortOrder ?? 999);

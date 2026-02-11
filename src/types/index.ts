@@ -22,6 +22,7 @@ export interface PropertyImage {
   'data-ai-hint'?: string; // For AI image generation hints
   tags?: string[]; // For gallery filtering
   sortOrder?: number; // For gallery ordering
+  showInGallery?: boolean; // false = hidden from gallery (undefined/true = visible)
   thumbnailUrl?: string; // Resized thumbnail URL from Storage
   storagePath?: string; // Firebase Storage path for full image
   thumbnailStoragePath?: string; // Firebase Storage path for thumbnail

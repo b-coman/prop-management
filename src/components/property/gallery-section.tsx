@@ -39,12 +39,14 @@ export function GallerySection({ content, language = 'en' }: GallerySectionProps
   // Extract properties with defaults to prevent destructuring errors
   const {
     title = t('gallery.title'),
-    images = [],
+    images: rawImages = [],
     propertyName = t('common.property'),
     maxImages,
     viewAllUrl,
     viewAllText,
   } = content;
+
+  const images = rawImages.filter((img: any) => img.showInGallery !== false);
 
   if (!images || images.length === 0) {
     return null; // Don't render if no images

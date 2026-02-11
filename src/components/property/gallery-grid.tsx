@@ -39,7 +39,8 @@ interface GalleryGridProps {
 }
 
 export function GalleryGrid({ content }: GalleryGridProps) {
-  const { title, description, layout = 'grid', enableLightbox = true, images = [] } = content;
+  const { title, description, layout = 'grid', enableLightbox = true, images: rawImages = [] } = content;
+  const images = useMemo(() => rawImages.filter((img: any) => img.showInGallery !== false), [rawImages]);
   const { tc, currentLang } = useLanguage();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);

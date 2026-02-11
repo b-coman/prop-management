@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Star, Trash2, X } from 'lucide-react';
+import { GripVertical, Star, Trash2, X, Eye, EyeOff } from 'lucide-react';
 import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -73,6 +73,20 @@ export function SortableImageCard({
               : 'text-white'
           }`}
         />
+      </button>
+
+      {/* Gallery visibility toggle */}
+      <button
+        type="button"
+        onClick={() => onUpdate(index, { showInGallery: image.showInGallery === false ? undefined : false })}
+        className="absolute top-2 right-10 z-10 bg-black/50 rounded p-1 hover:bg-black/70 transition-colors"
+        title={image.showInGallery === false ? 'Show in gallery' : 'Hide from gallery'}
+      >
+        {image.showInGallery === false ? (
+          <EyeOff className="h-4 w-4 text-red-400" />
+        ) : (
+          <Eye className="h-4 w-4 text-white" />
+        )}
       </button>
 
       {/* Thumbnail */}

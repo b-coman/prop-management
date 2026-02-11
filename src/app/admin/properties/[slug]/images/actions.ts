@@ -18,6 +18,7 @@ const propertyImageSchema = z.object({
   url: z.string().url(),
   alt: z.string().max(500).default(''),
   isFeatured: z.boolean().optional(),
+  showInGallery: z.boolean().optional(),
   tags: z.array(z.string()).optional(),
   sortOrder: z.number().optional(),
   thumbnailUrl: z.string().url().optional(),
