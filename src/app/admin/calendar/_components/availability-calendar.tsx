@@ -56,7 +56,7 @@ const STATUS_CONFIG: Record<DayStatus, { bg: string; icon: React.ReactNode; labe
   },
 };
 
-const WEEKDAY_HEADERS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+const WEEKDAY_HEADERS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
 const getPriceColor = (price: number, min: number, max: number): string => {
   if (!min || !max || min === max) return '';
@@ -87,6 +87,7 @@ interface BarSegment {
   rightPercent: number;
   isCheckIn: boolean;
   hasCheckout: boolean;
+  lastDay: number; // highest day number in this segment (for past detection)
 }
 
 function collectBookings(mData: MonthAvailabilityData): Map<string, BookingInfo> {
@@ -174,8 +175,8 @@ function computeBarSegments(
       const checkInCol = colsInRow.find(c => c.day === booking.checkInDay)!.col;
       leftPercent = checkInCol * colWidth + 0.5 * colWidth;
     } else {
-      // Continues from previous row/month
-      leftPercent = 0;
+      // Continues from previous row/month — clip to first actual day column
+      leftPercent = colsInRow[0].col * colWidth;
     }
 
     // Right edge (distance from right)
@@ -184,8 +185,9 @@ function computeBarSegments(
       const checkoutCol = colsInRow.find(c => c.isCheckout)!.col;
       rightPercent = (7 - checkoutCol - 0.3) * colWidth;
     } else {
-      // Continues to next row/month
-      rightPercent = 0;
+      // Continues to next row/month — clip to last actual day column
+      const lastCol = colsInRow[colsInRow.length - 1].col;
+      rightPercent = (7 - lastCol - 1) * colWidth;
     }
 
     segments.push({
@@ -197,6 +199,7 @@ function computeBarSegments(
       rightPercent,
       isCheckIn,
       hasCheckout,
+      lastDay: colsInRow[colsInRow.length - 1].day,
     });
   }
 
@@ -208,13 +211,12 @@ function getBarLabel(segment: BarSegment): string {
   const widthPercent = 100 - segment.leftPercent - segment.rightPercent;
   const effectiveCols = widthPercent / colWidth;
 
-  if (effectiveCols >= 2.5) {
+  // Show text only when bar is wide enough; always include source when available
+  // CSS truncate handles overflow naturally
+  if (effectiveCols >= 1.3) {
     return segment.source
       ? `${segment.guestName} \u00b7 ${segment.source}`
       : segment.guestName;
-  }
-  if (effectiveCols >= 1.3) {
-    return segment.guestName;
   }
   return '';
 }
@@ -415,7 +417,7 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
     const [y, m] = yearMonth.split('-').map(Number);
     const date = new Date(y, m - 1, 1);
     const dim = getDaysInMonth(date);
-    const firstDow = date.getDay();
+    const firstDow = (date.getDay() + 6) % 7; // Monday=0, Sunday=6
     const isCurrentMonth = yearMonth === todayYM;
     const mData = monthsData[yearMonth];
     const cellH = showPrices ? 'h-[72px]' : 'h-[64px]';
@@ -451,7 +453,7 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
             <div
               key={d}
               className={`text-center text-[10px] font-medium py-1 ${
-                i === 0 || i === 6 ? 'text-rose-500' : 'text-muted-foreground'
+                i === 5 || i === 6 ? 'text-rose-500' : 'text-muted-foreground'
               }`}
             >
               {d}
@@ -561,8 +563,9 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
               return <div key={`d-${day}`} className="p-0.5">{cellVisual}</div>;
             })}
 
-            {/* Floating bar overlays */}
+            {/* Floating bar overlays — skip entirely-past segments */}
             {weekSegments[wi].map(segment => {
+              if (isPast(yearMonth, segment.lastDay)) return null;
               const label = getBarLabel(segment);
               // Pill rounding only at real booking boundaries, flat where it continues
               const roundL = segment.isCheckIn ? 'rounded-l-full' : '';
