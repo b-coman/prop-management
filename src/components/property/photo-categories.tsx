@@ -153,8 +153,22 @@ export function PhotoCategories({ content }: PhotoCategoriesProps) {
                     className="object-contain"
                     {...((currentCategory.images[currentImageIndex] as any).blurDataURL ? { placeholder: 'blur' as const, blurDataURL: (currentCategory.images[currentImageIndex] as any).blurDataURL } : {})}
                   />
-                  <div className="absolute bottom-4 left-0 right-0 text-center text-white bg-black/50 py-2">
-                    {tc(currentCategory.images[currentImageIndex].alt)}
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-6 pb-4 pt-10">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium bg-white/20 text-white px-2 py-0.5 rounded-full">
+                          {tc(currentCategory.name)}
+                        </span>
+                        {tc(currentCategory.images[currentImageIndex].alt) && (
+                          <span className="text-sm text-white/90">
+                            {tc(currentCategory.images[currentImageIndex].alt)}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-sm text-white/60">
+                        {currentImageIndex + 1} / {currentCategory.images.length}
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}

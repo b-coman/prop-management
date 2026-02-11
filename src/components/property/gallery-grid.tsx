@@ -295,11 +295,24 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                     fallbackText="Property image not available"
                     blurDataURL={(filteredImages[currentImageIndex] as any).blurDataURL}
                   />
-                  <div className="absolute bottom-4 left-0 right-0 text-center text-white bg-black/50 py-2">
-                    {tc(filteredImages[currentImageIndex].alt)}
-                    <span className="ml-2 text-white/60 text-sm">
-                      {currentImageIndex + 1} / {filteredImages.length}
-                    </span>
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-6 pb-4 pt-10">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {filteredImages[currentImageIndex].tags?.[0] && (
+                          <span className="text-xs font-medium bg-white/20 text-white px-2 py-0.5 rounded-full">
+                            {tagLabels[filteredImages[currentImageIndex].tags![0]]?.[lang as 'en' | 'ro'] || filteredImages[currentImageIndex].tags![0]}
+                          </span>
+                        )}
+                        {tc(filteredImages[currentImageIndex].alt) && (
+                          <span className="text-sm text-white/90">
+                            {tc(filteredImages[currentImageIndex].alt)}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-sm text-white/60">
+                        {currentImageIndex + 1} / {filteredImages.length}
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}
