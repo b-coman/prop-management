@@ -3,6 +3,7 @@
 import { useState, useCallback, useTransition, useMemo } from 'react';
 import { format, addMonths, subMonths, getDaysInMonth } from 'date-fns';
 import Link from 'next/link';
+// Airbnb-style floating bar calendar v2
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
