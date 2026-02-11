@@ -104,6 +104,14 @@ export interface Property {
   contactEmail?: string; // Per-property contact email (used in structured data & footer)
   icalExportToken?: string; // Secret token for iCal export URL
   icalExportEnabled?: boolean; // Toggle iCal export on/off
+  pricingConfig?: {
+    weekendAdjustment: number;
+    weekendDays: ('monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday')[];
+    lengthOfStayDiscounts?: Array<{
+      nights: number;
+      discountPercent: number;
+    }>;
+  };
   googlePlaceId?: string;
   createdAt?: SerializableTimestamp;
   updatedAt?: SerializableTimestamp;

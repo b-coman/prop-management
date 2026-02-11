@@ -7,6 +7,7 @@ import type { Property, SerializableTimestamp } from "@/types";
 import { revalidatePath } from "next/cache";
 import { sanitizeText } from "@/lib/sanitize";
 import { loggers } from '@/lib/logger';
+import { regenerateCalendarsAfterChange } from '@/app/admin/pricing/server-actions-hybrid';
 import {
   requireAdmin,
   requireSuperAdmin,
@@ -72,6 +73,10 @@ const propertyActionSchema = z.object({
         googleAnalyticsId: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
     }).optional(),
      googlePlaceId: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
+     pricingConfig: z.object({
+       weekendAdjustment: z.coerce.number().min(1).default(1),
+       weekendDays: z.array(z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'])).default(['friday', 'saturday']),
+     }).optional(),
      holdFeeAmount: z.coerce.number().nonnegative().optional(),
      enableHoldOption: z.boolean().optional(),
      enableContactOption: z.boolean().optional(),
@@ -264,14 +269,37 @@ export async function updatePropertyAction(
       return { error: `Property with slug "${currentSlug}" not found.` };
     }
 
-    // Prepare data for update (excluding slug)
-    const { slug: _, ...dataWithoutSlug } = propertyData;
-    const dataToUpdate = {
-        ...dataWithoutSlug,
+    // Prepare data for update (excluding slug and pricingConfig — handled via dot notation)
+    const { slug: _, pricingConfig, ...dataWithoutSlugAndPricing } = propertyData;
+    const dataToUpdate: Record<string, unknown> = {
+        ...dataWithoutSlugAndPricing,
         updatedAt: FieldValue.serverTimestamp(),
     };
 
+    // Use dot notation to avoid overwriting lengthOfStayDiscounts
+    if (pricingConfig) {
+      dataToUpdate['pricingConfig.weekendAdjustment'] = pricingConfig.weekendAdjustment;
+      dataToUpdate['pricingConfig.weekendDays'] = pricingConfig.weekendDays;
+    }
+
     await propertyRef.update(dataToUpdate);
+
+    // Detect if weekend pricing changed → regenerate price calendars
+    if (pricingConfig) {
+      const existingData = docSnap.data();
+      const oldAdj = existingData?.pricingConfig?.weekendAdjustment;
+      const oldDays = existingData?.pricingConfig?.weekendDays;
+      const adjChanged = oldAdj !== pricingConfig.weekendAdjustment;
+      const daysChanged = JSON.stringify(oldDays?.sort()) !== JSON.stringify([...pricingConfig.weekendDays].sort());
+      if (adjChanged || daysChanged) {
+        logger.info('Weekend pricing changed, regenerating calendars', {
+          slug: currentSlug,
+          oldAdj, newAdj: pricingConfig.weekendAdjustment,
+          oldDays, newDays: pricingConfig.weekendDays,
+        });
+        await regenerateCalendarsAfterChange(currentSlug);
+      }
+    }
 
     logger.info('Property updated successfully', { name: propertyData.name, slug: currentSlug });
     revalidatePath('/admin/properties');

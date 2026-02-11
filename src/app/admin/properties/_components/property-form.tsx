@@ -11,6 +11,7 @@ import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { DEFAULT_THEME_ID } from "@/lib/themes/theme-definitions";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form,
   FormControl,
@@ -108,6 +109,10 @@ const propertyFormSchema = z.object({
 
     // Google Places
     googlePlaceId: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
+
+    // Weekend Pricing
+    weekendAdjustmentPercent: z.coerce.number().min(0, "Cannot be negative.").optional().default(0),
+    weekendDays: z.array(z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'])).optional().default(['friday', 'saturday']),
 
     // Booking Options
      holdFeeAmount: z.coerce.number().nonnegative("Hold fee cannot be negative.").optional().default(0),
@@ -294,6 +299,10 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
             googleAnalyticsId: initialData?.analytics?.googleAnalyticsId ?? '',
         },
         googlePlaceId: initialData?.googlePlaceId ?? '',
+        weekendAdjustmentPercent: initialData?.pricingConfig?.weekendAdjustment
+          ? Math.round((initialData.pricingConfig.weekendAdjustment - 1) * 10000) / 100
+          : 0,
+        weekendDays: initialData?.pricingConfig?.weekendDays ?? ['friday', 'saturday'],
         holdFeeAmount: initialData?.holdFeeAmount ?? 0,
         enableHoldOption: initialData?.enableHoldOption ?? false,
         enableContactOption: initialData?.enableContactOption ?? true,
@@ -314,15 +323,29 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
 
   async function onSubmit(values: PropertyFormValues) {
     setIsSubmitting(true);
+
+    // Convert weekend percentage to multiplier for server action
+    const { weekendAdjustmentPercent, weekendDays, ...rest } = values;
+    const weekendAdjustment = weekendAdjustmentPercent
+      ? 1 + weekendAdjustmentPercent / 100
+      : 1;
+    const actionValues = {
+      ...rest,
+      pricingConfig: {
+        weekendAdjustment,
+        weekendDays: weekendDays ?? ['friday', 'saturday'],
+      },
+    };
+
     try {
         let result;
         if (mode === 'create') {
-            console.log("Creating property with values:", values);
-            result = await createPropertyAction(values);
+            console.log("Creating property with values:", actionValues);
+            result = await createPropertyAction(actionValues);
         } else if (initialData?.slug) { // Ensure slug exists for update
-            console.log(`Updating property ${initialData.slug} with values:`, values);
+            console.log(`Updating property ${initialData.slug} with values:`, actionValues);
             // Pass the original slug to identify the document
-            result = await updatePropertyAction(initialData.slug, values);
+            result = await updatePropertyAction(initialData.slug, actionValues);
         } else {
             throw new Error("Missing property identifier for update.");
         }
@@ -454,6 +477,76 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
              <FormField control={form.control} name="beds" render={({ field }) => ( <FormItem><FormLabel>Beds</FormLabel><FormControl><Input type="number" min="0" placeholder="e.g., 4" {...field} /></FormControl><FormMessage /></FormItem> )} />
              <FormField control={form.control} name="bathrooms" render={({ field }) => ( <FormItem><FormLabel>Bathrooms</FormLabel><FormControl><Input type="number" min="0" placeholder="e.g., 2" {...field} /></FormControl><FormMessage /></FormItem> )} />
              <FormField control={form.control} name="squareFeet" render={({ field }) => ( <FormItem><FormLabel>Square Feet</FormLabel><FormControl><Input type="number" min="0" placeholder="e.g., 1500" {...field} /></FormControl><FormMessage /></FormItem> )} />
+        </div>
+
+        {/* --- Weekend Pricing --- */}
+        <div className="rounded-lg border p-4 space-y-4">
+          <h4 className="font-medium">Weekend Pricing</h4>
+          <p className="text-sm text-muted-foreground">
+            Increase nightly rates on selected days. The percentage is applied on top of the base price.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField control={form.control} name="weekendAdjustmentPercent" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Weekend Markup (%)</FormLabel>
+                <FormControl>
+                  <Input type="number" step="0.01" min="0" placeholder="e.g., 31.55" {...field} />
+                </FormControl>
+                <FormDescription>
+                  {(() => {
+                    const pct = Number(form.watch('weekendAdjustmentPercent')) || 0;
+                    const base = Number(form.watch('pricePerNight')) || 0;
+                    const currency = form.watch('baseCurrency') || 'RON';
+                    if (pct > 0 && base > 0) {
+                      const weekendPrice = Math.round(base * (1 + pct / 100));
+                      return `${base} ${currency} base → ${weekendPrice} ${currency} on weekend days`;
+                    }
+                    return 'No weekend markup applied';
+                  })()}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormItem>
+              <FormLabel>Weekend Days</FormLabel>
+              <Controller
+                control={form.control}
+                name="weekendDays"
+                render={({ field }) => {
+                  const days = [
+                    { value: 'monday', label: 'Mon' },
+                    { value: 'tuesday', label: 'Tue' },
+                    { value: 'wednesday', label: 'Wed' },
+                    { value: 'thursday', label: 'Thu' },
+                    { value: 'friday', label: 'Fri' },
+                    { value: 'saturday', label: 'Sat' },
+                    { value: 'sunday', label: 'Sun' },
+                  ] as const;
+                  const selected = field.value ?? [];
+                  return (
+                    <div className="flex flex-wrap gap-3 pt-1">
+                      {days.map(day => (
+                        <label key={day.value} className="flex items-center gap-1.5 cursor-pointer">
+                          <Checkbox
+                            checked={selected.includes(day.value)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                field.onChange([...selected, day.value]);
+                              } else {
+                                field.onChange(selected.filter((d: string) => d !== day.value));
+                              }
+                            }}
+                          />
+                          <span className="text-sm">{day.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  );
+                }}
+              />
+              <FormDescription>Days that receive the weekend markup.</FormDescription>
+            </FormItem>
+          </div>
         </div>
 
         {/* --- Section: Bed Configuration --- */}
