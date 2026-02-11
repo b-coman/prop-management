@@ -19,7 +19,7 @@ export function AdminHeader({ environment }: AdminHeaderProps) {
       <Breadcrumb />
 
       <div className="ml-auto flex items-center gap-2">
-        {environment && (
+        {environment && environment !== 'production' && environment !== 'production-fallback' && (
           <span className="text-xs text-muted-foreground">
             {environment}
           </span>

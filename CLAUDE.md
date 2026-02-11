@@ -103,10 +103,11 @@ gcloud logging read 'logName:"run.googleapis.com/stdout" AND jsonPayload.compone
 ## Development Workflow
 
 **For complex features:**
-1. Create detailed plan document
+1. Create detailed plan in `plans/<feature-name>.md`
 2. Create GitHub issues from plan (with full context)
 3. Implement in logical phases
 4. Run `npm run build` between phases to catch issues early
+5. Review: in a fresh session, diff `plans/<feature>.md` against actual implementation
 
 ## Commit & Deploy
 

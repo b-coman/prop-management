@@ -3,7 +3,6 @@ import { Suspense } from 'react';
 import { fetchDashboardData } from './_actions';
 import { DashboardContent } from './_components/dashboard-content';
 import { DashboardSkeleton } from './_components/dashboard-skeleton';
-import { AdminPage } from '@/components/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,10 +13,10 @@ async function DashboardData() {
 
 export default function AdminDashboardPage() {
   return (
-    <AdminPage title="Dashboard" description="Overview of your rental business">
+    <div className="space-y-6">
       <Suspense fallback={<DashboardSkeleton />}>
         <DashboardData />
       </Suspense>
-    </AdminPage>
+    </div>
   );
 }

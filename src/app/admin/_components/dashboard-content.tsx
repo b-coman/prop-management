@@ -13,6 +13,9 @@ import {
   CalendarDays,
   Clock,
   ArrowRight,
+  Sliders,
+  FileText,
+  Sparkles,
 } from 'lucide-react';
 import {
   format,
@@ -327,29 +330,39 @@ function ActivityCard({
 }
 
 const quickActions = [
-  { title: 'Properties', description: 'Manage listings', icon: Building, href: '/admin/properties' },
-  { title: 'Bookings', description: 'View reservations', icon: CalendarCheck, href: '/admin/bookings' },
-  { title: 'Inquiries', description: 'Guest messages', icon: MessageSquare, href: '/admin/inquiries' },
-  { title: 'Coupons', description: 'Manage discounts', icon: Ticket, href: '/admin/coupons' },
-  { title: 'Calendar', description: 'Availability & sync', icon: CalendarDays, href: '/admin/calendar' },
+  { title: 'Properties', description: 'Manage listings', icon: Building, href: '/admin/properties', propertyAware: false },
+  { title: 'Bookings', description: 'View reservations', icon: CalendarCheck, href: '/admin/bookings', propertyAware: false },
+  { title: 'Inquiries', description: 'Guest messages', icon: MessageSquare, href: '/admin/inquiries', propertyAware: false },
+  { title: 'Calendar', description: 'Availability & sync', icon: CalendarDays, href: '/admin/calendar', propertyAware: true },
+  { title: 'Pricing', description: 'Rates & seasons', icon: Sliders, href: '/admin/pricing', propertyAware: true },
+  { title: 'Pages & Content', description: 'Website content', icon: FileText, href: '/admin/website', propertyAware: true },
+  { title: 'Housekeeping', description: 'Cleaning schedule', icon: Sparkles, href: '/admin/housekeeping', propertyAware: true },
+  { title: 'Coupons', description: 'Manage discounts', icon: Ticket, href: '/admin/coupons', propertyAware: false },
 ];
 
 function QuickActions() {
+  const { selectedPropertyId } = usePropertySelector();
+
   return (
     <div>
       <h3 className="text-sm font-medium text-muted-foreground mb-3">Quick Actions</h3>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        {quickActions.map(action => (
-          <Link key={action.href} href={action.href}>
-            <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
-              <CardContent className="pt-6 text-center">
-                <action.icon className="h-8 w-8 mx-auto mb-2 text-primary" />
-                <p className="font-medium text-sm">{action.title}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{action.description}</p>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {quickActions.map(action => {
+          const href = action.propertyAware && selectedPropertyId
+            ? `${action.href}?propertyId=${selectedPropertyId}`
+            : action.href;
+          return (
+            <Link key={action.href} href={href}>
+              <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
+                <CardContent className="pt-6 text-center">
+                  <action.icon className="h-8 w-8 mx-auto mb-2 text-primary" />
+                  <p className="font-medium text-sm">{action.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{action.description}</p>
+                </CardContent>
+              </Card>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
@@ -398,8 +411,36 @@ export function DashboardContent({ data }: { data: DashboardData }) {
     [bookings, propertyNameMap, now]
   );
 
+  const selectedProperty = selectedPropertyId
+    ? data.properties.find(p => p.id === selectedPropertyId)
+    : null;
+
+  const perPropertyMetrics = useMemo(() => {
+    if (selectedPropertyId || data.properties.length <= 1) return null;
+    return data.properties.map(property => {
+      const propBookings = data.bookings.filter(b => b.propertyId === property.id);
+      const propInquiries = data.inquiries.filter(i => i.propertySlug === property.id);
+      const m = computeMetrics(propBookings, propInquiries, 1, now);
+      return { property, metrics: m };
+    });
+  }, [selectedPropertyId, data, now]);
+
   return (
     <div className="space-y-6">
+      {/* Dynamic header */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">
+          {selectedProperty
+            ? `Dashboard — ${getDisplayName(selectedProperty.name)}`
+            : 'Dashboard — All Properties'}
+        </h1>
+        <p className="text-muted-foreground text-sm">
+          {selectedProperty
+            ? `Overview for ${getDisplayName(selectedProperty.name)}`
+            : 'Overview of your rental business'}
+        </p>
+      </div>
+
       {/* Metric cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
@@ -425,6 +466,41 @@ export function DashboardContent({ data }: { data: DashboardData }) {
           icon={ArrowRight}
         />
       </div>
+
+      {/* Per-property breakdown (only in "All Properties" view with 2+ properties) */}
+      {perPropertyMetrics && (
+        <div>
+          <h3 className="text-sm font-medium text-muted-foreground mb-3">Per Property</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {perPropertyMetrics.map(({ property, metrics: m }) => (
+              <Card key={property.id}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Building className="h-4 w-4 text-muted-foreground" />
+                    {getDisplayName(property.name)}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <p className="text-xl font-bold">{m.bookingsThisMonth}</p>
+                      <p className="text-xs text-muted-foreground">Bookings</p>
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold">{formatCurrency(m.revenueThisMonth, m.currency)}</p>
+                      <p className="text-xs text-muted-foreground">Revenue</p>
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold">{m.occupancyRate}%</p>
+                      <p className="text-xs text-muted-foreground">Occupancy</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Activity section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

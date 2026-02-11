@@ -187,6 +187,29 @@ export function AdminSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {/* Dashboard link */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === '/admin'}
+                  tooltip="Dashboard"
+                >
+                  <Link href="/admin">
+                    <LayoutDashboard className="h-4 w-4" />
+                    <span>Dashboard</span>
+                    {pathname === '/admin' && (
+                      <ChevronRight className="ml-auto h-4 w-4" />
+                    )}
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
         {navigationGroups.map((group) => (
           <SidebarGroup key={group.label}>
             <SidebarGroupLabel>{group.label}</SidebarGroupLabel>

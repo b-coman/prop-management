@@ -98,6 +98,9 @@ playwright/.cache/
 # Uncomment to ignore package-lock.json if using yarn
 # package-lock.json
 
+# Implementation plans (local only)
+/plans/
+
 # Runtime and cache directories
 .cache/
 .parcel-cache/

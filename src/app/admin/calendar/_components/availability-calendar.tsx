@@ -676,7 +676,9 @@ export function AvailabilityCalendar({ propertyId, initialMonths }: Availability
               </div>
               {showPrices && globalPriceRange && (
                 <div className="flex items-center gap-3 border-l pl-3 ml-3">
-                  <span className="text-muted-foreground font-medium">Price:</span>
+                  <span className="text-muted-foreground font-medium">
+                    Price ({formatCompactPrice(globalPriceRange.min, currency)} – {formatCompactPrice(globalPriceRange.max, currency)}):
+                  </span>
                   <span className="font-bold text-emerald-600">Low</span>
                   <span className="font-bold text-sky-600">Mid</span>
                   <span className="font-bold text-amber-600">High</span>
