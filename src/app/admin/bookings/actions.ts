@@ -410,7 +410,7 @@ const externalBookingSchema = z.object({
   lastName: z.string().optional(),
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().optional()
-    .transform(v => v ? v.replace(/[\s()\-]/g, '') : v)
+    .transform(v => v ? v.replace(/\uFF0B/g, '+').replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '').replace(/[\s()\-./]/g, '') : v)
     .refine(v => !v || /^\+\d{7,15}$/.test(v), { message: 'Phone must start with + and country code' }),
   country: z.string().optional(),
   notes: z.string().optional(),
@@ -551,7 +551,7 @@ const editBookingSchema = z.object({
   lastName: z.string().optional(),
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().optional()
-    .transform(v => v ? v.replace(/[\s()\-]/g, '') : v)
+    .transform(v => v ? v.replace(/\uFF0B/g, '+').replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '').replace(/[\s()\-./]/g, '') : v)
     .refine(v => !v || /^\+\d{7,15}$/.test(v), { message: 'Phone must start with + and country code' }),
   country: z.string().optional(),
   notes: z.string().optional(),

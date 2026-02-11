@@ -49,7 +49,11 @@ const COUNTRIES = getCountryOptions();
 
 /** Strip spaces, parens, dashes from phone; keep + and digits */
 function cleanPhone(raw: string): string {
-  return raw.replace(/[\s()\-]/g, '');
+  // Strip invisible Unicode: zero-width chars, bidi controls (WhatsApp injects these), BOM
+  return raw
+    .replace(/\uFF0B/g, '+')
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '')
+    .replace(/[\s()\-./]/g, '');
 }
 
 const formSchema = z.object({
