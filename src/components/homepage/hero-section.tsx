@@ -154,8 +154,8 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
       */}
       <div className="container mx-auto px-4 flex flex-col h-full w-full justify-start items-center py-6 md:py-12 relative" style={{ position: 'relative', overflow: 'visible' }}>
         <div className={cn("text-center max-w-2xl mx-auto transition-opacity duration-300", !hasMounted && "opacity-0")}>
-          {title && <h1 className="text-2xl md:text-5xl lg:text-6xl font-bold mb-4 drop-shadow-md">{tc(title)}</h1>}
-          {subtitle && <p className="text-lg md:text-xl mb-4 drop-shadow-sm">{tc(subtitle)}</p>}
+          {title && tc(title) && <h1 className="text-2xl md:text-5xl lg:text-6xl font-bold mb-4 drop-shadow-md">{tc(title)}</h1>}
+          {subtitle && tc(subtitle) && <p className="text-lg md:text-xl mb-4 drop-shadow-sm">{tc(subtitle)}</p>}
 
           {/* Property specs bar — hidden on mobile where booking widget overlaps */}
           {bookingFormProperty && (bookingFormProperty.maxGuests || bookingFormProperty.bedrooms) && (

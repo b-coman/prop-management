@@ -463,13 +463,13 @@ export function LanguageProvider({
       
       // If content is an object with language keys
       if (typeof content === 'object' && !Array.isArray(content)) {
-        // First try the current language
-        if (content[currentLang]) {
+        // First try the current language (empty string = intentionally blank, don't fall back)
+        if (currentLang in content && content[currentLang] != null) {
           return content[currentLang];
         }
-        
+
         // Then try the default language
-        if (content[DEFAULT_LANGUAGE]) {
+        if (DEFAULT_LANGUAGE in content && content[DEFAULT_LANGUAGE] != null) {
           return content[DEFAULT_LANGUAGE];
         }
         
