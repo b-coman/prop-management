@@ -141,6 +141,7 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
           fill
           style={{ objectFit: 'cover' }}
           priority
+          sizes="100vw"
           className="-z-10"
           data-ai-hint={dataAiHint}
           {...(backgroundImageBlur ? { placeholder: 'blur' as const, blurDataURL: backgroundImageBlur } : {})}

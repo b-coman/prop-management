@@ -79,6 +79,8 @@ export function UniqueFeatures({ content, language = 'en' }: UniqueFeaturesProps
                          src={feature.image}
                          alt={tc(feature.title)}
                          fill
+                         loading="lazy"
+                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                          style={{objectFit: 'cover'}}
                          className="rounded-lg"
                          data-ai-hint={feature['data-ai-hint'] || 'feature detail amenity'}

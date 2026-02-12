@@ -120,6 +120,8 @@ export function TestimonialsSection({ content, language = 'en' }: TestimonialsSe
                             src={review.imageUrl}
                             alt={`Photo of ${review.name}`}
                             fill
+                            loading="lazy"
+                            sizes="48px"
                             style={{ objectFit: 'cover' }}
                             className="rounded-full"
                             data-ai-hint={review['data-ai-hint'] || 'guest portrait'}

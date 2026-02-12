@@ -39,6 +39,8 @@ export function HostIntroduction({ content }: HostIntroductionProps) {
                 src={content.imageUrl}
                 alt={`Photo of host, ${content.name}`}
                 fill
+                loading="lazy"
+                sizes="(max-width: 768px) 160px, 192px"
                 style={{ objectFit: 'cover' }}
                 className="rounded-full"
                 data-ai-hint={content['data-ai-hint'] || 'host portrait friendly'}

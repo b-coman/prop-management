@@ -334,8 +334,12 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     );
   }
 
-  // Fetch all necessary data for the property
-  const property = await getProperty(slug);
+  // Fetch property and overrides in parallel (both only need slug)
+  const [property, initialOverrides] = await Promise.all([
+    getProperty(slug),
+    getPropertyOverrides(slug),
+  ]);
+
   if (!property) {
     loggers.error.error('PropertyPage: property not found', { slug });
     return (
@@ -377,8 +381,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     );
   }
 
-  let overrides = await getPropertyOverrides(slug);
-  if (!overrides) {
+  if (!initialOverrides) {
     loggers.error.error('PropertyPage: overrides not found', { slug });
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-center p-4">
@@ -399,7 +402,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   }
 
   // Resolve amenityRefs to full amenity objects in all override pages
-  overrides = await resolveOverrideAmenityRefs(overrides);
+  let overrides = await resolveOverrideAmenityRefs(initialOverrides);
 
   // Detect if request came through a custom domain (needed for 404 and normal rendering)
   const headersList = await headers();

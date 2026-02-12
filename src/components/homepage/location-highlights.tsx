@@ -153,6 +153,8 @@ export function LocationHighlights({ content, language = 'en' }: LocationHighlig
                                         src={attraction.image}
                                         alt={tc(attraction.name)}
                                         fill
+                                        loading="lazy"
+                                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                                         style={{objectFit: 'cover'}}
                                         className="rounded-lg"
                                         data-ai-hint={attraction['data-ai-hint'] || 'landmark nature attraction'}
