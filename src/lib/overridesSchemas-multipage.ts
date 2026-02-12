@@ -321,6 +321,25 @@ export const featuresSchema = z.array(featureSchema);
 export const attractionsSchema = z.array(attractionSchema);
 export const imagesSchema = z.array(galleryImageSchema);
 
+export const areaGuideContentSchema = z.object({
+  title: multilingualString.optional(),
+  description: multilingualString.optional(),
+  sections: z.array(
+    z.object({
+      heading: multilingualString,
+      description: multilingualString,
+      icon: z.string().optional(),
+      image: z.string().optional(),
+      highlights: z.array(
+        z.object({
+          label: multilingualString,
+          value: multilingualString,
+        })
+      ).optional(),
+    })
+  ),
+});
+
 export const videoSectionSchema = z.object({
   title: multilingualString.optional(),
   videoUrl: z.string(),
@@ -359,6 +378,7 @@ export const blockSchemas: Record<string, z.ZodTypeAny> = {
   fullBookingForm: fullBookingFormSchema,
   policiesList: policiesListSchema,
   video: videoSectionSchema,
+  areaGuideContent: areaGuideContentSchema,
 };
 
 // Schema for the entire template
@@ -432,6 +452,7 @@ export type FullBookingFormBlock = z.infer<typeof fullBookingFormSchema>;
 export type PoliciesListBlock = z.infer<typeof policiesListSchema>;
 
 export type VideoSectionBlock = z.infer<typeof videoSectionSchema>;
+export type AreaGuideContentBlock = z.infer<typeof areaGuideContentSchema>;
 
 // Legacy type (used by override-transformers)
 export type LegacyPropertyOverridesData = z.infer<typeof legacyPropertyOverridesSchema>;

@@ -519,6 +519,53 @@ export function buildImageGalleryJsonLd(options: {
 }
 
 // ---------------------------------------------------------------------------
+// Article structured data — for area guide pages
+// ---------------------------------------------------------------------------
+
+export function buildAreaGuideJsonLd(options: {
+  property: Property;
+  canonicalUrl: string;
+  language?: string;
+  descriptionOverride?: string | { en?: string; ro?: string };
+}): Record<string, unknown> {
+  const { property, canonicalUrl, language = 'en', descriptionOverride } = options;
+
+  const pickLang = (value: string | { en?: string; ro?: string } | undefined): string | undefined => {
+    if (!value) return undefined;
+    if (typeof value === 'string') return value;
+    return value[language as 'en' | 'ro'] || value.en || value.ro || undefined;
+  };
+
+  const name = pickLang(property.name) || '';
+  const city = property.location?.city || '';
+  const headline = language === 'ro'
+    ? `Ghid Local - ${name}${city ? `, ${city}` : ''}`
+    : `Area Guide - ${name}${city ? `, ${city}` : ''}`;
+
+  const description = pickLang(descriptionOverride) || pickLang(property.description);
+
+  const images = (property.images || [])
+    .slice()
+    .sort((a, b) => {
+      if (a.isFeatured && !b.isFeatured) return -1;
+      if (!a.isFeatured && b.isFeatured) return 1;
+      return (a.sortOrder ?? 999) - (b.sortOrder ?? 999);
+    })
+    .slice(0, 3)
+    .map(img => img.url);
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline,
+    url: canonicalUrl,
+    ...(description && { description }),
+    ...(images.length > 0 && { image: images }),
+    inLanguage: language === 'ro' ? 'ro' : 'en',
+  };
+}
+
+// ---------------------------------------------------------------------------
 // FAQPage structured data — auto-generated from property fields
 // ---------------------------------------------------------------------------
 

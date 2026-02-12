@@ -9,7 +9,7 @@ import { websiteTemplateSchema, propertyOverridesSchema } from '@/lib/overridesS
 import { LanguageProvider } from '@/lib/language-system';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
 import { serverTranslateContent } from '@/lib/server-language-utils';
-import { buildVacationRentalJsonLd, buildBreadcrumbJsonLd, buildLodgingBusinessJsonLd, buildImageGalleryJsonLd, buildFAQPageJsonLd, getCanonicalUrl, getBaseUrl } from '@/lib/structured-data';
+import { buildVacationRentalJsonLd, buildBreadcrumbJsonLd, buildLodgingBusinessJsonLd, buildImageGalleryJsonLd, buildFAQPageJsonLd, buildAreaGuideJsonLd, getCanonicalUrl, getBaseUrl } from '@/lib/structured-data';
 import { getAmenitiesByRefs } from '@/lib/amenity-utils';
 import { TrackViewItem } from '@/components/tracking/track-page-view';
 import blurMapData from '@/data/blur-map.json';
@@ -260,6 +260,10 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
         return language === 'ro'
           ? `Reguli de cazare la ${propertyName}${city ? ` în ${city}` : ''} - politica de anulare, check-in/check-out, reguli casă.`
           : `House rules for ${propertyName}${city ? ` in ${city}` : ''} - cancellation policy, check-in/check-out times, and property guidelines.`;
+      case 'area-guide':
+        return language === 'ro'
+          ? `Ghid local${city ? ` ${city}` : ''}${region ? `, ${region}` : ''} - activități, restaurante, atracții turistice lângă ${propertyName}.`
+          : `Area guide${city ? ` for ${city}` : ''}${region ? `, ${region}` : ''} - activities, restaurants, and attractions near ${propertyName}.`;
       default:
         return propertyDescription;
     }
@@ -509,6 +513,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   let lodgingBusinessJsonLd: Record<string, unknown> | null = null;
   let imageGalleryJsonLd: Record<string, unknown> | null = null;
   let faqPageJsonLd: Record<string, unknown> | null = null;
+  let areaGuideJsonLd: Record<string, unknown> | null = null;
   let publishedReviews: Review[] = [];
 
   if (pageName === 'homepage') {
@@ -528,6 +533,10 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   } else if (pageName === 'gallery') {
     // Gallery page: ImageGallery schema
     imageGalleryJsonLd = buildImageGalleryJsonLd({ property, canonicalUrl, language });
+  } else if (pageName === 'area-guide') {
+    // Area guide page: Article schema
+    const descriptionOverride = overrides?.propertyMeta?.description || overrides?.propertyMeta?.shortDescription;
+    areaGuideJsonLd = buildAreaGuideJsonLd({ property, canonicalUrl, language, descriptionOverride });
   }
 
   // Build breadcrumb with subpage level when not on homepage
@@ -568,6 +577,12 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(faqPageJsonLd) }}
+        />
+      )}
+      {areaGuideJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(areaGuideJsonLd) }}
         />
       )}
       <script

@@ -20,6 +20,7 @@ import { GalleryGridForm } from './block-forms/gallery-grid-form';
 import { BookingFormConfig } from './block-forms/booking-form-config';
 import { PoliciesForm } from './block-forms/policies-form';
 import { VideoForm } from './block-forms/video-form';
+import { AreaGuideForm } from './block-forms/area-guide-form';
 
 interface BlockEditorProps {
   blockId: string;
@@ -56,6 +57,7 @@ const FORM_COMPONENTS: Record<string, React.ComponentType<{
   fullBookingForm: BookingFormConfig,
   policiesList: PoliciesForm,
   video: VideoForm,
+  areaGuideContent: AreaGuideForm,
 };
 
 // Check if block content is essentially empty (only has _hidden or no real values)

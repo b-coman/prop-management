@@ -59,6 +59,15 @@
         { "id": "booking-form", "type": "fullBookingForm" },
         { "id": "booking-policies", "type": "policiesList" }
       ]
+    },
+    "area-guide": {
+      "path": "/area-guide",
+      "title": { "en": "Area Guide", "ro": "Ghid Local" },
+      "blocks": [
+        { "id": "guide-header", "type": "pageHeader" },
+        { "id": "guide-content", "type": "areaGuideContent" },
+        { "id": "guide-cta", "type": "cta" }
+      ]
     }
   },
   "header": {
@@ -446,6 +455,35 @@
         {
           "title": { "en": "House Rules", "ro": "Regulile casei" },
           "description": { "en": "No smoking, no parties or events, pets not allowed.", "ro": "Fumatul interzis, fără petreceri sau evenimente, animalele de companie nu sunt permise." }
+        }
+      ]
+    },
+    "areaGuideContent": {
+      "title": { "en": "Explore the Area", "ro": "Explorează zona" },
+      "description": { "en": "Discover what makes this area special — from local attractions to dining and outdoor activities.", "ro": "Descoperă ce face zona specială — de la atracții locale la restaurante și activități în aer liber." },
+      "sections": [
+        {
+          "heading": { "en": "Outdoor Activities", "ro": "Activități în aer liber" },
+          "description": { "en": "The surrounding area offers excellent hiking, cycling, and nature walks for all fitness levels.", "ro": "Zona înconjurătoare oferă drumeții excelente, ciclism și plimbări în natură pentru toate nivelurile de fitness." },
+          "icon": "TreePine",
+          "highlights": [
+            { "label": { "en": "Trails nearby", "ro": "Trasee în apropiere" }, "value": { "en": "5+", "ro": "5+" } },
+            { "label": { "en": "Difficulty", "ro": "Dificultate" }, "value": { "en": "Easy to moderate", "ro": "Ușor spre moderat" } }
+          ]
+        },
+        {
+          "heading": { "en": "Local Dining", "ro": "Restaurante locale" },
+          "description": { "en": "From traditional cuisine to modern restaurants, there are plenty of dining options within a short drive.", "ro": "De la bucătăria tradițională la restaurante moderne, există multe opțiuni de masă la scurtă distanță." },
+          "icon": "Utensils",
+          "highlights": [
+            { "label": { "en": "Nearest restaurant", "ro": "Cel mai apropiat restaurant" }, "value": { "en": "500m", "ro": "500m" } },
+            { "label": { "en": "Cuisine types", "ro": "Tipuri de bucătărie" }, "value": { "en": "Romanian, Italian", "ro": "Românească, Italiană" } }
+          ]
+        },
+        {
+          "heading": { "en": "Cultural Attractions", "ro": "Atracții culturale" },
+          "description": { "en": "Visit historical sites, museums, and local cultural events that showcase the rich heritage of the region.", "ro": "Vizitează situri istorice, muzee și evenimente culturale locale care pun în valoare bogatul patrimoniu al regiunii." },
+          "icon": "Landmark"
         }
       ]
     }
