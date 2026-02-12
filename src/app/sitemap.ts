@@ -1,8 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-
-export const revalidate = 3600; // Revalidate every hour
+import { headers } from 'next/headers';
 
 function normalizeHost(): string {
   let host = process.env.NEXT_PUBLIC_MAIN_APP_HOST || 'localhost:3000';
@@ -16,6 +15,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries: MetadataRoute.Sitemap = [];
   const subPages = ['gallery', 'location', 'details'];
 
+  // Detect requesting domain to filter sitemap per custom domain
+  const headersList = await headers();
+  const forwardedHost = headersList.get('x-forwarded-host') || headersList.get('host') || '';
+  const requestHost = forwardedHost.replace(/^https?:\/\//, '').replace(/\/+$/, '').replace(/^www\./, '');
+  const mainAppHost = (process.env.NEXT_PUBLIC_MAIN_APP_HOST || '').replace(/^https?:\/\//, '').replace(/\/+$/, '');
+  const isCustomDomainRequest = requestHost && requestHost !== mainAppHost && !requestHost.includes('localhost');
+
   try {
     const propertiesRef = collection(db, 'properties');
     const snapshot = await getDocs(propertiesRef);
@@ -24,9 +30,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       const data = doc.data();
       const slug = doc.id;
       const customDomain = data.useCustomDomain && data.customDomain ? data.customDomain : null;
+      const normalizedCustomDomain = customDomain?.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+
+      // If accessed from a custom domain, only include that domain's property
+      if (isCustomDomainRequest && normalizedCustomDomain !== requestHost) {
+        continue;
+      }
 
       // Use custom domain as canonical URL when available, otherwise use main app URL
-      // This avoids duplicate content in the sitemap
       let propertyBase: string;
       if (customDomain) {
         const domain = customDomain.replace(/^https?:\/\//, '').replace(/\/+$/, '');
@@ -35,8 +46,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         propertyBase = `${baseUrl}/properties/${slug}`;
       }
 
-      // For custom domains: RO is at /ro, subpages at /page
-      // For main app: RO is at /properties/slug/ro, subpages at /properties/slug/page
       const roBase = `${propertyBase}/ro`;
 
       // Homepage
