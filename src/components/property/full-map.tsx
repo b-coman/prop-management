@@ -1,7 +1,7 @@
 // src/components/property/full-map.tsx
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { FullMapBlock } from '@/lib/overridesSchemas-multipage';
 import { Button } from '@/components/ui/button';
 import { MapPin, Navigation } from 'lucide-react';
@@ -31,119 +31,94 @@ export function FullMap({ content }: FullMapProps) {
     showDirections = true
   } = content || {};
 
+  const lat = coordinates?.lat;
+  const lng = coordinates?.lng;
+
   const [mapLoaded, setMapLoaded] = useState(false);
   const mapId = 'property-full-map';
-  const scriptRef = useRef<HTMLScriptElement | null>(null);
-  const [isClient, setIsClient] = useState(false);
+  const mapInstanceRef = useRef<any>(null);
 
-  // Set isClient to true when component mounts
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+  const initMap = useCallback(() => {
+    if (!lat || !lng) return;
+    if (!window.google?.maps) return;
+
+    const mapElement = document.getElementById(mapId);
+    if (!mapElement) return;
+
+    try {
+      const map = new window.google.maps.Map(mapElement, {
+        center: { lat, lng },
+        zoom,
+        mapTypeControl: true,
+        fullscreenControl: true,
+        streetViewControl: true,
+        zoomControl: true,
+      });
+
+      new window.google.maps.Marker({
+        position: { lat, lng },
+        map,
+        title: typeof address === 'string' ? address : address?.en || '',
+        animation: window.google.maps.Animation.DROP,
+      });
+
+      mapInstanceRef.current = map;
+    } catch (error) {
+      console.error('Error initializing map:', error);
+    }
+  }, [lat, lng, zoom, address]);
 
   // Load Google Maps script
   useEffect(() => {
-    // Only run on client-side
-    if (!isClient) return;
+    if (!lat || !lng) return;
 
-    // Skip if coordinates are missing
-    if (!coordinates || !coordinates.lat || !coordinates.lng) {
-      console.warn('Missing map coordinates');
-      return;
-    }
-
-    // Check if Google Maps API is already loaded
-    if (window.google && window.google.maps) {
+    // Already loaded
+    if (window.google?.maps) {
       setMapLoaded(true);
       initMap();
       return;
     }
 
-    // Get API key from environment variable
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
     if (!apiKey) {
       console.error('Google Maps API key is missing');
       return;
     }
 
-    // Setup callback function
+    // Check if script is already being loaded by another instance
+    const existingScript = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]');
+    if (existingScript) {
+      // Wait for the existing script to load
+      const checkLoaded = setInterval(() => {
+        if (window.google?.maps) {
+          clearInterval(checkLoaded);
+          setMapLoaded(true);
+          initMap();
+        }
+      }, 100);
+      return () => clearInterval(checkLoaded);
+    }
+
+    // Setup callback
     window.initFullMap = () => {
       setMapLoaded(true);
       initMap();
     };
 
-    // Add Google Maps script to document
     const script = document.createElement('script');
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initFullMap`;
     script.async = true;
     script.defer = true;
     document.head.appendChild(script);
-    
-    // Save the script reference for cleanup
-    scriptRef.current = script;
-    
-    // Cleanup function
-    return () => {
-      if (scriptRef.current && document.head.contains(scriptRef.current)) {
-        document.head.removeChild(scriptRef.current);
-      }
-      
-      // Delete the global callback
-      if (window.initFullMap) {
-        delete window.initFullMap;
-      }
-    };
-  }, [isClient, coordinates]); // Add coordinates as dependency
 
-  const initMap = () => {
-    // Only run on client-side
-    if (!isClient || !coordinates) return;
-
-    try {
-      if (!window.google || !window.google.maps) {
-        console.warn('Google Maps not loaded yet');
-        return;
-      }
-      
-      const mapElement = document.getElementById(mapId);
-      if (!mapElement) {
-        console.warn(`Map element with id ${mapId} not found`);
-        return;
-      }
-
-      const mapOptions = {
-        center: { lat: coordinates.lat, lng: coordinates.lng },
-        zoom: zoom,
-        mapTypeControl: true,
-        fullscreenControl: true,
-        streetViewControl: true,
-        zoomControl: true,
-      };
-
-      const map = new window.google.maps.Map(mapElement, mapOptions);
-      
-      // Add marker
-      new window.google.maps.Marker({
-        position: { lat: coordinates.lat, lng: coordinates.lng },
-        map: map,
-        title: tc(address),
-        animation: window.google.maps.Animation.DROP,
-      });
-    } catch (error) {
-      console.error('Error initializing map:', error);
-    }
-  };
+    // Don't remove the script or callback on cleanup — Google Maps API
+    // cannot be loaded twice and the callback must remain available
+  }, [lat, lng, initMap]);
 
   const openDirections = () => {
-    // Only run on client-side
-    if (!isClient || !coordinates) return;
-    
-    try {
-      const url = `https://www.google.com/maps/dir/?api=1&destination=${coordinates.lat},${coordinates.lng}`;
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } catch (error) {
-      console.error('Error opening directions:', error);
-    }
+    if (!lat || !lng) return;
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -161,8 +136,8 @@ export function FullMap({ content }: FullMapProps) {
           </div>
 
           {showDirections && (
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={openDirections}
               className="gap-2"
             >
@@ -172,12 +147,12 @@ export function FullMap({ content }: FullMapProps) {
           )}
         </div>
 
-        {isClient && coordinates ? (
-          <div 
-            id={mapId} 
+        {lat && lng ? (
+          <div
+            id={mapId}
             className="w-full h-[400px] rounded-lg border shadow-sm"
-            style={{ 
-              background: '#f0f0f0', // Placeholder background
+            style={{
+              background: '#f0f0f0',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
