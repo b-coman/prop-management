@@ -9,7 +9,7 @@ import { websiteTemplateSchema, propertyOverridesSchema } from '@/lib/overridesS
 import { LanguageProvider } from '@/lib/language-system';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
 import { serverTranslateContent } from '@/lib/server-language-utils';
-import { buildVacationRentalJsonLd, buildBreadcrumbJsonLd, getCanonicalUrl, getBaseUrl } from '@/lib/structured-data';
+import { buildVacationRentalJsonLd, buildBreadcrumbJsonLd, buildLodgingBusinessJsonLd, buildImageGalleryJsonLd, getCanonicalUrl, getBaseUrl } from '@/lib/structured-data';
 import { getAmenitiesByRefs } from '@/lib/amenity-utils';
 import { TrackViewItem } from '@/components/tracking/track-page-view';
 import blurMapData from '@/data/blur-map.json';
@@ -226,13 +226,40 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
     overrides?.propertyMeta?.name || property.name,
     language,
   );
-  const description = serverTranslateContent(
+  const propertyDescription = serverTranslateContent(
     overrides?.propertyMeta?.shortDescription || overrides?.propertyMeta?.description ||
     property.shortDescription || property.description,
     language,
   ) || (language === 'ro'
     ? `Rezervă ${propertyName} - cazare de vacanță`
     : `Book ${propertyName} - vacation rental`);
+
+  // Build page-specific meta description
+  const city = property.location?.city || '';
+  const region = property.location?.state || '';
+  const imageCount = property.images?.length || 0;
+  const bedrooms = property.bedrooms || 0;
+  const bathrooms = property.bathrooms || 0;
+  const maxGuests = property.maxGuests || 0;
+
+  const description = (() => {
+    switch (pageName) {
+      case 'gallery':
+        return language === 'ro'
+          ? `Descoperă ${imageCount} fotografii cu ${propertyName}${city ? ` în ${city}` : ''} - camere, spații exterioare și facilități.`
+          : `Browse ${imageCount} photos of ${propertyName}${city ? ` in ${city}` : ''} - rooms, outdoor spaces, and amenities.`;
+      case 'location':
+        return language === 'ro'
+          ? `Localizează ${propertyName}${city ? ` în ${city}` : ''}${region ? `, ${region}` : ''}. Indicații de orientare, atracții din zonă și opțiuni de transport.`
+          : `Find ${propertyName}${city ? ` in ${city}` : ''}${region ? `, ${region}` : ''}. Directions, nearby attractions, and transportation options.`;
+      case 'details':
+        return language === 'ro'
+          ? `${propertyName} oferă ${bedrooms} dormitoare, ${bathrooms} băi, capacitate de până la ${maxGuests} oaspeți.${city ? ` Situat în ${city}.` : ''}`
+          : `${propertyName} features ${bedrooms} bedrooms, ${bathrooms} bathrooms, accommodating up to ${maxGuests} guests.${city ? ` Located in ${city}.` : ''}`;
+      default:
+        return propertyDescription;
+    }
+  })();
 
   // Build page-specific title: "Page Title - Property Name" for sub-pages
   let pageTitle = propertyName;
@@ -464,10 +491,14 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   const propertyNameStr = serverTranslateContent(propertyNameSource, language);
   const propertyNameForLang = serverTranslateContent(propertyNameSource, language);
 
-  // Build VacationRental JSON-LD only on homepage
+  // Build page-specific structured data (JSON-LD)
   let vacationRentalJsonLd: Record<string, unknown> | null = null;
+  let lodgingBusinessJsonLd: Record<string, unknown> | null = null;
+  let imageGalleryJsonLd: Record<string, unknown> | null = null;
   let publishedReviews: Review[] = [];
+
   if (pageName === 'homepage') {
+    // Homepage: VacationRental + LodgingBusiness (for Google Maps)
     const [amenities, publishedReviewCount, fetchedReviews] = await Promise.all([
       property.amenityRefs?.length ? getAmenitiesByRefs(property.amenityRefs) : [],
       getPublishedReviewCount(slug),
@@ -476,6 +507,10 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     publishedReviews = fetchedReviews;
     const telephone = template?.footer?.contactInfo?.phone || undefined;
     vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl, telephone, publishedReviewCount, publishedReviews, language });
+    lodgingBusinessJsonLd = buildLodgingBusinessJsonLd({ property, canonicalUrl, telephone, publishedReviewCount, publishedReviews, language });
+  } else if (pageName === 'gallery') {
+    // Gallery page: ImageGallery schema
+    imageGalleryJsonLd = buildImageGalleryJsonLd({ property, canonicalUrl, language });
   }
 
   // Build breadcrumb with subpage level when not on homepage
@@ -498,6 +533,18 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(vacationRentalJsonLd) }}
+        />
+      )}
+      {lodgingBusinessJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(lodgingBusinessJsonLd) }}
+        />
+      )}
+      {imageGalleryJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(imageGalleryJsonLd) }}
         />
       )}
       <script

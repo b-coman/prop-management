@@ -77,15 +77,15 @@ export function AmenitiesForm({ content, onChange }: BlockFormProps) {
   const filteredAmenities = allAmenities.filter(a => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
-    const nameEn = (a.name.en || '').toLowerCase();
-    const nameRo = (a.name.ro || '').toLowerCase();
-    const catEn = (a.category.en || '').toLowerCase();
+    const nameEn = (a.name?.en || '').toLowerCase();
+    const nameRo = (a.name?.ro || '').toLowerCase();
+    const catEn = (a.category?.en || '').toLowerCase();
     return nameEn.includes(q) || nameRo.includes(q) || catEn.includes(q) || a.id.includes(q);
   });
 
   // Group amenities by category for display
   const amenitiesByCategory = filteredAmenities.reduce<Record<string, AmenityItem[]>>((acc, a) => {
-    const catName = a.category.en || 'Other';
+    const catName = a.category?.en || 'Other';
     if (!acc[catName]) acc[catName] = [];
     acc[catName].push(a);
     return acc;
@@ -159,8 +159,8 @@ export function AmenitiesForm({ content, onChange }: BlockFormProps) {
                                     onCheckedChange={() => toggleAmenityRef(i, amenity.id)}
                                   />
                                   <span className="text-sm">
-                                    {getIconEmoji(amenity.icon)} {amenity.name.en}
-                                    {amenity.name.ro && (
+                                    {getIconEmoji(amenity.icon)} {amenity.name?.en || amenity.id}
+                                    {amenity.name?.ro && (
                                       <span className="text-muted-foreground"> / {amenity.name.ro}</span>
                                     )}
                                   </span>

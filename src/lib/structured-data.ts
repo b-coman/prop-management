@@ -368,3 +368,145 @@ export function getBaseUrl(customDomain?: string | null): string {
   }
   return normalizeHost();
 }
+
+/**
+ * Build LodgingBusiness JSON-LD for Google Maps visibility.
+ * Coexists with VacationRental schema — Google uses LodgingBusiness for Maps.
+ */
+export function buildLodgingBusinessJsonLd(options: {
+  property: Property;
+  canonicalUrl: string;
+  telephone?: string;
+  publishedReviewCount?: number;
+  publishedReviews?: Review[];
+  language?: string;
+}): Record<string, unknown> {
+  const { property, canonicalUrl, telephone, publishedReviewCount, publishedReviews = [], language = 'en' } = options;
+
+  const pickLang = (value: string | { en?: string; ro?: string } | undefined): string | undefined => {
+    if (!value) return undefined;
+    if (typeof value === 'string') return value;
+    return value[language as 'en' | 'ro'] || value.en || value.ro || undefined;
+  };
+
+  const name = pickLang(property.name) || '';
+  const description = pickLang(property.description);
+  const rawPhone = property.contactPhone || telephone;
+  const validTelephone = rawPhone && !isPlaceholderValue(rawPhone) ? rawPhone : undefined;
+
+  const images = (property.images || [])
+    .slice()
+    .sort((a, b) => {
+      if (a.isFeatured && !b.isFeatured) return -1;
+      if (!a.isFeatured && b.isFeatured) return 1;
+      return (a.sortOrder ?? 999) - (b.sortOrder ?? 999);
+    })
+    .map(img => img.url);
+
+  const address = property.location ? {
+    '@type': 'PostalAddress' as const,
+    ...(property.location.address && { streetAddress: property.location.address }),
+    ...(property.location.city && { addressLocality: property.location.city }),
+    ...(property.location.state && { addressRegion: property.location.state }),
+    ...(property.location.country && { addressCountry: normalizeCountryCode(property.location.country) || property.location.country }),
+    ...(property.location.zipCode && { postalCode: property.location.zipCode }),
+  } : undefined;
+
+  const geo = property.location?.coordinates ? {
+    '@type': 'GeoCoordinates',
+    latitude: property.location.coordinates.latitude,
+    longitude: property.location.coordinates.longitude,
+  } : undefined;
+
+  const hasRealReviews = typeof publishedReviewCount === 'number' && publishedReviewCount > 0;
+  const aggregateRating = hasRealReviews && property.ratings && property.ratings.average > 0
+    ? {
+        '@type': 'AggregateRating',
+        ratingValue: property.ratings.average,
+        ratingCount: publishedReviewCount,
+        bestRating: 5,
+      }
+    : undefined;
+
+  const priceRange = property.pricePerNight
+    ? `${property.pricePerNight} ${property.baseCurrency}/night`
+    : undefined;
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'LodgingBusiness',
+    additionalType: 'VacationRental',
+    name,
+    url: canonicalUrl,
+    ...(description && { description }),
+    ...(images.length > 0 && { image: images }),
+    ...(validTelephone && { telephone: validTelephone }),
+    ...(address && { address }),
+    ...(geo && { geo }),
+    ...(priceRange && { priceRange }),
+    ...(aggregateRating && { aggregateRating }),
+    ...(publishedReviews.length > 0 && {
+      review: publishedReviews.slice(0, 5).map((review) => ({
+        '@type': 'Review',
+        author: { '@type': 'Person', name: review.guestName },
+        ...(typeof review.date === 'string' && { datePublished: review.date.split('T')[0] }),
+        reviewBody: review.comment,
+        reviewRating: { '@type': 'Rating', ratingValue: review.rating, bestRating: 5 },
+      })),
+    }),
+    openingHoursSpecification: {
+      '@type': 'OpeningHoursSpecification',
+      dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+      opens: '00:00',
+      closes: '23:59',
+    },
+    knowsLanguage: ['en', 'ro'],
+  };
+}
+
+/**
+ * Build ImageGallery JSON-LD for gallery pages.
+ */
+export function buildImageGalleryJsonLd(options: {
+  property: Property;
+  canonicalUrl: string;
+  language?: string;
+}): Record<string, unknown> {
+  const { property, canonicalUrl, language = 'en' } = options;
+
+  const pickLang = (value: string | { en?: string; ro?: string } | undefined): string | undefined => {
+    if (!value) return undefined;
+    if (typeof value === 'string') return value;
+    return value[language as 'en' | 'ro'] || value.en || value.ro || undefined;
+  };
+
+  const name = pickLang(property.name) || '';
+  const images = (property.images || [])
+    .sort((a, b) => {
+      if (a.isFeatured && !b.isFeatured) return -1;
+      if (!a.isFeatured && b.isFeatured) return 1;
+      return (a.sortOrder ?? 999) - (b.sortOrder ?? 999);
+    })
+    .map(img => ({
+      '@type': 'ImageObject',
+      contentUrl: img.url,
+      ...(img.alt && { description: img.alt }),
+      ...(img.alt && { name: img.alt }),
+    }));
+
+  const galleryTitle = language === 'ro'
+    ? `Galerie Foto - ${name}`
+    : `Photo Gallery - ${name}`;
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: galleryTitle,
+    url: canonicalUrl,
+    mainEntity: {
+      '@type': 'ImageGallery',
+      name: galleryTitle,
+      ...(images.length > 0 && { image: images }),
+    },
+  };
+}

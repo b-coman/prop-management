@@ -16,8 +16,9 @@ import { DEFAULT_LANGUAGE } from '@/lib/language-constants';
 
 // Instantiate the Inter font
 const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter', // Define CSS variable
+  subsets: ['latin', 'latin-ext'],
+  display: 'swap',
+  variable: '--font-inter',
 });
 
 export const metadata: Metadata = {

@@ -1,4 +1,9 @@
+import type { Metadata } from 'next';
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: true },
+};
 import { validateReviewToken } from '@/lib/review-token';
 import { Timestamp as AdminTimestamp } from 'firebase-admin/firestore';
 import ReviewSubmissionForm from './_components/review-submission-form';

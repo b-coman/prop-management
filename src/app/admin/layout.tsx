@@ -7,7 +7,12 @@
  * and authentication protection.
  */
 
+import type { Metadata } from 'next';
 import { ReactNode } from 'react';
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 import { SimpleAdminAuth } from '@/components/SimpleAdminAuth';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
