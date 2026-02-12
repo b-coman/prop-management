@@ -30,15 +30,20 @@ export function MapForm({ content, onChange }: BlockFormProps) {
         multiline
       />
 
+      <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+        Address and coordinates are automatically pulled from the property settings.
+        Only fill these in if you want to override the property defaults (e.g., to show a different pin location).
+      </div>
+
       <MultilingualInput
-        label="Address"
+        label="Address (override)"
         value={content.address as string | Record<string, string> | undefined}
         onChange={(v) => onChange({ ...content, address: v })}
       />
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label>Latitude</Label>
+          <Label>Latitude (override)</Label>
           <Input
             type="number"
             step="any"
@@ -49,11 +54,11 @@ export function MapForm({ content, onChange }: BlockFormProps) {
                 coordinates: { ...coordinates, lat: parseFloat(e.target.value) || 0 },
               })
             }
-            placeholder="45.0"
+            placeholder="From property settings"
           />
         </div>
         <div>
-          <Label>Longitude</Label>
+          <Label>Longitude (override)</Label>
           <Input
             type="number"
             step="any"
@@ -64,7 +69,7 @@ export function MapForm({ content, onChange }: BlockFormProps) {
                 coordinates: { ...coordinates, lng: parseFloat(e.target.value) || 0 },
               })
             }
-            placeholder="25.0"
+            placeholder="From property settings"
           />
         </div>
       </div>

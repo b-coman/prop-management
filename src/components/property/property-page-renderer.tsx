@@ -388,21 +388,38 @@ export function PropertyPageRenderer({
             };
           }
         }
-      } else if (type === 'fullMap' && property?.location) {
-        // Auto-populate map coordinates and address from property location
-        const loc = property.location;
-        if (!blockContent?.coordinates && loc.coordinates) {
-          blockContent = {
-            ...blockContent,
-            coordinates: { lat: loc.coordinates.latitude, lng: loc.coordinates.longitude },
-            address: blockContent?.address || loc.address || `${loc.city || ''}, ${loc.country || ''}`.trim().replace(/^,\s*/, ''),
-          };
-        } else if (!blockContent?.address && loc.address) {
-          blockContent = {
-            ...blockContent,
-            address: loc.address,
-          };
-        }
+      } else if (type === 'fullMap') {
+        // Map data priority: explicit page override > property.location > template default
+        // pageOverride has explicit admin edits; templateDefault has generic placeholders
+        const loc = property?.location;
+        const hasExplicitCoords = pageOverride?.coordinates?.lat && pageOverride?.coordinates?.lng;
+        const hasExplicitAddress = pageOverride?.address;
+        const hasPropertyCoords = loc?.coordinates?.latitude && loc?.coordinates?.longitude;
+
+        // Build address from property location fields
+        const propertyAddress = loc
+          ? (loc.address
+            ? { en: `${loc.address}, ${loc.city || ''}`.replace(/,\s*$/, ''), ro: `${loc.address}, ${loc.city || ''}`.replace(/,\s*$/, '') }
+            : { en: `${loc.city || ''}, ${loc.country || ''}`.replace(/^,\s*|,\s*$/g, ''), ro: `${loc.city || ''}, ${loc.country || ''}`.replace(/^,\s*|,\s*$/g, '') })
+          : undefined;
+
+        // Coordinates: admin override wins, then property doc, then template default
+        const coordinates = hasExplicitCoords
+          ? pageOverride.coordinates
+          : (hasPropertyCoords && loc?.coordinates)
+            ? { lat: loc.coordinates.latitude, lng: loc.coordinates.longitude }
+            : blockContent?.coordinates;
+
+        // Address: admin override wins, then property doc, then template default
+        const address = hasExplicitAddress
+          ? pageOverride.address
+          : propertyAddress || blockContent?.address;
+
+        blockContent = {
+          ...blockContent,
+          coordinates,
+          address,
+        };
       } else if ((type === 'gallery' || type === 'galleryGrid' || type === 'full-gallery') && property?.images?.length) {
         // Fallback to property.images when gallery has no override images
         const existingImages = blockContent?.images;

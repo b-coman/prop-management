@@ -236,7 +236,12 @@ export function WebsiteContentEditor({
           {currentPageBlocks.map((block) => {
             const templateDefault = (templateDefaults[block.id] || templateDefaults[block.type] || {}) as Record<string, unknown>;
             const pageOverride = currentPageOverrides[block.id] as Record<string, unknown> | undefined;
-            const blockContent = pageOverride ? { ...templateDefault, ...pageOverride } : templateDefault;
+            // For fullMap, strip coordinates/address from template — they come from property.location at render time
+            // Only show these fields if explicitly set in page overrides
+            const effectiveTemplate = block.type === 'fullMap'
+              ? (({ coordinates: _c, address: _a, ...rest }) => rest)(templateDefault)
+              : templateDefault;
+            const blockContent = pageOverride ? { ...effectiveTemplate, ...pageOverride } : effectiveTemplate;
             const isHidden = blockContent._hidden === true;
 
             return (
