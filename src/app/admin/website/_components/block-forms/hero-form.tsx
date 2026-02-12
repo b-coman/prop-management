@@ -28,11 +28,16 @@ export function HeroForm({ content, onChange, propertySlug, propertyImages }: Bl
         />
       </div>
 
-      <MultilingualInput
-        label="Title"
-        value={content.title as string | Record<string, string> | undefined}
-        onChange={(v) => onChange({ ...content, title: v })}
-      />
+      <div>
+        <MultilingualInput
+          label="Title"
+          value={content.title as string | Record<string, string> | undefined}
+          onChange={(v) => onChange({ ...content, title: v })}
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          Shorter titles (under 30 characters) display best on the hero banner. The title is shown on a single line and scales down automatically for longer text.
+        </p>
+      </div>
 
       <MultilingualInput
         label="Subtitle"
