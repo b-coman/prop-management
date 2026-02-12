@@ -283,9 +283,9 @@ export function BookingProvider({
     
     const urlParams = new URLSearchParams(window.location.search);
     
-    // Parse dates from URL
-    const checkInParam = urlParams.get('checkIn');
-    const checkOutParam = urlParams.get('checkOut');
+    // Parse dates from URL (support both camelCase and lowercase for Google Vacation Rentals compatibility)
+    const checkInParam = urlParams.get('checkIn') || urlParams.get('checkin');
+    const checkOutParam = urlParams.get('checkOut') || urlParams.get('checkout');
     const guestsParam = urlParams.get('guests');
     
     if (checkInParam) {

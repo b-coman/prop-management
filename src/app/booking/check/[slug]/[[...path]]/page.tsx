@@ -68,6 +68,9 @@ interface BookingCheckPageProps {
   searchParams: Promise<{
     checkIn?: string;
     checkOut?: string;
+    checkin?: string;
+    checkout?: string;
+    guests?: string;
     currency?: string;
     // Note: lang/language removed - now handled via path
   }>;
@@ -121,7 +124,11 @@ export async function generateMetadata({ params, searchParams }: BookingCheckPag
 export default async function BookingCheckPage({ params, searchParams }: BookingCheckPageProps) {
   // In Next.js 15, we need to await params and searchParams before accessing properties
   const { slug, path } = await params;
-  const { checkIn, checkOut, currency } = await searchParams;
+  const resolvedParams = await searchParams;
+  // Support both camelCase and lowercase params (Google Vacation Rentals uses lowercase)
+  const checkIn = resolvedParams.checkIn || resolvedParams.checkin;
+  const checkOut = resolvedParams.checkOut || resolvedParams.checkout;
+  const currency = resolvedParams.currency;
   
   // Path-based language detection (consistent with property pages)
   let detectedLanguage = DEFAULT_LANGUAGE;
