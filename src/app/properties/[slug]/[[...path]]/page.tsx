@@ -244,7 +244,8 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
   const customDomain = property.useCustomDomain ? property.customDomain : null;
   const canonicalUrl = getCanonicalUrl(slug, customDomain);
   const featuredImage = property.images?.find(img => img.isFeatured)?.url
-    || property.images?.[0]?.url;
+    || property.images?.[0]?.url
+    || overrides?.homepage?.hero?.backgroundImage;
 
   return {
     title: pageTitle,
@@ -252,6 +253,7 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
     openGraph: {
       title: pageTitle,
       description,
+      siteName: propertyName,
       url: canonicalUrl,
       type: 'website',
       images: featuredImage ? [{ url: featuredImage, alt: propertyName }] : [],

@@ -179,7 +179,7 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                   src={image.url}
                   alt={tc(image.alt) || `Property image ${index + 1}`}
                   fill
-                  loading="lazy"
+                  {...(index === 0 ? { priority: true } : { loading: "lazy" as const })}
                   className="object-cover"
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   fallbackText="Property image not available"
@@ -204,7 +204,7 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                   alt={tc(image.alt) || `Property image ${index + 1}`}
                   width={800}
                   height={600}
-                  loading="lazy"
+                  {...(index === 0 ? { priority: true } : { loading: "lazy" as const })}
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   className="w-full h-auto object-cover hover:scale-[1.02] transition-transform"
                   fallbackText="Property image not available"
@@ -250,6 +250,7 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                     src={image.url}
                     alt={tc(image.alt) || `Property image ${index + 1}`}
                     fill
+                    {...(index === 0 ? { priority: true } : { loading: "lazy" as const })}
                     sizes="(max-width: 1024px) 100vw, 1024px"
                     className="object-cover"
                     fallbackText="Property image not available"

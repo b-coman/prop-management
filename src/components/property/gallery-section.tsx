@@ -72,7 +72,7 @@ export function GallerySection({ content, language = 'en' }: GallerySectionProps
                   fill
                   style={{ objectFit: "cover" }}
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" // 1-col / 2-col / 3-col
-                  loading="lazy"
+                  {...(index === 0 ? { priority: true } : { loading: "lazy" as const })}
                   className="transition-transform duration-300 hover:scale-105"
                   data-ai-hint={image['data-ai-hint']}
                   fallbackText={`${t('gallery.imageUnavailable', 'Image unavailable')}`}

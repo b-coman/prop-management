@@ -603,8 +603,13 @@ export function PropertyPageRenderer({
   const theme = getThemeById(effectiveThemeId);
   const themeStyles = themeToInlineStyles(theme);
 
+  // Preload theme font stylesheet in SSR to prevent CLS from font swap.
+  // React 19 / Next.js 15 hoists <link> with `precedence` to <head> and deduplicates.
+  const fontUrl = theme.typography.fontFamilyUrl;
+
   return (
     <ThemeProvider initialThemeId={effectiveThemeId}>
+      {fontUrl && <link rel="stylesheet" href={fontUrl} precedence="default" />}
       <div style={themeStyles} className="flex min-h-screen flex-col">
         {/* Header with transparent overlay effect */}
         <Header
