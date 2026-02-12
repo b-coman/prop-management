@@ -271,15 +271,15 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
   }
 
   const customDomain = property.useCustomDomain ? property.customDomain : null;
-  const canonicalUrl = getCanonicalUrl(slug, customDomain, pageName);
+  const enUrl = getCanonicalUrl(slug, customDomain, pageName);
+  const pageSuffix = pageName && pageName !== 'homepage' ? `/${pageName}` : '';
+  const roUrl = `${getCanonicalUrl(slug, customDomain)}/ro${pageSuffix}`;
+  // Self-referencing canonical: each language version points to itself
+  const canonicalUrl = language === 'ro' ? roUrl : enUrl;
+
   const featuredImage = property.images?.find(img => img.isFeatured)?.url
     || property.images?.[0]?.url
     || overrides?.homepage?.hero?.backgroundImage;
-
-  // Build hreflang alternate URLs including page path
-  const enUrl = canonicalUrl;
-  const pageSuffix = pageName && pageName !== 'homepage' ? `/${pageName}` : '';
-  const roUrl = `${getCanonicalUrl(slug, customDomain)}/ro${pageSuffix}`;
 
   return {
     title: pageTitle,
