@@ -429,18 +429,25 @@ export function setupHeroContentAdjustment(): () => void {
       const isLargeDesktop = viewportWidth >= 1280;
       
       // For bottom position on desktop/tablet: reduce the gap between title and widget
-      // by shifting the title down when the gap exceeds ~8% of the hero height.
+      // by shifting the title down when the gap exceeds ~10% of the hero height.
+      // Uses getBoundingClientRect() for accurate measurement of rendered positions.
       if (positionAttribute === 'bottom' && !isMobile) {
-        const containerPaddingTop = parseFloat(getComputedStyle(heroContainer as HTMLElement).paddingTop) || 0;
-        const currentTitleBottom = containerPaddingTop + marginNeeded + titleHeight;
-        // The widget wrapper is absolute-positioned at bottom: 20px, so its top edge is:
-        const widgetWrapperTop = heroHeight - (formWrapper as HTMLElement).getBoundingClientRect().height - 20;
-        const gapB = widgetWrapperTop - currentTitleBottom;
-        const maxGap = heroHeight * 0.10;
+        const heroRect = heroSection.getBoundingClientRect();
+        const titleRect = heroTitleContainer.getBoundingClientRect();
+        // Find the outer absolute-positioned widget wrapper (contains specs bar + booking card)
+        const outerWidgetWrapper = Array.from((heroContainer as HTMLElement).children).find(
+          (child) => (child as HTMLElement).style?.position === 'absolute'
+        );
+        if (outerWidgetWrapper) {
+          const widgetRect = outerWidgetWrapper.getBoundingClientRect();
+          const gapB = widgetRect.top - titleRect.bottom;
+          const maxGap = heroHeight * 0.10;
 
-        if (gapB > maxGap) {
-          const adjustedMargin = marginNeeded + (gapB - maxGap);
-          (heroTitleContainer as HTMLElement).style.marginTop = `${adjustedMargin}px`;
+          if (gapB > maxGap) {
+            const currentMargin = parseFloat((heroTitleContainer as HTMLElement).style.marginTop) || marginNeeded;
+            const adjustedMargin = currentMargin + (gapB - maxGap);
+            (heroTitleContainer as HTMLElement).style.marginTop = `${adjustedMargin}px`;
+          }
         }
       }
 
