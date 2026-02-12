@@ -234,7 +234,9 @@ export function WebsiteContentEditor({
       {currentPageBlocks.length > 0 ? (
         <Accordion type="multiple" className="space-y-2">
           {currentPageBlocks.map((block) => {
-            const blockContent = (currentPageOverrides[block.id] || templateDefaults[block.id] || templateDefaults[block.type] || {}) as Record<string, unknown>;
+            const templateDefault = (templateDefaults[block.id] || templateDefaults[block.type] || {}) as Record<string, unknown>;
+            const pageOverride = currentPageOverrides[block.id] as Record<string, unknown> | undefined;
+            const blockContent = pageOverride ? { ...templateDefault, ...pageOverride } : templateDefault;
             const isHidden = blockContent._hidden === true;
 
             return (
