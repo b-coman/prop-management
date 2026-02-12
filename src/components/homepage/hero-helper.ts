@@ -428,9 +428,25 @@ export function setupHeroContentAdjustment(): () => void {
       const isDesktop = viewportWidth >= 1024 && viewportWidth < 1280;
       const isLargeDesktop = viewportWidth >= 1280;
       
+      // For bottom position on desktop/tablet: reduce the gap between title and widget
+      // by shifting the title down when the gap exceeds ~8% of the hero height.
+      if (positionAttribute === 'bottom' && !isMobile) {
+        const containerPaddingTop = parseFloat(getComputedStyle(heroContainer as HTMLElement).paddingTop) || 0;
+        const currentTitleBottom = containerPaddingTop + marginNeeded + titleHeight;
+        // The widget wrapper is absolute-positioned at bottom: 20px, so its top edge is:
+        const widgetWrapperTop = heroHeight - (formWrapper as HTMLElement).getBoundingClientRect().height - 20;
+        const gapB = widgetWrapperTop - currentTitleBottom;
+        const maxGap = heroHeight * 0.08;
+
+        if (gapB > maxGap) {
+          const adjustedMargin = marginNeeded + (gapB - maxGap);
+          (heroTitleContainer as HTMLElement).style.marginTop = `${adjustedMargin}px`;
+        }
+      }
+
       // Form wrapper styling - common for all positions
       const formWrapperElement = formWrapper as HTMLElement;
-      
+
       // Create a function to apply horizontal layout based on the position-size combination
       const applyHorizontalLayout = (positionAttribute: string, sizeAttribute: string, formWrapperElement: HTMLElement) => {
         if (positionAttribute === 'bottom' && sizeAttribute === 'large' && !isMobile) {
