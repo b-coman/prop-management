@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { MapPin, Navigation } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 
-// Extend the Window interface to include our callback
 declare global {
   interface Window {
     initFullMap?: () => void;
@@ -35,18 +34,17 @@ export function FullMap({ content }: FullMapProps) {
   const lng = coordinates?.lng;
 
   const [mapLoaded, setMapLoaded] = useState(false);
-  const mapId = 'property-full-map';
+  const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
 
   const initMap = useCallback(() => {
     if (!lat || !lng) return;
     if (!window.google?.maps) return;
-
-    const mapElement = document.getElementById(mapId);
-    if (!mapElement) return;
+    if (!mapRef.current) return;
+    if (mapInstanceRef.current) return; // already initialized
 
     try {
-      const map = new window.google.maps.Map(mapElement, {
+      const map = new window.google.maps.Map(mapRef.current, {
         center: { lat, lng },
         zoom,
         mapTypeControl: true,
@@ -63,6 +61,7 @@ export function FullMap({ content }: FullMapProps) {
       });
 
       mapInstanceRef.current = map;
+      setMapLoaded(true);
     } catch (error) {
       console.error('Error initializing map:', error);
     }
@@ -74,7 +73,6 @@ export function FullMap({ content }: FullMapProps) {
 
     // Already loaded
     if (window.google?.maps) {
-      setMapLoaded(true);
       initMap();
       return;
     }
@@ -85,14 +83,12 @@ export function FullMap({ content }: FullMapProps) {
       return;
     }
 
-    // Check if script is already being loaded by another instance
+    // Check if script is already being loaded
     const existingScript = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]');
     if (existingScript) {
-      // Wait for the existing script to load
       const checkLoaded = setInterval(() => {
         if (window.google?.maps) {
           clearInterval(checkLoaded);
-          setMapLoaded(true);
           initMap();
         }
       }, 100);
@@ -101,7 +97,6 @@ export function FullMap({ content }: FullMapProps) {
 
     // Setup callback
     window.initFullMap = () => {
-      setMapLoaded(true);
       initMap();
     };
 
@@ -110,9 +105,6 @@ export function FullMap({ content }: FullMapProps) {
     script.async = true;
     script.defer = true;
     document.head.appendChild(script);
-
-    // Don't remove the script or callback on cleanup — Google Maps API
-    // cannot be loaded twice and the callback must remain available
   }, [lat, lng, initMap]);
 
   const openDirections = () => {
@@ -120,6 +112,8 @@ export function FullMap({ content }: FullMapProps) {
     const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
     window.open(url, '_blank', 'noopener,noreferrer');
   };
+
+  const hasCoords = lat && lng;
 
   return (
     <section className="py-8 md:py-12 bg-background">
@@ -147,24 +141,28 @@ export function FullMap({ content }: FullMapProps) {
           )}
         </div>
 
-        {lat && lng ? (
-          <div
-            id={mapId}
-            className="w-full h-[400px] rounded-lg border shadow-sm"
-            style={{
-              background: '#f0f0f0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {!mapLoaded && <p>{t('map.loading', 'Loading map...')}</p>}
-          </div>
-        ) : (
-          <div className="w-full h-[400px] rounded-lg border shadow-sm bg-muted flex items-center justify-center">
-            <p className="text-muted-foreground">{t('map.unavailable', 'Map unavailable')}</p>
-          </div>
-        )}
+        {/* Map container: the loading overlay is a sibling, not a child of the
+            map div, because Google Maps replaces all children of its container */}
+        <div className="relative w-full h-[400px] rounded-lg border shadow-sm overflow-hidden">
+          {hasCoords ? (
+            <>
+              {!mapLoaded && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
+                  <p>{t('map.loading', 'Loading map...')}</p>
+                </div>
+              )}
+              <div
+                ref={mapRef}
+                className="w-full h-full"
+                suppressHydrationWarning
+              />
+            </>
+          ) : (
+            <div className="w-full h-full bg-muted flex items-center justify-center">
+              <p className="text-muted-foreground">{t('map.unavailable', 'Map unavailable')}</p>
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );
