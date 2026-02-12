@@ -230,7 +230,9 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
     overrides?.propertyMeta?.shortDescription || overrides?.propertyMeta?.description ||
     property.shortDescription || property.description,
     language,
-  ) || `Book ${propertyName} - vacation rental`;
+  ) || (language === 'ro'
+    ? `Rezervă ${propertyName} - cazare de vacanță`
+    : `Book ${propertyName} - vacation rental`);
 
   // Build page-specific title: "Page Title - Property Name" for sub-pages
   let pageTitle = propertyName;
@@ -242,10 +244,15 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
   }
 
   const customDomain = property.useCustomDomain ? property.customDomain : null;
-  const canonicalUrl = getCanonicalUrl(slug, customDomain);
+  const canonicalUrl = getCanonicalUrl(slug, customDomain, pageName);
   const featuredImage = property.images?.find(img => img.isFeatured)?.url
     || property.images?.[0]?.url
     || overrides?.homepage?.hero?.backgroundImage;
+
+  // Build hreflang alternate URLs including page path
+  const enUrl = canonicalUrl;
+  const pageSuffix = pageName && pageName !== 'homepage' ? `/${pageName}` : '';
+  const roUrl = `${getCanonicalUrl(slug, customDomain)}/ro${pageSuffix}`;
 
   return {
     title: pageTitle,
@@ -267,9 +274,11 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
     },
     alternates: {
       canonical: canonicalUrl,
-      languages: customDomain
-        ? { 'en': canonicalUrl, 'ro': `${canonicalUrl}/ro` }
-        : { 'en': canonicalUrl, 'ro': `${canonicalUrl}/ro` },
+      languages: {
+        'en': enUrl,
+        'ro': roUrl,
+        'x-default': enUrl,
+      },
     },
   };
 }
@@ -447,7 +456,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
 
   // Build structured data (JSON-LD)
   const customDomain = property.useCustomDomain ? property.customDomain : null;
-  const canonicalUrl = getCanonicalUrl(slug, customDomain);
+  const canonicalUrl = getCanonicalUrl(slug, customDomain, pageName);
   const baseUrl = getBaseUrl(customDomain);
 
   // Resolve property name: prefer bilingual overrides, fall back to property field
@@ -466,10 +475,14 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     ]);
     publishedReviews = fetchedReviews;
     const telephone = template?.footer?.contactInfo?.phone || undefined;
-    vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl, telephone, publishedReviewCount, publishedReviews });
+    vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl, telephone, publishedReviewCount, publishedReviews, language });
   }
 
-  const breadcrumbJsonLd = buildBreadcrumbJsonLd(propertyNameStr, slug, baseUrl);
+  // Build breadcrumb with subpage level when not on homepage
+  const pageLabel = pageName !== 'homepage' && template?.pages?.[pageName]?.title
+    ? serverTranslateContent(template.pages[pageName].title, language)
+    : undefined;
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd(propertyNameStr, slug, baseUrl, pageName, pageLabel || undefined, customDomain);
 
   // Local image blur map for blur placeholders (imported as JSON module)
   const localBlurMap = blurMapData as Record<string, string>;

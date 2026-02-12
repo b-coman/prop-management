@@ -25,58 +25,52 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       const slug = doc.id;
       const customDomain = data.useCustomDomain && data.customDomain ? data.customDomain : null;
 
-      // Main app URLs under /properties/{slug}
-      const mainUrl = `${baseUrl}/properties/${slug}`;
+      // Use custom domain as canonical URL when available, otherwise use main app URL
+      // This avoids duplicate content in the sitemap
+      let propertyBase: string;
+      if (customDomain) {
+        const domain = customDomain.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+        propertyBase = `https://${domain}`;
+      } else {
+        propertyBase = `${baseUrl}/properties/${slug}`;
+      }
+
+      // For custom domains: RO is at /ro, subpages at /page
+      // For main app: RO is at /properties/slug/ro, subpages at /properties/slug/page
+      const roBase = `${propertyBase}/ro`;
+
+      // Homepage
       entries.push({
-        url: mainUrl,
+        url: propertyBase,
         lastModified: new Date(),
         changeFrequency: 'weekly',
         priority: 1.0,
         alternates: {
-          languages: { en: mainUrl, ro: `${mainUrl}/ro` },
+          languages: {
+            en: propertyBase,
+            ro: roBase,
+            'x-default': propertyBase,
+          },
         },
       });
 
+      // Subpages
       for (const page of subPages) {
-        const pageUrl = `${mainUrl}/${page}`;
+        const pageUrl = `${propertyBase}/${page}`;
+        const roPageUrl = `${roBase}/${page}`;
         entries.push({
           url: pageUrl,
           lastModified: new Date(),
           changeFrequency: 'monthly',
           priority: 0.8,
           alternates: {
-            languages: { en: pageUrl, ro: `${mainUrl}/ro/${page}` },
-          },
-        });
-      }
-
-      // Custom domain URLs (when property has a custom domain)
-      if (customDomain) {
-        const domain = customDomain.replace(/^https?:\/\//, '').replace(/\/+$/, '');
-        const domainBase = `https://${domain}`;
-
-        entries.push({
-          url: domainBase,
-          lastModified: new Date(),
-          changeFrequency: 'weekly',
-          priority: 1.0,
-          alternates: {
-            languages: { en: domainBase, ro: `${domainBase}/ro` },
-          },
-        });
-
-        for (const page of subPages) {
-          const pageUrl = `${domainBase}/${page}`;
-          entries.push({
-            url: pageUrl,
-            lastModified: new Date(),
-            changeFrequency: 'monthly',
-            priority: 0.8,
-            alternates: {
-              languages: { en: pageUrl, ro: `${domainBase}/ro/${page}` },
+            languages: {
+              en: pageUrl,
+              ro: roPageUrl,
+              'x-default': pageUrl,
             },
-          });
-        }
+          },
+        });
       }
     }
   } catch (error) {

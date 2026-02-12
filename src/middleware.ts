@@ -5,8 +5,8 @@ import { DOMAIN_TO_PROPERTY_MAP } from '@/lib/domain-map';
 
 export const config = {
   matcher: [
-    // Match all paths except for API routes, static files, public assets, health checks, etc.
-    '/((?!api|_next/static|_next/image|images|favicon.ico|locales|health|readiness).*)',
+    // Match all paths except for API routes, static files, public assets, health checks, SEO files, etc.
+    '/((?!api|_next/static|_next/image|images|favicon.ico|locales|health|readiness|sitemap\\.xml|robots\\.txt|llms\\.txt).*)',
   ],
 };
 
@@ -32,8 +32,14 @@ export async function middleware(request: NextRequest) {
   }
 
   // Skip if path already targets the internal property route (prevents double-rewrite)
+  // But still detect language from path and pass as header for SSR lang attribute
   if (pathname.startsWith('/properties/')) {
-    return NextResponse.next();
+    const segments = pathname.split('/').filter(Boolean);
+    // Language appears after slug: /properties/{slug}/{lang}/...
+    const langFromPath = segments.length >= 3 && SUPPORTED_LANGUAGES.includes(segments[2]) ? segments[2] : DEFAULT_LANGUAGE;
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-language', langFromPath);
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   // Language detection for guest-facing pages
@@ -120,7 +126,14 @@ export async function middleware(request: NextRequest) {
   // Rewrite using explicit URL construction
   const rewriteUrl = new URL(rewritePath, request.url);
   rewriteUrl.search = url.search; // preserve original query parameters
-  const response = NextResponse.rewrite(rewriteUrl);
+
+  // Pass detected language as request header for SSR lang attribute
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-language', language);
+
+  const response = NextResponse.rewrite(rewriteUrl, {
+    request: { headers: requestHeaders },
+  });
   response.cookies.set('preferredLanguage', language, {
     httpOnly: true,
     sameSite: 'lax',
@@ -164,23 +177,40 @@ function detectPreferredLanguage(request: NextRequest): string {
  */
 function handleLanguageRouting(request: NextRequest, preferredLang: string): NextResponse {
   const pathname = request.nextUrl.pathname;
-  
-  // Check if path already includes a language
+
+  // Detect language from path for SSR lang attribute
+  let detectedLang = DEFAULT_LANGUAGE;
   for (const lang of SUPPORTED_LANGUAGES) {
     if (pathname.startsWith(`/${lang}/`) || pathname === `/${lang}`) {
-      return NextResponse.next();
+      detectedLang = lang;
+      break;
     }
+  }
+  // Also check /properties/{slug}/{lang} pattern
+  if (detectedLang === DEFAULT_LANGUAGE && pathname.startsWith('/properties/')) {
+    const segments = pathname.split('/').filter(Boolean);
+    if (segments.length >= 3 && SUPPORTED_LANGUAGES.includes(segments[2])) {
+      detectedLang = segments[2];
+    }
+  }
+
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-language', detectedLang);
+
+  // Check if path already includes a language
+  if (detectedLang !== DEFAULT_LANGUAGE) {
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   // For property pages, check if we should redirect to preferred language
   if (pathname.startsWith('/properties/') && preferredLang !== DEFAULT_LANGUAGE) {
     const segments = pathname.split('/');
-    
+
     // Insert language after property slug if not already present
     if (segments.length >= 3 && !SUPPORTED_LANGUAGES.includes(segments[3])) {
       segments.splice(3, 0, preferredLang);
       const newPathname = segments.join('/');
-      
+
       if (newPathname !== pathname) {
         const url = request.nextUrl.clone();
         url.pathname = newPathname;
@@ -189,7 +219,7 @@ function handleLanguageRouting(request: NextRequest, preferredLang: string): Nex
     }
   }
 
-  return NextResponse.next();
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 // Note: Admin route auth is handled by SimpleAdminAuth component in admin layout

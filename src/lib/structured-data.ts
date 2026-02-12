@@ -56,6 +56,7 @@ interface VacationRentalJsonLdOptions {
   telephone?: string;
   publishedReviewCount?: number;
   publishedReviews?: Review[];
+  language?: string;
 }
 
 function isPlaceholderValue(value?: string): boolean {
@@ -65,20 +66,21 @@ function isPlaceholderValue(value?: string): boolean {
 }
 
 export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions): Record<string, unknown> {
-  const { property, amenities = [], canonicalUrl, telephone, publishedReviewCount, publishedReviews = [] } = options;
+  const { property, amenities = [], canonicalUrl, telephone, publishedReviewCount, publishedReviews = [], language = 'en' } = options;
   // Prefer per-property contactPhone, fall back to template-level telephone
   const rawPhone = property.contactPhone || telephone;
   const validTelephone = rawPhone && !isPlaceholderValue(rawPhone) ? rawPhone : undefined;
 
-  const name = typeof property.name === 'string'
-    ? property.name
-    : (property.name.en || property.name.ro || '');
+  // Helper to pick the right language from bilingual fields
+  const pickLang = (value: string | { en?: string; ro?: string } | undefined): string | undefined => {
+    if (!value) return undefined;
+    if (typeof value === 'string') return value;
+    return value[language as 'en' | 'ro'] || value.en || value.ro || undefined;
+  };
 
-  const description = property.description
-    ? (typeof property.description === 'string'
-        ? property.description
-        : (property.description.en || property.description.ro || ''))
-    : undefined;
+  const name = pickLang(property.name) || '';
+
+  const description = pickLang(property.description);
 
   // Build images array — featured first, then by sortOrder
   const images = (property.images || [])
@@ -289,24 +291,53 @@ export function buildBreadcrumbJsonLd(
   propertyName: string,
   propertySlug: string,
   baseUrl: string,
+  pageName?: string,
+  pageLabel?: string,
+  customDomain?: string | null,
 ): Record<string, unknown> {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: [
-      {
-        '@type': 'ListItem',
-        position: 1,
-        name: 'Home',
-        item: baseUrl,
-      },
+  // On custom domains, the property is at root; on main app, it's under /properties/{slug}
+  const propertyUrl = customDomain
+    ? baseUrl
+    : `${baseUrl}/properties/${propertySlug}`;
+
+  const items: Record<string, unknown>[] = [
+    {
+      '@type': 'ListItem',
+      position: 1,
+      name: 'Home',
+      item: propertyUrl,
+    },
+  ];
+
+  // Only add property name as separate breadcrumb level when on a subpage
+  if (pageName && pageName !== 'homepage' && pageLabel) {
+    items.push(
       {
         '@type': 'ListItem',
         position: 2,
         name: propertyName,
-        item: `${baseUrl}/properties/${propertySlug}`,
+        item: propertyUrl,
       },
-    ],
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: pageLabel,
+        item: `${propertyUrl}/${pageName}`,
+      },
+    );
+  } else {
+    items.push({
+      '@type': 'ListItem',
+      position: 2,
+      name: propertyName,
+      item: propertyUrl,
+    });
+  }
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items,
   };
 }
 
@@ -320,13 +351,14 @@ function normalizeHost(): string {
   return `${protocol}://${host}`;
 }
 
-export function getCanonicalUrl(slug: string, customDomain?: string | null): string {
+export function getCanonicalUrl(slug: string, customDomain?: string | null, pagePath?: string): string {
+  const pageSuffix = pagePath && pagePath !== 'homepage' ? `/${pagePath}` : '';
   if (customDomain) {
     // Custom domain serves the property at the root
     const domain = customDomain.replace(/^https?:\/\//, '').replace(/\/+$/, '');
-    return `https://${domain}`;
+    return `https://${domain}${pageSuffix}`;
   }
-  return `${normalizeHost()}/properties/${slug}`;
+  return `${normalizeHost()}/properties/${slug}${pageSuffix}`;
 }
 
 export function getBaseUrl(customDomain?: string | null): string {

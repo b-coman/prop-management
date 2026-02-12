@@ -11,6 +11,8 @@ import { GoogleTagManager, GoogleTagManagerNoscript } from '@/components/trackin
 import { CookieConsent } from '@/components/cookie-consent';
 import { UTMCapture } from '@/components/tracking/utm-capture';
 import { LanguageHtmlUpdater } from '@/components/language-html-updater';
+import { headers } from 'next/headers';
+import { DEFAULT_LANGUAGE } from '@/lib/language-constants';
 
 // Instantiate the Inter font
 const inter = Inter({
@@ -23,13 +25,17 @@ export const metadata: Metadata = {
   description: 'Book unique vacation rentals like the Prahova Mountain Chalet and Coltei Apartment Bucharest.', // Updated description
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Read language from middleware-set header for correct SSR lang attribute
+  const headersList = await headers();
+  const detectedLang = headersList.get('x-language') || DEFAULT_LANGUAGE;
+
   return (
-    <html lang="en">
+    <html lang={detectedLang}>
       <head>
         <link rel="preconnect" href="https://firebasestorage.googleapis.com" />
         <GoogleTagManager />
