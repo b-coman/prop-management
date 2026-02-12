@@ -506,8 +506,10 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     ]);
     publishedReviews = fetchedReviews;
     const telephone = template?.footer?.contactInfo?.phone || undefined;
-    vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl, telephone, publishedReviewCount, publishedReviews, language });
-    lodgingBusinessJsonLd = buildLodgingBusinessJsonLd({ property, canonicalUrl, telephone, publishedReviewCount, publishedReviews, language });
+    // Prefer override description for JSON-LD (same priority as meta description)
+    const descriptionOverride = overrides?.propertyMeta?.description || overrides?.propertyMeta?.shortDescription;
+    vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl, telephone, publishedReviewCount, publishedReviews, language, descriptionOverride });
+    lodgingBusinessJsonLd = buildLodgingBusinessJsonLd({ property, canonicalUrl, telephone, publishedReviewCount, publishedReviews, language, descriptionOverride });
   } else if (pageName === 'gallery') {
     // Gallery page: ImageGallery schema
     imageGalleryJsonLd = buildImageGalleryJsonLd({ property, canonicalUrl, language });

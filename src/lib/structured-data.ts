@@ -57,6 +57,7 @@ interface VacationRentalJsonLdOptions {
   publishedReviewCount?: number;
   publishedReviews?: Review[];
   language?: string;
+  descriptionOverride?: string | { en?: string; ro?: string };
 }
 
 function isPlaceholderValue(value?: string): boolean {
@@ -66,7 +67,7 @@ function isPlaceholderValue(value?: string): boolean {
 }
 
 export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions): Record<string, unknown> {
-  const { property, amenities = [], canonicalUrl, telephone, publishedReviewCount, publishedReviews = [], language = 'en' } = options;
+  const { property, amenities = [], canonicalUrl, telephone, publishedReviewCount, publishedReviews = [], language = 'en', descriptionOverride } = options;
   // Prefer per-property contactPhone, fall back to template-level telephone
   const rawPhone = property.contactPhone || telephone;
   const validTelephone = rawPhone && !isPlaceholderValue(rawPhone) ? rawPhone : undefined;
@@ -80,7 +81,8 @@ export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions):
 
   const name = pickLang(property.name) || '';
 
-  const description = pickLang(property.description);
+  // Prefer override description (from propertyMeta), fall back to property.description
+  const description = pickLang(descriptionOverride) || pickLang(property.description);
 
   // Build images array — featured first, then by sortOrder
   const images = (property.images || [])
@@ -380,8 +382,9 @@ export function buildLodgingBusinessJsonLd(options: {
   publishedReviewCount?: number;
   publishedReviews?: Review[];
   language?: string;
+  descriptionOverride?: string | { en?: string; ro?: string };
 }): Record<string, unknown> {
-  const { property, canonicalUrl, telephone, publishedReviewCount, publishedReviews = [], language = 'en' } = options;
+  const { property, canonicalUrl, telephone, publishedReviewCount, publishedReviews = [], language = 'en', descriptionOverride } = options;
 
   const pickLang = (value: string | { en?: string; ro?: string } | undefined): string | undefined => {
     if (!value) return undefined;
@@ -390,7 +393,7 @@ export function buildLodgingBusinessJsonLd(options: {
   };
 
   const name = pickLang(property.name) || '';
-  const description = pickLang(property.description);
+  const description = pickLang(descriptionOverride) || pickLang(property.description);
   const rawPhone = property.contactPhone || telephone;
   const validTelephone = rawPhone && !isPlaceholderValue(rawPhone) ? rawPhone : undefined;
 
