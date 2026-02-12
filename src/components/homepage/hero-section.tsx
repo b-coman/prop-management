@@ -123,9 +123,12 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
   const formSize = bookingForm?.size || 'compressed';
   
   
+  const showMobileSpecs = bookingFormProperty && (bookingFormProperty.maxGuests || bookingFormProperty.bedrooms);
+
   return (
-    <section 
-      className="relative h-[70vh] min-h-[600px] md:h-[80vh] md:min-h-[700px] w-full flex text-white has-transparent-header slides-under-header" 
+    <>
+    <section
+      className="relative h-[70vh] min-h-[600px] md:h-[80vh] md:min-h-[700px] w-full flex text-white has-transparent-header slides-under-header"
       id="hero"
       data-form-position={formPosition} // Pass position data for JavaScript positioning
       data-form-size={formSize} // Pass size data for future use
@@ -215,5 +218,35 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
         )}
       </div>
     </section>
+    {/* Mobile-only specs strip below hero */}
+    {showMobileSpecs && (
+      <div className="flex md:hidden items-center justify-center gap-3 py-2.5 bg-muted/60 border-b text-xs text-muted-foreground">
+        {bookingFormProperty.maxGuests && (
+          <span className="flex items-center gap-1">
+            <Users className="h-3.5 w-3.5" />
+            <span>{bookingFormProperty.maxGuests} {t('specs.guests', 'guests')}</span>
+          </span>
+        )}
+        {bookingFormProperty.bedrooms && (
+          <>
+            <span className="opacity-40">&middot;</span>
+            <span className="flex items-center gap-1">
+              <BedDouble className="h-3.5 w-3.5" />
+              <span>{bookingFormProperty.bedrooms} {bookingFormProperty.bedrooms === 1 ? t('specs.bedroom', 'bedroom') : t('specs.bedrooms', 'bedrooms')}</span>
+            </span>
+          </>
+        )}
+        {bookingFormProperty.bathrooms && (
+          <>
+            <span className="opacity-40">&middot;</span>
+            <span className="flex items-center gap-1">
+              <Bath className="h-3.5 w-3.5" />
+              <span>{bookingFormProperty.bathrooms} {bookingFormProperty.bathrooms === 1 ? t('specs.bathroom', 'bath') : t('specs.bathrooms', 'baths')}</span>
+            </span>
+          </>
+        )}
+      </div>
+    )}
+    </>
   );
 }

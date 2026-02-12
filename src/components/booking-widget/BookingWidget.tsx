@@ -11,7 +11,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { InitialBookingForm } from './InitialBookingForm';
-import { Star, Users, BedDouble, Bath } from 'lucide-react';
+import { Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -374,33 +374,6 @@ export const BookingWidget = React.memo(function BookingWidget({
 
       {/* Flex container for price and form */}
       <div className="booking-form-flex-container w-full">
-        {/* Mobile: Property specs row */}
-        {(property.maxGuests || property.bedrooms || property.bathrooms) && (
-          <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground w-full md:hidden">
-            {property.maxGuests && (
-              <span className="flex items-center gap-1">
-                <Users className="h-3 w-3" /> {property.maxGuests} {t('specs.guests', 'guests')}
-              </span>
-            )}
-            {property.bedrooms && (
-              <>
-                <span className="opacity-60">&middot;</span>
-                <span className="flex items-center gap-1">
-                  <BedDouble className="h-3 w-3" /> {property.bedrooms} {property.bedrooms === 1 ? t('specs.bedroom', 'bedroom') : t('specs.bedrooms', 'bedrooms')}
-                </span>
-              </>
-            )}
-            {property.bathrooms && (
-              <>
-                <span className="opacity-60">&middot;</span>
-                <span className="flex items-center gap-1">
-                  <Bath className="h-3 w-3" /> {property.bathrooms} {property.bathrooms === 1 ? t('specs.bathroom', 'bath') : t('specs.bathrooms', 'baths')}
-                </span>
-              </>
-            )}
-          </div>
-        )}
-
         {/* Price Section */}
         <div className="booking-price-container">
           <div className="flex flex-col items-start justify-end">
