@@ -38,9 +38,9 @@ export function GallerySection({ content, language = 'en' }: GallerySectionProps
 
   // Extract properties with defaults to prevent destructuring errors
   const {
-    title = t('gallery.title'),
+    title = t('gallery.title', 'Gallery'),
     images: rawImages = [],
-    propertyName = t('common.property'),
+    propertyName = t('common.property', 'Property'),
     maxImages,
     viewAllUrl,
     viewAllText,

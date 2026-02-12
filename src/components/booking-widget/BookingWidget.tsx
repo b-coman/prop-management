@@ -381,26 +381,26 @@ export const BookingWidget = React.memo(function BookingWidget({
             <p className={cn(
               "text-muted-foreground uppercase tracking-wider mb-1 hidden md:block text-left",
               size === 'large' ? "text-sm" : "text-xs"
-            )}>
+            )} suppressHydrationWarning>
               {typeof property.advertisedRateType === 'object'
                 ? tc(property.advertisedRateType)
-                : t('common.from')}
+                : t('common.from', 'From')}
             </p>
 
             {/* Mobile: Price + Rating on one line */}
             <div className="flex items-center justify-between w-full md:hidden">
               <div className="flex items-baseline gap-1.5">
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground" suppressHydrationWarning>
                   {typeof property.advertisedRateType === 'object'
                     ? tc(property.advertisedRateType)
-                    : t('common.from')}
+                    : t('common.from', 'From')}
                 </span>
-                <span className="font-bold text-foreground text-lg leading-none">
+                <span className="font-bold text-foreground text-lg leading-none" suppressHydrationWarning>
                   {hasMounted && formattedDisplayPrice !== null
                     ? formattedDisplayPrice
                     : (property.advertisedRate ? formatPrice(Math.round(property.advertisedRate), propertyBaseCcy) : "...")}
                 </span>
-                <span className="text-sm text-muted-foreground font-normal">/{t('common.night')}</span>
+                <span className="text-sm text-muted-foreground font-normal" suppressHydrationWarning>/{t('common.night', 'night')}</span>
               </div>
               {showRating && rating && reviewsCount && (
                 <div className="flex items-center gap-1 text-sm">
@@ -415,14 +415,14 @@ export const BookingWidget = React.memo(function BookingWidget({
             <p className={cn(
               "font-bold text-foreground leading-none hidden md:block",
               size === 'large' ? "text-3xl md:text-4xl" : "text-2xl md:text-2xl lg:text-3xl"
-            )}>
+            )} suppressHydrationWarning>
               {hasMounted && formattedDisplayPrice !== null
                 ? formattedDisplayPrice
                 : (property.advertisedRate ? formatPrice(Math.round(property.advertisedRate), propertyBaseCcy) : "Loading price...")}
               <span className={cn(
                 "font-normal text-muted-foreground ml-1",
                 size === 'large' ? "text-base" : "text-sm"
-              )}>/{t('common.night')}</span>
+              )} suppressHydrationWarning>/{t('common.night', 'night')}</span>
             </p>
           </div>
         </div>

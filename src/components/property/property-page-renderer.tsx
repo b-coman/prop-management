@@ -64,7 +64,8 @@ import { blockSchemas } from '@/lib/overridesSchemas-multipage';
 import { Header } from '@/components/generic-header-multipage';
 import { Footer } from '@/components/footer';
 import { ThemeProvider } from '@/contexts/ThemeContext';
-import { DEFAULT_THEME_ID, predefinedThemes } from '@/lib/themes/theme-definitions';
+import { DEFAULT_THEME_ID, predefinedThemes, getThemeById } from '@/lib/themes/theme-definitions';
+import { themeToInlineStyles } from '@/lib/themes/theme-utils';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { useCurrency } from '@/contexts/CurrencyContext';
@@ -169,14 +170,8 @@ export function PropertyPageRenderer({
 }: PropertyPageRendererProps) {
   const { tc } = useLanguage();
   const { setDefaultCurrency } = useCurrency();
-  const [isClient, setIsClient] = useState(false);
-  const [effectiveThemeId, setEffectiveThemeId] = useState<string | null>(null);
+  const [effectiveThemeId, setEffectiveThemeId] = useState<string>(themeId);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
-
-  // Initialize state on client-side only to avoid hydration issues
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   // Set default currency from property's baseCurrency (only if user hasn't explicitly chosen)
   useEffect(() => {
@@ -184,36 +179,23 @@ export function PropertyPageRenderer({
       setDefaultCurrency(property.baseCurrency);
     }
   }, [property?.baseCurrency, setDefaultCurrency]);
-  
-  // Handle theme selection based on URL parameter or prop
+
+  // Handle theme preview from URL parameter (client-only)
   useEffect(() => {
-    if (!isClient) return;
-    
     try {
       const url = new URL(window.location.href);
       const previewTheme = url.searchParams.get('preview_theme');
-      
       if (previewTheme) {
-        // Validate that the theme exists
         const themeExists = predefinedThemes.some(t => t.id === previewTheme);
         if (themeExists) {
           setEffectiveThemeId(previewTheme);
           setIsPreviewMode(true);
-        } else {
-          console.error(`[Theme Error] Theme with ID "${previewTheme}" not found in predefined themes`);
-          setEffectiveThemeId(themeId);
-          setIsPreviewMode(false);
         }
-      } else {
-        setEffectiveThemeId(themeId);
-        setIsPreviewMode(false);
       }
     } catch (error) {
-      console.error('[Theme Error]', error);
-      setEffectiveThemeId(themeId);
-      setIsPreviewMode(false);
+      // Preview theme is non-critical, ignore errors
     }
-  }, [themeId, isClient]);
+  }, [themeId]);
   
   // Check if template has pages
   if (!template.pages) {
@@ -614,21 +596,16 @@ export function PropertyPageRenderer({
     }
   };
 
-  if (!isClient) {
-    return null; // Avoid hydration issues by not rendering anything on the server
-  }
-
   // Check for development environment to only show ThemeSwitcher in development
   const isDev = process.env.NODE_ENV === 'development';
-  
-  // Don't render anything until client-side and theme is determined
-  if (!isClient || !effectiveThemeId) {
-    return <div className="min-h-screen flex items-center justify-center">Loading theme...</div>;
-  }
+
+  // Resolve theme and generate inline CSS variables for SSR
+  const theme = getThemeById(effectiveThemeId);
+  const themeStyles = themeToInlineStyles(theme);
 
   return (
     <ThemeProvider initialThemeId={effectiveThemeId}>
-      <div className="flex min-h-screen flex-col">
+      <div style={themeStyles} className="flex min-h-screen flex-col">
         {/* Header with transparent overlay effect */}
         <Header
           propertyName={propertyName}

@@ -2,6 +2,7 @@
  * Utility functions for the theme system
  */
 
+import React from 'react';
 import { Theme } from './theme-types';
 
 /**
@@ -11,6 +12,41 @@ export interface HSLValues {
   h: number;
   s: number;
   l: number;
+}
+
+/**
+ * Convert a theme to inline CSS custom properties for SSR.
+ * Mirrors applyThemeToDOM but returns a CSSProperties object
+ * so the theme can be applied as inline styles on a wrapper div,
+ * enabling server-rendered content with correct theme colors.
+ */
+export function themeToInlineStyles(theme: Theme): React.CSSProperties {
+  return {
+    // Color variables
+    '--background': theme.colors.background,
+    '--foreground': theme.colors.foreground,
+    '--primary': theme.colors.primary,
+    '--secondary': theme.colors.secondary,
+    '--accent': theme.colors.accent,
+    '--muted': theme.colors.muted,
+    '--border': theme.colors.border,
+    // Typography
+    '--font-family': theme.typography.fontFamily,
+    // Sizing
+    '--radius': theme.sizing.borderRadius,
+    '--button-radius': theme.sizing.buttonRadius,
+    '--card-radius': theme.sizing.cardRadius,
+    '--input-radius': theme.sizing.inputRadius,
+    '--spacing': theme.sizing.spacing,
+    // Component-specific
+    '--button-padding': theme.components.button.padding,
+    '--button-shadow': theme.components.button.shadow,
+    '--card-shadow': theme.components.card.shadow,
+    '--card-border-width': theme.components.card.borderWidth,
+    '--card-padding': theme.components.card.padding,
+    '--input-border-width': theme.components.input.borderWidth,
+    '--input-padding': theme.components.input.padding,
+  } as React.CSSProperties;
 }
 
 /**

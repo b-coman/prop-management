@@ -46,7 +46,7 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
       <section className="relative h-[70vh] min-h-[500px] md:h-[80vh] md:min-h-[600px] w-full flex text-white">
         <div className="absolute inset-0 bg-black/80"></div>
         <div className="container mx-auto px-4 flex items-center justify-center">
-          <h1 className="text-3xl">{t('common.welcome')}</h1>
+          <h1 className="text-3xl">{t('common.welcome', 'Welcome')}</h1>
         </div>
       </section>
     );
@@ -137,7 +137,7 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
       {backgroundImage && (
         <Image
           src={backgroundImage}
-          alt={tc(title) || property.name || t('common.heroBackgroundImage')}
+          alt={tc(title) || property.name || t('common.heroBackgroundImage', 'Property hero image')}
           fill
           style={{ objectFit: 'cover' }}
           priority

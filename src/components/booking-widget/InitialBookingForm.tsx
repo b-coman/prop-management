@@ -55,8 +55,8 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
   const handleCheckAvailability = () => {
     if (!isDateRangeValid()) {
       toast({
-        title: t('booking.errors.invalidDates'),
-        description: t('booking.errors.invalidDatesDescription'),
+        title: t('booking.errors.invalidDates', 'Invalid Dates'),
+        description: t('booking.errors.invalidDatesDescription', 'Please select valid check-in and check-out dates.'),
         variant: "destructive",
       });
       return;
@@ -163,8 +163,8 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
            clip: 'rect(0, 0, 0, 0)',
            whiteSpace: 'nowrap',
            border: '0'
-         }}>
-             {t('booking.checkInCheckOut')}
+         }} suppressHydrationWarning>
+             {t('booking.checkInCheckOut', 'Check-in & Check-out')}
          </Label>
          <Popover>
           <PopoverTrigger asChild>
@@ -180,7 +180,7 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
                 disabled={isLoading}
               >
                 <CalendarIcon className={cn("mr-2 h-4 w-4 flex-shrink-0", isBottomLarge() && "md:h-5 md:w-5")} />
-                <span className="inline-block w-full overflow-hidden text-ellipsis whitespace-nowrap">
+                <span className="inline-block w-full overflow-hidden text-ellipsis whitespace-nowrap" suppressHydrationWarning>
                   {date?.from ? (
                     date.to ? (
                       <span className="font-medium relative bg-background/80 px-1 py-0.5 rounded text-foreground">
@@ -190,7 +190,7 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
                       <span className="font-medium relative bg-background/80 px-1 py-0.5 rounded text-foreground">{format(date.from, 'MMM d')}</span>
                     )
                   ) : (
-                    t('booking.selectDates')
+                    t('booking.selectDates', 'Select Dates')
                   )}
                 </span>
               </Button>
@@ -221,16 +221,17 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
               onClick={handleCheckAvailability}
               className="w-full h-full whitespace-nowrap"
               disabled={isButtonDisabled}
+              suppressHydrationWarning
             >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                  {t('booking.checkingAvailability')}
+                  {t('booking.checkingAvailability', 'Checking Availability...')}
                 </>
               ) : (
                 <>
                   <SearchCheck className="mr-1 h-3 w-3" />
-                  {t('booking.checkDates')}
+                  {t('booking.checkDates', 'Check Dates')}
                 </>
               )}
             </Button>

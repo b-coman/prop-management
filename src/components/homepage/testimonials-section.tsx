@@ -99,7 +99,7 @@ export function TestimonialsSection({ content, language = 'en' }: TestimonialsSe
                   <div className="flex">{renderStars(overallRating)}</div>
                   {totalReviewCount > 0 && (
                     <p className="text-sm text-muted-foreground">
-                      {totalReviewCount} {totalReviewCount === 1 ? t('reviews.review') : t('reviews.reviews').toLowerCase()}
+                      {totalReviewCount} {totalReviewCount === 1 ? t('reviews.review', 'review') : t('reviews.reviews', 'reviews').toLowerCase()}
                     </p>
                   )}
                 </div>

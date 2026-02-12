@@ -58,7 +58,7 @@ export function AmenitiesList({ content, language = 'en' }: AmenitiesListProps) 
     return null;
   }
 
-  const { title = t('property.amenities'), categories = [] } = content;
+  const { title = t('property.amenities', 'Amenities'), categories = [] } = content;
 
   // Function to get an icon component by name, with safety checks
   const getIconByName = (name: string): React.ElementType => {

@@ -48,21 +48,22 @@ export function CurrencySwitcherSimple({
       <RenderTracker name="CurrencySwitcher" data={{ selectedCurrency, variant, showLabel }} />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-        <Button 
-          variant={actualVariant} 
-          size={actualSize} 
+        <Button
+          variant={actualVariant}
+          size={actualSize}
           className={cn("gap-2", className)}
+          suppressHydrationWarning
         >
           {showIcon && <DollarSign className="h-4 w-4" />}
           {showLabel && (
             <>
-              <span className="hidden sm:inline">
-                {currentCurrency?.symbol !== currentCurrency?.code 
+              <span className="hidden sm:inline" suppressHydrationWarning>
+                {currentCurrency?.symbol !== currentCurrency?.code
                   ? `${currentCurrency?.symbol} ${currentCurrency?.code}`
                   : currentCurrency?.code
                 }
               </span>
-              <span className="sm:hidden">{currentCurrency?.code}</span>
+              <span className="sm:hidden" suppressHydrationWarning>{currentCurrency?.code}</span>
             </>
           )}
           {!showLabel && currentCurrency?.code}

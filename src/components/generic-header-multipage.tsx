@@ -459,14 +459,14 @@ export function Header({
       <div className="flex items-center justify-between px-4 py-3">
         {formattedPrice && (
           <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-muted-foreground" suppressHydrationWarning>
               {typeof advertisedRateType === 'object'
                 ? tc(advertisedRateType)
-                : t('common.from')}
+                : t('common.from', 'From')}
             </span>
-            <span className="text-lg font-bold text-foreground leading-tight">
+            <span className="text-lg font-bold text-foreground leading-tight" suppressHydrationWarning>
               {formattedPrice}
-              <span className="text-sm font-normal text-muted-foreground ml-1">/{t('common.night')}</span>
+              <span className="text-sm font-normal text-muted-foreground ml-1" suppressHydrationWarning>/{t('common.night', 'night')}</span>
             </span>
           </div>
         )}
