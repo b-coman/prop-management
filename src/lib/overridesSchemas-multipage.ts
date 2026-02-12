@@ -321,6 +321,12 @@ export const featuresSchema = z.array(featureSchema);
 export const attractionsSchema = z.array(attractionSchema);
 export const imagesSchema = z.array(galleryImageSchema);
 
+export const videoSectionSchema = z.object({
+  title: multilingualString.optional(),
+  videoUrl: z.string(),
+  description: multilingualString.optional(),
+}).passthrough();
+
 // Map of block types to their schemas
 export const blockSchemas: Record<string, z.ZodTypeAny> = {
   // Homepage blocks
@@ -352,6 +358,7 @@ export const blockSchemas: Record<string, z.ZodTypeAny> = {
   photoCategories: photoCategoriesSchema,
   fullBookingForm: fullBookingFormSchema,
   policiesList: policiesListSchema,
+  video: videoSectionSchema,
 };
 
 // Schema for the entire template
@@ -423,6 +430,8 @@ export type GalleryGridBlock = z.infer<typeof galleryGridSchema>;
 export type PhotoCategoriesBlock = z.infer<typeof photoCategoriesSchema>;
 export type FullBookingFormBlock = z.infer<typeof fullBookingFormSchema>;
 export type PoliciesListBlock = z.infer<typeof policiesListSchema>;
+
+export type VideoSectionBlock = z.infer<typeof videoSectionSchema>;
 
 // Legacy type (used by override-transformers)
 export type LegacyPropertyOverridesData = z.infer<typeof legacyPropertyOverridesSchema>;

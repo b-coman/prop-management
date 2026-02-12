@@ -13,6 +13,7 @@
         { "id": "location", "type": "location" },
         { "id": "testimonials", "type": "testimonials" },
         { "id": "gallery", "type": "gallery" },
+        { "id": "video", "type": "video" },
         { "id": "cta", "type": "cta" }
       ]
     },

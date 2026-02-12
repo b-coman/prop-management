@@ -78,6 +78,7 @@ import { LocationHighlights } from '@/components/homepage/location-highlights';
 import { TestimonialsSection } from '@/components/homepage/testimonials-section';
 import { GallerySection } from '@/components/property/gallery-section';
 import { CallToActionSection } from '@/components/homepage/call-to-action';
+import { VideoSection } from '@/components/homepage/video-section';
 
 // Import the actual components
 import { PageHeader } from '@/components/property/page-header';
@@ -105,6 +106,7 @@ const blockComponents: Record<string, React.FC<{ content: any; language?: string
   location: LocationHighlights,
   testimonials: TestimonialsSection,
   gallery: GallerySection,
+  video: VideoSection,
   cta: CallToActionSection,
 
   // New multi-page components
