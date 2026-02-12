@@ -22,21 +22,15 @@ interface FullMapProps {
 export function FullMap({ content }: FullMapProps) {
   const { t, tc } = useLanguage();
 
-  // Add safety check for missing content
-  if (!content) {
-    console.warn("FullMap received invalid content");
-    return null;
-  }
+  const {
+    title = "Our Location",
+    description,
+    address = "Location address unavailable",
+    coordinates,
+    zoom = 14,
+    showDirections = true
+  } = content || {};
 
-  const { 
-    title = "Our Location", 
-    description, 
-    address = "Location address unavailable", 
-    coordinates, 
-    zoom = 14, 
-    showDirections = true 
-  } = content;
-  
   const [mapLoaded, setMapLoaded] = useState(false);
   const mapId = 'property-full-map';
   const scriptRef = useRef<HTMLScriptElement | null>(null);
