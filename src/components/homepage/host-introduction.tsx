@@ -37,7 +37,7 @@ export function HostIntroduction({ content }: HostIntroductionProps) {
             {content.imageUrl ? (
               <Image
                 src={content.imageUrl}
-                alt={`Photo of host, ${content.name}`}
+                alt={`Photo of host, ${tc(content.name)}`}
                 fill
                 loading="lazy"
                 sizes="(max-width: 768px) 160px, 192px"
