@@ -352,7 +352,6 @@ export function setupHeroContentAdjustment(): () => void {
     const heroTitleContainer = heroSection?.querySelector('.text-center');
     
     if (!header || !heroSection || !heroTitleContainer || !heroContainer) {
-      console.warn('[Hero Adjustment] Could not find required elements');
       return;
     }
     
@@ -376,44 +375,20 @@ export function setupHeroContentAdjustment(): () => void {
     (heroTitleContainer as HTMLElement).style.marginTop = `${marginNeeded}px`;
     
     // Position the form container relative to the title
-    // The form needs appropriate spacing based on its position while working with the transparent header
-    // First, try to find by class name (debugging)
-    console.log("[HeroHelper DEBUG] Form selectors:", {
-      bgBackgroundElements: heroSection.querySelectorAll('[class*="bg-background"]').length,
-      roundedXlElements: heroSection.querySelectorAll('[class*="rounded-xl"]').length,
-      bookingContainerElements: heroSection.querySelectorAll('.booking-form-flex-container').length,
-      allClasses: Array.from(heroSection.querySelectorAll('*')).map(el => el.className).filter(Boolean).join(', ').substring(0, 200)
-    });
-    
     // More specific selector that targets both implementations
     const formWrapper = heroSection.querySelector('[class*="bg-background"]') || 
                        heroSection.querySelector('[class*="rounded-xl"]') || 
                        heroSection.querySelector('.booking-form-flex-container')?.parentElement;
                        
     if (formWrapper && heroTitleContainer) {
-      console.log("[HeroHelper DEBUG] Found form wrapper:", formWrapper);
       // Determine the form's intended position and size from data attributes
       const positionAttribute = heroSection.getAttribute('data-form-position') || 'bottom';
       const sizeAttribute = heroSection.getAttribute('data-form-size') || 'compressed';
-      
-      // Enhanced debug logging to trace the data flow
-      console.log('[HeroHelper] Form attributes from DOM:', { 
-        positionAttribute, 
-        sizeAttribute,
-        heroSectionId: heroSection.id,
-        heroDataAttributes: {
-          'data-form-position': heroSection.getAttribute('data-form-position'),
-          'data-form-size': heroSection.getAttribute('data-form-size')
-        }
-      });
       
       // Check if this is a schema-defined position or an extended position
       const isSchemaPosition = positionAttribute === 'top' || 
                                positionAttribute === 'bottom' || 
                                positionAttribute === 'center';
-      
-      // For logging and debugging
-      const positionSource = isSchemaPosition ? 'schema-defined' : 'extended';
       
       // Measurements for calculations
       const titleHeight = heroTitleContainer.getBoundingClientRect().height;
@@ -457,8 +432,6 @@ export function setupHeroContentAdjustment(): () => void {
       // Create a function to apply horizontal layout based on the position-size combination
       const applyHorizontalLayout = (positionAttribute: string, sizeAttribute: string, formWrapperElement: HTMLElement) => {
         if (positionAttribute === 'bottom' && sizeAttribute === 'large' && !isMobile) {
-          console.log('[HeroHelper] Bottom position with large size detected - applying horizontal layout');
-          
           // Apply horizontal layout after the component renders with direct styles
           setTimeout(() => {
             // Look for the booking form flex container - either legacy or new version
@@ -489,7 +462,6 @@ export function setupHeroContentAdjustment(): () => void {
                 (buttonContainer as HTMLElement).style.marginTop = '0';
               }
               
-              console.log('[HeroHelper] Applied horizontal layout classes for bottom + large form');
             }
           }, 300);
         }
@@ -593,19 +565,13 @@ export function setupHeroContentAdjustment(): () => void {
       
       // Apply styling based on the position+size combination
       if (handlerKey in positionStyleHandlers) {
-        // Use the specific handler for this position+size
         (positionStyleHandlers as any)[handlerKey](formWrapperElement, handlerParams);
-        console.log(`[HeroHelper] Applied styling via handler for "${handlerKey}"`);
       } else {
-        // If specific handler not found, try to find a default for the position
         const positionHandler = `${positionAttribute}-default`;
         if (positionHandler in positionStyleHandlers) {
           (positionStyleHandlers as any)[positionHandler](formWrapperElement, handlerParams);
-          console.log(`[HeroHelper] Applied default styling for position "${positionAttribute}"`);
         } else {
-          // Fallback to the default handler
           (positionStyleHandlers as any)['default'](formWrapperElement, handlerParams);
-          console.log(`[HeroHelper] Applied default styling (no specific handler for "${handlerKey}")`);
         }
       }
       
@@ -619,10 +585,8 @@ export function setupHeroContentAdjustment(): () => void {
         // Bottom positioning is handled by the parent wrapper in hero-section.tsx
         // (absolute, bottom: 20px, left: 50%, translateX(-50%)).
         // We only apply styling (maxWidth, padding, shadow) here — not positioning.
-        formWrapperElement.style.marginTop = '0'; // Clear any existing margin
-
+        formWrapperElement.style.marginTop = '0';
         finalMargin = 0;
-        console.log('[Hero Form] Bottom position — parent wrapper handles positioning');
       } else {
         // For other positions, use the calculated margin
         finalMargin = Math.min(verticalMargin, 80); // cap at 80px maximum
@@ -633,8 +597,6 @@ export function setupHeroContentAdjustment(): () => void {
       setTimeout(() => {
         formWrapperElement.style.opacity = '1';
       }, 100);
-      
-      console.log(`[Hero Form] Applied ${positionSource} position styling "${positionAttribute}" with size "${sizeAttribute}". ${positionAttribute === 'bottom' ? 'Bottom offset: 20px' : `Margin: ${finalMargin}px`}`);
     }
   };
   

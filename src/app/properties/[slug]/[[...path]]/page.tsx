@@ -14,6 +14,7 @@ import { getAmenitiesByRefs } from '@/lib/amenity-utils';
 import { TrackViewItem } from '@/components/tracking/track-page-view';
 import blurMapData from '@/data/blur-map.json';
 import { headers } from 'next/headers';
+import { loggers } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic'; // Ensures the page is always dynamically rendered
 
@@ -54,8 +55,7 @@ const serializeTimestamps = (obj: any): any => {
       if (!isNaN(seconds) && !isNaN(nanoseconds)) {
         return new Date(seconds * 1000 + nanoseconds / 1000000).toISOString();
       }
-    } catch (error) {
-      console.error("Error converting timestamp:", error);
+    } catch {
       return null;
     }
   }
@@ -90,11 +90,11 @@ async function getTemplate(templateId: string) {
       const serialized = serializeTimestamps(data);
       return JSON.parse(JSON.stringify(serialized));
     } else {
-      console.warn(`[getTemplate] Template document not found: websiteTemplates/${templateId}`);
+      loggers.error.warn('Template document not found', { templateId });
       return null;
     }
   } catch (error) {
-    console.error(`❌ Error fetching website template ${templateId}:`, error);
+    loggers.error.error('Error fetching website template', error, { templateId });
     return null;
   }
 }
@@ -102,7 +102,7 @@ async function getTemplate(templateId: string) {
 // Function to get property overrides data
 async function getPropertyOverrides(slug: string) {
   if (!slug) {
-    console.warn("[getPropertyOverrides] Attempted to fetch overrides with empty slug.");
+    loggers.error.warn('Attempted to fetch overrides with empty slug');
     return null;
   }
   const overridesRef = doc(db, 'propertyOverrides', slug);
@@ -115,11 +115,11 @@ async function getPropertyOverrides(slug: string) {
       // Extra safety: parse and stringify to ensure complete serialization
       return JSON.parse(JSON.stringify(serialized));
     } else {
-      console.warn(`[getPropertyOverrides] No overrides document found for: propertyOverrides/${slug}`);
+      loggers.error.warn('No overrides document found', { slug });
       return null;
     }
   } catch (error) {
-    console.error(`❌ Error fetching property overrides for ${slug}:`, error);
+    loggers.error.error('Error fetching property overrides', error, { slug });
     return null;
   }
 }
@@ -315,7 +315,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
 
   // Proper error handling from [slug]/page.tsx
   if (!slug) {
-    console.error("[PropertyPage] Slug is missing from params.");
+    loggers.error.error('PropertyPage: slug is missing from params');
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-center p-4">
         <div className="max-w-md">
@@ -337,7 +337,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   // Fetch all necessary data for the property
   const property = await getProperty(slug);
   if (!property) {
-    console.error(`[PropertyPage] Property "${slug}" not found.`);
+    loggers.error.error('PropertyPage: property not found', { slug });
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-center p-4">
         <div className="max-w-md">
@@ -358,7 +358,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
 
   const template = await getTemplate(property.templateId);
   if (!template) {
-    console.error(`[PropertyPage] Website template "${property.templateId}" not found for property "${slug}".`);
+    loggers.error.error('PropertyPage: template not found', { templateId: property.templateId, slug });
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-center p-4">
         <div className="max-w-md">
@@ -379,7 +379,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
 
   let overrides = await getPropertyOverrides(slug);
   if (!overrides) {
-    console.error(`[PropertyPage] Property overrides for "${slug}" not found.`);
+    loggers.error.error('PropertyPage: overrides not found', { slug });
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-center p-4">
         <div className="max-w-md">
@@ -412,9 +412,6 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   const pageNotVisible = pageName !== 'homepage' && overrides.visiblePages && !overrides.visiblePages.includes(pageName);
 
   if (pageNotInTemplate || pageNotVisible) {
-    const reason = pageNotInTemplate ? 'not in template' : 'not visible';
-    console.log(`[PropertyPage] Page "${pageName}" ${reason} for property "${slug}", showing branded 404.`);
-
     const propertyNameSource = overrides.propertyMeta?.name || property.name;
     const resolvedName = serverTranslateContent(propertyNameSource, language);
     const menuItems = overrides.menuItems || template.header.menuItems;
@@ -441,36 +438,6 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
         </LanguageProvider>
       </>
     );
-  }
-
-  // Debug: Log any _translationStatus in overrides
-  if (overrides?._translationStatus) {
-    console.log('[PropertyPage] ⚠️ _translationStatus found in overrides:', JSON.stringify(overrides._translationStatus, null, 2));
-  }
-  
-  // DEBUGGING: Log the retrieved property overrides for hero section (from [slug]/page.tsx)
-  console.log(`[PropertyPage] 🔍 LOADED OVERRIDES for "${slug}":`);
-  
-  // Log the hero block data specifically
-  if (overrides.homepage && overrides.homepage.hero) {
-    console.log('[PropertyPage] 🏠 HERO BLOCK DATA:', {
-      showBookingForm: overrides.homepage.hero.showBookingForm,
-      showRating: overrides.homepage.hero.showRating,
-      bookingForm: overrides.homepage.hero.bookingForm,
-      hasTitle: !!overrides.homepage.hero.title,
-      hasSubtitle: !!overrides.homepage.hero.subtitle
-    });
-  } else if (overrides.hero) {
-    // For single-page structure
-    console.log('[PropertyPage] 🏠 HERO BLOCK DATA (single-page):', {
-      showBookingForm: overrides.hero.showBookingForm,
-      showRating: overrides.hero.showRating,
-      bookingForm: overrides.hero.bookingForm,
-      hasTitle: !!overrides.hero.title,
-      hasSubtitle: !!overrides.hero.subtitle
-    });
-  } else {
-    console.warn('[PropertyPage] ⚠️ No hero data found in overrides');
   }
 
   // Build structured data (JSON-LD)

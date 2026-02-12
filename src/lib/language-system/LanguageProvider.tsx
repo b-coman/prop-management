@@ -391,16 +391,6 @@ export function LanguageProvider({
   // Use allTranslations for current language to ensure consistency
   
   const t: TranslationFunction = useCallback((key: string, fallback?: string, variables?: Record<string, string | number>) => {
-    // 🔍 DIAGNOSTIC LOG - Track translation function recreation
-    if (process.env.NODE_ENV === 'development' && Math.random() < 0.1) {
-      console.log('🔧 [DIAGNOSTIC] t() function called (STABLE REF)', { 
-        key, 
-        currentLang, 
-        hasTranslations: Object.keys(currentTranslationsRef.current).length > 0,
-        timestamp: performance.now()
-      });
-    }
-    
     if (!key) return fallback || '';
     
     const performanceStart = enablePerformanceTracking ? performance.now() : 0;
@@ -538,28 +528,11 @@ export function LanguageProvider({
       // Check if language is already loaded from background loading
       if (!skipTranslationLoad) {
         if (allTranslations[language] && Object.keys(allTranslations[language]).length > 0) {
-          // 🚀 INSTANT SWITCH - Language already loaded in background
-          logger.info(`🚀 Instant language switch to ${language} (pre-loaded)`, {
+          logger.info('Instant language switch (pre-loaded)', {
             from: currentLang,
             to: language,
-            translationsCount: Object.keys(allTranslations[language]).length,
             backgroundLoaded: true
           });
-          
-          // 🔍 DIAGNOSTIC LOG - Track what changes during instant switch
-          if (process.env.NODE_ENV === 'development') {
-            console.log('🔧 [DIAGNOSTIC] Before instant switch state:', {
-              currentLang,
-              currentTranslationsCount: Object.keys(translations).length,
-              targetLanguage: language,
-              targetTranslationsCount: Object.keys(allTranslations[language]).length,
-              willUpdateRef: true,
-              willSkipSetTranslations: 'using ref instead'
-            });
-          }
-          
-          // ❌ REMOVED: setTranslations(allTranslations[language]); 
-          // The ref will be updated by useEffect automatically
         } else {
           // ⏳ FALLBACK - Load on demand (only happens if background loading failed or wasn't completed)
           logger.info(`⏳ Loading ${language} on demand (not pre-loaded)`, {
@@ -575,27 +548,7 @@ export function LanguageProvider({
 
       // Update current language
       const previousLang = currentLang;
-      
-      // 🔍 DIAGNOSTIC LOG - Track language state change
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔧 [DIAGNOSTIC] About to change currentLang state', {
-          from: previousLang,
-          to: language,
-          thisWillTriggerReRender: 'currentLang is in context dependencies'
-        });
-      }
-      
       setCurrentLang(language);
-      
-      // 🔍 DIAGNOSTIC LOG - After language change
-      if (process.env.NODE_ENV === 'development') {
-        setTimeout(() => {
-          console.log('🔧 [DIAGNOSTIC] After language change effects', {
-            newCurrentLang: language,
-            contextShouldRecreate: 'due to currentLang dependency'
-          });
-        }, 0);
-      }
 
       // Call change callback
       if (onLanguageChange) {
@@ -736,16 +689,6 @@ export function LanguageProvider({
   // ===== Context Value Memoization =====
   
   const contextValue: UnifiedLanguageContextType = useMemo(() => {
-    // 🔍 DIAGNOSTIC LOG - Track context value recreation (should be minimal now)
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🔧 [DIAGNOSTIC] Context value being recreated (OPTIMIZED)', {
-        currentLang,
-        isLoading,
-        reason: 'expected for language changes',
-        timestamp: performance.now()
-      });
-    }
-    
     const renderStartTime = performance.now();
     
     const value: UnifiedLanguageContextType = {
