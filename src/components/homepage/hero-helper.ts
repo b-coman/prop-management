@@ -436,7 +436,7 @@ export function setupHeroContentAdjustment(): () => void {
         // The widget wrapper is absolute-positioned at bottom: 20px, so its top edge is:
         const widgetWrapperTop = heroHeight - (formWrapper as HTMLElement).getBoundingClientRect().height - 20;
         const gapB = widgetWrapperTop - currentTitleBottom;
-        const maxGap = heroHeight * 0.08;
+        const maxGap = heroHeight * 0.10;
 
         if (gapB > maxGap) {
           const adjustedMargin = marginNeeded + (gapB - maxGap);
