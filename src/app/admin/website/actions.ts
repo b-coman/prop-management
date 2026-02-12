@@ -242,10 +242,12 @@ export async function initializePageFromTemplate(
     const pageBlocks = template.pages?.[pageName]?.blocks || [];
 
     // Build default content for this page from template defaults
+    // Try by block id first, then fall back to block type (defaults are often keyed by type)
     const pageDefaults: Record<string, unknown> = {};
     for (const block of pageBlocks) {
-      if (defaults[block.id]) {
-        pageDefaults[block.id] = defaults[block.id];
+      const defaultContent = defaults[block.id] ?? defaults[block.type];
+      if (defaultContent) {
+        pageDefaults[block.id] = defaultContent;
       }
     }
 

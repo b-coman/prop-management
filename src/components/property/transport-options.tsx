@@ -24,7 +24,7 @@ interface TransportOptionsProps {
 }
 
 export function TransportOptions({ content }: TransportOptionsProps) {
-  const { title, description, options } = content;
+  const { title, description, options = [] } = content;
   const { tc } = useLanguage();
 
   // Function to get an icon component by name

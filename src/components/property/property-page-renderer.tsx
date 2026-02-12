@@ -259,8 +259,9 @@ export function PropertyPageRenderer({
       let blockContent = pageOverrides && pageOverrides[id];
 
       // If not found in overrides, use default from template
+      // Try by block id first, then fall back to block type (defaults are often keyed by type)
       if (blockContent === undefined && template.defaults) {
-        blockContent = template.defaults[id];
+        blockContent = template.defaults[id] ?? template.defaults[type];
       }
 
       // If still undefined, skip rendering
