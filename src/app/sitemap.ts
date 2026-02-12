@@ -13,7 +13,7 @@ function normalizeHost(): string {
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = normalizeHost();
   const entries: MetadataRoute.Sitemap = [];
-  const subPages = ['gallery', 'location', 'details'];
+  const subPages = ['gallery', 'location', 'details', 'booking'];
 
   // Detect requesting domain to filter sitemap per custom domain
   const headersList = await headers();

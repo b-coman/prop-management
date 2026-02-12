@@ -342,7 +342,11 @@ export function PropertyPageRenderer({
           if (property.bedrooms) autoSpecs.push({ name: { en: 'Bedrooms', ro: 'Dormitoare' }, value: String(property.bedrooms) });
           if (property.beds) autoSpecs.push({ name: { en: 'Beds', ro: 'Paturi' }, value: String(property.beds) });
           if (property.bathrooms) autoSpecs.push({ name: { en: 'Bathrooms', ro: 'Băi' }, value: String(property.bathrooms) });
-          if (property.squareFeet) autoSpecs.push({ name: { en: 'Area', ro: 'Suprafață' }, value: `${property.squareFeet} sqft` });
+          if (property.squareFeet) {
+            const isMetric = property.baseCurrency === 'EUR' || property.baseCurrency === 'RON';
+            const areaValue = isMetric ? `${Math.round(property.squareFeet / 10.764)} m²` : `${property.squareFeet} sqft`;
+            autoSpecs.push({ name: { en: 'Area', ro: 'Suprafață' }, value: areaValue });
+          }
           if (property.maxGuests) autoSpecs.push({ name: { en: 'Max Guests', ro: 'Oaspeți max.' }, value: String(property.maxGuests) });
           if (property.checkInTime) autoSpecs.push({ name: { en: 'Check-in', ro: 'Check-in' }, value: property.checkInTime });
           if (property.checkOutTime) autoSpecs.push({ name: { en: 'Check-out', ro: 'Check-out' }, value: property.checkOutTime });

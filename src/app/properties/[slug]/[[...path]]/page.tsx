@@ -9,7 +9,7 @@ import { websiteTemplateSchema, propertyOverridesSchema } from '@/lib/overridesS
 import { LanguageProvider } from '@/lib/language-system';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
 import { serverTranslateContent } from '@/lib/server-language-utils';
-import { buildVacationRentalJsonLd, buildBreadcrumbJsonLd, buildLodgingBusinessJsonLd, buildImageGalleryJsonLd, getCanonicalUrl, getBaseUrl } from '@/lib/structured-data';
+import { buildVacationRentalJsonLd, buildBreadcrumbJsonLd, buildLodgingBusinessJsonLd, buildImageGalleryJsonLd, buildFAQPageJsonLd, getCanonicalUrl, getBaseUrl } from '@/lib/structured-data';
 import { getAmenitiesByRefs } from '@/lib/amenity-utils';
 import { TrackViewItem } from '@/components/tracking/track-page-view';
 import blurMapData from '@/data/blur-map.json';
@@ -256,17 +256,30 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
         return language === 'ro'
           ? `${propertyName} oferă ${bedrooms} dormitoare, ${bathrooms} băi, capacitate de până la ${maxGuests} oaspeți.${city ? ` Situat în ${city}.` : ''}`
           : `${propertyName} features ${bedrooms} bedrooms, ${bathrooms} bathrooms, accommodating up to ${maxGuests} guests.${city ? ` Located in ${city}.` : ''}`;
+      case 'booking':
+        return language === 'ro'
+          ? `Reguli de cazare la ${propertyName}${city ? ` în ${city}` : ''} - politica de anulare, check-in/check-out, reguli casă.`
+          : `House rules for ${propertyName}${city ? ` in ${city}` : ''} - cancellation policy, check-in/check-out times, and property guidelines.`;
       default:
         return propertyDescription;
     }
   })();
 
-  // Build page-specific title: "Page Title - Property Name" for sub-pages
+  // Build page-specific title with location keywords for SEO
+  // Homepage: "Property Name - City, Region" | Subpages: "Page Label - Property Name, City"
+  const locationCity = city || '';
   let pageTitle = propertyName;
-  if (pageName !== 'homepage' && template?.pages?.[pageName]?.title) {
+  if (pageName === 'homepage') {
+    const locationParts = [city, region].filter(Boolean).join(', ');
+    if (locationParts) {
+      pageTitle = `${propertyName} - ${locationParts}`;
+    }
+  } else if (template?.pages?.[pageName]?.title) {
     const pageLabel = serverTranslateContent(template.pages[pageName].title, language);
     if (pageLabel) {
-      pageTitle = `${pageLabel} - ${propertyName}`;
+      pageTitle = locationCity
+        ? `${pageLabel} - ${propertyName}, ${locationCity}`
+        : `${pageLabel} - ${propertyName}`;
     }
   }
 
@@ -495,6 +508,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   let vacationRentalJsonLd: Record<string, unknown> | null = null;
   let lodgingBusinessJsonLd: Record<string, unknown> | null = null;
   let imageGalleryJsonLd: Record<string, unknown> | null = null;
+  let faqPageJsonLd: Record<string, unknown> | null = null;
   let publishedReviews: Review[] = [];
 
   if (pageName === 'homepage') {
@@ -510,6 +524,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     const descriptionOverride = overrides?.propertyMeta?.description || overrides?.propertyMeta?.shortDescription;
     vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl, telephone, publishedReviewCount, publishedReviews, language, descriptionOverride });
     lodgingBusinessJsonLd = buildLodgingBusinessJsonLd({ property, canonicalUrl, telephone, publishedReviewCount, publishedReviews, language, descriptionOverride });
+    faqPageJsonLd = buildFAQPageJsonLd({ property, language });
   } else if (pageName === 'gallery') {
     // Gallery page: ImageGallery schema
     imageGalleryJsonLd = buildImageGalleryJsonLd({ property, canonicalUrl, language });
@@ -547,6 +562,12 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(imageGalleryJsonLd) }}
+        />
+      )}
+      {faqPageJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqPageJsonLd) }}
         />
       )}
       <script

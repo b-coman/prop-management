@@ -125,8 +125,12 @@ export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions):
   }
 
   // Determine floor size unit: MTK (sq meters) for European currencies
+  // squareFeet field stores imperial values; convert to m² for metric properties
   const isMetric = property.baseCurrency === 'EUR' || property.baseCurrency === 'RON';
   const floorSizeUnit = isMetric ? 'MTK' : 'FTK';
+  const floorSizeValue = property.squareFeet
+    ? (isMetric ? Math.round(property.squareFeet / 10.764) : property.squareFeet)
+    : undefined;
 
   // Map propertyType to Google-accepted Accommodation additionalType enum values.
   // Valid values: EntirePlace, PrivateRoom, SharedRoom, HotelRoom
@@ -180,10 +184,10 @@ export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions):
     ...(property.beds && { numberOfBeds: property.beds }),
     ...(property.bathrooms && { numberOfBathroomsTotal: property.bathrooms }),
     ...(bedDetails.length > 0 && { bed: bedDetails }),
-    ...(property.squareFeet && {
+    ...(floorSizeValue && {
       floorSize: {
         '@type': 'QuantitativeValue',
-        value: property.squareFeet,
+        value: floorSizeValue,
         unitCode: floorSizeUnit,
       },
     }),
@@ -511,5 +515,117 @@ export function buildImageGalleryJsonLd(options: {
       name: galleryTitle,
       ...(images.length > 0 && { image: images }),
     },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// FAQPage structured data — auto-generated from property fields
+// ---------------------------------------------------------------------------
+
+interface FAQPageJsonLdOptions {
+  property: Property;
+  language?: string;
+}
+
+export function buildFAQPageJsonLd(options: FAQPageJsonLdOptions): Record<string, unknown> | null {
+  const { property, language = 'en' } = options;
+  const ro = language === 'ro';
+  const faqs: Array<{ question: string; answer: string }> = [];
+  const name = typeof property.name === 'string' ? property.name : (property.name as any)?.[language] || (property.name as any)?.en || '';
+
+  // Capacity
+  if (property.maxGuests) {
+    faqs.push({
+      question: ro ? `Câți oaspeți pot fi cazați la ${name}?` : `How many guests can stay at ${name}?`,
+      answer: ro
+        ? `Proprietatea poate găzdui până la ${property.maxGuests} oaspeți.`
+        : `The property accommodates up to ${property.maxGuests} guests.`,
+    });
+  }
+
+  // Bedrooms & bathrooms
+  if (property.bedrooms && property.bathrooms) {
+    faqs.push({
+      question: ro ? `Câte dormitoare și băi are ${name}?` : `How many bedrooms and bathrooms does ${name} have?`,
+      answer: ro
+        ? `${name} are ${property.bedrooms} dormitoare și ${property.bathrooms} băi.`
+        : `${name} has ${property.bedrooms} bedrooms and ${property.bathrooms} bathrooms.`,
+    });
+  }
+
+  // Check-in / check-out
+  if (property.checkInTime && property.checkOutTime) {
+    faqs.push({
+      question: ro ? `Care sunt orele de check-in și check-out?` : `What are the check-in and check-out times?`,
+      answer: ro
+        ? `Check-in este de la ${property.checkInTime}, iar check-out până la ${property.checkOutTime}.`
+        : `Check-in is from ${property.checkInTime} and check-out is by ${property.checkOutTime}.`,
+    });
+  }
+
+  // Amenity-based FAQs
+  const refs = property.amenityRefs || [];
+  const hasAmenity = (id: string) => refs.includes(id);
+
+  if (hasAmenity('wifi')) {
+    faqs.push({
+      question: ro ? `Există WiFi la ${name}?` : `Is there WiFi at ${name}?`,
+      answer: ro ? `Da, WiFi gratuit este disponibil.` : `Yes, free WiFi is available.`,
+    });
+  }
+
+  if (hasAmenity('parking')) {
+    faqs.push({
+      question: ro ? `Există loc de parcare?` : `Is parking available?`,
+      answer: ro ? `Da, locul de parcare este disponibil pentru oaspeți.` : `Yes, parking is available for guests.`,
+    });
+  }
+
+  if (hasAmenity('kitchen')) {
+    faqs.push({
+      question: ro ? `Există bucătărie?` : `Is there a kitchen?`,
+      answer: ro ? `Da, proprietatea dispune de bucătărie complet echipată.` : `Yes, the property has a fully equipped kitchen.`,
+    });
+  }
+
+  // Cancellation policy
+  if (property.cancellationPolicy) {
+    const policy = typeof property.cancellationPolicy === 'string'
+      ? property.cancellationPolicy
+      : (property.cancellationPolicy as any)?.[language] || (property.cancellationPolicy as any)?.en || '';
+    if (policy) {
+      faqs.push({
+        question: ro ? `Care este politica de anulare?` : `What is the cancellation policy?`,
+        answer: policy,
+      });
+    }
+  }
+
+  // House rules
+  if (property.houseRules?.length) {
+    const rules = property.houseRules.map(r =>
+      typeof r === 'string' ? r : ((r as any)?.[language] || (r as any)?.en || '')
+    ).filter(Boolean);
+    if (rules.length > 0) {
+      faqs.push({
+        question: ro ? `Care sunt regulile casei?` : `What are the house rules?`,
+        answer: rules.join('. ') + '.',
+      });
+    }
+  }
+
+  if (faqs.length < 2) return null;
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map(faq => ({
+      '@type': 'Question',
+      name: faq.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: faq.answer,
+      },
+    })),
   };
 }

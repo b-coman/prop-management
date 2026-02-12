@@ -84,7 +84,7 @@ export function PropertyDetailsSection({ property }: PropertyDetailsSectionProps
              )}
            {property.squareFeet && (
                <div className="flex items-center">
-                   <HomeIcon className="h-4 w-4 mr-2 text-primary" /> {property.squareFeet} sqm
+                   <HomeIcon className="h-4 w-4 mr-2 text-primary" /> {property.baseCurrency === 'EUR' || property.baseCurrency === 'RON' ? `${Math.round(property.squareFeet / 10.764)} m²` : `${property.squareFeet} sqft`}
                </div>
             )}
         </div>

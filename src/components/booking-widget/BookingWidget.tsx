@@ -440,7 +440,7 @@ export const BookingWidget = React.memo(function BookingWidget({
           <div className="booking-rating-container hidden md:flex items-center gap-1 text-foreground self-end ml-4">
             <Star className="h-5 w-5 text-primary fill-primary" />
             <span className="font-semibold">{rating.toFixed(1)}</span>
-            <span className="text-sm text-muted-foreground">({reviewsCount} reviews)</span>
+            <span className="text-sm text-muted-foreground">({reviewsCount} {t('reviews.reviews', 'reviews').toLowerCase()})</span>
           </div>
         )}
       </div>
