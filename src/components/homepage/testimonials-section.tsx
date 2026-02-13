@@ -54,7 +54,7 @@ const renderStars = (rating: number) => {
 };
 
 export function TestimonialsSection({ content, language = 'en' }: TestimonialsSectionProps) {
-  const { tc, t } = useLanguage();
+  const { tc, t, currentLang } = useLanguage();
   
   // Don't render if content is missing
   if (!content) {
@@ -164,15 +164,22 @@ export function TestimonialsSection({ content, language = 'en' }: TestimonialsSe
             </Card>
           ))}
         </div>
-         {hasRealReviews && content.propertySlug && (
-           <div className="text-center mt-10">
-             <Link href={content.isCustomDomain ? '/reviews' : `/properties/${content.propertySlug}/reviews`}>
-               <Button variant="outline">
-                 {t('reviews.viewAll', 'View all')} {totalReviewCount} {t('reviews.reviews', 'reviews')}
-               </Button>
-             </Link>
-           </div>
-         )}
+         {hasRealReviews && content.propertySlug && (() => {
+           const langPrefix = currentLang !== 'en' ? `/${currentLang}` : '';
+           const reviewsUrl = content.isCustomDomain
+             ? `${langPrefix}/reviews`
+             : `/properties/${content.propertySlug}${langPrefix}/reviews`;
+           const buttonLabel = currentLang === 'ro'
+             ? `Vezi toate cele ${totalReviewCount} recenzii`
+             : `View all ${totalReviewCount} reviews`;
+           return (
+             <div className="text-center mt-10">
+               <Link href={reviewsUrl}>
+                 <Button variant="outline">{buttonLabel}</Button>
+               </Link>
+             </div>
+           );
+         })()}
       </div>
     </section>
   );

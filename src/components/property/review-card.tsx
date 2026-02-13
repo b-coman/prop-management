@@ -12,6 +12,15 @@ interface ReviewCardProps {
   review: RichReview;
 }
 
+const labels = {
+  translatedFrom: { en: 'Translated from', ro: 'Tradus din' },
+  showLess: { en: 'Show less', ro: 'Mai puțin' },
+  readMore: { en: 'Read more', ro: 'Citește mai mult' },
+  ownerResponse: { en: 'Owner response', ro: 'Răspunsul gazdei' },
+  hideDetails: { en: 'Hide details', ro: 'Ascunde detalii' },
+  showDetails: { en: 'Show details', ro: 'Arată detalii' },
+} as const;
+
 function renderStars(rating: number, size: 'sm' | 'md' = 'md') {
   const fullStars = Math.floor(rating);
   const halfStar = rating % 1 >= 0.5;
@@ -53,7 +62,9 @@ function RatingBar({ label, value, maxValue = 5 }: { label: string; value: numbe
 }
 
 export function ReviewCard({ review }: ReviewCardProps) {
-  const { t } = useLanguage();
+  const { currentLang } = useLanguage();
+  const lang = (currentLang === 'ro' ? 'ro' : 'en') as 'en' | 'ro';
+  const l = (key: keyof typeof labels) => labels[key][lang];
   const [expanded, setExpanded] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
@@ -114,7 +125,7 @@ export function ReviewCard({ review }: ReviewCardProps) {
         {/* Translation note */}
         {review.translatedFrom && (
           <p className="text-xs text-muted-foreground italic">
-            {t('reviews.translatedFrom', 'Translated from')} {review.translatedFrom}
+            {l('translatedFrom')} {review.translatedFrom}
           </p>
         )}
 
@@ -144,7 +155,7 @@ export function ReviewCard({ review }: ReviewCardProps) {
                 onClick={() => setExpanded(!expanded)}
                 className="text-xs text-primary font-medium mt-1 flex items-center gap-0.5 hover:underline"
               >
-                {expanded ? t('reviews.showLess', 'Show less') : t('reviews.readMore', 'Read more')}
+                {expanded ? l('showLess') : l('readMore')}
                 {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
               </button>
             )}
@@ -155,7 +166,7 @@ export function ReviewCard({ review }: ReviewCardProps) {
         {review.ownerResponse && (
           <div className="bg-muted/50 rounded-md p-3 mt-1">
             <p className="text-xs font-semibold text-foreground mb-1">
-              {t('reviews.ownerResponse', 'Owner response')}
+              {l('ownerResponse')}
             </p>
             <p className="text-xs text-muted-foreground">{review.ownerResponse.comment}</p>
           </div>
@@ -168,7 +179,7 @@ export function ReviewCard({ review }: ReviewCardProps) {
               onClick={() => setShowDetails(!showDetails)}
               className="text-xs text-primary font-medium flex items-center gap-0.5 hover:underline"
             >
-              {showDetails ? t('reviews.hideDetails', 'Hide details') : t('reviews.showDetails', 'Show details')}
+              {showDetails ? l('hideDetails') : l('showDetails')}
               {showDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </button>
 

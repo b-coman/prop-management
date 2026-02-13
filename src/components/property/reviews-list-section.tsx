@@ -33,6 +33,23 @@ interface ReviewsListSectionProps {
 
 type SortOption = 'newest' | 'oldest' | 'highest' | 'lowest';
 
+// Inline bilingual labels — avoids depending on translation keys that may not exist
+const labels = {
+  review: { en: 'review', ro: 'recenzie' },
+  reviews: { en: 'reviews', ro: 'recenzii' },
+  noReviews: { en: 'No reviews yet.', ro: 'Nu există recenzii încă.' },
+  all: { en: 'All', ro: 'Toate' },
+  sortNewest: { en: 'Newest first', ro: 'Cele mai noi' },
+  sortOldest: { en: 'Oldest first', ro: 'Cele mai vechi' },
+  sortHighest: { en: 'Highest rated', ro: 'Cele mai bune' },
+  sortLowest: { en: 'Lowest rated', ro: 'Cele mai slabe' },
+  showing: { en: 'Showing', ro: 'Se afișează' },
+  of: { en: 'of', ro: 'din' },
+  clearFilters: { en: 'Clear filters', ro: 'Șterge filtrele' },
+  loadMore: { en: 'Load more reviews', ro: 'Încarcă mai multe recenzii' },
+  remaining: { en: 'remaining', ro: 'rămase' },
+} as const;
+
 function renderStars(rating: number) {
   const fullStars = Math.floor(rating);
   const halfStar = rating % 1 >= 0.5;
@@ -56,8 +73,11 @@ function formatSourceLabel(source: string): string {
   return source.charAt(0).toUpperCase() + source.slice(1);
 }
 
-export function ReviewsListSection({ content, language = 'en' }: ReviewsListSectionProps) {
-  const { tc, t } = useLanguage();
+export function ReviewsListSection({ content }: ReviewsListSectionProps) {
+  const { currentLang } = useLanguage();
+  const lang = (currentLang === 'ro' ? 'ro' : 'en') as 'en' | 'ro';
+  const l = (key: keyof typeof labels) => labels[key][lang];
+
   const reviews = content?.reviews || [];
   const stats = content?.aggregateStats;
   const showSourceFilter = content?.showSourceFilter !== false;
@@ -116,7 +136,7 @@ export function ReviewsListSection({ content, language = 'en' }: ReviewsListSect
     return (
       <section className="py-10 md:py-16">
         <div className="container mx-auto px-4 text-center text-muted-foreground">
-          {t('reviews.noReviews', 'No reviews yet.')}
+          {l('noReviews')}
         </div>
       </section>
     );
@@ -133,7 +153,7 @@ export function ReviewsListSection({ content, language = 'en' }: ReviewsListSect
               <div>
                 <div className="flex">{renderStars(stats.averageRating)}</div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  {stats.totalCount} {stats.totalCount === 1 ? t('reviews.review', 'review') : t('reviews.reviews', 'reviews')}
+                  {stats.totalCount} {stats.totalCount === 1 ? l('review') : l('reviews')}
                 </p>
               </div>
             </div>
@@ -193,7 +213,7 @@ export function ReviewsListSection({ content, language = 'en' }: ReviewsListSect
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
                 )}
               >
-                {t('reviews.all', 'All')}
+                {l('all')}
               </button>
               {sources.map(([source, count]) => (
                 <button
@@ -243,10 +263,10 @@ export function ReviewsListSection({ content, language = 'en' }: ReviewsListSect
               onChange={(e) => setSortBy(e.target.value as SortOption)}
               className="text-sm border border-border rounded-md px-3 py-1.5 bg-background text-foreground"
             >
-              <option value="newest">{t('reviews.sortNewest', 'Newest first')}</option>
-              <option value="oldest">{t('reviews.sortOldest', 'Oldest first')}</option>
-              <option value="highest">{t('reviews.sortHighest', 'Highest rated')}</option>
-              <option value="lowest">{t('reviews.sortLowest', 'Lowest rated')}</option>
+              <option value="newest">{l('sortNewest')}</option>
+              <option value="oldest">{l('sortOldest')}</option>
+              <option value="highest">{l('sortHighest')}</option>
+              <option value="lowest">{l('sortLowest')}</option>
             </select>
           </div>
         </div>
@@ -255,13 +275,13 @@ export function ReviewsListSection({ content, language = 'en' }: ReviewsListSect
         {(sourceFilter || ratingFilter !== null) && (
           <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
             <span>
-              {t('reviews.showing', 'Showing')} {filteredReviews.length} {t('reviews.of', 'of')} {reviews.length} {t('reviews.reviews', 'reviews')}
+              {l('showing')} {filteredReviews.length} {l('of')} {reviews.length} {l('reviews')}
             </span>
             <button
               onClick={() => { setSourceFilter(null); setRatingFilter(null); }}
               className="text-primary hover:underline font-medium"
             >
-              {t('reviews.clearFilters', 'Clear filters')}
+              {l('clearFilters')}
             </button>
           </div>
         )}
@@ -280,7 +300,7 @@ export function ReviewsListSection({ content, language = 'en' }: ReviewsListSect
               variant="outline"
               onClick={() => setVisibleCount((v) => v + perPage)}
             >
-              {t('reviews.loadMore', 'Load more reviews')} ({filteredReviews.length - visibleCount} {t('reviews.remaining', 'remaining')})
+              {l('loadMore')} ({filteredReviews.length - visibleCount} {l('remaining')})
             </Button>
           </div>
         )}
