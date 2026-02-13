@@ -485,6 +485,20 @@ export function PropertyPageRenderer({
           propertySlug: propertySlug,
           buttonUrl: processedUrl,
         };
+      } else if (type === 'legalContent') {
+        // Inject operator info from propertyMeta for placeholder substitution
+        // Operator = platform entity (not property owner), falls back to property name
+        const meta = overrides.propertyMeta as Record<string, any> | undefined;
+        blockContent = {
+          ...blockContent,
+          operatorInfo: {
+            operatorName: meta?.operatorName || propertyName,
+            operatorEmail: meta?.operatorEmail || '',
+            operatorAddress: meta?.operatorAddress || '',
+            jurisdiction: meta?.jurisdiction || { en: 'Romania', ro: 'România' },
+            propertyName: propertyName,
+          },
+        };
       }
 
       // Enrich local image paths with blur data (applies to all pages)

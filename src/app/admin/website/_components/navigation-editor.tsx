@@ -27,6 +27,10 @@ type PropertyMetaData = {
   name?: string;
   description?: string | Record<string, string>;
   shortDescription?: string | Record<string, string>;
+  operatorName?: string;
+  operatorEmail?: string;
+  operatorAddress?: string;
+  jurisdiction?: string | Record<string, string>;
 };
 
 interface NavigationEditorProps {
@@ -148,6 +152,47 @@ export function NavigationEditor({ propertyId, initialOverrides }: NavigationEdi
             placeholder="Detailed property description"
             multiline
           />
+
+          <div className="border-t pt-4 mt-4">
+            <p className="text-sm font-medium mb-3">Platform Operator (Legal)</p>
+            <p className="text-xs text-muted-foreground mb-4">
+              Shown in Privacy Policy and Terms of Service as the data controller.
+              This is the platform operator, not necessarily the property owner.
+            </p>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Operator / Legal Entity</label>
+                <Input
+                  value={propertyMeta.operatorName || ''}
+                  onChange={(e) => updatePropertyMeta({ operatorName: e.target.value })}
+                  placeholder="e.g. RentalSpot, John Doe, SC Example SRL"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Contact Email</label>
+                <Input
+                  type="email"
+                  value={propertyMeta.operatorEmail || ''}
+                  onChange={(e) => updatePropertyMeta({ operatorEmail: e.target.value })}
+                  placeholder="Data controller contact email"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Address</label>
+                <Input
+                  value={propertyMeta.operatorAddress || ''}
+                  onChange={(e) => updatePropertyMeta({ operatorAddress: e.target.value })}
+                  placeholder="Registered address or city, country"
+                />
+              </div>
+              <MultilingualInput
+                label="Jurisdiction"
+                value={propertyMeta.jurisdiction}
+                onChange={(v) => updatePropertyMeta({ jurisdiction: v })}
+                placeholder="e.g. Romania / România"
+              />
+            </div>
+          </div>
         </CardContent>
       </Card>
 

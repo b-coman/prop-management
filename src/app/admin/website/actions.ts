@@ -281,6 +281,10 @@ export async function saveNavigationData(
       name?: string;
       description?: string | Record<string, string>;
       shortDescription?: string | Record<string, string>;
+      operatorName?: string;
+      operatorEmail?: string;
+      operatorAddress?: string;
+      jurisdiction?: string | Record<string, string>;
     };
   }
 ): Promise<{ error?: string }> {

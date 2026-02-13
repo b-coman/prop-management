@@ -7,6 +7,10 @@
  *   1. websiteTemplates/holiday-house — adds page definitions via dot-notation update()
  *   2. propertyOverrides/{slug} — adds page content with set({ merge: true })
  *      and adds page names to visiblePages via FieldValue.arrayUnion()
+ *   3. propertyOverrides/{slug}.propertyMeta — seeds default operator fields (merge)
+ *
+ * Content uses {{placeholders}} that get replaced at render time with
+ * property-specific operator info from propertyMeta.
  *
  * Usage:
  *   npx tsx scripts/upload-legal-pages.ts
@@ -52,7 +56,7 @@ const termsOfServicePage = {
   ],
 };
 
-// ---------- Privacy Policy content ----------
+// ---------- Privacy Policy content (with {{placeholders}}) ----------
 
 const privacyPolicyContent = {
   'legal-content': {
@@ -62,8 +66,8 @@ const privacyPolicyContent = {
       {
         title: { en: '1. Introduction', ro: '1. Introducere' },
         body: {
-          en: 'This Privacy Policy explains how we collect, use, and protect your personal information when you use our vacation rental booking platform. By using our website, you agree to the practices described in this policy.',
-          ro: 'Această Politică de Confidențialitate explică modul în care colectăm, folosim și protejăm informațiile dumneavoastră personale atunci când utilizați platforma noastră de rezervări pentru cazare de vacanță. Prin utilizarea site-ului nostru, sunteți de acord cu practicile descrise în această politică.',
+          en: 'This Privacy Policy explains how {{operatorName}} ("we", "us") collects, uses, and protects your personal information when you use the {{propertyName}} booking platform. By using our website, you agree to the practices described in this policy.',
+          ro: 'Această Politică de Confidențialitate explică modul în care {{operatorName}} („noi") colectează, folosește și protejează informațiile dumneavoastră personale atunci când utilizați platforma de rezervări {{propertyName}}. Prin utilizarea site-ului nostru, sunteți de acord cu practicile descrise în această politică.',
         },
       },
       {
@@ -111,15 +115,15 @@ const privacyPolicyContent = {
       {
         title: { en: '8. Contact', ro: '8. Contact' },
         body: {
-          en: 'For any questions about this Privacy Policy or to exercise your data protection rights, please contact us:\n\nEmail: The email address listed in the footer of this website.\n\nWe will respond to your request within 30 days.',
-          ro: 'Pentru orice întrebări despre această Politică de Confidențialitate sau pentru a vă exercita drepturile de protecție a datelor, vă rugăm să ne contactați:\n\nEmail: Adresa de email listată în subsolul acestui site.\n\nVom răspunde solicitării dumneavoastră în termen de 30 de zile.',
+          en: 'For any questions about this Privacy Policy or to exercise your data protection rights, please contact the data controller:\n\n{{operatorName}}\nEmail: {{operatorEmail}}\nAddress: {{operatorAddress}}\n\nWe will respond to your request within 30 days.',
+          ro: 'Pentru orice întrebări despre această Politică de Confidențialitate sau pentru a vă exercita drepturile de protecție a datelor, vă rugăm să contactați operatorul de date:\n\n{{operatorName}}\nEmail: {{operatorEmail}}\nAdresă: {{operatorAddress}}\n\nVom răspunde solicitării dumneavoastră în termen de 30 de zile.',
         },
       },
     ],
   },
 };
 
-// ---------- Terms of Service content ----------
+// ---------- Terms of Service content (with {{placeholders}}) ----------
 
 const termsOfServiceContent = {
   'legal-content': {
@@ -129,8 +133,8 @@ const termsOfServiceContent = {
       {
         title: { en: '1. Introduction', ro: '1. Introducere' },
         body: {
-          en: 'By accessing and using this website to browse property information or make bookings, you accept and agree to be bound by these Terms of Service. If you do not agree with any part of these terms, please do not use our website.',
-          ro: 'Prin accesarea și utilizarea acestui site web pentru a vizualiza informații despre proprietăți sau pentru a face rezervări, acceptați și sunteți de acord să respectați acești Termeni și Condiții. Dacă nu sunteți de acord cu vreo parte a acestor termeni, vă rugăm să nu utilizați site-ul nostru.',
+          en: 'By accessing and using the {{propertyName}} website operated by {{operatorName}}, you accept and agree to be bound by these Terms of Service. If you do not agree with any part of these terms, please do not use our website.',
+          ro: 'Prin accesarea și utilizarea site-ului {{propertyName}} operat de {{operatorName}}, acceptați și sunteți de acord să respectați acești Termeni și Condiții. Dacă nu sunteți de acord cu vreo parte a acestor termeni, vă rugăm să nu utilizați site-ul nostru.',
         },
       },
       {
@@ -164,22 +168,22 @@ const termsOfServiceContent = {
       {
         title: { en: '6. Liability', ro: '6. Răspundere' },
         body: {
-          en: 'We strive to ensure all property information is accurate, but:\n\n- We are not liable for minor discrepancies between listed descriptions and actual conditions.\n- We are not responsible for events beyond our control (force majeure), including natural disasters, government actions, or utility failures.\n- Our total liability is limited to the amount paid for your booking.\n- We recommend guests obtain travel insurance for their protection.',
-          ro: 'Ne străduim să ne asigurăm că toate informațiile despre proprietăți sunt corecte, dar:\n\n- Nu suntem răspunzători pentru discrepanțe minore între descrierile listate și condițiile reale.\n- Nu suntem responsabili pentru evenimente în afara controlului nostru (forță majoră), inclusiv dezastre naturale, acțiuni guvernamentale sau defecțiuni ale utilităților.\n- Răspunderea noastră totală este limitată la suma plătită pentru rezervare.\n- Recomandăm oaspeților să obțină o asigurare de călătorie pentru protecția lor.',
+          en: '{{operatorName}} strives to ensure all property information is accurate, but:\n\n- We are not liable for minor discrepancies between listed descriptions and actual conditions.\n- We are not responsible for events beyond our control (force majeure), including natural disasters, government actions, or utility failures.\n- Our total liability is limited to the amount paid for your booking.\n- We recommend guests obtain travel insurance for their protection.',
+          ro: '{{operatorName}} se străduiește să se asigure că toate informațiile despre proprietăți sunt corecte, dar:\n\n- Nu suntem răspunzători pentru discrepanțe minore între descrierile listate și condițiile reale.\n- Nu suntem responsabili pentru evenimente în afara controlului nostru (forță majoră), inclusiv dezastre naturale, acțiuni guvernamentale sau defecțiuni ale utilităților.\n- Răspunderea noastră totală este limitată la suma plătită pentru rezervare.\n- Recomandăm oaspeților să obțină o asigurare de călătorie pentru protecția lor.',
         },
       },
       {
         title: { en: '7. Intellectual Property', ro: '7. Proprietate intelectuală' },
         body: {
-          en: 'All content on this website, including text, photographs, graphics, logos, and design elements, is the property of the website operator or used with permission. You may not reproduce, distribute, or use this content without prior written consent.',
-          ro: 'Tot conținutul de pe acest site, inclusiv textele, fotografiile, grafica, logo-urile și elementele de design, este proprietatea operatorului site-ului sau este utilizat cu permisiune. Nu puteți reproduce, distribui sau utiliza acest conținut fără consimțământul scris prealabil.',
+          en: 'All content on this website, including text, photographs, graphics, logos, and design elements, is the property of {{operatorName}} or used with permission. You may not reproduce, distribute, or use this content without prior written consent.',
+          ro: 'Tot conținutul de pe acest site, inclusiv textele, fotografiile, grafica, logo-urile și elementele de design, este proprietatea {{operatorName}} sau este utilizat cu permisiune. Nu puteți reproduce, distribui sau utiliza acest conținut fără consimțământul scris prealabil.',
         },
       },
       {
         title: { en: '8. Governing Law', ro: '8. Legea aplicabilă' },
         body: {
-          en: 'These Terms of Service are governed by the laws of Romania. Any disputes arising from the use of this website or bookings made through it shall be resolved in the competent courts of Romania.',
-          ro: 'Acești Termeni și Condiții sunt guvernați de legile din România. Orice dispute care decurg din utilizarea acestui site sau din rezervările efectuate prin intermediul acestuia vor fi soluționate de instanțele competente din România.',
+          en: 'These Terms of Service are governed by the laws of {{jurisdiction}}. Any disputes arising from the use of this website or bookings made through it shall be resolved in the competent courts of {{jurisdiction}}.',
+          ro: 'Acești Termeni și Condiții sunt guvernați de legile din {{jurisdiction}}. Orice dispute care decurg din utilizarea acestui site sau din rezervările efectuate prin intermediul acestuia vor fi soluționate de instanțele competente din {{jurisdiction}}.',
         },
       },
       {
@@ -190,6 +194,23 @@ const termsOfServiceContent = {
         },
       },
     ],
+  },
+};
+
+// ---------- Default operator info per property ----------
+
+const defaultOperatorData: Record<string, Record<string, string | Record<string, string>>> = {
+  'prahova-mountain-chalet': {
+    operatorName: 'RentalSpot',
+    operatorEmail: 'contact@prahova-chalet.ro',
+    operatorAddress: 'Bucharest, Romania',
+    jurisdiction: { en: 'Romania', ro: 'România' },
+  },
+  'coltei-apartment-bucharest': {
+    operatorName: 'RentalSpot',
+    operatorEmail: 'contact@prahova-chalet.ro',
+    operatorAddress: 'Bucharest, Romania',
+    jurisdiction: { en: 'Romania', ro: 'România' },
   },
 };
 
@@ -211,7 +232,7 @@ async function main() {
   });
   console.log('  Template pages added.');
 
-  // 2. For each property, add content overrides and update visiblePages
+  // 2. For each property, add content overrides, update visiblePages, and seed operator defaults
   for (const slug of propertySlugs) {
     const overridesRef = db.collection('propertyOverrides').doc(slug);
 
@@ -232,6 +253,18 @@ async function main() {
       visiblePages: FieldValue.arrayUnion('privacy-policy', 'terms-of-service'),
     });
     console.log('  visiblePages updated.');
+
+    // Seed default operator fields in propertyMeta (merge — won't overwrite existing admin edits)
+    const operatorDefaults = defaultOperatorData[slug];
+    if (operatorDefaults) {
+      await overridesRef.set(
+        {
+          propertyMeta: operatorDefaults,
+        },
+        { merge: true },
+      );
+      console.log('  Default operator info seeded in propertyMeta.');
+    }
   }
 
   console.log('\nDone! Legal pages uploaded successfully.');
