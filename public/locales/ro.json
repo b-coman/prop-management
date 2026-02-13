@@ -459,7 +459,12 @@
     "emailPlaceholder": "Introdu adresa ta de email",
     "subscribe": "Abonează-te",
     "copyright": "© {{year}} RentalSpot. Toate drepturile rezervate.",
-    "cookieSettings": "Setări Cookie"
+    "cookieSettings": "Setări Cookie",
+    "privacyPolicy": "Politica de Confidențialitate",
+    "terms": "Termeni"
+  },
+  "legal": {
+    "lastUpdated": "Ultima actualizare"
   },
   "cookieConsent": {
     "title": "Respectăm confidențialitatea ta",

@@ -109,6 +109,14 @@ export function Footer({
             &copy; {new Date().getFullYear()} {propertyName || 'RentalSpot'}.{' '}
             {t('footer.rights', 'All rights reserved.')}
             {' · '}
+            <Link href={resolveUrl('/privacy-policy')} className="underline hover:text-foreground transition-colors">
+              {t('footer.privacyPolicy', 'Privacy Policy')}
+            </Link>
+            {' · '}
+            <Link href={resolveUrl('/terms-of-service')} className="underline hover:text-foreground transition-colors">
+              {t('footer.terms', 'Terms')}
+            </Link>
+            {' · '}
             <button
               type="button"
               onClick={() => window.dispatchEvent(new Event('open-cookie-settings'))}

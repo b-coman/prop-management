@@ -268,6 +268,14 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
         return language === 'ro'
           ? `Recenzii de la oaspeți pentru ${propertyName}${city ? ` în ${city}` : ''} - evaluări și experiențe reale.`
           : `Guest reviews for ${propertyName}${city ? ` in ${city}` : ''} - real ratings and experiences.`;
+      case 'privacy-policy':
+        return language === 'ro'
+          ? `Politica de confidențialitate pentru ${propertyName} - cum colectăm, folosim și protejăm datele dumneavoastră.`
+          : `Privacy policy for ${propertyName} - how we collect, use, and protect your data.`;
+      case 'terms-of-service':
+        return language === 'ro'
+          ? `Termeni și condiții pentru ${propertyName} - regulile de rezervare, plată și utilizare.`
+          : `Terms of service for ${propertyName} - booking rules, payment terms, and usage guidelines.`;
       default:
         return propertyDescription;
     }

@@ -302,6 +302,17 @@ export const policiesListSchema = z.object({
   ),
 });
 
+export const legalContentSchema = z.object({
+  title: multilingualString.optional(),
+  lastUpdated: z.string().optional(),
+  sections: z.array(
+    z.object({
+      title: multilingualString,
+      body: multilingualString,
+    })
+  ),
+});
+
 // --- Text block
 export const textSchema = z.object({
   title: multilingualString,
@@ -385,6 +396,7 @@ export const blockSchemas: Record<string, z.ZodTypeAny> = {
   photoCategories: photoCategoriesSchema,
   fullBookingForm: fullBookingFormSchema,
   policiesList: policiesListSchema,
+  legalContent: legalContentSchema,
   video: videoSectionSchema,
   areaGuideContent: areaGuideContentSchema,
   reviewsList: reviewsListSchema,
@@ -459,6 +471,7 @@ export type GalleryGridBlock = z.infer<typeof galleryGridSchema>;
 export type PhotoCategoriesBlock = z.infer<typeof photoCategoriesSchema>;
 export type FullBookingFormBlock = z.infer<typeof fullBookingFormSchema>;
 export type PoliciesListBlock = z.infer<typeof policiesListSchema>;
+export type LegalContentBlock = z.infer<typeof legalContentSchema>;
 
 export type VideoSectionBlock = z.infer<typeof videoSectionSchema>;
 export type AreaGuideContentBlock = z.infer<typeof areaGuideContentSchema>;

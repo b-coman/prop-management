@@ -458,7 +458,12 @@
     "emailPlaceholder": "Enter your email",
     "subscribe": "Subscribe",
     "copyright": "© {{year}} RentalSpot. All rights reserved.",
-    "cookieSettings": "Cookie Settings"
+    "cookieSettings": "Cookie Settings",
+    "privacyPolicy": "Privacy Policy",
+    "terms": "Terms"
+  },
+  "legal": {
+    "lastUpdated": "Last updated"
   },
   "cookieConsent": {
     "title": "We value your privacy",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Shield } from 'lucide-react';
 
@@ -48,6 +48,16 @@ export function CookieConsent() {
   const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
   const [marketingEnabled, setMarketingEnabled] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
+
+  // Derive privacy URL: on custom domains it's just /privacy-policy,
+  // on the main app domain we need /properties/{slug}/privacy-policy
+  const privacyUrl = useMemo(() => {
+    if (typeof window === 'undefined') return '/privacy-policy';
+    const path = window.location.pathname;
+    const match = path.match(/^\/properties\/([^/]+)/);
+    if (match) return `/properties/${match[1]}/privacy-policy`;
+    return '/privacy-policy';
+  }, []);
 
   useEffect(() => {
     const stored = getConsentCookie();
@@ -167,7 +177,7 @@ export function CookieConsent() {
                 </div>
 
                 <p className="text-xs text-muted-foreground text-center">
-                  <a href="/privacy-policy" className="underline hover:text-foreground transition-colors">
+                  <a href={privacyUrl} className="underline hover:text-foreground transition-colors">
                     {t('cookieConsent.privacyPolicy', 'Privacy Policy')}
                   </a>
                 </p>

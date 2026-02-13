@@ -95,6 +95,7 @@ import { GalleryGrid } from '@/components/property/gallery-grid';
 import { PhotoCategories } from '@/components/property/photo-categories';
 import { FullBookingForm } from '@/components/property/full-booking-form';
 import { PoliciesList } from '@/components/property/policies-list';
+import { LegalContent } from '@/components/property/legal-content';
 import { AreaGuideSection } from '@/components/property/area-guide-section';
 import { ReviewsListSection } from '@/components/property/reviews-list-section';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -127,6 +128,7 @@ const blockComponents: Record<string, React.FC<{ content: any; language?: string
   photoCategories: PhotoCategories,
   fullBookingForm: FullBookingForm,
   policiesList: PoliciesList,
+  legalContent: LegalContent,
   areaGuideContent: AreaGuideSection,
   reviewsList: ReviewsListSection,
 

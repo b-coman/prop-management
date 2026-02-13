@@ -76,6 +76,20 @@
         { "id": "reviews-header", "type": "pageHeader" },
         { "id": "reviews-content", "type": "reviewsList" }
       ]
+    },
+    "privacy-policy": {
+      "path": "/privacy-policy",
+      "title": { "en": "Privacy Policy", "ro": "Politica de Confidențialitate" },
+      "blocks": [
+        { "id": "legal-content", "type": "legalContent" }
+      ]
+    },
+    "terms-of-service": {
+      "path": "/terms-of-service",
+      "title": { "en": "Terms of Service", "ro": "Termeni și Condiții" },
+      "blocks": [
+        { "id": "legal-content", "type": "legalContent" }
+      ]
     }
   },
   "header": {
