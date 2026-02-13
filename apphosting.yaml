@@ -76,21 +76,21 @@ env:
 
   # Stripe (server-side)
   - variable: STRIPE_SECRET_KEY
-    secret: projects/1061532538391/secrets/STRIPE_SECRET_KEY/versions/1
+    secret: projects/1061532538391/secrets/STRIPE_SECRET_KEY/versions/latest
     availability:
-        - BUILD # Might be needed during build? Review if necessary
+        - BUILD
         - RUNTIME
   #Stripe publishable key (client side)
   - variable: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-    secret: projects/1061532538391/secrets/STRIPE_PUBLISHABLE_KEY/versions/1
+    secret: projects/1061532538391/secrets/NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY/versions/latest
     availability:
         - BUILD
         - RUNTIME
   #Stripe webhook secret
   - variable: STRIPE_WEBHOOK_SECRET
-    secret: projects/1061532538391/secrets/STRIPE_WEBHOOK_SECRET/versions/1
+    secret: projects/1061532538391/secrets/STRIPE_WEBHOOK_SECRET/versions/latest
     availability:
-        - RUNTIME # Only needed at runtime
+        - RUNTIME
 
 # Multi-domain configuration (client side)
   - variable: NEXT_PUBLIC_MAIN_APP_HOST
