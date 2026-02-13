@@ -461,18 +461,19 @@
     "cookieSettings": "Cookie Settings"
   },
   "cookieConsent": {
-    "message": "We use cookies for analytics and marketing.",
+    "title": "We value your privacy",
+    "description": "We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. You can choose which cookies you allow.",
     "acceptAll": "Accept All",
     "rejectAll": "Reject All",
-    "manage": "More",
-    "policy": "Cookie Policy",
+    "managePreferences": "Manage Preferences",
     "savePreferences": "Save Preferences",
+    "privacyPolicy": "Privacy Policy",
     "necessary": "Necessary",
-    "necessaryDesc": "Essential cookies required for the website to function properly.",
+    "necessaryDesc": "Essential cookies required for the website to function. These cannot be disabled.",
     "analytics": "Analytics",
-    "analyticsDesc": "Help us understand how visitors interact with our website.",
+    "analyticsDesc": "Help us understand how visitors use our website to improve the experience.",
     "marketing": "Marketing",
-    "marketingDesc": "Used to deliver relevant advertisements and track campaign performance."
+    "marketingDesc": "Used to deliver relevant advertisements and measure campaign effectiveness."
   },
   "pricing": {
     "caption": "Seasonal rates and minimum stay requirements.",

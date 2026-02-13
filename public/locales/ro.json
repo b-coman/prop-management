@@ -462,18 +462,19 @@
     "cookieSettings": "Setări Cookie"
   },
   "cookieConsent": {
-    "message": "Folosim cookie-uri pentru analiză și marketing.",
+    "title": "Respectăm confidențialitatea ta",
+    "description": "Folosim cookie-uri pentru a îmbunătăți experiența de navigare, a oferi conținut personalizat și a analiza traficul. Poți alege ce cookie-uri permiți.",
     "acceptAll": "Acceptă Toate",
     "rejectAll": "Respinge Toate",
-    "manage": "Mai Mult",
-    "policy": "Politica de Cookie-uri",
+    "managePreferences": "Gestionează Preferințele",
     "savePreferences": "Salvează Preferințele",
+    "privacyPolicy": "Politica de Confidențialitate",
     "necessary": "Necesare",
-    "necessaryDesc": "Cookie-uri esențiale necesare pentru funcționarea corectă a site-ului.",
+    "necessaryDesc": "Cookie-uri esențiale pentru funcționarea site-ului. Nu pot fi dezactivate.",
     "analytics": "Analitice",
-    "analyticsDesc": "Ne ajută să înțelegem cum interacționează vizitatorii cu site-ul nostru.",
+    "analyticsDesc": "Ne ajută să înțelegem cum folosesc vizitatorii site-ul pentru a îmbunătăți experiența.",
     "marketing": "Marketing",
-    "marketingDesc": "Folosite pentru a livra reclame relevante și a urmări performanța campaniilor."
+    "marketingDesc": "Folosite pentru a livra reclame relevante și a măsura eficiența campaniilor."
   },
   "pricing": {
     "caption": "Tarife sezoniere și cerințe de sejur minim.",

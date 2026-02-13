@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
+import { Shield } from 'lucide-react';
 
 interface ConsentPreferences {
   analytics: boolean;
@@ -46,6 +47,7 @@ export function CookieConsent() {
   const [showPreferences, setShowPreferences] = useState(false);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
   const [marketingEnabled, setMarketingEnabled] = useState(false);
+  const [isFirstVisit, setIsFirstVisit] = useState(false);
 
   useEffect(() => {
     const stored = getConsentCookie();
@@ -53,10 +55,25 @@ export function CookieConsent() {
       updateGtagConsent(stored);
     } else {
       // Small delay so the page renders first
-      const timer = setTimeout(() => setVisible(true), 500);
+      const timer = setTimeout(() => {
+        setIsFirstVisit(true);
+        setVisible(true);
+      }, 500);
       return () => clearTimeout(timer);
     }
   }, []);
+
+  // Lock body scroll when overlay is shown
+  useEffect(() => {
+    if (visible && isFirstVisit) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [visible, isFirstVisit]);
 
   // Listen for footer "open cookie settings" event
   useEffect(() => {
@@ -67,6 +84,7 @@ export function CookieConsent() {
         setMarketingEnabled(stored.marketing);
       }
       setShowPreferences(true);
+      setIsFirstVisit(false); // No overlay when reopening from footer
       setVisible(true);
     };
     window.addEventListener('open-cookie-settings', handler);
@@ -79,6 +97,7 @@ export function CookieConsent() {
     window.dispatchEvent(new CustomEvent('consent-updated', { detail: prefs }));
     setVisible(false);
     setShowPreferences(false);
+    setIsFirstVisit(false);
   }, []);
 
   const handleAcceptAll = useCallback(() => {
@@ -96,123 +115,154 @@ export function CookieConsent() {
   if (!visible) return null;
 
   return (
-    <div
-      className="fixed bottom-0 inset-x-0 z-50 transition-opacity duration-300"
-      style={{ opacity: visible ? 1 : 0 }}
-    >
-      <div className="bg-background/80 backdrop-blur-md border-t border-border shadow-lg">
-        <div className="container mx-auto px-4 py-3">
-          {!showPreferences ? (
-            /* Compact banner */
-            <div className="flex flex-col sm:flex-row items-center gap-3">
-              <p className="text-sm text-muted-foreground flex-1 text-center sm:text-left">
-                {t('cookieConsent.message', 'We use cookies for analytics and marketing.')}
-              </p>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <button
-                  onClick={handleRejectAll}
-                  className="px-4 py-1.5 text-sm rounded-md text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {t('cookieConsent.rejectAll', 'Reject All')}
-                </button>
-                <button
-                  onClick={handleAcceptAll}
-                  className="px-4 py-1.5 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                >
-                  {t('cookieConsent.acceptAll', 'Accept All')}
-                </button>
-                <button
-                  onClick={() => {
-                    const stored = getConsentCookie();
-                    if (stored) {
-                      setAnalyticsEnabled(stored.analytics);
-                      setMarketingEnabled(stored.marketing);
-                    }
-                    setShowPreferences(true);
-                  }}
-                  className="px-4 py-1.5 text-sm rounded-md border border-border bg-background hover:bg-muted transition-colors"
-                >
-                  {t('cookieConsent.manage', 'More')}
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* Preferences panel */
-            <div className="max-w-lg mx-auto py-2 space-y-4">
-              <div className="space-y-3">
-                {/* Necessary — always on */}
-                <label className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    checked
-                    disabled
-                    className="mt-1 h-4 w-4 rounded border-border"
-                  />
-                  <span>
-                    <span className="text-sm font-medium text-foreground block">
-                      {t('cookieConsent.necessary', 'Necessary')}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {t('cookieConsent.necessaryDesc', 'Essential cookies required for the website to function properly.')}
-                    </span>
-                  </span>
-                </label>
+    <>
+      {/* Dark overlay — only on first visit */}
+      {isFirstVisit && (
+        <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm" />
+      )}
 
-                {/* Analytics */}
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={analyticsEnabled}
-                    onChange={(e) => setAnalyticsEnabled(e.target.checked)}
-                    className="mt-1 h-4 w-4 rounded border-border"
-                  />
-                  <span>
-                    <span className="text-sm font-medium text-foreground block">
-                      {t('cookieConsent.analytics', 'Analytics')}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {t('cookieConsent.analyticsDesc', 'Help us understand how visitors interact with our website.')}
-                    </span>
-                  </span>
-                </label>
+      {/* Banner card */}
+      <div
+        className={`fixed bottom-0 inset-x-0 ${isFirstVisit ? 'z-[61]' : 'z-50'} flex justify-center p-4 transition-opacity duration-300`}
+        style={{ opacity: visible ? 1 : 0 }}
+      >
+        <div className="w-full max-w-lg bg-background rounded-xl border border-border shadow-2xl">
+          <div className="p-6">
+            {!showPreferences ? (
+              /* Main banner view */
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Shield className="w-5 h-5 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-foreground">
+                    {t('cookieConsent.title', 'We value your privacy')}
+                  </h3>
+                </div>
 
-                {/* Marketing */}
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={marketingEnabled}
-                    onChange={(e) => setMarketingEnabled(e.target.checked)}
-                    className="mt-1 h-4 w-4 rounded border-border"
-                  />
-                  <span>
-                    <span className="text-sm font-medium text-foreground block">
-                      {t('cookieConsent.marketing', 'Marketing')}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {t('cookieConsent.marketingDesc', 'Used to deliver relevant advertisements and track campaign performance.')}
-                    </span>
-                  </span>
-                </label>
-              </div>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {t('cookieConsent.description', 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. You can choose which cookies you allow.')}
+                </p>
 
-              <div className="flex items-center gap-2 justify-end">
-                <button
-                  onClick={handleRejectAll}
-                  className="px-4 py-1.5 text-sm rounded-md border border-border bg-background hover:bg-muted transition-colors"
-                >
-                  {t('cookieConsent.rejectAll', 'Reject All')}
-                </button>
-                <button
-                  onClick={handleSavePreferences}
-                  className="px-4 py-1.5 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                >
-                  {t('cookieConsent.savePreferences', 'Save Preferences')}
-                </button>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={handleAcceptAll}
+                    className="flex-1 px-5 py-2.5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    {t('cookieConsent.acceptAll', 'Accept All')}
+                  </button>
+                  <button
+                    onClick={() => {
+                      const stored = getConsentCookie();
+                      if (stored) {
+                        setAnalyticsEnabled(stored.analytics);
+                        setMarketingEnabled(stored.marketing);
+                      }
+                      setShowPreferences(true);
+                    }}
+                    className="flex-1 px-5 py-2.5 text-sm font-medium rounded-lg border border-border bg-background hover:bg-muted transition-colors"
+                  >
+                    {t('cookieConsent.managePreferences', 'Manage Preferences')}
+                  </button>
+                </div>
+
+                <p className="text-xs text-muted-foreground text-center">
+                  <a href="/privacy-policy" className="underline hover:text-foreground transition-colors">
+                    {t('cookieConsent.privacyPolicy', 'Privacy Policy')}
+                  </a>
+                </p>
               </div>
-            </div>
-          )}
+            ) : (
+              /* Preferences panel */
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-foreground">
+                  {t('cookieConsent.managePreferences', 'Manage Preferences')}
+                </h3>
+
+                <div className="space-y-3">
+                  {/* Necessary — always on */}
+                  <label className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked
+                      disabled
+                      className="mt-1 h-4 w-4 rounded border-border"
+                    />
+                    <span>
+                      <span className="text-sm font-medium text-foreground block">
+                        {t('cookieConsent.necessary', 'Necessary')}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {t('cookieConsent.necessaryDesc', 'Essential cookies required for the website to function. These cannot be disabled.')}
+                      </span>
+                    </span>
+                  </label>
+
+                  {/* Analytics */}
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={analyticsEnabled}
+                      onChange={(e) => setAnalyticsEnabled(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-border"
+                    />
+                    <span>
+                      <span className="text-sm font-medium text-foreground block">
+                        {t('cookieConsent.analytics', 'Analytics')}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {t('cookieConsent.analyticsDesc', 'Help us understand how visitors use our website to improve the experience.')}
+                      </span>
+                    </span>
+                  </label>
+
+                  {/* Marketing */}
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={marketingEnabled}
+                      onChange={(e) => setMarketingEnabled(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-border"
+                    />
+                    <span>
+                      <span className="text-sm font-medium text-foreground block">
+                        {t('cookieConsent.marketing', 'Marketing')}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {t('cookieConsent.marketingDesc', 'Used to deliver relevant advertisements and measure campaign effectiveness.')}
+                      </span>
+                    </span>
+                  </label>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={handleAcceptAll}
+                    className="flex-1 px-5 py-2.5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    {t('cookieConsent.acceptAll', 'Accept All')}
+                  </button>
+                  <button
+                    onClick={handleSavePreferences}
+                    className="flex-1 px-5 py-2.5 text-sm font-medium rounded-lg border border-border bg-background hover:bg-muted transition-colors"
+                  >
+                    {t('cookieConsent.savePreferences', 'Save Preferences')}
+                  </button>
+                </div>
+
+                <p className="text-xs text-muted-foreground text-center">
+                  <button
+                    onClick={handleRejectAll}
+                    className="underline hover:text-foreground transition-colors"
+                  >
+                    {t('cookieConsent.rejectAll', 'Reject All')}
+                  </button>
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
