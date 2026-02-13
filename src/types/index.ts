@@ -343,6 +343,26 @@ export interface Review {
   updatedAt?: SerializableTimestamp;
 }
 
+/** Extended review with platform-specific rich metadata from Airbnb/Booking.com imports */
+export interface RichReview extends Review {
+  sourceReviewId?: string;
+  sourceListingId?: string;
+  // Airbnb
+  subRatings?: Record<string, number>;
+  tags?: Record<string, string[]>;
+  stayDates?: string;
+  profilePicturePath?: string;
+  // Booking.com
+  sourceRating?: number;
+  title?: string;
+  positiveReview?: string;
+  negativeReview?: string;
+  guestCountry?: string;
+  additionalRatings?: Record<string, number>;
+  translatedFrom?: string;
+  hasHostReply?: boolean;
+}
+
 export interface WebsiteTemplate {
   id: string; // e.g., "holiday-house"
   templateId: string; // duplicate for consistency if needed, same as id

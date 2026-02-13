@@ -340,6 +340,14 @@ export const areaGuideContentSchema = z.object({
   ),
 });
 
+export const reviewsListSchema = z.object({
+  title: multilingualString.optional(),
+  showSourceFilter: z.boolean().optional(),
+  showRatingFilter: z.boolean().optional(),
+  showAggregateStats: z.boolean().optional(),
+  reviewsPerPage: z.number().optional(),
+}).passthrough();
+
 export const videoSectionSchema = z.object({
   title: multilingualString.optional(),
   videoUrl: z.string(),
@@ -379,6 +387,7 @@ export const blockSchemas: Record<string, z.ZodTypeAny> = {
   policiesList: policiesListSchema,
   video: videoSectionSchema,
   areaGuideContent: areaGuideContentSchema,
+  reviewsList: reviewsListSchema,
 };
 
 // Schema for the entire template

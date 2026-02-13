@@ -9,7 +9,7 @@ import { websiteTemplateSchema, propertyOverridesSchema } from '@/lib/overridesS
 import { LanguageProvider } from '@/lib/language-system';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
 import { serverTranslateContent } from '@/lib/server-language-utils';
-import { buildVacationRentalJsonLd, buildBreadcrumbJsonLd, buildLodgingBusinessJsonLd, buildImageGalleryJsonLd, buildFAQPageJsonLd, buildAreaGuideJsonLd, getCanonicalUrl, getBaseUrl } from '@/lib/structured-data';
+import { buildVacationRentalJsonLd, buildBreadcrumbJsonLd, buildLodgingBusinessJsonLd, buildImageGalleryJsonLd, buildFAQPageJsonLd, buildAreaGuideJsonLd, buildReviewPageJsonLd, getCanonicalUrl, getBaseUrl } from '@/lib/structured-data';
 import { getAmenitiesByRefs } from '@/lib/amenity-utils';
 import { TrackViewItem } from '@/components/tracking/track-page-view';
 import blurMapData from '@/data/blur-map.json';
@@ -19,9 +19,9 @@ import { loggers } from '@/lib/logger';
 export const dynamic = 'force-dynamic'; // Ensures the page is always dynamically rendered
 
 // Import the utility function
-import type { Review } from '@/types';
+import type { Review, RichReview } from '@/types';
 import { getPropertyBySlug, getPublishedReviewCount } from '@/lib/property-utils';
-import { getPublishedReviewsForProperty } from '@/services/reviewService';
+import { getPublishedReviewsForProperty, getAllPublishedReviewsForProperty } from '@/services/reviewService';
 
 // Alias for backward compatibility
 const getProperty = getPropertyBySlug;
@@ -264,6 +264,10 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
         return language === 'ro'
           ? `Ghid local${city ? ` ${city}` : ''}${region ? `, ${region}` : ''} - activități, restaurante, atracții turistice lângă ${propertyName}.`
           : `Area guide${city ? ` for ${city}` : ''}${region ? `, ${region}` : ''} - activities, restaurants, and attractions near ${propertyName}.`;
+      case 'reviews':
+        return language === 'ro'
+          ? `Recenzii de la oaspeți pentru ${propertyName}${city ? ` în ${city}` : ''} - evaluări și experiențe reale.`
+          : `Guest reviews for ${propertyName}${city ? ` in ${city}` : ''} - real ratings and experiences.`;
       default:
         return propertyDescription;
     }
@@ -514,7 +518,9 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   let imageGalleryJsonLd: Record<string, unknown> | null = null;
   let faqPageJsonLd: Record<string, unknown> | null = null;
   let areaGuideJsonLd: Record<string, unknown> | null = null;
+  let reviewPageJsonLd: Record<string, unknown> | null = null;
   let publishedReviews: Review[] = [];
+  let allReviews: RichReview[] = [];
 
   if (pageName === 'homepage') {
     // Homepage: VacationRental + LodgingBusiness (for Google Maps)
@@ -537,6 +543,12 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     // Area guide page: Article schema
     const descriptionOverride = overrides?.propertyMeta?.description || overrides?.propertyMeta?.shortDescription;
     areaGuideJsonLd = buildAreaGuideJsonLd({ property, canonicalUrl, language, descriptionOverride });
+  } else if (pageName === 'reviews') {
+    // Reviews page: fetch all reviews + build AggregateRating JSON-LD
+    allReviews = await getAllPublishedReviewsForProperty(slug);
+    if (allReviews.length > 0) {
+      reviewPageJsonLd = buildReviewPageJsonLd({ property, reviews: allReviews, canonicalUrl, language });
+    }
   }
 
   // Build breadcrumb with subpage level when not on homepage
@@ -585,6 +597,12 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(areaGuideJsonLd) }}
         />
       )}
+      {reviewPageJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(reviewPageJsonLd) }}
+        />
+      )}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
@@ -602,6 +620,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
             language={language}
             property={property}
             publishedReviews={publishedReviews}
+            allReviews={allReviews.length > 0 ? allReviews : undefined}
             localBlurMap={localBlurMap}
             isCustomDomain={isCustomDomain}
           />

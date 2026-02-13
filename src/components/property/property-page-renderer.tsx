@@ -59,7 +59,7 @@
 
 import { useEffect, useState } from 'react';
 import { WebsiteTemplate, PropertyOverrides, BlockReference } from '@/lib/overridesSchemas-multipage';
-import type { Property, Review } from '@/types';
+import type { Property, Review, RichReview } from '@/types';
 import { blockSchemas } from '@/lib/overridesSchemas-multipage';
 import { Header } from '@/components/generic-header-multipage';
 import { Footer } from '@/components/footer';
@@ -96,6 +96,7 @@ import { PhotoCategories } from '@/components/property/photo-categories';
 import { FullBookingForm } from '@/components/property/full-booking-form';
 import { PoliciesList } from '@/components/property/policies-list';
 import { AreaGuideSection } from '@/components/property/area-guide-section';
+import { ReviewsListSection } from '@/components/property/reviews-list-section';
 import { useLanguage } from '@/hooks/useLanguage';
 
 // Map of block types to their rendering components
@@ -127,6 +128,7 @@ const blockComponents: Record<string, React.FC<{ content: any; language?: string
   fullBookingForm: FullBookingForm,
   policiesList: PoliciesList,
   areaGuideContent: AreaGuideSection,
+  reviewsList: ReviewsListSection,
 
   // Legacy component aliases for backward compatibility
   propertyDetailsSection: SpecificationsList,
@@ -147,6 +149,7 @@ interface PropertyPageRendererProps {
   // Homepage-specific props for property data integration
   property?: Property; // Full property object for homepage rendering
   publishedReviews?: Review[]; // Real reviews from Firestore
+  allReviews?: RichReview[]; // All published reviews with rich metadata (for reviews page)
   localBlurMap?: Record<string, string>; // Blur placeholders for local images
   isCustomDomain?: boolean; // Whether the request came through a custom domain
 }
@@ -167,6 +170,7 @@ export function PropertyPageRenderer({
   language = 'en',
   property, // Homepage-specific property data
   publishedReviews, // Real reviews from Firestore
+  allReviews, // All published reviews with rich metadata (for reviews page)
   localBlurMap,
   isCustomDomain = false,
 }: PropertyPageRendererProps) {
@@ -589,8 +593,34 @@ export function PropertyPageRenderer({
             reviewCount: property.ratings?.count || 0,
             showRating: blockContent?.showRating,
             reviews: combinedReviews,
+            propertySlug: propertySlug,
+            isCustomDomain,
           };
         }
+      }
+
+      // Reviews page enrichment — inject all reviews and compute aggregate stats
+      if (type === 'reviewsList' && allReviews) {
+        const ratingDist: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+        const sourceCounts: Record<string, number> = {};
+        let totalRating = 0;
+        for (const r of allReviews) {
+          const star = Math.min(5, Math.max(1, Math.floor(r.rating)));
+          ratingDist[star] = (ratingDist[star] || 0) + 1;
+          sourceCounts[r.source] = (sourceCounts[r.source] || 0) + 1;
+          totalRating += r.rating;
+        }
+        blockContent = {
+          ...blockContent,
+          reviews: allReviews,
+          aggregateStats: {
+            totalCount: allReviews.length,
+            averageRating: allReviews.length > 0 ? Math.round((totalRating / allReviews.length) * 10) / 10 : 0,
+            ratingDistribution: ratingDist,
+            sourceBreakdown: sourceCounts,
+          },
+          propertySlug: propertySlug,
+        };
       }
 
       // Wrap each block in an error boundary to prevent one block from breaking entire page

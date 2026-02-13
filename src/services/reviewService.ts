@@ -2,7 +2,7 @@
 'use server';
 
 import { getAdminDb, Timestamp, FieldValue } from '@/lib/firebaseAdminSafe';
-import type { Review, ReviewSource } from '@/types';
+import type { Review, RichReview, ReviewSource } from '@/types';
 import { convertTimestampsToISOStrings } from '@/lib/utils';
 import { loggers } from '@/lib/logger';
 
@@ -37,6 +37,28 @@ export async function getPublishedReviewsForProperty(
     );
   } catch (error) {
     logger.error('Failed to get published reviews', error as Error, { propertyId });
+    return [];
+  }
+}
+
+/**
+ * Get all published reviews for a property with rich metadata (for reviews page).
+ */
+export async function getAllPublishedReviewsForProperty(propertyId: string): Promise<RichReview[]> {
+  try {
+    const db = await getAdminDb();
+    const snapshot = await db
+      .collection('reviews')
+      .where('propertyId', '==', propertyId)
+      .where('isPublished', '==', true)
+      .orderBy('date', 'desc')
+      .get();
+
+    return snapshot.docs.map((doc) =>
+      convertTimestampsToISOStrings({ id: doc.id, ...doc.data() }) as RichReview
+    );
+  } catch (error) {
+    logger.error('Failed to get all published reviews', error as Error, { propertyId });
     return [];
   }
 }

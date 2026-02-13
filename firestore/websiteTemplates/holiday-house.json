@@ -68,6 +68,14 @@
         { "id": "guide-content", "type": "areaGuideContent" },
         { "id": "guide-cta", "type": "cta" }
       ]
+    },
+    "reviews": {
+      "path": "/reviews",
+      "title": { "en": "Guest Reviews", "ro": "Recenzii" },
+      "blocks": [
+        { "id": "reviews-header", "type": "pageHeader" },
+        { "id": "reviews-content", "type": "reviewsList" }
+      ]
     }
   },
   "header": {

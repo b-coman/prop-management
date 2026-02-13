@@ -25,6 +25,8 @@ interface TestimonialsContent {
   reviewCount?: number; // Total number of reviews
   reviews: Review[]; // Array of review objects
   'data-ai-hint'?: string;
+  propertySlug?: string;
+  isCustomDomain?: boolean;
 }
 
 interface TestimonialsSectionProps {
@@ -162,12 +164,15 @@ export function TestimonialsSection({ content, language = 'en' }: TestimonialsSe
             </Card>
           ))}
         </div>
-         {/* TODO: Add a link to a dedicated reviews page if one exists */}
-         {/* <div className="text-center mt-12">
-           <Link href="/reviews" passHref>
-             <Button variant="outline">See All Reviews</Button>
-           </Link>
-         </div> */}
+         {hasRealReviews && content.propertySlug && (
+           <div className="text-center mt-10">
+             <Link href={content.isCustomDomain ? '/reviews' : `/properties/${content.propertySlug}/reviews`}>
+               <Button variant="outline">
+                 {t('reviews.viewAll', 'View all')} {totalReviewCount} {t('reviews.reviews', 'reviews')}
+               </Button>
+             </Link>
+           </div>
+         )}
       </div>
     </section>
   );

@@ -1,4 +1,4 @@
-import type { Property, Amenity, Review } from '@/types';
+import type { Property, Amenity, Review, RichReview } from '@/types';
 import { normalizeCountryCode } from '@/lib/country-utils';
 
 // Map amenity English names (lowercased) to schema.org LocationFeatureSpecification names
@@ -674,5 +674,64 @@ export function buildFAQPageJsonLd(options: FAQPageJsonLdOptions): Record<string
         text: faq.answer,
       },
     })),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Reviews page structured data — AggregateRating + individual Reviews
+// ---------------------------------------------------------------------------
+
+export function buildReviewPageJsonLd(options: {
+  property: Property;
+  reviews: RichReview[];
+  canonicalUrl: string;
+  language?: string;
+}): Record<string, unknown> {
+  const { property, reviews, canonicalUrl, language = 'en' } = options;
+
+  const pickLang = (value: string | { en?: string; ro?: string } | undefined): string | undefined => {
+    if (!value) return undefined;
+    if (typeof value === 'string') return value;
+    return value[language as 'en' | 'ro'] || value.en || value.ro || undefined;
+  };
+
+  const name = pickLang(property.name) || '';
+  const totalCount = reviews.length;
+  const averageRating = totalCount > 0
+    ? Math.round(reviews.reduce((sum, r) => sum + r.rating, 0) / totalCount * 10) / 10
+    : 0;
+
+  // Build up to 10 individual Review objects
+  const reviewJsonLd = reviews.slice(0, 10).map((review) => {
+    const dateStr = typeof review.date === 'string'
+      ? review.date.split('T')[0]
+      : undefined;
+    return {
+      '@type': 'Review' as const,
+      author: { '@type': 'Person' as const, name: review.guestName },
+      ...(dateStr && { datePublished: dateStr }),
+      reviewBody: review.positiveReview || review.comment || '',
+      reviewRating: {
+        '@type': 'Rating' as const,
+        ratingValue: review.rating,
+        bestRating: 5,
+      },
+    };
+  });
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'VacationRental',
+    name,
+    url: canonicalUrl,
+    ...(totalCount > 0 && {
+      aggregateRating: {
+        '@type': 'AggregateRating',
+        ratingValue: averageRating,
+        ratingCount: totalCount,
+        bestRating: 5,
+      },
+    }),
+    ...(reviewJsonLd.length > 0 && { review: reviewJsonLd }),
   };
 }
