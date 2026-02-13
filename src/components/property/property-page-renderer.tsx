@@ -440,7 +440,9 @@ export function PropertyPageRenderer({
       } else if ((type === 'gallery' || type === 'galleryGrid' || type === 'full-gallery') && property?.images?.length) {
         // Fallback to property.images when gallery has no override images
         const existingImages = blockContent?.images;
-        if (!existingImages || existingImages.length === 0) {
+        const hasRealImages = existingImages?.length > 0 &&
+          existingImages.some((img: any) => !img.url?.startsWith('/images/templates/'));
+        if (!hasRealImages) {
           // Filter out images hidden from gallery, then sort: featured first, by sortOrder
           const galleryVisible = property.images.filter(img => img.showInGallery !== false);
           const sorted = [...galleryVisible].sort((a, b) => {
