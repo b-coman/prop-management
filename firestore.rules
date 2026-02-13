@@ -165,6 +165,15 @@ service cloud.firestore {
     }
 
     // ============================================================================
+    // Data Source Cache Collection (Content Generation Pipeline)
+    // ============================================================================
+
+    match /dataSourceCache/{propertySlug}/cache/{sourceType} {
+      allow read: if isSignedIn();
+      allow write: if false;  // Admin SDK only
+    }
+
+    // ============================================================================
     // Coupons Collection
     // ============================================================================
 

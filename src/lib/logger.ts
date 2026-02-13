@@ -389,6 +389,7 @@ export const loggers = {
   guest: createLogger('guest'),
   whatsapp: createLogger('whatsapp'),
   housekeeping: createLogger('housekeeping'),
+  contentData: createLogger('content:data'),
 };
 
 // Type-safe logger categories

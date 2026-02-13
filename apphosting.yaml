@@ -153,6 +153,27 @@ env:
     availability:
         - RUNTIME
 
+# Content data sources (content generation pipeline)
+  - variable: VISUAL_CROSSING_API_KEY
+    secret: projects/1061532538391/secrets/VISUAL_CROSSING_API_KEY/versions/latest
+    availability:
+        - RUNTIME
+
+  - variable: PERPLEXITY_API_KEY
+    secret: projects/1061532538391/secrets/PERPLEXITY_API_KEY/versions/latest
+    availability:
+        - RUNTIME
+
+  - variable: EVENTS_8PM_API_URL
+    secret: projects/1061532538391/secrets/EVENTS_8PM_API_URL/versions/latest
+    availability:
+        - RUNTIME
+
+  - variable: EVENTS_8PM_API_KEY
+    secret: projects/1061532538391/secrets/EVENTS_8PM_API_KEY/versions/latest
+    availability:
+        - RUNTIME
+
 # Meta Pixel + CAPI secrets: add these after creating secrets in Secret Manager
 # - variable: NEXT_PUBLIC_META_PIXEL_ID
 # - variable: META_PIXEL_ID
