@@ -167,7 +167,9 @@ export async function createCheckoutSession(
     //   line_items: sessionParams.line_items,
     // });
 
-    const session = await stripeInstance.checkout.sessions.create(sessionParams);
+    const session = await stripeInstance.checkout.sessions.create(sessionParams, {
+      idempotencyKey: `checkout_full_${pendingBookingId || crypto.randomUUID()}`,
+    });
 
     logger.info('Checkout session created successfully', { sessionId: session.id, sessionUrl: session.url });
 

@@ -136,7 +136,9 @@ export async function createHoldCheckoutSession(input: CreateHoldCheckoutSession
     };
 
     const stripeInstance = getStripe();
-    const session = await stripeInstance.checkout.sessions.create(sessionParams);
+    const session = await stripeInstance.checkout.sessions.create(sessionParams, {
+      idempotencyKey: `checkout_hold_${holdBookingId}`,
+    });
 
     if (!session.id || !session.url) {
       throw new Error('Failed to create Stripe session or missing session URL.');

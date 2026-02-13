@@ -185,16 +185,59 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to update booking status' }, { status: 500 });
     }
   }
-  // --- Handle Payment Intent Events (Optional but recommended for robustness) ---
-  // (Keep existing payment_intent.succeeded and payment_intent.payment_failed handlers if needed)
-  // Ensure they also check metadata.type if you implement them.
-  else if (event.type === 'payment_intent.succeeded') {
-      // ... similar logic using paymentIntent.metadata ...
-      logger.info('Handling payment_intent.succeeded', { paymentIntentId: (event.data.object as Stripe.PaymentIntent).id });
+  // --- Handle Checkout Session Expired (user abandoned or session timed out) ---
+  else if (event.type === 'checkout.session.expired') {
+    const session = event.data.object as Stripe.Checkout.Session;
+    const sessionId = session.id;
+    logger.info('Handling checkout.session.expired', { sessionId });
+
+    const metadata = session.metadata;
+    const bookingId = metadata?.pendingBookingId || metadata?.holdBookingId;
+
+    if (!bookingId) {
+      logger.warn('No booking ID in expired session metadata', { sessionId });
+      return NextResponse.json({ received: true });
+    }
+
+    try {
+      const { getBookingById } = await import('@/services/bookingService');
+      const booking = await getBookingById(bookingId);
+
+      if (!booking) {
+        logger.warn('Booking not found for expired session', { bookingId, sessionId });
+        return NextResponse.json({ received: true });
+      }
+
+      // Only mark as failed if still pending — don't overwrite a successful payment
+      if (booking.status === 'pending') {
+        const { updateBookingStatus } = await import('@/services/bookingService');
+        await updateBookingStatus(bookingId, 'payment_failed');
+        logger.info('Booking marked as payment_failed due to expired session', { bookingId, sessionId });
+      } else {
+        logger.info('Booking already processed, skipping expired session', { bookingId, currentStatus: booking.status, sessionId });
+      }
+    } catch (error) {
+      logger.error('Error handling expired session', error as Error, { bookingId, sessionId });
+      return NextResponse.json({ error: 'Failed to handle expired session' }, { status: 500 });
+    }
   }
+  // --- Handle Payment Intent Failed (card declined during checkout — user can still retry) ---
   else if (event.type === 'payment_intent.payment_failed') {
-      // ... logic to handle failed payments ...
-       logger.warn('Handling payment_intent.payment_failed', { paymentIntentId: (event.data.object as Stripe.PaymentIntent).id });
+    const paymentIntent = event.data.object as Stripe.PaymentIntent;
+    const lastError = paymentIntent.last_payment_error;
+    logger.warn('Payment attempt failed', {
+      paymentIntentId: paymentIntent.id,
+      declineCode: lastError?.decline_code || 'unknown',
+      errorType: lastError?.type || 'unknown',
+      errorMessage: lastError?.message || 'No details',
+    });
+    // NOTE: Do NOT mark booking as failed here. With Checkout Sessions, the user
+    // stays on the payment page and can retry with a different card.
+    // The booking will be marked as payment_failed when checkout.session.expired fires.
+  }
+  else if (event.type === 'payment_intent.succeeded') {
+    logger.info('Handling payment_intent.succeeded', { paymentIntentId: (event.data.object as Stripe.PaymentIntent).id });
+    // Primary confirmation handled by checkout.session.completed above
   }
   else {
     logger.debug('Received unhandled event type', { eventType: event.type });
