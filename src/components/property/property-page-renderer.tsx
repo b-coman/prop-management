@@ -273,6 +273,13 @@ export function PropertyPageRenderer({
         ? { ...templateDefault, ...pageOverride }
         : pageOverride ?? templateDefault;
 
+      // Blocks that get their content from enrichment (server-side data injection)
+      // should not be skipped even when no template defaults or overrides exist
+      const enrichedBlockTypes = ['reviewsList'];
+      if (blockContent === undefined && enrichedBlockTypes.includes(type)) {
+        blockContent = {};
+      }
+
       // If still undefined, skip rendering
       if (blockContent === undefined) {
         console.warn(`No content found for block: ${id}`);
