@@ -25,6 +25,7 @@ import {
   FileText,
   PanelTop,
   Settings,
+  Wand2,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/SimpleAuthContext';
 import { usePropertySelector } from '@/contexts/PropertySelectorContext';
@@ -65,6 +66,7 @@ const navigationGroups = [
       { title: 'Pages & Content', href: '/admin/website', icon: FileText },
       { title: 'Navigation & Info', href: '/admin/website/navigation', icon: PanelTop },
       { title: 'Settings', href: '/admin/website/settings', icon: Settings },
+      { title: 'Content Strategy', href: '/admin/content-strategy', icon: Wand2 },
     ],
   },
   {
