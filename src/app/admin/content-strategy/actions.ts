@@ -158,6 +158,33 @@ export async function deleteContentTopic(
   }
 }
 
+export async function updateTopicStatus(
+  propertyId: string,
+  topicId: string,
+  status: string
+): Promise<{ error?: string }> {
+  try {
+    await requirePropertyAccess(propertyId);
+    const db = await getAdminDb();
+
+    await db
+      .collection(CONTENT_COLLECTIONS.topics(propertyId))
+      .doc(topicId)
+      .update({
+        status,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+    return {};
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      return { error: 'Not authorized' };
+    }
+    logger.error('Error updating topic status', error as Error, { propertyId, topicId, status });
+    return { error: 'Failed to update topic status' };
+  }
+}
+
 // ============================================================================
 // Content Drafts
 // ============================================================================
