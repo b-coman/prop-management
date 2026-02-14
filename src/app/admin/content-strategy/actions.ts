@@ -10,6 +10,7 @@ import {
   type ContentTopic,
   type ContentDraft,
 } from '@/lib/content-schemas';
+import { generateContent } from '@/services/contentGeneration';
 
 const logger = loggers.admin;
 
@@ -213,5 +214,35 @@ export async function fetchContentDrafts(
     }
     logger.error('Error fetching content drafts', error as Error, { propertyId });
     return [];
+  }
+}
+
+// ============================================================================
+// Content Generation
+// ============================================================================
+
+export async function generateTopicContent(
+  propertyId: string,
+  topicId: string
+): Promise<{ draftId?: string; error?: string }> {
+  try {
+    await requirePropertyAccess(propertyId);
+
+    logger.info('Generating content for topic', { propertyId, topicId });
+    const result = await generateContent({ propertySlug: propertyId, topicId });
+
+    if (result.error) {
+      logger.warn('Content generation returned error', { propertyId, topicId, error: result.error });
+    } else {
+      logger.info('Content generated successfully', { propertyId, topicId, draftId: result.draftId });
+    }
+
+    return result;
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      return { error: 'Not authorized' };
+    }
+    logger.error('Error generating content', error as Error, { propertyId, topicId });
+    return { error: 'Failed to generate content' };
   }
 }
