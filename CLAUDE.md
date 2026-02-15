@@ -12,6 +12,7 @@ Next.js 15 multi-property vacation rental platform with Stripe payments, Firebas
 | Availability | Single-source (`availability` collection) |
 | Security Rules | Hardened, admin-only writes on sensitive collections |
 | Logging | Structured JSON logger → Cloud Logging (not console.*) |
+| Error Tracking | Sentry (`@sentry/nextjs`) — production-only, auto-captures + logger integration |
 | Rate Limiting | Public APIs protected (60 req/min per IP) |
 | Hold Cleanup | Cloud Scheduler at 00:00/12:00 UTC |
 
@@ -49,11 +50,16 @@ Next.js 15 multi-property vacation rental platform with Stripe payments, Firebas
 - Secrets: 15 in Secret Manager
 - Storage: Firebase Storage bucket
 
-**Logging:**
+**Logging & Error Tracking:**
 - Use `loggers.*` from `src/lib/logger.ts` — never raw `console.log`
 - Production: outputs structured JSON to stdout → Cloud Run logging agent → Cloud Logging
 - Dev: outputs human-readable text to console
 - Cloud Logging retention: 30 days, DEBUG excluded, INFO/WARN/ERROR captured
+- **Sentry**: `@sentry/nextjs` — production-only, auto-captures client + server + edge errors
+- All `loggers.*.error()` calls automatically flow to Sentry via `sendToExternalLogger()` with component tag
+- Error boundaries: `src/app/error.tsx` + `src/app/global-error.tsx` → `Sentry.captureException()`
+- Config: `src/sentry.server.config.ts`, `src/sentry.edge.config.ts`, `src/instrumentation.ts`, `src/instrumentation-client.ts`
+- DSN: plain value in `apphosting.yaml` (public, not a secret)
 - `'use server'` files can ONLY export async functions — never export objects/constants (silent 500 crash)
 
 **Query production logs:**
@@ -82,6 +88,7 @@ gcloud logging read 'logName:"run.googleapis.com/stdout" AND jsonPayload.compone
 | Admin SDK | `src/lib/firebaseAdminSafe.ts` |
 | Authorization | `src/lib/authorization.ts` |
 | Logger | `src/lib/logger.ts` |
+| Sentry Config | `src/sentry.server.config.ts`, `src/instrumentation.ts` |
 | Rate Limiter | `src/lib/rate-limiter.ts` |
 | Booking Service | `src/services/bookingService.ts` |
 | Guest Service | `src/services/guestService.ts` |
