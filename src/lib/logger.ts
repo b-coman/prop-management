@@ -255,8 +255,32 @@ class Logger {
   }
 
   private sendToExternalLogger(level: LogLevel, levelName: string, message: string, metadata?: LogMetadata) {
-    // TODO: Implement external logging service integration (e.g., Sentry, LogRocket, DataDog)
-    // This is where you'd send logs to your monitoring service
+    // Only send errors and warnings to Sentry
+    if (level < LogLevel.ERROR) {
+      return;
+    }
+
+    try {
+      const Sentry = require("@sentry/nextjs");
+      if (metadata?.error && typeof metadata.error === "object" && metadata.error.message) {
+        // Reconstruct an Error so Sentry gets a proper stack trace
+        const err = new Error(metadata.error.message);
+        if (metadata.error.stack) err.stack = metadata.error.stack;
+        if (metadata.error.name) err.name = metadata.error.name;
+        Sentry.captureException(err, {
+          tags: { component: this.namespace },
+          extra: metadata,
+        });
+      } else {
+        Sentry.captureMessage(`[${this.namespace}] ${message}`, {
+          level: "error",
+          tags: { component: this.namespace },
+          extra: metadata,
+        });
+      }
+    } catch {
+      // Sentry not initialized or not available — silently ignore
+    }
   }
 
   debug(message: string, metadata?: LogMetadata) {

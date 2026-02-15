@@ -180,6 +180,13 @@ env:
     availability:
         - RUNTIME
 
+# Sentry error tracking (public DSN — safe to expose, only identifies the project)
+  - variable: NEXT_PUBLIC_SENTRY_DSN
+    value: "https://a3d3b60a8aada619f1a180406e485235@o4510887223558144.ingest.de.sentry.io/4510889382969424"
+    availability:
+      - BUILD
+      - RUNTIME
+
 # Meta Pixel + CAPI secrets: add these after creating secrets in Secret Manager
 # - variable: NEXT_PUBLIC_META_PIXEL_ID
 # - variable: META_PIXEL_ID

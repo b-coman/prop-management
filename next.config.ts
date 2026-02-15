@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { withSentryConfig } from '@sentry/nextjs';
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -69,4 +70,15 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  // Suppress source map upload logs
+  silent: true,
+
+  // Disable source map upload — no SENTRY_AUTH_TOKEN needed
+  sourcemaps: {
+    disable: true,
+  },
+
+  // Disable telemetry
+  telemetry: false,
+});
