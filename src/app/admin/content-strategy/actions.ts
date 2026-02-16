@@ -1,5 +1,6 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
 import { requirePropertyAccess, AuthorizationError } from '@/lib/authorization';
@@ -244,5 +245,120 @@ export async function generateTopicContent(
     }
     logger.error('Error generating content', error as Error, { propertyId, topicId });
     return { error: 'Failed to generate content' };
+  }
+}
+
+// ============================================================================
+// Draft Review Actions
+// ============================================================================
+
+export async function updateDraftStatus(
+  propertyId: string,
+  draftId: string,
+  status: 'approved' | 'rejected',
+  reviewNotes?: string
+): Promise<{ error?: string }> {
+  try {
+    await requirePropertyAccess(propertyId);
+    const db = await getAdminDb();
+
+    const updateData: Record<string, unknown> = {
+      status,
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+    if (reviewNotes !== undefined) {
+      updateData.reviewNotes = reviewNotes;
+    }
+
+    await db
+      .collection(CONTENT_COLLECTIONS.drafts(propertyId))
+      .doc(draftId)
+      .update(updateData);
+
+    logger.info('Draft status updated', { propertyId, draftId, status });
+    return {};
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      return { error: 'Not authorized' };
+    }
+    logger.error('Error updating draft status', error as Error, { propertyId, draftId, status });
+    return { error: 'Failed to update draft status' };
+  }
+}
+
+export async function publishDraft(
+  propertyId: string,
+  draftId: string
+): Promise<{ error?: string }> {
+  try {
+    await requirePropertyAccess(propertyId);
+    const db = await getAdminDb();
+
+    // Read the draft
+    const draftRef = db.collection(CONTENT_COLLECTIONS.drafts(propertyId)).doc(draftId);
+    const draftSnap = await draftRef.get();
+    if (!draftSnap.exists) {
+      return { error: 'Draft not found' };
+    }
+
+    const draft = draftSnap.data() as ContentDraft;
+    if (draft.status !== 'approved') {
+      return { error: 'Only approved drafts can be published' };
+    }
+
+    // Read the topic to get targetPage and targetBlock
+    const topicRef = db.collection(CONTENT_COLLECTIONS.topics(propertyId)).doc(draft.topicId);
+    const topicSnap = await topicRef.get();
+    if (!topicSnap.exists) {
+      return { error: 'Topic not found' };
+    }
+
+    const topic = topicSnap.data() as ContentTopic;
+    const { targetPage, targetBlock } = topic;
+
+    if (!targetPage || !targetBlock) {
+      return { error: 'Topic is missing targetPage or targetBlock' };
+    }
+
+    // Write content to propertyOverrides using dot-notation
+    const overrideRef = db.collection('propertyOverrides').doc(propertyId);
+    const fieldPath = `pages.${targetPage}.${targetBlock}`;
+    await overrideRef.update({
+      [fieldPath]: draft.content,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    // Update draft status to published
+    await draftRef.update({
+      status: 'published',
+      publishedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    // Update topic status to published
+    await topicRef.update({
+      status: 'published',
+      lastGenerated: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    logger.info('Draft published to property overrides', {
+      propertyId,
+      draftId,
+      targetPage,
+      targetBlock,
+    });
+
+    // Revalidate property pages
+    revalidatePath(`/property/${propertyId}`);
+    revalidatePath(`/property/${propertyId}/${targetPage}`);
+
+    return {};
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      return { error: 'Not authorized' };
+    }
+    logger.error('Error publishing draft', error as Error, { propertyId, draftId });
+    return { error: 'Failed to publish draft' };
   }
 }
