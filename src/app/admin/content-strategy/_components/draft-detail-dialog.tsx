@@ -24,7 +24,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { updateDraftStatus, publishDraft } from '../actions';
-import { Loader2, CheckCircle, XCircle, Upload } from 'lucide-react';
+import { BlockPreview } from './block-preview';
+import { Loader2, CheckCircle, XCircle, Upload, Eye, Code } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import type { ContentDraft } from '@/lib/content-schemas';
 
 const draftStatusColors: Record<string, string> = {
@@ -59,6 +61,7 @@ export function DraftDetailDialog({
   const [reviewNotes, setReviewNotes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [confirmPublish, setConfirmPublish] = useState(false);
+  const [viewMode, setViewMode] = useState<'preview' | 'json'>('preview');
 
   if (!draft) return null;
 
@@ -111,7 +114,7 @@ export function DraftDetailDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center gap-2 flex-wrap">
               <DialogTitle className="text-lg">{topicTitle}</DialogTitle>
@@ -168,12 +171,50 @@ export function DraftDetailDialog({
             </div>
           )}
 
-          {/* Generated Content */}
-          <div className="space-y-1">
-            <span className="text-sm text-muted-foreground">Generated content</span>
-            <pre className="text-xs bg-muted p-3 rounded-lg overflow-auto max-h-64 whitespace-pre-wrap font-mono">
-              {JSON.stringify(draft.content, null, 2)}
-            </pre>
+          {/* Generated Content — Preview / JSON toggle */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Generated content</span>
+              <div className="flex rounded-lg border overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('preview')}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-1 text-xs font-medium transition-colors',
+                    viewMode === 'preview'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'hover:bg-muted'
+                  )}
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  Preview
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('json')}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-1 text-xs font-medium transition-colors border-l',
+                    viewMode === 'json'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'hover:bg-muted'
+                  )}
+                >
+                  <Code className="h-3.5 w-3.5" />
+                  JSON
+                </button>
+              </div>
+            </div>
+
+            {viewMode === 'preview' && targetBlock ? (
+              <BlockPreview
+                blockType={targetBlock}
+                content={draft.content}
+              />
+            ) : (
+              <pre className="text-xs bg-muted p-3 rounded-lg overflow-auto max-h-64 whitespace-pre-wrap font-mono">
+                {JSON.stringify(draft.content, null, 2)}
+              </pre>
+            )}
           </div>
 
           {/* Review Notes */}
