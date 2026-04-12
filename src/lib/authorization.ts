@@ -157,7 +157,7 @@ async function checkAuthenticationInternal(): Promise<AuthResult> {
       return { authenticated: false };
     }
 
-    // Try to parse as simple session
+    // Try to parse as simple session (base64-encoded JSON)
     try {
       const sessionData = JSON.parse(
         Buffer.from(sessionCookie.value, 'base64').toString()
@@ -178,7 +178,26 @@ async function checkAuthenticationInternal(): Promise<AuthResult> {
         }
       };
     } catch {
-      // If parsing fails, session is invalid
+      // If parsing fails, it might be a Firebase session cookie (used in production)
+      if (process.env.NODE_ENV === 'production') {
+        try {
+          const { verifySessionCookie } = await import('@/lib/firebaseAdminNode');
+          const decodedClaims = await verifySessionCookie(sessionCookie.value);
+
+          if (decodedClaims) {
+            return {
+              authenticated: true,
+              user: {
+                uid: decodedClaims.uid,
+                email: decodedClaims.email || 'unknown@example.com'
+              }
+            };
+          }
+        } catch (verifyError) {
+          logger.error('Firebase session cookie verification failed', verifyError as Error);
+        }
+      }
+
       return { authenticated: false };
     }
   } catch (error) {
