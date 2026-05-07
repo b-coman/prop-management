@@ -29,7 +29,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { getCountryOptions, normalizeCountryCode } from '@/lib/country-utils';
-import { createExternalBookingAction, editBookingAction } from '../actions';
+import { createExternalBookingAction, editBookingAction, fetchUnavailableDateStrings } from '../actions';
 import type { Booking } from '@/types';
 
 const SOURCES = [
@@ -167,6 +167,27 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess, comp
     }
   }, [watchPropertyId, properties, form]);
 
+  // Fetch unavailable dates for the selected property (excluding this booking's own days in edit mode)
+  const [disabledDates, setDisabledDates] = React.useState<Date[]>([]);
+  React.useEffect(() => {
+    if (!watchPropertyId) {
+      setDisabledDates([]);
+      return;
+    }
+    let cancelled = false;
+    fetchUnavailableDateStrings(watchPropertyId, 12, mode === 'edit' ? booking?.id : undefined)
+      .then(strs => {
+        if (cancelled) return;
+        setDisabledDates(strs.map(s => {
+          const [y, m, d] = s.split('-').map(Number);
+          // noon UTC anchor — within the calendar day in any reasonable TZ, safe for matching
+          return new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+        }));
+      })
+      .catch(() => { /* leave empty on error */ });
+    return () => { cancelled = true; };
+  }, [watchPropertyId, mode, booking?.id]);
+
   const onSubmit = (values: FormValues) => {
     startTransition(async () => {
       if (mode === 'create') {
@@ -192,10 +213,10 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess, comp
   };
 
   if (compact) {
-    return <CompactForm form={form} mode={mode} properties={properties} nights={nights} isPending={isPending} onSubmit={onSubmit} onCancel={onSuccess} />;
+    return <CompactForm form={form} mode={mode} properties={properties} nights={nights} isPending={isPending} disabledDates={disabledDates} onSubmit={onSubmit} onCancel={onSuccess} />;
   }
 
-  return <FullForm form={form} mode={mode} properties={properties} nights={nights} isPending={isPending} onSubmit={onSubmit} onCancel={onSuccess || (() => router.back())} />;
+  return <FullForm form={form} mode={mode} properties={properties} nights={nights} isPending={isPending} disabledDates={disabledDates} onSubmit={onSubmit} onCancel={onSuccess || (() => router.back())} />;
 }
 
 // ============================================================
@@ -204,7 +225,11 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess, comp
 
 const compactInput = "h-9 border border-gray-300";
 
-function CompactForm({ form, mode, properties, nights, isPending, onSubmit, onCancel }: FormLayoutProps) {
+function CompactForm({ form, mode, properties, nights, isPending, disabledDates, onSubmit, onCancel }: FormLayoutProps) {
+  // Cross-reference: each picker opens to the other field's month if its own value is empty
+  const checkInDateValue = parseDateStr(form.watch('checkInDate'));
+  const checkOutDateValue = parseDateStr(form.watch('checkOutDate'));
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -250,7 +275,7 @@ function CompactForm({ form, mode, properties, nights, isPending, onSubmit, onCa
           <FormField control={form.control} name="checkInDate" render={({ field }) => (
             <FormItem className="flex flex-col">
               <FormLabel className="text-xs">Check-in</FormLabel>
-              <DatePickerField value={field.value} onChange={field.onChange} compact />
+              <DatePickerField value={field.value} onChange={field.onChange} compact disabledDates={disabledDates} defaultMonth={checkOutDateValue} />
               <FormMessage />
             </FormItem>
           )} />
@@ -259,7 +284,7 @@ function CompactForm({ form, mode, properties, nights, isPending, onSubmit, onCa
               <FormLabel className="text-xs">
                 Check-out {nights > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0">{nights}n</Badge>}
               </FormLabel>
-              <DatePickerField value={field.value} onChange={field.onChange} compact />
+              <DatePickerField value={field.value} onChange={field.onChange} compact disabledDates={disabledDates} defaultMonth={checkInDateValue} />
               <FormMessage />
             </FormItem>
           )} />
@@ -395,11 +420,16 @@ interface FormLayoutProps {
   properties: Array<{ id: string; name: string; currency: string }>;
   nights: number;
   isPending: boolean;
+  disabledDates: Date[];
   onSubmit: (values: FormValues) => void;
   onCancel?: () => void;
 }
 
-function FullForm({ form, mode, properties, nights, isPending, onSubmit, onCancel }: FormLayoutProps) {
+function FullForm({ form, mode, properties, nights, isPending, disabledDates, onSubmit, onCancel }: FormLayoutProps) {
+  // Cross-reference: each picker opens to the other field's month if its own value is empty
+  const checkInDateValue = parseDateStr(form.watch('checkInDate'));
+  const checkOutDateValue = parseDateStr(form.watch('checkOutDate'));
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -459,7 +489,7 @@ function FullForm({ form, mode, properties, nights, isPending, onSubmit, onCance
             <FormField control={form.control} name="checkInDate" render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Check-in</FormLabel>
-                <DatePickerField value={field.value} onChange={field.onChange} />
+                <DatePickerField value={field.value} onChange={field.onChange} disabledDates={disabledDates} defaultMonth={checkOutDateValue} />
                 <FormMessage />
               </FormItem>
             )} />
@@ -467,7 +497,7 @@ function FullForm({ form, mode, properties, nights, isPending, onSubmit, onCance
             <FormField control={form.control} name="checkOutDate" render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Check-out</FormLabel>
-                <DatePickerField value={field.value} onChange={field.onChange} />
+                <DatePickerField value={field.value} onChange={field.onChange} disabledDates={disabledDates} defaultMonth={checkInDateValue} />
                 <FormMessage />
               </FormItem>
             )} />
@@ -665,9 +695,45 @@ function CountryField({ form, compact }: { form: ReturnType<typeof useForm<FormV
 
 /**
  * Date picker field using Calendar + Popover.
+ *
+ * `disabledDates`, when provided, disables those days in the calendar (matching by
+ * Bucharest-local YYYY-MM-DD).
+ *
+ * `defaultMonth`, when provided AND the field has no value yet, controls which month the
+ * calendar opens to. Lets check-out follow check-in (and vice versa).
  */
-function DatePickerField({ value, onChange, compact }: { value: string; onChange: (val: string) => void; compact?: boolean }) {
+function DatePickerField({
+  value,
+  onChange,
+  compact,
+  disabledDates,
+  defaultMonth,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  compact?: boolean;
+  disabledDates?: Date[];
+  defaultMonth?: Date;
+}) {
   const date = parseDateStr(value);
+
+  // Build a Set<"YYYY-MM-DD"> for O(1) lookup, matched by the calendar day's UTC components
+  // (react-day-picker passes Date objects representing midnight in the user's local TZ; we
+  // compare only on year/month/day, ignoring time of day).
+  const disabledSet = React.useMemo(() => {
+    if (!disabledDates || disabledDates.length === 0) return null;
+    const s = new Set<string>();
+    for (const d of disabledDates) {
+      s.add(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`);
+    }
+    return s;
+  }, [disabledDates]);
+
+  const matchDisabled = React.useCallback((d: Date) => {
+    if (!disabledSet) return false;
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return disabledSet.has(key);
+  }, [disabledSet]);
 
   return (
     <Popover modal>
@@ -686,6 +752,8 @@ function DatePickerField({ value, onChange, compact }: { value: string; onChange
           mode="single"
           selected={date}
           onSelect={(d) => { if (d) onChange(format(d, 'yyyy-MM-dd')); }}
+          disabled={disabledSet ? matchDisabled : undefined}
+          defaultMonth={date || defaultMonth}
           initialFocus
         />
       </PopoverContent>

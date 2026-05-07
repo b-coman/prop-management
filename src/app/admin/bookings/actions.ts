@@ -103,6 +103,78 @@ export async function fetchBookingById(bookingId: string): Promise<Booking | nul
 }
 
 /**
+ * Returns Bucharest-local date strings (YYYY-MM-DD) where the property's availability map
+ * is unavailable, for use as `disabled` dates in admin date-pickers. Looks at availability
+ * docs from the current month forward (12 months by default). Optionally excludes the days
+ * occupied by `excludeBookingId` so an edit form doesn't disable its own dates.
+ */
+export async function fetchUnavailableDateStrings(
+  propertyId: string,
+  monthsAhead: number = 12,
+  excludeBookingId?: string,
+): Promise<string[]> {
+  try {
+    await requirePropertyAccess(propertyId);
+    const db = await getAdminDb();
+
+    // Build the list of YYYY-MM keys we care about
+    const now = new Date();
+    const months: string[] = [];
+    for (let i = 0; i < monthsAhead; i++) {
+      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + i, 1));
+      months.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`);
+    }
+
+    // Read all relevant availability docs in parallel
+    const docIds = months.map(m => `${propertyId}_${m}`);
+    const docs = await Promise.all(
+      docIds.map(id => db.collection('availability').doc(id).get())
+    );
+
+    const unavailable: string[] = [];
+    for (const doc of docs) {
+      if (!doc.exists) continue;
+      const data = doc.data()!;
+      const month = doc.id.substring(propertyId.length + 1); // YYYY-MM
+      const available = (data.available || {}) as Record<string, boolean>;
+      for (const [dayStr, isAvailable] of Object.entries(available)) {
+        if (isAvailable === false) {
+          unavailable.push(`${month}-${dayStr.padStart(2, '0')}`);
+        }
+      }
+    }
+
+    // Exclude the booking's own days so an edit can shift them
+    if (excludeBookingId) {
+      const bookingDoc = await db.collection('bookings').doc(excludeBookingId).get();
+      if (bookingDoc.exists) {
+        const data = bookingDoc.data()!;
+        const ci = toDate(data.checkInDate);
+        const co = toDate(data.checkOutDate);
+        if (ci && co) {
+          const ownDays = new Set<string>();
+          // Walk the booking's Bucharest-local stay days
+          const startStr = formatBucharestDate(ci);
+          const endStr = formatBucharestDate(co);
+          let cur = new Date(`${startStr}T12:00:00Z`);
+          while (formatBucharestDate(cur) < endStr) {
+            ownDays.add(formatBucharestDate(cur));
+            cur = new Date(cur.getTime() + 86400000);
+          }
+          return unavailable.filter(d => !ownDays.has(d));
+        }
+      }
+    }
+
+    return unavailable;
+  } catch (error) {
+    if (error instanceof AuthorizationError) return [];
+    logger.error('Error fetching unavailable dates', error as Error, { propertyId });
+    return [];
+  }
+}
+
+/**
  * Fetches all bookings from the Firestore collection, ordered by creation date.
  * Filters results based on user's property access.
  * @returns A promise that resolves to an array of Booking objects with serialized dates.

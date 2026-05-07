@@ -1,9 +1,11 @@
 'use client';
 
+import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { AvailabilityDayData } from '../_lib/availability-types';
-import { CalendarDays, Globe, LogOut, User } from 'lucide-react';
+import { CalendarDays, Eye, Globe, LogOut, User } from 'lucide-react';
 
 interface DayDetailPopoverProps {
   dayData: AvailabilityDayData;
@@ -19,7 +21,9 @@ const statusBadgeVariant: Record<string, 'default' | 'secondary' | 'destructive'
 };
 
 export function DayDetailPopover({ dayData, children, open, onOpenChange }: DayDetailPopoverProps) {
-  const { status, bookingDetails, externalFeedName, checkoutBooking } = dayData;
+  const { status, bookingId, bookingDetails, externalFeedName, checkoutBooking } = dayData;
+  // Prefer the active stay's bookingId; fall back to the checkout-only case.
+  const linkBookingId = bookingId || checkoutBooking?.bookingId;
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -72,6 +76,17 @@ export function DayDetailPopover({ dayData, children, open, onOpenChange }: DayD
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {linkBookingId && (
+          <div className={(status === 'booked' || status === 'on-hold' || checkoutBooking) ? 'mt-3 pt-3 border-t' : ''}>
+            <Button variant="outline" size="sm" className="w-full" asChild>
+              <Link href={`/admin/bookings/${linkBookingId}`}>
+                <Eye className="h-3.5 w-3.5 mr-2" />
+                View full booking
+              </Link>
+            </Button>
           </div>
         )}
 
