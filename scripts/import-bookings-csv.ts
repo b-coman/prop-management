@@ -12,6 +12,7 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as admin from 'firebase-admin';
+import { propertyDateAt } from '../src/lib/dates/property-times';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
@@ -130,10 +131,17 @@ function parseEarning(raw: string): number {
 }
 
 function parseCSVDate(raw: string): Date | null {
+  const parts = parseCSVDateParts(raw);
+  if (!parts) return null;
+  // For sorting and "isFuture" comparisons only — uses noon UTC anchor to avoid TZ drift.
+  return new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 12, 0, 0));
+}
+
+function parseCSVDateParts(raw: string): { year: number; month: number; day: number } | null {
   if (!raw || !raw.trim()) return null;
   const months: Record<string, number> = {
-    Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
-    Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
+    Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6,
+    Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12,
   };
   const parts = raw.trim().split('-');
   if (parts.length !== 3) return null;
@@ -141,7 +149,13 @@ function parseCSVDate(raw: string): Date | null {
   const month = months[parts[1]];
   const yearShort = parseInt(parts[2], 10);
   if (isNaN(day) || month === undefined || isNaN(yearShort)) return null;
-  return new Date(2000 + yearShort, month, day);
+  return { year: 2000 + yearShort, month, day };
+}
+
+function parseCSVDateStr(raw: string): string | null {
+  const p = parseCSVDateParts(raw);
+  if (!p) return null;
+  return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
 }
 
 function mapSource(csvSource: string): string {
@@ -423,12 +437,15 @@ async function main() {
     let guestId: string | null = null;
 
     for (const row of group.rows) {
-      const checkInDate = parseCSVDate(row.checkIn);
-      const checkOutDate = parseCSVDate(row.checkOut);
-      if (!checkInDate || !checkOutDate) {
+      const checkInStr = parseCSVDateStr(row.checkIn);
+      const checkOutStr = parseCSVDateStr(row.checkOut);
+      if (!checkInStr || !checkOutStr) {
         console.error(`  Skipping row with invalid dates: ${row.guestName} ${row.checkIn}-${row.checkOut}`);
         continue;
       }
+      // Apply property's check-in / check-out times so we store real-time Timestamps.
+      const checkInDate = propertyDateAt(propertyData, checkInStr, 'checkin');
+      const checkOutDate = propertyDateAt(propertyData, checkOutStr, 'checkout');
 
       const { firstName, lastName } = parseName(row.guestName);
       const normalized = normalizePhone(row.contact);

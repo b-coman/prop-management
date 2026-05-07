@@ -28,6 +28,13 @@ import { differenceInCalendarDays, eachDayOfInterval, format, parse, subDays, st
 import { sanitizeEmail, sanitizePhone, sanitizeText } from '@/lib/sanitize';
 import { revalidatePath } from 'next/cache'; // Import for revalidating cached data
 import { loggers } from '@/lib/logger';
+import {
+  propertyDateAt,
+  formatBucharestDate,
+  getBucharestDay,
+  getBucharestMonth,
+  iterateBucharestStayDays,
+} from '@/lib/dates/property-times';
 
 const logger = loggers.booking;
 
@@ -251,8 +258,19 @@ export async function createBooking(rawBookingData: CreateBookingData): Promise<
      logger.debug('Transforming data for Firestore', { paymentIntentId });
      const bookingsCollection = collection(db, 'bookings');
 
-     const checkInDate = new Date(bookingData.checkInDate);
-     const checkOutDate = new Date(bookingData.checkOutDate);
+     // Apply property's check-in / check-out times to the date strings so we store real-time
+     // Timestamps (e.g., 14:00 / 11:00 Bucharest) instead of midnight. This eliminates the
+     // cross-convention validator misfires.
+     const propertyRef = doc(db, 'properties', bookingData.propertyId);
+     const propertySnap = await getDoc(propertyRef);
+     const property = propertySnap.exists() ? propertySnap.data() : null;
+
+     // bookingData.checkInDate is either an ISO date "YYYY-MM-DD" (from Stripe metadata) or a
+     // full ISO timestamp string. Normalize to Bucharest local date string before applying hours.
+     const checkInDateStr = formatBucharestDate(new Date(bookingData.checkInDate));
+     const checkOutDateStr = formatBucharestDate(new Date(bookingData.checkOutDate));
+     const checkInDate = propertyDateAt(property, checkInDateStr, 'checkin');
+     const checkOutDate = propertyDateAt(property, checkOutDateStr, 'checkout');
      const checkInTimestamp = ClientTimestamp.fromDate(checkInDate);
      const checkOutTimestamp = ClientTimestamp.fromDate(checkOutDate);
 
@@ -573,28 +591,25 @@ export async function updatePropertyAvailability(
      return;
   }
 
-  const start = startOfDay(checkInDate);
-  const end = startOfDay(subDays(checkOutDate, 1)); // Availability is stored per booked night
-  const datesToUpdate = eachDayOfInterval({ start, end });
-
-  if (datesToUpdate.length === 0) {
-       logger.debug('No dates in interval');
-       return;
-  }
-
-  // Group updates by month (YYYY-MM)
+  // Iterate Bucharest-local calendar days the stay covers (not UTC days, not server-local).
+  // This is convention-agnostic: works whether checkInDate / checkOutDate are stored as
+  // real-time, UTC-midnight, or Bucharest-local-midnight.
   const updatesByMonth: { [month: string]: { daysToUpdate: { [day: number]: boolean }, holdsToUpdate: { [day: number]: string | null } } } = {};
 
-  datesToUpdate.forEach(date => {
-    const monthStr = format(date, 'yyyy-MM');
-    const dayOfMonth = date.getUTCDate(); // Use UTC day
-    if (!updatesByMonth[monthStr]) {
-      updatesByMonth[monthStr] = { daysToUpdate: {}, holdsToUpdate: {} };
+  let dayCount = 0;
+  for (const { day, monthKey } of iterateBucharestStayDays(checkInDate, checkOutDate)) {
+    if (!updatesByMonth[monthKey]) {
+      updatesByMonth[monthKey] = { daysToUpdate: {}, holdsToUpdate: {} };
     }
-    updatesByMonth[monthStr].daysToUpdate[dayOfMonth] = available; // Set availability status
-    // If marking as unavailable due to a hold, record the hold ID; otherwise, clear any existing hold ID
-    updatesByMonth[monthStr].holdsToUpdate[dayOfMonth] = !available && holdBookingId ? holdBookingId : null;
-  });
+    updatesByMonth[monthKey].daysToUpdate[day] = available;
+    updatesByMonth[monthKey].holdsToUpdate[day] = !available && holdBookingId ? holdBookingId : null;
+    dayCount++;
+  }
+
+  if (dayCount === 0) {
+    logger.debug('No dates in interval');
+    return;
+  }
 
   const batch = clientWriteBatch(db);
   const availabilityCollection = collection(db, 'availability');

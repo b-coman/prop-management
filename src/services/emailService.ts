@@ -3,6 +3,7 @@
 import nodemailer from 'nodemailer';
 import { Resend } from 'resend';
 import { format } from 'date-fns';
+import { formatBucharestDateTime } from '@/lib/dates/property-times';
 import type { Booking, Property, Inquiry, LanguageCode } from '@/types';
 import { getPropertyBySlug } from '@/lib/property-utils';
 import {
@@ -141,12 +142,12 @@ async function sendEmail(
   return sendWithNodemailer(to, subject, text, html, from);
 }
 
-// Format dates for display
+// Format dates for display in Europe/Bucharest TZ (independent of server TZ).
 function formatDate(date: any): string {
   if (!date) return 'N/A';
   try {
     const dateObj = date instanceof Date ? date : new Date(date);
-    return format(dateObj, 'PPP');
+    return formatBucharestDateTime(dateObj, 'PPP');
   } catch (e) {
     return 'Invalid date';
   }

@@ -11,6 +11,7 @@ import type { ICalFeed, SerializableTimestamp } from '@/types';
 import type { MonthAvailabilityData, AvailabilityDayData, DayStatus } from './_lib/availability-types';
 import { fetchAndParseICalFeed, syncFeedToAvailability } from '@/lib/ical/ical-import';
 import { getDaysInMonth, parseISO } from 'date-fns';
+import { formatBucharestDate, iterateBucharestStayDays } from '@/lib/dates/property-times';
 
 const logger = loggers.icalSync;
 const availLogger = loggers.availability;
@@ -369,6 +370,21 @@ const toDate = (timestamp: SerializableTimestamp | undefined | null): Date | nul
   return null;
 };
 
+function prevMonthKey(year: number, month: number): string {
+  if (month === 1) return `${year - 1}-12`;
+  return `${year}-${String(month - 1).padStart(2, '0')}`;
+}
+
+function nextMonthKey(year: number, month: number): string {
+  if (month === 12) return `${year + 1}-01`;
+  return `${year}-${String(month + 1).padStart(2, '0')}`;
+}
+
+function prevMonthLastDay(year: number, month: number): number {
+  // Day 0 of month m equals last day of month m-1
+  return new Date(Date.UTC(year, month - 1, 0)).getUTCDate();
+}
+
 export async function fetchAvailabilityCalendarData(
   propertyId: string,
   yearMonth: string
@@ -414,21 +430,22 @@ export async function fetchAvailabilityCalendarData(
     const guestName = [data.guestInfo?.firstName, data.guestInfo?.lastName].filter(Boolean).join(' ') || 'Unknown';
     const holdUntilDate = toDate(data.holdUntil);
 
-    // Mark each occupied day in this month
-    for (let d = 1; d <= daysInMonth; d++) {
-      const dayDate = new Date(year, month - 1, d);
-      // A booking occupies the night of checkIn through the night before checkOut
-      if (dayDate >= checkIn && dayDate < checkOut) {
-        bookingsByDay[d] = {
-          id: doc.id,
-          guestName,
-          checkIn: checkIn.toISOString().split('T')[0],
-          checkOut: checkOut.toISOString().split('T')[0],
-          source: data.source,
-          status: data.status,
-          holdUntil: holdUntilDate ? holdUntilDate.toISOString() : undefined,
-        };
-      }
+    // Compute the Bucharest-local calendar days the stay covers (convention-agnostic).
+    const stayDays = new Set<number>();
+    for (const { day, monthKey } of iterateBucharestStayDays(checkIn, checkOut)) {
+      if (monthKey === yearMonth) stayDays.add(day);
+    }
+
+    for (const d of stayDays) {
+      bookingsByDay[d] = {
+        id: doc.id,
+        guestName,
+        checkIn: formatBucharestDate(checkIn),
+        checkOut: formatBucharestDate(checkOut),
+        source: data.source,
+        status: data.status,
+        holdUntil: holdUntilDate ? holdUntilDate.toISOString() : undefined,
+      };
     }
   }
 
@@ -500,66 +517,71 @@ export async function fetchAvailabilityCalendarData(
     days[d] = dayData;
   }
 
-  // Build booking raw Date lookup for timezone-safe comparisons
-  const bookingDates: Record<string, { checkIn: Date; checkOut: Date }> = {};
+  // Build full Bucharest-local stay-days map per booking (across ALL months it spans).
+  const bookingStayDays: Record<string, Set<string>> = {}; // bookingId → set of "YYYY-MM:dd"
   for (const doc of bookingsSnapshot.docs) {
     const ci = toDate(doc.data().checkInDate);
     const co = toDate(doc.data().checkOutDate);
-    if (ci && co) bookingDates[doc.id] = { checkIn: ci, checkOut: co };
+    if (!ci || !co) continue;
+    const set = new Set<string>();
+    for (const { day, monthKey } of iterateBucharestStayDays(ci, co)) {
+      set.add(`${monthKey}:${day}`);
+    }
+    bookingStayDays[doc.id] = set;
   }
 
-  // Compute booking bar positions using Date comparisons (timezone-safe)
+  // Compute booking bar positions (Bucharest-local, convention-agnostic)
   for (let d = 1; d <= daysInMonth; d++) {
     const dayEntry = days[d];
     if (!dayEntry) continue;
     if (dayEntry.status !== 'booked' && dayEntry.status !== 'on-hold') continue;
-    if (!dayEntry.bookingId || !bookingDates[dayEntry.bookingId]) continue;
+    if (!dayEntry.bookingId) continue;
+    const stay = bookingStayDays[dayEntry.bookingId];
+    if (!stay) continue;
 
-    const { checkIn, checkOut } = bookingDates[dayEntry.bookingId];
-    const prevDay = new Date(year, month - 1, d - 1);
-    const nextDay = new Date(year, month - 1, d + 1);
+    const monthKey = yearMonth;
+    const prevKey = d > 1
+      ? `${monthKey}:${d - 1}`
+      : `${prevMonthKey(year, month)}:${prevMonthLastDay(year, month)}`;
+    const nextKey = d < daysInMonth
+      ? `${monthKey}:${d + 1}`
+      : `${nextMonthKey(year, month)}:1`;
 
-    // Previous day is booked by same booking?
-    const prevBooked = prevDay >= checkIn && prevDay < checkOut;
-    // Next day is booked by same booking?
-    const nextBooked = nextDay >= checkIn && nextDay < checkOut;
+    const prevBooked = stay.has(prevKey);
+    const nextBooked = stay.has(nextKey);
 
-    if (!prevBooked && !nextBooked) {
-      dayEntry.bookingPosition = 'single';
-    } else if (!prevBooked) {
-      dayEntry.bookingPosition = 'start';
-    } else if (!nextBooked) {
-      dayEntry.bookingPosition = 'end';
-    } else {
-      dayEntry.bookingPosition = 'middle';
-    }
+    if (!prevBooked && !nextBooked) dayEntry.bookingPosition = 'single';
+    else if (!prevBooked) dayEntry.bookingPosition = 'start';
+    else if (!nextBooked) dayEntry.bookingPosition = 'end';
+    else dayEntry.bookingPosition = 'middle';
   }
 
-  // Compute checkout tails using Date comparisons (timezone-safe)
+  // Compute checkout tails (the day AFTER the last stay night, in this month)
   for (const doc of bookingsSnapshot.docs) {
-    const dates = bookingDates[doc.id];
-    if (!dates) continue;
-    const { checkIn, checkOut } = dates;
+    const stay = bookingStayDays[doc.id];
+    if (!stay) continue;
 
-    // Find checkout day: first day d in this month where dayDate >= checkOut
-    let checkoutDayNum = -1;
+    // Find the highest day in this month that's in the stay
+    let lastDayInMonth = 0;
     for (let d = 1; d <= daysInMonth; d++) {
-      if (new Date(year, month - 1, d).getTime() >= checkOut.getTime()) {
-        checkoutDayNum = d;
-        break;
-      }
+      if (stay.has(`${yearMonth}:${d}`)) lastDayInMonth = d;
     }
-    if (checkoutDayNum < 1) continue;
+    if (lastDayInMonth === 0) continue; // no stay nights in this month
 
-    // Verify the night before checkout belongs to this booking
-    const prevNight = new Date(year, month - 1, checkoutDayNum - 1);
-    if (prevNight < checkIn || prevNight >= checkOut) continue;
+    // Checkout day is lastDayInMonth + 1 — but only if the booking actually ends here
+    // (i.e., next day is NOT in the stay — meaning there's no further booked night anywhere).
+    const nextKey = lastDayInMonth < daysInMonth
+      ? `${yearMonth}:${lastDayInMonth + 1}`
+      : `${nextMonthKey(year, month)}:1`;
+    if (stay.has(nextKey)) continue; // booking continues — no checkout tail in this month
+
+    const checkoutDayNum = lastDayInMonth + 1;
+    if (checkoutDayNum > daysInMonth) continue; // checkout falls in next month
 
     const data = doc.data();
     const guestName = [data.guestInfo?.firstName, data.guestInfo?.lastName].filter(Boolean).join(' ') || 'Unknown';
     const barColor = data.status === 'on-hold' ? 'amber' as const : 'emerald' as const;
 
-    // Set checkout tail (even on back-to-back days — renderer handles both)
     if (days[checkoutDayNum]) {
       days[checkoutDayNum].checkoutBooking = {
         bookingId: doc.id,

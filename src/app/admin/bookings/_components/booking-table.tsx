@@ -17,6 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Eye, Ban, CheckCheck, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { format, parseISO, formatDistanceToNow, isPast, differenceInCalendarDays } from 'date-fns';
+import { formatBucharestDateTime } from '@/lib/dates/property-times';
 import { cn } from '@/lib/utils';
 import { ExtendHoldDialog } from './extend-hold-dialog';
 import { CancelHoldButton } from './cancel-hold-button';
@@ -51,12 +52,13 @@ const SOURCE_LABELS: Record<string, string> = {
   'stripe': 'Stripe',
 };
 
-/** Format a date compactly: "Jun 26" for current year, "Jun 26, 2027" otherwise */
+/** Format a date compactly: "Jun 26" for current year, "Jun 26, 2027" otherwise.
+ *  Always interprets the timestamp in Europe/Bucharest. */
 function formatDateCompact(date: Date): string {
   const currentYear = new Date().getFullYear();
   return date.getFullYear() === currentYear
-    ? format(date, 'MMM d')
-    : format(date, 'MMM d, y');
+    ? formatBucharestDateTime(date, 'MMM d')
+    : formatBucharestDateTime(date, 'MMM d, y');
 }
 
 /** Format guest count: "2 guests" or "2 adults, 1 child" */

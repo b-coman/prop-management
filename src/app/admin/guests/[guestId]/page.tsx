@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
+import { formatBucharestDateTime } from '@/lib/dates/property-times';
 import { AdminPage } from '@/components/admin/AdminPage';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -41,7 +42,7 @@ const parseDateSafe = (dateStr: SerializableTimestamp | null | undefined): Date 
 const formatDateSafe = (dateStr: SerializableTimestamp | null | undefined): string => {
   const d = parseDateSafe(dateStr);
   if (!d || isNaN(d.getTime())) return '-';
-  return format(d, 'MMM d, yyyy');
+  return formatBucharestDateTime(d, 'MMM d, yyyy');
 };
 
 const formatCurrency = (amount: number, currency: string): string => {

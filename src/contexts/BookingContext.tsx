@@ -20,6 +20,7 @@ type BookingFlowStatus = 'initial' | 'dates_selected' | 'checking' | 'available'
 
 // Import required services for API pricing and availability
 import { getPricingForDateRange, getUnavailableDatesForProperty } from '@/services/availabilityService';
+import { formatBucharestDate, iterateBucharestStayDays } from '@/lib/dates/property-times';
 // Removed - error messages now handled with translation system
 
 // Define interface for centralized pricing state
@@ -862,23 +863,16 @@ export const BookingProvider: React.FC<BookingProviderProps> = ({
           logger.info('Pricing fetched', { requestId, total: pricingResult.total });
         }
 
-        // Check availability for the selected dates
-        let current = new Date(checkInDate.getTime());
+        // Check availability using Bucharest-local calendar dates (convention-agnostic).
+        const unavailableSet = new Set(unavailableDatesResult.map(d => formatBucharestDate(d)));
         let conflict = false;
-
-        while (current < checkOutDate) {
-          const currentDateStr = current.toISOString().split('T')[0];
-          const isUnavailable = unavailableDatesResult.some(d =>
-            d.toISOString().split('T')[0] === currentDateStr
-          );
-
-          if (isUnavailable) {
-            logger.debug('Conflict found on date', { requestId, date: currentDateStr });
+        for (const { day, monthKey } of iterateBucharestStayDays(checkInDate, checkOutDate)) {
+          const dateStr = `${monthKey}-${String(day).padStart(2, '0')}`;
+          if (unavailableSet.has(dateStr)) {
+            logger.debug('Conflict found on date', { requestId, date: dateStr });
             conflict = true;
             break;
           }
-
-          current.setDate(current.getDate() + 1);
         }
 
         availabilityResult = !conflict;

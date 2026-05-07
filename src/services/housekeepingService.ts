@@ -3,6 +3,7 @@
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { Timestamp as AdminTimestamp } from 'firebase-admin/firestore';
 import { loggers } from '@/lib/logger';
+import { formatBucharestDate } from '@/lib/dates/property-times';
 import type { HousekeepingContact, HousekeepingMessage } from '@/types';
 import type { WhatsAppTemplateName } from '@/services/whatsappService';
 
@@ -50,9 +51,9 @@ function parseFirestoreDate(raw: unknown): Date | null {
 }
 
 function formatDD_MM(date: Date): string {
-  const d = date.getDate().toString().padStart(2, '0');
-  const m = (date.getMonth() + 1).toString().padStart(2, '0');
-  return `${d}.${m}`;
+  // Always render in Europe/Bucharest, regardless of server TZ.
+  const iso = formatBucharestDate(date); // "YYYY-MM-DD"
+  return `${iso.slice(8, 10)}.${iso.slice(5, 7)}`;
 }
 
 const ROMANIAN_MONTHS = [

@@ -11,6 +11,7 @@ import { revalidatePath } from "next/cache";
 import { addHours, parseISO, isValid, differenceInCalendarDays } from 'date-fns';
 import { loggers } from '@/lib/logger';
 import { normalizeCountryCode } from '@/lib/country-utils';
+import { propertyDateAt, formatBucharestDate, formatBucharestDateTime } from '@/lib/dates/property-times';
 import {
   requireAdmin,
   requirePropertyAccess,
@@ -434,8 +435,22 @@ export async function createExternalBookingAction(
     await requireAdmin();
     await requirePropertyAccess(data.propertyId);
 
-    const checkIn = parseISO(data.checkInDate);
-    const checkOut = parseISO(data.checkOutDate);
+    const db = await getAdminDb();
+
+    // Load property to apply its check-in / check-out times to the date inputs.
+    // This produces real-time Timestamps (e.g. 14:00 / 11:00 Bucharest) instead of midnight,
+    // eliminating the cross-convention overlap bug in checkAvailabilityForDates.
+    const propertyDoc = await db.collection('properties').doc(data.propertyId).get();
+    const property = propertyDoc.exists ? propertyDoc.data() : null;
+
+    let checkIn: Date;
+    let checkOut: Date;
+    try {
+      checkIn = propertyDateAt(property, data.checkInDate, 'checkin');
+      checkOut = propertyDateAt(property, data.checkOutDate, 'checkout');
+    } catch {
+      return { success: false, error: 'Check-in / check-out dates must be YYYY-MM-DD.' };
+    }
     if (!isValid(checkIn) || !isValid(checkOut) || checkOut <= checkIn) {
       return { success: false, error: 'Check-out must be after check-in.' };
     }
@@ -446,7 +461,6 @@ export async function createExternalBookingAction(
     }
 
     // Check availability (excluding external blocks which we'll override)
-    const db = await getAdminDb();
     const conflict = await checkAvailabilityForDates(db, data.propertyId, checkIn, checkOut);
     if (conflict) {
       return { success: false, error: conflict };
@@ -585,8 +599,17 @@ export async function editBookingAction(
 
     const existing = bookingSnap.data()!;
 
-    const newCheckIn = parseISO(data.checkInDate);
-    const newCheckOut = parseISO(data.checkOutDate);
+    // Apply property check-in / check-out times to the date inputs (real-time storage).
+    const propertyDoc = await db.collection('properties').doc(data.propertyId).get();
+    const property = propertyDoc.exists ? propertyDoc.data() : null;
+    let newCheckIn: Date;
+    let newCheckOut: Date;
+    try {
+      newCheckIn = propertyDateAt(property, data.checkInDate, 'checkin');
+      newCheckOut = propertyDateAt(property, data.checkOutDate, 'checkout');
+    } catch {
+      return { success: false, error: 'Check-in / check-out dates must be YYYY-MM-DD.' };
+    }
     if (!isValid(newCheckIn) || !isValid(newCheckOut) || newCheckOut <= newCheckIn) {
       return { success: false, error: 'Check-out must be after check-in.' };
     }
@@ -801,10 +824,18 @@ async function checkAvailabilityForDates(
     const existingCheckOut = toDate(data.checkOutDate);
     if (!existingCheckIn || !existingCheckOut) continue;
 
-    // Overlap: new check-in < existing check-out AND new check-out > existing check-in
-    if (checkIn < existingCheckOut && checkOut > existingCheckIn) {
+    // Compare Bucharest-local calendar dates (NOT absolute timestamps). This is convention-
+    // agnostic: works for both real-time-stored bookings and legacy midnight bookings, where
+    // strict `<`/`>` on Date objects would misfire across storage conventions.
+    const newInStr = formatBucharestDate(checkIn);
+    const newOutStr = formatBucharestDate(checkOut);
+    const existingInStr = formatBucharestDate(existingCheckIn);
+    const existingOutStr = formatBucharestDate(existingCheckOut);
+    if (newInStr < existingOutStr && newOutStr > existingInStr) {
       const guestName = [data.guestInfo?.firstName, data.guestInfo?.lastName].filter(Boolean).join(' ') || doc.id.substring(0, 8);
-      return `Dates overlap with existing booking (${guestName}, ${existingCheckIn.toLocaleDateString()} - ${existingCheckOut.toLocaleDateString()}).`;
+      const inStr = formatBucharestDateTime(existingCheckIn, 'PP');
+      const outStr = formatBucharestDateTime(existingCheckOut, 'PP');
+      return `Dates overlap with existing booking (${guestName}, ${inStr} - ${outStr}).`;
     }
   }
 
