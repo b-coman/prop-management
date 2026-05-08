@@ -198,11 +198,10 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess, comp
   }, [watchPropertyId, mode, booking?.id]);
 
   const onSubmit = (values: FormValues) => {
-    // Compute total from breakdown so all three fields stay consistent
-    const submitValues: FormValues = {
-      ...values,
-      numberOfGuests: (values.numberOfAdults || 1) + (values.numberOfChildren || 0),
-    };
+    // Compute total from breakdown so all three fields stay consistent.
+    // Explicit `numberOfGuests: number` ensures the action's required-number constraint is met.
+    const numberOfGuests = (values.numberOfAdults || 1) + (values.numberOfChildren || 0);
+    const submitValues = { ...values, numberOfGuests };
     startTransition(async () => {
       if (mode === 'create') {
         const result = await createExternalBookingAction(submitValues);
