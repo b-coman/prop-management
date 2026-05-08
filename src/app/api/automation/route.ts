@@ -73,6 +73,7 @@ interface BookingDoc {
   numberOfAdults?: number;
   numberOfChildren?: number;
   status?: string;
+  notes?: string;
   checkInDate?: { toDate?: () => Date; _seconds?: number } | Date | string;
   checkOutDate?: { toDate?: () => Date; _seconds?: number } | Date | string;
 }
@@ -211,11 +212,15 @@ function monthlyReservationsText(bookings: BookingDoc[], now = new Date()): stri
   return `${departureText}${otherReservationsText}${lines.join('\n')}`;
 }
 
+function appendCalendarLink(text: string, calUrl?: string): string {
+  if (!calUrl) return text;
+  return `${text}\n\nAveti aici calendarul complet: ${calUrl}`;
+}
+
 async function monthlyReservations(propertyId: string, calUrl?: string): Promise<NextResponse> {
   const bookings = await loadActiveBookings(propertyId);
   const text = monthlyReservationsText(bookings);
-  const withUrl = calUrl ? `${text}\n\n${calUrl}` : text;
-  return new NextResponse(withUrl, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+  return new NextResponse(appendCalendarLink(text, calUrl), { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 }
 
 // ============================================================
@@ -289,20 +294,117 @@ async function dailyCheck(propertyId: string, calUrl?: string): Promise<NextResp
 // changedReservations
 // ============================================================
 
+// Per-booking snapshot record. Stored in automationState/{propertyId}.lastSnapshot.
+interface BookingRecord {
+  id: string;
+  status: string;
+  guestName: string;
+  checkIn: string;   // YYYY-MM-DD Bucharest
+  checkOut: string;  // YYYY-MM-DD Bucharest
+  adults: number;
+  children: number;
+  persons: number;
+  notes: string;
+}
+
 interface AutomationState {
-  // Set of identity strings for bookings whose check-in is in the current Bucharest month.
-  // Format: "<id>|<status>|<checkInDate-Bucharest>|<checkOutDate-Bucharest>"
-  // Captures status changes (cancel) and date changes too.
-  lastSnapshot?: string[];
-  lastSnapshotMonth?: string; // YYYY-MM — when this changes, treat as fresh init
+  lastSnapshot?: BookingRecord[];
+  lastSnapshotMonth?: string;
   lastUpdatedAt?: FirebaseFirestore.Timestamp;
 }
 
-function snapshotKey(b: BookingDoc): string | null {
+function buildBookingRecord(b: BookingDoc): BookingRecord | null {
   const ci = toDate(b.checkInDate);
   const co = toDate(b.checkOutDate);
   if (!ci || !co) return null;
-  return `${b.id}|${b.status || ''}|${formatBucharestDate(ci)}|${formatBucharestDate(co)}`;
+  return {
+    id: b.id,
+    status: b.status || '',
+    guestName: guestName(b),
+    checkIn: formatBucharestDate(ci),
+    checkOut: formatBucharestDate(co),
+    adults: adultsOf(b),
+    children: childrenOf(b),
+    persons: b.numberOfGuests || 0,
+    notes: (b.notes || '').trim(),
+  };
+}
+
+// ---- Romanian formatting helpers ----
+
+function ddMMfromYmd(ymd: string): string {
+  return `${ymd.slice(8, 10)}.${ymd.slice(5, 7)}`;
+}
+
+function personsLabel(adults: number, children: number): string {
+  const a = Math.max(adults, 1);
+  const adultWord = a === 1 ? 'adult' : 'adulti';
+  if (children <= 0) return `${a} ${adultWord}`;
+  const childWord = children === 1 ? 'copil' : 'copii';
+  return `${a} ${adultWord} + ${children} ${childWord}`;
+}
+
+function rangeLabel(r: BookingRecord): string {
+  return `${ddMMfromYmd(r.checkIn)} - ${ddMMfromYmd(r.checkOut)}`;
+}
+
+// ---- Diff classification ----
+
+type ChangeEvent =
+  | { kind: 'new'; r: BookingRecord }
+  | { kind: 'cancelled'; r: BookingRecord }
+  | { kind: 'dates'; old: BookingRecord; cur: BookingRecord }
+  | { kind: 'persons'; old: BookingRecord; cur: BookingRecord }
+  | { kind: 'notes'; old: BookingRecord; cur: BookingRecord };
+
+function diffBooking(oldR: BookingRecord, curR: BookingRecord): ChangeEvent[] {
+  const events: ChangeEvent[] = [];
+
+  // Cancellation takes precedence: confirmed/on-hold/completed → cancelled
+  if (curR.status === 'cancelled' && oldR.status !== 'cancelled') {
+    events.push({ kind: 'cancelled', r: curR });
+    return events;
+  }
+
+  // Skip silent transition: confirmed → completed (natural end of stay, not a real change)
+  const isSilentStatusFlip = oldR.status === 'confirmed' && curR.status === 'completed';
+
+  // Date changes (compared as Bucharest YYYY-MM-DD strings)
+  if (oldR.checkIn !== curR.checkIn || oldR.checkOut !== curR.checkOut) {
+    events.push({ kind: 'dates', old: oldR, cur: curR });
+  }
+
+  // Person count changes
+  if (oldR.adults !== curR.adults || oldR.children !== curR.children) {
+    events.push({ kind: 'persons', old: oldR, cur: curR });
+  }
+
+  // Notes changes
+  if (oldR.notes !== curR.notes) {
+    events.push({ kind: 'notes', old: oldR, cur: curR });
+  }
+
+  // If the only change is the silent confirmed→completed status flip and nothing else changed,
+  // suppress this booking from the change list.
+  if (events.length === 0 && isSilentStatusFlip) return [];
+
+  return events;
+}
+
+function formatChangeEvent(ev: ChangeEvent): string {
+  switch (ev.kind) {
+    case 'new':
+      return `Rezervare nouă: ${ev.r.guestName}, ${rangeLabel(ev.r)} (${personsLabel(ev.r.adults, ev.r.children)})`;
+    case 'cancelled':
+      return `Rezervare anulată: ${ev.r.guestName}, ${rangeLabel(ev.r)}`;
+    case 'dates':
+      return `Modificare dată — ${ev.cur.guestName}: era ${rangeLabel(ev.old)}, acum ${rangeLabel(ev.cur)}`;
+    case 'persons':
+      return `Modificare oaspeți — ${ev.cur.guestName} (${rangeLabel(ev.cur)}): era ${personsLabel(ev.old.adults, ev.old.children)}, acum ${personsLabel(ev.cur.adults, ev.cur.children)}`;
+    case 'notes':
+      if (!ev.cur.notes) return `Notă ștearsă — ${ev.cur.guestName} (${rangeLabel(ev.cur)})`;
+      return `Notă actualizată — ${ev.cur.guestName} (${rangeLabel(ev.cur)}): ${ev.cur.notes}`;
+  }
 }
 
 async function changedReservations(propertyId: string, calUrl?: string): Promise<NextResponse> {
@@ -312,62 +414,73 @@ async function changedReservations(propertyId: string, calUrl?: string): Promise
   const today = bucharestTodayParts();
   const monthKey = `${today.year}-${String(today.month).padStart(2, '0')}`;
 
-  // Load all property bookings — we need to detect cancellations too.
-  // Status filter intentionally INCLUDES 'cancelled' here so cancellations are visible
-  // in the snapshot and trigger a diff next call.
+  // Pull ALL property bookings (incl. cancelled) so cancellations are visible in the snapshot
   const snap = await db.collection('bookings')
     .where('propertyId', '==', propertyId)
     .get();
 
-  const currentSnapshot = new Set<string>();
+  const currentMap = new Map<string, BookingRecord>();
   for (const doc of snap.docs) {
     const b = { id: doc.id, ...(doc.data() as Omit<BookingDoc, 'id'>) };
     const ci = toDate(b.checkInDate);
     if (!ci) continue;
     if (getBucharestMonth(ci) !== monthKey) continue;
-    const k = snapshotKey(b);
-    if (k) currentSnapshot.add(k);
+    const r = buildBookingRecord(b);
+    if (r) currentMap.set(r.id, r);
   }
-  const currentArr = [...currentSnapshot].sort();
 
-  // Read existing state
+  // Read existing snapshot
   const stateDoc = await stateRef.get();
   const state: AutomationState = stateDoc.exists ? (stateDoc.data() as AutomationState) : {};
-
-  // First-time init: store and return "none" (matches Apps Script behavior on missing oldReservations)
-  if (!stateDoc.exists || state.lastSnapshotMonth !== monthKey) {
+  const writeSnapshot = async () => {
     await stateRef.set({
-      lastSnapshot: currentArr,
+      lastSnapshot: [...currentMap.values()],
       lastSnapshotMonth: monthKey,
       lastUpdatedAt: FieldValue.serverTimestamp() as unknown as FirebaseFirestore.Timestamp,
     });
+  };
+
+  // First-time init OR month boundary: store and return "none"
+  if (!stateDoc.exists || state.lastSnapshotMonth !== monthKey) {
+    await writeSnapshot();
     return new NextResponse('none', { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
   }
 
-  // Compare
-  const prev = new Set(state.lastSnapshot || []);
-  let changed = false;
-  for (const k of currentSnapshot) if (!prev.has(k)) { changed = true; break; }
-  if (!changed) {
-    for (const k of prev) if (!currentSnapshot.has(k)) { changed = true; break; }
+  const prevMap = new Map<string, BookingRecord>();
+  for (const r of state.lastSnapshot || []) prevMap.set(r.id, r);
+
+  // Build event list
+  const events: ChangeEvent[] = [];
+  for (const [id, curR] of currentMap) {
+    const oldR = prevMap.get(id);
+    if (!oldR) {
+      // New booking — but skip if it appeared already cancelled (not interesting)
+      if (curR.status !== 'cancelled') events.push({ kind: 'new', r: curR });
+      continue;
+    }
+    events.push(...diffBooking(oldR, curR));
+  }
+  for (const [id, oldR] of prevMap) {
+    if (!currentMap.has(id)) {
+      // Disappeared from the dataset — treat as cancellation (truly cancelled, deleted, or moved out of month)
+      events.push({ kind: 'cancelled', r: oldR });
+    }
   }
 
-  // Always update the snapshot (matches Apps Script — every call refreshes oldReservations)
-  await stateRef.set({
-    lastSnapshot: currentArr,
-    lastSnapshotMonth: monthKey,
-    lastUpdatedAt: FieldValue.serverTimestamp() as unknown as FirebaseFirestore.Timestamp,
-  });
+  // Always refresh snapshot
+  await writeSnapshot();
 
-  if (!changed) {
+  if (events.length === 0) {
     return new NextResponse('none', { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
   }
 
-  // Changed → return the same monthlyReservations text
-  const activeBookings = await loadActiveBookings(propertyId);
-  const text = monthlyReservationsText(activeBookings);
-  const withUrl = calUrl ? `${text}\n\n${calUrl}` : text;
-  return new NextResponse(withUrl, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+  // Build Romanian message
+  const lines = events.map(formatChangeEvent);
+  const header = events.length === 1
+    ? 'Buna dimineata! O modificare la rezervări:'
+    : 'Buna dimineata! Modificări la rezervări:';
+  const text = `${header}\n${lines.map(l => `- ${l}`).join('\n')}`;
+  return new NextResponse(appendCalendarLink(text, calUrl), { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 }
 
 // ============================================================
