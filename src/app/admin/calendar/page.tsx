@@ -7,7 +7,8 @@ import { PropertyUrlSync } from '@/components/admin/PropertyUrlSync';
 import { ExportUrlCard } from './_components/export-url-card';
 import { ICalFeedsTable } from './_components/ical-feeds-table';
 import { AddFeedDialog } from './_components/add-feed-dialog';
-import { fetchICalFeeds, fetchExportConfig, fetchAvailabilityCalendarData } from './actions';
+import { ShareCalendarCard } from './_components/share-calendar-card';
+import { fetchICalFeeds, fetchExportConfig, fetchAvailabilityCalendarData, fetchShareCalendarConfig } from './actions';
 import { AvailabilityCalendar } from './_components/availability-calendar';
 import { format, addMonths } from 'date-fns';
 import type { MonthAvailabilityData } from './_lib/availability-types';
@@ -24,18 +25,21 @@ export default async function CalendarSyncPage({
 
   let feeds: Awaited<ReturnType<typeof fetchICalFeeds>> = [];
   let exportConfig: Awaited<ReturnType<typeof fetchExportConfig>> = {};
+  let shareConfig: Awaited<ReturnType<typeof fetchShareCalendarConfig>> = {};
   let initialMonths: MonthAvailabilityData[] = [];
 
   if (propertyId) {
     const now = new Date();
     const months = [0, 1, 2].map(i => format(addMonths(now, i), 'yyyy-MM'));
-    const [feedsResult, exportResult, ...monthResults] = await Promise.all([
+    const [feedsResult, exportResult, shareResult, ...monthResults] = await Promise.all([
       fetchICalFeeds(propertyId),
       fetchExportConfig(propertyId),
+      fetchShareCalendarConfig(propertyId),
       ...months.map(ym => fetchAvailabilityCalendarData(propertyId, ym)),
     ]);
     feeds = feedsResult;
     exportConfig = exportResult;
+    shareConfig = shareResult;
     initialMonths = monthResults;
   }
 
@@ -77,6 +81,12 @@ export default async function CalendarSyncPage({
           </TabsContent>
 
           <TabsContent value="ical-sync" className="space-y-6">
+            {/* Share Calendar (mobile-friendly read-only view) */}
+            <ShareCalendarCard
+              propertyId={propertyId}
+              shareToken={shareConfig.token}
+            />
+
             {/* Export Section */}
             <ExportUrlCard
               propertyId={propertyId}

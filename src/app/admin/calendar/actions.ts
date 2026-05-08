@@ -228,6 +228,40 @@ export async function fetchExportConfig(propertyId: string): Promise<{
   }
 }
 
+export async function fetchShareCalendarConfig(propertyId: string): Promise<{ token?: string }> {
+  try {
+    await requirePropertyAccess(propertyId);
+    const db = await getAdminDb();
+    const propertyDoc = await db.collection('properties').doc(propertyId).get();
+    if (!propertyDoc.exists) return {};
+    const data = propertyDoc.data()!;
+    return { token: data.shareCalendarToken || undefined };
+  } catch (error) {
+    if (error instanceof AuthorizationError) return {};
+    logger.error('Error fetching share calendar config', error as Error, { propertyId });
+    return {};
+  }
+}
+
+export async function generateShareCalendarToken(propertyId: string): Promise<{ token?: string; error?: string }> {
+  try {
+    await requirePropertyAccess(propertyId);
+    const db = await getAdminDb();
+    const token = randomUUID();
+    await db.collection('properties').doc(propertyId).update({
+      shareCalendarToken: token,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    logger.info('Share calendar token generated', { propertyId });
+    revalidatePath('/admin/calendar');
+    return { token };
+  } catch (error) {
+    if (error instanceof AuthorizationError) return { error: error.message };
+    logger.error('Error generating share calendar token', error as Error, { propertyId });
+    return { error: 'Failed to generate token' };
+  }
+}
+
 export async function generateExportToken(propertyId: string): Promise<{ token?: string; error?: string }> {
   try {
     await requirePropertyAccess(propertyId);
