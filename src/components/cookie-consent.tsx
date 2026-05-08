@@ -1,8 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Shield } from 'lucide-react';
+
+// Routes where the cookie consent banner should NOT appear (e.g., internal/housekeeping
+// share pages that don't run analytics or marketing).
+const SUPPRESS_ON_PATHS = ['/calendar/'];
 
 interface ConsentPreferences {
   analytics: boolean;
@@ -42,12 +47,15 @@ function updateGtagConsent(prefs: ConsentPreferences) {
 }
 
 export function CookieConsent() {
+  const pathname = usePathname();
   const { t } = useLanguage();
   const [visible, setVisible] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
   const [marketingEnabled, setMarketingEnabled] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
+
+  const suppressed = SUPPRESS_ON_PATHS.some(p => pathname?.startsWith(p));
 
   // Derive privacy URL: on custom domains it's just /privacy-policy,
   // on the main app domain we need /properties/{slug}/privacy-policy
@@ -60,6 +68,7 @@ export function CookieConsent() {
   }, []);
 
   useEffect(() => {
+    if (suppressed) return;
     const stored = getConsentCookie();
     if (stored) {
       updateGtagConsent(stored);
@@ -71,7 +80,7 @@ export function CookieConsent() {
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [suppressed]);
 
   // Lock body scroll when overlay is shown
   useEffect(() => {
@@ -122,6 +131,7 @@ export function CookieConsent() {
     applyConsent({ analytics: analyticsEnabled, marketing: marketingEnabled, timestamp: new Date().toISOString() });
   }, [applyConsent, analyticsEnabled, marketingEnabled]);
 
+  if (suppressed) return null;
   if (!visible) return null;
 
   return (
