@@ -63,9 +63,12 @@ const formSchema = z.object({
   checkInDate: z.string().min(1, 'Check-in date is required'),
   checkOutDate: z.string().min(1, 'Check-out date is required'),
   bookedAt: z.string().optional(),
+  // Guest count: form captures adults + children separately. Total (numberOfGuests) is
+  // computed as adults + children at submit time for backward compatibility with downstream
+  // readers that still use the total field.
   numberOfGuests: z.coerce.number().int().min(1).default(1),
-  numberOfAdults: z.coerce.number().int().min(1).optional(),
-  numberOfChildren: z.coerce.number().int().min(0).optional(),
+  numberOfAdults: z.coerce.number().int().min(1, 'At least 1 adult').default(1),
+  numberOfChildren: z.coerce.number().int().min(0).default(0),
   netPayout: z.coerce.number().min(0, 'Net payout must be 0 or more'),
   currency: z.string().min(1),
   language: z.string().min(1).default('en'),
@@ -116,9 +119,12 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess, comp
       checkInDate: booking.checkInDate ? String(booking.checkInDate).split('T')[0] : '',
       checkOutDate: booking.checkOutDate ? String(booking.checkOutDate).split('T')[0] : '',
       bookedAt: booking.bookedAt ? String(booking.bookedAt).split('T')[0] : '',
+      // For legacy bookings without breakdown set, default adults = total, children = 0.
       numberOfGuests: booking.numberOfGuests || 1,
-      numberOfAdults: booking.numberOfAdults || undefined,
-      numberOfChildren: booking.numberOfChildren || undefined,
+      numberOfAdults: booking.numberOfAdults && booking.numberOfAdults > 0
+        ? booking.numberOfAdults
+        : (booking.numberOfGuests || 1),
+      numberOfChildren: booking.numberOfChildren ?? 0,
       netPayout: booking.pricing?.total || 0,
       currency: booking.pricing?.currency || defaultProperty?.currency || 'RON',
       language: booking.language || 'en',
@@ -136,6 +142,8 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess, comp
       checkOutDate: '',
       bookedAt: format(new Date(), 'yyyy-MM-dd'),
       numberOfGuests: 1,
+      numberOfAdults: 1,
+      numberOfChildren: 0,
       netPayout: 0,
       currency: defaultProperty?.currency || 'RON',
       language: 'en',
@@ -189,9 +197,14 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess, comp
   }, [watchPropertyId, mode, booking?.id]);
 
   const onSubmit = (values: FormValues) => {
+    // Compute total from breakdown so all three fields stay consistent
+    const submitValues: FormValues = {
+      ...values,
+      numberOfGuests: (values.numberOfAdults || 1) + (values.numberOfChildren || 0),
+    };
     startTransition(async () => {
       if (mode === 'create') {
-        const result = await createExternalBookingAction(values);
+        const result = await createExternalBookingAction(submitValues);
         if (result.success) {
           toast({ title: 'Booking Created', description: `Booking ${result.bookingId?.substring(0, 8)}... created successfully.` });
           onSuccess?.();
@@ -200,7 +213,7 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess, comp
           toast({ title: 'Error', description: result.error, variant: 'destructive' });
         }
       } else if (booking) {
-        const result = await editBookingAction({ ...values, bookingId: booking.id });
+        const result = await editBookingAction({ ...submitValues, bookingId: booking.id });
         if (result.success) {
           toast({ title: 'Booking Updated', description: 'Booking updated successfully.' });
           onSuccess?.();
@@ -270,8 +283,8 @@ function CompactForm({ form, mode, properties, nights, isPending, disabledDates,
 
         <Separator />
 
-        {/* Row 2: Check-in, Check-out, Guests, Booking Date */}
-        <div className="grid grid-cols-4 gap-3">
+        {/* Row 2: Check-in, Check-out, Adults, Children, Booking Date */}
+        <div className="grid grid-cols-5 gap-3">
           <FormField control={form.control} name="checkInDate" render={({ field }) => (
             <FormItem className="flex flex-col">
               <FormLabel className="text-xs">Check-in</FormLabel>
@@ -288,10 +301,17 @@ function CompactForm({ form, mode, properties, nights, isPending, disabledDates,
               <FormMessage />
             </FormItem>
           )} />
-          <FormField control={form.control} name="numberOfGuests" render={({ field }) => (
+          <FormField control={form.control} name="numberOfAdults" render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel className="text-xs">Guests</FormLabel>
+              <FormLabel className="text-xs">Adults</FormLabel>
               <FormControl><Input className={compactInput} type="number" min={1} {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="numberOfChildren" render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel className="text-xs">Children</FormLabel>
+              <FormControl><Input className={compactInput} type="number" min={0} {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
@@ -485,7 +505,7 @@ function FullForm({ form, mode, properties, nights, isPending, disabledDates, on
               {nights > 0 && <Badge variant="secondary">{nights} night{nights !== 1 ? 's' : ''}</Badge>}
             </div>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <FormField control={form.control} name="checkInDate" render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Check-in</FormLabel>
@@ -502,10 +522,18 @@ function FullForm({ form, mode, properties, nights, isPending, disabledDates, on
               </FormItem>
             )} />
 
-            <FormField control={form.control} name="numberOfGuests" render={({ field }) => (
+            <FormField control={form.control} name="numberOfAdults" render={({ field }) => (
               <FormItem>
-                <FormLabel>Total Guests</FormLabel>
+                <FormLabel>Adults</FormLabel>
                 <FormControl><Input type="number" min={1} {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="numberOfChildren" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Children</FormLabel>
+                <FormControl><Input type="number" min={0} {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
