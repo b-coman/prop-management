@@ -153,6 +153,12 @@ env:
     availability:
         - RUNTIME
 
+# Automation endpoint token (auth for /api/automation — used by iOS Shortcuts)
+  - variable: AUTOMATION_TOKEN
+    secret: projects/1061532538391/secrets/AUTOMATION_TOKEN/versions/latest
+    availability:
+        - RUNTIME
+
 # Content data sources (content generation pipeline)
 #  - variable: VISUAL_CROSSING_API_KEY
 #    secret: projects/1061532538391/secrets/VISUAL_CROSSING_API_KEY/versions/latest
