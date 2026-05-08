@@ -201,12 +201,8 @@ function monthlyReservationsText(bookings: BookingDoc[], now = new Date()): stri
   const lines = upcoming.map(({ ymdIn, ymdOut, booking }) => {
     const adults = adultsOf(booking);
     const children = childrenOf(booking);
-    const adultWord = adults === 1 ? 'adult' : 'adulti';
-    const childrenWord = children === 0 ? '' : children === 1 ? 'copil' : 'copii';
-    let s = `${ddMM(ymdIn)} - ${ddMM(ymdOut)} / ${guestName(booking)} (${adults} ${adultWord}`;
-    if (childrenWord) s += ` + ${children} ${childrenWord}`;
-    s += ')';
-    return s;
+    const persons = booking.numberOfGuests || 0;
+    return `${ddMM(ymdIn)} - ${ddMM(ymdOut)} / ${guestName(booking)} (${describePersons(adults, children, persons)})`;
   });
 
   return `${departureText}${otherReservationsText}${lines.join('\n')}`;
@@ -336,12 +332,34 @@ function ddMMfromYmd(ymd: string): string {
   return `${ymd.slice(8, 10)}.${ymd.slice(5, 7)}`;
 }
 
-function personsLabel(adults: number, children: number): string {
-  const a = Math.max(adults, 1);
-  const adultWord = a === 1 ? 'adult' : 'adulti';
-  if (children <= 0) return `${a} ${adultWord}`;
-  const childWord = children === 1 ? 'copil' : 'copii';
-  return `${a} ${adultWord} + ${children} ${childWord}`;
+/**
+ * Choose the most accurate person-count label given the three potentially-out-of-sync fields:
+ *   - adults / children: explicit breakdown (set by booking.com import, etc.)
+ *   - persons: total (`numberOfGuests`, what the admin form edits)
+ *
+ * If the breakdown adds up to persons, show "X adulti + Y copii" (preserves Apps Script format).
+ * Otherwise, the breakdown is stale (e.g., admin changed total without re-allocating) — fall
+ * back to "N oaspeți" using the most reliable total.
+ */
+function describePersons(adults: number, children: number, persons: number): string {
+  if (adults > 0 && adults + children === persons) {
+    const adultWord = adults === 1 ? 'adult' : 'adulti';
+    if (children === 0) return `${adults} ${adultWord}`;
+    const childWord = children === 1 ? 'copil' : 'copii';
+    return `${adults} ${adultWord} + ${children} ${childWord}`;
+  }
+  // Adults-only when persons isn't set
+  if (adults > 0 && children === 0 && persons === 0) {
+    const adultWord = adults === 1 ? 'adult' : 'adulti';
+    return `${adults} ${adultWord}`;
+  }
+  const total = Math.max(persons, adults + children, 1);
+  return total === 1 ? '1 oaspete' : `${total} oaspeți`;
+}
+
+// Backwards-compatible wrapper for sites that already pass adults+children only.
+function personsLabel(adults: number, children: number, persons?: number): string {
+  return describePersons(adults, children, persons ?? (adults + children));
 }
 
 function rangeLabel(r: BookingRecord): string {
@@ -374,8 +392,8 @@ function diffBooking(oldR: BookingRecord, curR: BookingRecord): ChangeEvent[] {
     events.push({ kind: 'dates', old: oldR, cur: curR });
   }
 
-  // Person count changes
-  if (oldR.adults !== curR.adults || oldR.children !== curR.children) {
+  // Person count changes — watch total (persons) too, since admin form edits numberOfGuests
+  if (oldR.adults !== curR.adults || oldR.children !== curR.children || oldR.persons !== curR.persons) {
     events.push({ kind: 'persons', old: oldR, cur: curR });
   }
 
@@ -394,13 +412,13 @@ function diffBooking(oldR: BookingRecord, curR: BookingRecord): ChangeEvent[] {
 function formatChangeEvent(ev: ChangeEvent): string {
   switch (ev.kind) {
     case 'new':
-      return `Rezervare nouă: ${ev.r.guestName}, ${rangeLabel(ev.r)} (${personsLabel(ev.r.adults, ev.r.children)})`;
+      return `Rezervare nouă: ${ev.r.guestName}, ${rangeLabel(ev.r)} (${describePersons(ev.r.adults, ev.r.children, ev.r.persons)})`;
     case 'cancelled':
       return `Rezervare anulată: ${ev.r.guestName}, ${rangeLabel(ev.r)}`;
     case 'dates':
       return `Modificare dată — ${ev.cur.guestName}: era ${rangeLabel(ev.old)}, acum ${rangeLabel(ev.cur)}`;
     case 'persons':
-      return `Modificare oaspeți — ${ev.cur.guestName} (${rangeLabel(ev.cur)}): era ${personsLabel(ev.old.adults, ev.old.children)}, acum ${personsLabel(ev.cur.adults, ev.cur.children)}`;
+      return `Modificare oaspeți — ${ev.cur.guestName} (${rangeLabel(ev.cur)}): era ${describePersons(ev.old.adults, ev.old.children, ev.old.persons)}, acum ${describePersons(ev.cur.adults, ev.cur.children, ev.cur.persons)}`;
     case 'notes':
       if (!ev.cur.notes) return `Notă ștearsă — ${ev.cur.guestName} (${rangeLabel(ev.cur)})`;
       return `Notă actualizată — ${ev.cur.guestName} (${rangeLabel(ev.cur)}): ${ev.cur.notes}`;
