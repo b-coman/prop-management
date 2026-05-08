@@ -138,8 +138,16 @@ async function loadShareToken(propertyId: string): Promise<string | undefined> {
 
 function calendarUrl(req: NextRequest, token: string | undefined): string | undefined {
   if (!token) return undefined;
-  const origin = req.nextUrl.origin;
-  return `${origin}/calendar/${token}`;
+  // Cloud Run sets `host` to the internal hostname (0.0.0.0:8080).
+  // The public-facing domain comes via x-forwarded-host (e.g., prahova-chalet.ro).
+  const forwardedHost = req.headers.get('x-forwarded-host');
+  const forwardedProto = req.headers.get('x-forwarded-proto');
+  if (forwardedHost) {
+    const proto = forwardedProto || 'https';
+    return `${proto}://${forwardedHost}/calendar/${token}`;
+  }
+  // Fallback to the request's own origin (works for local dev + non-proxied requests)
+  return `${req.nextUrl.origin}/calendar/${token}`;
 }
 
 // ============================================================
