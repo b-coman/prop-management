@@ -66,9 +66,10 @@ const formSchema = z.object({
   // Guest count: form captures adults + children separately. Total (numberOfGuests) is
   // computed as adults + children at submit time for backward compatibility with downstream
   // readers that still use the total field.
-  numberOfGuests: z.coerce.number().int().min(1).default(1),
-  numberOfAdults: z.coerce.number().int().min(1, 'At least 1 adult').default(1),
-  numberOfChildren: z.coerce.number().int().min(0).default(0),
+  // No .default() — an empty input must fail validation explicitly, never silently coerce to 1.
+  numberOfGuests: z.coerce.number().int().min(1).optional(),
+  numberOfAdults: z.coerce.number({ invalid_type_error: 'Adults required' }).int().min(1, 'At least 1 adult'),
+  numberOfChildren: z.coerce.number({ invalid_type_error: 'Children required' }).int().min(0),
   netPayout: z.coerce.number().min(0, 'Net payout must be 0 or more'),
   currency: z.string().min(1),
   language: z.string().min(1).default('en'),
@@ -305,14 +306,36 @@ function CompactForm({ form, mode, properties, nights, isPending, disabledDates,
             <FormField control={form.control} name="numberOfAdults" render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel className="text-xs">Adults</FormLabel>
-                <FormControl><Input className={compactInput} type="number" min={1} {...field} /></FormControl>
+                <FormControl>
+                  <Input
+                    className={compactInput}
+                    type="number"
+                    min={1}
+                    value={field.value ?? ''}
+                    onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+                    onBlur={field.onBlur}
+                    name={field.name}
+                    ref={field.ref}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )} />
             <FormField control={form.control} name="numberOfChildren" render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel className="text-xs">Children</FormLabel>
-                <FormControl><Input className={compactInput} type="number" min={0} {...field} /></FormControl>
+                <FormControl>
+                  <Input
+                    className={compactInput}
+                    type="number"
+                    min={0}
+                    value={field.value ?? ''}
+                    onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+                    onBlur={field.onBlur}
+                    name={field.name}
+                    ref={field.ref}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )} />
@@ -528,7 +551,17 @@ function FullForm({ form, mode, properties, nights, isPending, disabledDates, on
               <FormField control={form.control} name="numberOfAdults" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Adults</FormLabel>
-                  <FormControl><Input type="number" min={1} {...field} /></FormControl>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={field.value ?? ''}
+                      onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                      ref={field.ref}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
@@ -536,7 +569,17 @@ function FullForm({ form, mode, properties, nights, isPending, disabledDates, on
               <FormField control={form.control} name="numberOfChildren" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Children</FormLabel>
-                  <FormControl><Input type="number" min={0} {...field} /></FormControl>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={field.value ?? ''}
+                      onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                      ref={field.ref}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )} />

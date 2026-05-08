@@ -497,11 +497,11 @@ async function changedReservations(propertyId: string, calUrl?: string): Promise
     return new NextResponse('none', { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
   }
 
-  // Build Romanian message
+  // Build Romanian message — no greeting; the iOS Shortcut prefixes its own.
   const lines = events.map(formatChangeEvent);
   const header = events.length === 1
-    ? 'Buna dimineata! O modificare la rezervări:'
-    : 'Buna dimineata! Modificări la rezervări:';
+    ? 'O modificare la rezervări:'
+    : 'Modificări la rezervări:';
   const text = `${header}\n${lines.map(l => `- ${l}`).join('\n')}`;
   return new NextResponse(appendCalendarLink(text, calUrl), { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 }
