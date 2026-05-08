@@ -283,8 +283,8 @@ function CompactForm({ form, mode, properties, nights, isPending, disabledDates,
 
         <Separator />
 
-        {/* Row 2: Check-in, Check-out, Adults, Children, Booking Date */}
-        <div className="grid grid-cols-5 gap-3">
+        {/* Row 2: Check-in, Check-out, [Adults+Children], Booking Date */}
+        <div className="grid grid-cols-4 gap-3">
           <FormField control={form.control} name="checkInDate" render={({ field }) => (
             <FormItem className="flex flex-col">
               <FormLabel className="text-xs">Check-in</FormLabel>
@@ -301,20 +301,22 @@ function CompactForm({ form, mode, properties, nights, isPending, disabledDates,
               <FormMessage />
             </FormItem>
           )} />
-          <FormField control={form.control} name="numberOfAdults" render={({ field }) => (
-            <FormItem className="flex flex-col">
-              <FormLabel className="text-xs">Adults</FormLabel>
-              <FormControl><Input className={compactInput} type="number" min={1} {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )} />
-          <FormField control={form.control} name="numberOfChildren" render={({ field }) => (
-            <FormItem className="flex flex-col">
-              <FormLabel className="text-xs">Children</FormLabel>
-              <FormControl><Input className={compactInput} type="number" min={0} {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )} />
+          <div className="grid grid-cols-2 gap-2">
+            <FormField control={form.control} name="numberOfAdults" render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel className="text-xs">Adults</FormLabel>
+                <FormControl><Input className={compactInput} type="number" min={1} {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="numberOfChildren" render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel className="text-xs">Children</FormLabel>
+                <FormControl><Input className={compactInput} type="number" min={0} {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+          </div>
           <FormField control={form.control} name="bookedAt" render={({ field }) => (
             <FormItem className="flex flex-col">
               <FormLabel className="text-xs">Booked on</FormLabel>
@@ -505,7 +507,7 @@ function FullForm({ form, mode, properties, nights, isPending, disabledDates, on
               {nights > 0 && <Badge variant="secondary">{nights} night{nights !== 1 ? 's' : ''}</Badge>}
             </div>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <FormField control={form.control} name="checkInDate" render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Check-in</FormLabel>
@@ -522,21 +524,23 @@ function FullForm({ form, mode, properties, nights, isPending, disabledDates, on
               </FormItem>
             )} />
 
-            <FormField control={form.control} name="numberOfAdults" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Adults</FormLabel>
-                <FormControl><Input type="number" min={1} {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
+            <div className="grid grid-cols-2 gap-3">
+              <FormField control={form.control} name="numberOfAdults" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Adults</FormLabel>
+                  <FormControl><Input type="number" min={1} {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
 
-            <FormField control={form.control} name="numberOfChildren" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Children</FormLabel>
-                <FormControl><Input type="number" min={0} {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
+              <FormField control={form.control} name="numberOfChildren" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Children</FormLabel>
+                  <FormControl><Input type="number" min={0} {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
 
             <FormField control={form.control} name="bookedAt" render={({ field }) => (
               <FormItem className="flex flex-col">
