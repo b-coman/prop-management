@@ -440,14 +440,19 @@ async function changedReservations(propertyId: string, calUrl?: string): Promise
     });
   };
 
-  // First-time init OR month boundary: store and return "none"
-  if (!stateDoc.exists || state.lastSnapshotMonth !== monthKey) {
+  // First-time init OR month boundary OR legacy snapshot shape: store and return "none".
+  // Legacy detection: pre-migration snapshot was string[]; new shape is BookingRecord[].
+  // If the first item lacks an `id` field, it's the old shape — re-initialize cleanly.
+  const isLegacyShape = !!state.lastSnapshot?.length && typeof state.lastSnapshot[0] !== 'object';
+  if (!stateDoc.exists || state.lastSnapshotMonth !== monthKey || isLegacyShape) {
     await writeSnapshot();
     return new NextResponse('none', { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
   }
 
   const prevMap = new Map<string, BookingRecord>();
-  for (const r of state.lastSnapshot || []) prevMap.set(r.id, r);
+  for (const r of state.lastSnapshot || []) {
+    if (r && typeof r === 'object' && r.id) prevMap.set(r.id, r);
+  }
 
   // Build event list
   const events: ChangeEvent[] = [];
