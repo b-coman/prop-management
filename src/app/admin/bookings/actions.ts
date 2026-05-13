@@ -11,7 +11,7 @@ import { revalidatePath } from "next/cache";
 import { addHours, parseISO, isValid, differenceInCalendarDays } from 'date-fns';
 import { loggers } from '@/lib/logger';
 import { normalizeCountryCode } from '@/lib/country-utils';
-import { propertyDateAt, formatBucharestDate, formatBucharestDateTime } from '@/lib/dates/property-times';
+import { propertyDateAt, formatBucharestDate, formatBucharestDateTime, iterateBucharestStayDays } from '@/lib/dates/property-times';
 import {
   requireAdmin,
   requirePropertyAccess,
@@ -141,16 +141,37 @@ export async function fetchUnavailableDateStrings(
       months.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`);
     }
 
-    // Read all relevant availability docs in parallel
+    // Read availability docs AND the bookings collection in parallel.
+    // Both are needed: availability.{available,externalBlocks,holds} is the data the iCal sync
+    // writes to, while the `bookings` collection has the real reservations our system manages.
+    // An iCal-synced reservation that also exists as a real booking (e.g., a booking.com record
+    // we've imported / mirrored) must be classified as HARD even though externalBlocks is set.
     const docIds = months.map(m => `${propertyId}_${m}`);
-    const docs = await Promise.all(
-      docIds.map(id => db.collection('availability').doc(id).get())
-    );
+    const [docs, bookingsSnap] = await Promise.all([
+      Promise.all(docIds.map(id => db.collection('availability').doc(id).get())),
+      db.collection('bookings')
+        .where('propertyId', '==', propertyId)
+        .where('status', 'in', ['confirmed', 'completed', 'on-hold'])
+        .get(),
+    ]);
+
+    // Build a Set of Bucharest-local YYYY-MM-DD stay nights covered by any active booking.
+    const bookingNights = new Set<string>();
+    for (const bDoc of bookingsSnap.docs) {
+      if (excludeBookingId && bDoc.id === excludeBookingId) continue;
+      const data = bDoc.data();
+      const ci = toDate(data.checkInDate);
+      const co = toDate(data.checkOutDate);
+      if (!ci || !co) continue;
+      for (const { year, month, day } of iterateBucharestStayDays(ci, co)) {
+        bookingNights.add(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`);
+      }
+    }
 
     // Classify each unavailable day:
-    //   - hard: our own booking or hold (admin cannot double-book over this)
-    //   - external: only blocked by an external iCal feed (admin CAN override by recording the
-    //     OTA reservation manually — server clears the external block on save)
+    //   - hard: backed by an active booking we own, a hold, or unexplained (conservative)
+    //   - external: blocked ONLY by an iCal feed AND no booking covers it
+    //     (admin can override by recording the OTA reservation; server clears the external block on save)
     const hard: string[] = [];
     const external: string[] = [];
     for (const doc of docs) {
@@ -165,7 +186,9 @@ export async function fetchUnavailableDateStrings(
         const ymd = `${month}-${dayStr.padStart(2, '0')}`;
         const hasHold = !!holds[dayStr];
         const hasExternal = !!externalBlocks[dayStr];
-        if (hasExternal && !hasHold) {
+        const hasBooking = bookingNights.has(ymd);
+        // External only counts as "soft" if there's no booking and no hold backing it.
+        if (hasExternal && !hasHold && !hasBooking) {
           external.push(ymd);
         } else {
           hard.push(ymd);
