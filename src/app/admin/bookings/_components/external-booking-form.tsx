@@ -176,22 +176,28 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess, comp
     }
   }, [watchPropertyId, properties, form]);
 
-  // Fetch unavailable dates for the selected property (excluding this booking's own days in edit mode)
-  const [disabledDates, setDisabledDates] = React.useState<Date[]>([]);
+  // Fetch unavailable dates for the selected property (excluding this booking's own days in edit mode).
+  // `hardDisabledDates` are days backed by our own bookings/holds — disabled in both pickers.
+  // `allBlockedDates` includes external-only blocks too — used by the check-out walk so the stay
+  // can't span over an OTA reservation (but check-out ON the first OTA-blocked day is allowed).
+  const [hardDisabledDates, setHardDisabledDates] = React.useState<Date[]>([]);
+  const [allBlockedDates, setAllBlockedDates] = React.useState<Date[]>([]);
   React.useEffect(() => {
     if (!watchPropertyId) {
-      setDisabledDates([]);
+      setHardDisabledDates([]);
+      setAllBlockedDates([]);
       return;
     }
     let cancelled = false;
+    const toNoonUtc = (s: string) => {
+      const [y, m, d] = s.split('-').map(Number);
+      return new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+    };
     fetchUnavailableDateStrings(watchPropertyId, 12, mode === 'edit' ? booking?.id : undefined)
-      .then(strs => {
+      .then(({ hard, external }) => {
         if (cancelled) return;
-        setDisabledDates(strs.map(s => {
-          const [y, m, d] = s.split('-').map(Number);
-          // noon UTC anchor — within the calendar day in any reasonable TZ, safe for matching
-          return new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
-        }));
+        setHardDisabledDates(hard.map(toNoonUtc));
+        setAllBlockedDates([...hard, ...external].map(toNoonUtc));
       })
       .catch(() => { /* leave empty on error */ });
     return () => { cancelled = true; };
@@ -226,10 +232,10 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess, comp
   };
 
   if (compact) {
-    return <CompactForm form={form} mode={mode} properties={properties} nights={nights} isPending={isPending} disabledDates={disabledDates} onSubmit={onSubmit} onCancel={onSuccess} />;
+    return <CompactForm form={form} mode={mode} properties={properties} nights={nights} isPending={isPending} hardDisabledDates={hardDisabledDates} allBlockedDates={allBlockedDates} onSubmit={onSubmit} onCancel={onSuccess} />;
   }
 
-  return <FullForm form={form} mode={mode} properties={properties} nights={nights} isPending={isPending} disabledDates={disabledDates} onSubmit={onSubmit} onCancel={onSuccess || (() => router.back())} />;
+  return <FullForm form={form} mode={mode} properties={properties} nights={nights} isPending={isPending} hardDisabledDates={hardDisabledDates} allBlockedDates={allBlockedDates} onSubmit={onSubmit} onCancel={onSuccess || (() => router.back())} />;
 }
 
 // ============================================================
@@ -238,15 +244,15 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess, comp
 
 const compactInput = "h-9 border border-gray-300";
 
-function CompactForm({ form, mode, properties, nights, isPending, disabledDates, onSubmit, onCancel }: FormLayoutProps) {
+function CompactForm({ form, mode, properties, nights, isPending, hardDisabledDates, allBlockedDates, onSubmit, onCancel }: FormLayoutProps) {
   // Cross-reference: each picker opens to the other field's month if its own value is empty
   const checkInDateValue = parseDateStr(form.watch('checkInDate'));
   const checkOutDateValue = parseDateStr(form.watch('checkOutDate'));
-  // Check-out picker uses a context-aware disabler — same-day turnover (check-out on the
-  // day the next guest arrives) is allowed.
+  // Check-out walk uses ALL blocked days (hard + external) — your stay can't span over an
+  // OTA reservation, only end on/before its first day (back-to-back).
   const checkoutDisabled = React.useMemo(
-    () => makeCheckoutDisabler(checkInDateValue, disabledDates),
-    [checkInDateValue?.getTime(), disabledDates],
+    () => makeCheckoutDisabler(checkInDateValue, allBlockedDates),
+    [checkInDateValue?.getTime(), allBlockedDates],
   );
 
   return (
@@ -294,7 +300,7 @@ function CompactForm({ form, mode, properties, nights, isPending, disabledDates,
           <FormField control={form.control} name="checkInDate" render={({ field }) => (
             <FormItem className="flex flex-col">
               <FormLabel className="text-xs">Check-in</FormLabel>
-              <DatePickerField value={field.value} onChange={field.onChange} compact disabledDates={disabledDates} defaultMonth={checkOutDateValue} />
+              <DatePickerField value={field.value} onChange={field.onChange} compact disabledDates={hardDisabledDates} defaultMonth={checkOutDateValue} />
               <FormMessage />
             </FormItem>
           )} />
@@ -470,20 +476,23 @@ interface FormLayoutProps {
   properties: Array<{ id: string; name: string; currency: string }>;
   nights: number;
   isPending: boolean;
-  disabledDates: Date[];
+  /** Disable in check-in picker — bookings/holds we own (can't double-book). */
+  hardDisabledDates: Date[];
+  /** Used by check-out walk to stop spanning over externally-blocked days too. */
+  allBlockedDates: Date[];
   onSubmit: (values: FormValues) => void;
   onCancel?: () => void;
 }
 
-function FullForm({ form, mode, properties, nights, isPending, disabledDates, onSubmit, onCancel }: FormLayoutProps) {
+function FullForm({ form, mode, properties, nights, isPending, hardDisabledDates, allBlockedDates, onSubmit, onCancel }: FormLayoutProps) {
   // Cross-reference: each picker opens to the other field's month if its own value is empty
   const checkInDateValue = parseDateStr(form.watch('checkInDate'));
   const checkOutDateValue = parseDateStr(form.watch('checkOutDate'));
-  // Check-out picker uses a context-aware disabler — same-day turnover (check-out on the
-  // day the next guest arrives) is allowed.
+  // Check-out walk uses ALL blocked days (hard + external) — your stay can't span over an
+  // OTA reservation, only end on/before its first day (back-to-back).
   const checkoutDisabled = React.useMemo(
-    () => makeCheckoutDisabler(checkInDateValue, disabledDates),
-    [checkInDateValue?.getTime(), disabledDates],
+    () => makeCheckoutDisabler(checkInDateValue, allBlockedDates),
+    [checkInDateValue?.getTime(), allBlockedDates],
   );
 
   return (
@@ -545,7 +554,7 @@ function FullForm({ form, mode, properties, nights, isPending, disabledDates, on
             <FormField control={form.control} name="checkInDate" render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Check-in</FormLabel>
-                <DatePickerField value={field.value} onChange={field.onChange} disabledDates={disabledDates} defaultMonth={checkOutDateValue} />
+                <DatePickerField value={field.value} onChange={field.onChange} disabledDates={hardDisabledDates} defaultMonth={checkOutDateValue} />
                 <FormMessage />
               </FormItem>
             )} />

@@ -102,6 +102,22 @@ export async function fetchBookingById(bookingId: string): Promise<Booking | nul
   }
 }
 
+export interface UnavailableDateSets {
+  /**
+   * Days that are blocked by data WE OWN — confirmed/completed/on-hold bookings, or active
+   * holds. These are HARD-DISABLED in both check-in and check-out pickers (can't double-book).
+   */
+  hard: string[];
+  /**
+   * Days that are blocked ONLY by an external iCal feed (booking.com, Airbnb, etc.) and not
+   * by any of our own bookings/holds. Admin CAN pick these as check-in to manually record
+   * the OTA reservation (server will clear the external block on save). But the check-out
+   * walk must still treat these as obstacles — your stay can't span over an OTA booking,
+   * only end on/before it (back-to-back).
+   */
+  external: string[];
+}
+
 /**
  * Returns Bucharest-local date strings (YYYY-MM-DD) where the property's availability map
  * is unavailable, for use as `disabled` dates in admin date-pickers. Looks at availability
@@ -112,7 +128,7 @@ export async function fetchUnavailableDateStrings(
   propertyId: string,
   monthsAhead: number = 12,
   excludeBookingId?: string,
-): Promise<string[]> {
+): Promise<UnavailableDateSets> {
   try {
     await requirePropertyAccess(propertyId);
     const db = await getAdminDb();
@@ -131,12 +147,12 @@ export async function fetchUnavailableDateStrings(
       docIds.map(id => db.collection('availability').doc(id).get())
     );
 
-    // A day is treated as "hard" unavailable (and therefore disabled in the picker) only when it
-    // is backed by our own data — either an active hold or a real booking (status confirmed /
-    // completed / on-hold). Days that are ONLY blocked by an external iCal feed (booking.com,
-    // Airbnb, etc.) remain pickable so an admin can manually record a booking that mirrors what
-    // the OTA has; on save, createExternalBookingAction clears the external block for those days.
-    const unavailable: string[] = [];
+    // Classify each unavailable day:
+    //   - hard: our own booking or hold (admin cannot double-book over this)
+    //   - external: only blocked by an external iCal feed (admin CAN override by recording the
+    //     OTA reservation manually — server clears the external block on save)
+    const hard: string[] = [];
+    const external: string[] = [];
     for (const doc of docs) {
       if (!doc.exists) continue;
       const data = doc.data()!;
@@ -146,13 +162,14 @@ export async function fetchUnavailableDateStrings(
       const holds = (data.holds || {}) as Record<string, string | null>;
       for (const [dayStr, isAvailable] of Object.entries(available)) {
         if (isAvailable !== false) continue;
+        const ymd = `${month}-${dayStr.padStart(2, '0')}`;
         const hasHold = !!holds[dayStr];
         const hasExternal = !!externalBlocks[dayStr];
-        // Externally-only blocked → admin can override. Skip from disabled set.
-        // Held days → still disabled (active reservation in our own system).
-        // Booking-backed days (no external block, no hold) → disabled.
-        if (hasExternal && !hasHold) continue;
-        unavailable.push(`${month}-${dayStr.padStart(2, '0')}`);
+        if (hasExternal && !hasHold) {
+          external.push(ymd);
+        } else {
+          hard.push(ymd);
+        }
       }
     }
 
@@ -173,16 +190,19 @@ export async function fetchUnavailableDateStrings(
             ownDays.add(formatBucharestDate(cur));
             cur = new Date(cur.getTime() + 86400000);
           }
-          return unavailable.filter(d => !ownDays.has(d));
+          return {
+            hard: hard.filter(d => !ownDays.has(d)),
+            external: external.filter(d => !ownDays.has(d)),
+          };
         }
       }
     }
 
-    return unavailable;
+    return { hard, external };
   } catch (error) {
-    if (error instanceof AuthorizationError) return [];
+    if (error instanceof AuthorizationError) return { hard: [], external: [] };
     logger.error('Error fetching unavailable dates', error as Error, { propertyId });
-    return [];
+    return { hard: [], external: [] };
   }
 }
 
