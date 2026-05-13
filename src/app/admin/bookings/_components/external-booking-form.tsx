@@ -177,15 +177,15 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess, comp
   }, [watchPropertyId, properties, form]);
 
   // Fetch unavailable dates for the selected property (excluding this booking's own days in edit mode).
-  // `hardDisabledDates` are days backed by our own bookings/holds — disabled in both pickers.
-  // `allBlockedDates` includes external-only blocks too — used by the check-out walk so the stay
-  // can't span over an OTA reservation (but check-out ON the first OTA-blocked day is allowed).
+  // - `hardDisabledDates`: our own bookings/holds — disabled in check-in picker (no double-booking).
+  // - `externalBlockedDates`: only blocked by an iCal feed — pickable as check-in (admin overrides).
+  // The check-out picker takes BOTH sets and uses the contextual walk in makeCheckoutDisabler.
   const [hardDisabledDates, setHardDisabledDates] = React.useState<Date[]>([]);
-  const [allBlockedDates, setAllBlockedDates] = React.useState<Date[]>([]);
+  const [externalBlockedDates, setExternalBlockedDates] = React.useState<Date[]>([]);
   React.useEffect(() => {
     if (!watchPropertyId) {
       setHardDisabledDates([]);
-      setAllBlockedDates([]);
+      setExternalBlockedDates([]);
       return;
     }
     let cancelled = false;
@@ -197,7 +197,7 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess, comp
       .then(({ hard, external }) => {
         if (cancelled) return;
         setHardDisabledDates(hard.map(toNoonUtc));
-        setAllBlockedDates([...hard, ...external].map(toNoonUtc));
+        setExternalBlockedDates(external.map(toNoonUtc));
       })
       .catch(() => { /* leave empty on error */ });
     return () => { cancelled = true; };
@@ -232,10 +232,10 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess, comp
   };
 
   if (compact) {
-    return <CompactForm form={form} mode={mode} properties={properties} nights={nights} isPending={isPending} hardDisabledDates={hardDisabledDates} allBlockedDates={allBlockedDates} onSubmit={onSubmit} onCancel={onSuccess} />;
+    return <CompactForm form={form} mode={mode} properties={properties} nights={nights} isPending={isPending} hardDisabledDates={hardDisabledDates} externalBlockedDates={externalBlockedDates} onSubmit={onSubmit} onCancel={onSuccess} />;
   }
 
-  return <FullForm form={form} mode={mode} properties={properties} nights={nights} isPending={isPending} hardDisabledDates={hardDisabledDates} allBlockedDates={allBlockedDates} onSubmit={onSubmit} onCancel={onSuccess || (() => router.back())} />;
+  return <FullForm form={form} mode={mode} properties={properties} nights={nights} isPending={isPending} hardDisabledDates={hardDisabledDates} externalBlockedDates={externalBlockedDates} onSubmit={onSubmit} onCancel={onSuccess || (() => router.back())} />;
 }
 
 // ============================================================
@@ -244,15 +244,15 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess, comp
 
 const compactInput = "h-9 border border-gray-300";
 
-function CompactForm({ form, mode, properties, nights, isPending, hardDisabledDates, allBlockedDates, onSubmit, onCancel }: FormLayoutProps) {
+function CompactForm({ form, mode, properties, nights, isPending, hardDisabledDates, externalBlockedDates, onSubmit, onCancel }: FormLayoutProps) {
   // Cross-reference: each picker opens to the other field's month if its own value is empty
   const checkInDateValue = parseDateStr(form.watch('checkInDate'));
   const checkOutDateValue = parseDateStr(form.watch('checkOutDate'));
-  // Check-out walk uses ALL blocked days (hard + external) — your stay can't span over an
-  // OTA reservation, only end on/before its first day (back-to-back).
+  // Check-out disabler: hard blocks are walls always; external blocks are walls only when
+  // check-in is on an available day (otherwise admin is overriding the OTA).
   const checkoutDisabled = React.useMemo(
-    () => makeCheckoutDisabler(checkInDateValue, allBlockedDates),
-    [checkInDateValue?.getTime(), allBlockedDates],
+    () => makeCheckoutDisabler(checkInDateValue, hardDisabledDates, externalBlockedDates),
+    [checkInDateValue?.getTime(), hardDisabledDates, externalBlockedDates],
   );
 
   return (
@@ -478,21 +478,21 @@ interface FormLayoutProps {
   isPending: boolean;
   /** Disable in check-in picker — bookings/holds we own (can't double-book). */
   hardDisabledDates: Date[];
-  /** Used by check-out walk to stop spanning over externally-blocked days too. */
-  allBlockedDates: Date[];
+  /** External-only blocks (iCal). Pickable as check-in, used contextually by check-out walk. */
+  externalBlockedDates: Date[];
   onSubmit: (values: FormValues) => void;
   onCancel?: () => void;
 }
 
-function FullForm({ form, mode, properties, nights, isPending, hardDisabledDates, allBlockedDates, onSubmit, onCancel }: FormLayoutProps) {
+function FullForm({ form, mode, properties, nights, isPending, hardDisabledDates, externalBlockedDates, onSubmit, onCancel }: FormLayoutProps) {
   // Cross-reference: each picker opens to the other field's month if its own value is empty
   const checkInDateValue = parseDateStr(form.watch('checkInDate'));
   const checkOutDateValue = parseDateStr(form.watch('checkOutDate'));
-  // Check-out walk uses ALL blocked days (hard + external) — your stay can't span over an
-  // OTA reservation, only end on/before its first day (back-to-back).
+  // Check-out disabler: hard blocks are walls always; external blocks are walls only when
+  // check-in is on an available day (otherwise admin is overriding the OTA).
   const checkoutDisabled = React.useMemo(
-    () => makeCheckoutDisabler(checkInDateValue, allBlockedDates),
-    [checkInDateValue?.getTime(), allBlockedDates],
+    () => makeCheckoutDisabler(checkInDateValue, hardDisabledDates, externalBlockedDates),
+    [checkInDateValue?.getTime(), hardDisabledDates, externalBlockedDates],
   );
 
   return (
@@ -796,33 +796,48 @@ function toLocalYmd(d: Date): string {
 /**
  * Returns an `isDateDisabled` predicate for the CHECK-OUT picker.
  *
- * Semantics: a candidate check-out date D is allowed iff
- *   - D > check-in, AND
- *   - every day in [check-in, D) is available (those are the stay nights).
- * D itself can be unavailable — it's not a stay night, so same-day turnover is fine.
+ * Walks each stay-night between check-in and the candidate date D, classifying obstacles:
  *
- * Implementation: find the first unavailable day F on or after check-in.
- *   - If no F: every D > check-in is allowed.
- *   - Else: D is allowed iff D <= F (inclusive — checkout on F is back-to-back).
+ *   - HARD-blocked nights are always walls (our own booking; can't double-book).
+ *   - EXTERNAL-blocked nights are walls ONLY if the admin's check-in is on an available day
+ *     (otherwise admin would silently span over an OTA reservation).
+ *   - When the admin picks check-in on an externally-blocked day, the admin is explicitly
+ *     overriding the OTA's claim on that day. In that mode, contiguous external blocks
+ *     starting at check-in are "transparent" — admin is absorbing the OTA range. Hard blocks
+ *     remain walls.
+ *
+ * D itself can be unavailable — it's just the checkout day (not a stay night). So back-to-back
+ * checkout on the first wall is allowed.
  */
-function makeCheckoutDisabler(checkInDate: Date | undefined, unavailable: Date[] | undefined) {
+function makeCheckoutDisabler(
+  checkInDate: Date | undefined,
+  hardDates: Date[] | undefined,
+  externalDates: Date[] | undefined,
+) {
+  const hardSet = new Set((hardDates || []).map(toLocalYmd));
+  const externalSet = new Set((externalDates || []).map(toLocalYmd));
+
   return (d: Date) => {
     if (!checkInDate) return false; // no check-in yet: allow any day (server still validates)
     const dStr = toLocalYmd(d);
     const ciStr = toLocalYmd(checkInDate);
     if (dStr <= ciStr) return true; // must be strictly after check-in
 
-    // First unavailable YMD on or after check-in
-    let firstBlocked: string | undefined;
-    if (unavailable) {
-      for (const u of unavailable) {
-        const uStr = toLocalYmd(u);
-        if (uStr >= ciStr && (firstBlocked === undefined || uStr < firstBlocked)) {
-          firstBlocked = uStr;
-        }
-      }
+    // Admin is overriding an external block by picking check-in on one.
+    const ciExternalOnly = externalSet.has(ciStr) && !hardSet.has(ciStr);
+
+    // Walk each stay night from check-in up to (but not including) D.
+    // Cap iterations defensively in case the candidate is implausibly far in the future.
+    const cur = new Date(checkInDate.getTime());
+    for (let i = 0; i < 366; i++) {
+      const curStr = toLocalYmd(cur);
+      if (curStr >= dStr) return false; // walked through all nights before D without hitting a wall
+
+      if (hardSet.has(curStr)) return true;                       // hard wall
+      if (externalSet.has(curStr) && !ciExternalOnly) return true; // external wall (not overriding)
+
+      cur.setDate(cur.getDate() + 1);
     }
-    if (firstBlocked && dStr > firstBlocked) return true; // can't span over a block
     return false;
   };
 }
