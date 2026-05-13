@@ -131,16 +131,28 @@ export async function fetchUnavailableDateStrings(
       docIds.map(id => db.collection('availability').doc(id).get())
     );
 
+    // A day is treated as "hard" unavailable (and therefore disabled in the picker) only when it
+    // is backed by our own data — either an active hold or a real booking (status confirmed /
+    // completed / on-hold). Days that are ONLY blocked by an external iCal feed (booking.com,
+    // Airbnb, etc.) remain pickable so an admin can manually record a booking that mirrors what
+    // the OTA has; on save, createExternalBookingAction clears the external block for those days.
     const unavailable: string[] = [];
     for (const doc of docs) {
       if (!doc.exists) continue;
       const data = doc.data()!;
       const month = doc.id.substring(propertyId.length + 1); // YYYY-MM
       const available = (data.available || {}) as Record<string, boolean>;
+      const externalBlocks = (data.externalBlocks || {}) as Record<string, string | null>;
+      const holds = (data.holds || {}) as Record<string, string | null>;
       for (const [dayStr, isAvailable] of Object.entries(available)) {
-        if (isAvailable === false) {
-          unavailable.push(`${month}-${dayStr.padStart(2, '0')}`);
-        }
+        if (isAvailable !== false) continue;
+        const hasHold = !!holds[dayStr];
+        const hasExternal = !!externalBlocks[dayStr];
+        // Externally-only blocked → admin can override. Skip from disabled set.
+        // Held days → still disabled (active reservation in our own system).
+        // Booking-backed days (no external block, no hold) → disabled.
+        if (hasExternal && !hasHold) continue;
+        unavailable.push(`${month}-${dayStr.padStart(2, '0')}`);
       }
     }
 
