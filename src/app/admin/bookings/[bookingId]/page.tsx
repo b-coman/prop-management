@@ -174,14 +174,23 @@ export default async function BookingDetailPage({ params }: PageProps) {
                   <p className="font-medium">{checkOutDate ? format(checkOutDate, 'PPP') : '-'}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <p className="text-sm text-muted-foreground">Nights</p>
                   <p className="font-medium">{pricing?.numberOfNights || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Guests</p>
-                  <p className="font-medium">{booking.numberOfGuests}</p>
+                  <p className="text-sm text-muted-foreground">Adults</p>
+                  <p className="font-medium">
+                    {/* Fallback for legacy bookings where breakdown wasn't recorded: assume all adults */}
+                    {booking.numberOfAdults && booking.numberOfAdults > 0
+                      ? booking.numberOfAdults
+                      : (booking.numberOfGuests ?? '-')}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Children</p>
+                  <p className="font-medium">{booking.numberOfChildren ?? 0}</p>
                 </div>
               </div>
               {booking.source && (
