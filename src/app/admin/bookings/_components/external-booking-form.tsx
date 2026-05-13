@@ -242,6 +242,12 @@ function CompactForm({ form, mode, properties, nights, isPending, disabledDates,
   // Cross-reference: each picker opens to the other field's month if its own value is empty
   const checkInDateValue = parseDateStr(form.watch('checkInDate'));
   const checkOutDateValue = parseDateStr(form.watch('checkOutDate'));
+  // Check-out picker uses a context-aware disabler — same-day turnover (check-out on the
+  // day the next guest arrives) is allowed.
+  const checkoutDisabled = React.useMemo(
+    () => makeCheckoutDisabler(checkInDateValue, disabledDates),
+    [checkInDateValue?.getTime(), disabledDates],
+  );
 
   return (
     <Form {...form}>
@@ -297,7 +303,7 @@ function CompactForm({ form, mode, properties, nights, isPending, disabledDates,
               <FormLabel className="text-xs">
                 Check-out {nights > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0">{nights}n</Badge>}
               </FormLabel>
-              <DatePickerField value={field.value} onChange={field.onChange} compact disabledDates={disabledDates} defaultMonth={checkInDateValue} />
+              <DatePickerField value={field.value} onChange={field.onChange} compact isDateDisabled={checkoutDisabled} defaultMonth={checkInDateValue} />
               <FormMessage />
             </FormItem>
           )} />
@@ -473,6 +479,12 @@ function FullForm({ form, mode, properties, nights, isPending, disabledDates, on
   // Cross-reference: each picker opens to the other field's month if its own value is empty
   const checkInDateValue = parseDateStr(form.watch('checkInDate'));
   const checkOutDateValue = parseDateStr(form.watch('checkOutDate'));
+  // Check-out picker uses a context-aware disabler — same-day turnover (check-out on the
+  // day the next guest arrives) is allowed.
+  const checkoutDisabled = React.useMemo(
+    () => makeCheckoutDisabler(checkInDateValue, disabledDates),
+    [checkInDateValue?.getTime(), disabledDates],
+  );
 
   return (
     <Form {...form}>
@@ -541,7 +553,7 @@ function FullForm({ form, mode, properties, nights, isPending, disabledDates, on
             <FormField control={form.control} name="checkOutDate" render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Check-out</FormLabel>
-                <DatePickerField value={field.value} onChange={field.onChange} disabledDates={disabledDates} defaultMonth={checkInDateValue} />
+                <DatePickerField value={field.value} onChange={field.onChange} isDateDisabled={checkoutDisabled} defaultMonth={checkInDateValue} />
                 <FormMessage />
               </FormItem>
             )} />
@@ -767,11 +779,52 @@ function CountryField({ form, compact }: { form: ReturnType<typeof useForm<FormV
   );
 }
 
+/** Format a local-Date as YYYY-MM-DD using local components (matches the picker's day cells). */
+function toLocalYmd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Returns an `isDateDisabled` predicate for the CHECK-OUT picker.
+ *
+ * Semantics: a candidate check-out date D is allowed iff
+ *   - D > check-in, AND
+ *   - every day in [check-in, D) is available (those are the stay nights).
+ * D itself can be unavailable — it's not a stay night, so same-day turnover is fine.
+ *
+ * Implementation: find the first unavailable day F on or after check-in.
+ *   - If no F: every D > check-in is allowed.
+ *   - Else: D is allowed iff D <= F (inclusive — checkout on F is back-to-back).
+ */
+function makeCheckoutDisabler(checkInDate: Date | undefined, unavailable: Date[] | undefined) {
+  return (d: Date) => {
+    if (!checkInDate) return false; // no check-in yet: allow any day (server still validates)
+    const dStr = toLocalYmd(d);
+    const ciStr = toLocalYmd(checkInDate);
+    if (dStr <= ciStr) return true; // must be strictly after check-in
+
+    // First unavailable YMD on or after check-in
+    let firstBlocked: string | undefined;
+    if (unavailable) {
+      for (const u of unavailable) {
+        const uStr = toLocalYmd(u);
+        if (uStr >= ciStr && (firstBlocked === undefined || uStr < firstBlocked)) {
+          firstBlocked = uStr;
+        }
+      }
+    }
+    if (firstBlocked && dStr > firstBlocked) return true; // can't span over a block
+    return false;
+  };
+}
+
 /**
  * Date picker field using Calendar + Popover.
  *
  * `disabledDates`, when provided, disables those days in the calendar (matching by
  * Bucharest-local YYYY-MM-DD).
+ *
+ * `isDateDisabled`, when provided, replaces `disabledDates` with a custom predicate.
  *
  * `defaultMonth`, when provided AND the field has no value yet, controls which month the
  * calendar opens to. Lets check-out follow check-in (and vice versa).
@@ -781,12 +834,19 @@ function DatePickerField({
   onChange,
   compact,
   disabledDates,
+  isDateDisabled,
   defaultMonth,
 }: {
   value: string;
   onChange: (val: string) => void;
   compact?: boolean;
   disabledDates?: Date[];
+  /**
+   * Custom per-date disabler. When provided, takes precedence over `disabledDates`.
+   * Useful for context-aware logic (e.g., check-out picker that disables based on the
+   * currently-selected check-in date plus the global unavailable set).
+   */
+  isDateDisabled?: (d: Date) => boolean;
   defaultMonth?: Date;
 }) {
   const date = parseDateStr(value);
@@ -804,10 +864,11 @@ function DatePickerField({
   }, [disabledDates]);
 
   const matchDisabled = React.useCallback((d: Date) => {
+    if (isDateDisabled) return isDateDisabled(d);
     if (!disabledSet) return false;
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     return disabledSet.has(key);
-  }, [disabledSet]);
+  }, [disabledSet, isDateDisabled]);
 
   return (
     <Popover modal>
@@ -826,7 +887,7 @@ function DatePickerField({
           mode="single"
           selected={date}
           onSelect={(d) => { if (d) onChange(format(d, 'yyyy-MM-dd')); }}
-          disabled={disabledSet ? matchDisabled : undefined}
+          disabled={isDateDisabled || disabledSet ? matchDisabled : undefined}
           defaultMonth={date || defaultMonth}
           initialFocus
         />
