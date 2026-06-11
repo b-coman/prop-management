@@ -1,7 +1,14 @@
 // Public-facing calendar data fetcher. Looks up which property a share token belongs to
-// and returns calendar data with PII filtered for the housekeeping use case:
-//   - Shown: first + last name, persons/adults/children, notes, dates
-//   - Hidden: phone, email, source, payment, amounts, internal IDs
+// and returns calendar data with PII filtered. Two modes, keyed by which token matched:
+//
+//   'full' (shareCalendarToken)        — housekeeping / co-hosts:
+//     - Shown: first + last name, persons/adults/children, notes, dates
+//     - Hidden: phone, email, source, payment, amounts, internal IDs
+//
+//   'anonymized' (guestCalendarToken)  — previous guests / marketing:
+//     - Shown: ONLY whether each day is booked or available
+//     - Hidden: everything else — names, notes, counts, dates, source, the lot
+//       (booking details are never attached to the response in this mode)
 //
 // Auth is the URL token alone — no user session.
 
@@ -10,7 +17,9 @@ import { getAdminDb, Timestamp } from '@/lib/firebaseAdminSafe';
 import { formatBucharestDate, iterateBucharestStayDays } from '@/lib/dates/property-times';
 import { getDaysInMonth } from 'date-fns';
 
-export type PublicDayStatus = 'available' | 'booked' | 'on-hold' | 'external-block' | 'manual-block';
+export type CalendarMode = 'full' | 'anonymized';
+
+export type PublicDayStatus = 'available' | 'booked' | 'on-hold' | 'external-block' | 'manual-block' | 'unavailable';
 
 export interface PublicDayData {
   day: number;
@@ -68,28 +77,32 @@ function nightsBetween(checkIn: Date, checkOut: Date): number {
 }
 
 /**
- * Resolve a share token to a property doc. Returns null if no property has this token.
+ * Resolve a share token to a property doc, and decide which view it unlocks.
+ * A token matching `shareCalendarToken` → 'full'; one matching `guestCalendarToken`
+ * → 'anonymized'. Returns null if no property has this token.
  */
-export async function resolvePropertyByToken(token: string): Promise<{ propertyId: string; propertyName: string } | null> {
+export async function resolvePropertyByToken(token: string): Promise<{ propertyId: string; propertyName: string; mode: CalendarMode } | null> {
   if (!token) return null;
   const db = await getAdminDb();
-  const snap = await db.collection('properties')
-    .where('shareCalendarToken', '==', token)
-    .limit(1)
-    .get();
-  if (snap.empty) return null;
-  const doc = snap.docs[0];
+  const [fullSnap, guestSnap] = await Promise.all([
+    db.collection('properties').where('shareCalendarToken', '==', token).limit(1).get(),
+    db.collection('properties').where('guestCalendarToken', '==', token).limit(1).get(),
+  ]);
+  const doc = !fullSnap.empty ? fullSnap.docs[0] : (!guestSnap.empty ? guestSnap.docs[0] : null);
+  if (!doc) return null;
+  const mode: CalendarMode = !fullSnap.empty ? 'full' : 'anonymized';
   const data = doc.data();
   return {
     propertyId: doc.id,
     propertyName: typeof data.name === 'string' ? data.name : 'Property',
+    mode,
   };
 }
 
 /**
  * Fetch public calendar data for a property — current month and N months ahead.
  */
-export async function fetchPublicCalendarData(propertyId: string, propertyName: string, monthsAhead: number = 2): Promise<PublicCalendarData> {
+export async function fetchPublicCalendarData(propertyId: string, propertyName: string, monthsAhead: number = 2, mode: CalendarMode = 'full'): Promise<PublicCalendarData> {
   const db = await getAdminDb();
   const now = new Date();
 
@@ -220,11 +233,18 @@ export async function fetchPublicCalendarData(propertyId: string, propertyName: 
         dayData.status = status;
       }
 
-      days[d] = dayData;
+      // Anonymized view: collapse every unavailable reason into a single 'unavailable'
+      // and drop all booking detail so names/notes/dates never reach the response.
+      if (mode === 'anonymized') {
+        days[d] = { day: d, status: dayData.status === 'available' ? 'available' : 'unavailable' };
+      } else {
+        days[d] = dayData;
+      }
     }
 
-    // Booking position (start/middle/end/single) for booked/on-hold cells, plus checkoutBooking tail
-    for (const b of bookings) {
+    // Booking bars (start/middle/end/single + checkout tail) — full view only.
+    // Anonymized days carry no bookingId, so they render as plain filled cells.
+    if (mode === 'full') for (const b of bookings) {
       let lastDayInMonth = 0;
       for (let d = 1; d <= daysInMonth; d++) {
         if (b.stayDays.has(`${mk}:${d}`)) lastDayInMonth = d;

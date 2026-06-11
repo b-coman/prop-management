@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Ban, CheckCircle, Clock, Globe, LogOut, StickyNote, Users } from 'lucide-react';
-import type { PublicMonthData, PublicDayData, PublicDayStatus } from '../_lib/fetch-public-calendar';
+import type { CalendarMode, PublicMonthData, PublicDayData, PublicDayStatus } from '../_lib/fetch-public-calendar';
 
 const RO_MONTHS = ['ianuarie', 'februarie', 'martie', 'aprilie', 'mai', 'iunie', 'iulie', 'august', 'septembrie', 'octombrie', 'noiembrie', 'decembrie'];
 const WEEKDAY_HEADERS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
@@ -14,6 +14,7 @@ const STATUS_BG: Record<PublicDayStatus, string> = {
   'on-hold': 'bg-amber-50',
   'external-block': 'bg-blue-50',
   'manual-block': 'bg-slate-100',
+  unavailable: 'bg-slate-300', // anonymized view only; styled directly in DayCell
 };
 
 interface BarSegment {
@@ -120,21 +121,31 @@ function computeBarSegments(week: (number | null)[], bookings: Map<string, Booki
   return segments;
 }
 
-export function PublicCalendar({ months }: { months: PublicMonthData[] }) {
+export function PublicCalendar({ months, mode = 'full' }: { months: PublicMonthData[]; mode?: CalendarMode }) {
   const today = new Date();
   const todayBucharestStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Bucharest' }).format(today);
   const [todayY, todayM, todayD] = todayBucharestStr.split('-').map(Number);
 
   return (
     <div className="space-y-5">
+      {mode === 'anonymized' && (
+        <div className="flex items-center justify-center gap-4 text-[11px] text-slate-600">
+          <span className="flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded-sm bg-slate-300 border border-slate-400" /> Rezervat
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded-sm bg-white border border-slate-300" /> Liber
+          </span>
+        </div>
+      )}
       {months.map(monthData => (
-        <MonthBlock key={monthData.month} monthData={monthData} todayY={todayY} todayM={todayM} todayD={todayD} />
+        <MonthBlock key={monthData.month} monthData={monthData} todayY={todayY} todayM={todayM} todayD={todayD} mode={mode} />
       ))}
     </div>
   );
 }
 
-function MonthBlock({ monthData, todayY, todayM, todayD }: { monthData: PublicMonthData; todayY: number; todayM: number; todayD: number }) {
+function MonthBlock({ monthData, todayY, todayM, todayD, mode }: { monthData: PublicMonthData; todayY: number; todayM: number; todayD: number; mode: CalendarMode }) {
   const [year, month] = monthData.month.split('-').map(Number);
   const date = new Date(year, month - 1, 1);
   const dim = new Date(year, month, 0).getDate();
@@ -179,7 +190,7 @@ function MonthBlock({ monthData, todayY, todayM, todayD }: { monthData: PublicMo
             const dayData = monthData.days[day];
             const isToday = isCurrentMonth && day === todayD;
             const isPast = isCurrentMonth && day < todayD;
-            return <DayCell key={day} dayData={dayData} isToday={isToday} isPast={isPast} />;
+            return <DayCell key={day} dayData={dayData} isToday={isToday} isPast={isPast} mode={mode} />;
           })}
           {weekSegments[wi].map(segment => {
             const roundL = segment.isCheckIn ? 'rounded-l-full' : '';
@@ -204,8 +215,28 @@ function MonthBlock({ monthData, todayY, todayM, todayD }: { monthData: PublicMo
   );
 }
 
-function DayCell({ dayData, isToday, isPast }: { dayData: PublicDayData; isToday: boolean; isPast: boolean }) {
+function DayCell({ dayData, isToday, isPast, mode }: { dayData: PublicDayData; isToday: boolean; isPast: boolean; mode: CalendarMode }) {
   const status = dayData.status;
+
+  // Anonymized view: a clean, centered, icon-free cell — booked is filled, free is plain.
+  // No popover, no detail; nothing beyond "taken vs open" is rendered.
+  if (mode === 'anonymized') {
+    const taken = status !== 'available';
+    return (
+      <div className="p-0.5">
+        <div
+          className={`h-12 rounded border flex items-center justify-center select-none ${
+            taken ? 'bg-slate-300 border-slate-400' : 'bg-white border-slate-200'
+          } ${isPast ? 'opacity-40' : ''} ${isToday ? 'ring-2 ring-blue-500' : ''}`}
+        >
+          <span className={`text-[11px] font-semibold ${taken ? 'text-slate-500' : 'text-slate-700'}`}>
+            {dayData.day}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   const config = STATUS_BG[status];
   const hasPopover = dayData.bookingDetails || dayData.checkoutBooking || status === 'external-block';
 
