@@ -3,8 +3,8 @@
 import { useState, useTransition } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import type { LucideIcon } from 'lucide-react';
 import { Copy, Check, RefreshCw, Smartphone } from 'lucide-react';
-import { generateShareCalendarToken } from '../actions';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,9 +20,23 @@ import {
 interface ShareCalendarCardProps {
   propertyId: string;
   shareToken?: string;
+  /** Server action that (re)generates the token and returns the new value. */
+  generateAction: (propertyId: string) => Promise<{ token?: string; error?: string }>;
+  title?: string;
+  description?: string;
+  icon?: LucideIcon;
+  generateLabel?: string;
 }
 
-export function ShareCalendarCard({ propertyId, shareToken }: ShareCalendarCardProps) {
+export function ShareCalendarCard({
+  propertyId,
+  shareToken,
+  generateAction,
+  title = 'Public Share Link',
+  description = 'A read-only mobile-friendly calendar view. Share with housekeeping, co-hosts, or anyone who needs visibility without admin access. Shows guest names, dates, and notes — hides payment, contact info, and source.',
+  icon: Icon = Smartphone,
+  generateLabel = 'Generate Share Link',
+}: ShareCalendarCardProps) {
   const [token, setToken] = useState(shareToken);
   const [copied, setCopied] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -33,7 +47,7 @@ export function ShareCalendarCard({ propertyId, shareToken }: ShareCalendarCardP
 
   const handleGenerate = () => {
     startTransition(async () => {
-      const result = await generateShareCalendarToken(propertyId);
+      const result = await generateAction(propertyId);
       if (result.token) setToken(result.token);
     });
   };
@@ -49,13 +63,11 @@ export function ShareCalendarCard({ propertyId, shareToken }: ShareCalendarCardP
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Smartphone className="h-5 w-5" />
-          Public Share Link
+          <Icon className="h-5 w-5" />
+          {title}
         </CardTitle>
         <CardDescription>
-          A read-only mobile-friendly calendar view. Share with housekeeping, co-hosts, or anyone
-          who needs visibility without admin access. Shows guest names, dates, and notes — hides
-          payment, contact info, and source.
+          {description}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -101,7 +113,7 @@ export function ShareCalendarCard({ propertyId, shareToken }: ShareCalendarCardP
               Generate a token to create your share URL.
             </p>
             <Button onClick={handleGenerate} disabled={isPending}>
-              {isPending ? 'Generating...' : 'Generate Share Link'}
+              {isPending ? 'Generating...' : generateLabel}
             </Button>
           </div>
         )}

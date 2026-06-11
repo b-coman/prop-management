@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Settings2 } from 'lucide-react';
+import { Settings2, Users } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,7 +8,7 @@ import { ExportUrlCard } from './_components/export-url-card';
 import { ICalFeedsTable } from './_components/ical-feeds-table';
 import { AddFeedDialog } from './_components/add-feed-dialog';
 import { ShareCalendarCard } from './_components/share-calendar-card';
-import { fetchICalFeeds, fetchExportConfig, fetchAvailabilityCalendarData, fetchShareCalendarConfig } from './actions';
+import { fetchICalFeeds, fetchExportConfig, fetchAvailabilityCalendarData, fetchShareCalendarConfig, generateShareCalendarToken, generateGuestCalendarToken } from './actions';
 import { AvailabilityCalendar } from './_components/availability-calendar';
 import { format, addMonths } from 'date-fns';
 import type { MonthAvailabilityData } from './_lib/availability-types';
@@ -85,6 +85,18 @@ export default async function CalendarSyncPage({
             <ShareCalendarCard
               propertyId={propertyId}
               shareToken={shareConfig.token}
+              generateAction={generateShareCalendarToken}
+            />
+
+            {/* Guest Availability Link (anonymized — booked vs free only) */}
+            <ShareCalendarCard
+              propertyId={propertyId}
+              shareToken={shareConfig.guestToken}
+              generateAction={generateGuestCalendarToken}
+              title="Guest Availability Link"
+              description="A read-only calendar that shows only which dates are booked vs free — no guest names, notes, or any other detail. Share with past guests when promoting open dates. Screenshot it or send the link directly."
+              icon={Users}
+              generateLabel="Generate Guest Link"
             />
 
             {/* Export Section */}

@@ -228,14 +228,17 @@ export async function fetchExportConfig(propertyId: string): Promise<{
   }
 }
 
-export async function fetchShareCalendarConfig(propertyId: string): Promise<{ token?: string }> {
+export async function fetchShareCalendarConfig(propertyId: string): Promise<{ token?: string; guestToken?: string }> {
   try {
     await requirePropertyAccess(propertyId);
     const db = await getAdminDb();
     const propertyDoc = await db.collection('properties').doc(propertyId).get();
     if (!propertyDoc.exists) return {};
     const data = propertyDoc.data()!;
-    return { token: data.shareCalendarToken || undefined };
+    return {
+      token: data.shareCalendarToken || undefined,
+      guestToken: data.guestCalendarToken || undefined,
+    };
   } catch (error) {
     if (error instanceof AuthorizationError) return {};
     logger.error('Error fetching share calendar config', error as Error, { propertyId });
@@ -258,6 +261,28 @@ export async function generateShareCalendarToken(propertyId: string): Promise<{ 
   } catch (error) {
     if (error instanceof AuthorizationError) return { error: error.message };
     logger.error('Error generating share calendar token', error as Error, { propertyId });
+    return { error: 'Failed to generate token' };
+  }
+}
+
+// Anonymized guest-facing share link — same /calendar/<token> route, but the
+// token lands in a separate field so it can be rotated independently of the
+// housekeeping link, and the view shows only booked-vs-available (no PII).
+export async function generateGuestCalendarToken(propertyId: string): Promise<{ token?: string; error?: string }> {
+  try {
+    await requirePropertyAccess(propertyId);
+    const db = await getAdminDb();
+    const token = randomUUID();
+    await db.collection('properties').doc(propertyId).update({
+      guestCalendarToken: token,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    logger.info('Guest calendar token generated', { propertyId });
+    revalidatePath('/admin/calendar');
+    return { token };
+  } catch (error) {
+    if (error instanceof AuthorizationError) return { error: error.message };
+    logger.error('Error generating guest calendar token', error as Error, { propertyId });
     return { error: 'Failed to generate token' };
   }
 }
