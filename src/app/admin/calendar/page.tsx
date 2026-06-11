@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Settings2, Users } from 'lucide-react';
+import { Settings2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -95,7 +95,7 @@ export default async function CalendarSyncPage({
               generateAction={generateGuestCalendarToken}
               title="Guest Availability Link"
               description="A read-only calendar that shows only which dates are booked vs free — no guest names, notes, or any other detail. Share with past guests when promoting open dates. Screenshot it or send the link directly."
-              icon={Users}
+              icon="users"
               generateLabel="Generate Guest Link"
             />
 

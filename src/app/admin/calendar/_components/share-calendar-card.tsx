@@ -3,8 +3,12 @@
 import { useState, useTransition } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import type { LucideIcon } from 'lucide-react';
-import { Copy, Check, RefreshCw, Smartphone } from 'lucide-react';
+import { Copy, Check, RefreshCw, Smartphone, Users } from 'lucide-react';
+
+// Icon is keyed by string, not passed as a component — a Server Component
+// (page.tsx) renders this Client Component, and React components are not
+// serializable across that boundary. A string is.
+const ICONS = { smartphone: Smartphone, users: Users } as const;
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,7 +28,7 @@ interface ShareCalendarCardProps {
   generateAction: (propertyId: string) => Promise<{ token?: string; error?: string }>;
   title?: string;
   description?: string;
-  icon?: LucideIcon;
+  icon?: keyof typeof ICONS;
   generateLabel?: string;
 }
 
@@ -34,9 +38,10 @@ export function ShareCalendarCard({
   generateAction,
   title = 'Public Share Link',
   description = 'A read-only mobile-friendly calendar view. Share with housekeeping, co-hosts, or anyone who needs visibility without admin access. Shows guest names, dates, and notes — hides payment, contact info, and source.',
-  icon: Icon = Smartphone,
+  icon = 'smartphone',
   generateLabel = 'Generate Share Link',
 }: ShareCalendarCardProps) {
+  const Icon = ICONS[icon];
   const [token, setToken] = useState(shareToken);
   const [copied, setCopied] = useState(false);
   const [isPending, startTransition] = useTransition();
