@@ -126,18 +126,30 @@ export function PublicCalendar({ months, mode = 'full' }: { months: PublicMonthD
   const todayBucharestStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Bucharest' }).format(today);
   const [todayY, todayM, todayD] = todayBucharestStr.split('-').map(Number);
 
-  return (
-    <div className="space-y-5">
-      {mode === 'anonymized' && (
-        <div className="flex items-center justify-center gap-4 text-[11px] text-slate-600">
+  if (mode === 'anonymized') {
+    // Guest-facing: legend on top, months in a responsive grid so they sit
+    // side by side on wider screens (1 col mobile → 2 tablet → 3 desktop).
+    return (
+      <div className="space-y-5">
+        <div className="flex items-center justify-center gap-5 text-xs text-slate-600">
           <span className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded-sm bg-slate-300 border border-slate-400" /> Rezervat
+            <span className="h-3.5 w-3.5 rounded bg-rose-100 border border-rose-300" /> Rezervat
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded-sm bg-white border border-slate-300" /> Liber
+            <span className="h-3.5 w-3.5 rounded bg-white border border-slate-300" /> Liber
           </span>
         </div>
-      )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {months.map(monthData => (
+            <MonthBlock key={monthData.month} monthData={monthData} todayY={todayY} todayM={todayM} todayD={todayD} mode={mode} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
       {months.map(monthData => (
         <MonthBlock key={monthData.month} monthData={monthData} todayY={todayY} todayM={todayM} todayD={todayD} mode={mode} />
       ))}
@@ -218,18 +230,23 @@ function MonthBlock({ monthData, todayY, todayM, todayD, mode }: { monthData: Pu
 function DayCell({ dayData, isToday, isPast, mode }: { dayData: PublicDayData; isToday: boolean; isPast: boolean; mode: CalendarMode }) {
   const status = dayData.status;
 
-  // Anonymized view: a clean, centered, icon-free cell — booked is filled, free is plain.
+  // Anonymized view: a clean, centered, icon-free cell. Booked = soft red fill with
+  // the number struck through ("taken"); free = white with a bold, inviting number.
   // No popover, no detail; nothing beyond "taken vs open" is rendered.
   if (mode === 'anonymized') {
     const taken = status !== 'available';
     return (
       <div className="p-0.5">
         <div
-          className={`h-12 rounded border flex items-center justify-center select-none ${
-            taken ? 'bg-slate-300 border-slate-400' : 'bg-white border-slate-200'
+          className={`h-12 rounded-md border flex items-center justify-center select-none ${
+            taken ? 'bg-rose-100 border-rose-200' : 'bg-white border-slate-200'
           } ${isPast ? 'opacity-40' : ''} ${isToday ? 'ring-2 ring-blue-500' : ''}`}
         >
-          <span className={`text-[11px] font-semibold ${taken ? 'text-slate-500' : 'text-slate-700'}`}>
+          <span
+            className={`text-[13px] ${
+              taken ? 'text-rose-400 line-through decoration-rose-400/70' : 'text-slate-800 font-semibold'
+            }`}
+          >
             {dayData.day}
           </span>
         </div>
