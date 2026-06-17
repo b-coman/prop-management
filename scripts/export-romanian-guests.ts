@@ -34,8 +34,9 @@ const CONFIG = {
   // from Firestore and appended). Change for a property on a different domain.
   calendarBaseUrl: 'https://prahova-chalet.ro',
 
-  // Message text. Placeholders: {name}, {phrase}, {link}. Defaults to the shared template;
-  // override here for a one-off campaign without touching the shared module.
+  // Fallback message when the property has no saved template in Firestore
+  // (properties/<slug>.reengagementTemplate, set via the /admin/guests dialog).
+  // Placeholders: {name}, {phrase}, {link}.
   messageTemplate: DEFAULT_RO_MESSAGE_TEMPLATE,
 };
 // ============================================================================
@@ -71,6 +72,8 @@ async function main() {
   const token = propDoc.data()?.guestCalendarToken;
   if (!token) { console.error(`Property '${propertySlug}' has no guestCalendarToken.`); process.exit(1); }
   const calendarLink = `${CONFIG.calendarBaseUrl.replace(/\/$/, '')}/calendar/${token}`;
+  // Prefer the per-property template saved from the admin dialog; fall back to CONFIG.
+  const messageTemplate = (propDoc.data()?.reengagementTemplate as string) || CONFIG.messageTemplate;
 
   const snap = await db.collection('bookings').where('propertyId', '==', propertySlug).get();
 
@@ -110,7 +113,7 @@ async function main() {
     .sort((a, b) => b.t - a.t)
     .map(({ firstName, lastName, lastCheckIn, phone }) => ({ firstName, lastName, lastCheckIn, phone }));
 
-  const csv = buildReengagementCsv(contacts, { template: CONFIG.messageTemplate, link: calendarLink, now: NOW });
+  const csv = buildReengagementCsv(contacts, { template: messageTemplate, link: calendarLink, now: NOW });
   const outCsv = path.join(os.homedir(), 'Downloads', `romanian-guests-${propertySlug}.csv`);
   fs.writeFileSync(outCsv, csv, 'utf8');
 
@@ -124,7 +127,7 @@ async function main() {
   console.log('\n--- Sample messages ---\n');
   [0, Math.floor(contacts.length / 2), contacts.length - 1].forEach((i) => {
     const c = contacts[i];
-    if (c) console.log(buildReengagementMessage(CONFIG.messageTemplate, {
+    if (c) console.log(buildReengagementMessage(messageTemplate, {
       name: tidyFirstName(c.firstName) || c.firstName,
       phrase: seasonPhraseRO(new Date(c.lastCheckIn), NOW),
       link: calendarLink,

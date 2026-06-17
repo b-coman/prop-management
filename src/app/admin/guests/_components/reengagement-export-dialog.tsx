@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useState, useEffect, useCallback } from 'react';
-import { Send, Loader2, Download } from 'lucide-react';
+import { Send, Loader2, Download, Save } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +26,7 @@ import {
   tidyFirstName,
   type ReengagementContact,
 } from '@/lib/guest-reengagement';
-import { fetchReengagementContactsAction } from '../actions';
+import { fetchReengagementContactsAction, saveReengagementTemplateAction } from '../actions';
 
 interface LoadResult {
   contacts: ReengagementContact[];
@@ -51,6 +51,8 @@ export function ReengagementExportDialog() {
   const [data, setData] = useState<LoadResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [template, setTemplate] = useState(DEFAULT_RO_MESSAGE_TEMPLATE);
+  const [savedTemplate, setSavedTemplate] = useState(DEFAULT_RO_MESSAGE_TEMPLATE);
+  const [saving, setSaving] = useState(false);
   const [link, setLink] = useState('');
 
   const load = useCallback(async (propertyId: string) => {
@@ -67,11 +69,27 @@ export function ReengagementExportDialog() {
         calendarLink: resolved,
       });
       setLink(resolved);
+      const tpl = res.savedTemplate || DEFAULT_RO_MESSAGE_TEMPLATE;
+      setSavedTemplate(tpl);
+      setTemplate(tpl);
     } else {
       setError(res.error || 'Failed to load contacts.');
     }
     setLoading(false);
   }, []);
+
+  const handleSaveTemplate = async () => {
+    if (!selectedPropertyId) return;
+    setSaving(true);
+    const res = await saveReengagementTemplateAction(selectedPropertyId, template);
+    setSaving(false);
+    if (res.success) {
+      setSavedTemplate(template);
+      toast({ title: 'Template saved', description: 'This is now the default message for this property.' });
+    } else {
+      toast({ title: 'Error', description: res.error || 'Failed to save template.', variant: 'destructive' });
+    }
+  };
 
   useEffect(() => {
     if (isOpen && selectedPropertyId) load(selectedPropertyId);
@@ -161,7 +179,12 @@ export function ReengagementExportDialog() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="reeng-template">Message template</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="reeng-template">Message template</Label>
+                {template !== savedTemplate && (
+                  <span className="text-xs text-amber-600">Unsaved changes</span>
+                )}
+              </div>
               <Textarea
                 id="reeng-template"
                 value={template}
@@ -169,9 +192,32 @@ export function ReengagementExportDialog() {
                 rows={6}
                 className="font-mono text-xs"
               />
-              <p className="text-xs text-muted-foreground">
-                Placeholders: <code>{'{name}'}</code> · <code>{'{phrase}'}</code> (auto time reference) · <code>{'{link}'}</code>
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground">
+                  Placeholders: <code>{'{name}'}</code> · <code>{'{phrase}'}</code> (auto time reference) · <code>{'{link}'}</code>
+                </p>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setTemplate(DEFAULT_RO_MESSAGE_TEMPLATE)}
+                    disabled={template === DEFAULT_RO_MESSAGE_TEMPLATE}
+                  >
+                    Reset to built-in
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleSaveTemplate}
+                    disabled={saving || template === savedTemplate}
+                  >
+                    {saving ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+                    Save as default
+                  </Button>
+                </div>
+              </div>
             </div>
 
             {preview && (

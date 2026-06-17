@@ -257,6 +257,7 @@ export async function fetchReengagementContactsAction(propertyId: string): Promi
   unsubscribedExcluded?: number;
   noPhoneExcluded?: number;
   calendarLink?: string | null;
+  savedTemplate?: string | null;
   error?: string;
 }> {
   try {
@@ -347,6 +348,7 @@ export async function fetchReengagementContactsAction(propertyId: string): Promi
       unsubscribedExcluded: unsubExcludedKeys.size,
       noPhoneExcluded,
       calendarLink,
+      savedTemplate: (p.reengagementTemplate as string) || null,
     };
   } catch (error) {
     if (error instanceof AuthorizationError) {
@@ -355,6 +357,43 @@ export async function fetchReengagementContactsAction(propertyId: string): Promi
     }
     logger.error('Error fetching re-engagement contacts', error as Error, { propertyId });
     return { success: false, error: 'Failed to load contacts.' };
+  }
+}
+
+const saveReengagementTemplateSchema = z.object({
+  propertyId: z.string().min(1),
+  template: z.string().min(1).max(4000),
+});
+
+/** Persist a per-property re-engagement message template (properties/<slug>.reengagementTemplate). */
+export async function saveReengagementTemplateAction(
+  propertyId: string,
+  template: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requirePropertyAccess(propertyId);
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      const e = handleAuthError(error);
+      return { success: false, error: e.error };
+    }
+    throw error;
+  }
+
+  const parsed = saveReengagementTemplateSchema.safeParse({ propertyId, template });
+  if (!parsed.success) {
+    return { success: false, error: 'Template must be between 1 and 4000 characters.' };
+  }
+
+  try {
+    const db = await getAdminDb();
+    await db.collection('properties').doc(parsed.data.propertyId).update({
+      reengagementTemplate: parsed.data.template,
+    });
+    return { success: true };
+  } catch (error) {
+    logger.error('Error saving re-engagement template', error as Error, { propertyId });
+    return { success: false, error: 'Failed to save template.' };
   }
 }
 
