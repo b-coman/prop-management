@@ -7,6 +7,7 @@ import { GuestTable } from './guest-table';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { backfillGuestsAction } from '../actions';
+import { ReengagementExportDialog } from './reengagement-export-dialog';
 
 interface GuestsWithFilterProps {
   guests: Guest[];
@@ -45,22 +46,25 @@ export function GuestsWithFilter({ guests, isSuperAdmin }: GuestsWithFilterProps
 
   return (
     <div className="space-y-4">
-      {isSuperAdmin && (
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleBackfill}
-            disabled={isBackfilling}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isBackfilling ? 'animate-spin' : ''}`} />
-            {isBackfilling ? 'Backfilling...' : 'Backfill from Bookings'}
-          </Button>
-          {backfillResult && (
-            <p className="text-sm text-muted-foreground">{backfillResult}</p>
-          )}
-        </div>
-      )}
+      <div className="flex flex-wrap items-center gap-3">
+        <ReengagementExportDialog />
+        {isSuperAdmin && (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBackfill}
+              disabled={isBackfilling}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isBackfilling ? 'animate-spin' : ''}`} />
+              {isBackfilling ? 'Backfilling...' : 'Backfill from Bookings'}
+            </Button>
+            {backfillResult && (
+              <p className="text-sm text-muted-foreground">{backfillResult}</p>
+            )}
+          </>
+        )}
+      </div>
 
       <GuestTable guests={filtered} />
     </div>

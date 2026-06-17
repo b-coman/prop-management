@@ -14,6 +14,11 @@ import {
   AuthorizationError,
   requirePropertyAccess,
 } from '@/lib/authorization';
+import {
+  isRomanian,
+  normalizeRoPhone,
+  type ReengagementContact,
+} from '@/lib/guest-reengagement';
 import { revalidatePath } from 'next/cache';
 
 const logger = loggers.guest;
@@ -221,6 +226,135 @@ export async function checkIsSuperAdmin(): Promise<boolean> {
     return user.role === 'super_admin';
   } catch {
     return false;
+  }
+}
+
+/** Parse a Firestore date field (admin Timestamp | {_seconds} | Date | ISO string). */
+function parseBookingDate(raw: unknown): Date | null {
+  if (!raw) return null;
+  if (raw instanceof Date) return raw;
+  if (typeof raw === 'object' && raw !== null) {
+    const o = raw as { toDate?: () => Date; _seconds?: number };
+    if (typeof o.toDate === 'function') return o.toDate();
+    if (typeof o._seconds === 'number') return new Date(o._seconds * 1000);
+  }
+  if (typeof raw === 'string') {
+    const d = new Date(raw);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
+
+/**
+ * Build the re-engagement contact list for a property: past (non-cancelled) bookings whose
+ * guest is Romanian and has a phone, deduped to the most recent stay per phone, excluding
+ * anyone marked unsubscribed in the guests CRM. Returns raw contacts + the branded guest
+ * calendar link; the message text is composed client-side so the admin can edit it per send.
+ */
+export async function fetchReengagementContactsAction(propertyId: string): Promise<{
+  success: boolean;
+  contacts?: ReengagementContact[];
+  unsubscribedExcluded?: number;
+  noPhoneExcluded?: number;
+  calendarLink?: string | null;
+  error?: string;
+}> {
+  try {
+    await requirePropertyAccess(propertyId);
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      const e = handleAuthError(error);
+      return { success: false, error: e.error };
+    }
+    throw error;
+  }
+
+  try {
+    const db = await getAdminDb();
+
+    // Unsubscribed contacts (by normalized phone + email) — to be excluded for compliance.
+    const unsubSnap = await db.collection('guests').where('unsubscribed', '==', true).get();
+    const unsubPhones = new Set<string>();
+    const unsubEmails = new Set<string>();
+    unsubSnap.forEach((doc) => {
+      const g = doc.data();
+      if (g.normalizedPhone) unsubPhones.add(g.normalizedPhone);
+      if (g.phone) { const n = normalizePhone(g.phone); if (n) unsubPhones.add(n); }
+      if (g.email) unsubEmails.add(String(g.email).toLowerCase().trim());
+    });
+
+    const snap = await db.collection('bookings').where('propertyId', '==', propertyId).get();
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    type Rec = ReengagementContact & { key: string; t: number };
+    const candidates: Rec[] = [];
+    const unsubExcludedKeys = new Set<string>();
+    let noPhoneExcluded = 0;
+
+    snap.forEach((doc) => {
+      const d = doc.data();
+      if (d.status === 'cancelled') return;
+      const gi = d.guestInfo || {};
+      const rawPhone = (gi.phone || '').trim();
+      if (!isRomanian(gi.country, rawPhone)) return;
+      if (!rawPhone) { noPhoneExcluded++; return; }
+
+      const sanitized = normalizePhone(rawPhone);
+      const emailKey = (gi.email || '').toLowerCase().trim();
+      if ((sanitized && unsubPhones.has(sanitized)) || (emailKey && unsubEmails.has(emailKey))) {
+        unsubExcludedKeys.add(sanitized || emailKey);
+        return;
+      }
+
+      const checkIn = parseBookingDate(d.checkInDate);
+      const ci = checkIn ? checkIn.toISOString().slice(0, 10) : '';
+      if (!ci || ci > todayStr) return; // PAST stays only
+
+      const { norm } = normalizeRoPhone(rawPhone);
+      candidates.push({
+        firstName: (gi.firstName || '').trim(),
+        lastName: (gi.lastName || '').trim(),
+        lastCheckIn: ci,
+        phone: rawPhone,
+        key: norm || `${(gi.firstName || '').toLowerCase()}|${(gi.lastName || '').toLowerCase()}`,
+        t: checkIn!.getTime(),
+      });
+    });
+
+    // Dedup by phone identity, keep most recent past stay
+    const byKey = new Map<string, Rec>();
+    for (const r of candidates) {
+      const e = byKey.get(r.key);
+      if (!e || r.t >= e.t) byKey.set(r.key, r);
+    }
+    const contacts: ReengagementContact[] = [...byKey.values()]
+      .sort((a, b) => b.t - a.t)
+      .map(({ firstName, lastName, lastCheckIn, phone }) => ({ firstName, lastName, lastCheckIn, phone }));
+
+    // Branded guest calendar link from the property's custom domain (multi-property safe)
+    const propDoc = await db.collection('properties').doc(propertyId).get();
+    const p = propDoc.data() || {};
+    const token = p.guestCalendarToken;
+    let calendarLink: string | null = null;
+    if (token) {
+      const base = p.useCustomDomain && p.customDomain ? `https://${p.customDomain}` : '';
+      calendarLink = `${base}/calendar/${token}`;
+    }
+
+    return {
+      success: true,
+      contacts,
+      unsubscribedExcluded: unsubExcludedKeys.size,
+      noPhoneExcluded,
+      calendarLink,
+    };
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      const e = handleAuthError(error);
+      return { success: false, error: e.error };
+    }
+    logger.error('Error fetching re-engagement contacts', error as Error, { propertyId });
+    return { success: false, error: 'Failed to load contacts.' };
   }
 }
 
