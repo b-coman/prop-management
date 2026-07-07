@@ -13,10 +13,11 @@
  */
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
-import type { Guest, ChannelType, ConsentState, MessageLogStatus } from '@/types';
+import type { Guest, ChannelType, ConsentState, MessageLogStatus, LanguageCode } from '@/types';
 import { getSendMode } from '@/config/growth-engine';
 import { getGuestById } from '@/services/guestService';
 import { normalizePhone } from '@/lib/sanitize';
+import { normalizeCountryCode } from '@/lib/country-utils';
 
 const logger = loggers.executionGateway;
 
@@ -24,6 +25,7 @@ type AdminDb = Awaited<ReturnType<typeof getAdminDb>>;
 
 export interface SendRequest {
   guestId: string;
+  propertyId?: string; // which property this send is for (recorded on messageLog)
   channel: ChannelType;
   templateName: string;
   variables?: Record<string, string>;
@@ -50,6 +52,20 @@ export function isConsentBlocked(
   if (guest.unsubscribed) return true;
   const state: ConsentState | undefined = guest.channelConsent?.[channel];
   return state === 'opted_out';
+}
+
+/**
+ * Effective message language for a guest. For this RO-first business, the guest's
+ * country is a better predictor than the `language` field, which defaults to 'en'
+ * for imported/phone-only guests (the exact reactivation base) — so a RO/MD guest
+ * gets Romanian even when `language` was never captured (H2). An explicit 'ro'
+ * always wins.
+ */
+export function resolveGuestLanguage(guest: Pick<Guest, 'language' | 'country'>): LanguageCode {
+  if (guest.language === 'ro') return 'ro';
+  const code = guest.country ? normalizeCountryCode(guest.country) : undefined;
+  if (code === 'RO' || code === 'MD') return 'ro';
+  return guest.language || 'en';
 }
 
 /** Mask a phone/email for logging (never store full contact in messageLog). */
@@ -119,6 +135,7 @@ async function alreadyDelivered(db: AdminDb, req: SendRequest): Promise<boolean>
 
 interface MessageLogInput {
   guestId: string;
+  propertyId: string | null;
   channel: ChannelType;
   campaignId: string | null;
   templateName: string | null;
@@ -148,6 +165,7 @@ export async function executeSend(req: SendRequest): Promise<SendResult> {
 
   const base = {
     guestId: req.guestId,
+    propertyId: req.propertyId ?? null,
     channel: req.channel,
     campaignId: req.campaignId ?? null,
     templateName: req.templateName ?? null,
@@ -238,7 +256,7 @@ export async function executeSend(req: SendRequest): Promise<SendResult> {
   // mislabel an already-delivered message as 'failed' and cause a re-send (M2).
   let delivery: { success: boolean; providerId?: string; error?: string };
   try {
-    delivery = await deliverLive(req.channel, contact, req.templateName, req.variables || {});
+    delivery = await deliverLive(req.channel, contact, req.templateName, req.variables || {}, resolveGuestLanguage(guest));
   } catch (error) {
     logger.error('Live send threw', error as Error, {
       guestId: req.guestId,
@@ -273,13 +291,14 @@ async function deliverLive(
   channel: ChannelType,
   contact: string,
   templateName: string,
-  variables: Record<string, string>
+  variables: Record<string, string>,
+  language: LanguageCode
 ): Promise<{ success: boolean; providerId?: string; error?: string }> {
   if (channel === 'whatsapp') {
     const { resolveWhatsAppTemplateSid, sendWhatsAppTemplateBySid } = await import(
       '@/services/whatsappService'
     );
-    const sid = resolveWhatsAppTemplateSid(templateName);
+    const sid = resolveWhatsAppTemplateSid(templateName, language);
     if (!sid) {
       // Unknown name, or a marketing template whose SID isn't approved/set yet.
       return {

@@ -349,6 +349,7 @@ export type MessageLogStatus =
 export interface MessageLog {
   id: string;
   guestId: string;
+  propertyId?: string | null; // which property this message was for (audit/reporting)
   channel: ChannelType;
   campaignId?: string | null;
   templateName?: string | null;

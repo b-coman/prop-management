@@ -169,6 +169,7 @@ export async function sendCampaign(
 
     const result = await executeSend({
       guestId: guest.id,
+      propertyId: campaign.propertyId,
       channel: campaign.channel,
       templateName: campaign.templateName,
       variables: campaign.variables,
