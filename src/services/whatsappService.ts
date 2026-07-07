@@ -1,4 +1,5 @@
 import { loggers } from '@/lib/logger';
+import type { LanguageCode } from '@/types';
 
 const logger = loggers.whatsapp;
 
@@ -45,24 +46,36 @@ export type WhatsAppTemplateName = keyof typeof WHATSAPP_TEMPLATES;
  * until the templates are approved in Twilio/Meta, so the live send path stays
  * inert until finalization. See plans/growth-engine.md section 6.6 / 10.
  */
-export const WHATSAPP_MARKETING_TEMPLATES = {
-  winter_invite: process.env.WHATSAPP_TPL_WINTER_INVITE || '',
-  we_miss_you: process.env.WHATSAPP_TPL_WE_MISS_YOU || '',
-  seasonal_availability: process.env.WHATSAPP_TPL_SEASONAL_AVAILABILITY || '',
-} as const;
+export const WHATSAPP_MARKETING_TEMPLATES: Record<string, Partial<Record<LanguageCode, string>>> = {
+  winter_invite: {
+    en: process.env.WHATSAPP_TPL_WINTER_INVITE_EN || '',
+    ro: process.env.WHATSAPP_TPL_WINTER_INVITE_RO || '',
+  },
+  we_miss_you: {
+    en: process.env.WHATSAPP_TPL_WE_MISS_YOU_EN || '',
+    ro: process.env.WHATSAPP_TPL_WE_MISS_YOU_RO || '',
+  },
+  seasonal_availability: {
+    en: process.env.WHATSAPP_TPL_SEASONAL_AVAILABILITY_EN || '',
+    ro: process.env.WHATSAPP_TPL_SEASONAL_AVAILABILITY_RO || '',
+  },
+};
 
 export type WhatsAppMarketingTemplateName = keyof typeof WHATSAPP_MARKETING_TEMPLATES;
 
 /**
- * Resolve a Twilio content SID from either the ops or the marketing registry.
- * Returns undefined for unknown names OR marketing templates whose SID env var
- * isn't set yet (unapproved) — callers treat that as "not deliverable".
+ * Resolve a Twilio content SID from the ops registry (single SID) or the
+ * marketing registry (per-language). For marketing templates, selects the
+ * guest's language, falling back to EN. Returns undefined for unknown names OR
+ * marketing templates whose SID env var isn't set yet (unapproved) — callers
+ * treat that as "not deliverable".
  */
-export function resolveWhatsAppTemplateSid(name: string): string | undefined {
-  const sid =
-    (WHATSAPP_TEMPLATES as Record<string, string>)[name] ??
-    (WHATSAPP_MARKETING_TEMPLATES as Record<string, string>)[name];
-  return sid || undefined;
+export function resolveWhatsAppTemplateSid(name: string, language: LanguageCode = 'en'): string | undefined {
+  const ops = (WHATSAPP_TEMPLATES as Record<string, string>)[name];
+  if (ops) return ops || undefined;
+  const variants = WHATSAPP_MARKETING_TEMPLATES[name];
+  if (!variants) return undefined;
+  return variants[language] || variants.en || undefined;
 }
 
 // ============================================================================

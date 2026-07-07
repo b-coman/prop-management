@@ -67,10 +67,22 @@ export async function runChannelAwareReactivation(now: Date = new Date()): Promi
         continue;
       }
 
+      // Cohort strategy: automatic reactivation targets LOCALS — RO or
+      // unknown-country guests, who can realistically return. Known-foreign
+      // guests (unlikely to travel back) are skipped here; reach them
+      // deliberately via a targeted campaign instead, not this auto-nudge.
+      if (guest.country && guest.country !== 'RO') {
+        stats.skipped++;
+        continue;
+      }
+
       stats.attempted++;
 
+      // executeSend auto-selects the WhatsApp template variant by guest.language
+      // and records data.propertyId on the messageLog audit entry.
       const result = await executeSend({
         guestId: guest.id,
+        propertyId: data.propertyId,
         channel: 'whatsapp',
         templateName: 'seasonal_availability',
         variables: { '1': guest.firstName || '' },

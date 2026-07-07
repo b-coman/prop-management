@@ -7,19 +7,21 @@ jest.mock('@/lib/firebaseAdminSafe', () => ({
 }));
 jest.mock('@/services/guestService', () => ({ getGuestById: jest.fn() }));
 jest.mock('@/services/whatsappService', () => ({
-  resolveWhatsAppTemplateSid: jest.fn((name: string) => (name === 'winter_invite' ? 'HX-test' : undefined)),
+  // 2-arg (name, language) so we can assert language-variant selection
+  resolveWhatsAppTemplateSid: jest.fn((name: string, lang: string) => (name === 'winter_invite' ? `HX-${lang}` : undefined)),
   sendWhatsAppTemplateBySid: jest.fn().mockResolvedValue({ success: true, sid: 'SM-1' }),
 }));
 
 import { executeSend, isConsentBlocked, maskContact } from '../executionGateway';
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { getGuestById } from '@/services/guestService';
-import { sendWhatsAppTemplateBySid } from '@/services/whatsappService';
+import { sendWhatsAppTemplateBySid, resolveWhatsAppTemplateSid } from '@/services/whatsappService';
 import type { Guest } from '@/types';
 
 const mockGetAdminDb = getAdminDb as jest.Mock;
 const mockGetGuestById = getGuestById as jest.Mock;
 const mockSendWhatsApp = sendWhatsAppTemplateBySid as jest.Mock;
+const mockResolve = resolveWhatsAppTemplateSid as jest.Mock;
 
 function chainableGet(result: unknown) {
   const q: Record<string, jest.Mock> = {};
@@ -91,13 +93,14 @@ describe('executeSend — dark-launch safety (default)', () => {
     mockGetAdminDb.mockResolvedValue(db);
     mockGetGuestById.mockResolvedValue(guest());
 
-    const res = await executeSend({ guestId: 'g1', channel: 'whatsapp', templateName: 'winter_invite' });
+    const res = await executeSend({ guestId: 'g1', propertyId: 'prahova-mountain-chalet', channel: 'whatsapp', templateName: 'winter_invite' });
 
     expect(mockSendWhatsApp).not.toHaveBeenCalled();
     expect(res.status).toBe('dry-run');
     expect(res.mode).toBe('dry-run');
     expect(addMock).toHaveBeenCalledTimes(1);
-    expect(addMock.mock.calls[0][0]).toMatchObject({ status: 'dry-run', to: '+40712***' });
+    // messageLog records the property for per-property audit/reporting (#1)
+    expect(addMock.mock.calls[0][0]).toMatchObject({ status: 'dry-run', to: '+40712***', propertyId: 'prahova-mountain-chalet' });
   });
 
   it('suppresses unsubscribed guests', async () => {
@@ -148,18 +151,30 @@ describe('executeSend — live mode (both switches on)', () => {
     process.env.GROWTH_ENGINE_SEND_MODE = 'live';
   });
 
-  it('delivers via WhatsApp and logs sent', async () => {
+  it('delivers via WhatsApp and logs sent, selecting the guest-language template (#2)', async () => {
     const { db, addMock } = makeDb();
     mockGetAdminDb.mockResolvedValue(db);
-    mockGetGuestById.mockResolvedValue(guest());
+    mockGetGuestById.mockResolvedValue(guest()); // language 'en'
 
     const res = await executeSend({ guestId: 'g1', channel: 'whatsapp', templateName: 'winter_invite', campaignId: 'c1' });
 
-    expect(mockSendWhatsApp).toHaveBeenCalledTimes(1);
+    expect(mockResolve).toHaveBeenCalledWith('winter_invite', 'en');
+    expect(mockSendWhatsApp).toHaveBeenCalledWith('+40712345678', 'HX-en', expect.any(Object));
     expect(res.status).toBe('sent');
     expect(res.mode).toBe('live');
     expect(res.providerId).toBe('SM-1');
     expect(addMock.mock.calls.at(-1)?.[0]).toMatchObject({ status: 'sent', providerId: 'SM-1' });
+  });
+
+  it('selects the RO template variant for a RO-language guest (#2)', async () => {
+    const { db } = makeDb();
+    mockGetAdminDb.mockResolvedValue(db);
+    mockGetGuestById.mockResolvedValue(guest({ language: 'ro' }));
+
+    await executeSend({ guestId: 'g1', channel: 'whatsapp', templateName: 'winter_invite' });
+
+    expect(mockResolve).toHaveBeenCalledWith('winter_invite', 'ro');
+    expect(mockSendWhatsApp).toHaveBeenCalledWith('+40712345678', 'HX-ro', expect.any(Object));
   });
 
   it('logs failed (not delivered) when the provider reports failure', async () => {

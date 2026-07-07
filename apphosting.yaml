@@ -222,16 +222,29 @@ env:
 #     - RUNTIME
 # Marketing WhatsApp template content SIDs (from Twilio, after Meta approval).
 # Until set, the live WhatsApp path for these templates stays inert.
-# - variable: WHATSAPP_TPL_WINTER_INVITE
-#   secret: projects/1061532538391/secrets/WHATSAPP_TPL_WINTER_INVITE/versions/latest
+# Per-language content SIDs — executeSend selects by guest.language (falls back to EN).
+# - variable: WHATSAPP_TPL_WINTER_INVITE_EN
+#   secret: projects/1061532538391/secrets/WHATSAPP_TPL_WINTER_INVITE_EN/versions/latest
 #   availability:
 #     - RUNTIME
-# - variable: WHATSAPP_TPL_WE_MISS_YOU
-#   secret: projects/1061532538391/secrets/WHATSAPP_TPL_WE_MISS_YOU/versions/latest
+# - variable: WHATSAPP_TPL_WINTER_INVITE_RO
+#   secret: projects/1061532538391/secrets/WHATSAPP_TPL_WINTER_INVITE_RO/versions/latest
 #   availability:
 #     - RUNTIME
-# - variable: WHATSAPP_TPL_SEASONAL_AVAILABILITY
-#   secret: projects/1061532538391/secrets/WHATSAPP_TPL_SEASONAL_AVAILABILITY/versions/latest
+# - variable: WHATSAPP_TPL_WE_MISS_YOU_EN
+#   secret: projects/1061532538391/secrets/WHATSAPP_TPL_WE_MISS_YOU_EN/versions/latest
+#   availability:
+#     - RUNTIME
+# - variable: WHATSAPP_TPL_WE_MISS_YOU_RO
+#   secret: projects/1061532538391/secrets/WHATSAPP_TPL_WE_MISS_YOU_RO/versions/latest
+#   availability:
+#     - RUNTIME
+# - variable: WHATSAPP_TPL_SEASONAL_AVAILABILITY_EN
+#   secret: projects/1061532538391/secrets/WHATSAPP_TPL_SEASONAL_AVAILABILITY_EN/versions/latest
+#   availability:
+#     - RUNTIME
+# - variable: WHATSAPP_TPL_SEASONAL_AVAILABILITY_RO
+#   secret: projects/1061532538391/secrets/WHATSAPP_TPL_SEASONAL_AVAILABILITY_RO/versions/latest
 #   availability:
 #     - RUNTIME
 

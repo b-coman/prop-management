@@ -80,6 +80,43 @@ describe('runChannelAwareReactivation — audience filtering', () => {
     expect(eligible._update.mock.calls[0][0]).toHaveProperty('seasonalReactivationSentAt');
   });
 
+  it('records propertyId and reaches unknown-country guests (#1/#3)', async () => {
+    const eligible = bookingDoc({ propertyId: 'prahova-mountain-chalet', guestInfo: { phone: '+40712345678' }, checkOutDate: secondsFor(90) });
+    const { db } = makeDb([eligible]);
+    mockGetAdminDb.mockResolvedValue(db);
+    mockFindGuestByPhone.mockResolvedValue({ id: 'g1', firstName: 'Ana' }); // no country => unknown => reached
+    mockExecuteSend.mockResolvedValue({ status: 'dry-run', mode: 'dry-run' });
+    await runChannelAwareReactivation(NOW);
+    expect(mockExecuteSend).toHaveBeenCalledTimes(1);
+    expect(mockExecuteSend.mock.calls[0][0]).toMatchObject({
+      propertyId: 'prahova-mountain-chalet',
+      channel: 'whatsapp',
+      templateName: 'seasonal_availability',
+    });
+  });
+
+  it('skips known-foreign guests — cohort strategy targets locals (#3)', async () => {
+    const eligible = bookingDoc({ propertyId: 'p', guestInfo: { phone: '+40712345678' }, checkOutDate: secondsFor(90) });
+    const { db } = makeDb([eligible]);
+    mockGetAdminDb.mockResolvedValue(db);
+    mockFindGuestByPhone.mockResolvedValue({ id: 'g1', firstName: 'John', country: 'US' });
+    mockExecuteSend.mockResolvedValue({ status: 'dry-run', mode: 'dry-run' });
+    const stats = await runChannelAwareReactivation(NOW);
+    expect(mockExecuteSend).not.toHaveBeenCalled();
+    expect(stats).toMatchObject({ attempted: 0, skipped: 1 });
+  });
+
+  it('reaches RO guests (#3)', async () => {
+    const eligible = bookingDoc({ propertyId: 'p', guestInfo: { phone: '+40712345678' }, checkOutDate: secondsFor(90) });
+    const { db } = makeDb([eligible]);
+    mockGetAdminDb.mockResolvedValue(db);
+    mockFindGuestByPhone.mockResolvedValue({ id: 'g1', firstName: 'Ana', country: 'RO' });
+    mockExecuteSend.mockResolvedValue({ status: 'dry-run', mode: 'dry-run' });
+    const stats = await runChannelAwareReactivation(NOW);
+    expect(mockExecuteSend).toHaveBeenCalledTimes(1);
+    expect(stats.attempted).toBe(1);
+  });
+
   it('skips guests who already re-booked since the stay', async () => {
     const eligible = bookingDoc({ guestInfo: { phone: '+40712345678' }, checkOutDate: secondsFor(90) });
     const { db } = makeDb([eligible]);
