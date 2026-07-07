@@ -222,12 +222,14 @@ service cloud.firestore {
     }
 
     match /messageLog/{messageId} {
-      allow read: if isSuperAdmin() || isPropertyOwner();
+      // Audit trail carrying guest identifiers — super-admin only (M4).
+      allow read: if isSuperAdmin();
       allow write: if false;  // Admin SDK only (audit trail)
     }
 
     match /suppressionList/{entryId} {
-      allow read: if isSuperAdmin() || isPropertyOwner();
+      // Holds raw phone/email PII — super-admin only (M4).
+      allow read: if isSuperAdmin();
       allow write: if false;  // Admin SDK only
     }
 

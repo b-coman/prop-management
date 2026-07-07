@@ -60,12 +60,10 @@ export function maskContact(contact: string): string {
 
 function resolveContact(guest: Guest, channel: ChannelType): string | null {
   if (channel === 'whatsapp' || channel === 'sms') {
-    return (
-      guest.normalizedPhone ||
-      (guest.phone ? normalizePhone(guest.phone) : null) ||
-      guest.phone ||
-      null
-    );
+    // Only ever return a properly normalized number — the SAME identity the
+    // suppression check keys on. A phone that fails normalization is treated as
+    // unreachable (no raw fallback), so it cannot slip past suppression (M5).
+    return guest.normalizedPhone || (guest.phone ? normalizePhone(guest.phone) || null : null);
   }
   if (channel === 'email') return guest.email || null;
   return null;
@@ -98,6 +96,25 @@ async function isSuppressed(db: AdminDb, guest: Guest): Promise<boolean> {
   }
   if (checks.length === 0) return false;
   return (await Promise.all(checks)).some(Boolean);
+}
+
+/**
+ * Within a campaign, has this guest already been REALLY delivered this template?
+ * Only real deliveries ('sent'/'delivered') block a resend — dry-run previews
+ * never do, so a campaign can be previewed repeatedly (M1).
+ */
+async function alreadyDelivered(db: AdminDb, req: SendRequest): Promise<boolean> {
+  if (!req.campaignId) return false; // dedup only makes sense inside a campaign
+  const snap = await db
+    .collection('messageLog')
+    .where('guestId', '==', req.guestId)
+    .where('campaignId', '==', req.campaignId)
+    .where('templateName', '==', req.templateName)
+    .get();
+  return snap.docs.some((d) => {
+    const s = (d.data() as { status?: string }).status;
+    return s === 'sent' || s === 'delivered';
+  });
 }
 
 interface MessageLogInput {
@@ -173,6 +190,18 @@ export async function executeSend(req: SendRequest): Promise<SendResult> {
     return { status: 'suppressed', reason: 'suppression-list', messageLogId: id, mode };
   }
 
+  // 2.5) dedup — never re-deliver the same campaign template to the same guest
+  if (await alreadyDelivered(db, req)) {
+    const id = await writeMessageLog(db, {
+      ...base,
+      status: 'skipped',
+      reason: 'dedup',
+      to: null,
+      providerId: null,
+    });
+    return { status: 'skipped', reason: 'dedup', messageLogId: id, mode };
+  }
+
   // 3) resolve a contact for the channel
   const contact = resolveContact(guest, req.channel);
   if (!contact) {
@@ -204,38 +233,35 @@ export async function executeSend(req: SendRequest): Promise<SendResult> {
     return { status: 'dry-run', messageLogId: id, mode: 'dry-run' };
   }
 
-  // 5) LIVE delivery (only when both flags are flipped)
+  // 5) LIVE delivery (only when both flags are flipped). Delivery and the log
+  // write are deliberately separated so a Firestore log-write failure can never
+  // mislabel an already-delivered message as 'failed' and cause a re-send (M2).
+  let delivery: { success: boolean; providerId?: string; error?: string };
   try {
-    const delivery = await deliverLive(req.channel, contact, req.templateName, req.variables || {});
-    const status: MessageLogStatus = delivery.success ? 'sent' : 'failed';
-    const id = await writeMessageLog(db, {
-      ...base,
-      status,
-      reason: delivery.error ?? null,
-      to: maskContact(contact),
-      providerId: delivery.providerId ?? null,
-    });
-    return {
-      status,
-      reason: delivery.error,
-      providerId: delivery.providerId,
-      messageLogId: id,
-      mode: 'live',
-    };
+    delivery = await deliverLive(req.channel, contact, req.templateName, req.variables || {});
   } catch (error) {
-    logger.error('Live send failed', error as Error, {
+    logger.error('Live send threw', error as Error, {
       guestId: req.guestId,
       channel: req.channel,
     });
-    const id = await writeMessageLog(db, {
-      ...base,
-      status: 'failed',
-      reason: (error as Error).message,
-      to: maskContact(contact),
-      providerId: null,
-    });
-    return { status: 'failed', reason: (error as Error).message, messageLogId: id, mode: 'live' };
+    delivery = { success: false, error: (error as Error).message };
   }
+
+  const status: MessageLogStatus = delivery.success ? 'sent' : 'failed';
+  const id = await writeMessageLog(db, {
+    ...base,
+    status,
+    reason: delivery.error ?? null,
+    to: maskContact(contact),
+    providerId: delivery.providerId ?? null,
+  });
+  return {
+    status,
+    reason: delivery.error,
+    providerId: delivery.providerId,
+    messageLogId: id,
+    mode: 'live',
+  };
 }
 
 /**

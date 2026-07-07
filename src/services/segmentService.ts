@@ -54,7 +54,10 @@ export function matchesDefinition(
     if (!guest.country || !def.countryIn.includes(guest.country)) return false;
   }
   if (def.countryNotIn && def.countryNotIn.length > 0) {
-    if (guest.country && def.countryNotIn.includes(guest.country)) return false;
+    // Symmetric with countryIn: a guest with unknown country is NOT classifiable
+    // as "not in X", so exclude them rather than treating unknown as foreign (M3).
+    if (!guest.country) return false;
+    if (def.countryNotIn.includes(guest.country)) return false;
   }
 
   if (def.tagsInclude && def.tagsInclude.length > 0) {
@@ -115,7 +118,7 @@ export async function evaluateSegment(
 
 export interface AudiencePreview {
   count: number;
-  byChannel: Record<'whatsapp' | 'sms' | 'email' | 'none', number>;
+  byChannel: Record<'whatsapp' | 'email' | 'none', number>;
   sample: Array<{ id: string; name: string; channel: ChannelType | null; country?: string }>;
 }
 
@@ -125,10 +128,13 @@ export async function previewAudience(
   now: Date = new Date()
 ): Promise<AudiencePreview> {
   const guests = await evaluateSegment(def, now);
-  const byChannel = { whatsapp: 0, sms: 0, email: 0, none: 0 };
+  // resolveChannel only ever yields whatsapp | email | null (no sms today).
+  const byChannel = { whatsapp: 0, email: 0, none: 0 };
   for (const g of guests) {
     const ch = resolveChannel(g);
-    byChannel[ch ?? 'none']++;
+    if (ch === 'whatsapp') byChannel.whatsapp++;
+    else if (ch === 'email') byChannel.email++;
+    else byChannel.none++;
   }
   const sample = guests.slice(0, 10).map((g) => ({
     id: g.id,

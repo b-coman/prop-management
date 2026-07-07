@@ -1,35 +1,42 @@
 /** @jest-environment node */
 
-// Mock the Admin SDK and guest lookup BEFORE importing the module under test.
+// Mock the Admin SDK, guest lookup, and WhatsApp provider BEFORE importing the SUT.
 jest.mock('@/lib/firebaseAdminSafe', () => ({
   getAdminDb: jest.fn(),
   FieldValue: { serverTimestamp: jest.fn(() => 'server-ts') },
 }));
 jest.mock('@/services/guestService', () => ({ getGuestById: jest.fn() }));
+jest.mock('@/services/whatsappService', () => ({
+  sendWhatsAppTemplate: jest.fn().mockResolvedValue({ success: true, sid: 'SM-1' }),
+  WHATSAPP_TEMPLATES: { winter_invite: 'HX-test' },
+}));
 
 import { executeSend, isConsentBlocked, maskContact } from '../executionGateway';
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { getGuestById } from '@/services/guestService';
+import { sendWhatsAppTemplate } from '@/services/whatsappService';
 import type { Guest } from '@/types';
 
 const mockGetAdminDb = getAdminDb as jest.Mock;
 const mockGetGuestById = getGuestById as jest.Mock;
+const mockSendWhatsApp = sendWhatsAppTemplate as jest.Mock;
 
-/** Build a chainable Firestore mock; `suppressed` toggles the suppressionList hit. */
-function makeDb({ suppressed = false }: { suppressed?: boolean } = {}) {
+function chainableGet(result: unknown) {
+  const q: Record<string, jest.Mock> = {};
+  q.where = jest.fn(() => q);
+  q.limit = jest.fn(() => q);
+  q.get = jest.fn().mockResolvedValue(result);
+  return q;
+}
+
+/** Chainable Firestore mock; toggles suppressionList hit and prior-delivery dedup. */
+function makeDb({ suppressed = false, priorDelivered = false }: { suppressed?: boolean; priorDelivered?: boolean } = {}) {
   const addMock = jest.fn().mockResolvedValue({ id: 'log-123' });
-  const query: Record<string, jest.Mock> = {
-    where: jest.fn(),
-    limit: jest.fn(),
-    get: jest.fn().mockResolvedValue({ empty: !suppressed }),
-  };
-  query.where.mockReturnValue(query);
-  query.limit.mockReturnValue(query);
+  const suppressionQuery = chainableGet({ empty: !suppressed });
+  const messageLogQuery = chainableGet({ docs: priorDelivered ? [{ data: () => ({ status: 'sent' }) }] : [] });
+  const messageLogCol = { add: addMock, where: messageLogQuery.where };
   const db = {
-    collection: jest.fn((name: string) => {
-      if (name === 'messageLog') return { add: addMock };
-      return query; // suppressionList
-    }),
+    collection: jest.fn((name: string) => (name === 'messageLog' ? messageLogCol : suppressionQuery)),
   };
   return { db, addMock };
 }
@@ -57,9 +64,11 @@ function guest(overrides: Partial<Guest> = {}): Guest {
 }
 
 beforeEach(() => {
-  // Ensure DARK LAUNCH default (both switches off) for every test.
+  // Enforce DARK LAUNCH default (both switches off) for every test unless overridden.
   delete process.env.GROWTH_ENGINE_ENABLED;
   delete process.env.GROWTH_ENGINE_SEND_MODE;
+  mockSendWhatsApp.mockClear();
+  mockSendWhatsApp.mockResolvedValue({ success: true, sid: 'SM-1' });
 });
 
 describe('executionGateway pure helpers', () => {
@@ -67,7 +76,6 @@ describe('executionGateway pure helpers', () => {
     expect(isConsentBlocked({ unsubscribed: true }, 'whatsapp')).toBe(true);
     expect(isConsentBlocked({ unsubscribed: false, channelConsent: { whatsapp: 'opted_out' } }, 'whatsapp')).toBe(true);
     expect(isConsentBlocked({ unsubscribed: false, channelConsent: { whatsapp: 'opted_in' } }, 'whatsapp')).toBe(false);
-    // unknown/absent consent is allowed (owner call §0.2.1)
     expect(isConsentBlocked({ unsubscribed: false }, 'whatsapp')).toBe(false);
     expect(isConsentBlocked({ unsubscribed: false, channelConsent: { email: 'opted_out' } }, 'whatsapp')).toBe(false);
   });
@@ -77,14 +85,15 @@ describe('executionGateway pure helpers', () => {
   });
 });
 
-describe('executeSend — dark-launch safety', () => {
-  it('defaults to dry-run (records intent, delivers nothing)', async () => {
+describe('executeSend — dark-launch safety (default)', () => {
+  it('defaults to dry-run: records intent, delivers nothing', async () => {
     const { db, addMock } = makeDb();
     mockGetAdminDb.mockResolvedValue(db);
     mockGetGuestById.mockResolvedValue(guest());
 
     const res = await executeSend({ guestId: 'g1', channel: 'whatsapp', templateName: 'winter_invite' });
 
+    expect(mockSendWhatsApp).not.toHaveBeenCalled();
     expect(res.status).toBe('dry-run');
     expect(res.mode).toBe('dry-run');
     expect(addMock).toHaveBeenCalledTimes(1);
@@ -103,7 +112,7 @@ describe('executeSend — dark-launch safety', () => {
   });
 
   it('suppresses guests on the suppression list', async () => {
-    const { db, addMock } = makeDb({ suppressed: true });
+    const { db } = makeDb({ suppressed: true });
     mockGetAdminDb.mockResolvedValue(db);
     mockGetGuestById.mockResolvedValue(guest());
 
@@ -130,5 +139,57 @@ describe('executeSend — dark-launch safety', () => {
     const res = await executeSend({ guestId: 'g1', channel: 'whatsapp', templateName: 'winter_invite' });
     expect(res.status).toBe('skipped');
     expect(res.reason).toBe('no-contact-for-channel');
+  });
+});
+
+describe('executeSend — live mode (both switches on)', () => {
+  beforeEach(() => {
+    process.env.GROWTH_ENGINE_ENABLED = 'true';
+    process.env.GROWTH_ENGINE_SEND_MODE = 'live';
+  });
+
+  it('delivers via WhatsApp and logs sent', async () => {
+    const { db, addMock } = makeDb();
+    mockGetAdminDb.mockResolvedValue(db);
+    mockGetGuestById.mockResolvedValue(guest());
+
+    const res = await executeSend({ guestId: 'g1', channel: 'whatsapp', templateName: 'winter_invite', campaignId: 'c1' });
+
+    expect(mockSendWhatsApp).toHaveBeenCalledTimes(1);
+    expect(res.status).toBe('sent');
+    expect(res.mode).toBe('live');
+    expect(res.providerId).toBe('SM-1');
+    expect(addMock.mock.calls.at(-1)?.[0]).toMatchObject({ status: 'sent', providerId: 'SM-1' });
+  });
+
+  it('logs failed (not delivered) when the provider reports failure', async () => {
+    mockSendWhatsApp.mockResolvedValue({ success: false, error: 'twilio boom' });
+    const { db } = makeDb();
+    mockGetAdminDb.mockResolvedValue(db);
+    mockGetGuestById.mockResolvedValue(guest());
+
+    const res = await executeSend({ guestId: 'g1', channel: 'whatsapp', templateName: 'winter_invite' });
+    expect(res.status).toBe('failed');
+    expect(res.reason).toBe('twilio boom');
+  });
+
+  it('dedups an already-delivered campaign template (M1)', async () => {
+    const { db } = makeDb({ priorDelivered: true });
+    mockGetAdminDb.mockResolvedValue(db);
+    mockGetGuestById.mockResolvedValue(guest());
+
+    const res = await executeSend({ guestId: 'g1', channel: 'whatsapp', templateName: 'winter_invite', campaignId: 'c1' });
+    expect(mockSendWhatsApp).not.toHaveBeenCalled();
+    expect(res.status).toBe('skipped');
+    expect(res.reason).toBe('dedup');
+  });
+
+  it('does NOT dedup when there is no campaignId (lifecycle sends)', async () => {
+    const { db } = makeDb({ priorDelivered: true }); // prior exists but request carries no campaignId
+    mockGetAdminDb.mockResolvedValue(db);
+    mockGetGuestById.mockResolvedValue(guest());
+
+    const res = await executeSend({ guestId: 'g1', channel: 'whatsapp', templateName: 'winter_invite' });
+    expect(res.status).toBe('sent');
   });
 });
