@@ -42,8 +42,9 @@ interface MetaEventParams {
 
 /**
  * SHA-256 hash after lowercase + trim (Meta's requirement for PII).
+ * Exported for reuse by the Growth Engine Custom Audience builder (§6.5).
  */
-function hashForMeta(value: string): string {
+export function hashForMeta(value: string): string {
   return createHash('sha256')
     .update(value.trim().toLowerCase())
     .digest('hex');

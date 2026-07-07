@@ -197,6 +197,16 @@ env:
 # - variable: NEXT_PUBLIC_META_PIXEL_ID
 # - variable: META_PIXEL_ID
 # - variable: META_CAPI_ACCESS_TOKEN
+# Meta Marketing API (Growth Engine Phase 2 — Custom Audiences + ad insights).
+# Inert until BOTH are set. Requires a Meta Business account + system-user token.
+# - variable: META_SYSTEM_USER_TOKEN
+#   secret: projects/1061532538391/secrets/META_SYSTEM_USER_TOKEN/versions/latest
+#   availability:
+#     - RUNTIME
+# - variable: META_AD_ACCOUNT_ID
+#   secret: projects/1061532538391/secrets/META_AD_ACCOUNT_ID/versions/latest
+#   availability:
+#     - RUNTIME
 
 # Growth Engine (dark-launched) — see plans/growth-engine.md §0.2
 # The engine is INERT unless GROWTH_ENGINE_ENABLED="true"; and even when enabled,
