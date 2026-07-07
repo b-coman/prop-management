@@ -3,6 +3,8 @@ import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { Timestamp as AdminTimestamp } from 'firebase-admin/firestore';
 import { loggers } from '@/lib/logger';
 import { format } from 'date-fns';
+import { isGrowthEngineEnabled } from '@/config/growth-engine';
+import { runChannelAwareReactivation } from '@/services/guestLifecycleService';
 
 const logger = loggers.guest;
 
@@ -188,12 +190,26 @@ export async function GET(request: NextRequest) {
       stats.skipped++;
     }
 
-    logger.info('Guest email sequences cron completed', stats);
+    // Growth Engine (dark): reach phone-only / imported guests the email loop
+    // above cannot. Inert unless GROWTH_ENGINE_ENABLED; any send routes through
+    // the Execution Gateway (dry-run by default). The email lifecycle above is
+    // unaffected regardless of this flag.
+    let channelAware: Awaited<ReturnType<typeof runChannelAwareReactivation>> | null = null;
+    if (isGrowthEngineEnabled()) {
+      try {
+        channelAware = await runChannelAwareReactivation(now);
+      } catch (error) {
+        logger.error('Channel-aware reactivation failed (non-blocking)', error as Error);
+      }
+    }
+
+    logger.info('Guest email sequences cron completed', { ...stats, channelAware });
 
     return NextResponse.json({
       success: true,
       processed: snapshot.docs.length,
       ...stats,
+      channelAware,
     });
   } catch (error) {
     logger.error('Error in guest-email-sequences cron', error as Error);
