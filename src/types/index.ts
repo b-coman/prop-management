@@ -371,6 +371,13 @@ export interface SuppressionEntry {
   at?: SerializableTimestamp;
 }
 
+/** Per-property Growth Engine configuration (M1). Stored at growthConfig/{propertyId}. */
+export interface GrowthPropertyConfig {
+  reactivationEnabled: boolean;              // does auto-reactivation run for this property?
+  reactivationCohort: 'locals' | 'all';      // 'locals' = RO/MD + unknown; 'all' = everyone
+  reactivationTemplate: string;              // marketing template name for the Day-90 touch
+}
+
 export type CampaignStatus =
   | 'draft'
   | 'scheduled'

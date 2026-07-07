@@ -42,4 +42,6 @@ export const GROWTH_ENGINE_LIMITS = {
   /** Quiet hours in property-local time (Europe/Bucharest) — no sends inside. */
   quietHoursStart: 21,
   quietHoursEnd: 9,
+  /** Min days between marketing touches to a guest, across all campaigns (H4). */
+  frequencyCapDays: Number(process.env.GROWTH_ENGINE_FREQUENCY_CAP_DAYS) || 14,
 } as const;

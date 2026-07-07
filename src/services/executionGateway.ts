@@ -14,10 +14,11 @@
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
 import type { Guest, ChannelType, ConsentState, MessageLogStatus, LanguageCode } from '@/types';
-import { getSendMode } from '@/config/growth-engine';
+import { getSendMode, GROWTH_ENGINE_LIMITS } from '@/config/growth-engine';
 import { getGuestById } from '@/services/guestService';
 import { normalizePhone } from '@/lib/sanitize';
-import { normalizeCountryCode } from '@/lib/country-utils';
+import { resolveGuestLanguage } from '@/lib/growth/language';
+import { parseFirestoreDate } from '@/lib/growth/date-utils';
 
 const logger = loggers.executionGateway;
 
@@ -54,19 +55,9 @@ export function isConsentBlocked(
   return state === 'opted_out';
 }
 
-/**
- * Effective message language for a guest. For this RO-first business, the guest's
- * country is a better predictor than the `language` field, which defaults to 'en'
- * for imported/phone-only guests (the exact reactivation base) — so a RO/MD guest
- * gets Romanian even when `language` was never captured (H2). An explicit 'ro'
- * always wins.
- */
-export function resolveGuestLanguage(guest: Pick<Guest, 'language' | 'country'>): LanguageCode {
-  if (guest.language === 'ro') return 'ro';
-  const code = guest.country ? normalizeCountryCode(guest.country) : undefined;
-  if (code === 'RO' || code === 'MD') return 'ro';
-  return guest.language || 'en';
-}
+// resolveGuestLanguage lives in @/lib/growth/language (shared with the audience
+// preview); re-exported here for existing callers/tests. (H2)
+export { resolveGuestLanguage };
 
 /** Mask a phone/email for logging (never store full contact in messageLog). */
 export function maskContact(contact: string): string {
@@ -155,6 +146,29 @@ async function writeMessageLog(db: AdminDb, entry: MessageLogInput): Promise<str
 }
 
 /**
+ * Resolve a property's display name (for property-branding the message, H1).
+ * Cached per process; falls back to the id so a lookup miss never blocks a send.
+ */
+const propertyNameCache = new Map<string, string>();
+async function getPropertyName(db: AdminDb, propertyId: string): Promise<string> {
+  const cached = propertyNameCache.get(propertyId);
+  if (cached) return cached;
+  let name = propertyId;
+  try {
+    const prop = await db.collection('properties').doc(propertyId).get();
+    name = (prop.data()?.name as string) || name;
+    if (name === propertyId) {
+      const ov = await db.collection('propertyOverrides').doc(propertyId).get();
+      name = (ov.data()?.propertyMeta?.name as string) || name;
+    }
+  } catch {
+    logger.warn('getPropertyName failed; using id', { propertyId });
+  }
+  propertyNameCache.set(propertyId, name);
+  return name;
+}
+
+/**
  * Execute (or dry-run) a single outbound message. Every path writes exactly one
  * messageLog entry so the audit trail is complete regardless of outcome.
  */
@@ -220,6 +234,24 @@ export async function executeSend(req: SendRequest): Promise<SendResult> {
     return { status: 'skipped', reason: 'dedup', messageLogId: id, mode };
   }
 
+  // 2.6) frequency cap — don't message a guest more than once per window across
+  // ALL campaigns + reactivation (H4). Only real deliveries set lastCampaignAt,
+  // so dry-run previews never trip this and can be re-run freely.
+  const lastCampaignAt = parseFirestoreDate(guest.lastCampaignAt);
+  if (lastCampaignAt) {
+    const daysSince = (new Date().getTime() - lastCampaignAt.getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSince < GROWTH_ENGINE_LIMITS.frequencyCapDays) {
+      const id = await writeMessageLog(db, {
+        ...base,
+        status: 'skipped',
+        reason: 'frequency-cap',
+        to: null,
+        providerId: null,
+      });
+      return { status: 'skipped', reason: 'frequency-cap', messageLogId: id, mode };
+    }
+  }
+
   // 3) resolve a contact for the channel
   const contact = resolveContact(guest, req.channel);
   if (!contact) {
@@ -254,9 +286,17 @@ export async function executeSend(req: SendRequest): Promise<SendResult> {
   // 5) LIVE delivery (only when both flags are flipped). Delivery and the log
   // write are deliberately separated so a Firestore log-write failure can never
   // mislabel an already-delivered message as 'failed' and cause a re-send (M2).
+  // Property-brand the message: inject the property name as a `property`
+  // template variable so the guest knows which property is reaching out (H1).
+  // The approved marketing template must reference {{property}}.
+  const propertyName = req.propertyId ? await getPropertyName(db, req.propertyId) : undefined;
+  const liveVars = propertyName
+    ? { ...(req.variables || {}), property: propertyName }
+    : req.variables || {};
+
   let delivery: { success: boolean; providerId?: string; error?: string };
   try {
-    delivery = await deliverLive(req.channel, contact, req.templateName, req.variables || {}, resolveGuestLanguage(guest));
+    delivery = await deliverLive(req.channel, contact, req.templateName, liveVars, resolveGuestLanguage(guest));
   } catch (error) {
     logger.error('Live send threw', error as Error, {
       guestId: req.guestId,
@@ -273,6 +313,19 @@ export async function executeSend(req: SendRequest): Promise<SendResult> {
     to: maskContact(contact),
     providerId: delivery.providerId ?? null,
   });
+
+  // Record the touch on the GUEST (not just the booking) so the frequency cap
+  // and cross-campaign dedup work across properties (H4). Best-effort.
+  if (delivery.success) {
+    try {
+      await db.collection('guests').doc(req.guestId).update({
+        lastCampaignAt: FieldValue.serverTimestamp(),
+      });
+    } catch (error) {
+      logger.warn('Failed to update lastCampaignAt', { guestId: req.guestId });
+    }
+  }
+
   return {
     status,
     reason: delivery.error,

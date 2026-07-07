@@ -6,11 +6,15 @@ jest.mock('@/lib/firebaseAdminSafe', () => ({
 }));
 jest.mock('@/services/guestService', () => ({ findGuestByPhone: jest.fn() }));
 jest.mock('@/services/executionGateway', () => ({ executeSend: jest.fn() }));
+jest.mock('@/services/growthConfigService', () => ({ getGrowthPropertyConfig: jest.fn() }));
 
 import { runChannelAwareReactivation } from '../guestLifecycleService';
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { findGuestByPhone } from '@/services/guestService';
 import { executeSend } from '@/services/executionGateway';
+import { getGrowthPropertyConfig } from '@/services/growthConfigService';
+
+const mockGetConfig = getGrowthPropertyConfig as jest.Mock;
 
 const mockGetAdminDb = getAdminDb as jest.Mock;
 const mockFindGuestByPhone = findGuestByPhone as jest.Mock;
@@ -38,6 +42,11 @@ beforeEach(() => {
   delete process.env.GROWTH_ENGINE_SEND_MODE;
   jest.clearAllMocks();
   mockFindGuestByPhone.mockResolvedValue({ id: 'g1', firstName: 'Ana', normalizedPhone: '+40712345678' });
+  mockGetConfig.mockResolvedValue({
+    reactivationEnabled: true,
+    reactivationCohort: 'locals',
+    reactivationTemplate: 'seasonal_availability',
+  });
 });
 
 describe('runChannelAwareReactivation — audience filtering', () => {
@@ -78,6 +87,28 @@ describe('runChannelAwareReactivation — audience filtering', () => {
     expect(stats).toMatchObject({ attempted: 1, sent: 1 });
     expect(eligible._update).toHaveBeenCalledTimes(1);
     expect(eligible._update.mock.calls[0][0]).toHaveProperty('seasonalReactivationSentAt');
+  });
+
+  it('does nothing for a property whose reactivation is disabled (M1)', async () => {
+    const eligible = bookingDoc({ propertyId: 'coltei-apartment-bucharest', guestInfo: { phone: '+40712345678' }, checkOutDate: secondsFor(90) });
+    const { db } = makeDb([eligible]);
+    mockGetAdminDb.mockResolvedValue(db);
+    mockGetConfig.mockResolvedValue({ reactivationEnabled: false, reactivationCohort: 'locals', reactivationTemplate: 'seasonal_availability' });
+    const stats = await runChannelAwareReactivation(NOW);
+    expect(mockExecuteSend).not.toHaveBeenCalled();
+    expect(stats.attempted).toBe(0);
+  });
+
+  it("cohort 'all' reaches foreign guests too, and uses the property's template (M1)", async () => {
+    const eligible = bookingDoc({ propertyId: 'coltei-apartment-bucharest', guestInfo: { phone: '+40712345678' }, checkOutDate: secondsFor(90) });
+    const { db } = makeDb([eligible]);
+    mockGetAdminDb.mockResolvedValue(db);
+    mockFindGuestByPhone.mockResolvedValue({ id: 'g1', firstName: 'John', country: 'US' });
+    mockGetConfig.mockResolvedValue({ reactivationEnabled: true, reactivationCohort: 'all', reactivationTemplate: 'city_comeback' });
+    mockExecuteSend.mockResolvedValue({ status: 'dry-run', mode: 'dry-run' });
+    await runChannelAwareReactivation(NOW);
+    expect(mockExecuteSend).toHaveBeenCalledTimes(1);
+    expect(mockExecuteSend.mock.calls[0][0]).toMatchObject({ templateName: 'city_comeback' });
   });
 
   it('records propertyId and reaches unknown-country guests (#1/#3)', async () => {

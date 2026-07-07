@@ -17,6 +17,7 @@ import { executeSend } from '@/services/executionGateway';
 import { findGuestByPhone } from '@/services/guestService';
 import { parseFirestoreDate } from '@/lib/growth/date-utils';
 import { normalizeCountryCode } from '@/lib/country-utils';
+import { getGrowthPropertyConfig } from '@/services/growthConfigService';
 
 const logger = loggers.campaign;
 const DAY_MS = 1000 * 60 * 60 * 24;
@@ -54,6 +55,11 @@ export async function runChannelAwareReactivation(now: Date = new Date()): Promi
       // Day-90 seasonal reactivation window, once per booking.
       if (days < 89.5 || days > 91.5 || data.seasonalReactivationSentAt) continue;
 
+      // Per-property config (M1): does this property auto-reactivate, and how?
+      // Safe default is OFF, so a property only runs once explicitly configured.
+      const config = await getGrowthPropertyConfig(data.propertyId);
+      if (!config.reactivationEnabled) continue;
+
       const guest = await findGuestByPhone(phone);
       if (!guest) {
         stats.skipped++;
@@ -68,27 +74,28 @@ export async function runChannelAwareReactivation(now: Date = new Date()): Promi
         continue;
       }
 
-      // Cohort strategy: automatic reactivation targets LOCALS — RO/MD or
-      // unknown-country guests, who can realistically return. Known-foreign
-      // guests (unlikely to travel back) are skipped here; reach them
-      // deliberately via a targeted campaign instead, not this auto-nudge.
-      // Normalize first so "Romania"/"ro" aren't mistaken for foreign (H3);
-      // unrecognized/undefined => treated as unknown => reached (safe direction).
-      const countryCode = guest.country ? normalizeCountryCode(guest.country) : undefined;
-      if (countryCode && countryCode !== 'RO' && countryCode !== 'MD') {
-        stats.skipped++;
-        continue;
+      // Cohort per property config (M1): 'locals' targets RO/MD + unknown and
+      // skips known-foreign (the mountain-chalet default); 'all' keeps everyone
+      // (fits a city apartment whose repeat base includes returning foreign
+      // travelers). Normalize country first so "Romania"/"ro" aren't mistaken
+      // for foreign (H3); unrecognized/undefined => unknown => reached.
+      if (config.reactivationCohort === 'locals') {
+        const countryCode = guest.country ? normalizeCountryCode(guest.country) : undefined;
+        if (countryCode && countryCode !== 'RO' && countryCode !== 'MD') {
+          stats.skipped++;
+          continue;
+        }
       }
 
       stats.attempted++;
 
-      // executeSend auto-selects the WhatsApp template variant by guest.language
-      // and records data.propertyId on the messageLog audit entry.
+      // executeSend auto-selects the WhatsApp template variant by guest.language,
+      // property-brands the message, and records propertyId on the audit entry.
       const result = await executeSend({
         guestId: guest.id,
         propertyId: data.propertyId,
         channel: 'whatsapp',
-        templateName: 'seasonal_availability',
+        templateName: config.reactivationTemplate,
         variables: { '1': guest.firstName || '' },
       });
 
