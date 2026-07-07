@@ -16,7 +16,13 @@ export function CampaignComposer({ propertyId }: { propertyId: string }) {
   const [name, setName] = useState('');
   const [segmentKey, setSegmentKey] = useState(SEGMENT_CATALOG[0].key);
   const [templateName, setTemplateName] = useState(TEMPLATE_CATALOG[0].key);
-  const [preview, setPreview] = useState<{ count: number; whatsapp: number } | null>(null);
+  const [preview, setPreview] = useState<{
+    count: number;
+    reachable: number;
+    suppressed: number;
+    ro: number;
+    en: number;
+  } | null>(null);
   const [previewing, startPreview] = useTransition();
   const [creating, startCreate] = useTransition();
 
@@ -24,7 +30,14 @@ export function CampaignComposer({ propertyId }: { propertyId: string }) {
     setPreview(null);
     startPreview(async () => {
       const res = await previewSegmentAction(key, propertyId);
-      if (res.success) setPreview({ count: res.count ?? 0, whatsapp: res.whatsapp ?? 0 });
+      if (res.success)
+        setPreview({
+          count: res.count ?? 0,
+          reachable: res.reachable ?? 0,
+          suppressed: res.suppressed ?? 0,
+          ro: res.ro ?? 0,
+          en: res.en ?? 0,
+        });
       else toast({ title: 'Preview failed', description: res.error, variant: 'destructive' });
     });
   };
@@ -87,9 +100,14 @@ export function CampaignComposer({ propertyId }: { propertyId: string }) {
               </>
             ) : preview ? (
               <>
-                <Users className="h-4 w-4 text-muted-foreground" />
+                <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <span>
-                  <strong>{preview.count}</strong> guests · <strong>{preview.whatsapp}</strong> reachable on WhatsApp
+                  <strong>{preview.reachable}</strong> reachable
+                  {preview.suppressed > 0 ? ` (${preview.suppressed} opted out)` : ''}
+                  {' · '}
+                  <strong>{preview.ro}</strong> RO / <strong>{preview.en}</strong> EN
+                  {' · '}
+                  <span className="text-muted-foreground">{preview.count} total</span>
                 </span>
               </>
             ) : (

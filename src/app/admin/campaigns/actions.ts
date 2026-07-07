@@ -48,7 +48,15 @@ export async function fetchCampaigns(propertyId: string): Promise<Campaign[]> {
 export async function previewSegmentAction(
   segmentKey: string,
   propertyId: string
-): Promise<{ success: boolean; count?: number; whatsapp?: number; error?: string }> {
+): Promise<{
+  success: boolean;
+  count?: number;
+  reachable?: number;
+  suppressed?: number;
+  ro?: number;
+  en?: number;
+  error?: string;
+}> {
   try {
     await requireSuperAdmin();
   } catch (error) {
@@ -57,7 +65,14 @@ export async function previewSegmentAction(
   }
   try {
     const preview = await previewAudience(buildSegmentDefinition(segmentKey, propertyId));
-    return { success: true, count: preview.count, whatsapp: preview.byChannel.whatsapp };
+    return {
+      success: true,
+      count: preview.count,
+      reachable: preview.reachable,
+      suppressed: preview.suppressed,
+      ro: preview.byLanguage.ro,
+      en: preview.byLanguage.en,
+    };
   } catch (error) {
     logger.error('previewSegmentAction failed', error as Error);
     return { success: false, error: 'Failed to preview audience' };

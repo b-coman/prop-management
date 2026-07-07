@@ -14,6 +14,8 @@ import { loggers } from '@/lib/logger';
 import type { Guest, SegmentDefinition, ChannelType, Season } from '@/types';
 import { parseFirestoreDate, seasonOf, monthsBetween } from '@/lib/growth/date-utils';
 import { normalizeCountryCode } from '@/lib/country-utils';
+import { normalizePhone } from '@/lib/sanitize';
+import { resolveGuestLanguage } from '@/lib/growth/language';
 
 const logger = loggers.segment;
 
@@ -122,9 +124,33 @@ export async function evaluateSegment(
 }
 
 export interface AudiencePreview {
-  count: number;
+  count: number;                            // total guests matching the segment
+  reachable: number;                        // reachable by a channel AND not suppressed
+  suppressed: number;                       // matched + reachable but on the suppression list
   byChannel: Record<'whatsapp' | 'email' | 'none', number>;
+  byLanguage: { ro: number; en: number };   // among reachable guests
   sample: Array<{ id: string; name: string; channel: ChannelType | null; country?: string }>;
+}
+
+/** Load the suppression list once into sets for an honest preview (small collection). */
+async function loadSuppressionSet(): Promise<{ phones: Set<string>; emails: Set<string> }> {
+  const db = await getAdminDb();
+  const snap = await db.collection('suppressionList').get();
+  const phones = new Set<string>();
+  const emails = new Set<string>();
+  snap.docs.forEach((d) => {
+    const x = d.data() as { normalizedPhone?: string; email?: string };
+    if (x.normalizedPhone) phones.add(x.normalizedPhone);
+    if (x.email) emails.add(String(x.email).toLowerCase().trim());
+  });
+  return { phones, emails };
+}
+
+function isGuestSuppressed(guest: Guest, sets: { phones: Set<string>; emails: Set<string> }): boolean {
+  const phone = guest.normalizedPhone || (guest.phone ? normalizePhone(guest.phone) : undefined);
+  if (phone && sets.phones.has(phone)) return true;
+  if (guest.email && sets.emails.has(guest.email.toLowerCase().trim())) return true;
+  return false;
 }
 
 /** Count + channel breakdown + a small sample for a segment definition. */
@@ -133,13 +159,28 @@ export async function previewAudience(
   now: Date = new Date()
 ): Promise<AudiencePreview> {
   const guests = await evaluateSegment(def, now);
+  const suppression = await loadSuppressionSet();
   // resolveChannel only ever yields whatsapp | email | null (no sms today).
   const byChannel = { whatsapp: 0, email: 0, none: 0 };
+  const byLanguage = { ro: 0, en: 0 };
+  let reachable = 0;
+  let suppressed = 0;
   for (const g of guests) {
     const ch = resolveChannel(g);
     if (ch === 'whatsapp') byChannel.whatsapp++;
     else if (ch === 'email') byChannel.email++;
     else byChannel.none++;
+    if (ch) {
+      // Among channel-reachable guests, subtract the suppressed and split the
+      // rest by effective language — an honest "who will actually get this" (M2/M3).
+      if (isGuestSuppressed(g, suppression)) {
+        suppressed++;
+      } else {
+        reachable++;
+        if (resolveGuestLanguage(g) === 'ro') byLanguage.ro++;
+        else byLanguage.en++;
+      }
+    }
   }
   const sample = guests.slice(0, 10).map((g) => ({
     id: g.id,
@@ -147,8 +188,8 @@ export async function previewAudience(
     channel: resolveChannel(g),
     country: g.country,
   }));
-  logger.info('Previewed audience', { count: guests.length, byChannel });
-  return { count: guests.length, byChannel, sample };
+  logger.info('Previewed audience', { count: guests.length, reachable, suppressed, byChannel, byLanguage });
+  return { count: guests.length, reachable, suppressed, byChannel, byLanguage, sample };
 }
 
 /** Reusable segment builders (the §6.2 catalogue). */

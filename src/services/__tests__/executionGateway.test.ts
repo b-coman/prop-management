@@ -32,15 +32,25 @@ function chainableGet(result: unknown) {
 }
 
 /** Chainable Firestore mock; toggles suppressionList hit and prior-delivery dedup. */
-function makeDb({ suppressed = false, priorDelivered = false }: { suppressed?: boolean; priorDelivered?: boolean } = {}) {
+function makeDb({ suppressed = false, priorDelivered = false, propertyName = 'Prahova Mountain Chalet' }: { suppressed?: boolean; priorDelivered?: boolean; propertyName?: string } = {}) {
   const addMock = jest.fn().mockResolvedValue({ id: 'log-123' });
+  const guestUpdateMock = jest.fn().mockResolvedValue(undefined);
   const suppressionQuery = chainableGet({ empty: !suppressed });
   const messageLogQuery = chainableGet({ docs: priorDelivered ? [{ data: () => ({ status: 'sent' }) }] : [] });
   const messageLogCol = { add: addMock, where: messageLogQuery.where };
+  const propertiesDoc = { get: jest.fn().mockResolvedValue({ exists: true, data: () => ({ name: propertyName }) }) };
+  const overridesDoc = { get: jest.fn().mockResolvedValue({ exists: false, data: () => ({}) }) };
+  const guestsDoc = { update: guestUpdateMock };
   const db = {
-    collection: jest.fn((name: string) => (name === 'messageLog' ? messageLogCol : suppressionQuery)),
+    collection: jest.fn((name: string) => {
+      if (name === 'messageLog') return messageLogCol;
+      if (name === 'properties') return { doc: jest.fn(() => propertiesDoc) };
+      if (name === 'propertyOverrides') return { doc: jest.fn(() => overridesDoc) };
+      if (name === 'guests') return { doc: jest.fn(() => guestsDoc) };
+      return suppressionQuery; // suppressionList
+    }),
   };
-  return { db, addMock };
+  return { db, addMock, guestUpdateMock };
 }
 
 function guest(overrides: Partial<Guest> = {}): Guest {
@@ -118,6 +128,23 @@ describe('executeSend — dark-launch safety (default)', () => {
     expect(addMock.mock.calls[0][0]).toMatchObject({ status: 'dry-run', to: '+40712***', propertyId: 'prahova-mountain-chalet' });
   });
 
+  it('skips a guest within the frequency-cap window (H4)', async () => {
+    const { db } = makeDb();
+    mockGetAdminDb.mockResolvedValue(db);
+    mockGetGuestById.mockResolvedValue(guest({ lastCampaignAt: { _seconds: Math.floor(Date.now() / 1000) - 2 * 86400 } as unknown as Guest['lastCampaignAt'] }));
+    const res = await executeSend({ guestId: 'g1', channel: 'whatsapp', templateName: 'winter_invite' });
+    expect(res.status).toBe('skipped');
+    expect(res.reason).toBe('frequency-cap');
+  });
+
+  it('does not cap a guest whose last touch predates the window (H4)', async () => {
+    const { db } = makeDb();
+    mockGetAdminDb.mockResolvedValue(db);
+    mockGetGuestById.mockResolvedValue(guest({ lastCampaignAt: { _seconds: Math.floor(Date.now() / 1000) - 30 * 86400 } as unknown as Guest['lastCampaignAt'] }));
+    const res = await executeSend({ guestId: 'g1', channel: 'whatsapp', templateName: 'winter_invite' });
+    expect(res.status).toBe('dry-run');
+  });
+
   it('suppresses unsubscribed guests', async () => {
     const { db, addMock } = makeDb();
     mockGetAdminDb.mockResolvedValue(db);
@@ -179,6 +206,14 @@ describe('executeSend — live mode (both switches on)', () => {
     expect(res.mode).toBe('live');
     expect(res.providerId).toBe('SM-1');
     expect(addMock.mock.calls.at(-1)?.[0]).toMatchObject({ status: 'sent', providerId: 'SM-1' });
+  });
+
+  it('property-brands the live message with the property name (H1)', async () => {
+    const { db } = makeDb({ propertyName: 'Prahova Mountain Chalet' });
+    mockGetAdminDb.mockResolvedValue(db);
+    mockGetGuestById.mockResolvedValue(guest());
+    await executeSend({ guestId: 'g1', propertyId: 'prahova-mountain-chalet', channel: 'whatsapp', templateName: 'winter_invite' });
+    expect(mockSendWhatsApp).toHaveBeenCalledWith('+40712345678', 'HX-en', expect.objectContaining({ property: 'Prahova Mountain Chalet' }));
   });
 
   it('sends the RO template to a RO-country guest whose language defaulted to en (H2)', async () => {
