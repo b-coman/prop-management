@@ -80,6 +80,19 @@ describe('runChannelAwareReactivation — audience filtering', () => {
     expect(eligible._update.mock.calls[0][0]).toHaveProperty('seasonalReactivationSentAt');
   });
 
+  it('skips guests who already re-booked since the stay', async () => {
+    const eligible = bookingDoc({ guestInfo: { phone: '+40712345678' }, checkOutDate: secondsFor(90) });
+    const { db } = makeDb([eligible]);
+    mockGetAdminDb.mockResolvedValue(db);
+    // last booking is 10 days ago — AFTER the 90-day-old checkout => re-booked
+    mockFindGuestByPhone.mockResolvedValue({ id: 'g1', firstName: 'Ana', lastBookingDate: secondsFor(10) });
+    mockExecuteSend.mockResolvedValue({ status: 'dry-run', mode: 'dry-run' });
+
+    const stats = await runChannelAwareReactivation(NOW);
+    expect(mockExecuteSend).not.toHaveBeenCalled();
+    expect(stats).toMatchObject({ attempted: 0, skipped: 1 });
+  });
+
   it('counts suppressed without marking', async () => {
     const eligible = bookingDoc({ guestInfo: { phone: '+40712345678' }, checkOutDate: secondsFor(90) });
     const { db } = makeDb([eligible]);

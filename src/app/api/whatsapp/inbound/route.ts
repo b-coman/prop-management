@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loggers } from '@/lib/logger';
 import { isStopKeyword, handleInboundStop } from '@/services/suppressionService';
+import { checkRateLimit } from '@/lib/rate-limiter';
 
 const logger = loggers.executionGateway;
 
@@ -19,6 +20,14 @@ const twiml = () =>
  * number (fail-safe), so it is acceptable for the dark launch.
  */
 export async function POST(request: NextRequest) {
+  // Rate-limit the public endpoint to blunt write-amplification abuse. Still
+  // returns 200 (drop) so legitimate Twilio traffic isn't retried into a storm.
+  const rl = checkRateLimit(request, { maxRequests: 30, windowSeconds: 60, keyPrefix: 'whatsapp-inbound' });
+  if (!rl.allowed) {
+    logger.warn('Inbound WhatsApp webhook rate limited');
+    return twiml();
+  }
+
   try {
     const form = await request.formData();
     const from = ((form.get('From') as string) || '').replace(/^whatsapp:/, '');

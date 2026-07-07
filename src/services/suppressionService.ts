@@ -44,6 +44,7 @@ export async function addSuppression(input: AddSuppressionInput): Promise<void> 
     return;
   }
   const db = await getAdminDb();
+  const email = input.email?.toLowerCase().trim();
   const entry: Record<string, unknown> = {
     channel: input.channel ?? 'all',
     reason: input.reason,
@@ -51,8 +52,13 @@ export async function addSuppression(input: AddSuppressionInput): Promise<void> 
     at: FieldValue.serverTimestamp(),
   };
   if (input.normalizedPhone) entry.normalizedPhone = input.normalizedPhone;
-  if (input.email) entry.email = input.email.toLowerCase().trim();
-  await db.collection('suppressionList').add(entry);
+  if (email) entry.email = email;
+  // Deterministic doc ID keyed on the identity => idempotent: a repeated STOP
+  // overwrites the same doc instead of piling up entries (abuse hardening).
+  const docId = input.normalizedPhone
+    ? `phone_${input.normalizedPhone}`
+    : `email_${encodeURIComponent(email!)}`;
+  await db.collection('suppressionList').doc(docId).set(entry, { merge: true });
   logger.info('Added suppression', {
     reason: input.reason,
     source: input.source,
