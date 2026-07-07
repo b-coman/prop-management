@@ -7,19 +7,19 @@ jest.mock('@/lib/firebaseAdminSafe', () => ({
 }));
 jest.mock('@/services/guestService', () => ({ getGuestById: jest.fn() }));
 jest.mock('@/services/whatsappService', () => ({
-  sendWhatsAppTemplate: jest.fn().mockResolvedValue({ success: true, sid: 'SM-1' }),
-  WHATSAPP_TEMPLATES: { winter_invite: 'HX-test' },
+  resolveWhatsAppTemplateSid: jest.fn((name: string) => (name === 'winter_invite' ? 'HX-test' : undefined)),
+  sendWhatsAppTemplateBySid: jest.fn().mockResolvedValue({ success: true, sid: 'SM-1' }),
 }));
 
 import { executeSend, isConsentBlocked, maskContact } from '../executionGateway';
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { getGuestById } from '@/services/guestService';
-import { sendWhatsAppTemplate } from '@/services/whatsappService';
+import { sendWhatsAppTemplateBySid } from '@/services/whatsappService';
 import type { Guest } from '@/types';
 
 const mockGetAdminDb = getAdminDb as jest.Mock;
 const mockGetGuestById = getGuestById as jest.Mock;
-const mockSendWhatsApp = sendWhatsAppTemplate as jest.Mock;
+const mockSendWhatsApp = sendWhatsAppTemplateBySid as jest.Mock;
 
 function chainableGet(result: unknown) {
   const q: Record<string, jest.Mock> = {};

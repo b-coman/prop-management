@@ -210,6 +210,20 @@ env:
 #   value: "dry-run"
 #   availability:
 #     - RUNTIME
+# Marketing WhatsApp template content SIDs (from Twilio, after Meta approval).
+# Until set, the live WhatsApp path for these templates stays inert.
+# - variable: WHATSAPP_TPL_WINTER_INVITE
+#   secret: projects/1061532538391/secrets/WHATSAPP_TPL_WINTER_INVITE/versions/latest
+#   availability:
+#     - RUNTIME
+# - variable: WHATSAPP_TPL_WE_MISS_YOU
+#   secret: projects/1061532538391/secrets/WHATSAPP_TPL_WE_MISS_YOU/versions/latest
+#   availability:
+#     - RUNTIME
+# - variable: WHATSAPP_TPL_SEASONAL_AVAILABILITY
+#   secret: projects/1061532538391/secrets/WHATSAPP_TPL_SEASONAL_AVAILABILITY/versions/latest
+#   availability:
+#     - RUNTIME
 
 # Grant access to secrets in Cloud Secret Manager.
 # See https://firebase.google.com/docs/app-hosting/configure#secret-parameters

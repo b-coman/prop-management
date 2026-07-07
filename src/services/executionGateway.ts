@@ -276,17 +276,18 @@ async function deliverLive(
   variables: Record<string, string>
 ): Promise<{ success: boolean; providerId?: string; error?: string }> {
   if (channel === 'whatsapp') {
-    const { sendWhatsAppTemplate, WHATSAPP_TEMPLATES } = await import(
+    const { resolveWhatsAppTemplateSid, sendWhatsAppTemplateBySid } = await import(
       '@/services/whatsappService'
     );
-    if (!(templateName in WHATSAPP_TEMPLATES)) {
-      return { success: false, error: `WhatsApp template not registered: ${templateName}` };
+    const sid = resolveWhatsAppTemplateSid(templateName);
+    if (!sid) {
+      // Unknown name, or a marketing template whose SID isn't approved/set yet.
+      return {
+        success: false,
+        error: `WhatsApp template not registered or not yet approved: ${templateName}`,
+      };
     }
-    const r = await sendWhatsAppTemplate(
-      contact,
-      templateName as keyof typeof WHATSAPP_TEMPLATES,
-      variables
-    );
+    const r = await sendWhatsAppTemplateBySid(contact, sid, variables);
     return { success: r.success, providerId: r.sid, error: r.error };
   }
   if (channel === 'email') {
