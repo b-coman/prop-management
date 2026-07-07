@@ -268,8 +268,106 @@ export interface Guest {
   tags: string[];
   unsubscribed: boolean;
   unsubscribedAt?: SerializableTimestamp;
+  // --- Growth Engine (dark-launched — see plans/growth-engine.md §5) ---
+  channelConsent?: ChannelConsent;
+  consentLog?: ConsentLogEntry[];
+  segmentIds?: string[];
+  lastCampaignAt?: SerializableTimestamp;
+  rfm?: GuestRFM;
   createdAt: SerializableTimestamp;
   updatedAt: SerializableTimestamp;
+}
+
+// ============================================================================
+// Growth Engine (dark-launched — see plans/growth-engine.md §5)
+// ============================================================================
+
+export type ChannelType = 'whatsapp' | 'sms' | 'email';
+export type ConsentState = 'opted_in' | 'opted_out' | 'unknown';
+
+export interface ChannelConsent {
+  whatsapp?: ConsentState;
+  sms?: ConsentState;
+  email?: ConsentState;
+}
+
+export interface ConsentLogEntry {
+  channel: ChannelType;
+  state: ConsentState;
+  source: string; // e.g. 'booking', 'stop-keyword', 'admin', 'import'
+  at: SerializableTimestamp;
+}
+
+export interface GuestRFM {
+  recencyDays: number;
+  frequency: number;
+  monetary: number;
+  score: number;
+  segmentTag?: string; // e.g. 'vip', 'at-risk', 'lapsed'
+}
+
+export type Season = 'winter' | 'spring' | 'summer' | 'autumn';
+
+/**
+ * Declarative audience filter evaluated against the `guests` collection.
+ * All conditions are ANDed; range objects are inclusive.
+ */
+export interface SegmentDefinition {
+  propertyId?: string;                          // guests.propertyIds array-contains
+  lastStaySeason?: Season[];                    // season of lastStayDate
+  monthsSinceLastBooking?: { min?: number; max?: number };
+  monthsSinceLastStay?: { min?: number; max?: number };
+  minTotalBookings?: number;                    // >= (repeat guests)
+  maxTotalBookings?: number;                    // <=
+  minTotalSpent?: number;
+  countryIn?: string[];                         // ISO-2 codes
+  countryNotIn?: string[];
+  tagsInclude?: string[];                       // guest.tags intersects
+  hasChannel?: ChannelType;                     // reachable via this channel
+  excludeUnsubscribed?: boolean;                // default true
+}
+
+export interface Segment {
+  id: string;
+  name: string;
+  definition: SegmentDefinition;
+  dynamic: boolean;          // recomputed each use vs snapshot
+  propertyId?: string;
+  cachedCount?: number;
+  createdAt?: SerializableTimestamp;
+  updatedAt?: SerializableTimestamp;
+}
+
+export type MessageLogStatus =
+  | 'dry-run'      // would-send; recorded but NOT delivered (dark launch)
+  | 'sent'         // handed to provider
+  | 'delivered'    // provider delivery confirmation
+  | 'suppressed'   // blocked by suppression / consent / unsubscribe
+  | 'skipped'      // no reachable contact / dedup
+  | 'failed';      // provider error
+
+export interface MessageLog {
+  id: string;
+  guestId: string;
+  channel: ChannelType;
+  campaignId?: string | null;
+  templateName?: string | null;
+  status: MessageLogStatus;
+  reason?: string | null;      // for suppressed / skipped / failed
+  providerId?: string | null;  // e.g. Twilio SID
+  to?: string | null;          // masked contact
+  variables?: Record<string, string> | null;
+  at?: SerializableTimestamp;
+}
+
+export interface SuppressionEntry {
+  id: string;
+  normalizedPhone?: string;
+  email?: string;
+  channel?: ChannelType | 'all';   // default 'all'
+  reason: string;                  // 'stop-keyword' | 'unsubscribe' | 'bounce' | 'manual'
+  source: string;
+  at?: SerializableTimestamp;
 }
 
 export interface Inquiry {

@@ -198,6 +198,19 @@ env:
 # - variable: META_PIXEL_ID
 # - variable: META_CAPI_ACCESS_TOKEN
 
+# Growth Engine (dark-launched) — see plans/growth-engine.md §0.2
+# The engine is INERT unless GROWTH_ENGINE_ENABLED="true"; and even when enabled,
+# NO message is delivered unless GROWTH_ENGINE_SEND_MODE="live" is ALSO set.
+# Two independent switches must be flipped. Uncomment + set to activate.
+# - variable: GROWTH_ENGINE_ENABLED
+#   value: "false"
+#   availability:
+#     - RUNTIME
+# - variable: GROWTH_ENGINE_SEND_MODE
+#   value: "dry-run"
+#   availability:
+#     - RUNTIME
+
 # Grant access to secrets in Cloud Secret Manager.
 # See https://firebase.google.com/docs/app-hosting/configure#secret-parameters
 # - variable: MY_SECRET

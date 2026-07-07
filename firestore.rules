@@ -212,6 +212,31 @@ service cloud.firestore {
     }
 
     // ============================================================================
+    // Growth Engine Collections (dark-launched — see plans/growth-engine.md §5)
+    // Written exclusively via Admin SDK on the Core plane.
+    // ============================================================================
+
+    match /segments/{segmentId} {
+      allow read: if isSuperAdmin() || isPropertyOwner();
+      allow write: if false;  // Admin SDK only
+    }
+
+    match /messageLog/{messageId} {
+      allow read: if isSuperAdmin() || isPropertyOwner();
+      allow write: if false;  // Admin SDK only (audit trail)
+    }
+
+    match /suppressionList/{entryId} {
+      allow read: if isSuperAdmin() || isPropertyOwner();
+      allow write: if false;  // Admin SDK only
+    }
+
+    match /campaigns/{campaignId} {
+      allow read: if isSuperAdmin() || isPropertyOwner();
+      allow write: if false;  // Admin SDK only
+    }
+
+    // ============================================================================
     // App Config
     // ============================================================================
 
