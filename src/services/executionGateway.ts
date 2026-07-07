@@ -145,27 +145,61 @@ async function writeMessageLog(db: AdminDb, entry: MessageLogInput): Promise<str
   return ref.id;
 }
 
+interface PropertyContext {
+  name: string;        // brand name for the {{property}} slot (H1)
+  link?: string;       // the {{link}} slot — guest availability calendar
+}
+
 /**
- * Resolve a property's display name (for property-branding the message, H1).
- * Cached per process; falls back to the id so a lookup miss never blocks a send.
+ * Resolve a property's brand name + guest booking link for message branding (H1).
+ *
+ * The link is the ANONYMIZED guest availability calendar
+ * `{domain}/calendar/{guestCalendarToken}` — the same link the admin
+ * re-engagement export builds (admin/guests/actions.ts) and the owner sends by
+ * hand — on the property's custom domain, falling back to the property site
+ * when no guest token exists yet. Name prefers `propertyMeta.name` (the clean
+ * brand name) over the OTA listing title on the property doc.
+ *
+ * Cached per process; every path falls back gracefully so a lookup miss never
+ * blocks a send.
  */
-const propertyNameCache = new Map<string, string>();
-async function getPropertyName(db: AdminDb, propertyId: string): Promise<string> {
-  const cached = propertyNameCache.get(propertyId);
+const propertyContextCache = new Map<string, PropertyContext>();
+async function getPropertyContext(db: AdminDb, propertyId: string): Promise<PropertyContext> {
+  const cached = propertyContextCache.get(propertyId);
   if (cached) return cached;
+
   let name = propertyId;
+  let link: string | undefined;
   try {
     const prop = await db.collection('properties').doc(propertyId).get();
-    name = (prop.data()?.name as string) || name;
-    if (name === propertyId) {
-      const ov = await db.collection('propertyOverrides').doc(propertyId).get();
-      name = (ov.data()?.propertyMeta?.name as string) || name;
+    const p = prop.data();
+    if (p) {
+      name = (p.name as string) || name;
+      const base =
+        p.useCustomDomain && p.customDomain
+          ? `https://${p.customDomain}`
+          : process.env.NEXT_PUBLIC_MAIN_APP_HOST
+            ? `https://${process.env.NEXT_PUBLIC_MAIN_APP_HOST}`
+            : undefined;
+      const token = p.guestCalendarToken as string | undefined;
+      if (base) link = token ? `${base}/calendar/${token}` : base;
     }
+    // Prefer the clean brand name when present (properties.name can be an OTA title).
+    const ov = await db.collection('propertyOverrides').doc(propertyId).get();
+    const brand = ov.data()?.propertyMeta?.name as string | undefined;
+    if (brand) name = brand;
   } catch {
-    logger.warn('getPropertyName failed; using id', { propertyId });
+    logger.warn('getPropertyContext failed; using id', { propertyId });
   }
-  propertyNameCache.set(propertyId, name);
-  return name;
+
+  const ctx: PropertyContext = { name, link };
+  propertyContextCache.set(propertyId, ctx);
+  return ctx;
+}
+
+/** Clear the per-process property-context cache (tests / after a property edit). */
+export function clearPropertyContextCache(): void {
+  propertyContextCache.clear();
 }
 
 /**
@@ -286,12 +320,13 @@ export async function executeSend(req: SendRequest): Promise<SendResult> {
   // 5) LIVE delivery (only when both flags are flipped). Delivery and the log
   // write are deliberately separated so a Firestore log-write failure can never
   // mislabel an already-delivered message as 'failed' and cause a re-send (M2).
-  // Property-brand the message: inject the property name as a `property`
-  // template variable so the guest knows which property is reaching out (H1).
-  // The approved marketing template must reference {{property}}.
-  const propertyName = req.propertyId ? await getPropertyName(db, req.propertyId) : undefined;
-  const liveVars = propertyName
-    ? { ...(req.variables || {}), property: propertyName }
+  // Property-brand the message: inject `property` (name) and `link` (guest
+  // availability calendar) template variables so the guest knows which property
+  // is reaching out and where to check dates (H1). The approved marketing
+  // template references {{property}} and {{link}}.
+  const ctx = req.propertyId ? await getPropertyContext(db, req.propertyId) : undefined;
+  const liveVars = ctx
+    ? { ...(req.variables || {}), property: ctx.name, ...(ctx.link ? { link: ctx.link } : {}) }
     : req.variables || {};
 
   let delivery: { success: boolean; providerId?: string; error?: string };

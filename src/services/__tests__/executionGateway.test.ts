@@ -12,7 +12,7 @@ jest.mock('@/services/whatsappService', () => ({
   sendWhatsAppTemplateBySid: jest.fn().mockResolvedValue({ success: true, sid: 'SM-1' }),
 }));
 
-import { executeSend, isConsentBlocked, maskContact, resolveGuestLanguage } from '../executionGateway';
+import { executeSend, isConsentBlocked, maskContact, resolveGuestLanguage, clearPropertyContextCache } from '../executionGateway';
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { getGuestById } from '@/services/guestService';
 import { sendWhatsAppTemplateBySid, resolveWhatsAppTemplateSid } from '@/services/whatsappService';
@@ -32,13 +32,13 @@ function chainableGet(result: unknown) {
 }
 
 /** Chainable Firestore mock; toggles suppressionList hit and prior-delivery dedup. */
-function makeDb({ suppressed = false, priorDelivered = false, propertyName = 'Prahova Mountain Chalet' }: { suppressed?: boolean; priorDelivered?: boolean; propertyName?: string } = {}) {
+function makeDb({ suppressed = false, priorDelivered = false, propertyName = 'Prahova Mountain Chalet', propertyData }: { suppressed?: boolean; priorDelivered?: boolean; propertyName?: string; propertyData?: Record<string, unknown> } = {}) {
   const addMock = jest.fn().mockResolvedValue({ id: 'log-123' });
   const guestUpdateMock = jest.fn().mockResolvedValue(undefined);
   const suppressionQuery = chainableGet({ empty: !suppressed });
   const messageLogQuery = chainableGet({ docs: priorDelivered ? [{ data: () => ({ status: 'sent' }) }] : [] });
   const messageLogCol = { add: addMock, where: messageLogQuery.where };
-  const propertiesDoc = { get: jest.fn().mockResolvedValue({ exists: true, data: () => ({ name: propertyName }) }) };
+  const propertiesDoc = { get: jest.fn().mockResolvedValue({ exists: true, data: () => propertyData ?? { name: propertyName } }) };
   const overridesDoc = { get: jest.fn().mockResolvedValue({ exists: false, data: () => ({}) }) };
   const guestsDoc = { update: guestUpdateMock };
   const db = {
@@ -79,6 +79,7 @@ beforeEach(() => {
   // Enforce DARK LAUNCH default (both switches off) for every test unless overridden.
   delete process.env.GROWTH_ENGINE_ENABLED;
   delete process.env.GROWTH_ENGINE_SEND_MODE;
+  clearPropertyContextCache(); // per-process cache must not leak between tests
   mockSendWhatsApp.mockClear();
   mockSendWhatsApp.mockResolvedValue({ success: true, sid: 'SM-1' });
 });
@@ -214,6 +215,28 @@ describe('executeSend — live mode (both switches on)', () => {
     mockGetGuestById.mockResolvedValue(guest());
     await executeSend({ guestId: 'g1', propertyId: 'prahova-mountain-chalet', channel: 'whatsapp', templateName: 'winter_invite' });
     expect(mockSendWhatsApp).toHaveBeenCalledWith('+40712345678', 'HX-en', expect.objectContaining({ property: 'Prahova Mountain Chalet' }));
+  });
+
+  it('injects the guest availability calendar as {{link}} (H1 link wiring)', async () => {
+    const { db } = makeDb({
+      propertyData: {
+        name: 'Prahova Mountain Chalet',
+        useCustomDomain: true,
+        customDomain: 'prahova-chalet.ro',
+        guestCalendarToken: 'tok123',
+      },
+    });
+    mockGetAdminDb.mockResolvedValue(db);
+    mockGetGuestById.mockResolvedValue(guest());
+    await executeSend({ guestId: 'g1', propertyId: 'prahova-mountain-chalet', channel: 'whatsapp', templateName: 'winter_invite' });
+    expect(mockSendWhatsApp).toHaveBeenCalledWith(
+      '+40712345678',
+      'HX-en',
+      expect.objectContaining({
+        property: 'Prahova Mountain Chalet',
+        link: 'https://prahova-chalet.ro/calendar/tok123',
+      })
+    );
   });
 
   it('sends the RO template to a RO-country guest whose language defaulted to en (H2)', async () => {
