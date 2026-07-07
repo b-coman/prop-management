@@ -415,6 +415,10 @@ export const loggers = {
   housekeeping: createLogger('housekeeping'),
   contentData: createLogger('content:data'),
   contentGeneration: createLogger('content:generation'),
+  // Growth Engine (dark-launched)
+  campaign: createLogger('campaign'),
+  segment: createLogger('segment'),
+  executionGateway: createLogger('execution:gateway'),
 };
 
 // Type-safe logger categories
