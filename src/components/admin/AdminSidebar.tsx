@@ -11,6 +11,7 @@ import {
   Building2,
   CalendarCheck,
   Ticket,
+  Megaphone,
   MessageSquare,
   Sliders,
   RefreshCw,
@@ -85,6 +86,7 @@ const navigationGroups = [
       { title: 'Revenue', href: '/admin/revenue', icon: DollarSign },
       { title: 'Attribution', href: '/admin/attribution', icon: BarChart3 },
       { title: 'Coupons', href: '/admin/coupons', icon: Ticket },
+      { title: 'Campaigns', href: '/admin/campaigns', icon: Megaphone },
     ],
   },
 ];
