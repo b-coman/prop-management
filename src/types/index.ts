@@ -370,6 +370,42 @@ export interface SuppressionEntry {
   at?: SerializableTimestamp;
 }
 
+export type CampaignStatus =
+  | 'draft'
+  | 'scheduled'
+  | 'sending'
+  | 'sent'
+  | 'failed'
+  | 'cancelled';
+
+export interface CampaignStats {
+  audienceSize: number;
+  attempted: number;
+  sent: number;
+  dryRun: number;
+  suppressed: number;
+  skipped: number;
+  failed: number;
+}
+
+export interface Campaign {
+  id: string;
+  name: string;
+  propertyId: string;
+  channel: ChannelType;
+  templateName: string;
+  variables?: Record<string, string>;   // default template variables
+  segmentId?: string;                    // reference to a saved segment (optional)
+  segmentDefinition: SegmentDefinition;  // inline snapshot always present
+  scheduleAt?: SerializableTimestamp | null;
+  status: CampaignStatus;
+  stats?: CampaignStats;
+  approvedBy?: string | null;
+  createdAt?: SerializableTimestamp;
+  updatedAt?: SerializableTimestamp;
+  sentAt?: SerializableTimestamp | null;
+}
+
 export interface Inquiry {
   id: string; // Document ID from Firestore
   propertySlug: string;
