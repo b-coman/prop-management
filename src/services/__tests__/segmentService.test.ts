@@ -57,6 +57,10 @@ describe('segmentService.matchesDefinition', () => {
     expect(matchesDefinition(guest({ country: 'IL' }), { countryIn: ['RO'] }, NOW)).toBe(false);
     expect(matchesDefinition(guest({ country: undefined }), { countryIn: ['RO'] }, NOW)).toBe(false);
   });
+  it('normalizes country names/aliases before matching (H3)', () => {
+    expect(matchesDefinition(guest({ country: 'Romania' }), { countryIn: ['RO'] }, NOW)).toBe(true);
+    expect(matchesDefinition(guest({ country: 'Romania' }), { countryNotIn: ['RO'] }, NOW)).toBe(false);
+  });
   it('countryNotIn requires a KNOWN country — unknown is NOT foreign (M3)', () => {
     expect(matchesDefinition(guest({ country: 'IL' }), { countryNotIn: ['RO'] }, NOW)).toBe(true);
     expect(matchesDefinition(guest({ country: 'RO' }), { countryNotIn: ['RO'] }, NOW)).toBe(false);

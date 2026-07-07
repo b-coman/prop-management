@@ -16,6 +16,7 @@ import { loggers } from '@/lib/logger';
 import { executeSend } from '@/services/executionGateway';
 import { findGuestByPhone } from '@/services/guestService';
 import { parseFirestoreDate } from '@/lib/growth/date-utils';
+import { normalizeCountryCode } from '@/lib/country-utils';
 
 const logger = loggers.campaign;
 const DAY_MS = 1000 * 60 * 60 * 24;
@@ -67,11 +68,14 @@ export async function runChannelAwareReactivation(now: Date = new Date()): Promi
         continue;
       }
 
-      // Cohort strategy: automatic reactivation targets LOCALS — RO or
+      // Cohort strategy: automatic reactivation targets LOCALS — RO/MD or
       // unknown-country guests, who can realistically return. Known-foreign
       // guests (unlikely to travel back) are skipped here; reach them
       // deliberately via a targeted campaign instead, not this auto-nudge.
-      if (guest.country && guest.country !== 'RO') {
+      // Normalize first so "Romania"/"ro" aren't mistaken for foreign (H3);
+      // unrecognized/undefined => treated as unknown => reached (safe direction).
+      const countryCode = guest.country ? normalizeCountryCode(guest.country) : undefined;
+      if (countryCode && countryCode !== 'RO' && countryCode !== 'MD') {
         stats.skipped++;
         continue;
       }

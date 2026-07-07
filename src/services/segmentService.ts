@@ -13,6 +13,7 @@ import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
 import type { Guest, SegmentDefinition, ChannelType, Season } from '@/types';
 import { parseFirestoreDate, seasonOf, monthsBetween } from '@/lib/growth/date-utils';
+import { normalizeCountryCode } from '@/lib/country-utils';
 
 const logger = loggers.segment;
 
@@ -50,14 +51,18 @@ export function matchesDefinition(
     return false;
   }
 
+  // Normalize the stored country (may be an ISO code, a name like "Romania", or
+  // un-normalized) to an ISO code before comparing — otherwise "Romania" wouldn't
+  // match countryIn:['RO'] and the RO/foreign axis silently breaks (H3).
+  const countryCode = guest.country ? normalizeCountryCode(guest.country) : undefined;
   if (def.countryIn && def.countryIn.length > 0) {
-    if (!guest.country || !def.countryIn.includes(guest.country)) return false;
+    if (!countryCode || !def.countryIn.includes(countryCode)) return false;
   }
   if (def.countryNotIn && def.countryNotIn.length > 0) {
-    // Symmetric with countryIn: a guest with unknown country is NOT classifiable
-    // as "not in X", so exclude them rather than treating unknown as foreign (M3).
-    if (!guest.country) return false;
-    if (def.countryNotIn.includes(guest.country)) return false;
+    // Unknown country isn't classifiable as "not in X" — exclude, don't treat
+    // unknown as foreign (M3).
+    if (!countryCode) return false;
+    if (def.countryNotIn.includes(countryCode)) return false;
   }
 
   if (def.tagsInclude && def.tagsInclude.length > 0) {

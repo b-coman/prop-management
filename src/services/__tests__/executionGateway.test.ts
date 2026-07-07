@@ -12,7 +12,7 @@ jest.mock('@/services/whatsappService', () => ({
   sendWhatsAppTemplateBySid: jest.fn().mockResolvedValue({ success: true, sid: 'SM-1' }),
 }));
 
-import { executeSend, isConsentBlocked, maskContact } from '../executionGateway';
+import { executeSend, isConsentBlocked, maskContact, resolveGuestLanguage } from '../executionGateway';
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { getGuestById } from '@/services/guestService';
 import { sendWhatsAppTemplateBySid, resolveWhatsAppTemplateSid } from '@/services/whatsappService';
@@ -84,6 +84,21 @@ describe('executionGateway pure helpers', () => {
   it('maskContact never leaks the full contact', () => {
     expect(maskContact('+40712345678')).toBe('+40712***');
     expect(maskContact('a@b.co')).toBe('a***');
+  });
+});
+
+describe('resolveGuestLanguage (H2 — country beats the en default)', () => {
+  it('explicit ro wins', () => {
+    expect(resolveGuestLanguage({ language: 'ro' })).toBe('ro');
+  });
+  it('RO/MD country => ro even when language is en or absent', () => {
+    expect(resolveGuestLanguage({ language: 'en', country: 'RO' })).toBe('ro');
+    expect(resolveGuestLanguage({ country: 'Romania' } as Parameters<typeof resolveGuestLanguage>[0])).toBe('ro');
+    expect(resolveGuestLanguage({ country: 'MD' } as Parameters<typeof resolveGuestLanguage>[0])).toBe('ro');
+  });
+  it('foreign/unknown => the language field or en', () => {
+    expect(resolveGuestLanguage({ language: 'en', country: 'US' })).toBe('en');
+    expect(resolveGuestLanguage({} as Parameters<typeof resolveGuestLanguage>[0])).toBe('en');
   });
 });
 
@@ -164,6 +179,14 @@ describe('executeSend — live mode (both switches on)', () => {
     expect(res.mode).toBe('live');
     expect(res.providerId).toBe('SM-1');
     expect(addMock.mock.calls.at(-1)?.[0]).toMatchObject({ status: 'sent', providerId: 'SM-1' });
+  });
+
+  it('sends the RO template to a RO-country guest whose language defaulted to en (H2)', async () => {
+    const { db } = makeDb();
+    mockGetAdminDb.mockResolvedValue(db);
+    mockGetGuestById.mockResolvedValue(guest({ language: 'en', country: 'RO' }));
+    await executeSend({ guestId: 'g1', channel: 'whatsapp', templateName: 'winter_invite' });
+    expect(mockResolve).toHaveBeenCalledWith('winter_invite', 'ro');
   });
 
   it('selects the RO template variant for a RO-language guest (#2)', async () => {

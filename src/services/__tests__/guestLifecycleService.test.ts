@@ -106,6 +106,17 @@ describe('runChannelAwareReactivation — audience filtering', () => {
     expect(stats).toMatchObject({ attempted: 0, skipped: 1 });
   });
 
+  it('normalizes country — a "Romania" guest is reached, not skipped (H3)', async () => {
+    const eligible = bookingDoc({ propertyId: 'p', guestInfo: { phone: '+40712345678' }, checkOutDate: secondsFor(90) });
+    const { db } = makeDb([eligible]);
+    mockGetAdminDb.mockResolvedValue(db);
+    mockFindGuestByPhone.mockResolvedValue({ id: 'g1', firstName: 'Ana', country: 'Romania' });
+    mockExecuteSend.mockResolvedValue({ status: 'dry-run', mode: 'dry-run' });
+    const stats = await runChannelAwareReactivation(NOW);
+    expect(mockExecuteSend).toHaveBeenCalledTimes(1);
+    expect(stats.attempted).toBe(1);
+  });
+
   it('reaches RO guests (#3)', async () => {
     const eligible = bookingDoc({ propertyId: 'p', guestInfo: { phone: '+40712345678' }, checkOutDate: secondsFor(90) });
     const { db } = makeDb([eligible]);

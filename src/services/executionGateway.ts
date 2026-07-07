@@ -17,6 +17,7 @@ import type { Guest, ChannelType, ConsentState, MessageLogStatus, LanguageCode }
 import { getSendMode } from '@/config/growth-engine';
 import { getGuestById } from '@/services/guestService';
 import { normalizePhone } from '@/lib/sanitize';
+import { normalizeCountryCode } from '@/lib/country-utils';
 
 const logger = loggers.executionGateway;
 
@@ -51,6 +52,20 @@ export function isConsentBlocked(
   if (guest.unsubscribed) return true;
   const state: ConsentState | undefined = guest.channelConsent?.[channel];
   return state === 'opted_out';
+}
+
+/**
+ * Effective message language for a guest. For this RO-first business, the guest's
+ * country is a better predictor than the `language` field, which defaults to 'en'
+ * for imported/phone-only guests (the exact reactivation base) — so a RO/MD guest
+ * gets Romanian even when `language` was never captured (H2). An explicit 'ro'
+ * always wins.
+ */
+export function resolveGuestLanguage(guest: Pick<Guest, 'language' | 'country'>): LanguageCode {
+  if (guest.language === 'ro') return 'ro';
+  const code = guest.country ? normalizeCountryCode(guest.country) : undefined;
+  if (code === 'RO' || code === 'MD') return 'ro';
+  return guest.language || 'en';
 }
 
 /** Mask a phone/email for logging (never store full contact in messageLog). */
@@ -241,7 +256,7 @@ export async function executeSend(req: SendRequest): Promise<SendResult> {
   // mislabel an already-delivered message as 'failed' and cause a re-send (M2).
   let delivery: { success: boolean; providerId?: string; error?: string };
   try {
-    delivery = await deliverLive(req.channel, contact, req.templateName, req.variables || {}, guest.language || 'en');
+    delivery = await deliverLive(req.channel, contact, req.templateName, req.variables || {}, resolveGuestLanguage(guest));
   } catch (error) {
     logger.error('Live send threw', error as Error, {
       guestId: req.guestId,
