@@ -193,20 +193,12 @@ env:
       - BUILD
       - RUNTIME
 
-# Meta Pixel (browser + server) + Conversions API. Pixel ID is public (appears
-# in the browser); the CAPI token is a Secret Manager secret. See
-# docs/meta-ads-infrastructure-2026.md.
-  - variable: NEXT_PUBLIC_META_PIXEL_ID
-    value: "1010060168431159"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: META_PIXEL_ID
-    value: "1010060168431159"
-    availability:
-      - RUNTIME
-  - variable: META_CAPI_ACCESS_TOKEN
-    secret: projects/1061532538391/secrets/META_CAPI_ACCESS_TOKEN/versions/latest
+# Meta Pixel (browser + server) + Conversions API — PER PROPERTY (multi-property).
+# Pixel IDs (public) live in code: src/lib/meta-pixels.ts (resolved by property).
+# CAPI tokens are a per-property JSON-map secret { "<slug>": "<token>" }.
+# See docs/meta-ads-infrastructure-2026.md.
+  - variable: META_CAPI_TOKENS
+    secret: projects/1061532538391/secrets/META_CAPI_TOKENS/versions/latest
     availability:
       - RUNTIME
 # Meta Marketing API (Growth Engine Phase 2 — Custom Audiences + ad insights).

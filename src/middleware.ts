@@ -127,9 +127,11 @@ export async function middleware(request: NextRequest) {
   const rewriteUrl = new URL(rewritePath, request.url);
   rewriteUrl.search = url.search; // preserve original query parameters
 
-  // Pass detected language as request header for SSR lang attribute
+  // Pass detected language + resolved property slug as request headers, so SSR
+  // (e.g. the root layout) can resolve per-property config like the Meta pixel.
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-language', language);
+  requestHeaders.set('x-property-slug', propertySlug);
 
   const response = NextResponse.rewrite(rewriteUrl, {
     request: { headers: requestHeaders },

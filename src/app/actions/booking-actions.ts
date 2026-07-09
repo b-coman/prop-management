@@ -197,6 +197,7 @@ export async function createPendingBookingAction(
     // Fire Meta CAPI InitiateCheckout event (non-blocking)
     const eventId = crypto.randomUUID();
     sendMetaEvent({
+      propertyId,
       eventName: 'InitiateCheckout',
       eventId,
       userData: {

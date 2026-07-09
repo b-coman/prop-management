@@ -241,6 +241,7 @@ export async function verifyAndUpdateBooking(
     // Fire Meta CAPI Purchase event (non-blocking)
     if (updatedBooking) {
       sendMetaEvent({
+        propertyId: updatedBooking.propertyId,
         eventName: 'Purchase',
         // Deterministic id: dedupes with the browser Pixel Purchase AND prevents
         // double-counting when the success page is refreshed (this action re-runs).
