@@ -93,6 +93,14 @@ export interface Property {
     enabled: boolean;
     googleAnalyticsId?: string;
     metaPixelId?: string; // Meta (Facebook/Instagram) Pixel / dataset id — per property
+    // Growth Ad Engine (Phase 0) — per-property Meta Ads config. Agency-shaped:
+    // metaTokenRef is a key into the META_ADS_TOKENS secret map, NOT the token
+    // itself, and may be shared across properties under one agency BM. See
+    // src/services/growth/metaAds/adContext.ts.
+    metaAdAccountId?: string;       // "act_<id>"
+    metaPageId?: string;            // Facebook Page id (ads publish AS a Page)
+    metaInstagramActorId?: string;  // IG actor id, for IG placements
+    metaTokenRef?: string;          // key into META_ADS_TOKENS
   };
   customDomain?: string | null;
   useCustomDomain?: boolean;
@@ -413,6 +421,63 @@ export interface Campaign {
   createdAt?: SerializableTimestamp;
   updatedAt?: SerializableTimestamp;
   sentAt?: SerializableTimestamp | null;
+}
+
+/**
+ * Growth Ad Engine (Meta Ads) — `adCampaigns` collection doc status. Every
+ * Meta-side create lands PAUSED regardless of this status (see
+ * src/services/growth/metaAds/client.ts); this is OUR operator-approval state
+ * machine that `adExecutionGateway.activateCampaign` gates on before it will
+ * ever un-pause the Meta campaign (plan §13 H5).
+ */
+export type AdCampaignStatus =
+  | 'draft'
+  | 'pending_approval'
+  | 'approved'
+  | 'active'
+  | 'paused'
+  | 'failed';
+
+/**
+ * `adCampaigns` collection doc — Growth Ad Engine (Meta) campaign tracking
+ * (plan §4). Money fields are in Meta's MINOR UNITS (bani for RON) — always
+ * suffixed `Minor` to make the unit explicit and impossible to confuse with a
+ * major-unit RON amount (plan §13 M3). Phase 0 only depends on `propertyId`,
+ * `metaCampaignId`, `status`, and `spendCapMinor` (what `adExecutionGateway`
+ * gates activation on); the remaining fields land with Phase 2 campaign
+ * creation but are declared now so the shape is stable.
+ */
+export interface AdCampaign {
+  id: string;
+  propertyId: string;
+  segmentId?: string;
+  metaCampaignId?: string;
+  metaAdSetIds?: string[];
+  metaAdIds?: string[];
+  audienceRef?: string;
+  objective?: string;              // e.g. 'OUTCOME_SALES'
+  dailyBudgetMinor?: number;       // bani
+  spendCapMinor?: number;          // bani — required (snapshotted) before activation
+  status: AdCampaignStatus;
+  effectiveStatus?: string;        // Meta's effective_status, mirrored by the Phase-2 reconciliation cron
+  creativeRef?: string;
+  approvedBy?: string;
+  approvalSnapshot?: {
+    dailyBudgetMinor?: number;
+    spendCapMinor?: number;
+    creativeRef?: string;
+    at?: SerializableTimestamp;
+  };
+  insights?: {
+    spend: number;
+    impressions: number;
+    clicks: number;
+    bookings?: number;
+    roas?: number;
+  };
+  lastSyncedAt?: SerializableTimestamp;
+  createdAt?: SerializableTimestamp;
+  updatedAt?: SerializableTimestamp;
 }
 
 export interface Inquiry {
