@@ -224,7 +224,7 @@ export async function verifyAndUpdateBooking(
     };
 
     // Get currency from metadata or booking
-    const paymentCurrency = session.metadata?.holdCurrency || session.metadata?.currency || booking.pricing?.currency || 'EUR';
+    const paymentCurrency = session.metadata?.holdCurrency || session.metadata?.currency || booking.pricing?.currency || 'RON';
 
     // Update the booking using the same function the webhook would use
     await updateBookingPaymentInfo(
@@ -251,7 +251,7 @@ export async function verifyAndUpdateBooking(
         },
         customData: {
           value: updatedBooking.pricing?.total ?? 0,
-          currency: updatedBooking.pricing?.currency ?? 'EUR',
+          currency: updatedBooking.pricing?.currency ?? 'RON',
           contentIds: [updatedBooking.propertyId],
           contentType: 'product',
           orderId: bookingId,
