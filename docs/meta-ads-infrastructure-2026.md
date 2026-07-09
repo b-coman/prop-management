@@ -163,3 +163,41 @@ Ran the full OUTCOME_SALES chain against `act_543311232953437` PAUSED, then dele
 - ❌ **Creative creation REQUIRES the app to be in LIVE (public) mode.** With the "rentalspot" app in Development, `/adcreatives` → "Ads creative post was created by an app that is in development mode. It must be in public to create this ad." **OWNER ACTION: publish the app (Development → Live).** (Correction: unpublished is fine for token/campaign/adset ops, but NOT for creating ad creatives, which publish as the Page.)
 - Complex params (`promoted_object`, `targeting`, `object_story_spec`, `special_ad_categories`) go as **JSON strings** in the form body (confirms the Phase-0 client needs JSON.stringify for non-primitives).
 - All PAUSED test objects deleted cleanly (`{"success":true}`).
+
+### 9c. Phase-1 contract VERIFIED end-to-end (app Live, 10 Jul 2026)
+After publishing the "rentalspot" app (Development → Live), the full chain was
+created PAUSED and deleted cleanly — zero spend. `effective_status: IN_PROCESS`
+= accepted into review but PAUSED, cannot spend. **Also verified:** `/adcreatives`
+**accepts (ignores) `status=PAUSED`**, so the PAUSED-enforcing `createResource()`
+is safe to use uniformly for all four object types — the single enforcement
+point holds, no bypass for creatives.
+
+Exact accepted payloads (all against `act_543311232953437`, Graph **v25.0**,
+token in `Authorization: Bearer` header; complex fields as JSON strings):
+
+**Campaign** — POST `act_<id>/campaigns`
+```
+name, objective=OUTCOME_SALES, special_ad_categories=[], status=PAUSED,
+is_adset_budget_sharing_enabled=false
+```
+**Ad Set** — POST `act_<id>/adsets`
+```
+name, campaign_id, billing_event=IMPRESSIONS, optimization_goal=OFFSITE_CONVERSIONS,
+promoted_object={pixel_id, custom_event_type:"PURCHASE"},
+daily_budget=<bani>, conversion_domain=<eTLD+1 of landing page>,
+targeting={geo_locations:{countries:[...]}}, bid_strategy=LOWEST_COST_WITHOUT_CAP,
+status=PAUSED
+```
+**Creative** — POST `act_<id>/adcreatives`
+```
+name, object_story_spec={page_id, link_data:{link (with utm_*), message,
+image_hash, call_to_action:{type:"LEARN_MORE"}}}
+```
+**Ad** — POST `act_<id>/ads`
+```
+name, adset_id, creative={creative_id}, status=PAUSED
+```
+Notes: budgets in **bani** (minor units); Meta auto-adds `smart_pse_enabled:false`
+to `promoted_object`; `conversion_domain` must match the landing page's registrable
+domain (prahova-chalet.ro). Insights read-back for ROAS still to be exercised in
+the create functions, not the spike.
