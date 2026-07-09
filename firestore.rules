@@ -243,6 +243,17 @@ service cloud.firestore {
       allow write: if false;  // Admin SDK only (per-property reactivation config)
     }
 
+    match /adCampaigns/{campaignId} {
+      allow read: if isSuperAdmin() || isPropertyOwner();
+      allow write: if false;  // Admin SDK only (Meta ad campaigns)
+    }
+
+    match /adAuditLog/{entryId} {
+      // Money-path audit trail — super-admin only.
+      allow read: if isSuperAdmin();
+      allow write: if false;  // Admin SDK only
+    }
+
     // ============================================================================
     // App Config
     // ============================================================================
