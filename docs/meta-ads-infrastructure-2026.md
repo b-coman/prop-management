@@ -126,3 +126,31 @@ The critical path to running ads. Steps 1–4 are the SAME regardless of which r
 - **B · Ads CLI (for the OpenClaw automation later):** create ONE new **Business-type** app in this same Business Manager, add a **System User**, assign it to the ad account, generate a token (store in GCP Secret Manager), run the `meta-ads` CLI. This is the path for the agentic brain→approve→execute loop.
 
 **Recommended sequence:** setup 1–3 → run first campaign via **A (MCP)** or Ads Manager → wire **Pixel+CAPI conversion tracking** (Core build, `meta-capi.ts`) so bookings attribute to ads → only after ads are proven, build **B** (OpenClaw agentic automation). Don't build the automation before proving the ads work.
+
+---
+
+## 9. Contract spike — VERIFIED against the live account (9 Jul 2026, read-only)
+Facts read directly from ad account **`act_543311232953437`** (Bogdan-Comarnic) + its existing campaigns. Ground truth for building; re-check before go-live (beta).
+
+**Account:** currency **RON**, timezone **CET**, `HAS_VALID_PAYMENT_METHODS`, trust tier 1, `IS_IN_ODAX_EXPERIENCE` (new outcome objectives), business = Comarnic (`284793355854966`). Instagram actor id = **`17841435421272996`**.
+
+**Budgets are in MINOR UNITS (bani)** — verified: old `daily_budget:"1000"` = 10 RON/day. Account minimums:
+- `min_daily_budget` = **464 bani = 4.64 RON/day** (tiny — small tests are cheap).
+- `min_campaign_group_spend_cap` = **50000 bani = 500 RON** ← a campaign-level spend cap **cannot be below 500 RON**. So control a *small* test via **daily budget (~5 RON/day) + an end date**, NOT a sub-500-RON campaign cap. (Resolves Fable M3.)
+- `spend_cap` = **"0"** → NO account-level spending limit set. **Set one in Ads Manager as the platform backstop** (Fable C1).
+
+**special_ad_categories (Fable H4.1 — the Housing question, ANSWERED by precedent):** this account has run vacation-rental ads BOTH as `[]` AND as `["HOUSING"]`. So Meta does NOT force these into HOUSING — **declare `special_ad_categories: []`** for direct-booking/travel ads (the account's own `[]` campaigns ran fine). HOUSING remains a latent ad-review risk; if ever forced, Lookalikes/detailed targeting are lost. `special_ad_categories` IS a required create param.
+
+**Custom Audiences:** `tos_accepted.web_custom_audience_tos = 1` (website/pixel audiences OK); **customer-file ToS NOT accepted** → uploading email/phone lists needs a one-time ToS acceptance first. And existing audiences return **`delivery_status 300: "Audience is too small to be used"`** — confirms the audience/Lookalike layer is premature at this scale (Fable M1: cut from Phase 1).
+
+**Creative flow works (Fable H4.3):** `/act_/adimages` reachable (existing image_hash present). Accepted `object_story_spec` shape:
+```
+object_story_spec: { page_id, instagram_user_id, link_data: { link, message, image_hash, call_to_action:{type:"LEARN_MORE"}, use_flexible_image_aspect_ratio } }
+```
+The **`link`** field is where the `?utm_source=facebook&utm_campaign=<adCampaigns.id>` MUST go (Fable H1).
+
+**Ad-set targeting shape (validated):** `geo_locations{ cities:[{country,key,radius,distance_unit,region}], location_types:["home","recent"] }, age_min, age_max`. Owner's prior play: RO cities (Bucharest 25mi, Braila, Constanta, Galati…), age 30–45.
+
+**STILL UNVERIFIED (no account precedent — verify at first PAUSED create):** `OUTCOME_SALES` needs ad-set `optimization_goal:OFFSITE_CONVERSIONS` + `promoted_object:{pixel_id, custom_event_type:PURCHASE}`. The account's history is all LINK_CLICKS/OUTCOME_TRAFFIC/MESSAGES — no conversion campaigns yet.
+
+**API version:** calls used v21 but Meta's paging responses returned **v25.0** URLs → v25 is current; use a current `GRAPH_API_VERSION` constant (existing code hardcodes v21, expiring ~late 2026 — consolidate, Fable L2).

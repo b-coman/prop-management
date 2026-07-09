@@ -419,6 +419,8 @@ export const loggers = {
   campaign: createLogger('campaign'),
   segment: createLogger('segment'),
   executionGateway: createLogger('execution:gateway'),
+  // Growth Ad Engine (Meta Ads, dark-launched — Phase 0)
+  ads: createLogger('ads'),
 };
 
 // Type-safe logger categories
