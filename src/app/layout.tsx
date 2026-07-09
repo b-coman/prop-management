@@ -9,6 +9,7 @@ import { ErrorBoundary } from '@/components/error-boundary'; // Import ErrorBoun
 import { LanguageProvider } from '@/lib/language-system'; // Import unified language system
 import { GoogleTagManager, GoogleTagManagerNoscript } from '@/components/tracking/gtm';
 import { MetaPixel } from '@/components/tracking/meta-pixel';
+import { getPixelIdForProperty } from '@/lib/meta-pixels';
 import { CookieConsent } from '@/components/cookie-consent';
 import { UTMCapture } from '@/components/tracking/utm-capture';
 import { LanguageHtmlUpdater } from '@/components/language-html-updater';
@@ -32,16 +33,18 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Read language from middleware-set header for correct SSR lang attribute
+  // Read language + resolved property from middleware-set headers
   const headersList = await headers();
   const detectedLang = headersList.get('x-language') || DEFAULT_LANGUAGE;
+  // Per-property Meta pixel: only the current property's pixel loads (multi-property).
+  const metaPixelId = getPixelIdForProperty(headersList.get('x-property-slug'));
 
   return (
     <html lang={detectedLang}>
       <head>
         <link rel="preconnect" href="https://firebasestorage.googleapis.com" />
         <GoogleTagManager />
-        <MetaPixel />
+        <MetaPixel pixelId={metaPixelId} />
       </head>
       {/* Apply font variable to body */}
       <body className={`${inter.variable} font-sans antialiased`}>

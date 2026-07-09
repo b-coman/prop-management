@@ -5,12 +5,29 @@
 
 import { createHash } from 'crypto';
 import { loggers } from '@/lib/logger';
+import { getPixelIdForProperty } from '@/lib/meta-pixels';
 
 const logger = loggers.tracking;
 
-const META_PIXEL_ID = process.env.META_PIXEL_ID;
-const META_CAPI_ACCESS_TOKEN = process.env.META_CAPI_ACCESS_TOKEN;
 const GRAPH_API_VERSION = 'v21.0';
+
+/**
+ * Per-property CAPI access tokens, from the META_CAPI_TOKENS secret — a JSON map
+ * { "<property-slug>": "<token>" }. Parsed once. A property with no token here
+ * sends no server events (multi-property isolation).
+ */
+let capiTokens: Record<string, string> | null = null;
+function getCapiToken(slug: string): string | undefined {
+  if (capiTokens === null) {
+    try {
+      capiTokens = process.env.META_CAPI_TOKENS ? JSON.parse(process.env.META_CAPI_TOKENS) : {};
+    } catch {
+      logger.warn('Meta CAPI: META_CAPI_TOKENS is not valid JSON');
+      capiTokens = {};
+    }
+  }
+  return (capiTokens ?? {})[slug];
+}
 
 interface UserData {
   email?: string;
@@ -33,6 +50,8 @@ interface CustomData {
 }
 
 interface MetaEventParams {
+  /** REQUIRED: the property this event belongs to — selects the pixel + token. */
+  propertyId: string;
   eventName: string;
   eventId: string;
   eventSourceUrl?: string;
@@ -74,12 +93,17 @@ function buildUserData(userData?: UserData) {
  * No-ops gracefully if env vars are not set.
  */
 export async function sendMetaEvent(params: MetaEventParams): Promise<void> {
-  if (!META_PIXEL_ID || !META_CAPI_ACCESS_TOKEN) {
-    logger.debug('Meta CAPI: skipping (env vars not set)');
+  const { propertyId, eventName, eventId, eventSourceUrl, userData, customData } = params;
+
+  // Resolve the pixel + token FOR THIS PROPERTY. If either is missing, this
+  // property isn't configured for Meta tracking — skip (never fire to another
+  // property's pixel).
+  const pixelId = getPixelIdForProperty(propertyId);
+  const accessToken = propertyId ? getCapiToken(propertyId) : undefined;
+  if (!pixelId || !accessToken) {
+    logger.debug('Meta CAPI: skipping (no pixel/token for property)', { propertyId, eventName });
     return;
   }
-
-  const { eventName, eventId, eventSourceUrl, userData, customData } = params;
 
   const eventData: Record<string, unknown> = {
     event_name: eventName,
@@ -103,7 +127,7 @@ export async function sendMetaEvent(params: MetaEventParams): Promise<void> {
     eventData.custom_data = cd;
   }
 
-  const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${META_PIXEL_ID}/events`;
+  const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${pixelId}/events`;
 
   try {
     const response = await fetch(url, {
@@ -111,7 +135,7 @@ export async function sendMetaEvent(params: MetaEventParams): Promise<void> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         data: [eventData],
-        access_token: META_CAPI_ACCESS_TOKEN,
+        access_token: accessToken,
       }),
     });
 

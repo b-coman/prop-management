@@ -113,6 +113,7 @@ export async function createInquiryAction(
 
     // Fire Meta CAPI Lead event (non-blocking)
     sendMetaEvent({
+      propertyId: propertySlug,
       eventName: 'Lead',
       eventId: crypto.randomUUID(),
       userData: {
