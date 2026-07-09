@@ -154,3 +154,50 @@ The **`link`** field is where the `?utm_source=facebook&utm_campaign=<adCampaign
 **STILL UNVERIFIED (no account precedent — verify at first PAUSED create):** `OUTCOME_SALES` needs ad-set `optimization_goal:OFFSITE_CONVERSIONS` + `promoted_object:{pixel_id, custom_event_type:PURCHASE}`. The account's history is all LINK_CLICKS/OUTCOME_TRAFFIC/MESSAGES — no conversion campaigns yet.
 
 **API version:** calls used v21 but Meta's paging responses returned **v25.0** URLs → v25 is current; use a current `GRAPH_API_VERSION` constant (existing code hardcodes v21, expiring ~late 2026 — consolidate, Fable L2).
+
+### 9b. Phase-1 create-contract spike (live PAUSED create+delete, 9 Jul 2026)
+Ran the full OUTCOME_SALES chain against `act_543311232953437` PAUSED, then deleted. Findings:
+
+- **Campaign (OUTCOME_SALES) requires `is_adset_budget_sharing_enabled` = `true|false`** when NOT using campaign-level budget (ad-set budgets). Omitting it → error 100/4834011 "Must specify True or False in is_adset_budget_sharing_enabled". Pass `false`.
+- ✅ **Conversion optimization VERIFIED WORKING:** ad set with `optimization_goal=OFFSITE_CONVERSIONS`, `billing_event=IMPRESSIONS`, `promoted_object={pixel_id, custom_event_type:PURCHASE}`, `conversion_domain=prahova-chalet.ro`, `bid_strategy=LOWEST_COST_WITHOUT_CAP`, `daily_budget=5000` (50 RON) — accepted. This was the big open question (no account precedent). Resolved.
+- ❌ **Creative creation REQUIRES the app to be in LIVE (public) mode.** With the "rentalspot" app in Development, `/adcreatives` → "Ads creative post was created by an app that is in development mode. It must be in public to create this ad." **OWNER ACTION: publish the app (Development → Live).** (Correction: unpublished is fine for token/campaign/adset ops, but NOT for creating ad creatives, which publish as the Page.)
+- Complex params (`promoted_object`, `targeting`, `object_story_spec`, `special_ad_categories`) go as **JSON strings** in the form body (confirms the Phase-0 client needs JSON.stringify for non-primitives).
+- All PAUSED test objects deleted cleanly (`{"success":true}`).
+
+### 9c. Phase-1 contract VERIFIED end-to-end (app Live, 10 Jul 2026)
+After publishing the "rentalspot" app (Development → Live), the full chain was
+created PAUSED and deleted cleanly — zero spend. `effective_status: IN_PROCESS`
+= accepted into review but PAUSED, cannot spend. **Also verified:** `/adcreatives`
+**accepts (ignores) `status=PAUSED`**, so the PAUSED-enforcing `createResource()`
+is safe to use uniformly for all four object types — the single enforcement
+point holds, no bypass for creatives.
+
+Exact accepted payloads (all against `act_543311232953437`, Graph **v25.0**,
+token in `Authorization: Bearer` header; complex fields as JSON strings):
+
+**Campaign** — POST `act_<id>/campaigns`
+```
+name, objective=OUTCOME_SALES, special_ad_categories=[], status=PAUSED,
+is_adset_budget_sharing_enabled=false
+```
+**Ad Set** — POST `act_<id>/adsets`
+```
+name, campaign_id, billing_event=IMPRESSIONS, optimization_goal=OFFSITE_CONVERSIONS,
+promoted_object={pixel_id, custom_event_type:"PURCHASE"},
+daily_budget=<bani>, conversion_domain=<eTLD+1 of landing page>,
+targeting={geo_locations:{countries:[...]}}, bid_strategy=LOWEST_COST_WITHOUT_CAP,
+status=PAUSED
+```
+**Creative** — POST `act_<id>/adcreatives`
+```
+name, object_story_spec={page_id, link_data:{link (with utm_*), message,
+image_hash, call_to_action:{type:"LEARN_MORE"}}}
+```
+**Ad** — POST `act_<id>/ads`
+```
+name, adset_id, creative={creative_id}, status=PAUSED
+```
+Notes: budgets in **bani** (minor units); Meta auto-adds `smart_pse_enabled:false`
+to `promoted_object`; `conversion_domain` must match the landing page's registrable
+domain (prahova-chalet.ro). Insights read-back for ROAS still to be exercised in
+the create functions, not the spike.

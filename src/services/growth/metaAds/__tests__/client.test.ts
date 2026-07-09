@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { metaGraph, createResource, pauseResource, activateResource, GRAPH_API_VERSION } from '../client';
+import { metaGraph, createResource, pauseResource, activateResource, deleteResource, GRAPH_API_VERSION } from '../client';
 
 const mockFetch = global.fetch as jest.Mock;
 
@@ -106,5 +106,25 @@ describe('pauseResource / activateResource — status transitions', () => {
     expect(String(url)).toContain('120210000000001');
     const body = new URLSearchParams(init.body as string);
     expect(body.get('status')).toBe('ACTIVE');
+  });
+});
+
+describe('deleteResource — rollback primitive', () => {
+  it('sends a DELETE to the resource id, token in header not URL', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({ success: true }) });
+    await deleteResource('120210000000001', 'SECRET-TOKEN', 'prahova-mountain-chalet');
+
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(String(url)).toContain('120210000000001');
+    expect(init.method).toBe('DELETE');
+    expect(String(url)).not.toContain('SECRET-TOKEN');
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer SECRET-TOKEN');
+  });
+
+  it('returns a typed {ok:false,error} on failure, never throws', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 400, text: async () => '{"error":"cannot delete"}' });
+    const result = await deleteResource('120210000000001', 'tok');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain('cannot delete');
   });
 });
