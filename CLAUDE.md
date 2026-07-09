@@ -76,7 +76,10 @@ gcloud logging read 'logName:"run.googleapis.com/stdout" AND jsonPayload.compone
 ```
 
 **Logger Namespaces:**
-`booking`, `bookingContext`, `bookingAPI`, `bookingStorage`, `bookingUI`, `pricing`, `availability`, `auth`, `authorization`, `stripe`, `email`, `admin`, `adminBookings`, `adminPricing`, `performance`, `error`, `languageSystem`, `whatsapp`, `housekeeping`, `icalSync`, `review`, `guest`, `tracking`
+`booking`, `bookingContext`, `bookingAPI`, `bookingStorage`, `bookingUI`, `pricing`, `availability`, `auth`, `authorization`, `stripe`, `email`, `admin`, `adminBookings`, `adminPricing`, `performance`, `error`, `languageSystem`, `whatsapp`, `housekeeping`, `icalSync`, `review`, `guest`, `tracking`, `campaign`, `segment`, `executionGateway`
+
+**Facebook / Instagram / Meta ads (MANDATORY):**
+Before working on ANY Facebook, Instagram, or Meta advertising task (ads, Marketing API, Conversions API/CAPI, Ads CLI, the `mcp.facebook.com/ads` MCP server, Custom/Lookalike audiences, Pixel, `meta-capi.ts`), **READ [`docs/meta-ads-infrastructure-2026.md`](docs/meta-ads-infrastructure-2026.md) first.** It is verified, cited knowledge that post-dates the model's training — do NOT answer Meta-ads questions from memory. It records: Meta's Apr-2026 "Ads AI Connectors" (official Ads CLI + hosted MCP), the operator's existing reusable assets (Business Manager + "Access token only" CAPI app), the reuse verdict (that CAPI app can't run ads; go app-less via MCP or create one new Business app), and PAUSED-by-default as the approve-before-publish gate. Re-verify against Meta's own docs before building (it's a beta).
 
 ## Key Files
 
@@ -94,6 +97,8 @@ gcloud logging read 'logName:"run.googleapis.com/stdout" AND jsonPayload.compone
 | Guest Service | `src/services/guestService.ts` |
 | Hold Cleanup Cron | `src/app/api/cron/release-holds/route.ts` |
 | Firestore Query Tool | `scripts/query-firestore.ts` |
+| Meta Ads/CAPI Reference (read for any FB/IG work) | `docs/meta-ads-infrastructure-2026.md` |
+| Meta CAPI | `src/lib/meta-capi.ts` |
 
 ## GitHub Issues
 
