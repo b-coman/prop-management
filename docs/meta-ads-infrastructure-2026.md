@@ -154,3 +154,12 @@ The **`link`** field is where the `?utm_source=facebook&utm_campaign=<adCampaign
 **STILL UNVERIFIED (no account precedent — verify at first PAUSED create):** `OUTCOME_SALES` needs ad-set `optimization_goal:OFFSITE_CONVERSIONS` + `promoted_object:{pixel_id, custom_event_type:PURCHASE}`. The account's history is all LINK_CLICKS/OUTCOME_TRAFFIC/MESSAGES — no conversion campaigns yet.
 
 **API version:** calls used v21 but Meta's paging responses returned **v25.0** URLs → v25 is current; use a current `GRAPH_API_VERSION` constant (existing code hardcodes v21, expiring ~late 2026 — consolidate, Fable L2).
+
+### 9b. Phase-1 create-contract spike (live PAUSED create+delete, 9 Jul 2026)
+Ran the full OUTCOME_SALES chain against `act_543311232953437` PAUSED, then deleted. Findings:
+
+- **Campaign (OUTCOME_SALES) requires `is_adset_budget_sharing_enabled` = `true|false`** when NOT using campaign-level budget (ad-set budgets). Omitting it → error 100/4834011 "Must specify True or False in is_adset_budget_sharing_enabled". Pass `false`.
+- ✅ **Conversion optimization VERIFIED WORKING:** ad set with `optimization_goal=OFFSITE_CONVERSIONS`, `billing_event=IMPRESSIONS`, `promoted_object={pixel_id, custom_event_type:PURCHASE}`, `conversion_domain=prahova-chalet.ro`, `bid_strategy=LOWEST_COST_WITHOUT_CAP`, `daily_budget=5000` (50 RON) — accepted. This was the big open question (no account precedent). Resolved.
+- ❌ **Creative creation REQUIRES the app to be in LIVE (public) mode.** With the "rentalspot" app in Development, `/adcreatives` → "Ads creative post was created by an app that is in development mode. It must be in public to create this ad." **OWNER ACTION: publish the app (Development → Live).** (Correction: unpublished is fine for token/campaign/adset ops, but NOT for creating ad creatives, which publish as the Page.)
+- Complex params (`promoted_object`, `targeting`, `object_story_spec`, `special_ad_categories`) go as **JSON strings** in the form body (confirms the Phase-0 client needs JSON.stringify for non-primitives).
+- All PAUSED test objects deleted cleanly (`{"success":true}`).

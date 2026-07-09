@@ -31,22 +31,37 @@ const logger = loggers.ads;
 
 /**
  * Single source of truth for the Marketing API version — do not scatter
- * (plan §9/§13 L2). NOTE: the verified contract spike (docs/meta-ads-
- * infrastructure-2026.md §9) found the live account's paging responses
- * resolving to v25.0; v21.0 is pinned here per explicit Phase-0 spec and is
- * still valid today, but should be bumped to a current version as part of the
- * Phase 1 API contract spike, in this one place.
+ * (plan §9/§13 L2). Bumped v21.0 → v25.0 as part of the Phase 1 contract spike
+ * (docs/meta-ads-infrastructure-2026.md §9/§9b): the live account resolves
+ * paging + create responses to v25.0 and the whole OUTCOME_SALES create chain
+ * was verified against it. (`meta-capi.ts` keeps its own version pin — it is a
+ * separate, already-proven tracking path and is intentionally not touched here.)
  */
-export const GRAPH_API_VERSION = 'v21.0';
+export const GRAPH_API_VERSION = 'v25.0';
 
 const GRAPH_BASE_URL = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
 export type GraphMethod = 'GET' | 'POST';
 
+/**
+ * A single Graph API field value. Primitives are sent as-is; objects and arrays
+ * (e.g. `promoted_object`, `targeting`, `object_story_spec`,
+ * `special_ad_categories`) are JSON-encoded into the form body — the Marketing
+ * API expects those complex fields as JSON strings, confirmed by the Phase 1
+ * contract spike (docs/meta-ads-infrastructure-2026.md §9b).
+ */
+export type GraphParamValue =
+  | string
+  | number
+  | boolean
+  | Record<string, unknown>
+  | unknown[]
+  | undefined;
+
 export interface MetaGraphParams {
   method?: GraphMethod;
   /** Query params (GET) or form body fields (POST). NEVER include `access_token` here. */
-  params?: Record<string, string | number | boolean | undefined>;
+  params?: Record<string, GraphParamValue>;
   token: string;
   /** The property this call is being made for — logging/audit only, never used to pick the token. */
   propertyId?: string;
@@ -82,8 +97,10 @@ export async function metaGraph<T = Record<string, unknown>>(
 
   const fields: Record<string, string> = {};
   for (const [key, value] of Object.entries(opts.params ?? {})) {
-    if (value === undefined) continue;
-    fields[key] = String(value);
+    if (value === undefined || value === null) continue;
+    // Objects/arrays (targeting, promoted_object, object_story_spec,
+    // special_ad_categories, …) must be JSON strings; primitives go as-is.
+    fields[key] = typeof value === 'object' ? JSON.stringify(value) : String(value);
   }
 
   const headers: Record<string, string> = {
@@ -137,7 +154,7 @@ export async function createResource<T = Record<string, unknown>>(
   node: string,
   adAccountId: string,
   token: string,
-  payload: Record<string, string | number | boolean | undefined>,
+  payload: Record<string, GraphParamValue>,
   propertyId?: string
 ): Promise<GraphResult<T>> {
   const enforcedPayload = {
