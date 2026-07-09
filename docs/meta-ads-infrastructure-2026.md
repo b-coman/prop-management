@@ -109,3 +109,20 @@ Source: [System Users — install apps & generate tokens](https://developers.fac
 | Conversion tracking | Pixel/CAPI endpoints | CAPI wiring (`meta-capi.ts` foundation exists) |
 | Hosting | MCP server (Meta-hosted); Meta ad delivery | The agent runtime (OpenClaw) + token in Secret Manager |
 | Account/identity | Business Manager, ad account, OAuth | Create the account, app, System User, link Page/IG, add payment (owner action) |
+
+---
+
+## 8. SETUP RUNBOOK — get to "able to run FB/IG ads" (owner actions)
+
+The critical path to running ads. Steps 1–4 are the SAME regardless of which run-path you pick (§ path choice below); they need the owner's login/identity/payment and cannot be automated. Everything is inside the existing Business Manager **"Comarnic Mountain Chalet"** (ID `284793355854966`).
+
+1. **Ad account + payment method** — Business Settings → Accounts → Ad Accounts → *Add → Create a new ad account* (currency RON, timezone Europe/Bucharest). Then Billing → add a card. *Without this, nothing can spend.*
+2. **Link Instagram to the Page** — Business Settings → Accounts → Instagram accounts → connect the property's IG, and link it to the **Comarnic Mountain Chalet** Facebook Page. *Required for IG placements.*
+3. **Pixel / dataset + Conversions API** — Events Manager → confirm/create a **Pixel (dataset)**; note the **Pixel ID**. Under the pixel's Conversions API → *Set up manually* → **Generate access token** (a dataset-level token). *This is the measurement layer — reuses the existing "Access token only" CAPI app / or the dataset token alone (see §0 UNVERIFIED note; confirm which).*
+4. **(Maybe) Business verification** — start it if Meta prompts for higher access/spend; NOT required to manage your own ad account (§3). Currently UNVERIFIED — fine to begin.
+
+**Then choose the run-path:**
+- **A · Hosted MCP (fastest, app-less, recommended to start):** connect `mcp.facebook.com/ads` to an AI agent via Meta OAuth — no developer app, no token, no code. Create campaigns conversationally; they land PAUSED for review. Best for validating "do ads produce bookings?" before any build.
+- **B · Ads CLI (for the OpenClaw automation later):** create ONE new **Business-type** app in this same Business Manager, add a **System User**, assign it to the ad account, generate a token (store in GCP Secret Manager), run the `meta-ads` CLI. This is the path for the agentic brain→approve→execute loop.
+
+**Recommended sequence:** setup 1–3 → run first campaign via **A (MCP)** or Ads Manager → wire **Pixel+CAPI conversion tracking** (Core build, `meta-capi.ts`) so bookings attribute to ads → only after ads are proven, build **B** (OpenClaw agentic automation). Don't build the automation before proving the ads work.
