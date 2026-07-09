@@ -92,6 +92,7 @@ export interface Property {
   analytics?: {
     enabled: boolean;
     googleAnalyticsId?: string;
+    metaPixelId?: string; // Meta (Facebook/Instagram) Pixel / dataset id — per property
   };
   customDomain?: string | null;
   useCustomDomain?: boolean;

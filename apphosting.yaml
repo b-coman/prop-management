@@ -194,9 +194,9 @@ env:
       - RUNTIME
 
 # Meta Pixel (browser + server) + Conversions API — PER PROPERTY (multi-property).
-# Pixel IDs (public) live in code: src/lib/meta-pixels.ts (resolved by property).
-# CAPI tokens are a per-property JSON-map secret { "<slug>": "<token>" }.
-# See docs/meta-ads-infrastructure-2026.md.
+# Pixel IDs (public) are per-property CONFIG: property.analytics.metaPixelId,
+# edited in /admin/website/settings. CAPI tokens are a per-property JSON-map
+# secret { "<slug>": "<token>" }. See docs/meta-ads-infrastructure-2026.md.
   - variable: META_CAPI_TOKENS
     secret: projects/1061532538391/secrets/META_CAPI_TOKENS/versions/latest
     availability:

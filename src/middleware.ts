@@ -39,6 +39,9 @@ export async function middleware(request: NextRequest) {
     const langFromPath = segments.length >= 3 && SUPPORTED_LANGUAGES.includes(segments[2]) ? segments[2] : DEFAULT_LANGUAGE;
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-language', langFromPath);
+    // Expose the property slug so SSR can resolve per-property config (e.g. the
+    // Meta pixel) even when the property has no custom domain (segments[1]=slug).
+    if (segments[1]) requestHeaders.set('x-property-slug', segments[1]);
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
