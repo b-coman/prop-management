@@ -8,6 +8,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext'; // Import ThemeProvider
 import { ErrorBoundary } from '@/components/error-boundary'; // Import ErrorBoundary
 import { LanguageProvider } from '@/lib/language-system'; // Import unified language system
 import { GoogleTagManager, GoogleTagManagerNoscript } from '@/components/tracking/gtm';
+import { MetaPixel } from '@/components/tracking/meta-pixel';
 import { CookieConsent } from '@/components/cookie-consent';
 import { UTMCapture } from '@/components/tracking/utm-capture';
 import { LanguageHtmlUpdater } from '@/components/language-html-updater';
@@ -40,6 +41,7 @@ export default async function RootLayout({
       <head>
         <link rel="preconnect" href="https://firebasestorage.googleapis.com" />
         <GoogleTagManager />
+        <MetaPixel />
       </head>
       {/* Apply font variable to body */}
       <body className={`${inter.variable} font-sans antialiased`}>
