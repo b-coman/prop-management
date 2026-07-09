@@ -37,7 +37,7 @@ export default async function RootLayout({
   const headersList = await headers();
   const detectedLang = headersList.get('x-language') || DEFAULT_LANGUAGE;
   // Per-property Meta pixel: only the current property's pixel loads (multi-property).
-  const metaPixelId = getPixelIdForProperty(headersList.get('x-property-slug'));
+  const metaPixelId = await getPixelIdForProperty(headersList.get('x-property-slug'));
 
   return (
     <html lang={detectedLang}>

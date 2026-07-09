@@ -129,6 +129,23 @@ export function WebsiteSettingsForm({ propertyId, initialSettings }: WebsiteSett
               className="max-w-sm"
             />
           </div>
+          <div className="space-y-2">
+            <Label>Meta Pixel / Dataset ID</Label>
+            <p className="text-sm text-muted-foreground">
+              Facebook &amp; Instagram Pixel for this property (from Meta Events Manager). Leave empty to disable Meta tracking for this property.
+            </p>
+            <Input
+              placeholder="e.g., 1010060168431159"
+              value={settings.analytics?.metaPixelId || ''}
+              onChange={(e) =>
+                setSettings((s) => ({
+                  ...s,
+                  analytics: { ...s.analytics, enabled: s.analytics?.enabled || false, metaPixelId: e.target.value },
+                }))
+              }
+              className="max-w-sm"
+            />
+          </div>
           <Separator />
           <div className="space-y-2">
             <Label>Google Place ID</Label>

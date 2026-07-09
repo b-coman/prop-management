@@ -20,6 +20,7 @@ export interface WebsiteSettings {
   analytics?: {
     enabled: boolean;
     googleAnalyticsId?: string;
+    metaPixelId?: string;
   };
   googlePlaceId?: string;
 }

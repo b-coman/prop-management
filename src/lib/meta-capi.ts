@@ -98,7 +98,7 @@ export async function sendMetaEvent(params: MetaEventParams): Promise<void> {
   // Resolve the pixel + token FOR THIS PROPERTY. If either is missing, this
   // property isn't configured for Meta tracking — skip (never fire to another
   // property's pixel).
-  const pixelId = getPixelIdForProperty(propertyId);
+  const pixelId = await getPixelIdForProperty(propertyId);
   const accessToken = propertyId ? getCapiToken(propertyId) : undefined;
   if (!pixelId || !accessToken) {
     logger.debug('Meta CAPI: skipping (no pixel/token for property)', { propertyId, eventName });

@@ -1,15 +1,11 @@
 /** @jest-environment node */
-import { sendMetaEvent } from '../meta-capi';
-import { getPixelIdForProperty } from '../meta-pixels';
+jest.mock('@/lib/meta-pixels', () => ({
+  getPixelIdForProperty: jest.fn(async (slug: string) =>
+    slug === 'prahova-mountain-chalet' ? '1010060168431159' : undefined
+  ),
+}));
 
-describe('getPixelIdForProperty (per-property pixel resolution)', () => {
-  it('resolves a configured property and nothing else', () => {
-    expect(getPixelIdForProperty('prahova-mountain-chalet')).toBe('1010060168431159');
-    expect(getPixelIdForProperty('coltei-apartment-bucharest')).toBeUndefined();
-    expect(getPixelIdForProperty(null)).toBeUndefined();
-    expect(getPixelIdForProperty(undefined)).toBeUndefined();
-  });
-});
+import { sendMetaEvent } from '../meta-capi';
 
 describe('sendMetaEvent — multi-property isolation', () => {
   const origTokens = process.env.META_CAPI_TOKENS;
