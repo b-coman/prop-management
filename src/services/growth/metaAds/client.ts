@@ -41,7 +41,7 @@ export const GRAPH_API_VERSION = 'v25.0';
 
 const GRAPH_BASE_URL = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
-export type GraphMethod = 'GET' | 'POST';
+export type GraphMethod = 'GET' | 'POST' | 'DELETE';
 
 /**
  * A single Graph API field value. Primitives are sent as-is; objects and arrays
@@ -202,6 +202,28 @@ export async function activateResource(
   return metaGraph<{ success: boolean }>(id, {
     method: 'POST',
     params: { status: 'ACTIVE' },
+    token,
+    propertyId,
+  });
+}
+
+/**
+ * Delete a resource by id (campaign/ad set/ad/creative) — the rollback
+ * primitive for `campaignBuilder.createCampaignChain` (plan §9 Phase 1): a
+ * mid-chain create failure must not leave orphaned PAUSED objects sitting in
+ * the ad account. Deleting a PAUSED object is zero-spend, same as creating
+ * one — this never touches anything live. Best-effort by design: callers
+ * (the rollback helper in campaignBuilder) log-and-continue on failure rather
+ * than throw, since a cleanup failure must never mask the original creation
+ * error being surfaced to the caller.
+ */
+export async function deleteResource(
+  id: string,
+  token: string,
+  propertyId?: string
+): Promise<GraphResult<{ success: boolean }>> {
+  return metaGraph<{ success: boolean }>(id, {
+    method: 'DELETE',
     token,
     propertyId,
   });
