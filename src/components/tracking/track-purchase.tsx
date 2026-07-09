@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { trackPurchase } from '@/lib/tracking';
+import { trackMetaPurchase } from '@/lib/meta-tracking';
 import type { Booking, Property } from '@/types';
 
 interface TrackPurchaseProps {
@@ -19,7 +20,8 @@ export function TrackPurchase({ booking, property }: TrackPurchaseProps) {
     if (firedRef.current === booking.id) return;
 
     firedRef.current = booking.id;
-    trackPurchase(booking, property);
+    trackPurchase(booking, property);          // GA4 purchase (GTM dataLayer)
+    trackMetaPurchase(booking, property);      // Meta Pixel Purchase, deduped w/ server CAPI
   }, [booking, property]);
 
   return null;

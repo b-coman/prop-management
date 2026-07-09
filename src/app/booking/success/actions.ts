@@ -242,7 +242,9 @@ export async function verifyAndUpdateBooking(
     if (updatedBooking) {
       sendMetaEvent({
         eventName: 'Purchase',
-        eventId: crypto.randomUUID(),
+        // Deterministic id: dedupes with the browser Pixel Purchase AND prevents
+        // double-counting when the success page is refreshed (this action re-runs).
+        eventId: `purchase_${bookingId}`,
         userData: {
           email: updatedBooking.guestInfo?.email,
           phone: updatedBooking.guestInfo?.phone,
