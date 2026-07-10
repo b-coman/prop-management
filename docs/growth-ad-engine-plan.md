@@ -89,25 +89,31 @@ Brain proposes; Core executes. `POST /api/growth/ad-proposals` (scoped agent tok
 
 ---
 
-## 9. Build phases + model allocation (REVISED after Fable review — H6)
-**Prove manually before building the factory.** My own infra doc (§8) says: run a first ad manually → measure → *then* automate. The original phasing violated that. Corrected:
+## 9. Build phases + model allocation (REVISED 10 Jul — shipped reality + smart phasing)
 
-**Phase 0.5 — MANUAL proof (OWNER, ~1 week, near-zero code) — DO FIRST:**
-- Provision Meta (per revised §10). Create **one small interest+geo campaign manually in Ads Manager**, landing URL stamped `?utm_source=facebook&utm_campaign=<label>`.
-- Existing Pixel/CAPI/`BookingAttribution` measure it. Goal: **prove ads → bookings at Prahova's budget BEFORE building automation** (and give Phase 1 real data to read). Might reveal it doesn't pay — cheapest possible time to learn.
+**Phase 0.5 (manual proof) — SUPERSEDED.** The owner has run FB/IG ads for years; the open question is not "do ads work" but "does OUR machinery work." So we validate the machinery end-to-end (Phase 2a) instead of a manual proof ad.
 
-**Phase 0 — config + stop-side scaffolding (small code, no ad-writes):**
-- Per-property ad config (`{adAccountId, pixelId, pageId, instagramActorId, tokenRef}`) + `resolveAdContext` (cached, **shared-token isolation-tested**, H2).
-- `META_ADS_TOKENS` secret + `GRAPH_API_VERSION` consolidation (L2) + `adExecutionGateway` + env switches `GROWTH_ADS_ENABLED`/`GROWTH_ADS_MODE` default-off (H5).
-- Central Meta request builder that injects `status:PAUSED` unconditionally + Bearer-header auth (C2, M5). `pauseCampaign`/`pauseAllForProperty` FIRST (C1). Account-level spending limit as platform backstop (C1).
+**Phase 0 — DONE (PR #144).** Config + `resolveAdContext` (shared-token isolation, H2) + `META_ADS_TOKENS` + `adExecutionGateway` + `GROWTH_ADS_ENABLED/MODE` (default off, H5) + PAUSED-enforcing Bearer-only client (C2/M5) + `pauseCampaign`/`pauseAllForProperty` (stop-side first, C1).
 
-**Phase 1 — API contract spike + insights (needs token):** a throwaway script exercising each real call against Prahova's account (H4: `special_ad_categories`, `promoted_object`, creative flow, CA ToS, Lookalike floor) BEFORE coding §5 for real. Then `getInsights` reading the Phase-0.5 manual campaign (real data). **No audience layer** (cut — M1).
+**Phase 1 — DONE (PR #145).** Contract spike VERIFIED live (§9b/§9c: `OUTCOME_SALES` + `promoted_object{pixel,PURCHASE}`, `is_adset_budget_sharing_enabled`, app-must-be-Live for creatives) → `createCampaign/AdSet/Creative/Ad` + `createCampaignChain` (PAUSED, rollback) + `getInsights` (ROAS parse) + v25 + JSON param serialization. 42 tests, dark.
 
-**Phase 2 — ad creation + activation + stop/reconcile (needs token):** `createCampaign/AdSet/Creative/Ad` (PAUSED, post-create read-back verify, C2) with `promoted_object`+pixel (H4) and `utm_campaign=<adCampaigns.id>` on the creative link (H1). Operator approve (snapshots budget/cap) → `activateCampaign` via `adExecutionGateway`. **Reconciliation cron** (effective_status, REJECTED/WITH_ISSUES, drift → re-approval; catches escapes — C2/M2/M4). DoD includes: **operator pauses it and delivery stops.**
+**Phase 2a — NEXT: one real ad, end-to-end, via the operator console (machinery validation).** All permanent code:
+- Image upload → per-account hash cache (keyed `{platform,accountId,contentHash}` — TikTok-ready).
+- Neutral compose layer (`adComposer`): pre-allocate `adCampaigns` id → `utm_campaign` (ROAS join, H1) → creative (single image + auto-fit, `object_story_spec` proven) → `createCampaignChain`.
+- **Operator console v1** (`admin/ads`): compose from an existing gallery photo + copy + budget + targeting → PAUSED draft → preview → **approve** (sets spend cap, H5/M3) → **activate** via `adExecutionGateway` → ROAS view.
+- Acceptance (§12): real ~5-RON/day FB+IG ad, `end_time`-bounded, Pixel/CAPI+utm attribute, ROAS reads back, operator pauses → delivery stops. Detail: `scratchpad/phase2a-plan.md` (Fable-reviewed).
 
-**Phase 3 — creative + full loop:** brain-side creative, agent proposal endpoint (moved here — its consumer lives here, not Phase 0), brain→propose→approve→execute, ROAS closing. Audience/Lookalike layer *if* the pixel pool has grown enough (H4.5/M1), suppression-gated (M1).
+**Phase 2b — creative quality: the asset catalog.** The real §14.2 asset model over the gallery (variant lineage, gallery-vs-catalog flag, dedup, LLM descriptions) + 4:5/9:16 crops via `asset_feed_spec` + reconciliation cron (effective_status/REJECTED drift, C2/M2). Built when the composer needs richer assets — greenfield, additive.
 
-*Per phase:* Sonnet builds to spec; Haiku runs tests + watches deploys; **money-path verification + adversarial review on a strong model (not Haiku).**
+**Phase 2c — generation gateway.** External relight/populate-with-people via Brain→Core→provider + Meta Advantage+ enrollment (`degrees_of_freedom_spec`: `image_uncrop`/`image_animation`/`text_generation`, §10). Gated on the provider A/B choice (§14.11). Guardrail: bring REAL scenes to life, never fabricate the property.
+
+**Phase 2d — the brain seam.** OpenClaw proposes INTO the console (pre-fills the compose form), selects over the catalog, via the structured `/api/growth/ad-proposals` contract (§7/§14.8: idempotency, catalogVersion pinning, ownership assert on assetIds, spend cap, preview-before-activate). Gated on OpenClaw existing. Audience/Lookalike only if the pixel pool has grown (§11).
+
+**TikTok** — a new adapter under the neutral core (`adComposer` unchanged), whenever.
+
+**Design principles (no-throwaway):** (A) the operator console is the permanent human surface — manual now, Brain pre-fills later; (B) platform-neutral core + per-platform adapters — Meta-isms stay in `metaAds/*`; (C) introduce each store only when a consumer reads it.
+
+*Per phase:* Opus plans (full context) + Fable adversarial-reviews the plan; Sonnet builds to spec; Haiku runs tests/deploys; money-path verification + adversarial review on a strong model (not Haiku); live spend validation is owner-gated.
 
 ---
 

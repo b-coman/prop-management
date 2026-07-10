@@ -222,3 +222,10 @@ Verified against developers.facebook.com (v25.0) + facebook.com/business ad-guid
 **AI-content labeling [P]:** Meta auto-labels ads "created or significantly edited" with generative AI ("AI info" on About-this-ad); minor edits (resize/color) don't trigger. Political/social-issue ads have stricter mandatory AI disclosure. → another reason to prefer real photos + light enhancement over heavy generation.
 
 **Rights/consent [S, consistent]:** advertiser must own/license every asset (image/video/music); IP infringement → rejection/termination. People need releases; don't fabricate the property (trust + policy + chargeback risk).
+
+### 9d. Phase-2a contract spike (live PAUSED, 10 Jul 2026) — upload + creative/adset fields
+Verified against `act_543311232953437` (v25), all PAUSED + deleted, zero spend:
+- **Image upload — multipart works.** `POST /act_<id>/adimages` with `curl -F "<field>=@file.jpg"` (or Node FormData/Blob) → `{"images":{"<field>":{"hash","width","height",...}}}`. Uploaded a 2048×1536 / 1.7MB JPG → hash returned. (§10: max 30MB, min width 600px — size-guard before base64 which inflates +33%; the returned `url` is temporary, store the HASH only.)
+- **Ad set `start_time` + `end_time` accepted with `daily_budget`** — a bounded run (auto-stop) works; read-back confirmed both. Use for the first live test's spend bound (Meta campaign spend-cap floor is 500 RON, too high for a small test).
+- **Creative `object_story_spec` accepts `instagram_user_id`** (→ IG placements, not FB-only), **`use_flexible_image_aspect_ratio:true`** (Meta auto-fits placements), and **`link_data.name`** (the headline). All read back correctly.
+- **B1 (build, verify at live test):** create injects PAUSED into campaign+adset+ad; Meta `effective_status` is a hierarchy rollup, so activation must un-pause ALL THREE (campaign + adset + ad) to deliver — un-pausing only the campaign leaves the ad paused. Pause stays campaign-only (ancestor pause gates children). Not verified autonomously (would require real delivery/spend) — confirm at the owner-gated live test.
