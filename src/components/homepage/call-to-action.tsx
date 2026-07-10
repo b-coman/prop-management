@@ -11,6 +11,7 @@ interface CtaContent {
   buttonUrl: string;
   backgroundImage?: string;
   'data-ai-hint'?: string;
+  propertySlug?: string;
 }
 
 interface CallToActionSectionProps {
@@ -20,11 +21,14 @@ interface CallToActionSectionProps {
 // Main export with the name used in property-page-renderer.tsx
 export function CallToActionSection({ content }: CallToActionSectionProps) {
   // Extract properties from content
-  const { title, description, buttonText, buttonUrl } = content;
+  const { title, description, buttonText, buttonUrl, propertySlug } = content;
   const { tc } = useLanguage();
 
-  // Determine the target link
-  const targetHref = buttonUrl || '/booking'; // Default to booking page
+  // Determine the target link. buttonUrl is normally pre-resolved by
+  // property-page-renderer.tsx; this fallback only fires if content is
+  // malformed. "/booking" is the House Rules page, NOT the booking flow —
+  // point to the real availability entry point instead.
+  const targetHref = buttonUrl || (propertySlug ? `/booking/check/${propertySlug}` : '/');
 
   // Don't render if required props are missing
   if (!title || !description || !buttonText) {

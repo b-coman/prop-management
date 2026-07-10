@@ -29,7 +29,8 @@
     "learnMore": "Află Mai Multe",
     "welcome": "Bun venit",
     "contact": "Contact",
-    "heroBackgroundImage": "Imagine principală proprietate"
+    "heroBackgroundImage": "Imagine principală proprietate",
+    "property": "Proprietate"
   },
   "booking": {
     "checkAvailability": "Verifică Disponibilitatea",
@@ -501,7 +502,10 @@
   "location": {
     "nestledIn": "Situat în {{city}}, {{state}}",
     "discoverNearby": "Descoperă ce este în apropiere",
-    "mapKeyMissing": "Harta nu este disponibilă - cheia API nu este configurată"
+    "mapKeyMissing": "Harta nu este disponibilă - cheia API nu este configurată",
+    "openInMaps": "Deschide în Google Maps",
+    "seeAllAttractions": "Vezi toate atracțiile",
+    "mapAlt": "Harta locației proprietății"
   },
   "features": {
     "discoverSpecial": "Descoperă ce face acest loc special"
@@ -518,7 +522,12 @@
     "bathrooms": "băi"
   },
   "gallery": {
-    "browseByCategory": "Răsfoiește pe Categorii"
+    "browseByCategory": "Răsfoiește pe Categorii",
+    "title": "Galerie",
+    "viewAll": "Vezi Toate Fotografiile",
+    "morePhotos": "alte fotografii",
+    "imageOf": "Imaginea {{index}} din",
+    "imageUnavailable": "Imagine indisponibilă"
   },
   "errors": {
     "genericError": "Ceva nu a mers bine. Vă rugăm încercați din nou.",
