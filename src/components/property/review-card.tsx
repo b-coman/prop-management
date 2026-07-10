@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Star, StarHalf, ChevronDown, ChevronUp, UserCircle, ThumbsUp, ThumbsDown, Globe } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
+import { cn, languageToLocale } from '@/lib/utils';
 import { useLanguage } from '@/hooks/useLanguage';
 import type { RichReview } from '@/types';
 
@@ -82,7 +82,7 @@ export function ReviewCard({ review }: ReviewCardProps) {
   const reviewDate = (() => {
     if (!review.date) return undefined;
     if (typeof review.date === 'string') {
-      return new Date(review.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+      return new Date(review.date).toLocaleDateString(languageToLocale(lang), { year: 'numeric', month: 'short' });
     }
     return undefined;
   })();

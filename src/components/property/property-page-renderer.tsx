@@ -99,6 +99,7 @@ import { LegalContent } from '@/components/property/legal-content';
 import { AreaGuideSection } from '@/components/property/area-guide-section';
 import { ReviewsListSection } from '@/components/property/reviews-list-section';
 import { useLanguage } from '@/hooks/useLanguage';
+import { languageToLocale } from '@/lib/utils';
 
 // Map of block types to their rendering components
 const blockComponents: Record<string, React.FC<{ content: any; language?: string }>> = {
@@ -611,12 +612,14 @@ export function PropertyPageRenderer({
               : undefined,
           };
         } else if (type === 'testimonials') {
-          // Convert date from various Firestore formats (string, Timestamp, Date)
+          // Convert date from various Firestore formats (string, Timestamp, Date),
+          // localized to the current language (e.g. "ian. 2026" on the RO page).
+          const dateLocale = languageToLocale(language);
           const convertReviewDate = (d: any): string | undefined => {
             if (!d) return undefined;
-            if (typeof d === 'string') return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
-            if (d._seconds) return new Date(d._seconds * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
-            if (d instanceof Date) return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+            if (typeof d === 'string') return new Date(d).toLocaleDateString(dateLocale, { year: 'numeric', month: 'short' });
+            if (d._seconds) return new Date(d._seconds * 1000).toLocaleDateString(dateLocale, { year: 'numeric', month: 'short' });
+            if (d instanceof Date) return d.toLocaleDateString(dateLocale, { year: 'numeric', month: 'short' });
             return undefined;
           };
 
