@@ -465,6 +465,9 @@ export async function createCampaignChain(
       metaAdIds: [adId],
       objective: spec.campaign.objective ?? 'OUTCOME_SALES',
       dailyBudgetMinor: spec.adSet.dailyBudgetMinor,
+      // Persist the ad set's end_time so the approve step can run the spend-cap
+      // arithmetic (dailyBudget × days × margin ≤ cap) without a Meta read-back.
+      endTime: spec.adSet.endTime ?? null,
       creativeRef: creativeId,
       status: 'draft',
       createdAt: FieldValue.serverTimestamp(),

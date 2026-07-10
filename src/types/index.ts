@@ -457,6 +457,7 @@ export interface AdCampaign {
   audienceRef?: string;
   objective?: string;              // e.g. 'OUTCOME_SALES'
   dailyBudgetMinor?: number;       // bani
+  endTime?: string;                // ISO 8601 — the ad set's end_time; used by the approve-step spend-cap arithmetic
   spendCapMinor?: number;          // bani — required (snapshotted) before activation
   status: AdCampaignStatus;
   effectiveStatus?: string;        // Meta's effective_status, mirrored by the Phase-2 reconciliation cron
