@@ -10,6 +10,7 @@ import { LanguageProvider } from '@/lib/language-system';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
 import { serverTranslateContent } from '@/lib/server-language-utils';
 import { buildVacationRentalJsonLd, buildBreadcrumbJsonLd, buildLodgingBusinessJsonLd, buildImageGalleryJsonLd, buildFAQPageJsonLd, buildAreaGuideJsonLd, buildReviewPageJsonLd, getCanonicalUrl, getBaseUrl } from '@/lib/structured-data';
+import { resolveOgImage } from '@/lib/og-image';
 import { getAmenitiesByRefs } from '@/lib/amenity-utils';
 import { TrackViewItem } from '@/components/tracking/track-page-view';
 import blurMapData from '@/data/blur-map.json';
@@ -310,6 +311,21 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
     || property.images?.[0]?.url
     || overrides?.homepage?.hero?.backgroundImage;
 
+  // Resolve the social-share image: per-property override -> dedicated
+  // /public convention asset -> generic featured/hero photo. Always returns
+  // an absolute URL (required for Facebook/Twitter server-side scrapers).
+  const baseUrl = getBaseUrl(customDomain);
+  const ogImage = resolveOgImage({
+    property,
+    slug,
+    baseUrl,
+    propertyName,
+    fallbackImageUrl: featuredImage,
+  });
+
+  const locale = language === 'ro' ? 'ro_RO' : 'en_US';
+  const localeAlternate = language === 'ro' ? 'en_US' : 'ro_RO';
+
   return {
     title: pageTitle,
     description,
@@ -319,14 +335,15 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
       siteName: propertyName,
       url: canonicalUrl,
       type: 'website',
-      images: featuredImage ? [{ url: featuredImage, alt: propertyName }] : [],
-      locale: language === 'ro' ? 'ro_RO' : 'en_US',
+      images: ogImage ? [{ url: ogImage.url, width: ogImage.width, height: ogImage.height, alt: ogImage.alt }] : [],
+      locale,
+      alternateLocale: [localeAlternate],
     },
     twitter: {
       card: 'summary_large_image',
       title: pageTitle,
       description,
-      images: featuredImage ? [featuredImage] : [],
+      images: ogImage ? [{ url: ogImage.url, width: ogImage.width, height: ogImage.height, alt: ogImage.alt }] : [],
     },
     alternates: {
       canonical: canonicalUrl,
