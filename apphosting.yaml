@@ -208,16 +208,15 @@ env:
     secret: projects/1061532538391/secrets/META_CAPI_TOKENS/versions/latest
     availability:
       - RUNTIME
-# Meta Marketing API (Growth Engine Phase 2 — Custom Audiences + ad insights).
-# Inert until BOTH are set. Requires a Meta Business account + system-user token.
-# - variable: META_SYSTEM_USER_TOKEN
-#   secret: projects/1061532538391/secrets/META_SYSTEM_USER_TOKEN/versions/latest
-#   availability:
-#     - RUNTIME
-# - variable: META_AD_ACCOUNT_ID
-#   secret: projects/1061532538391/secrets/META_AD_ACCOUNT_ID/versions/latest
-#   availability:
-#     - RUNTIME
+# Meta Marketing API — Growth Ad Engine. Per-property ad-account config lives in
+# property.analytics.{metaAdAccountId,metaPageId,metaTokenRef}; the ads token is a
+# per-tokenRef JSON-map secret { "<tokenRef>": "<system-user-token>" }. Money-
+# scoped (ads_management) — inert unless GROWTH_ADS_ENABLED (+ GROWTH_ADS_MODE=live
+# for real spend). Resolved by src/services/growth/metaAds/adContext.ts.
+  - variable: META_ADS_TOKENS
+    secret: projects/1061532538391/secrets/META_ADS_TOKENS/versions/latest
+    availability:
+      - RUNTIME
 
 # Growth Engine (dark-launched) — see plans/growth-engine.md §0.2
 # The engine is INERT unless GROWTH_ENGINE_ENABLED="true"; and even when enabled,
