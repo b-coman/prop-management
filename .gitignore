@@ -105,3 +105,11 @@ playwright/.cache/
 .cache/
 .parcel-cache/
 .turbo/
+
+# Local one-off outputs / artifacts (not part of the repo)
+/cv-portfolio.md
+scripts/*.csv
+scripts/migration-backup-*.json
+
+# Business strategy / driver docs — kept local, like plans/
+docs/business/
