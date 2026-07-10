@@ -586,4 +586,28 @@ describe('createCampaignChain — Phase 2b: advantage_audience default + single-
     expect(doc.assetHashes).toEqual(['abc123hash']);
     expect(doc.imageCount).toBe(1);
   });
+
+  it('dedups duplicate asset values (shared headline / repeated image) so Meta does not reject with err 1815809', async () => {
+    const { db } = makeAdminDb();
+    mockGetAdminDb.mockResolvedValue(db);
+
+    const dupSpec = {
+      ...CHAIN_SPEC,
+      creative: {
+        ...CHAIN_SPEC.creative,
+        imageHashes: ['hash-1', 'hash-2', 'hash-1'], // duplicate image
+        copy: [
+          { primary: 'Body A', headline: 'Same headline' },
+          { primary: 'Body B', headline: 'Same headline' }, // shared headline
+        ],
+      },
+    };
+    await createCampaignChain(PROPERTY, dupSpec);
+
+    const [, creativeInit] = findCall('adcreatives');
+    const assetFeedSpec = JSON.parse(new URLSearchParams(creativeInit.body as string).get('asset_feed_spec') as string);
+    expect(assetFeedSpec.images).toEqual([{ hash: 'hash-1' }, { hash: 'hash-2' }]); // dup hash collapsed
+    expect(assetFeedSpec.bodies).toEqual([{ text: 'Body A' }, { text: 'Body B' }]); // distinct bodies kept
+    expect(assetFeedSpec.titles).toEqual([{ text: 'Same headline' }]); // shared headline collapsed to ONE title
+  });
 });
