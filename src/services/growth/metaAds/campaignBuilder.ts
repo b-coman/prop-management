@@ -342,14 +342,24 @@ export async function createCreative(
   const payload: Record<string, GraphParamValue> = { name: spec.name };
 
   if (isDynamic) {
+    // Meta rejects DUPLICATE values within an asset_feed_spec array (err
+    // 100/1815809 "Duplicate of ad asset values are not allowed") — e.g. two
+    // copy variants sharing one headline. Dedup each array by value; a single
+    // shared title alongside multiple distinct bodies is a valid shape (§9f).
+    const uniqueByText = (items: Array<{ text: string }>): Array<{ text: string }> => {
+      const seen = new Set<string>();
+      return items.filter(({ text }) => (seen.has(text) ? false : (seen.add(text), true)));
+    };
+    const uniqueHashes = [...new Set(spec.imageHashes)];
+
     payload.object_story_spec = objectStorySpec; // NO link_data (§9f — mutually exclusive with asset_feed_spec)
     payload.asset_feed_spec = {
-      images: spec.imageHashes.map((hash) => ({ hash })),
-      bodies: spec.copy.map((c) => ({ text: c.primary })),
-      // Required sibling of bodies[] — fall back to the body text itself when
-      // a variant has no explicit headline, so this is never empty (see this
-      // function's doc comment).
-      titles: spec.copy.map((c) => ({ text: c.headline ?? c.primary })),
+      images: uniqueHashes.map((hash) => ({ hash })),
+      bodies: uniqueByText(spec.copy.map((c) => ({ text: c.primary }))),
+      // Required sibling of bodies[] — fall back to the body text itself when a
+      // variant has no explicit headline (never empty). Deduped: shared/repeated
+      // headlines collapse to a single title (§9f err 1815809).
+      titles: uniqueByText(spec.copy.map((c) => ({ text: c.headline ?? c.primary }))),
       link_urls: [{ website_url: spec.link }],
       call_to_action_types: [callToActionType],
       ad_formats: ['AUTOMATIC_FORMAT'],
