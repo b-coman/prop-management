@@ -163,21 +163,32 @@ export interface ComposeAndCreateAdFailure {
 
 export type ComposeAndCreateAdResult = ComposeAndCreateAdSuccess | ComposeAndCreateAdFailure;
 
+/** Meta's `asset_feed_spec.images[]` supports up to ~10 (docs/meta-ads-infrastructure-2026.md §10) — mirrored here as the neutral-layer ceiling. */
+const MAX_IMAGES = 10;
+/** Meta's `asset_feed_spec.bodies[]`/`titles[]` support up to 5 each (§10) — mirrored here as the neutral-layer ceiling. */
+const MAX_COPY_VARIANTS = 5;
+
 /**
  * Compose a neutral ad request into a full PAUSED Meta chain (draft, zero
- * spend). Steps (plan §4):
+ * spend). Steps (plan §4, widened for Phase 2b — §9f):
  *  1. Master-switch gate (`isAdsEngineEnabled`) — same discipline as
  *     `createCampaignChain`'s own gate; checked here too so a disabled engine
  *     fails BEFORE any Storage/Meta call, not just before the Firestore write.
  *  2. `MAX_DAILY_BUDGET_MINOR` policy (B2).
- *  3. Asset ownership assert — `assetRef.storagePath` MUST live under
- *     `properties/${propertyId}/` (S7) — refuses to upload/attribute spend to
- *     an image from a DIFFERENT property's gallery.
+ *  3. Per-asset ownership assert — EVERY `assetRefs[].storagePath` MUST live
+ *     under `properties/${propertyId}/` (S7) — refuses to upload/attribute
+ *     spend to an image from a DIFFERENT property's gallery. Also caps
+ *     `assetRefs`/`copy` at `MAX_IMAGES`/`MAX_COPY_VARIANTS`.
  *  4. Allocate the `adCampaigns` doc id (no Firestore WRITE, B5) and build the
  *     `utm_campaign=<id>` link — the ROAS join key (H1).
- *  5. `uploadImageToAccount` — resolves (or reuses, cache-first) the Meta
- *     `image_hash`.
- *  6. Map neutral → Meta (objective, CTA, copy[0]) and call
+ *  5. `uploadImageToAccount` for EACH asset ref, in order — resolves (or
+ *     reuses, cache-first) a Meta `image_hash` per image; fails fast (and
+ *     never calls `createCampaignChain`) on the first upload failure.
+ *  6. Map neutral → Meta: `targeting.cities` → `geo_locations.cities` (keys +
+ *     radius, `distance_unit:'kilometer'`, `location_types:['home','recent']`
+ *     — §9f), falling back to `targeting.countries` when no city is selected;
+ *     `copy[]` → the creative's `imageHashes`/`copy` (campaignBuilder decides
+ *     single-image vs Dynamic Creative from THEIR lengths, S1). Then calls
  *     `createCampaignChain` with the pre-allocated id — IT is the one writer
  *     of the `adCampaigns` doc.
  *
@@ -202,19 +213,28 @@ export async function composeAndCreateAd(input: ComposeAndCreateAdInput): Promis
     return { ok: false, error: budgetCheck.reason, stage: 'validation' };
   }
 
-  // (3) asset ownership assert (S7) — the asset picker in Build B's console
-  // should already filter to this property's own gallery, but a client is
-  // untrusted input; refuse server-side regardless of what the form sent.
-  if (input.assetRef.kind !== 'gallery') {
-    return { ok: false, error: `unsupported-asset-kind:${input.assetRef.kind}`, stage: 'validation' };
+  // (3) asset presence/ownership assert (S7) — the asset picker in Build B's
+  // console should already filter to this property's own gallery, but a
+  // client is untrusted input; refuse server-side regardless of what the form
+  // sent. Every ref is checked, not just the first (2b: multiple images).
+  if (!input.assetRefs?.length) {
+    return { ok: false, error: 'no-asset-ref', stage: 'validation' };
+  }
+  if (input.assetRefs.length > MAX_IMAGES) {
+    return { ok: false, error: `too-many-assets:${input.assetRefs.length}>${MAX_IMAGES}`, stage: 'validation' };
   }
   const expectedStoragePrefix = `properties/${input.propertyId}/`;
-  if (!input.assetRef.storagePath.startsWith(expectedStoragePrefix)) {
-    logger.warn('composeAndCreateAd: assetRef.storagePath does not belong to propertyId — refusing', {
-      propertyId: input.propertyId,
-      storagePath: input.assetRef.storagePath,
-    });
-    return { ok: false, error: 'asset-ownership-mismatch', stage: 'validation' };
+  for (const assetRef of input.assetRefs) {
+    if (assetRef.kind !== 'gallery') {
+      return { ok: false, error: `unsupported-asset-kind:${assetRef.kind}`, stage: 'validation' };
+    }
+    if (!assetRef.storagePath.startsWith(expectedStoragePrefix)) {
+      logger.warn('composeAndCreateAd: assetRefs[].storagePath does not belong to propertyId — refusing', {
+        propertyId: input.propertyId,
+        storagePath: assetRef.storagePath,
+      });
+      return { ok: false, error: 'asset-ownership-mismatch', stage: 'validation' };
+    }
   }
 
   // (3b) required-field sanity (TypeScript enforces this at compile time for
@@ -226,15 +246,36 @@ export async function composeAndCreateAd(input: ComposeAndCreateAdInput): Promis
   if (!input.copy?.length) {
     return { ok: false, error: 'no-copy-variant', stage: 'validation' };
   }
-  const copy = input.copy[0];
-  const metaCta = CTA_TO_META[copy.cta];
-  if (!metaCta) {
-    return { ok: false, error: `unknown-cta:${copy.cta}`, stage: 'validation' };
+  if (input.copy.length > MAX_COPY_VARIANTS) {
+    return { ok: false, error: `too-many-copy-variants:${input.copy.length}>${MAX_COPY_VARIANTS}`, stage: 'validation' };
+  }
+  for (const variant of input.copy) {
+    if (!CTA_TO_META[variant.cta]) {
+      return { ok: false, error: `unknown-cta:${variant.cta}`, stage: 'validation' };
+    }
   }
   const metaObjective = OBJECTIVE_TO_META[input.objective];
   if (!metaObjective) {
     return { ok: false, error: `unknown-objective:${input.objective}`, stage: 'validation' };
   }
+
+  // (3c) geo targeting: cities are the primary control (2b); countries is a
+  // fallback ONLY used when no city is selected (S1 — keeps 2a's
+  // whole-country targeting working). At least one of the two is required —
+  // an ad set with neither has no geo target at all.
+  const cities = input.targeting.cities ?? [];
+  const countries = input.targeting.countries ?? [];
+  if (!cities.length && !countries.length) {
+    return { ok: false, error: 'no-geo-targeting', stage: 'validation' };
+  }
+  // §9f verified shape: cities carry location_types; a countries-only
+  // targeting object does NOT (matches the pre-2b/§9c payload exactly).
+  const geoLocations = cities.length
+    ? {
+        cities: cities.map((c) => ({ key: c.key, radius: c.radius, distance_unit: 'kilometer' })),
+        location_types: ['home', 'recent'],
+      }
+    : { countries };
 
   // (4) allocate the doc id — NO Firestore write, just id generation (B5) —
   // so `utm_campaign` can be embedded in the link before the creative exists.
@@ -265,22 +306,32 @@ export async function composeAndCreateAd(input: ComposeAndCreateAdInput): Promis
     return { ok: false, error: 'invalid-landing-url', stage: 'validation' };
   }
 
-  // (5) resolve the Meta image_hash (cache-first, per-account dedup).
-  const uploaded = await uploadImageToAccount(input.propertyId, {
-    storagePath: input.assetRef.storagePath,
-    contentHash: input.assetRef.contentHash,
-  });
-  if (!uploaded.ok) {
-    logger.warn('composeAndCreateAd: image upload failed', {
-      propertyId: input.propertyId,
-      adCampaignId,
-      error: uploaded.error,
+  // (5) resolve the Meta image_hash for EVERY asset ref (cache-first,
+  // per-account dedup), in order — fails fast on the first upload failure;
+  // nothing to roll back (an uploaded-but-unused image in Meta's account
+  // library is harmless, same precedent as the pre-2b single-image path).
+  const imageHashes: string[] = [];
+  for (const assetRef of input.assetRefs) {
+    const uploaded = await uploadImageToAccount(input.propertyId, {
+      storagePath: assetRef.storagePath,
+      contentHash: assetRef.contentHash,
     });
-    return { ok: false, error: `upload-failed:${uploaded.error}`, stage: 'upload' };
+    if (!uploaded.ok) {
+      logger.warn('composeAndCreateAd: image upload failed', {
+        propertyId: input.propertyId,
+        adCampaignId,
+        storagePath: assetRef.storagePath,
+        error: uploaded.error,
+      });
+      return { ok: false, error: `upload-failed:${uploaded.error}`, stage: 'upload' };
+    }
+    imageHashes.push(uploaded.data.imageHash);
   }
 
   // (6) map neutral → Meta and delegate the whole chain (incl. the ONE
-  // Firestore write) to createCampaignChain.
+  // Firestore write) to createCampaignChain. `campaignBuilder` (not this
+  // module) decides single-image vs Dynamic Creative from `imageHashes`/`copy`
+  // lengths — this module only supplies Meta-shaped VALUES, not the branch.
   const chainSpec: CreateCampaignChainSpec = {
     campaign: {
       name: `${input.propertyId} — ${adCampaignId}`,
@@ -290,20 +341,22 @@ export async function composeAndCreateAd(input: ComposeAndCreateAdInput): Promis
       name: `${input.propertyId} — ${adCampaignId} — ad set`,
       dailyBudgetMinor: input.dailyBudgetMinor,
       landingUrl: input.landingBaseUrl,
-      targeting: {
-        geo_locations: { countries: input.targeting.countries },
-        age_min: input.targeting.ageMin,
-        age_max: input.targeting.ageMax,
-      },
+      // NO age_min/age_max: the default `advantage_audience:1` (set by
+      // campaignBuilder.createAdSet) OWNS demographics and rejects a hard age
+      // range outright (§9f) — GEO + copy qualify the audience instead.
+      targeting: { geo_locations: geoLocations },
       endTime: input.endTime,
     },
     creative: {
       name: `${input.propertyId} — ${adCampaignId} — creative`,
       link,
-      message: copy.primary,
-      headline: copy.headline,
-      imageHash: uploaded.data.imageHash,
-      callToActionType: metaCta,
+      imageHashes,
+      copy: input.copy.map((c) => ({ primary: c.primary, headline: c.headline })),
+      // §9f's verified spike only exercised a ONE-element CTA array — use the
+      // first variant's CTA for the whole ad rather than inventing an
+      // unverified multi-CTA mapping (see campaignBuilder.CreateCreativeSpec's
+      // doc comment).
+      callToActionType: CTA_TO_META[input.copy[0].cta],
     },
     ad: { name: `${input.propertyId} — ${adCampaignId} — ad` },
   };
@@ -322,6 +375,8 @@ export async function composeAndCreateAd(input: ComposeAndCreateAdInput): Promis
   logger.info('composeAndCreateAd: created draft ad chain', {
     propertyId: input.propertyId,
     adCampaignId: chainResult.adCampaignId,
+    imageCount: imageHashes.length,
+    copyVariantCount: input.copy.length,
   });
 
   return {

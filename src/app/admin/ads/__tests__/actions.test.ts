@@ -94,12 +94,12 @@ beforeEach(() => {
 describe('composeAdAction', () => {
   const INPUT: ComposeAndCreateAdInput = {
     propertyId: PROPERTY,
-    assetRef: { kind: 'gallery', storagePath: `properties/${PROPERTY}/images/a.jpg` },
+    assetRefs: [{ kind: 'gallery', storagePath: `properties/${PROPERTY}/images/a.jpg` }],
     copy: [{ primary: 'Book your stay', cta: 'learn_more' }],
     objective: 'sales',
     landingBaseUrl: 'https://prahova-chalet.ro',
     dailyBudgetMinor: 5000,
-    targeting: { countries: ['RO'], ageMin: 25, ageMax: 65 },
+    targeting: { cities: [], countries: ['RO'] },
     endTime: '2099-01-01T00:00:00Z',
   };
 

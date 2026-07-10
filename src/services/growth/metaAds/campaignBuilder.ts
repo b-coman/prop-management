@@ -33,7 +33,7 @@ import { loggers } from '@/lib/logger';
 import { isAdsEngineEnabled } from '@/config/growth-ads';
 import { getPixelIdForProperty } from '@/lib/meta-pixels';
 import { resolveAdContext } from './adContext';
-import { createResource, deleteResource, type GraphResult } from './client';
+import { createResource, deleteResource, type GraphParamValue, type GraphResult } from './client';
 
 const logger = loggers.ads;
 
@@ -55,7 +55,17 @@ export interface CreateCampaignSpec {
 }
 
 export interface AdSetTargeting {
-  /** Meta `targeting` object shape, e.g. `{ geo_locations: {...}, age_min, age_max }` — passed through as-is (validated shape: docs/meta-ads-infrastructure-2026.md §9). */
+  /**
+   * Meta `targeting` object shape — passed through as-is (validated shape:
+   * docs/meta-ads-infrastructure-2026.md §9/§9f). The caller (`adComposer`)
+   * builds this Meta-shaped object; `createAdSet` only injects the
+   * `targeting_automation` default (below) on top of it. Phase-2b shape:
+   * `{ geo_locations: { cities:[{key,radius,distance_unit:'kilometer'}], location_types:['home','recent'] } }`
+   * (city targeting) OR `{ geo_locations: { countries:[...] } }` (2a's
+   * whole-country fallback, still supported — §9c). NO `age_min`/`age_max` on
+   * the default `advantage_audience:1` path (§9f: Advantage+ Audience owns
+   * demographics and rejects a hard age range outright).
+   */
   [key: string]: unknown;
 }
 
@@ -77,19 +87,51 @@ export interface CreateAdSetSpec {
    */
   endTime?: string;
   startTime?: string;
+  /**
+   * Phase 2b (§9f): true when the paired creative is a Dynamic Creative
+   * (`asset_feed_spec` — 2+ images or 2+ copy variants) — injects
+   * `is_dynamic_creative:true` into the create payload. REQUIRED whenever the
+   * creative is dynamic: attaching a Dynamic-Creative ad to a NON-dynamic ad
+   * set fails with err 100/1885998 "Cannot Create Dynamic Creative ad In
+   * Non-Dynamic Creative Ad Set" — `createCampaignChain` computes this once
+   * and threads the SAME value to both `createAdSet` and `createCreative` so
+   * the two can never disagree. Omitted (not sent to Meta at all) when falsy —
+   * matches the single-image path's byte-for-byte pre-2b payload.
+   */
+  isDynamic?: boolean;
+}
+
+/** One copy variant for a creative — `link_data.message`/`.name` on the single-image path, one entry of `asset_feed_spec.bodies[]`/`titles[]` on the Dynamic Creative path. */
+export interface CreativeCopyVariant {
+  primary: string;
+  headline?: string;
 }
 
 export interface CreateCreativeSpec {
   name: string;
-  /** Click-through link — should already carry `?utm_source=facebook&utm_campaign=<adCampaigns.id>` (Fable H1); this module does not append UTMs itself. */
+  /** Click-through link — should already carry `?utm_source=facebook&utm_campaign=<adCampaigns.id>` (Fable H1); this module does not append UTMs itself. Used as `link_data.link` (single-image) or every `asset_feed_spec.link_urls[].website_url` (dynamic — one link, §9f's verified shape has a single `link_urls` entry regardless of image count). */
   link: string;
-  message: string;
-  /** Image hash from `/act_<id>/adimages` (`metaAds/adImages.uploadImageToAccount`, plan REVISIONS B4). */
-  imageHash: string;
-  /** Defaults to 'LEARN_MORE', the only CTA verified against the live account (§9c). */
+  /**
+   * Image hash(es) from `/act_<id>/adimages` (`metaAds/adImages.uploadImageToAccount`,
+   * plan REVISIONS B4). Exactly 1 element ⇒ single-image `object_story_spec.link_data`
+   * path (§9c/§9d, unchanged payload shape). 2+ elements ⇒ Dynamic Creative
+   * `asset_feed_spec.images[]` path (§9f).
+   */
+  imageHashes: string[];
+  /** Copy variant(s). Exactly 1 ⇒ single-image path (`.message`/`.name`). 2+ (or paired with 2+ `imageHashes`) ⇒ Dynamic Creative `bodies[]`/`titles[]`. */
+  copy: CreativeCopyVariant[];
+  /** Defaults to 'LEARN_MORE', the only CTA verified against the live account (§9c). Sent as `link_data.call_to_action.type` (single) or the sole entry of `asset_feed_spec.call_to_action_types[]` (dynamic) — §9f's verified spike only exercised a ONE-element CTA array, so this module does not (yet) support per-variant CTAs in the dynamic path. */
   callToActionType?: string;
-  /** `link_data.name` — the ad's headline. Verified accepted + read back correctly (§9d); optional (S6: be ready to drop it from the form if it turns out not to render everywhere). */
-  headline?: string;
+  /**
+   * Phase 2b (§9f): true ⇒ build `asset_feed_spec` with NO `link_data` on
+   * `object_story_spec` (the two are mutually exclusive on this endpoint).
+   * MUST match the paired ad set's `is_dynamic_creative` (see
+   * `CreateAdSetSpec.isDynamic`'s doc comment — err 100/1885998 otherwise).
+   * When omitted, derived as `imageHashes.length > 1 || copy.length > 1` — a
+   * direct (non-chain) caller gets a sane default; `createCampaignChain`
+   * always sets this explicitly so it can never diverge from the ad set's flag.
+   */
+  isDynamic?: boolean;
 }
 
 export interface CreateAdSpec {
@@ -197,12 +239,18 @@ export async function createAdSet(
 
   // Meta REQUIRES an explicit Advantage+ audience opt-in/out (error 100/1870227
   // "Advantage Audience Flag Required") whenever the ad set carries audience
-  // targeting (age/interests) — verified live in the Phase-2a compose test (the
-  // §9b/c spikes used geo-only, so they didn't hit it). Default `advantage_audience:0`
-  // = respect our EXACT targeting (no Meta audience expansion); a caller that
-  // sets its own `targeting_automation` overrides it. (docs …§9e)
+  // targeting — verified live in the Phase-2a compose test (the §9b/c spikes
+  // used geo-only, so they didn't hit it). DEFAULT flipped 0→1 in Phase 2b
+  // (§9f, KEY design fact): `advantage_audience:1` = Meta's Advantage+
+  // Audience OWNS demographics — it is our system's baked default (best
+  // cold-start; no hard age/gender/interests in this system, GEO + copy
+  // qualify instead) and, per §9f, is INCOMPATIBLE with a hard `age_min`/
+  // `age_max` (err 100/1870188-9) — so `adComposer` never sends age fields on
+  // this default path. A caller that sets its own `targeting_automation`
+  // (e.g. an explicit `advantage_audience:0` escape hatch, which MAY then
+  // carry age/gender/interests) overrides this default via the spread below.
   const targeting = {
-    targeting_automation: { advantage_audience: 0 },
+    targeting_automation: { advantage_audience: 1 },
     ...spec.targeting,
   };
 
@@ -222,6 +270,10 @@ export async function createAdSet(
       bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
       ...(spec.startTime ? { start_time: spec.startTime } : {}),
       ...(spec.endTime ? { end_time: spec.endTime } : {}),
+      // §9f gotcha (err 100/1885998): a Dynamic-Creative ad REQUIRES its ad
+      // set to carry this flag — omitted (not merely `false`) on the normal
+      // single-image path so the payload matches the pre-2b shape exactly.
+      ...(spec.isDynamic ? { is_dynamic_creative: true } : {}),
     },
     propertyId
   );
@@ -231,17 +283,31 @@ export async function createAdSet(
  * Create a PAUSED ad creative. Requires the property to have a configured
  * Meta Page (`ctx.pageId` — multi-property config); returns
  * `{ok:false,error:'no-page'}` without calling Meta if none is configured.
- * `object_story_spec` shape matches the live-verified contract (§9c), extended
- * with three fields verified in the Phase-2a spike (§9d):
- *  - `instagram_user_id` (`ctx.instagramActorId`, when the property has one
- *    configured) — WITHOUT it the ad is FB-only; Meta's IG placements need it
- *    (plan REVISIONS S5).
- *  - `link_data.use_flexible_image_aspect_ratio: true` — always on; lets Meta
- *    auto-fit the single supplied image to each placement's aspect ratio
- *    (2a ships one photo, no per-placement crops yet — plan §2 "Non-goals").
- *  - `link_data.name` — the headline, only when the caller supplies one (S6:
- *    unverified whether it renders on every placement; keep it optional so a
- *    2a form can drop it without a code change).
+ * Two payload shapes, chosen by `isDynamic` (`spec.isDynamic`, or derived —
+ * see `CreateCreativeSpec.isDynamic`'s doc comment):
+ *
+ *  - **Single-image** (`imageHashes.length===1 && copy.length===1`): the
+ *    original `object_story_spec.link_data` shape (§9c), extended with three
+ *    fields verified in the Phase-2a spike (§9d) — `instagram_user_id`
+ *    (`ctx.instagramActorId`, when configured — WITHOUT it the ad is FB-only,
+ *    plan REVISIONS S5), `link_data.use_flexible_image_aspect_ratio:true`
+ *    (always on — lets Meta auto-fit the one photo per placement), and
+ *    `link_data.name` (the headline, only when supplied — S6: unverified
+ *    whether it renders on every placement). BYTE-FOR-BYTE unchanged from
+ *    pre-2b for this path.
+ *  - **Dynamic Creative** (2+ images or 2+ copy variants, §9f): NO
+ *    `link_data` on `object_story_spec` — the two are mutually exclusive on
+ *    this endpoint — plus a sibling `asset_feed_spec` carrying every image
+ *    hash, every copy variant's body/title, the (single) link and CTA, and
+ *    `ad_formats:['AUTOMATIC_FORMAT']` so Meta mixes assets and picks per
+ *    placement. `titles[]` falls back to a variant's body text when it has no
+ *    explicit headline, so this array is NEVER empty (Meta's `titles[]` is a
+ *    required sibling of `bodies[]`, unlike the optional `descriptions[]`,
+ *    which this module does not send — no neutral field maps to it). The
+ *    PAIRED ad set MUST carry `is_dynamic_creative:true` or Meta rejects this
+ *    ad with err 100/1885998 — `createCampaignChain` is the module that keeps
+ *    the two in sync; a direct caller of this function is responsible for that
+ *    itself.
  */
 export async function createCreative(
   propertyId: string,
@@ -256,28 +322,53 @@ export async function createCreative(
     logger.warn('createCreative: no Meta Page configured for property — refusing to create', { propertyId });
     return { ok: false, error: 'no-page' };
   }
+  if (!spec.imageHashes.length) {
+    logger.warn('createCreative: no image hashes supplied — refusing to create', { propertyId });
+    return { ok: false, error: 'no-image-hashes' };
+  }
+  if (!spec.copy.length) {
+    logger.warn('createCreative: no copy variants supplied — refusing to create', { propertyId });
+    return { ok: false, error: 'no-copy-variants' };
+  }
 
-  return createResource<{ id: string }>(
-    'adcreatives',
-    ctx.adAccountId,
-    ctx.token,
-    {
-      name: spec.name,
-      object_story_spec: {
-        page_id: ctx.pageId,
-        ...(ctx.instagramActorId ? { instagram_user_id: ctx.instagramActorId } : {}),
-        link_data: {
-          link: spec.link,
-          message: spec.message,
-          image_hash: spec.imageHash,
-          call_to_action: { type: spec.callToActionType ?? 'LEARN_MORE' },
-          use_flexible_image_aspect_ratio: true,
-          ...(spec.headline ? { name: spec.headline } : {}),
-        },
+  const isDynamic = spec.isDynamic ?? (spec.imageHashes.length > 1 || spec.copy.length > 1);
+  const callToActionType = spec.callToActionType ?? 'LEARN_MORE';
+
+  const objectStorySpec: Record<string, unknown> = {
+    page_id: ctx.pageId,
+    ...(ctx.instagramActorId ? { instagram_user_id: ctx.instagramActorId } : {}),
+  };
+
+  const payload: Record<string, GraphParamValue> = { name: spec.name };
+
+  if (isDynamic) {
+    payload.object_story_spec = objectStorySpec; // NO link_data (§9f — mutually exclusive with asset_feed_spec)
+    payload.asset_feed_spec = {
+      images: spec.imageHashes.map((hash) => ({ hash })),
+      bodies: spec.copy.map((c) => ({ text: c.primary })),
+      // Required sibling of bodies[] — fall back to the body text itself when
+      // a variant has no explicit headline, so this is never empty (see this
+      // function's doc comment).
+      titles: spec.copy.map((c) => ({ text: c.headline ?? c.primary })),
+      link_urls: [{ website_url: spec.link }],
+      call_to_action_types: [callToActionType],
+      ad_formats: ['AUTOMATIC_FORMAT'],
+    };
+  } else {
+    payload.object_story_spec = {
+      ...objectStorySpec,
+      link_data: {
+        link: spec.link,
+        message: spec.copy[0].primary,
+        image_hash: spec.imageHashes[0],
+        call_to_action: { type: callToActionType },
+        use_flexible_image_aspect_ratio: true,
+        ...(spec.copy[0].headline ? { name: spec.copy[0].headline } : {}),
       },
-    },
-    propertyId
-  );
+    };
+  }
+
+  return createResource<{ id: string }>('adcreatives', ctx.adAccountId, ctx.token, payload, propertyId);
 }
 
 /** Create a PAUSED ad under `adSetId`, wired to `creativeId`. Last link in the chain. */
@@ -398,6 +489,16 @@ async function rollback(propertyId: string, token: string, targets: RollbackTarg
  * either way (B5) — `adComposer` never touches Firestore directly. Omitting
  * `adCampaignId` keeps the original `.add()` behavior exactly (the Phase-1
  * validation harness and existing tests rely on this).
+ *
+ * Phase 2b (§9f): this function is the SINGLE place `isDynamic` gets computed
+ * — `spec.creative.imageHashes.length > 1 || spec.creative.copy.length > 1` —
+ * and it is threaded, identically, into BOTH `createAdSet` (→
+ * `is_dynamic_creative`) and `createCreative` (→ `asset_feed_spec` vs
+ * `object_story_spec.link_data`). Any `isDynamic` the caller set on the
+ * nested `spec.adSet`/`spec.creative` is overridden here — this is the ONE
+ * enforcement point that keeps the ad set's flag and the creative's payload
+ * shape from ever disagreeing (§9f's err 100/1885998 gotcha), the same
+ * "single enforcement point" discipline `client.ts`'s PAUSED injection uses.
  */
 export async function createCampaignChain(
   propertyId: string,
@@ -420,6 +521,9 @@ export async function createCampaignChain(
     return { ok: false, error: 'no-ad-context', stage: 'context' };
   }
 
+  // Computed ONCE, threaded to both stages below (§9f) — see doc comment.
+  const isDynamic = spec.creative.imageHashes.length > 1 || spec.creative.copy.length > 1;
+
   // (c) campaign
   const campaignRes = await createCampaign(propertyId, spec.campaign);
   if (!campaignRes.ok) {
@@ -429,7 +533,7 @@ export async function createCampaignChain(
   const campaignId = campaignRes.data.id;
 
   // (d) ad set
-  const adSetRes = await createAdSet(propertyId, campaignId, spec.adSet);
+  const adSetRes = await createAdSet(propertyId, campaignId, { ...spec.adSet, isDynamic });
   if (!adSetRes.ok) {
     logger.warn('createCampaignChain: adSet stage failed — rolling back', { propertyId, error: adSetRes.error });
     await rollback(propertyId, ctx.token, [{ kind: 'campaign', id: campaignId }]);
@@ -438,7 +542,7 @@ export async function createCampaignChain(
   const adSetId = adSetRes.data.id;
 
   // (e) creative
-  const creativeRes = await createCreative(propertyId, spec.creative);
+  const creativeRes = await createCreative(propertyId, { ...spec.creative, isDynamic });
   if (!creativeRes.ok) {
     logger.warn('createCampaignChain: creative stage failed — rolling back', {
       propertyId,
@@ -480,6 +584,12 @@ export async function createCampaignChain(
       // arithmetic (dailyBudget × days × margin ≤ cap) without a Meta read-back.
       endTime: spec.adSet.endTime ?? null,
       creativeRef: creativeId,
+      // Phase 2b (§9f) — record which/how-many image hashes this creative was
+      // built from, so the console can show "3 photos, dynamic" without a
+      // Meta read-back. `assetHashes` doubles as an audit trail (same image
+      // reused across ads is visible directly on the doc).
+      assetHashes: spec.creative.imageHashes,
+      imageCount: spec.creative.imageHashes.length,
       status: 'draft',
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),

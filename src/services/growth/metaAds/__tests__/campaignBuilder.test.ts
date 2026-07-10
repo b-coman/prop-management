@@ -81,8 +81,8 @@ const CHAIN_SPEC = {
   creative: {
     name: 'Test Creative',
     link: 'https://prahova-chalet.ro/book?utm_source=facebook&utm_campaign=abc',
-    message: 'Book your stay',
-    imageHash: 'abc123hash',
+    imageHashes: ['abc123hash'],
+    copy: [{ primary: 'Book your stay' }],
   },
   ad: { name: 'Test Ad' },
 };
@@ -164,7 +164,7 @@ describe('createCampaignChain — engine enabled', () => {
       page_id: PAGE_ID,
       link_data: {
         link: CHAIN_SPEC.creative.link,
-        message: CHAIN_SPEC.creative.message,
+        message: CHAIN_SPEC.creative.copy[0].primary,
         image_hash: 'abc123hash',
         call_to_action: { type: 'LEARN_MORE' },
         use_flexible_image_aspect_ratio: true,
@@ -189,6 +189,8 @@ describe('createCampaignChain — engine enabled', () => {
       objective: 'OUTCOME_SALES',
       dailyBudgetMinor: 5000,
       creativeRef: 'meta-creative-1',
+      assetHashes: ['abc123hash'],
+      imageCount: 1,
       status: 'draft',
     });
     // CRITICAL invariant: never activatable straight out of creation.
@@ -308,7 +310,10 @@ describe('createCampaignChain — engine enabled', () => {
     const { db } = makeAdminDb();
     mockGetAdminDb.mockResolvedValue(db);
 
-    const specWithHeadline = { ...CHAIN_SPEC, creative: { ...CHAIN_SPEC.creative, headline: 'Book your escape' } };
+    const specWithHeadline = {
+      ...CHAIN_SPEC,
+      creative: { ...CHAIN_SPEC.creative, copy: [{ primary: CHAIN_SPEC.creative.copy[0].primary, headline: 'Book your escape' }] },
+    };
     await createCampaignChain(PROPERTY, specWithHeadline);
 
     const [, creativeInit] = findCall('adcreatives');
@@ -318,7 +323,7 @@ describe('createCampaignChain — engine enabled', () => {
       instagram_user_id: '17841435421272996',
       link_data: {
         link: CHAIN_SPEC.creative.link,
-        message: CHAIN_SPEC.creative.message,
+        message: CHAIN_SPEC.creative.copy[0].primary,
         image_hash: 'abc123hash',
         call_to_action: { type: 'LEARN_MORE' },
         use_flexible_image_aspect_ratio: true,
@@ -425,5 +430,160 @@ describe('createCampaignChain — optional pre-allocated adCampaignId (plan REVI
 
     const deletes = findDeleteCalls();
     expect(deletes).toHaveLength(4); // full chain rolled back, same as any other Firestore-stage failure
+  });
+});
+
+describe('createCampaignChain — Phase 2b: advantage_audience default + single-vs-dynamic branch (§9f)', () => {
+  beforeEach(() => {
+    process.env.GROWTH_ADS_ENABLED = 'true';
+    mockResolveAdContext.mockResolvedValue({ adAccountId: AD_ACCOUNT, pageId: PAGE_ID, token: 'tok' });
+    mockGetPixelIdForProperty.mockResolvedValue('pixel-123');
+    mockMetaResponses();
+  });
+
+  it('defaults targeting_automation.advantage_audience to 1 (flipped from 0) and sends NO age fields', async () => {
+    const { db } = makeAdminDb();
+    mockGetAdminDb.mockResolvedValue(db);
+
+    await createCampaignChain(PROPERTY, CHAIN_SPEC);
+
+    const [, adSetInit] = findCall('adsets');
+    const adSetBody = new URLSearchParams(adSetInit.body as string);
+    const targeting = JSON.parse(adSetBody.get('targeting') as string);
+    expect(targeting.targeting_automation).toEqual({ advantage_audience: 1 });
+    expect(targeting).not.toHaveProperty('age_min');
+    expect(targeting).not.toHaveProperty('age_max');
+  });
+
+  it('a caller-supplied targeting_automation overrides the advantage_audience default', async () => {
+    const { db } = makeAdminDb();
+    mockGetAdminDb.mockResolvedValue(db);
+
+    const specWithOverride = {
+      ...CHAIN_SPEC,
+      adSet: {
+        ...CHAIN_SPEC.adSet,
+        targeting: {
+          geo_locations: { countries: ['RO'] },
+          targeting_automation: { advantage_audience: 0 },
+          age_min: 30,
+          age_max: 45,
+        },
+      },
+    };
+    await createCampaignChain(PROPERTY, specWithOverride);
+
+    const [, adSetInit] = findCall('adsets');
+    const adSetBody = new URLSearchParams(adSetInit.body as string);
+    const targeting = JSON.parse(adSetBody.get('targeting') as string);
+    expect(targeting.targeting_automation).toEqual({ advantage_audience: 0 });
+    expect(targeting.age_min).toBe(30);
+    expect(targeting.age_max).toBe(45);
+  });
+
+  it('passes a caller-built geo_locations.cities + location_types through unchanged (§9f — campaignBuilder is opaque passthrough)', async () => {
+    const { db } = makeAdminDb();
+    mockGetAdminDb.mockResolvedValue(db);
+
+    const specWithCities = {
+      ...CHAIN_SPEC,
+      adSet: {
+        ...CHAIN_SPEC.adSet,
+        targeting: {
+          geo_locations: {
+            cities: [{ key: '1910415', radius: 25, distance_unit: 'kilometer' }],
+            location_types: ['home', 'recent'],
+          },
+        },
+      },
+    };
+    await createCampaignChain(PROPERTY, specWithCities);
+
+    const [, adSetInit] = findCall('adsets');
+    const adSetBody = new URLSearchParams(adSetInit.body as string);
+    const targeting = JSON.parse(adSetBody.get('targeting') as string);
+    expect(targeting.geo_locations).toEqual({
+      cities: [{ key: '1910415', radius: 25, distance_unit: 'kilometer' }],
+      location_types: ['home', 'recent'],
+    });
+  });
+
+  it('single image + single copy variant: NO is_dynamic_creative on the ad set, object_story_spec/link_data on the creative (byte-for-byte pre-2b shape)', async () => {
+    const { db } = makeAdminDb();
+    mockGetAdminDb.mockResolvedValue(db);
+
+    await createCampaignChain(PROPERTY, CHAIN_SPEC);
+
+    const [, adSetInit] = findCall('adsets');
+    const adSetBody = new URLSearchParams(adSetInit.body as string);
+    expect(adSetBody.has('is_dynamic_creative')).toBe(false);
+
+    const [, creativeInit] = findCall('adcreatives');
+    const creativeBody = new URLSearchParams(creativeInit.body as string);
+    expect(creativeBody.has('asset_feed_spec')).toBe(false);
+    const objectStorySpec = JSON.parse(creativeBody.get('object_story_spec') as string);
+    expect(objectStorySpec.link_data).toBeDefined();
+  });
+
+  it('2+ images: is_dynamic_creative:true on the ad set, asset_feed_spec (NO link_data) on the creative, ALL image hashes present, Firestore doc records them', async () => {
+    const { db, addMock } = makeAdminDb();
+    mockGetAdminDb.mockResolvedValue(db);
+
+    const dynamicSpec = {
+      ...CHAIN_SPEC,
+      creative: {
+        ...CHAIN_SPEC.creative,
+        imageHashes: ['hash-1', 'hash-2', 'hash-3'],
+        copy: [{ primary: 'Escape to the mountains', headline: 'Mountain Chalet' }],
+      },
+    };
+    await createCampaignChain(PROPERTY, dynamicSpec);
+
+    const [, adSetInit] = findCall('adsets');
+    const adSetBody = new URLSearchParams(adSetInit.body as string);
+    expect(adSetBody.get('is_dynamic_creative')).toBe('true');
+
+    const [, creativeInit] = findCall('adcreatives');
+    const creativeBody = new URLSearchParams(creativeInit.body as string);
+    const objectStorySpec = JSON.parse(creativeBody.get('object_story_spec') as string);
+    expect(objectStorySpec).not.toHaveProperty('link_data');
+    const assetFeedSpec = JSON.parse(creativeBody.get('asset_feed_spec') as string);
+    expect(assetFeedSpec.images).toEqual([{ hash: 'hash-1' }, { hash: 'hash-2' }, { hash: 'hash-3' }]);
+    expect(assetFeedSpec.bodies).toEqual([{ text: 'Escape to the mountains' }]);
+    expect(assetFeedSpec.titles).toEqual([{ text: 'Mountain Chalet' }]);
+    expect(assetFeedSpec.link_urls).toEqual([{ website_url: CHAIN_SPEC.creative.link }]);
+    expect(assetFeedSpec.call_to_action_types).toEqual(['LEARN_MORE']);
+    expect(assetFeedSpec.ad_formats).toEqual(['AUTOMATIC_FORMAT']);
+
+    const doc = addMock.mock.calls[0][0];
+    expect(doc.assetHashes).toEqual(['hash-1', 'hash-2', 'hash-3']);
+    expect(doc.imageCount).toBe(3);
+  });
+
+  it('2+ copy variants (single image) also triggers the dynamic path, with titles[] falling back to body text when no headline is given', async () => {
+    const { db, addMock } = makeAdminDb();
+    mockGetAdminDb.mockResolvedValue(db);
+
+    const dynamicCopySpec = {
+      ...CHAIN_SPEC,
+      creative: {
+        ...CHAIN_SPEC.creative,
+        imageHashes: ['abc123hash'],
+        copy: [{ primary: 'Variant A' }, { primary: 'Variant B', headline: 'B headline' }],
+      },
+    };
+    await createCampaignChain(PROPERTY, dynamicCopySpec);
+
+    const [, adSetInit] = findCall('adsets');
+    expect(new URLSearchParams(adSetInit.body as string).get('is_dynamic_creative')).toBe('true');
+
+    const [, creativeInit] = findCall('adcreatives');
+    const assetFeedSpec = JSON.parse(new URLSearchParams(creativeInit.body as string).get('asset_feed_spec') as string);
+    expect(assetFeedSpec.bodies).toEqual([{ text: 'Variant A' }, { text: 'Variant B' }]);
+    expect(assetFeedSpec.titles).toEqual([{ text: 'Variant A' }, { text: 'B headline' }]); // no-headline variant falls back to its own body text
+
+    const doc = addMock.mock.calls[0][0];
+    expect(doc.assetHashes).toEqual(['abc123hash']);
+    expect(doc.imageCount).toBe(1);
   });
 });

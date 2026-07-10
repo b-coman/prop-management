@@ -70,8 +70,6 @@ export function ComposeForm({ propertyId, images, defaultLandingUrl, maxDailyBud
   const [landingBaseUrl, setLandingBaseUrl] = useState(defaultLandingUrl);
   const [dailyBudgetRon, setDailyBudgetRon] = useState<string>('20');
   const [countries, setCountries] = useState<string[]>(['RO']);
-  const [ageMin, setAgeMin] = useState('25');
-  const [ageMax, setAgeMax] = useState('65');
   const [endDate, setEndDate] = useState('');
 
   const maxDailyBudgetRon = maxDailyBudgetMinor / 100;
@@ -92,11 +90,6 @@ export function ComposeForm({ propertyId, images, defaultLandingUrl, maxDailyBud
     const budget = Number(dailyBudgetRon);
     if (!Number.isFinite(budget) || budget <= 0) return 'Daily budget must be a positive number.';
     if (countries.length === 0) return 'Select at least one country.';
-    const min = Number(ageMin);
-    const max = Number(ageMax);
-    if (!Number.isFinite(min) || !Number.isFinite(max) || min < 13 || max > 65 || min > max) {
-      return 'Age range must be between 13 and 65, min ≤ max.';
-    }
     const endIso = endOfDayIso(endDate);
     if (!endIso) return 'End date is required.';
     if (Date.parse(endIso) <= Date.now()) return 'End date must be in the future.';
@@ -112,12 +105,16 @@ export function ComposeForm({ propertyId, images, defaultLandingUrl, maxDailyBud
 
     const input: ComposeAndCreateAdInput = {
       propertyId,
-      assetRef: { kind: 'gallery', storagePath },
+      // Phase 2b widened this to an array (multi-image Dynamic Creative) and
+      // dropped age targeting (Advantage+ Audience owns demographics now) —
+      // this form still only offers single-photo/country-only selection; a
+      // city picker + multi-photo picker is Build B's job for 2b, not done here.
+      assetRefs: [{ kind: 'gallery', storagePath }],
       copy: [{ primary: primary.trim(), headline: headline.trim() || undefined, cta }],
       objective: 'sales',
       landingBaseUrl: landingBaseUrl.trim(),
       dailyBudgetMinor: Math.round(Number(dailyBudgetRon) * 100),
-      targeting: { countries, ageMin: Number(ageMin), ageMax: Number(ageMax) },
+      targeting: { cities: [], countries },
       endTime: endOfDayIso(endDate)!,
     };
 
@@ -261,16 +258,10 @@ export function ComposeForm({ propertyId, images, defaultLandingUrl, maxDailyBud
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="age-min">Min age</Label>
-              <Input id="age-min" type="number" min={13} max={65} value={ageMin} onChange={(e) => setAgeMin(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="age-max">Max age</Label>
-              <Input id="age-max" type="number" min={13} max={65} value={ageMax} onChange={(e) => setAgeMax(e.target.value)} />
-            </div>
-          </div>
+          {/* Age targeting removed (Phase 2b, §9f): the baked-in Advantage+
+              Audience default owns demographics and rejects a hard age range
+              outright — GEO (countries/cities) + copy qualify the audience
+              instead. A city + radius picker is Build B's job for 2b. */}
 
           <div className="space-y-2">
             <Label htmlFor="end-date">End date (required)</Label>
