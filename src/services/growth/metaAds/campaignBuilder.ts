@@ -195,6 +195,17 @@ export async function createAdSet(
     return { ok: false, error: 'invalid-landing-url' };
   }
 
+  // Meta REQUIRES an explicit Advantage+ audience opt-in/out (error 100/1870227
+  // "Advantage Audience Flag Required") whenever the ad set carries audience
+  // targeting (age/interests) — verified live in the Phase-2a compose test (the
+  // §9b/c spikes used geo-only, so they didn't hit it). Default `advantage_audience:0`
+  // = respect our EXACT targeting (no Meta audience expansion); a caller that
+  // sets its own `targeting_automation` overrides it. (docs …§9e)
+  const targeting = {
+    targeting_automation: { advantage_audience: 0 },
+    ...spec.targeting,
+  };
+
   return createResource<{ id: string }>(
     'adsets',
     ctx.adAccountId,
@@ -207,7 +218,7 @@ export async function createAdSet(
       promoted_object: { pixel_id: pixelId, custom_event_type: 'PURCHASE' },
       daily_budget: spec.dailyBudgetMinor,
       conversion_domain: conversionDomain,
-      targeting: spec.targeting,
+      targeting,
       bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
       ...(spec.startTime ? { start_time: spec.startTime } : {}),
       ...(spec.endTime ? { end_time: spec.endTime } : {}),
