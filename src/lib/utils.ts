@@ -48,6 +48,19 @@ export function formatPrice(price: number, currency: string = 'USD'): string {
 }
 
 /**
+ * Maps an app language code (e.g. 'ro') to an Intl locale for date/number
+ * formatting. Property-agnostic; extend the map as new languages are added.
+ */
+export function languageToLocale(language?: string): string {
+  switch (language) {
+    case 'ro':
+      return 'ro-RO';
+    default:
+      return 'en-US';
+  }
+}
+
+/**
  * Formats a date as a localized string
  */
 export function formatDate(date: Date | string, options: Intl.DateTimeFormatOptions = {}): string {
