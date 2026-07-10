@@ -114,6 +114,12 @@ export interface Property {
   contactEmail?: string; // Per-property contact email (used in structured data & footer)
   icalExportToken?: string; // Secret token for iCal export URL
   icalExportEnabled?: boolean; // Toggle iCal export on/off
+  // Dedicated Open Graph / social-share image (Facebook, Instagram, Twitter link previews).
+  // Absolute URL or a path under /public (e.g. "/images/properties/<slug>/og-image.jpg").
+  // Should be a purpose-cropped 1200x630 (1.91:1) JPG under ~300KB. Optional — when unset,
+  // metadata generation falls back to the "/images/properties/<slug>/og-image.jpg" convention
+  // path (if that file exists), then to the property's featured photo. See src/lib/og-image.ts.
+  ogImage?: string;
   pricingConfig?: {
     weekendAdjustment: number;
     weekendDays: ('monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday')[];
