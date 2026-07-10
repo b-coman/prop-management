@@ -522,8 +522,15 @@ export interface ComposeAndCreateAdInput {
     kind: 'gallery';
     /** Full Firebase Storage path — NEVER a thumbnail. Asserted to start with `properties/${propertyId}/` (ownership, S7). */
     storagePath: string;
-    /** sha256 of the image bytes — used as a cache probe; re-verified from the actual downloaded bytes (`metaAds/adImages`). */
-    contentHash: string;
+    /**
+     * sha256 of the image bytes — OPTIONAL. Used only as a fast pre-download
+     * cache probe (`metaAds/adImages.uploadImageToAccount`'s `UploadImageInput.contentHash`
+     * is itself optional); the authoritative hash is always recomputed from the
+     * actual downloaded bytes, so a caller (e.g. the console compose form,
+     * which only knows a gallery image's `storagePath`) never needs to compute
+     * this up front.
+     */
+    contentHash?: string;
   };
   /** Exactly 1 element in 2a (S1). */
   copy: CopyVariant[];

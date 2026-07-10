@@ -12,6 +12,7 @@ import {
   CalendarCheck,
   Ticket,
   Megaphone,
+  Target,
   MessageSquare,
   Sliders,
   RefreshCw,
@@ -87,6 +88,7 @@ const navigationGroups = [
       { title: 'Attribution', href: '/admin/attribution', icon: BarChart3 },
       { title: 'Coupons', href: '/admin/coupons', icon: Ticket },
       { title: 'Campaigns', href: '/admin/campaigns', icon: Megaphone },
+      { title: 'Ads', href: '/admin/ads', icon: Target },
     ],
   },
 ];

@@ -115,3 +115,40 @@ export async function getInsights(
 
   return { ok: true, data: { spend, impressions, clicks, purchases, purchaseValue, roas } };
 }
+
+interface MetaEffectiveStatusReadBack {
+  id: string;
+  effective_status?: string;
+}
+
+/**
+ * Read-only `effective_status` look-up for a single Meta object (campaign, ad
+ * set, or ad) — Phase 2a Build B (plan REVISIONS OD4: "on-demand `effective_status`
+ * read-back in the console detail view", in lieu of a reconciliation cron in
+ * 2a). Exists so the admin console can detect drift/REJECTED/WITH_ISSUES on a
+ * manual "Refresh insights" click without any caller reaching into
+ * `metaGraph`/`graph.facebook.com` directly — this file (and the rest of
+ * `metaAds/*`) stays the ONLY place that does. Purely a GET, same
+ * no-precondition-but-a-resolved-context discipline as `getInsights`. Never
+ * throws.
+ */
+export async function getEffectiveStatus(
+  propertyId: string,
+  objectId: string
+): Promise<GraphResult<{ effectiveStatus: string }>> {
+  const ctx = await resolveAdContext(propertyId);
+  if (!ctx) {
+    logger.warn('getEffectiveStatus: no ad context for property', { propertyId, objectId });
+    return { ok: false, error: 'no-ad-context' };
+  }
+
+  const result = await metaGraph<MetaEffectiveStatusReadBack>(objectId, {
+    method: 'GET',
+    params: { fields: 'id,effective_status' },
+    token: ctx.token,
+    propertyId,
+  });
+  if (!result.ok) return result;
+
+  return { ok: true, data: { effectiveStatus: result.data.effective_status ?? 'UNKNOWN' } };
+}
