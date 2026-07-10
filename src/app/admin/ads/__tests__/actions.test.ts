@@ -30,12 +30,15 @@ jest.mock('@/services/growth/metaAds/insights', () => ({
 
 jest.mock('@/services/growth/metaAds/adContext', () => ({ resolveAdContext: jest.fn() }));
 
+jest.mock('@/services/growth/metaAds/geo', () => ({ searchCities: jest.fn() }));
+
 import {
   composeAdAction,
   approveAdAction,
   activateAdAction,
   pauseAdAction,
   refreshAdInsightsAction,
+  searchCitiesAction,
 } from '../actions';
 import { requireSuperAdmin, AuthorizationError } from '@/lib/authorization';
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
@@ -43,6 +46,7 @@ import { composeAndCreateAd, validateApprovalCap } from '@/services/growth/adCom
 import { activateCampaign } from '@/services/growth/adExecutionGateway';
 import { pauseCampaign } from '@/services/growth/metaAds/lifecycle';
 import { getInsights, getEffectiveStatus } from '@/services/growth/metaAds/insights';
+import { searchCities } from '@/services/growth/metaAds/geo';
 import type { ComposeAndCreateAdInput } from '@/types';
 
 const mockRequireSuperAdmin = requireSuperAdmin as jest.Mock;
@@ -53,6 +57,7 @@ const mockActivateCampaign = activateCampaign as jest.Mock;
 const mockPauseCampaign = pauseCampaign as jest.Mock;
 const mockGetInsights = getInsights as jest.Mock;
 const mockGetEffectiveStatus = getEffectiveStatus as jest.Mock;
+const mockSearchCities = searchCities as jest.Mock;
 
 const ACTOR = { uid: 'uid-1', email: 'operator@rentalspot.test', role: 'super_admin', managedProperties: [] };
 const ADCAMPAIGN_ID = 'campaign-doc-1';
@@ -94,12 +99,12 @@ beforeEach(() => {
 describe('composeAdAction', () => {
   const INPUT: ComposeAndCreateAdInput = {
     propertyId: PROPERTY,
-    assetRef: { kind: 'gallery', storagePath: `properties/${PROPERTY}/images/a.jpg` },
+    assetRefs: [{ kind: 'gallery', storagePath: `properties/${PROPERTY}/images/a.jpg` }],
     copy: [{ primary: 'Book your stay', cta: 'learn_more' }],
     objective: 'sales',
     landingBaseUrl: 'https://prahova-chalet.ro',
     dailyBudgetMinor: 5000,
-    targeting: { countries: ['RO'], ageMin: 25, ageMax: 65 },
+    targeting: { cities: [], countries: ['RO'] },
     endTime: '2099-01-01T00:00:00Z',
   };
 
@@ -314,6 +319,39 @@ describe('pauseAdAction', () => {
     const res = await pauseAdAction(ADCAMPAIGN_ID);
     expect(res).toEqual({ success: false, campaignId: META_CAMPAIGN_ID, error: 'no-ad-context' });
     expect(updateMock).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// searchCitiesAction — city typeahead backing the compose form's picker (2b)
+// ---------------------------------------------------------------------------
+
+describe('searchCitiesAction', () => {
+  it('gates on super-admin — returns [] without calling searchCities', async () => {
+    mockRequireSuperAdmin.mockRejectedValue(new AuthorizationError('nope', 'NOT_SUPER_ADMIN'));
+
+    const res = await searchCitiesAction(PROPERTY, 'Ploiesti');
+
+    expect(res).toEqual([]);
+    expect(mockSearchCities).not.toHaveBeenCalled();
+  });
+
+  it('returns the matches from searchCities verbatim', async () => {
+    const matches = [{ key: '1925836', name: 'Ploiești', region: 'Prahova' }];
+    mockSearchCities.mockResolvedValue({ ok: true, data: matches });
+
+    const res = await searchCitiesAction(PROPERTY, 'Ploiesti');
+
+    expect(mockSearchCities).toHaveBeenCalledWith(PROPERTY, 'Ploiesti');
+    expect(res).toEqual(matches);
+  });
+
+  it('returns [] (not a throw) when searchCities fails', async () => {
+    mockSearchCities.mockResolvedValue({ ok: false, error: 'no-ad-context' });
+
+    const res = await searchCitiesAction(PROPERTY, 'Ploiesti');
+
+    expect(res).toEqual([]);
   });
 });
 

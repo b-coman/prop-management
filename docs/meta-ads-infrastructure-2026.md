@@ -235,3 +235,15 @@ Ran `composeAndCreateAd` (the real console path: Storage image upload → neutra
 - **Storage bucket:** `admin.storage().bucket()` (no-arg) throws "Bucket name not specified or invalid" — the Admin SDK isn't initialized with a `storageBucket`. Fix: pass the bucket name explicitly from `FIREBASE_STORAGE_BUCKET`/`NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` (set locally + in apphosting.yaml). `adImages.ts`.
 - **Advantage+ Audience flag REQUIRED:** ad set create with audience targeting (age/interests) → error **100 / subcode 1870227** "Advantage Audience Flag Required" — must set `targeting.targeting_automation.advantage_audience` to 0 or 1. (The §9b/§9c spikes used geo-only, so never hit it.) Fix: `createAdSet` injects `targeting_automation:{advantage_audience:0}` (respect exact targeting; caller can override). `campaignBuilder.ts`.
 - Everything else worked: image dedup cache hit on re-run, full PAUSED chain, `adCampaigns` draft doc (no spendCap = un-activatable), `activateCampaign`→`dry-run` (two-switch gate), clean delete. Zero spend. Validator: `scripts/growth-validate-compose.ts`.
+
+### 9f. Phase-2b contract spike (city targeting + Advantage+ audience + multi-image, 10 Jul 2026)
+All verified live PAUSED + deleted, zero spend. This is the contract for the richer targeting/creative build.
+
+**City name→key resolution:** `GET /search?type=adgeolocation&location_types=["city"]&q=<name>&country_code=RO&limit=1` → `data[].{key,name,region,region_id,country_code}`. Verified keys: **București=1910415, Ploiești=1925836, Constanța=1913456**. Cities MUST be targeted by `key`, never name.
+
+**City targeting (ad set):** `targeting.geo_locations.cities:[{key, radius, distance_unit:"kilometer"}]` + `location_types:["home","recent"]`. Read-back confirms.
+
+**Advantage+ audience OWNS demographics (KEY design fact):** with `targeting_automation.advantage_audience:1` you CANNOT hard-set `age_min` > 25 (err 100/1870188) nor `age_max` < 65 (err 100/1870189) — age becomes a *suggestion* only; **only geo is a hard control**. So: `advantage_audience:1` (Meta's conversion recommendation, best cold-start) ⇒ drop hard age, rely on GEO + ad copy to qualify. Use `advantage_audience:0` only when you need exact age/gender/interest control (then age is honored). The two are mutually exclusive on age.
+
+**Multi-image = Dynamic Creative (`asset_feed_spec`):** creative = `object_story_spec:{page_id, instagram_user_id}` (NO link_data) + `asset_feed_spec:{images:[{hash},…], bodies:[{text},…], titles:[{text}], descriptions:[{text}], link_urls:[{website_url}], call_to_action_types:["LEARN_MORE"], ad_formats:["AUTOMATIC_FORMAT"]}`. Meta mixes assets + picks per placement.
+**GOTCHA:** a Dynamic-Creative ad fails on a normal ad set — err 100/**1885998** "Cannot Create Dynamic Creative ad In Non-Dynamic Creative Ad Set". The AD SET must be created with **`is_dynamic_creative:true`**. Single-image `object_story_spec` creatives stay on normal (non-dynamic) ad sets. So the composer picks the path by asset count: 1 image → object_story_spec/normal adset; 2+ images or copy variants → asset_feed_spec + `is_dynamic_creative:true` adset.

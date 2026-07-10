@@ -468,6 +468,10 @@ export interface AdCampaign {
   status: AdCampaignStatus;
   effectiveStatus?: string;        // Meta's effective_status, mirrored by the Phase-2 reconciliation cron
   creativeRef?: string;
+  /** Phase 2b (§9f) — the Meta `image_hash`(es) the creative was built from; 1 = single-image `object_story_spec`, 2+ = Dynamic Creative `asset_feed_spec`. */
+  assetHashes?: string[];
+  /** Phase 2b — `assetHashes.length`, denormalized for a list view (e.g. "3 photos, dynamic") without reading the array. */
+  imageCount?: number;
   approvedBy?: string;
   approvalSnapshot?: {
     dailyBudgetMinor?: number;
@@ -489,9 +493,12 @@ export interface AdCampaign {
 
 /**
  * Growth Ad Engine — platform-NEUTRAL copy for one ad (Phase 2a Build A, plan
- * REVISIONS S1). 2a composes with exactly ONE variant (`ComposeAndCreateAdInput.copy.length === 1`)
- * — the array shape is future-proofed for 2b's `asset_feed_spec` multi-variant
- * creative so that change doesn't need a schema migration later.
+ * REVISIONS S1; genuinely multi-variant since Phase 2b). 2a composed with
+ * exactly ONE variant; 2b allows up to `MAX_COPY_VARIANTS` (5, mirrors Meta's
+ * `asset_feed_spec.bodies[]`/`titles[]` ≤5-each limit,
+ * docs/meta-ads-infrastructure-2026.md §10) — `adComposer` maps 1 variant to
+ * the single-image `object_story_spec.link_data` path and 2+ to the Dynamic
+ * Creative `asset_feed_spec` path (§9f).
  */
 export interface CopyVariant {
   primary: string;
@@ -515,16 +522,40 @@ export type AdObjective = 'sales';
 export type AdCallToAction = 'learn_more' | 'book_now' | 'contact_us';
 
 /**
+ * Growth Ad Engine — a single city geo-target (Phase 2b,
+ * docs/meta-ads-infrastructure-2026.md §9f). `key` is Meta's opaque
+ * `adgeolocation` identifier (resolved via `metaAds/geo.searchCities`) —
+ * cities MUST be targeted by `key`, NEVER by `name`; `name`/`region` here are
+ * for display only (e.g. an admin form's selected-city chip). `radius` is
+ * ALWAYS kilometers — the Meta adapter hardcodes `distance_unit:'kilometer'`
+ * (§9f's verified shape), no miles option in the neutral layer.
+ */
+export interface CityTarget {
+  key: string;
+  name: string;
+  region?: string;
+  radius: number;
+}
+
+/**
  * `adComposer.composeAndCreateAd` input — the platform-NEUTRAL compose
  * boundary (plan "The seam"). Nothing Meta-specific may leak in here (S1) —
- * everything platform-specific lives downstream, in `metaAds/*`. Deliberately
- * has NO `cities` field — cut from 2a (S1: Meta's `adgeolocation` city keys
- * aren't verified yet); only `countries[]` + age range.
+ * everything platform-specific lives downstream, in `metaAds/*`.
+ *
+ * Phase 2b (docs/meta-ads-infrastructure-2026.md §9f) widened this from 2a's
+ * shape in two ways: `assetRef` (one image) → `assetRefs` (1-`MAX_IMAGES`
+ * images — 2+ triggers the Dynamic Creative `asset_feed_spec` path); and
+ * `targeting.{ageMin,ageMax}` is GONE — the baked default is
+ * `advantage_audience:1` (Advantage+ Audience), and per §9f that flag OWNS
+ * demographics, rejecting a hard `age_min`/`age_max` outright (err
+ * 100/1870188-9). `targeting.cities[]` is the new primary control; `countries`
+ * is kept ONLY as a fallback for when no city is selected (2a's original
+ * whole-country targeting still works, just without cities).
  */
 export interface ComposeAndCreateAdInput {
   propertyId: string;
-  assetRef: {
-    /** 2a only supports the existing property gallery; `kind:'catalog'` is an additive 2b concept (S7). */
+  assetRefs: Array<{
+    /** 2b only supports the existing property gallery; `kind:'catalog'` is an additive future concept (S7). */
     kind: 'gallery';
     /** Full Firebase Storage path — NEVER a thumbnail. Asserted to start with `properties/${propertyId}/` (ownership, S7). */
     storagePath: string;
@@ -537,8 +568,8 @@ export interface ComposeAndCreateAdInput {
      * this up front.
      */
     contentHash?: string;
-  };
-  /** Exactly 1 element in 2a (S1). */
+  }>;
+  /** 1 element ⇒ single-image `object_story_spec` path; 2+ (or 2+ `copy` variants) ⇒ Dynamic Creative `asset_feed_spec` path (§9f). Up to `MAX_COPY_VARIANTS` (5). */
   copy: CopyVariant[];
   objective: AdObjective;
   /** Should be the property's canonical custom domain, not a `*.hosted.app` URL — a mismatch breaks `conversion_domain` attribution (plan REVISIONS S8). */
@@ -546,9 +577,10 @@ export interface ComposeAndCreateAdInput {
   /** Bani (minor units) — NEVER major-unit RON (plan §13 M3). Enforced ≤ `MAX_DAILY_BUDGET_MINOR` server-side (B2). */
   dailyBudgetMinor: number;
   targeting: {
-    countries: string[];
-    ageMin: number;
-    ageMax: number;
+    /** Primary control (2b). Mapped to `geo_locations.cities` + `location_types:['home','recent']` (§9f). */
+    cities: CityTarget[];
+    /** Fallback ONLY — used as `geo_locations.countries` when `cities` is empty (backward-compatible with 2a's whole-country targeting). */
+    countries?: string[];
   };
   /** ISO 8601 — REQUIRED in 2a (plan REVISIONS B2): bounds the ad set's real spend window (Meta's 500 RON campaign-level spend-cap floor is too high for a small first test). */
   endTime: string;

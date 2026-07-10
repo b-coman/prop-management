@@ -34,12 +34,14 @@ const STORAGE_PATH = 'properties/prahova-mountain-chalet/images/70ae67f4-603a-4f
   const endTime = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   const res = await composeAndCreateAd({
     propertyId: P,
-    assetRef: { kind: 'gallery', storagePath: STORAGE_PATH },
+    assetRefs: [{ kind: 'gallery', storagePath: STORAGE_PATH }],
     copy: [{ primary: 'Escape to the Carpathians — a cozy mountain chalet in Comarnic.', headline: 'Your mountain escape', cta: 'learn_more' }],
     objective: 'sales',
     landingBaseUrl: 'https://prahova-chalet.ro/ro', // the /ro decision — RO landing
     dailyBudgetMinor: 500, // 5 RON/day (PAUSED — never spends)
-    targeting: { countries: ['RO'], ageMin: 30, ageMax: 55 },
+    // Phase 2b (§9f): no age targeting — advantage_audience:1 owns
+    // demographics. Countries-only fallback (no city picked) still works.
+    targeting: { cities: [], countries: ['RO'] },
     endTime,
   });
 

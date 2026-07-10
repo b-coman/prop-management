@@ -41,6 +41,7 @@ import { activateCampaign, type ActivateResult } from '@/services/growth/adExecu
 import { pauseCampaign, type PauseResult } from '@/services/growth/metaAds/lifecycle';
 import { getInsights, getEffectiveStatus } from '@/services/growth/metaAds/insights';
 import { resolveAdContext } from '@/services/growth/metaAds/adContext';
+import { searchCities, type CityMatch } from '@/services/growth/metaAds/geo';
 
 const logger = loggers.ads;
 
@@ -183,6 +184,29 @@ export async function fetchComposeDataAction(propertyId: string): Promise<{
     logger.error('fetchComposeDataAction failed', error as Error, { propertyId });
     return null;
   }
+}
+
+/**
+ * City typeahead search backing the compose form's city picker (Phase 2b
+ * Build B). Super-admin gated like every other action here; read-only (no
+ * money-touch, no Firestore write) so it gets the lightweight
+ * `[]`-on-any-failure contract rather than a typed error union — an
+ * autocomplete field must degrade to "no results," never surface a toast on
+ * every keystroke.
+ */
+export async function searchCitiesAction(propertyId: string, query: string): Promise<CityMatch[]> {
+  try {
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return [];
+    throw error;
+  }
+  const result = await searchCities(propertyId, query);
+  if (!result.ok) {
+    logger.warn('searchCitiesAction: searchCities failed', { propertyId, query, error: result.error });
+    return [];
+  }
+  return result.data;
 }
 
 // ---------------------------------------------------------------------------
