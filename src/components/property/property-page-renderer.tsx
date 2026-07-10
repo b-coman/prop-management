@@ -282,6 +282,17 @@ export function PropertyPageRenderer({
         blockContent = {};
       }
 
+      // pricingTable has no server-side enrichment (unlike pricing display
+      // elsewhere on the site, which is driven by the live pricing engine) —
+      // without a property-specific override it renders raw template demo
+      // data (static seasonal prices in the wrong currency). That would show
+      // fake prices that contradict the real booking engine, for ANY
+      // property that includes this block without configuring it. Require an
+      // explicit per-property override before rendering.
+      if (type === 'pricingTable' && !pageOverride) {
+        return null;
+      }
+
       // If still undefined, skip rendering
       if (blockContent === undefined) {
         console.warn(`No content found for block: ${id}`);
@@ -475,11 +486,23 @@ export function PropertyPageRenderer({
           };
         }
       } else if (type === 'cta') {
-        // For CTA buttons — process buttonUrl for proper routing
-        const rawUrl = blockContent?.buttonUrl || '/booking';
-        const processedUrl = (!rawUrl.startsWith('http') && !isCustomDomain)
-          ? `/properties/${propertySlug}${rawUrl}`
-          : rawUrl;
+        // For CTA buttons — process buttonUrl for proper routing.
+        // A configured target of "/" (or nothing) is a dead end for a closing
+        // "Check Availability" CTA — it just returns the visitor to the top of
+        // the homepage instead of the booking flow. Route those cases to the
+        // real availability entry point instead, matching the hero booking
+        // widget's target (see InitialBookingForm.tsx): an absolute
+        // /booking/check/<slug> path that lives OUTSIDE /properties/<slug>
+        // regardless of domain, so it must bypass the prefixing below.
+        const configuredUrl = blockContent?.buttonUrl;
+        let processedUrl: string;
+        if (!configuredUrl || configuredUrl === '/') {
+          processedUrl = `/booking/check/${propertySlug}`;
+        } else {
+          processedUrl = (!configuredUrl.startsWith('http') && !isCustomDomain)
+            ? `/properties/${propertySlug}${configuredUrl}`
+            : configuredUrl;
+        }
         blockContent = {
           ...blockContent,
           propertySlug: propertySlug,
@@ -597,15 +620,34 @@ export function PropertyPageRenderer({
             return undefined;
           };
 
-          // Convert real reviews to testimonials format
-          const realReviews = publishedReviews?.map(r => ({
-            name: r.guestName,
-            date: convertReviewDate(r.date),
-            rating: r.rating,
-            text: r.comment,
-            source: r.source,
-            sourceUrl: r.sourceUrl,
-          })) || [];
+          // Get a comparable timestamp (ms) from a Firestore-ish date value, for sorting.
+          const reviewDateMs = (d: any): number => {
+            if (!d) return 0;
+            if (typeof d === 'string') return new Date(d).getTime() || 0;
+            if (d._seconds) return d._seconds * 1000;
+            if (d instanceof Date) return d.getTime();
+            return 0;
+          };
+
+          // Convert real reviews to testimonials format.
+          // Sort highest-rated-first (tiebreak: most recent) so the homepage carousel
+          // leads with strong social proof rather than whatever review happens to be
+          // newest — property-agnostic, no manual curation required.
+          // (The dedicated /reviews page keeps newest-first ordering for full transparency.)
+          const realReviews = [...(publishedReviews || [])]
+            .sort((a, b) => {
+              const ratingDiff = (b.rating || 0) - (a.rating || 0);
+              if (ratingDiff !== 0) return ratingDiff;
+              return reviewDateMs(b.date) - reviewDateMs(a.date);
+            })
+            .map(r => ({
+              name: r.guestName,
+              date: convertReviewDate(r.date),
+              rating: r.rating,
+              text: r.comment,
+              source: r.source,
+              sourceUrl: r.sourceUrl,
+            }));
 
           // Real reviews take priority, override reviews as fallback
           const overrideReviews = blockContent?.reviews || [];

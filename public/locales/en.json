@@ -29,7 +29,8 @@
     "learnMore": "Learn More",
     "welcome": "Welcome",
     "contact": "Contact",
-    "heroBackgroundImage": "Property hero image"
+    "heroBackgroundImage": "Property hero image",
+    "property": "Property"
   },
   "booking": {
     "checkAvailability": "Check Availability",
@@ -500,7 +501,10 @@
   "location": {
     "nestledIn": "Nestled in {{city}}, {{state}}",
     "discoverNearby": "Discover what's nearby",
-    "mapKeyMissing": "Map unavailable - API key not configured"
+    "mapKeyMissing": "Map unavailable - API key not configured",
+    "openInMaps": "Open in Google Maps",
+    "seeAllAttractions": "See all attractions",
+    "mapAlt": "Property location map"
   },
   "features": {
     "discoverSpecial": "Discover what makes this place special"
@@ -517,7 +521,12 @@
     "bathrooms": "baths"
   },
   "gallery": {
-    "browseByCategory": "Browse by Category"
+    "browseByCategory": "Browse by Category",
+    "title": "Gallery",
+    "viewAll": "View All Photos",
+    "morePhotos": "more photos",
+    "imageOf": "Image {{index}} of",
+    "imageUnavailable": "Image unavailable"
   },
   "errors": {
     "genericError": "Something went wrong. Please try again.",
