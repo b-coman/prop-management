@@ -26,6 +26,13 @@ env:
     value: "8080"
     availability:
       - RUNTIME
+  # Growth Ad Engine master switch — ON enables the /admin/ads console to compose
+  # drafts + dry-run activate (zero spend). Real spend needs GROWTH_ADS_MODE=live
+  # ALSO set (deliberately absent → dry-run). See src/config/growth-ads.ts.
+  - variable: GROWTH_ADS_ENABLED
+    value: "true"
+    availability:
+      - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
     secret: projects/1061532538391/secrets/PUBLIC_FIREBASE_API_KEY/versions/1
     availability:
