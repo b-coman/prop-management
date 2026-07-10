@@ -1,5 +1,13 @@
 /** @jest-environment node */
-import { metaGraph, createResource, pauseResource, activateResource, deleteResource, GRAPH_API_VERSION } from '../client';
+import {
+  metaGraph,
+  createResource,
+  pauseResource,
+  activateResource,
+  deleteResource,
+  uploadImage,
+  GRAPH_API_VERSION,
+} from '../client';
 
 const mockFetch = global.fetch as jest.Mock;
 
@@ -106,6 +114,65 @@ describe('pauseResource / activateResource — status transitions', () => {
     expect(String(url)).toContain('120210000000001');
     const body = new URLSearchParams(init.body as string);
     expect(body.get('status')).toBe('ACTIVE');
+  });
+});
+
+describe('uploadImage — multipart upload (plan REVISIONS B4, contract §9d)', () => {
+  const FILE = { bytes: Buffer.from([1, 2, 3, 4]), filename: 'a.jpg', contentType: 'image/jpeg' };
+
+  it('POSTs multipart/form-data to <adAccountId>/adimages with the token in the header, never the URL/body', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({ images: { source: { hash: 'img-hash-1' } } }) });
+    await uploadImage('act_543311232953437', 'SECRET-TOKEN', FILE, 'prahova-mountain-chalet');
+
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(String(url)).toContain(`act_543311232953437/adimages`);
+    expect(String(url)).toContain(`graph.facebook.com/${GRAPH_API_VERSION}/`);
+    expect(init.method).toBe('POST');
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer SECRET-TOKEN');
+    expect(String(url)).not.toContain('SECRET-TOKEN');
+    expect(init.body).toBeInstanceOf(FormData);
+  });
+
+  it('extracts the hash from whatever single field key Meta echoes back', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ images: { 'some-field-name': { hash: 'img-hash-2', width: 2048, height: 1536 } } }),
+    });
+    const result = await uploadImage('act_1', 'tok', FILE);
+    expect(result).toEqual({ ok: true, data: { imageHash: 'img-hash-2' } });
+  });
+
+  it('never returns the temporary `url` field — only the hash', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ images: { source: { hash: 'img-hash-3', url: 'https://temp.example/img.jpg' } } }),
+    });
+    const result = await uploadImage('act_1', 'tok', FILE);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data).toEqual({ imageHash: 'img-hash-3' });
+      expect(result.data).not.toHaveProperty('url');
+    }
+  });
+
+  it('returns {ok:false} without throwing when the response has no hash', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({ images: {} }) });
+    const result = await uploadImage('act_1', 'tok', FILE);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe('no-hash-in-response');
+  });
+
+  it('returns a typed {ok:false,error} on a non-OK response, never throws', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 400, text: async () => 'bad image' });
+    const result = await uploadImage('act_1', 'tok', FILE);
+    expect(result).toEqual({ ok: false, error: 'bad image', status: 400 });
+  });
+
+  it('returns a typed {ok:false,error} on a network error, never throws', async () => {
+    mockFetch.mockRejectedValue(new Error('network down'));
+    const result = await uploadImage('act_1', 'tok', FILE);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain('network down');
   });
 });
 

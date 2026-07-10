@@ -480,6 +480,81 @@ export interface AdCampaign {
   updatedAt?: SerializableTimestamp;
 }
 
+/**
+ * Growth Ad Engine — platform-NEUTRAL copy for one ad (Phase 2a Build A, plan
+ * REVISIONS S1). 2a composes with exactly ONE variant (`ComposeAndCreateAdInput.copy.length === 1`)
+ * — the array shape is future-proofed for 2b's `asset_feed_spec` multi-variant
+ * creative so that change doesn't need a schema migration later.
+ */
+export interface CopyVariant {
+  primary: string;
+  headline?: string;
+  cta: AdCallToAction;
+}
+
+/**
+ * Neutral ad objective — the Meta adapter (`metaAds/campaignBuilder`) maps
+ * this to the platform's real objective enum (`'sales'` → `'OUTCOME_SALES'`,
+ * plan REVISIONS S1). 2a supports only `'sales'`.
+ */
+export type AdObjective = 'sales';
+
+/**
+ * Neutral call-to-action — the Meta adapter maps this to Meta's CTA enum.
+ * Only `'learn_more'` is LIVE-VERIFIED against the account
+ * (docs/meta-ads-infrastructure-2026.md §9c); the others are UNVERIFIED —
+ * spike-test before relying on them in production (plan REVISIONS S6).
+ */
+export type AdCallToAction = 'learn_more' | 'book_now' | 'contact_us';
+
+/**
+ * `adComposer.composeAndCreateAd` input — the platform-NEUTRAL compose
+ * boundary (plan "The seam"). Nothing Meta-specific may leak in here (S1) —
+ * everything platform-specific lives downstream, in `metaAds/*`. Deliberately
+ * has NO `cities` field — cut from 2a (S1: Meta's `adgeolocation` city keys
+ * aren't verified yet); only `countries[]` + age range.
+ */
+export interface ComposeAndCreateAdInput {
+  propertyId: string;
+  assetRef: {
+    /** 2a only supports the existing property gallery; `kind:'catalog'` is an additive 2b concept (S7). */
+    kind: 'gallery';
+    /** Full Firebase Storage path — NEVER a thumbnail. Asserted to start with `properties/${propertyId}/` (ownership, S7). */
+    storagePath: string;
+    /** sha256 of the image bytes — used as a cache probe; re-verified from the actual downloaded bytes (`metaAds/adImages`). */
+    contentHash: string;
+  };
+  /** Exactly 1 element in 2a (S1). */
+  copy: CopyVariant[];
+  objective: AdObjective;
+  /** Should be the property's canonical custom domain, not a `*.hosted.app` URL — a mismatch breaks `conversion_domain` attribution (plan REVISIONS S8). */
+  landingBaseUrl: string;
+  /** Bani (minor units) — NEVER major-unit RON (plan §13 M3). Enforced ≤ `MAX_DAILY_BUDGET_MINOR` server-side (B2). */
+  dailyBudgetMinor: number;
+  targeting: {
+    countries: string[];
+    ageMin: number;
+    ageMax: number;
+  };
+  /** ISO 8601 — REQUIRED in 2a (plan REVISIONS B2): bounds the ad set's real spend window (Meta's 500 RON campaign-level spend-cap floor is too high for a small first test). */
+  endTime: string;
+}
+
+/**
+ * `adImageCache` collection doc — per-(platform, ad account, content hash)
+ * dedup cache for uploaded creative images (plan REVISIONS B4). Doc id is
+ * `${platform}_${accountId}_${contentHash}` (`accountId` WITHOUT the `act_`
+ * prefix). Written only by `metaAds/adImages.uploadImageToAccount`; Firestore
+ * rules make it Admin-SDK-only (`write: if false`).
+ */
+export interface AdImageCacheDoc {
+  platform: 'meta';
+  accountId: string;
+  contentHash: string;
+  imageHash: string;
+  uploadedAt?: SerializableTimestamp;
+}
+
 export interface Inquiry {
   id: string; // Document ID from Firestore
   propertySlug: string;

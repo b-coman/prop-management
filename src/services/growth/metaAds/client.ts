@@ -207,6 +207,83 @@ export async function activateResource(
   });
 }
 
+/** A raw file to upload — bytes already read into memory by the caller (adImages.ts). */
+export interface UploadableFile {
+  bytes: Buffer;
+  filename: string;
+  contentType: string;
+}
+
+/**
+ * Upload an image to an ad account's image library — the one exception to
+ * "every Meta call is `metaGraph()`": the Marketing API's `/adimages` edge
+ * takes `multipart/form-data`, not the urlencoded body `metaGraph` builds, so
+ * this is a SEPARATE fetch call rather than a shoehorned `metaGraph` option
+ * (plan REVISIONS B4). It still lives in `client.ts` — the single module that
+ * calls `graph.facebook.com` — and keeps the same safety properties as every
+ * other helper here: Bearer-only token (never in the URL), never throws
+ * (network/parse/non-OK all resolve to `{ok:false,error}`), and is the ONLY
+ * place that builds this request so a future caller can't grow a second
+ * upload path with different guarantees.
+ *
+ * Verified contract (docs/meta-ads-infrastructure-2026.md §9d, live PAUSED
+ * spike): `POST /act_<id>/adimages` with a file field →
+ * `{ images: { "<field>": { hash, width, height, ... } } }`. The field name is
+ * caller-chosen and echoed back as the response key — we don't depend on it
+ * being anything specific, just read whichever single entry comes back. The
+ * `url` Meta also returns is TEMPORARY (§10) — this helper deliberately does
+ * NOT return it; only the permanent `hash` is meaningful to store.
+ *
+ * Callers (adImages.ts) are responsible for the size/width guard BEFORE
+ * calling this — this helper uploads whatever bytes it's given, no policy.
+ */
+export async function uploadImage(
+  adAccountId: string,
+  token: string,
+  file: UploadableFile,
+  propertyId?: string
+): Promise<GraphResult<{ imageHash: string }>> {
+  const url = `${GRAPH_BASE_URL}/${adAccountId}/adimages`;
+
+  const form = new FormData();
+  form.append('source', new Blob([file.bytes], { type: file.contentType }), file.filename);
+
+  try {
+    // NOTE: no Content-Type header set manually — fetch/undici computes the
+    // multipart boundary from the FormData body itself; setting one by hand
+    // would omit/mismatch the boundary and break the upload.
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      logger.warn('uploadImage: non-OK response', {
+        adAccountId,
+        propertyId,
+        status: response.status,
+        body: text,
+      });
+      return { ok: false, error: text, status: response.status };
+    }
+    const data = (await response.json()) as { images?: Record<string, { hash?: string }> };
+    const entry = data.images ? Object.values(data.images)[0] : undefined;
+    if (!entry?.hash) {
+      logger.warn('uploadImage: response missing image hash', { adAccountId, propertyId, data });
+      return { ok: false, error: 'no-hash-in-response' };
+    }
+    return { ok: true, data: { imageHash: entry.hash } };
+  } catch (error) {
+    logger.warn('uploadImage: fetch error', {
+      adAccountId,
+      propertyId,
+      error: String(error),
+    });
+    return { ok: false, error: String(error) };
+  }
+}
+
 /**
  * Delete a resource by id (campaign/ad set/ad/creative) — the rollback
  * primitive for `campaignBuilder.createCampaignChain` (plan §9 Phase 1): a

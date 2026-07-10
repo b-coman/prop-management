@@ -254,6 +254,13 @@ service cloud.firestore {
       allow write: if false;  // Admin SDK only
     }
 
+    match /adImageCache/{cacheId} {
+      // Per-(platform, ad account, content hash) image-hash dedup cache
+      // (Phase 2a Build A) — no user-facing write path exists.
+      allow read: if isSuperAdmin() || isPropertyOwner();
+      allow write: if false;  // Admin SDK only
+    }
+
     // ============================================================================
     // App Config
     // ============================================================================

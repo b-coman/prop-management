@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { isAdsEngineEnabled, getAdsMode, isAdsLiveAllowed } from '../growth-ads';
+import { isAdsEngineEnabled, getAdsMode, isAdsLiveAllowed, MAX_DAILY_BUDGET_MINOR, getMaxDailyBudgetMinor } from '../growth-ads';
 
 /**
  * The two-switch safety matrix for the ads/spend path: NOTHING is live unless
@@ -55,5 +55,12 @@ describe('growth-ads flags — two-switch safety matrix', () => {
     process.env.GROWTH_ADS_ENABLED = '1';
     process.env.GROWTH_ADS_MODE = 'live';
     expect(getAdsMode()).toBe('dry-run');
+  });
+});
+
+describe('MAX_DAILY_BUDGET_MINOR — server-side daily budget ceiling (plan REVISIONS B2)', () => {
+  it('is a sane positive value in bani (minor units), and the getter matches the constant', () => {
+    expect(MAX_DAILY_BUDGET_MINOR).toBe(20000); // 200 RON/day
+    expect(getMaxDailyBudgetMinor()).toBe(MAX_DAILY_BUDGET_MINOR);
   });
 });

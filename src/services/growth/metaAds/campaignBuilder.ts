@@ -43,6 +43,15 @@ const logger = loggers.ads;
 
 export interface CreateCampaignSpec {
   name: string;
+  /**
+   * Meta objective string, e.g. `'OUTCOME_SALES'` — defaults to `'OUTCOME_SALES'`
+   * (2a's only supported objective). This module is the Meta ADAPTER, so this
+   * field is deliberately Meta-shaped; the neutral→Meta mapping (`'sales'` →
+   * `'OUTCOME_SALES'`) happens one layer up, in `adComposer` (plan REVISIONS S1)
+   * — nothing neutral should leak down here, and nothing Meta-shaped should leak
+   * up there.
+   */
+  objective?: string;
 }
 
 export interface AdSetTargeting {
@@ -57,6 +66,17 @@ export interface CreateAdSetSpec {
   /** The page the ad ultimately sends traffic to — used ONLY to derive `conversion_domain`; the actual click-through link is set on the creative. */
   landingUrl: string;
   targeting: AdSetTargeting;
+  /**
+   * ISO 8601 — bounds the ad set's run; verified accepted alongside
+   * `daily_budget` (docs/meta-ads-infrastructure-2026.md §9d). REQUIRED by
+   * policy in 2a (plan REVISIONS B2 — Meta's campaign-level spend-cap floor is
+   * 500 RON, too high to bound a small first test, so `end_time` + daily
+   * budget are the real spend bound instead). Optional at THIS layer because
+   * this module is the low-level Meta adapter, not the policy owner — the
+   * requiredness is enforced by `adComposer`'s input type (Fable OD6).
+   */
+  endTime?: string;
+  startTime?: string;
 }
 
 export interface CreateCreativeSpec {
@@ -64,10 +84,12 @@ export interface CreateCreativeSpec {
   /** Click-through link — should already carry `?utm_source=facebook&utm_campaign=<adCampaigns.id>` (Fable H1); this module does not append UTMs itself. */
   link: string;
   message: string;
-  /** Image hash from `/act_<id>/adimages` — image upload is out of scope for Phase 1; caller supplies it. */
+  /** Image hash from `/act_<id>/adimages` (`metaAds/adImages.uploadImageToAccount`, plan REVISIONS B4). */
   imageHash: string;
   /** Defaults to 'LEARN_MORE', the only CTA verified against the live account (§9c). */
   callToActionType?: string;
+  /** `link_data.name` — the ad's headline. Verified accepted + read back correctly (§9d); optional (S6: be ready to drop it from the form if it turns out not to render everywhere). */
+  headline?: string;
 }
 
 export interface CreateAdSpec {
@@ -102,7 +124,7 @@ export async function createCampaign(
     ctx.token,
     {
       name: spec.name,
-      objective: 'OUTCOME_SALES',
+      objective: spec.objective ?? 'OUTCOME_SALES',
       special_ad_categories: [],
       is_adset_budget_sharing_enabled: false,
     },
@@ -187,6 +209,8 @@ export async function createAdSet(
       conversion_domain: conversionDomain,
       targeting: spec.targeting,
       bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
+      ...(spec.startTime ? { start_time: spec.startTime } : {}),
+      ...(spec.endTime ? { end_time: spec.endTime } : {}),
     },
     propertyId
   );
@@ -196,9 +220,17 @@ export async function createAdSet(
  * Create a PAUSED ad creative. Requires the property to have a configured
  * Meta Page (`ctx.pageId` — multi-property config); returns
  * `{ok:false,error:'no-page'}` without calling Meta if none is configured.
- * `object_story_spec` shape matches the live-verified contract exactly
- * (§9c) — `page_id` + `link_data` with `image_hash` (Phase 1 does not upload
- * images; the caller supplies an already-uploaded hash).
+ * `object_story_spec` shape matches the live-verified contract (§9c), extended
+ * with three fields verified in the Phase-2a spike (§9d):
+ *  - `instagram_user_id` (`ctx.instagramActorId`, when the property has one
+ *    configured) — WITHOUT it the ad is FB-only; Meta's IG placements need it
+ *    (plan REVISIONS S5).
+ *  - `link_data.use_flexible_image_aspect_ratio: true` — always on; lets Meta
+ *    auto-fit the single supplied image to each placement's aspect ratio
+ *    (2a ships one photo, no per-placement crops yet — plan §2 "Non-goals").
+ *  - `link_data.name` — the headline, only when the caller supplies one (S6:
+ *    unverified whether it renders on every placement; keep it optional so a
+ *    2a form can drop it without a code change).
  */
 export async function createCreative(
   propertyId: string,
@@ -222,11 +254,14 @@ export async function createCreative(
       name: spec.name,
       object_story_spec: {
         page_id: ctx.pageId,
+        ...(ctx.instagramActorId ? { instagram_user_id: ctx.instagramActorId } : {}),
         link_data: {
           link: spec.link,
           message: spec.message,
           image_hash: spec.imageHash,
           call_to_action: { type: spec.callToActionType ?? 'LEARN_MORE' },
+          use_flexible_image_aspect_ratio: true,
+          ...(spec.headline ? { name: spec.headline } : {}),
         },
       },
     },
@@ -340,10 +375,23 @@ async function rollback(propertyId: string, token: string, targets: RollbackTarg
  * (H5/M3/M4). Setting either field here would make a freshly-created
  * campaign activatable straight out of creation, defeating that gate — never
  * do it, even by convenience/default.
+ *
+ * `adCampaignId` (plan REVISIONS B5, optional, backward-compatible): when the
+ * caller (`adComposer`) has PRE-ALLOCATED a Firestore doc id (so it can embed
+ * `utm_campaign=<id>` into the creative's link BEFORE this chain runs), pass
+ * it here — the Firestore write uses `.doc(adCampaignId).create()` instead of
+ * `.add()`. `.create()` (not `.set()`) is deliberate: a retry/double-submit of
+ * the SAME pre-allocated id becomes a detectable `ALREADY_EXISTS` error
+ * instead of silently overwriting or creating a second doc for one Meta
+ * chain (S11). `createCampaignChain` remains the ONLY writer of this doc
+ * either way (B5) — `adComposer` never touches Firestore directly. Omitting
+ * `adCampaignId` keeps the original `.add()` behavior exactly (the Phase-1
+ * validation harness and existing tests rely on this).
  */
 export async function createCampaignChain(
   propertyId: string,
-  spec: CreateCampaignChainSpec
+  spec: CreateCampaignChainSpec,
+  adCampaignId?: string
 ): Promise<CreateCampaignChainResult> {
   // (a) master-switch gate — creating PAUSED objects is zero-spend, so this
   // is the ONLY gate creation needs. Live mode (isAdsLiveAllowed) guards
@@ -410,18 +458,29 @@ export async function createCampaignChain(
   // status/spendCapMinor are deliberately NOT set to anything activatable.
   try {
     const db = await getAdminDb();
-    const ref = await db.collection('adCampaigns').add({
+    const docData = {
       propertyId,
       metaCampaignId: campaignId,
       metaAdSetIds: [adSetId],
       metaAdIds: [adId],
-      objective: 'OUTCOME_SALES',
+      objective: spec.campaign.objective ?? 'OUTCOME_SALES',
       dailyBudgetMinor: spec.adSet.dailyBudgetMinor,
       creativeRef: creativeId,
       status: 'draft',
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
-    });
+    };
+
+    let resolvedAdCampaignId: string;
+    if (adCampaignId) {
+      // Pre-allocated id (B5) — `.create()` so a double-submit is a detectable
+      // already-exists error, never a silent overwrite/duplicate.
+      await db.collection('adCampaigns').doc(adCampaignId).create(docData);
+      resolvedAdCampaignId = adCampaignId;
+    } else {
+      const ref = await db.collection('adCampaigns').add(docData);
+      resolvedAdCampaignId = ref.id;
+    }
 
     logger.info('createCampaignChain: full chain created', {
       propertyId,
@@ -429,10 +488,10 @@ export async function createCampaignChain(
       adSetId,
       creativeId,
       adId,
-      adCampaignId: ref.id,
+      adCampaignId: resolvedAdCampaignId,
     });
 
-    return { ok: true, campaignId, adSetId, creativeId, adId, adCampaignId: ref.id };
+    return { ok: true, campaignId, adSetId, creativeId, adId, adCampaignId: resolvedAdCampaignId };
   } catch (error) {
     // The Meta-side chain is valid (PAUSED, zero spend) but unrecorded — an
     // unrecorded campaign is invisible to the approval workflow and can
