@@ -3,13 +3,16 @@ import { withSentryConfig } from '@sentry/nextjs';
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // NOTE: Do NOT set `output: 'standalone'` here. Firebase App Hosting's
-  // Next.js adapter produces its own deployable output and copies the full
-  // `public/` folder. With a manual `output: 'standalone'`, recent adapter
-  // builds only shipped public assets that were referenced in build-time code
-  // (e.g. og-image.jpg via resolveOgImage), and dropped every image referenced
-  // only through runtime Firestore data — causing all /images/** to 404 in
-  // production. Letting the adapter manage output restores full public serving.
+  output: 'standalone',
+  // Firebase App Hosting deploys the traced standalone output. Next only copies
+  // files it can trace into that bundle, so public/ assets referenced ONLY via
+  // runtime Firestore data (every property photo) were dropped and 404'd in
+  // production — while code-referenced ones survived (e.g. og-image.jpg, which
+  // og-image.ts fs.existsSync-checks, got traced in). Force the whole public/
+  // tree into the traced output so the server serves every static image.
+  outputFileTracingIncludes: {
+    '/**': ['./public/**/*'],
+  },
   typescript: {
     ignoreBuildErrors: false,
   },
