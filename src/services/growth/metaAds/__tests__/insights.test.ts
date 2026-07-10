@@ -3,7 +3,7 @@
 jest.mock('../adContext', () => ({ resolveAdContext: jest.fn() }));
 jest.mock('../client', () => ({ metaGraph: jest.fn() }));
 
-import { getInsights } from '../insights';
+import { getInsights, getEffectiveStatus } from '../insights';
 import { resolveAdContext } from '../adContext';
 import { metaGraph } from '../client';
 
@@ -169,5 +169,43 @@ describe('getInsights — parsing', () => {
       ok: true,
       data: { spend: 0, impressions: 0, clicks: 0, purchases: 0, purchaseValue: 0, roas: 0 },
     });
+  });
+});
+
+describe('getEffectiveStatus — OD4 on-demand drift/REJECTED read-back', () => {
+  it('returns {ok:false,error:"no-ad-context"} without calling Meta for an unconfigured property', async () => {
+    mockResolveAdContext.mockResolvedValue(null);
+    const res = await getEffectiveStatus(PROPERTY, OBJECT_ID);
+    expect(res).toEqual({ ok: false, error: 'no-ad-context' });
+    expect(mockMetaGraph).not.toHaveBeenCalled();
+  });
+
+  it('GETs the object with fields=id,effective_status and returns the parsed value', async () => {
+    mockResolveAdContext.mockResolvedValue({ adAccountId: 'act_1', token: 'tok' });
+    mockMetaGraph.mockResolvedValue({ ok: true, data: { id: OBJECT_ID, effective_status: 'REJECTED' } });
+
+    const res = await getEffectiveStatus(PROPERTY, OBJECT_ID);
+
+    expect(mockMetaGraph).toHaveBeenCalledWith(OBJECT_ID, {
+      method: 'GET',
+      params: { fields: 'id,effective_status' },
+      token: 'tok',
+      propertyId: PROPERTY,
+    });
+    expect(res).toEqual({ ok: true, data: { effectiveStatus: 'REJECTED' } });
+  });
+
+  it('falls back to "UNKNOWN" when Meta omits effective_status on an otherwise-ok response', async () => {
+    mockResolveAdContext.mockResolvedValue({ adAccountId: 'act_1', token: 'tok' });
+    mockMetaGraph.mockResolvedValue({ ok: true, data: { id: OBJECT_ID } });
+    const res = await getEffectiveStatus(PROPERTY, OBJECT_ID);
+    expect(res).toEqual({ ok: true, data: { effectiveStatus: 'UNKNOWN' } });
+  });
+
+  it('propagates a Graph API failure without throwing', async () => {
+    mockResolveAdContext.mockResolvedValue({ adAccountId: 'act_1', token: 'tok' });
+    mockMetaGraph.mockResolvedValue({ ok: false, error: 'timeout' });
+    const res = await getEffectiveStatus(PROPERTY, OBJECT_ID);
+    expect(res).toEqual({ ok: false, error: 'timeout' });
   });
 });

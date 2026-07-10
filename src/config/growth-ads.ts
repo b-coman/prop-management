@@ -38,3 +38,17 @@ export function getAdsMode(): AdsMode {
 export function isAdsLiveAllowed(): boolean {
   return getAdsMode() === 'live';
 }
+
+/**
+ * Hard server-side ceiling on daily ad spend, in bani — 200 RON/day (plan
+ * REVISIONS B2). This is the REAL gate: `adComposer.validateDailyBudget`
+ * enforces it at compose time, and it is meant to be RE-CHECKED at approve
+ * time too (Build B) — a compose form's own max-budget field is UX only, not
+ * a security boundary, per B2/S1.5 ("form max budget — enforce SERVER-side").
+ */
+export const MAX_DAILY_BUDGET_MINOR = 20000; // 200 RON/day
+
+/** Getter form, for parity with the other flag readers in this module. */
+export function getMaxDailyBudgetMinor(): number {
+  return MAX_DAILY_BUDGET_MINOR;
+}

@@ -59,13 +59,15 @@ function mockMetaResponses() {
 
 function makeAdminDb() {
   const addMock = jest.fn().mockResolvedValue({ id: 'adcamp-doc-1' });
+  const createMock = jest.fn().mockResolvedValue(undefined);
+  const docMock = jest.fn((_id: string) => ({ create: createMock }));
   const db = {
     collection: jest.fn((name: string) => {
-      if (name === 'adCampaigns') return { add: addMock };
+      if (name === 'adCampaigns') return { add: addMock, doc: docMock };
       throw new Error(`unexpected collection read in test: ${name}`);
     }),
   };
-  return { db, addMock };
+  return { db, addMock, createMock, docMock };
 }
 
 const CHAIN_SPEC = {
@@ -165,6 +167,7 @@ describe('createCampaignChain — engine enabled', () => {
         message: CHAIN_SPEC.creative.message,
         image_hash: 'abc123hash',
         call_to_action: { type: 'LEARN_MORE' },
+        use_flexible_image_aspect_ratio: true,
       },
     });
 
@@ -293,5 +296,134 @@ describe('createCampaignChain — engine enabled', () => {
     expect(String(deletes[1][0])).toContain('meta-creative-1');
     expect(String(deletes[2][0])).toContain('meta-adset-1');
     expect(String(deletes[3][0])).toContain('meta-campaign-1');
+  });
+
+  it('threads instagram_user_id + headline (link_data.name) when the context/spec provide them (§9d)', async () => {
+    mockResolveAdContext.mockResolvedValue({
+      adAccountId: AD_ACCOUNT,
+      pageId: PAGE_ID,
+      instagramActorId: '17841435421272996',
+      token: 'tok',
+    });
+    const { db } = makeAdminDb();
+    mockGetAdminDb.mockResolvedValue(db);
+
+    const specWithHeadline = { ...CHAIN_SPEC, creative: { ...CHAIN_SPEC.creative, headline: 'Book your escape' } };
+    await createCampaignChain(PROPERTY, specWithHeadline);
+
+    const [, creativeInit] = findCall('adcreatives');
+    const creativeBody = new URLSearchParams(creativeInit.body as string);
+    expect(JSON.parse(creativeBody.get('object_story_spec') as string)).toEqual({
+      page_id: PAGE_ID,
+      instagram_user_id: '17841435421272996',
+      link_data: {
+        link: CHAIN_SPEC.creative.link,
+        message: CHAIN_SPEC.creative.message,
+        image_hash: 'abc123hash',
+        call_to_action: { type: 'LEARN_MORE' },
+        use_flexible_image_aspect_ratio: true,
+        name: 'Book your escape',
+      },
+    });
+  });
+
+  it('threads adSet end_time/start_time when supplied (§9d — the 2a spend bound, B2)', async () => {
+    const { db } = makeAdminDb();
+    mockGetAdminDb.mockResolvedValue(db);
+
+    const specWithEndTime = {
+      ...CHAIN_SPEC,
+      adSet: { ...CHAIN_SPEC.adSet, startTime: '2026-07-10T00:00:00Z', endTime: '2026-07-17T00:00:00Z' },
+    };
+    await createCampaignChain(PROPERTY, specWithEndTime);
+
+    const [, adSetInit] = findCall('adsets');
+    const adSetBody = new URLSearchParams(adSetInit.body as string);
+    expect(adSetBody.get('start_time')).toBe('2026-07-10T00:00:00Z');
+    expect(adSetBody.get('end_time')).toBe('2026-07-17T00:00:00Z');
+  });
+
+  it('omits end_time/start_time entirely when not supplied (backward compatible)', async () => {
+    const { db } = makeAdminDb();
+    mockGetAdminDb.mockResolvedValue(db);
+
+    await createCampaignChain(PROPERTY, CHAIN_SPEC);
+
+    const [, adSetInit] = findCall('adsets');
+    const adSetBody = new URLSearchParams(adSetInit.body as string);
+    expect(adSetBody.has('start_time')).toBe(false);
+    expect(adSetBody.has('end_time')).toBe(false);
+  });
+
+  it('threads a caller-supplied campaign objective (defaults to OUTCOME_SALES otherwise)', async () => {
+    const { db } = makeAdminDb();
+    mockGetAdminDb.mockResolvedValue(db);
+
+    const specWithObjective = { ...CHAIN_SPEC, campaign: { ...CHAIN_SPEC.campaign, objective: 'OUTCOME_TRAFFIC' } };
+    await createCampaignChain(PROPERTY, specWithObjective);
+
+    const [, campaignInit] = findCall('campaigns');
+    const campaignBody = new URLSearchParams(campaignInit.body as string);
+    expect(campaignBody.get('objective')).toBe('OUTCOME_TRAFFIC');
+  });
+});
+
+describe('createCampaignChain — optional pre-allocated adCampaignId (plan REVISIONS B5)', () => {
+  beforeEach(() => {
+    process.env.GROWTH_ADS_ENABLED = 'true';
+    mockResolveAdContext.mockResolvedValue({ adAccountId: AD_ACCOUNT, pageId: PAGE_ID, token: 'tok' });
+    mockGetPixelIdForProperty.mockResolvedValue('pixel-123');
+    mockMetaResponses();
+  });
+
+  it('writes via db.collection("adCampaigns").doc(id).create() — NOT .add() — when an id is supplied', async () => {
+    const { db, addMock, createMock, docMock } = makeAdminDb();
+    mockGetAdminDb.mockResolvedValue(db);
+
+    const res = await createCampaignChain(PROPERTY, CHAIN_SPEC, 'pre-allocated-id-1');
+
+    expect(res).toMatchObject({ ok: true, adCampaignId: 'pre-allocated-id-1' });
+    expect(docMock).toHaveBeenCalledWith('pre-allocated-id-1');
+    expect(createMock).toHaveBeenCalledTimes(1);
+    expect(createMock.mock.calls[0][0]).toMatchObject({
+      propertyId: PROPERTY,
+      metaCampaignId: 'meta-campaign-1',
+      status: 'draft',
+    });
+    expect(addMock).not.toHaveBeenCalled(); // never falls back to .add() when an id is given
+  });
+
+  it('keeps the exact .add() behavior when NO id is supplied (backward-compatible, Phase-1 harness)', async () => {
+    const { db, addMock, createMock } = makeAdminDb();
+    mockGetAdminDb.mockResolvedValue(db);
+
+    const res = await createCampaignChain(PROPERTY, CHAIN_SPEC);
+
+    expect(res).toMatchObject({ ok: true, adCampaignId: 'adcamp-doc-1' });
+    expect(addMock).toHaveBeenCalledTimes(1);
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it('a double-submit (.create() rejects with already-exists) rolls back the full Meta chain like any other Firestore-stage failure', async () => {
+    const addMock = jest.fn();
+    const createMock = jest.fn().mockRejectedValue(new Error('ALREADY_EXISTS: document already exists'));
+    const docMock = jest.fn(() => ({ create: createMock }));
+    const db = {
+      collection: jest.fn((name: string) => {
+        if (name === 'adCampaigns') return { add: addMock, doc: docMock };
+        throw new Error(`unexpected collection read in test: ${name}`);
+      }),
+    };
+    mockGetAdminDb.mockResolvedValue(db);
+
+    const res = await createCampaignChain(PROPERTY, CHAIN_SPEC, 'retried-id');
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.stage).toBe('firestore');
+      expect(res.error).toContain('ALREADY_EXISTS');
+    }
+
+    const deletes = findDeleteCalls();
+    expect(deletes).toHaveLength(4); // full chain rolled back, same as any other Firestore-stage failure
   });
 });
