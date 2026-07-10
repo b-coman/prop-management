@@ -201,3 +201,24 @@ Notes: budgets in **bani** (minor units); Meta auto-adds `smart_pse_enabled:fals
 to `promoted_object`; `conversion_domain` must match the landing page's registrable
 domain (prahova-chalet.ro). Insights read-back for ROAS still to be exercised in
 the create functions, not the spike.
+
+---
+
+## 10. Creative assets & AI generation — verified specs (10 Jul 2026)
+Verified against developers.facebook.com (v25.0) + facebook.com/business ad-guide. Source tiers: **[P]** = read on a Meta property, **[S]** = secondary/snippet (spot-check before hard-coding). Extends/corrects §3/§5.
+
+**Image specs [P]:** JPG/PNG, **max 30 MB**, **min width 600px**, aspect-ratio tolerance **±3%**. Per placement: FB Feed **4:5** (also 1:1, 1.91:1), rec 1440×1800, min 600×750; Stories/Reels **9:16**, 1080×1920; FB right-column **1:1**; IG Feed 1.91:1→4:5. **The "20% text rule" is RETIRED (since Sep 2020), not enforced** — only a soft "less text performs better" recommendation; claims of a silent 2026 delivery penalty are [S] folklore, unconfirmed. Text (FB Feed/Awareness only, [P]): primary **50–150 chars** before "See more", headline **27 chars**; other placement/objective limits [S]/UNCONFIRMED — use `/act_<id>/generatepreview` rather than hard-coding truncation.
+
+**Video specs [P]:** MP4/MOV, H.264/H.265, **16:9 → 9:16**, min width 1200px (rec 1280×720+, scale up for 9:16), 24–60 fps, "up to 10 GB recommended" (the blog "4 GB max" is NOT what Meta's doc says). Upload `/act_<id>/advideos` is **chunked + ASYNC** (`upload_phase: start→transfer→finish`) → poll `GET /<video_id>?fields=status` until `processing_phase.status=complete` before use. Length limits UNCONFIRMED on a Meta source.
+
+**image_hash is (very likely) ACCOUNT-SCOPED [P-inferred]:** `/act_<id>/adimages` → `{hash,url,...}` (the returned `url` is temp — "do NOT use in creative"). The reference exposes `copy_from:{source_account_id,hash}` specifically to copy an image into ANOTHER account → strong evidence hashes don't transfer across accounts. **CONFIRMS the per-account upload cache design** `(assetId, adAccountId)→image_hash`. Verify empirically (upload same file to 2 accounts, diff hashes). Agency note: `copy_from` lets us copy a master account's image to each property account without re-uploading bytes.
+
+**`asset_feed_spec` — multi-asset/multi-ratio in ONE ad, API-creatable [P] (KEY):** POST `/act_<id>/adcreatives` with `asset_feed_spec` carrying `images[]`(≤~10)/`videos[]`, `bodies[]`/`titles[]`/`descriptions[]`(≤5 each), `link_urls[]`, `call_to_action_types[]`, `ad_formats`(`SINGLE_IMAGE|CAROUSEL_IMAGE|SINGLE_VIDEO|AUTOMATIC_FORMAT`), `asset_customization_rules[]`. So ONE ad can hold per-placement ratio variants and Meta picks per placement — **this is the API-native answer to "proper crops vs auto-crop": provide the crops as assets, let Meta select.** Not UI-only. (Catalog ads use a different `preferred_image_tags`/`adapt_to_placement` path — catalog-only, overkill for 1–2 properties.)
+
+**AI creative generation — API vs UI (corrects §3/§5) [P]:** the earlier "AI gen is not API-driven" is INCOMPLETE. Two layers:
+- **API-CONTROLLABLE via `degrees_of_freedom_spec.creative_features_spec`** (per-feature `{enroll_status: OPT_IN|OPT_OUT}`, submitted on adcreative/ad create): `text_generation` (copy variations), **`image_uncrop`** (AI expand/outcrop a still to fit a ratio — placement-limited to IG/Reels/Stories/Mobile-Feed), **`image_animation`** (still→short video), `image_background_gen` (**catalog ads only**), `music`/`music_generation`, `standard_enhancements` bundle (image touch-ups, text optim — sub-features NOT individually API-toggleable since v22.0, bundle-only). Workflow: create PAUSED → GET preview to see the AI output → then ACTIVE. **These directly cover our ratio-fill + still→video gaps, for free, via the API.**
+- **NOT API-accessible (UI / Business-AI-agent only):** free-form **prompt-to-image / prompt-to-video** (AI Sandbox/Creative Studio) — no endpoint. The Apr-2026 Ads CLI/MCP "Assets" tools appear to be upload/list only, no generation. → **Any *prompted* generation we must run ourselves** (Core-side), then upload as a normal asset.
+
+**AI-content labeling [P]:** Meta auto-labels ads "created or significantly edited" with generative AI ("AI info" on About-this-ad); minor edits (resize/color) don't trigger. Political/social-issue ads have stricter mandatory AI disclosure. → another reason to prefer real photos + light enhancement over heavy generation.
+
+**Rights/consent [S, consistent]:** advertiser must own/license every asset (image/video/music); IP infringement → rejection/termination. People need releases; don't fabricate the property (trust + policy + chargeback risk).

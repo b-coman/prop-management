@@ -158,3 +158,77 @@ Fable attacked the plan; I accept nearly all of it. §9/§10 already revised abo
 **Lows:** L1 don't let the `analytics.metaPixelId → analytics.meta.pixelId` refactor break deployed CAPI/pixel reads (keep old path or migrate atomically). L2 consolidate one `GRAPH_API_VERSION`. L3 cache "last-known" retains spend capability after offboarding (note for agency). L4 insights rate limits bite at N, not 1.
 
 **What Fable agreed was sound:** the per-property `{adAccountId, tokenRef}` + JSON-secret pattern, `write:false` rules, modular-monolith placement, operator-approves-everything, RON-only, and §11's audience-size honesty (the plan just now *acts* on it — M1).
+
+## 14. Media Assets & Creative (design — 10 Jul 2026)
+
+Media is the thing that quietly makes or breaks an ad engine. Verified Meta specs live in `docs/meta-ads-infrastructure-2026.md` §10; this section is the ARCHITECTURE. Core rule from §2 applies: media lives on **Core**, the Brain reasons over metadata, Meta stores its own copy.
+
+### 14.1 Three planes (media)
+- **Core** — canonical bytes (reuse the EXISTING gallery/`PropertyImage` + Firebase Storage), holds the Meta token AND the generation-provider keys, does uploads, owns bookings/guests/conversions.
+- **Brain (OpenClaw)** — reasons over a metadata **catalog**; never touches bytes; holds no secrets; formulates needs.
+- **Meta** — its own store: `image_hash`/`video_id` are **per-ad-account** (§10) → Core keeps a per-account upload cache; `copy_from` copies bytes across accounts (agency).
+
+### 14.2 The asset record (one store, two views)
+Extends `PropertyImage`. Key fields:
+```
+id, propertyId, kind: image|video
+role: master | variant
+derivedFrom: <parentAssetId|null>      # variant lineage — a tree; variants can have variants
+transform: crop-9:16 | ai-relight | ai-people | short-clip | platform-tiktok ...
+aiAdjusted: bool, aiMethod, aiPrompt   # INTERNAL flag + provenance (see 14.6)
+contentHash                            # dedup — computed on the MASTER only
+llmDescription: { subjects, setting, season, mood, activities, people, palette,
+                  aspirational_angle, fits_copy_themes[] }   # the Brain's decision input
+tags[], rights/consent
+galleryVisible: bool                   # website gallery = CURATED SUBSET, not the catalog
+uploads: { <adAccountId>: image_hash|video_id }   # per-account cache
+performance: { withinDynamicCreative[], aggregate }   # see 14.7
+state: draft → described → qa_passed → in_use → retired
+```
+Two orthogonal axes, both owner-requested:
+- **Gallery ≠ catalog.** The public website gallery shows only curated, real, picked assets (`galleryVisible`). The ad catalog is the superset — every crop/style/platform variant, and **all AI-adjusted versions, which are catalog-only and NEVER shown in the gallery** (they'd misrepresent the property).
+- **Variant lineage.** Every derived asset points at its parent via `derivedFrom` + a `transform`. Group by root master. This both answers "these are variants of the same photo" AND makes dedup correct: hash the master, so intentional variants aren't flagged as dupes.
+
+### 14.3 Selection (Brain picks over metadata)
+Given `{objective, audience, season, offer, copy}` + the catalog snapshot, the Brain **ranks candidate assets, picks a set (1 single / N for `asset_feed_spec`), justifies, and runs an adversarial judge pass** to kill mismatches. Returns asset IDs — never bytes. Favors: on-season, subject matches the message, brand-safe, available in needed ratios, and (weakly) past performance.
+
+### 14.4 Creative assembly (Core)
+Ship multi-ratio quality via **`asset_feed_spec`** (§10, API-native): put the 4:5 + 9:16 crops (and copy variants) in ONE creative and let Meta place per-placement. Store a high-res **master** → derive crops; keep copy AS TEXT (localizes RO/EN, avoids text-heavy throttle); respect Reels/Stories **safe zones**. Video: master → short-clip variants (9:16, ~15-30s), captions, async upload (poll status).
+
+### 14.5 Generation — layered, Core-gated (DECIDED: Brain → Core → external service)
+The image/video model is an **external service**; **the Brain formulates the need, CORE calls the service** (never Brain-direct). Rationale: the provider key is a Core secret (Brain holds none); the output must become a Core catalog asset anyway; Core meters cost + dedups-before-generate; Core routes to the right provider per transform without the Brain knowing; symmetry with ad execution + one audit trail. Core grows a **generation gateway** (sibling to `adExecutionGateway`): validate → cache/dedup check → route to provider → meter cost → store result as a first-class provenance-tagged asset → QA judge → return assetId. Exposed to the Brain AS A TOOL (same agentic ergonomics), **async** (job handle → poll/notify).
+
+Three routes Core chooses among per need:
+1. **Use existing** catalog asset (free) — always checked first.
+2. **Meta Advantage+ enrollment** (`degrees_of_freedom_spec`, §10) — `image_uncrop` (ratio fill), `image_animation` (still→video), `text_generation` (copy). Cheap, API-toggled at creative build; NO new asset (Meta transforms at serve time); good for ratio/animate/minor touch-ups.
+3. **External generation** (dedicated tool) — novel imagery Meta can't do: **relight (more sun), populate scenes with people doing the activity in the copy** (the owner's priority — high-performing lifestyle imagery). Produces a NEW catalog asset.
+
+**Guardrails (non-negotiable):** never invent rooms/decor/amenities — only bring REAL scenes to life; activities shown must actually be available; synthetic people need no release but must not imply non-existent experiences. Quality is paramount → Advantage+ only where it's genuinely good; dedicated tools for people-compositing/relight; **A/B Meta-enhanced vs dedicated early to calibrate.**
+
+### 14.6 AI labeling (verified §10)
+Commercial ads: **no advertiser self-declaration required** and **no Marketing API field** to declare it. Meta **auto-detects + labels** ("AI Info") significant AI edits (image/background generation, people-population) as of **1 Jun 2026**; minor edits (resize/color) don't trigger. (Political/social-issue ads DO require self-disclosure — not us.) We still keep an **internal `aiAdjusted` flag** regardless — for governance, honesty/QA, and future-proofing.
+
+### 14.7 Performance attribution (honest)
+A single ad's outcome **cannot be blamed on the photo alone** — confounded by copy/audience/budget/timing/bid. Per-asset signal is trustworthy ONLY in two places: (1) **within Dynamic Creative / `asset_feed_spec`**, where Meta rotates images inside the SAME ad set → a controlled experiment isolating the image (Meta's per-asset breakdown); (2) **aggregate across many campaigns**. Store per-asset performance, but the Brain weights within-experiment + aggregate and treats single instances as weak signal. The feedback loop (asset→ROAS) is real but statistically humble.
+
+### 14.8 Brain ↔ Core contract (structured, verified handshake)
+Not free text. Mirrors the gateway discipline (validate → gate → act → audit):
+- **Catalog request →** Core returns a VERSIONED snapshot (metadata + `llmDescription`, no bytes, `catalogVersion`).
+- **Ad proposal (Brain→Core) →** `{schemaVersion, proposalId (idempotency key), propertyId, catalogVersion, objective, targeting, budget{dailyMinor, capMinor}, copy[{primary,headline,cta,lang}], assets:[{assetId,role}], generationRequests:[{prompt,baseAssetId,transform}], landing{url,utms}}`.
+- **Core validates (the teeth) →** schema ok; `catalogVersion` not stale (else reconcile); **every assetId exists AND belongs to propertyId** (shared-token ownership assert, H2, applies to asset selection too); budget within policy; spend cap present; targeting sane; dedupe by `proposalId`. Returns `{accepted|rejected, reasons[], createdPausedIds?}`. Creation stays PAUSED; activation stays the human gate.
+- **Nuances:** idempotency/retries; catalog-version pinning + drift reconciliation; authN/authZ of the Brain↔Core channel (scoped to allowed properties); a dry-run "validate without creating" preflight; generation cost governance (metered/capped); **preview as a formal step** (Meta create-PAUSED → GET preview → activate — where AI output is judged).
+
+### 14.9 Pre-flight QA + dedup
+- **Pre-flight QA judge** (adversarial): every asset-at-crop / AI output reviewed before it can become a live ad — on-message, safe-zone-clean, not-beheaded, realistic (AI people), on-brand, HONEST (no implied non-existent amenity). Uses Meta's PAUSED→preview flow.
+- **Dedup** on the master's `contentHash`; variants are known derivations, not dupes.
+
+### 14.10 Phasing
+- **2a (minimal, now):** reuse existing photos, thin ad-asset record + per-account upload cache, proper 4:5 + 9:16 crops via `asset_feed_spec`, opt into Meta auto-enhance. Enough to run REAL ads with real photos — and it seeds the catalog/performance data. (Pairs with the "one manual real ad first" step.)
+- **2b:** vision-caption the library (`llmDescription`) + Brain-driven selection with judge + per-asset performance capture (within-Dynamic-Creative).
+- **2c:** the generation gateway (Brain need → Core → external service) for relight/people/seasonal gaps + video short-clip splitting + Meta `image_animation`.
+Don't build 2b/2c before 2a proves photos → bookings.
+
+### 14.11 Open decisions
+- Which external provider(s) for relight vs people-compositing (quality-led; A/B vs Advantage+).
+- Video: split the existing tour/drone master into short-clip variants now, or wait for more footage.
+- Exact catalog-snapshot/versioning + agent-API auth mechanism (part of the §7 brain seam).
