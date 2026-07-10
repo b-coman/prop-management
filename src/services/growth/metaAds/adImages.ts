@@ -212,7 +212,14 @@ export async function uploadImageToAccount(
     let bytes: Buffer;
     try {
       const storage = await getAdminStorage();
-      const [downloaded] = await storage.bucket().file(image.storagePath).download();
+      // Name the bucket explicitly — the Admin SDK isn't initialized with a
+      // `storageBucket` option, so `.bucket()` (no-arg) throws "Bucket name not
+      // specified" outside environments that can infer a default. The bucket
+      // name is in env both locally (.env.local) and in prod (apphosting.yaml).
+      // Falls back to the no-arg default if the env var is somehow absent.
+      const bucketName =
+        process.env.FIREBASE_STORAGE_BUCKET || process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+      const [downloaded] = await storage.bucket(bucketName).file(image.storagePath).download();
       bytes = downloaded;
     } catch (error) {
       logger.warn('uploadImageToAccount: Storage download failed', {
