@@ -8,12 +8,19 @@ import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { MultilingualInput } from '@/app/admin/website/_components/multilingual-input';
+// Pure resolver (no server-only deps), so it is safe in this client component.
+import { serverTranslateContent } from '@/lib/server-language-utils';
 import type { PropertyImage } from '@/types';
 
+// Keep in sync with DEFAULT_TAG_LABELS in src/components/property/gallery-grid.tsx —
+// a tag only becomes a gallery filter pill if it has a label there.
 const SUGGESTED_TAGS = [
   'bedroom', 'living-room', 'kitchen', 'bathroom', 'dining',
-  'kids', 'terrace', 'garden', 'outdoor', 'pool',
-  'spa', 'balcony', 'parking', 'beach-access', 'deck',
+  'kids', 'playroom', 'fireplace', 'interior',
+  'exterior', 'terrace', 'balcony', 'garden', 'outdoor',
+  'bbq', 'hammock', 'playground', 'view', 'landscape',
+  'pool', 'spa', 'parking', 'beach-access', 'deck',
 ];
 
 interface SortableImageCardProps {
@@ -93,7 +100,7 @@ export function SortableImageCard({
       <div className="relative aspect-[4/3] bg-muted">
         <Image
           src={image.thumbnailUrl || image.url}
-          alt={image.alt || 'Property image'}
+          alt={serverTranslateContent(image.alt, 'en') || 'Property image'}
           fill
           className="object-cover"
           sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
@@ -106,12 +113,12 @@ export function SortableImageCard({
 
       {/* Controls */}
       <div className="p-3 space-y-2">
-        <Input
-          type="text"
-          placeholder="Alt text (accessibility)"
-          value={image.alt || ''}
-          onChange={(e) => onUpdate(index, { alt: e.target.value })}
-          className="text-sm h-8"
+        <MultilingualInput
+          inline
+          label="Alt text"
+          placeholder="Alt text — shown as the lightbox caption"
+          value={image.alt}
+          onChange={(alt) => onUpdate(index, { alt: alt as PropertyImage['alt'] })}
         />
         <ImageTagInput
           tags={image.tags || []}

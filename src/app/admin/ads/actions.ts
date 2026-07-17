@@ -33,6 +33,7 @@ import { loggers } from '@/lib/logger';
 import { requireSuperAdmin, handleAuthError, AuthorizationError } from '@/lib/authorization';
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { convertTimestampsToISOStrings } from '@/lib/utils';
+import { serverTranslateContent } from '@/lib/server-language-utils';
 import { getBaseUrl } from '@/lib/structured-data';
 import { getMaxDailyBudgetMinor } from '@/config/growth-ads';
 import type { AdCampaign, AdCampaignStatus, ComposeAndCreateAdInput, PropertyImage } from '@/types';
@@ -170,7 +171,8 @@ export async function fetchComposeDataAction(propertyId: string): Promise<{
       .map((img) => ({
         storagePath: img.storagePath,
         url: img.url,
-        alt: img.alt || '',
+        // alt may be bilingual; the picker preview needs a plain string.
+        alt: serverTranslateContent(img.alt, 'en'),
         thumbnailUrl: img.thumbnailUrl,
       }));
 

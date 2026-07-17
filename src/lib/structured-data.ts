@@ -494,15 +494,19 @@ export function buildImageGalleryJsonLd(options: {
       if (!a.isFeatured && b.isFeatured) return 1;
       return (a.sortOrder ?? 999) - (b.sortOrder ?? 999);
     })
-    .map(img => ({
-      '@type': 'ImageObject',
-      contentUrl: img.url,
-      ...(img.alt && { description: img.alt }),
-      ...(img.alt && { name: img.alt }),
-    }));
+    .map(img => {
+      // alt may be bilingual; schema.org expects Text, so resolve it first.
+      const alt = pickLang(img.alt);
+      return {
+        '@type': 'ImageObject',
+        contentUrl: img.url,
+        ...(alt && { description: alt }),
+        ...(alt && { name: alt }),
+      };
+    });
 
   const galleryTitle = language === 'ro'
-    ? `Galerie Foto - ${name}`
+    ? `Galerie foto - ${name}`
     : `Photo Gallery - ${name}`;
 
   return {
