@@ -16,6 +16,10 @@ import { useLanguage } from '@/hooks/useLanguage';
 
 // Default bilingual labels for common image tags.
 // Properties can override/extend via content.tagLabels in Firestore.
+// An unlabelled tag falls back to the raw tag string, which surfaces untranslated
+// English slugs as filter pills — so every tag in use needs an entry here.
+// `exterior` is the building seen from outside; `outdoor` is the outdoor spaces.
+// They are distinct pills, so they must not share a Romanian label.
 const DEFAULT_TAG_LABELS: Record<string, { en: string; ro: string }> = {
   bedroom: { en: 'Bedrooms', ro: 'Dormitoare' },
   'living-room': { en: 'Living Areas', ro: 'Zone de zi' },
@@ -23,9 +27,20 @@ const DEFAULT_TAG_LABELS: Record<string, { en: string; ro: string }> = {
   bathroom: { en: 'Bathrooms', ro: 'Băi' },
   dining: { en: 'Dining', ro: 'Sufragerie' },
   kids: { en: 'Kids Areas', ro: 'Zone pentru copii' },
+  playroom: { en: 'Play Room', ro: 'Cameră de joacă' },
+  interior: { en: 'Interior', ro: 'Interior' },
+  fireplace: { en: 'Fireplace', ro: 'Șemineu' },
   terrace: { en: 'Terrace', ro: 'Terasă' },
   garden: { en: 'Garden', ro: 'Grădină' },
   outdoor: { en: 'Outdoors', ro: 'Exterior' },
+  exterior: { en: 'Exterior', ro: 'Fațadă' },
+  bbq: { en: 'BBQ', ro: 'Grătar' },
+  hammock: { en: 'Hammocks', ro: 'Hamace' },
+  playground: { en: 'Playground', ro: 'Loc de joacă' },
+  view: { en: 'Views', ro: 'Priveliști' },
+  landscape: { en: 'Landscape', ro: 'Peisaj' },
+  autumn: { en: 'Autumn', ro: 'Toamna' },
+  lifestyle: { en: 'Lifestyle', ro: 'Atmosferă' },
   pool: { en: 'Pool', ro: 'Piscină' },
   spa: { en: 'Spa', ro: 'Spa' },
   balcony: { en: 'Balcony', ro: 'Balcon' },
