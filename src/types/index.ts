@@ -17,7 +17,13 @@ export type MultilingualString = {
 
 export interface PropertyImage {
   url: string;
-  alt: string;
+  /**
+   * Plain string (legacy) or bilingual. It is rendered as a visible caption in
+   * the gallery lightbox, not just as an accessibility attribute, so it is
+   * translatable. Always read it through tc() on the client or
+   * serverTranslateContent() on the server — never interpolate it directly.
+   */
+  alt: string | { en: string; ro: string };
   isFeatured?: boolean;
   'data-ai-hint'?: string; // For AI image generation hints
   tags?: string[]; // For gallery filtering
