@@ -16,8 +16,11 @@ import { useLanguage } from '@/hooks/useLanguage';
 
 // Default bilingual labels for common image tags.
 // Properties can override/extend via content.tagLabels in Firestore.
-// An unlabelled tag falls back to the raw tag string, which surfaces untranslated
-// English slugs as filter pills — so every tag in use needs an entry here.
+// Having a label here is what makes a tag eligible to become a filter pill
+// (see tagCounts below), so this map doubles as the pill allowlist. Broad
+// structural tags like `interior` are deliberately left out: they sit on most
+// indoor photos, so they would out-count every real category while filtering
+// almost nothing.
 // `exterior` is the building seen from outside; `outdoor` is the outdoor spaces.
 // They are distinct pills, so they must not share a Romanian label.
 const DEFAULT_TAG_LABELS: Record<string, { en: string; ro: string }> = {
@@ -28,7 +31,6 @@ const DEFAULT_TAG_LABELS: Record<string, { en: string; ro: string }> = {
   dining: { en: 'Dining', ro: 'Sufragerie' },
   kids: { en: 'Kids Areas', ro: 'Zone pentru copii' },
   playroom: { en: 'Play Room', ro: 'Cameră de joacă' },
-  interior: { en: 'Interior', ro: 'Interior' },
   fireplace: { en: 'Fireplace', ro: 'Șemineu' },
   terrace: { en: 'Terrace', ro: 'Terasă' },
   garden: { en: 'Garden', ro: 'Grădină' },
@@ -132,6 +134,14 @@ export function GalleryGrid({ content }: GalleryGridProps) {
   };
 
   const lang = currentLang || 'en';
+
+  // Names the photo's most specific category in the lightbox. Skips tags with no
+  // label — they are structural, and rendering the raw slug would leak an
+  // untranslated English word onto the page.
+  const chipLabel = (tags?: string[]) => {
+    const tag = tags?.find((t) => tagLabels[t]);
+    return tag ? tagLabels[tag][lang as 'en' | 'ro'] : null;
+  };
 
   return (
     <section className="py-8 md:py-12 bg-background" onKeyDown={lightboxOpen ? handleKeyDown : undefined}>
@@ -319,9 +329,9 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-6 pb-4 pt-10">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        {filteredImages[currentImageIndex].tags?.[0] && (
+                        {chipLabel(filteredImages[currentImageIndex].tags) && (
                           <span className="text-xs font-medium bg-white/20 text-white px-2 py-0.5 rounded-full">
-                            {tagLabels[filteredImages[currentImageIndex].tags![0]]?.[lang as 'en' | 'ro'] || filteredImages[currentImageIndex].tags![0]}
+                            {chipLabel(filteredImages[currentImageIndex].tags)}
                           </span>
                         )}
                         {tc(filteredImages[currentImageIndex].alt) && (
