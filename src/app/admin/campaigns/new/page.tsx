@@ -36,6 +36,7 @@ export default async function NewCampaignPage({
               candidates={res.candidates}
               eligibleCount={res.eligibleCount ?? 0}
               perRunCap={res.perRunCap ?? 20}
+              propertyId={property}
             />
           ) : (
             <p className="text-sm text-destructive">{res.error || 'Failed to load audience.'}</p>

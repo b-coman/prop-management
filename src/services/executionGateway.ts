@@ -195,7 +195,7 @@ async function writeMessageLog(db: AdminDb, entry: MessageLogInput): Promise<str
   return ref.id;
 }
 
-interface PropertyContext {
+export interface PropertyContext {
   name: string;        // brand name for the {{property}} slot (H1)
   link?: string;       // the {{link}} slot — guest availability calendar
 }
@@ -214,7 +214,7 @@ interface PropertyContext {
  * blocks a send.
  */
 const propertyContextCache = new Map<string, PropertyContext>();
-async function getPropertyContext(db: AdminDb, propertyId: string): Promise<PropertyContext> {
+export async function getPropertyContext(db: AdminDb, propertyId: string): Promise<PropertyContext> {
   const cached = propertyContextCache.get(propertyId);
   if (cached) return cached;
 

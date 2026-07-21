@@ -1,11 +1,12 @@
 'use client';
 
 import { useTransition } from 'react';
+import Link from 'next/link';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Play, Check } from 'lucide-react';
+import { Loader2, Play, Check, ArrowRight } from 'lucide-react';
 import type { Campaign } from '@/types';
 import { approveCampaignAction, runCampaignAction } from '../actions';
 
@@ -64,8 +65,15 @@ function CampaignRow({ campaign: c }: { campaign: Campaign }) {
       }
     });
 
+  // Manual (message-step) campaigns carry a hand-picked audience and are worked in
+  // their own workspace; the segment/dry-run controls only apply to the automated path.
+  const isManual = c.templateName === 'manual';
   const stats = c.stats;
-  const reached = stats && stats.attempted > 0 ? `${stats.dryRun + stats.sent}/${stats.audienceSize}` : '—';
+  const reached = isManual
+    ? `${c.audienceGuestIds?.length ?? 0} in audience`
+    : stats && stats.attempted > 0
+      ? `${stats.dryRun + stats.sent}/${stats.audienceSize}`
+      : '—';
 
   return (
     <TableRow>
@@ -73,19 +81,30 @@ function CampaignRow({ campaign: c }: { campaign: Campaign }) {
       <TableCell>
         <Badge variant={STATUS_VARIANT[c.status] || 'outline'}>{c.status}</Badge>
       </TableCell>
-      <TableCell className="text-muted-foreground">{c.templateName}</TableCell>
+      <TableCell className="text-muted-foreground">{isManual ? 'WhatsApp (manual)' : c.templateName}</TableCell>
       <TableCell className="text-right text-sm text-muted-foreground">{reached}</TableCell>
       <TableCell className="space-x-2 whitespace-nowrap text-right">
-        {!c.approvedBy && (
-          <Button size="sm" variant="outline" onClick={approve} disabled={approving}>
-            {approving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-            <span className="ml-1">Approve</span>
-          </Button>
+        {isManual ? (
+          <Link href={`/admin/campaigns/${c.id}`}>
+            <Button size="sm" variant="outline">
+              <span className="mr-1">{c.status === 'draft' ? 'Compose' : 'Open'}</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </Link>
+        ) : (
+          <>
+            {!c.approvedBy && (
+              <Button size="sm" variant="outline" onClick={approve} disabled={approving}>
+                {approving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                <span className="ml-1">Approve</span>
+              </Button>
+            )}
+            <Button size="sm" onClick={run} disabled={running}>
+              {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+              <span className="ml-1">Run (dry-run)</span>
+            </Button>
+          </>
         )}
-        <Button size="sm" onClick={run} disabled={running}>
-          {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-          <span className="ml-1">Run (dry-run)</span>
-        </Button>
       </TableCell>
     </TableRow>
   );
