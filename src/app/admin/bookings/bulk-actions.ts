@@ -155,12 +155,15 @@ export async function bulkCompleteBookings(bookingIds: string[]): Promise<BulkAc
         updatedAt: FieldValue.serverTimestamp(),
       });
 
-      // Sync guest record (non-blocking within allSettled)
+      // Advance the guest's lastStayDate WITHOUT re-incrementing totals.
+      // upsertGuestFromBooking uses FieldValue.increment, so re-upserting this
+      // already-counted booking would double-count totalBookings/totalSpent.
+      // Non-blocking within allSettled.
       try {
-        const { upsertGuestFromBooking } = await import('@/services/guestService');
-        await upsertGuestFromBooking({ ...data, id: bookingId, status: 'completed' } as Booking);
+        const { advanceGuestLastStay } = await import('@/services/guestService');
+        await advanceGuestLastStay(bookingId, checkOutDate);
       } catch (guestError) {
-        logger.warn('Non-blocking: failed to sync guest on bulk complete', { bookingId, error: (guestError as Error).message });
+        logger.warn('Non-blocking: failed to advance guest lastStay on bulk complete', { bookingId, error: (guestError as Error).message });
       }
     })
   );
