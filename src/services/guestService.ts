@@ -186,6 +186,47 @@ export async function upsertGuestFromBooking(booking: Booking): Promise<string |
 }
 
 /**
+ * Advance a guest's `lastStayDate` to a completed booking's checkout WITHOUT
+ * re-incrementing totals.
+ *
+ * `upsertGuestFromBooking` uses `FieldValue.increment` for totalBookings/
+ * totalSpent, so re-upserting an already-counted booking (which every booking is,
+ * from its creation upsert) double-counts. This helper only moves lastStayDate
+ * forward (max of current vs. this checkout) and touches nothing else, so it is
+ * idempotent and safe to call whenever a booking is marked completed.
+ *
+ * Finds the guest via `bookingIds array-contains bookingId` (the canonical link).
+ * Returns true iff a guest's lastStayDate was actually advanced.
+ */
+export async function advanceGuestLastStay(bookingId: string, checkOutDate: Date): Promise<boolean> {
+  try {
+    const db = await getAdminDb();
+    const snap = await db
+      .collection('guests')
+      .where('bookingIds', 'array-contains', bookingId)
+      .limit(1)
+      .get();
+    if (snap.empty) {
+      logger.warn('advanceGuestLastStay: no guest linked to booking', { bookingId });
+      return false;
+    }
+    const ref = snap.docs[0].ref;
+    return await db.runTransaction(async (tx) => {
+      const doc = await tx.get(ref);
+      const current = parseFirestoreDate(doc.data()?.lastStayDate);
+      if (current && current.getTime() >= checkOutDate.getTime()) {
+        return false; // already at or past this stay
+      }
+      tx.update(ref, { lastStayDate: checkOutDate, updatedAt: FieldValue.serverTimestamp() });
+      return true;
+    });
+  } catch (error) {
+    logger.error('advanceGuestLastStay failed', error as Error, { bookingId });
+    return false;
+  }
+}
+
+/**
  * Find a guest by email address.
  */
 export async function findGuestByEmail(email: string): Promise<Guest | null> {
