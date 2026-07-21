@@ -81,7 +81,7 @@ function nightsBetween(checkIn: Date, checkOut: Date): number {
  * A token matching `shareCalendarToken` → 'full'; one matching `guestCalendarToken`
  * → 'anonymized'. Returns null if no property has this token.
  */
-export async function resolvePropertyByToken(token: string): Promise<{ propertyId: string; propertyName: string; mode: CalendarMode } | null> {
+export async function resolvePropertyByToken(token: string): Promise<{ propertyId: string; propertyName: string; mode: CalendarMode; imageUrl?: string } | null> {
   if (!token) return null;
   const db = await getAdminDb();
   const [fullSnap, guestSnap] = await Promise.all([
@@ -92,10 +92,20 @@ export async function resolvePropertyByToken(token: string): Promise<{ propertyI
   if (!doc) return null;
   const mode: CalendarMode = !fullSnap.empty ? 'full' : 'anonymized';
   const data = doc.data();
+
+  // Pick a hero image for the link preview (og:image): featured first, then the
+  // lowest sortOrder, then whatever is first.
+  const images = Array.isArray(data.images) ? (data.images as Array<{ url?: string; isFeatured?: boolean; sortOrder?: number }>) : [];
+  const hero =
+    images.find((i) => i?.isFeatured) ??
+    [...images].sort((a, b) => (a?.sortOrder ?? 999) - (b?.sortOrder ?? 999))[0] ??
+    images[0];
+
   return {
     propertyId: doc.id,
     propertyName: typeof data.name === 'string' ? data.name : 'Property',
     mode,
+    imageUrl: typeof hero?.url === 'string' ? hero.url : undefined,
   };
 }
 

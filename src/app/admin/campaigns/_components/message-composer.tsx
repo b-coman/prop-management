@@ -16,10 +16,10 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Eye, Send, Plus, X, Users } from 'lucide-react';
+import { Loader2, Eye, Send, Plus, X, Users, Trash2 } from 'lucide-react';
 import type { MessageVariant, LanguageCode } from '@/types';
 import type { RenderedMessage, SkippedRender } from '@/services/campaignMessaging';
-import { previewCampaignMessagesAction, approveAndQueueAction } from '../actions';
+import { previewCampaignMessagesAction, approveAndQueueAction, discardDraftCampaignAction } from '../actions';
 
 const LANGS: { code: LanguageCode; label: string }[] = [
   { code: 'ro', label: 'Romanian' },
@@ -45,6 +45,8 @@ export function MessageComposer({
   const { toast } = useToast();
   const [previewing, startPreview] = useTransition();
   const [approving, startApprove] = useTransition();
+  const [discarding, startDiscard] = useTransition();
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   // Group variants by language into editable text lists (default: one empty each).
   const [byLang, setByLang] = useState<Record<LanguageCode, string[]>>(() => {
@@ -56,13 +58,22 @@ export function MessageComposer({
 
   const [rendered, setRendered] = useState<RenderedMessage[] | null>(null);
   const [skipped, setSkipped] = useState<SkippedRender[]>([]);
+  // Any edit after a preview makes the preview stale — you must re-preview before
+  // approving, so "approve exactly what you saw" always holds.
+  const [dirty, setDirty] = useState(false);
 
-  const setVariant = (lang: LanguageCode, i: number, value: string) =>
+  const setVariant = (lang: LanguageCode, i: number, value: string) => {
     setByLang((prev) => ({ ...prev, [lang]: prev[lang].map((v, idx) => (idx === i ? value : v)) }));
-  const addVariant = (lang: LanguageCode) =>
+    setDirty(true);
+  };
+  const addVariant = (lang: LanguageCode) => {
     setByLang((prev) => ({ ...prev, [lang]: [...prev[lang], ''] }));
-  const removeVariant = (lang: LanguageCode, i: number) =>
+    setDirty(true);
+  };
+  const removeVariant = (lang: LanguageCode, i: number) => {
     setByLang((prev) => ({ ...prev, [lang]: prev[lang].filter((_, idx) => idx !== i) }));
+    setDirty(true);
+  };
 
   // Flatten to MessageVariant[], dropping blanks.
   const toVariants = (): MessageVariant[] =>
@@ -78,6 +89,7 @@ export function MessageComposer({
       if (res.success) {
         setRendered(res.rendered ?? []);
         setSkipped(res.skipped ?? []);
+        setDirty(false);
       } else {
         toast({ title: 'Preview failed', description: res.error, variant: 'destructive' });
       }
@@ -94,6 +106,17 @@ export function MessageComposer({
         router.refresh(); // status → sending: page swaps to the send list (Gate 2)
       } else {
         toast({ title: 'Could not queue', description: res.error, variant: 'destructive' });
+      }
+    });
+
+  const discard = () =>
+    startDiscard(async () => {
+      const res = await discardDraftCampaignAction(campaignId);
+      if (res.success) {
+        router.push('/admin/campaigns');
+      } else {
+        toast({ title: 'Could not discard', description: res.error, variant: 'destructive' });
+        setConfirmDiscard(false);
       }
     });
 
@@ -154,14 +177,39 @@ export function MessageComposer({
               {previewing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Eye className="mr-1 h-4 w-4" />}
               Preview messages
             </Button>
-            <Button onClick={approve} disabled={!rendered || rendered.length === 0 || approving}>
+            <Button onClick={approve} disabled={!rendered || rendered.length === 0 || approving || dirty}>
               {approving ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
-              Approve &amp; queue{rendered ? ` (${rendered.length})` : ''}
+              Approve &amp; queue{rendered && !dirty ? ` (${rendered.length})` : ''}
             </Button>
           </div>
-          {!rendered && hasCopy && (
-            <p className="text-xs text-muted-foreground">Preview first — you approve exactly what you saw.</p>
+          {(!rendered || dirty) && hasCopy && (
+            <p className="text-xs text-muted-foreground">
+              {dirty ? 'Copy changed — preview again before approving.' : 'Preview first — you approve exactly what you saw.'}
+            </p>
           )}
+
+          <div className="pt-2">
+            {confirmDiscard ? (
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-muted-foreground">Delete this draft?</span>
+                <Button size="sm" variant="destructive" className="h-7" onClick={discard} disabled={discarding}>
+                  {discarding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Yes, discard'}
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7" onClick={() => setConfirmDiscard(false)} disabled={discarding}>
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                onClick={() => setConfirmDiscard(true)}
+              >
+                <Trash2 className="mr-1 h-3.5 w-3.5" /> Discard draft
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
 
