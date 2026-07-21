@@ -443,7 +443,7 @@ describe('executeSend — manual_queue driver (outbox)', () => {
     expect(outboxWrites).toHaveLength(1); // queued exactly once
   });
 
-  it('records dry-run intent (no outbox write) when not live', async () => {
+  it('queues to the outbox even when NOT live — manual_queue is human-sent, exempt from the dark-launch guard', async () => {
     delete process.env.GROWTH_ENGINE_ENABLED;
     delete process.env.GROWTH_ENGINE_SEND_MODE;
     const { db, outboxWrites } = makeDb();
@@ -451,7 +451,12 @@ describe('executeSend — manual_queue driver (outbox)', () => {
     mockGetGuestById.mockResolvedValue(guest());
 
     const res = await executeSend({ guestId: 'g1', propertyId: 'prahova-mountain-chalet', channel: 'whatsapp', templateName: 'winter_invite', campaignId: 'c1', deliveryMode: 'manual_queue', body: 'hi' });
-    expect(res.status).toBe('dry-run');
-    expect(outboxWrites).toHaveLength(0);
+
+    // The safety property is preserved: nothing auto-sends — only a queued row the owner sends by hand.
+    expect(mockSendWhatsApp).not.toHaveBeenCalled();
+    expect(res.status).toBe('queued');
+    expect(res.mode).toBe('dry-run'); // honest: the engine isn't live, but the human-sent queue still populates
+    expect(outboxWrites).toHaveLength(1);
+    expect(outboxWrites[0]).toMatchObject({ campaignId: 'c1', guestId: 'g1', status: 'approved_pending_send' });
   });
 });

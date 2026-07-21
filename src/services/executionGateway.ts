@@ -364,7 +364,13 @@ export async function executeSend(req: SendRequest): Promise<SendResult> {
   }
 
   // 4) DARK LAUNCH: default dry-run — record intent, deliver nothing.
-  if (mode !== 'live') {
+  //
+  // EXCEPTION: manual_queue is human-sent — the owner taps wa.me by hand and
+  // nothing ever leaves the server automatically. The dark-launch guard exists to
+  // prevent *automated provider* delivery (Twilio), which manual_queue never does,
+  // so it is exempt and writes its outbox row in any mode. Automated provider
+  // sends remain gated behind GROWTH_ENGINE_ENABLED + SEND_MODE=live.
+  if (mode !== 'live' && req.deliveryMode !== 'manual_queue') {
     const id = await writeMessageLog(db, {
       ...base,
       status: 'dry-run',
@@ -381,7 +387,7 @@ export async function executeSend(req: SendRequest): Promise<SendResult> {
     return { status: 'dry-run', messageLogId: id, mode: 'dry-run' };
   }
 
-  // 5) LIVE delivery (only when both flags are flipped).
+  // 5) LIVE path: provider delivery (live only) + manual_queue (any mode).
   //
   // IDEMPOTENT CLAIM (campaign sends): before delivering, atomically claim the
   // deterministic messageLog doc ({campaignId}__{guestId}__{templateName}) in a
@@ -463,7 +469,7 @@ export async function executeSend(req: SendRequest): Promise<SendResult> {
       outboxId: outboxRef.id,
       to: maskContact(contact),
     });
-    return { status: 'queued', providerId: outboxRef.id, messageLogId: claimId ?? outboxRef.id, mode: 'live' };
+    return { status: 'queued', providerId: outboxRef.id, messageLogId: claimId ?? outboxRef.id, mode };
   }
 
   // Property-brand the message: inject `property` (name) and `link` (guest
