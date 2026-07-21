@@ -6,6 +6,7 @@ import { requireSuperAdmin, handleAuthError, AuthorizationError } from '@/lib/au
 import type { Campaign, SegmentDefinition } from '@/types';
 import { PREDEFINED_SEGMENTS, previewAudience } from '@/services/segmentService';
 import { listCampaigns, createCampaign, approveCampaign, sendCampaign } from '@/services/campaignService';
+import { buildAudience, type AudienceCandidate } from '@/services/audienceService';
 
 const logger = loggers.campaign;
 
@@ -144,5 +145,34 @@ export async function runCampaignAction(id: string): Promise<{
   } catch (error) {
     logger.error('runCampaignAction failed', error as Error);
     return { success: false, error: (error as Error).message };
+  }
+}
+
+export async function fetchAudienceAction(propertyId: string): Promise<{
+  success: boolean;
+  candidates?: AudienceCandidate[];
+  total?: number;
+  eligibleCount?: number;
+  perRunCap?: number;
+  error?: string;
+}> {
+  try {
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return handleAuthError(error);
+    throw error;
+  }
+  try {
+    const res = await buildAudience(propertyId);
+    return {
+      success: true,
+      candidates: res.candidates,
+      total: res.total,
+      eligibleCount: res.eligibleCount,
+      perRunCap: res.perRunCap,
+    };
+  } catch (error) {
+    logger.error('fetchAudienceAction failed', error as Error);
+    return { success: false, error: 'Failed to load audience' };
   }
 }
