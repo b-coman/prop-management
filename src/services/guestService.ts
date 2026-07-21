@@ -226,6 +226,54 @@ export async function advanceGuestLastStay(bookingId: string, checkOutDate: Date
   }
 }
 
+export interface GuestTotals {
+  totalBookings: number;
+  totalSpent: number;
+}
+
+/**
+ * Recompute a guest's `totalBookings` + `totalSpent` from the source of truth —
+ * their bookings — counting ONLY non-cancelled ones (a cancelled booking never
+ * happened: no stay, no revenue). Writes only when a value actually changes.
+ *
+ * The running counters are maintained by `FieldValue.increment` across several
+ * inconsistent booking paths (create/complete/cancel), so they drift — this
+ * recompute is the trustworthy correction, idempotent and safe to run
+ * repeatedly. Pass `{ dryRun: true }` to preview without writing.
+ */
+export async function recomputeGuestAggregates(
+  guestId: string,
+  opts?: { dryRun?: boolean }
+): Promise<{ changed: boolean; before: GuestTotals; after: GuestTotals }> {
+  const db = await getAdminDb();
+  const gref = db.collection('guests').doc(guestId);
+  const gsnap = await gref.get();
+  const g = gsnap.exists ? gsnap.data()! : {};
+  const before: GuestTotals = { totalBookings: (g.totalBookings as number) || 0, totalSpent: (g.totalSpent as number) || 0 };
+
+  const ids: string[] = Array.isArray(g.bookingIds) ? Array.from(new Set(g.bookingIds as string[])) : [];
+  let totalBookings = 0;
+  let totalSpent = 0;
+  if (ids.length > 0) {
+    const docs = await db.getAll(...ids.map((id) => db.collection('bookings').doc(id)));
+    for (const d of docs) {
+      if (!d.exists) continue;
+      const b = d.data()!;
+      if (b.status === 'cancelled') continue; // cancelled = never happened
+      totalBookings++;
+      totalSpent += (b.pricing?.total as number) || 0;
+    }
+  }
+  const after: GuestTotals = { totalBookings, totalSpent };
+
+  const changed = before.totalBookings !== after.totalBookings || before.totalSpent !== after.totalSpent;
+  if (changed && !gsnap.exists) return { changed: false, before, after }; // guest vanished mid-run
+  if (changed && !opts?.dryRun) {
+    await gref.update({ totalBookings, totalSpent, updatedAt: FieldValue.serverTimestamp() });
+  }
+  return { changed, before, after };
+}
+
 /**
  * Find a guest by email address.
  */
