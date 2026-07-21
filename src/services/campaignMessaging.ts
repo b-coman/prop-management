@@ -13,7 +13,7 @@
  */
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
-import type { Guest, LanguageCode } from '@/types';
+import type { Guest, LanguageCode, MessageVariant } from '@/types';
 import { getGuestById } from '@/services/guestService';
 import { resolveGuestLanguage } from '@/lib/growth/language';
 import { normalizePhone } from '@/lib/sanitize';
@@ -24,10 +24,7 @@ const logger = loggers.campaign;
 // A stable template name so a re-queue of the same campaign+guest dedups.
 export const MANUAL_QUEUE_TEMPLATE = 'manual';
 
-export interface MessageVariant {
-  language: LanguageCode;
-  body: string; // may contain {name} / {property} / {link}
-}
+export type { MessageVariant };
 
 export interface RenderedMessage {
   guestId: string;

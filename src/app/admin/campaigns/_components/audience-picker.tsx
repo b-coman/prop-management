@@ -1,12 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Users, Search } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Users, Search, Loader2, ArrowRight } from 'lucide-react';
 import type { AudienceCandidate, IneligibleReason } from '@/services/audienceService';
+import { createManualCampaignAction } from '../actions';
 
 // Operator-facing labels for the (only) automatic exclusions.
 const REASON_LABEL: Record<IneligibleReason, string> = {
@@ -24,16 +27,36 @@ export function AudiencePicker({
   candidates,
   eligibleCount,
   perRunCap,
+  propertyId,
 }: {
   candidates: AudienceCandidate[];
   eligibleCount: number;
   perRunCap: number;
+  propertyId: string;
 }) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [creating, startCreate] = useTransition();
+  const [name, setName] = useState(`Reach-out ${new Date().toISOString().slice(0, 10)}`);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [lang, setLang] = useState<LangFilter>('all');
   const [repeat, setRepeat] = useState<RepeatFilter>('all');
   const [eligibleOnly, setEligibleOnly] = useState(true);
+
+  const handleContinue = () =>
+    startCreate(async () => {
+      const res = await createManualCampaignAction({
+        name: name.trim() || `Reach-out ${new Date().toISOString().slice(0, 10)}`,
+        propertyId,
+        guestIds: [...selected],
+      });
+      if (res.success && res.id) {
+        router.push(`/admin/campaigns/${res.id}`);
+      } else {
+        toast({ title: 'Could not create campaign', description: res.error, variant: 'destructive' });
+      }
+    });
 
   // Filters narrow the VIEW only; they never remove anyone from eligibility.
   // Sorted most-recent-stay first (recency is a soft signal, so it's a sort, not
@@ -185,9 +208,27 @@ export function AudiencePicker({
         </Table>
       </div>
 
-      {/* Handoff to the message step (Gate 1) — wired in the next increment. */}
-      <div className="flex justify-end">
-        <Button disabled={selectedCount === 0}>
+      {/* Handoff to the message step (Gate 1): name the campaign, create it with the
+          chosen audience, and move to compose. */}
+      <div className="flex flex-wrap items-center justify-end gap-3 border-t pt-4">
+        <div className="flex items-center gap-2">
+          <label htmlFor="campaign-name" className="text-sm text-muted-foreground">
+            Name
+          </label>
+          <Input
+            id="campaign-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Campaign name"
+            className="w-56"
+          />
+        </div>
+        <Button disabled={selectedCount === 0 || creating} onClick={handleContinue}>
+          {creating ? (
+            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+          ) : (
+            <ArrowRight className="mr-1 h-4 w-4" />
+          )}
           Continue with {selectedCount} guest{selectedCount === 1 ? '' : 's'}
         </Button>
       </div>

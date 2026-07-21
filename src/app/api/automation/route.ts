@@ -27,6 +27,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
 import { formatBucharestDate, getBucharestDay, getBucharestMonth } from '@/lib/dates/property-times';
+import { markOutboxSent } from '@/services/outboxService';
 
 const logger = loggers.adminBookings;
 
@@ -564,46 +565,16 @@ async function outboxNext(propertyId: string): Promise<NextResponse> {
 
 /** Mark a claimed outbox message as sent; capture the final text; close the loop. */
 async function outboxSent(req: NextRequest, propertyId: string): Promise<NextResponse> {
-  const db = await getAdminDb();
   const id = req.nextUrl.searchParams.get('id');
   if (!id) return new NextResponse('Missing id', { status: 400 });
   const finalText = req.nextUrl.searchParams.get('finalText');
 
-  const ref = db.collection('outbox').doc(id);
-  const doc = await ref.get();
-  if (!doc.exists) return new NextResponse('Not found', { status: 404 });
-  const row = doc.data() as OutboxRow;
-  if (row.propertyId && row.propertyId !== propertyId) {
-    return new NextResponse('Wrong property', { status: 400 });
+  const res = await markOutboxSent(id, { finalText, expectedPropertyId: propertyId });
+  if (!res.success) {
+    if (res.reason === 'not-found') return new NextResponse('Not found', { status: 404 });
+    if (res.reason === 'wrong-property') return new NextResponse('Wrong property', { status: 400 });
+    return new NextResponse('Failed', { status: 500 });
   }
-  if (row.status === 'sent') return NextResponse.json({ status: 'ok' }); // idempotent
-
-  const sentText = finalText ?? row.body ?? null;
-  await ref.update({ status: 'sent', sentAt: FieldValue.serverTimestamp(), finalText: sentText });
-
-  // Flip the linked gateway claim 'queued' → 'sent' and capture the final text.
-  if (row.messageLogId) {
-    try {
-      await db.collection('messageLog').doc(row.messageLogId).update({
-        status: 'sent',
-        finalText: sentText,
-        at: FieldValue.serverTimestamp(),
-      });
-    } catch {
-      logger.warn('outbox_sent: messageLog update failed (non-blocking)', { id, messageLogId: row.messageLogId });
-    }
-  }
-
-  // The real send just happened → set lastCampaignAt so the frequency cap counts
-  // actual contact (queuing deliberately did not touch it).
-  if (row.guestId) {
-    try {
-      await db.collection('guests').doc(row.guestId).update({ lastCampaignAt: FieldValue.serverTimestamp() });
-    } catch {
-      logger.warn('outbox_sent: lastCampaignAt update failed (non-blocking)', { guestId: row.guestId });
-    }
-  }
-
   return NextResponse.json({ status: 'ok' });
 }
 

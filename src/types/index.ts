@@ -442,6 +442,12 @@ export interface CampaignStats {
   failed: number;
 }
 
+/** An owner-written message variant for the manual message step (per language). */
+export interface MessageVariant {
+  language: LanguageCode;
+  body: string; // may contain {name} / {property} / {link}
+}
+
 export interface Campaign {
   id: string;
   name: string;
@@ -451,6 +457,8 @@ export interface Campaign {
   variables?: Record<string, string>;   // default template variables
   segmentId?: string;                    // reference to a saved segment (optional)
   segmentDefinition: SegmentDefinition;  // inline snapshot always present
+  audienceGuestIds?: string[];           // hand-picked audience (manual message-step campaigns)
+  messageVariants?: MessageVariant[];    // owner-written copy variants (set at approve)
   scheduleAt?: SerializableTimestamp | null;
   status: CampaignStatus;
   stats?: CampaignStats;

@@ -3,10 +3,12 @@
 import { revalidatePath } from 'next/cache';
 import { loggers } from '@/lib/logger';
 import { requireSuperAdmin, handleAuthError, AuthorizationError } from '@/lib/authorization';
-import type { Campaign, SegmentDefinition } from '@/types';
+import type { Campaign, SegmentDefinition, MessageVariant, OutboxMessage } from '@/types';
 import { PREDEFINED_SEGMENTS, previewAudience } from '@/services/segmentService';
-import { listCampaigns, createCampaign, approveCampaign, sendCampaign } from '@/services/campaignService';
+import { listCampaigns, createCampaign, approveCampaign, sendCampaign, createManualCampaign, markCampaignQueued, markCampaignSent, getCampaign } from '@/services/campaignService';
 import { buildAudience, type AudienceCandidate } from '@/services/audienceService';
+import { renderMessages, queueMessages, type RenderedMessage, type SkippedRender } from '@/services/campaignMessaging';
+import { fetchOutboxForCampaign, markOutboxSent } from '@/services/outboxService';
 
 const logger = loggers.campaign;
 
@@ -174,5 +176,152 @@ export async function fetchAudienceAction(propertyId: string): Promise<{
   } catch (error) {
     logger.error('fetchAudienceAction failed', error as Error);
     return { success: false, error: 'Failed to load audience' };
+  }
+}
+
+// --- Message step (manual campaigns): create → compose/preview → approve+queue → send ---
+
+/** Create a draft campaign carrying the hand-picked audience from the picker. */
+export async function createManualCampaignAction(input: {
+  name: string;
+  propertyId: string;
+  guestIds: string[];
+}): Promise<{ success: boolean; id?: string; error?: string }> {
+  try {
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return handleAuthError(error);
+    throw error;
+  }
+  if (!input.name?.trim()) return { success: false, error: 'Campaign name is required' };
+  if (!input.guestIds?.length) return { success: false, error: 'Select at least one guest' };
+  try {
+    const id = await createManualCampaign({
+      name: input.name.trim(),
+      propertyId: input.propertyId,
+      audienceGuestIds: input.guestIds,
+    });
+    revalidatePath('/admin/campaigns');
+    return { success: true, id };
+  } catch (error) {
+    logger.error('createManualCampaignAction failed', error as Error);
+    return { success: false, error: 'Failed to create campaign' };
+  }
+}
+
+/** Gate 1 preview: render the owner's variants into per-guest messages (no writes). */
+export async function previewCampaignMessagesAction(
+  campaignId: string,
+  variants: MessageVariant[]
+): Promise<{ success: boolean; rendered?: RenderedMessage[]; skipped?: SkippedRender[]; error?: string }> {
+  try {
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return handleAuthError(error);
+    throw error;
+  }
+  try {
+    const campaign = await getCampaign(campaignId);
+    if (!campaign) return { success: false, error: 'Campaign not found' };
+    const { rendered, skipped } = await renderMessages({
+      propertyId: campaign.propertyId,
+      guestIds: campaign.audienceGuestIds ?? [],
+      variants,
+    });
+    return { success: true, rendered, skipped };
+  } catch (error) {
+    logger.error('previewCampaignMessagesAction failed', error as Error);
+    return { success: false, error: 'Failed to preview messages' };
+  }
+}
+
+/** Gate 1 approve: queue every rendered message through the gateway → outbox. */
+export async function approveAndQueueAction(
+  campaignId: string,
+  variants: MessageVariant[]
+): Promise<{ success: boolean; queued?: number; skipped?: SkippedRender[]; error?: string }> {
+  let approver: string;
+  try {
+    const user = await requireSuperAdmin();
+    approver = user.email || user.uid;
+  } catch (error) {
+    if (error instanceof AuthorizationError) return handleAuthError(error);
+    throw error;
+  }
+  try {
+    const campaign = await getCampaign(campaignId);
+    if (!campaign) return { success: false, error: 'Campaign not found' };
+    const res = await queueMessages({
+      campaignId,
+      propertyId: campaign.propertyId,
+      guestIds: campaign.audienceGuestIds ?? [],
+      variants,
+    });
+    await markCampaignQueued(campaignId, { approvedBy: approver, variants });
+    revalidatePath(`/admin/campaigns/${campaignId}`);
+    return { success: true, queued: res.queued, skipped: res.skipped };
+  } catch (error) {
+    logger.error('approveAndQueueAction failed', error as Error);
+    return { success: false, error: 'Failed to queue messages' };
+  }
+}
+
+/** Gate 2: the outbox send-list for a campaign. */
+export async function fetchCampaignOutboxAction(
+  campaignId: string
+): Promise<{ success: boolean; rows?: OutboxMessage[]; error?: string }> {
+  try {
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return handleAuthError(error);
+    throw error;
+  }
+  try {
+    const rows = await fetchOutboxForCampaign(campaignId);
+    return { success: true, rows };
+  } catch (error) {
+    logger.error('fetchCampaignOutboxAction failed', error as Error);
+    return { success: false, error: 'Failed to load outbox' };
+  }
+}
+
+/** Gate 2: mark one outbox message sent (records final text, advances frequency cap). */
+export async function markSentAction(
+  outboxId: string,
+  finalText?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return handleAuthError(error);
+    throw error;
+  }
+  try {
+    const res = await markOutboxSent(outboxId, { finalText: finalText ?? null });
+    if (!res.success) return { success: false, error: res.reason ?? 'Failed to mark sent' };
+    return { success: true };
+  } catch (error) {
+    logger.error('markSentAction failed', error as Error);
+    return { success: false, error: 'Failed to mark sent' };
+  }
+}
+
+/** Gate 2: mark the whole campaign finished once the owner has sent everything. */
+export async function markCampaignSentAction(
+  campaignId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return handleAuthError(error);
+    throw error;
+  }
+  try {
+    await markCampaignSent(campaignId);
+    revalidatePath(`/admin/campaigns/${campaignId}`);
+    return { success: true };
+  } catch (error) {
+    logger.error('markCampaignSentAction failed', error as Error);
+    return { success: false, error: 'Failed to update campaign' };
   }
 }

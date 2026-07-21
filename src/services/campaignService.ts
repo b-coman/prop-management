@@ -12,7 +12,7 @@
  */
 import { getAdminDb, FieldValue, Timestamp } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
-import type { Campaign, CampaignStats, CampaignStatus, SegmentDefinition, ChannelType } from '@/types';
+import type { Campaign, CampaignStats, CampaignStatus, SegmentDefinition, ChannelType, MessageVariant } from '@/types';
 import { evaluateSegment, previewAudience, type AudiencePreview } from '@/services/segmentService';
 import { executeSend } from '@/services/executionGateway';
 import { getSendMode, GROWTH_ENGINE_LIMITS } from '@/config/growth-engine';
@@ -75,6 +75,63 @@ export async function createCampaign(input: CreateCampaignInput): Promise<string
   });
   logger.info('Campaign created', { campaignId: ref.id, name: input.name, status });
   return ref.id;
+}
+
+/**
+ * Create a draft campaign for the manual message step, carrying a hand-picked
+ * audience (explicit guest ids). `segmentDefinition` is a minimal placeholder —
+ * the audience is `audienceGuestIds`, not the segment.
+ */
+export async function createManualCampaign(input: {
+  name: string;
+  propertyId: string;
+  audienceGuestIds: string[];
+}): Promise<string> {
+  const db = await getAdminDb();
+  const ref = await db.collection('campaigns').add({
+    name: input.name,
+    propertyId: input.propertyId,
+    channel: 'whatsapp',
+    templateName: 'manual',
+    variables: {},
+    segmentDefinition: { propertyId: input.propertyId },
+    audienceGuestIds: input.audienceGuestIds,
+    messageVariants: [],
+    scheduleAt: null,
+    status: 'draft',
+    stats: emptyStats(),
+    approvedBy: null,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+    sentAt: null,
+  });
+  logger.info('Manual campaign created', { campaignId: ref.id, audience: input.audienceGuestIds.length });
+  return ref.id;
+}
+
+/** Approve a manual campaign: store the copy, record the approver, move to sending. */
+export async function markCampaignQueued(
+  id: string,
+  input: { approvedBy: string; variants: MessageVariant[] }
+): Promise<void> {
+  const db = await getAdminDb();
+  await db.collection('campaigns').doc(id).update({
+    messageVariants: input.variants,
+    approvedBy: input.approvedBy,
+    status: 'sending',
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  logger.info('Manual campaign queued', { campaignId: id, variants: input.variants.length });
+}
+
+/** Mark a manual campaign fully sent (owner finished the send session). */
+export async function markCampaignSent(id: string): Promise<void> {
+  const db = await getAdminDb();
+  await db.collection('campaigns').doc(id).update({
+    status: 'sent',
+    sentAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
 }
 
 export async function getCampaign(id: string): Promise<Campaign | null> {
