@@ -133,7 +133,7 @@ export interface AudiencePreview {
 }
 
 /** Load the suppression list once into sets for an honest preview (small collection). */
-async function loadSuppressionSet(): Promise<{ phones: Set<string>; emails: Set<string> }> {
+export async function loadSuppressionSet(): Promise<{ phones: Set<string>; emails: Set<string> }> {
   const db = await getAdminDb();
   const snap = await db.collection('suppressionList').get();
   const phones = new Set<string>();
@@ -146,7 +146,7 @@ async function loadSuppressionSet(): Promise<{ phones: Set<string>; emails: Set<
   return { phones, emails };
 }
 
-function isGuestSuppressed(guest: Guest, sets: { phones: Set<string>; emails: Set<string> }): boolean {
+export function isGuestSuppressed(guest: Guest, sets: { phones: Set<string>; emails: Set<string> }): boolean {
   const phone = guest.normalizedPhone || (guest.phone ? normalizePhone(guest.phone) : undefined);
   if (phone && sets.phones.has(phone)) return true;
   if (guest.email && sets.emails.has(guest.email.toLowerCase().trim())) return true;
