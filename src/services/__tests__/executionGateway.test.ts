@@ -31,26 +31,60 @@ function chainableGet(result: unknown) {
   return q;
 }
 
-/** Chainable Firestore mock; toggles suppressionList hit and prior-delivery dedup. */
-function makeDb({ suppressed = false, priorDelivered = false, propertyName = 'Prahova Mountain Chalet', propertyData }: { suppressed?: boolean; priorDelivered?: boolean; propertyName?: string; propertyData?: Record<string, unknown> } = {}) {
-  const addMock = jest.fn().mockResolvedValue({ id: 'log-123' });
+/**
+ * In-memory Firestore mock. `messageLog` supports deterministic docs
+ * (`.doc(id).get/.set`) plus append (`.add`), and `runTransaction` is SERIALIZED
+ * so the idempotency claim can be tested under concurrency (a committed tx is
+ * seen by the next). `logWrites` records every messageLog write (add or set) in
+ * order. When `priorDelivered`, any deterministic-doc read reports a prior 'sent'.
+ */
+function makeDb({ suppressed = false, priorDelivered = false, propertyName = 'Prahova Mountain Chalet', propertyData, bookings = {} }: { suppressed?: boolean; priorDelivered?: boolean; propertyName?: string; propertyData?: Record<string, unknown>; bookings?: Record<string, Record<string, unknown>> } = {}) {
+  const store = new Map<string, Record<string, unknown>>();
+  const logWrites: Record<string, unknown>[] = [];
+  const addMock = jest.fn((data: Record<string, unknown>) => { logWrites.push(data); return Promise.resolve({ id: 'log-123' }); });
+  const setMock = jest.fn();
   const guestUpdateMock = jest.fn().mockResolvedValue(undefined);
   const suppressionQuery = chainableGet({ empty: !suppressed });
-  const messageLogQuery = chainableGet({ docs: priorDelivered ? [{ data: () => ({ status: 'sent' }) }] : [] });
-  const messageLogCol = { add: addMock, where: messageLogQuery.where };
+
+  const docHandle = (id: string) => ({
+    _id: id,
+    get: async () => ({
+      exists: priorDelivered || store.has(id),
+      data: () => (priorDelivered && !store.has(id) ? { status: 'sent' } : store.get(id)),
+    }),
+    set: async (data: Record<string, unknown>) => { store.set(id, data); setMock(id, data); logWrites.push(data); },
+  });
+  const messageLogCol = { add: addMock, doc: (id: string) => docHandle(id) };
+
   const propertiesDoc = { get: jest.fn().mockResolvedValue({ exists: true, data: () => propertyData ?? { name: propertyName } }) };
   const overridesDoc = { get: jest.fn().mockResolvedValue({ exists: false, data: () => ({}) }) };
   const guestsDoc = { update: guestUpdateMock };
+
+  // Serialize transactions: each runs only after the previous one settles, so a
+  // claim written by tx A is visible to tx B (models Firestore's guarantee).
+  let txChain: Promise<unknown> = Promise.resolve();
+  const txApi = {
+    get: async (ref: { _id: string }) => ({ exists: store.has(ref._id), data: () => store.get(ref._id) }),
+    set: (ref: { _id: string }, data: Record<string, unknown>) => { store.set(ref._id, data); setMock(ref._id, data); logWrites.push(data); },
+  };
+  const runTransaction = jest.fn((fn: (tx: typeof txApi) => Promise<unknown>) => {
+    const result = txChain.then(() => fn(txApi));
+    txChain = result.then(() => undefined, () => undefined);
+    return result;
+  });
+
   const db = {
+    runTransaction,
     collection: jest.fn((name: string) => {
       if (name === 'messageLog') return messageLogCol;
       if (name === 'properties') return { doc: jest.fn(() => propertiesDoc) };
       if (name === 'propertyOverrides') return { doc: jest.fn(() => overridesDoc) };
       if (name === 'guests') return { doc: jest.fn(() => guestsDoc) };
+      if (name === 'bookings') return { doc: (id: string) => ({ get: async () => ({ exists: !!bookings[id], data: () => bookings[id] }) }) };
       return suppressionQuery; // suppressionList
     }),
   };
-  return { db, addMock, guestUpdateMock };
+  return { db, addMock, setMock, guestUpdateMock, logWrites, store };
 }
 
 function guest(overrides: Partial<Guest> = {}): Guest {
@@ -188,6 +222,49 @@ describe('executeSend — dark-launch safety (default)', () => {
   });
 });
 
+describe('executeSend — active future booking guard (#159)', () => {
+  const future = new Date(Date.now() + 14 * 86400000);
+  const past = new Date(Date.now() - 60 * 86400000);
+
+  it('skips a guest who has a live upcoming booking for the property', async () => {
+    const { db } = makeDb({ bookings: { b1: { propertyId: 'prahova-mountain-chalet', status: 'confirmed', checkInDate: future, checkOutDate: future } } });
+    mockGetAdminDb.mockResolvedValue(db);
+    mockGetGuestById.mockResolvedValue(guest({ bookingIds: ['b1'] }));
+
+    const res = await executeSend({ guestId: 'g1', propertyId: 'prahova-mountain-chalet', channel: 'whatsapp', templateName: 'winter_invite' });
+    expect(res.status).toBe('skipped');
+    expect(res.reason).toBe('active-future-booking');
+    expect(mockSendWhatsApp).not.toHaveBeenCalled();
+  });
+
+  it('does NOT skip when the guest has only past bookings', async () => {
+    const { db } = makeDb({ bookings: { b1: { propertyId: 'prahova-mountain-chalet', status: 'completed', checkInDate: past, checkOutDate: past } } });
+    mockGetAdminDb.mockResolvedValue(db);
+    mockGetGuestById.mockResolvedValue(guest({ bookingIds: ['b1'] }));
+
+    const res = await executeSend({ guestId: 'g1', propertyId: 'prahova-mountain-chalet', channel: 'whatsapp', templateName: 'winter_invite' });
+    expect(res.status).toBe('dry-run');
+  });
+
+  it('does NOT skip when the upcoming booking is cancelled', async () => {
+    const { db } = makeDb({ bookings: { b1: { propertyId: 'prahova-mountain-chalet', status: 'cancelled', checkInDate: future, checkOutDate: future } } });
+    mockGetAdminDb.mockResolvedValue(db);
+    mockGetGuestById.mockResolvedValue(guest({ bookingIds: ['b1'] }));
+
+    const res = await executeSend({ guestId: 'g1', propertyId: 'prahova-mountain-chalet', channel: 'whatsapp', templateName: 'winter_invite' });
+    expect(res.status).toBe('dry-run');
+  });
+
+  it('does NOT skip when the upcoming booking is at a different property', async () => {
+    const { db } = makeDb({ bookings: { b1: { propertyId: 'coltei-apartment-bucharest', status: 'confirmed', checkInDate: future, checkOutDate: future } } });
+    mockGetAdminDb.mockResolvedValue(db);
+    mockGetGuestById.mockResolvedValue(guest({ bookingIds: ['b1'] }));
+
+    const res = await executeSend({ guestId: 'g1', propertyId: 'prahova-mountain-chalet', channel: 'whatsapp', templateName: 'winter_invite' });
+    expect(res.status).toBe('dry-run');
+  });
+});
+
 describe('executeSend — live mode (both switches on)', () => {
   beforeEach(() => {
     process.env.GROWTH_ENGINE_ENABLED = 'true';
@@ -195,7 +272,7 @@ describe('executeSend — live mode (both switches on)', () => {
   });
 
   it('delivers via WhatsApp and logs sent, selecting the guest-language template (#2)', async () => {
-    const { db, addMock } = makeDb();
+    const { db, logWrites } = makeDb();
     mockGetAdminDb.mockResolvedValue(db);
     mockGetGuestById.mockResolvedValue(guest()); // language 'en'
 
@@ -206,7 +283,8 @@ describe('executeSend — live mode (both switches on)', () => {
     expect(res.status).toBe('sent');
     expect(res.mode).toBe('live');
     expect(res.providerId).toBe('SM-1');
-    expect(addMock.mock.calls.at(-1)?.[0]).toMatchObject({ status: 'sent', providerId: 'SM-1' });
+    // Final write lands on the deterministic claim doc (set), not an append.
+    expect(logWrites.at(-1)).toMatchObject({ status: 'sent', providerId: 'SM-1' });
   });
 
   it('property-brands the live message with the property name (H1)', async () => {
@@ -287,5 +365,34 @@ describe('executeSend — live mode (both switches on)', () => {
 
     const res = await executeSend({ guestId: 'g1', channel: 'whatsapp', templateName: 'winter_invite' });
     expect(res.status).toBe('sent');
+  });
+
+  it('a second send of the same campaign template is deduped by the claim doc (M1)', async () => {
+    const { db } = makeDb();
+    mockGetAdminDb.mockResolvedValue(db);
+    mockGetGuestById.mockResolvedValue(guest());
+    const req = { guestId: 'g1', propertyId: 'prahova-mountain-chalet', channel: 'whatsapp' as const, templateName: 'winter_invite', campaignId: 'c1' };
+
+    const first = await executeSend(req);
+    const second = await executeSend(req);
+
+    expect(first.status).toBe('sent');
+    expect(second.status).toBe('skipped');
+    expect(second.reason).toBe('dedup');
+    expect(mockSendWhatsApp).toHaveBeenCalledTimes(1); // delivered exactly once
+  });
+
+  it('never double-delivers under concurrency — atomic claim (M2 / #158)', async () => {
+    const { db, store } = makeDb();
+    mockGetAdminDb.mockResolvedValue(db);
+    mockGetGuestById.mockResolvedValue(guest());
+    const req = { guestId: 'g1', propertyId: 'prahova-mountain-chalet', channel: 'whatsapp' as const, templateName: 'winter_invite', campaignId: 'c1' };
+
+    const [a, b] = await Promise.all([executeSend(req), executeSend(req)]);
+
+    expect(mockSendWhatsApp).toHaveBeenCalledTimes(1); // exactly one real delivery
+    expect([a.status, b.status].sort()).toEqual(['sent', 'skipped']);
+    expect([a, b].find((r) => r.status === 'skipped')?.reason).toBe('dedup');
+    expect(store.get('c1__g1__winter_invite')).toMatchObject({ status: 'sent' });
   });
 });

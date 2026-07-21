@@ -361,6 +361,7 @@ export interface Segment {
 
 export type MessageLogStatus =
   | 'dry-run'      // would-send; recorded but NOT delivered (dark launch)
+  | 'sending'      // claim written before delivery; blocks a concurrent/duplicate send (idempotency)
   | 'sent'         // handed to provider
   | 'delivered'    // provider delivery confirmation
   | 'suppressed'   // blocked by suppression / consent / unsubscribe
