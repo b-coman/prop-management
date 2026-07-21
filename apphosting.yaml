@@ -22,6 +22,13 @@ runConfig:
 # - RUNTIME
 
 env:
+  # Raise the Node heap for the production build. Next.js `next build` OOM'd on the
+  # App Hosting builder at the ~2 GB v8 default ("JavaScript heap out of memory").
+  # BUILD-time only — runtime stays at runConfig.memoryMiB (1 GiB).
+  - variable: NODE_OPTIONS
+    value: "--max-old-space-size=4096"
+    availability:
+      - BUILD
   - variable: PORT
     value: "8080"
     availability:
