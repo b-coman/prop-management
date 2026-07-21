@@ -31,6 +31,8 @@ export interface SendRequest {
   templateName: string;
   variables?: Record<string, string>;
   campaignId?: string;
+  body?: string;                              // pre-rendered text (required for manual_queue)
+  deliveryMode?: 'provider' | 'manual_queue'; // default 'provider' (Twilio); manual_queue → outbox
 }
 
 export interface SendResult {
@@ -131,7 +133,7 @@ async function alreadyDelivered(db: AdminDb, req: SendRequest): Promise<boolean>
   const snap = await db.collection('messageLog').doc(id).get();
   if (!snap.exists) return false;
   const s = (snap.data() as { status?: string }).status;
-  return s === 'sent' || s === 'delivered';
+  return s === 'sent' || s === 'delivered' || s === 'queued';
 }
 
 /**
@@ -397,8 +399,8 @@ export async function executeSend(req: SendRequest): Promise<SendResult> {
       const snap = await tx.get(claimRef);
       if (snap.exists) {
         const st = (snap.data() as { status?: string }).status;
-        // Already delivered, or another worker is mid-send → do not deliver.
-        if (st === 'sent' || st === 'delivered' || st === 'sending') return false;
+        // Already delivered/queued, or another worker is mid-send → do not proceed.
+        if (st === 'sent' || st === 'delivered' || st === 'sending' || st === 'queued') return false;
         // A prior 'failed' claim is retryable — fall through and re-claim.
       }
       tx.set(claimRef, {
@@ -420,6 +422,48 @@ export async function executeSend(req: SendRequest): Promise<SendResult> {
       });
       return { status: 'skipped', reason: 'dedup', messageLogId: claimId!, mode: 'live' };
     }
+  }
+
+  // MANUAL QUEUE driver: hand the rendered message to the owner's phone outbox
+  // for a one-tap wa.me send — no provider call. The body is already rendered
+  // (property-branded + opt-out line) upstream, so we do not resolve a template.
+  // lastCampaignAt is set at ACTUAL send time by the outbox_sent callback, not
+  // here, so the frequency cap counts real sends, not queued-but-unsent rows.
+  if (req.deliveryMode === 'manual_queue') {
+    const outboxRef = db.collection('outbox').doc();
+    await outboxRef.set({
+      campaignId: req.campaignId ?? null,
+      guestId: req.guestId,
+      propertyId: req.propertyId ?? null,
+      phone: contact,
+      body: req.body ?? '',
+      language: resolveGuestLanguage(guest),
+      status: 'approved_pending_send',
+      messageLogId: claimId ?? null,
+      claimedAt: null,
+      sentAt: null,
+      finalText: null,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    // Finalize the claim as 'queued' so a re-run cannot re-queue this guest.
+    const queuedEntry: MessageLogInput = {
+      ...base,
+      status: 'queued',
+      reason: null,
+      to: maskContact(contact),
+      providerId: outboxRef.id, // the outbox row id, for traceability
+    };
+    if (claimRef) await claimRef.set({ ...queuedEntry, at: FieldValue.serverTimestamp() });
+    else await writeMessageLog(db, queuedEntry);
+
+    logger.info('Message queued to outbox for manual send', {
+      guestId: req.guestId,
+      campaignId: req.campaignId,
+      outboxId: outboxRef.id,
+      to: maskContact(contact),
+    });
+    return { status: 'queued', providerId: outboxRef.id, messageLogId: claimId ?? outboxRef.id, mode: 'live' };
   }
 
   // Property-brand the message: inject `property` (name) and `link` (guest

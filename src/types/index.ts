@@ -362,6 +362,7 @@ export interface Segment {
 export type MessageLogStatus =
   | 'dry-run'      // would-send; recorded but NOT delivered (dark launch)
   | 'sending'      // claim written before delivery; blocks a concurrent/duplicate send (idempotency)
+  | 'queued'       // handed to the manual-send outbox; awaiting the owner's one-tap send
   | 'sent'         // handed to provider
   | 'delivered'    // provider delivery confirmation
   | 'suppressed'   // blocked by suppression / consent / unsubscribe
@@ -381,6 +382,29 @@ export interface MessageLog {
   to?: string | null;          // masked contact
   variables?: Record<string, string> | null;
   at?: SerializableTimestamp;
+}
+
+/** The owner's manual-send queue: rendered messages awaiting a one-tap wa.me send. */
+export type OutboxStatus =
+  | 'approved_pending_send'  // queued by a campaign; awaiting the owner
+  | 'claimed'                // pulled by the Shortcut, not yet confirmed sent
+  | 'sent'                   // owner sent it (Shortcut callback)
+  | 'skipped';               // owner chose not to send
+
+export interface OutboxMessage {
+  id: string;
+  campaignId?: string | null;
+  guestId: string;
+  propertyId?: string | null;
+  phone: string;                  // E.164, ready for wa.me
+  body: string;                   // rendered message text
+  language: LanguageCode;
+  status: OutboxStatus;
+  messageLogId?: string | null;   // gateway claim doc, flipped to 'sent' on callback
+  claimedAt?: SerializableTimestamp | null;
+  sentAt?: SerializableTimestamp | null;
+  finalText?: string | null;      // what the owner actually sent (edit capture)
+  createdAt?: SerializableTimestamp;
 }
 
 export interface SuppressionEntry {

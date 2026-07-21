@@ -41,6 +41,7 @@ function chainableGet(result: unknown) {
 function makeDb({ suppressed = false, priorDelivered = false, propertyName = 'Prahova Mountain Chalet', propertyData, bookings = {} }: { suppressed?: boolean; priorDelivered?: boolean; propertyName?: string; propertyData?: Record<string, unknown>; bookings?: Record<string, Record<string, unknown>> } = {}) {
   const store = new Map<string, Record<string, unknown>>();
   const logWrites: Record<string, unknown>[] = [];
+  const outboxWrites: Record<string, unknown>[] = [];
   const addMock = jest.fn((data: Record<string, unknown>) => { logWrites.push(data); return Promise.resolve({ id: 'log-123' }); });
   const setMock = jest.fn();
   const guestUpdateMock = jest.fn().mockResolvedValue(undefined);
@@ -81,10 +82,11 @@ function makeDb({ suppressed = false, priorDelivered = false, propertyName = 'Pr
       if (name === 'propertyOverrides') return { doc: jest.fn(() => overridesDoc) };
       if (name === 'guests') return { doc: jest.fn(() => guestsDoc) };
       if (name === 'bookings') return { doc: (id: string) => ({ get: async () => ({ exists: !!bookings[id], data: () => bookings[id] }) }) };
+      if (name === 'outbox') return { doc: (id?: string) => ({ id: id ?? 'outbox-1', set: async (data: Record<string, unknown>) => { outboxWrites.push(data); } }) };
       return suppressionQuery; // suppressionList
     }),
   };
-  return { db, addMock, setMock, guestUpdateMock, logWrites, store };
+  return { db, addMock, setMock, guestUpdateMock, logWrites, store, outboxWrites };
 }
 
 function guest(overrides: Partial<Guest> = {}): Guest {
@@ -394,5 +396,62 @@ describe('executeSend — live mode (both switches on)', () => {
     expect([a.status, b.status].sort()).toEqual(['sent', 'skipped']);
     expect([a, b].find((r) => r.status === 'skipped')?.reason).toBe('dedup');
     expect(store.get('c1__g1__winter_invite')).toMatchObject({ status: 'sent' });
+  });
+});
+
+describe('executeSend — manual_queue driver (outbox)', () => {
+  beforeEach(() => {
+    process.env.GROWTH_ENGINE_ENABLED = 'true';
+    process.env.GROWTH_ENGINE_SEND_MODE = 'live';
+  });
+
+  it('queues a rendered message to the outbox instead of calling the provider', async () => {
+    const { db, outboxWrites, store } = makeDb();
+    mockGetAdminDb.mockResolvedValue(db);
+    mockGetGuestById.mockResolvedValue(guest());
+
+    const res = await executeSend({
+      guestId: 'g1', propertyId: 'prahova-mountain-chalet', channel: 'whatsapp',
+      templateName: 'winter_invite', campaignId: 'c1',
+      deliveryMode: 'manual_queue', body: 'Salut Ana! O anulare a eliberat...',
+    });
+
+    expect(mockSendWhatsApp).not.toHaveBeenCalled(); // no provider call
+    expect(res.status).toBe('queued');
+    expect(outboxWrites).toHaveLength(1);
+    expect(outboxWrites[0]).toMatchObject({
+      campaignId: 'c1', guestId: 'g1', propertyId: 'prahova-mountain-chalet',
+      phone: '+40712345678', body: 'Salut Ana! O anulare a eliberat...',
+      status: 'approved_pending_send',
+    });
+    // Claim doc finalized as 'queued' (blocks re-queue).
+    expect(store.get('c1__g1__winter_invite')).toMatchObject({ status: 'queued' });
+  });
+
+  it('does not re-queue an already-queued guest (dedup via the claim doc)', async () => {
+    const { db, outboxWrites } = makeDb();
+    mockGetAdminDb.mockResolvedValue(db);
+    mockGetGuestById.mockResolvedValue(guest());
+    const req = { guestId: 'g1', propertyId: 'prahova-mountain-chalet', channel: 'whatsapp' as const, templateName: 'winter_invite', campaignId: 'c1', deliveryMode: 'manual_queue' as const, body: 'hi' };
+
+    const first = await executeSend(req);
+    const second = await executeSend(req);
+
+    expect(first.status).toBe('queued');
+    expect(second.status).toBe('skipped');
+    expect(second.reason).toBe('dedup');
+    expect(outboxWrites).toHaveLength(1); // queued exactly once
+  });
+
+  it('records dry-run intent (no outbox write) when not live', async () => {
+    delete process.env.GROWTH_ENGINE_ENABLED;
+    delete process.env.GROWTH_ENGINE_SEND_MODE;
+    const { db, outboxWrites } = makeDb();
+    mockGetAdminDb.mockResolvedValue(db);
+    mockGetGuestById.mockResolvedValue(guest());
+
+    const res = await executeSend({ guestId: 'g1', propertyId: 'prahova-mountain-chalet', channel: 'whatsapp', templateName: 'winter_invite', campaignId: 'c1', deliveryMode: 'manual_queue', body: 'hi' });
+    expect(res.status).toBe('dry-run');
+    expect(outboxWrites).toHaveLength(0);
   });
 });
