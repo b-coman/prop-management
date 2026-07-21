@@ -31,6 +31,8 @@ export interface SendRequest {
   templateName: string;
   variables?: Record<string, string>;
   campaignId?: string;
+  body?: string;                              // pre-rendered text (required for manual_queue)
+  deliveryMode?: 'provider' | 'manual_queue'; // default 'provider' (Twilio); manual_queue → outbox
 }
 
 export interface SendResult {
@@ -106,22 +108,70 @@ async function isSuppressed(db: AdminDb, guest: Guest): Promise<boolean> {
 }
 
 /**
+ * Deterministic messageLog doc id for a campaign send, so the idempotency claim
+ * and the dedup check key on the SAME document (create-if-not-exists) instead of
+ * a query over random-id rows. Non-campaign (lifecycle) sends have no id and are
+ * never deduped.
+ */
+function campaignLogId(req: SendRequest): string | null {
+  if (!req.campaignId) return null;
+  // Firestore doc ids cannot contain '/'; campaign/guest ids and snake_case
+  // template names are already safe, but guard anyway.
+  const safe = (s: string) => s.replace(/\//g, '_');
+  return `${safe(req.campaignId)}__${safe(req.guestId)}__${safe(req.templateName)}`;
+}
+
+/**
  * Within a campaign, has this guest already been REALLY delivered this template?
- * Only real deliveries ('sent'/'delivered') block a resend — dry-run previews
- * never do, so a campaign can be previewed repeatedly (M1).
+ * Reads the single deterministic doc (no query). Only real deliveries
+ * ('sent'/'delivered') block a resend — dry-runs never persist here, and a
+ * 'failed'/'sending' state is handled by the atomic claim at delivery time (M1).
  */
 async function alreadyDelivered(db: AdminDb, req: SendRequest): Promise<boolean> {
-  if (!req.campaignId) return false; // dedup only makes sense inside a campaign
-  const snap = await db
-    .collection('messageLog')
-    .where('guestId', '==', req.guestId)
-    .where('campaignId', '==', req.campaignId)
-    .where('templateName', '==', req.templateName)
-    .get();
-  return snap.docs.some((d) => {
-    const s = (d.data() as { status?: string }).status;
-    return s === 'sent' || s === 'delivered';
-  });
+  const id = campaignLogId(req);
+  if (!id) return false; // dedup only makes sense inside a campaign
+  const snap = await db.collection('messageLog').doc(id).get();
+  if (!snap.exists) return false;
+  const s = (snap.data() as { status?: string }).status;
+  return s === 'sent' || s === 'delivered' || s === 'queued';
+}
+
+/**
+ * #159 — the cardinal-sin guard: never message a guest who has a live upcoming
+ * (or in-progress) stay. Discounting to someone who already paid full rate for
+ * near dates turns a happy guest into a refund argument.
+ *
+ * Uses the guest's canonical `bookingIds` link (reliable; avoids fragile phone
+ * matching) and blocks on any NON-cancelled booking whose stay has not yet ended
+ * (checkout today or later — UTC, matching this project's date-math lesson).
+ * Scoped to `propertyId` when provided, so an upcoming stay at another property
+ * does not block a cross-property message.
+ */
+async function hasActiveFutureBooking(
+  db: AdminDb,
+  guest: Guest,
+  propertyId?: string
+): Promise<boolean> {
+  const ids = guest.bookingIds ?? [];
+  if (ids.length === 0) return false;
+
+  const now = new Date();
+  const startOfTodayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+
+  const snaps = await Promise.all(ids.map((id) => db.collection('bookings').doc(id).get()));
+  for (const snap of snaps) {
+    if (!snap.exists) continue;
+    const b = snap.data() as
+      | { propertyId?: string; status?: string; checkInDate?: unknown; checkOutDate?: unknown }
+      | undefined;
+    if (!b) continue;
+    if (propertyId && b.propertyId !== propertyId) continue;
+    if (b.status === 'cancelled') continue;
+    // Active if the stay hasn't ended yet; fall back to check-in if no checkout.
+    const end = parseFirestoreDate(b.checkOutDate) ?? parseFirestoreDate(b.checkInDate);
+    if (end && end.getTime() >= startOfTodayUtc) return true;
+  }
+  return false;
 }
 
 interface MessageLogInput {
@@ -286,6 +336,20 @@ export async function executeSend(req: SendRequest): Promise<SendResult> {
     }
   }
 
+  // 2.7) active future booking — never send a reactivation/discount message to a
+  // guest who already has a live upcoming (or in-progress) stay (#159). Runs in
+  // dry-run too, so a campaign preview reflects who would really be excluded.
+  if (await hasActiveFutureBooking(db, guest, req.propertyId)) {
+    const id = await writeMessageLog(db, {
+      ...base,
+      status: 'skipped',
+      reason: 'active-future-booking',
+      to: null,
+      providerId: null,
+    });
+    return { status: 'skipped', reason: 'active-future-booking', messageLogId: id, mode };
+  }
+
   // 3) resolve a contact for the channel
   const contact = resolveContact(guest, req.channel);
   if (!contact) {
@@ -317,9 +381,91 @@ export async function executeSend(req: SendRequest): Promise<SendResult> {
     return { status: 'dry-run', messageLogId: id, mode: 'dry-run' };
   }
 
-  // 5) LIVE delivery (only when both flags are flipped). Delivery and the log
-  // write are deliberately separated so a Firestore log-write failure can never
-  // mislabel an already-delivered message as 'failed' and cause a re-send (M2).
+  // 5) LIVE delivery (only when both flags are flipped).
+  //
+  // IDEMPOTENT CLAIM (campaign sends): before delivering, atomically claim the
+  // deterministic messageLog doc ({campaignId}__{guestId}__{templateName}) in a
+  // transaction. Two concurrent executeSend calls for the same triple can never
+  // both deliver — the loser sees the claim and is deduped. Because the claim is
+  // written BEFORE delivery, even a post-delivery log-write failure leaves a
+  // 'sending' row that still blocks a re-send, so a Firestore hiccup can never
+  // cause a double delivery (M2). Non-campaign (lifecycle) sends have no id and
+  // keep the simple append-only log.
+  const claimId = campaignLogId(req);
+  const claimRef = claimId ? db.collection('messageLog').doc(claimId) : null;
+
+  if (claimRef) {
+    const claimed = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(claimRef);
+      if (snap.exists) {
+        const st = (snap.data() as { status?: string }).status;
+        // Already delivered/queued, or another worker is mid-send → do not proceed.
+        if (st === 'sent' || st === 'delivered' || st === 'sending' || st === 'queued') return false;
+        // A prior 'failed' claim is retryable — fall through and re-claim.
+      }
+      tx.set(claimRef, {
+        ...base,
+        status: 'sending',
+        reason: null,
+        to: null,
+        providerId: null,
+        at: FieldValue.serverTimestamp(),
+      });
+      return true;
+    });
+
+    if (!claimed) {
+      logger.info('Send skipped: already claimed/delivered (idempotent)', {
+        guestId: req.guestId,
+        campaignId: req.campaignId,
+        template: req.templateName,
+      });
+      return { status: 'skipped', reason: 'dedup', messageLogId: claimId!, mode: 'live' };
+    }
+  }
+
+  // MANUAL QUEUE driver: hand the rendered message to the owner's phone outbox
+  // for a one-tap wa.me send — no provider call. The body is already rendered
+  // (property-branded + opt-out line) upstream, so we do not resolve a template.
+  // lastCampaignAt is set at ACTUAL send time by the outbox_sent callback, not
+  // here, so the frequency cap counts real sends, not queued-but-unsent rows.
+  if (req.deliveryMode === 'manual_queue') {
+    const outboxRef = db.collection('outbox').doc();
+    await outboxRef.set({
+      campaignId: req.campaignId ?? null,
+      guestId: req.guestId,
+      propertyId: req.propertyId ?? null,
+      phone: contact,
+      body: req.body ?? '',
+      language: resolveGuestLanguage(guest),
+      status: 'approved_pending_send',
+      messageLogId: claimId ?? null,
+      claimedAt: null,
+      sentAt: null,
+      finalText: null,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    // Finalize the claim as 'queued' so a re-run cannot re-queue this guest.
+    const queuedEntry: MessageLogInput = {
+      ...base,
+      status: 'queued',
+      reason: null,
+      to: maskContact(contact),
+      providerId: outboxRef.id, // the outbox row id, for traceability
+    };
+    if (claimRef) await claimRef.set({ ...queuedEntry, at: FieldValue.serverTimestamp() });
+    else await writeMessageLog(db, queuedEntry);
+
+    logger.info('Message queued to outbox for manual send', {
+      guestId: req.guestId,
+      campaignId: req.campaignId,
+      outboxId: outboxRef.id,
+      to: maskContact(contact),
+    });
+    return { status: 'queued', providerId: outboxRef.id, messageLogId: claimId ?? outboxRef.id, mode: 'live' };
+  }
+
   // Property-brand the message: inject `property` (name) and `link` (guest
   // availability calendar) template variables so the guest knows which property
   // is reaching out and where to check dates (H1). The approved marketing
@@ -341,13 +487,22 @@ export async function executeSend(req: SendRequest): Promise<SendResult> {
   }
 
   const status: MessageLogStatus = delivery.success ? 'sent' : 'failed';
-  const id = await writeMessageLog(db, {
+  const finalEntry: MessageLogInput = {
     ...base,
     status,
     reason: delivery.error ?? null,
     to: maskContact(contact),
     providerId: delivery.providerId ?? null,
-  });
+  };
+
+  // Finalize on the SAME doc we claimed (campaign send), else append (lifecycle).
+  let id: string;
+  if (claimRef) {
+    await claimRef.set({ ...finalEntry, at: FieldValue.serverTimestamp() });
+    id = claimId!;
+  } else {
+    id = await writeMessageLog(db, finalEntry);
+  }
 
   // Record the touch on the GUEST (not just the booking) so the frequency cap
   // and cross-campaign dedup work across properties (H4). Best-effort.

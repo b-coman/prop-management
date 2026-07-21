@@ -23,6 +23,7 @@
 //       active-booking ids for the current Bucharest month).
 
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'node:crypto';
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
 import { formatBucharestDate, getBucharestDay, getBucharestMonth } from '@/lib/dates/property-times';
@@ -112,7 +113,11 @@ function authOk(req: NextRequest): boolean {
   const expected = process.env.AUTOMATION_TOKEN;
   if (!expected) return false;
   const got = req.nextUrl.searchParams.get('token');
-  return !!got && got === expected;
+  if (!got) return false;
+  const a = Buffer.from(got);
+  const b = Buffer.from(expected);
+  // Constant-time compare (length-guarded so timingSafeEqual never throws).
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 // ---- Fetch active bookings for a property ----
@@ -507,6 +512,102 @@ async function changedReservations(propertyId: string, calUrl?: string): Promise
 }
 
 // ============================================================
+// Outbox — the owner's manual-send queue (Gate 2)
+//   op=outbox_next  → atomically claim & return the next queued message (JSON)
+//   op=outbox_sent  → mark a message sent, capture finalText, close the loop
+// The iOS/Mac Shortcut loops: outbox_next → open waUrl → tap send → outbox_sent.
+// ============================================================
+
+interface OutboxRow {
+  propertyId?: string;
+  guestId?: string;
+  phone?: string;
+  body?: string;
+  status?: string;
+  messageLogId?: string | null;
+}
+
+/** Claim and return the next queued outbox message for the property (or none). */
+async function outboxNext(propertyId: string): Promise<NextResponse> {
+  const db = await getAdminDb();
+  // No orderBy → two equality filters need no composite index; a manual queue
+  // does not require strict FIFO. Small retry loop covers the (single-user, rare)
+  // claim race so the Shortcut only ever sees 'ok' or 'none'.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const snap = await db
+      .collection('outbox')
+      .where('propertyId', '==', propertyId)
+      .where('status', '==', 'approved_pending_send')
+      .limit(1)
+      .get();
+    if (snap.empty) return NextResponse.json({ status: 'none' });
+
+    const ref = snap.docs[0].ref;
+    const claimed = await db.runTransaction(async (tx) => {
+      const doc = await tx.get(ref);
+      const d = doc.data() as OutboxRow | undefined;
+      if (!doc.exists || d?.status !== 'approved_pending_send') return null;
+      tx.update(ref, { status: 'claimed', claimedAt: FieldValue.serverTimestamp() });
+      return d;
+    });
+
+    if (claimed) {
+      const digits = (claimed.phone || '').replace(/\D/g, ''); // wa.me wants digits only
+      const body = claimed.body || '';
+      const waUrl = `https://wa.me/${digits}?text=${encodeURIComponent(body)}`;
+      return NextResponse.json({ status: 'ok', id: ref.id, phone: digits, body, waUrl });
+    }
+    // Lost the race — loop and try the next candidate.
+  }
+  return NextResponse.json({ status: 'none' });
+}
+
+/** Mark a claimed outbox message as sent; capture the final text; close the loop. */
+async function outboxSent(req: NextRequest, propertyId: string): Promise<NextResponse> {
+  const db = await getAdminDb();
+  const id = req.nextUrl.searchParams.get('id');
+  if (!id) return new NextResponse('Missing id', { status: 400 });
+  const finalText = req.nextUrl.searchParams.get('finalText');
+
+  const ref = db.collection('outbox').doc(id);
+  const doc = await ref.get();
+  if (!doc.exists) return new NextResponse('Not found', { status: 404 });
+  const row = doc.data() as OutboxRow;
+  if (row.propertyId && row.propertyId !== propertyId) {
+    return new NextResponse('Wrong property', { status: 400 });
+  }
+  if (row.status === 'sent') return NextResponse.json({ status: 'ok' }); // idempotent
+
+  const sentText = finalText ?? row.body ?? null;
+  await ref.update({ status: 'sent', sentAt: FieldValue.serverTimestamp(), finalText: sentText });
+
+  // Flip the linked gateway claim 'queued' → 'sent' and capture the final text.
+  if (row.messageLogId) {
+    try {
+      await db.collection('messageLog').doc(row.messageLogId).update({
+        status: 'sent',
+        finalText: sentText,
+        at: FieldValue.serverTimestamp(),
+      });
+    } catch {
+      logger.warn('outbox_sent: messageLog update failed (non-blocking)', { id, messageLogId: row.messageLogId });
+    }
+  }
+
+  // The real send just happened → set lastCampaignAt so the frequency cap counts
+  // actual contact (queuing deliberately did not touch it).
+  if (row.guestId) {
+    try {
+      await db.collection('guests').doc(row.guestId).update({ lastCampaignAt: FieldValue.serverTimestamp() });
+    } catch {
+      logger.warn('outbox_sent: lastCampaignAt update failed (non-blocking)', { guestId: row.guestId });
+    }
+  }
+
+  return NextResponse.json({ status: 'ok' });
+}
+
+// ============================================================
 // Route handler
 // ============================================================
 
@@ -530,6 +631,10 @@ export async function GET(req: NextRequest) {
         return await dailyCheck(propertyId, calUrl);
       case 'changedReservations':
         return await changedReservations(propertyId, calUrl);
+      case 'outbox_next':
+        return await outboxNext(propertyId);
+      case 'outbox_sent':
+        return await outboxSent(req, propertyId);
       default:
         return new NextResponse('Invalid operation', { status: 400 });
     }
