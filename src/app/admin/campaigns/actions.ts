@@ -5,7 +5,7 @@ import { loggers } from '@/lib/logger';
 import { requireSuperAdmin, handleAuthError, AuthorizationError } from '@/lib/authorization';
 import type { Campaign, SegmentDefinition, MessageVariant, OutboxMessage } from '@/types';
 import { PREDEFINED_SEGMENTS, previewAudience } from '@/services/segmentService';
-import { listCampaigns, createCampaign, approveCampaign, sendCampaign, createManualCampaign, markCampaignQueued, markCampaignSent, getCampaign } from '@/services/campaignService';
+import { listCampaigns, createCampaign, approveCampaign, sendCampaign, createManualCampaign, markCampaignQueued, markCampaignSent, deleteCampaign, getCampaign } from '@/services/campaignService';
 import { buildAudience, type AudienceCandidate } from '@/services/audienceService';
 import { renderMessages, queueMessages, type RenderedMessage, type SkippedRender } from '@/services/campaignMessaging';
 import { fetchOutboxForCampaign, markOutboxSent } from '@/services/outboxService';
@@ -323,5 +323,30 @@ export async function markCampaignSentAction(
   } catch (error) {
     logger.error('markCampaignSentAction failed', error as Error);
     return { success: false, error: 'Failed to update campaign' };
+  }
+}
+
+/** Discard an abandoned DRAFT campaign (guarded — never removes a queued/sent one). */
+export async function discardDraftCampaignAction(
+  campaignId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return handleAuthError(error);
+    throw error;
+  }
+  try {
+    const campaign = await getCampaign(campaignId);
+    if (!campaign) return { success: false, error: 'Campaign not found' };
+    if (campaign.status !== 'draft') {
+      return { success: false, error: 'Only draft campaigns can be discarded' };
+    }
+    await deleteCampaign(campaignId);
+    revalidatePath('/admin/campaigns');
+    return { success: true };
+  } catch (error) {
+    logger.error('discardDraftCampaignAction failed', error as Error);
+    return { success: false, error: 'Failed to discard campaign' };
   }
 }

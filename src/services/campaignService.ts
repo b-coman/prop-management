@@ -134,6 +134,13 @@ export async function markCampaignSent(id: string): Promise<void> {
   });
 }
 
+/** Hard-delete a campaign doc — used to discard an abandoned draft. */
+export async function deleteCampaign(id: string): Promise<void> {
+  const db = await getAdminDb();
+  await db.collection('campaigns').doc(id).delete();
+  logger.info('Campaign deleted', { campaignId: id });
+}
+
 export async function getCampaign(id: string): Promise<Campaign | null> {
   const db = await getAdminDb();
   const doc = await db.collection('campaigns').doc(id).get();
