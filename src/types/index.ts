@@ -407,6 +407,33 @@ export interface OutboxMessage {
   createdAt?: SerializableTimestamp;
 }
 
+// --- WhatsApp conversation history (verbatim vault) ---
+// The backfilled, per-guest conversation record. Immutable source of truth for the
+// intelligence layer (voice, engagement, grounding). Admin-only, never client-written.
+// See plans/engagement-system.md §7.0/§7.1.
+
+export type WhatsAppDirection = 'in' | 'out'; // 'out' = owner→guest, 'in' = guest→owner
+export type WhatsAppMessageType = 'text' | 'media' | 'link' | 'system';
+
+export interface WhatsAppMessage {
+  ts: string;                 // Bucharest local wall-clock, 'YYYY-MM-DDTHH:MM:SS' — sortable, DST-safe
+  direction: WhatsAppDirection;
+  sender: string;             // display name / number from WhatsApp's data-pre-plain-text
+  text: string;
+  type: WhatsAppMessageType;
+}
+
+export interface WhatsAppThread {
+  id: string;                 // == guestId
+  guestId: string;
+  phone: string;              // E.164, the number the thread belongs to
+  messages: WhatsAppMessage[];
+  messageCount: number;
+  lastMessageTs?: string;     // ts of the newest captured message — drives incremental top-up
+  firstFetchedAt?: SerializableTimestamp;
+  lastFetchedAt?: SerializableTimestamp;
+}
+
 export interface SuppressionEntry {
   id: string;
   normalizedPhone?: string;

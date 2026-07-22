@@ -233,6 +233,13 @@ service cloud.firestore {
       allow write: if false;  // Admin SDK only
     }
 
+    match /whatsappThreads/{guestId} {
+      // Verbatim past-guest conversation vault — the most sensitive PII we keep
+      // (full private WhatsApp history). Super-admin read only; Admin SDK writes.
+      allow read: if isSuperAdmin();
+      allow write: if false;  // Admin SDK only (backfill / incremental fetcher)
+    }
+
     match /campaigns/{campaignId} {
       allow read: if isSuperAdmin() || isPropertyOwner();
       allow write: if false;  // Admin SDK only
