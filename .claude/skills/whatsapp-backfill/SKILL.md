@@ -124,8 +124,8 @@ this guest's `latest` and move on.
 | Symptom | Action |
 |---|---|
 | Chat didn't switch (step 2 unchanged) | wait 2s, re-check; if still stale, re-run step 1 |
-| No chat / no messages for the number | skip guest, log it, continue |
-| `count===0` after done | re-open + retry once; if still 0, skip + log |
+| No chat / "No chats found" for the number | `mark --status no-chat` + continue (records the signal, keeps backfill resumable) |
+| `count===0` after done (chat opened but empty/media-only) | re-open + retry once; if still 0, `mark --status empty` + continue |
 | Extractor stuck / tool errors 2–3× | stop, report to the user, don't hammer |
 | Phone offline (shallow earliest) | note it; deep history needs the phone awake — flag for a later re-run |
 

@@ -45,6 +45,7 @@
 // Usage:
 //   npx tsx scripts/whatsapp-thread.ts queue [--lang ro|en|all] [--missing]
 //   npx tsx scripts/whatsapp-thread.ts save --guest <id> --phone <e164> --rows <file.json> [--owner "Bogdan Coman"] [--fmt MDY|DMY]
+//   npx tsx scripts/whatsapp-thread.ts mark --guest <id> --phone <e164> --status no-chat|empty   # record a guest with no retrievable messages
 //   npx tsx scripts/whatsapp-thread.ts show --guest <id>
 import * as dotenv from 'dotenv';
 import * as path from 'path';
@@ -52,7 +53,7 @@ import * as fs from 'fs';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
-import { getBackfillQueue, upsertThreadMessages, getThread } from '../src/services/whatsappThreadService';
+import { getBackfillQueue, upsertThreadMessages, getThread, markThread } from '../src/services/whatsappThreadService';
 import { parseWhatsAppRows, type RawRow } from '../src/lib/whatsapp/parse-thread';
 
 const DEFAULT_OWNER = process.env.WHATSAPP_OWNER_NAME || 'Bogdan Coman';
@@ -93,6 +94,19 @@ async function main() {
     });
     const res = await upsertThreadMessages({ guestId, phone, messages });
     console.log(`Saved ${guestId}: parsed ${messages.length} messages → +${res.added} new, ${res.total} total.`);
+    return;
+  }
+
+  if (cmd === 'mark') {
+    const guestId = flag('guest');
+    const phone = flag('phone');
+    const status = flag('status') as 'no-chat' | 'empty';
+    if (!guestId || !phone || (status !== 'no-chat' && status !== 'empty')) {
+      console.error('mark requires --guest <id> --phone <e164> --status no-chat|empty');
+      process.exit(1);
+    }
+    await markThread(guestId, phone, status);
+    console.log(`Marked ${guestId} as ${status}.`);
     return;
   }
 

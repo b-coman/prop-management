@@ -45,6 +45,7 @@ export async function upsertThreadMessages(input: {
       phone: input.phone,
       messages: merged,
       messageCount: merged.length,
+      status: 'ok',
       ...(lastMessageTs ? { lastMessageTs } : {}),
       lastFetchedAt: now,
       ...(snap.exists ? {} : { firstFetchedAt: now }),
@@ -54,6 +55,30 @@ export async function upsertThreadMessages(input: {
 
   logger.info('WhatsApp thread upserted', { guestId: input.guestId, added, total: merged.length });
   return { added, total: merged.length };
+}
+
+/**
+ * Record a processed guest that has NO retrievable messages — either no WhatsApp
+ * chat exists (`no-chat`) or the chat is empty/media-only (`empty`). This is a real
+ * signal (no WhatsApp presence / never engaged) AND it makes the backfill resumable
+ * (the guest now has a doc, so `getBackfillQueue({onlyMissing})` skips it).
+ */
+export async function markThread(guestId: string, phone: string, status: 'no-chat' | 'empty'): Promise<void> {
+  const db = await getAdminDb();
+  const ref = db.collection('whatsappThreads').doc(guestId);
+  const snap = await ref.get();
+  const now = FieldValue.serverTimestamp();
+  await ref.set(
+    {
+      guestId,
+      phone,
+      status,
+      ...(snap.exists ? {} : { messages: [], messageCount: 0, firstFetchedAt: now }),
+      lastFetchedAt: now,
+    },
+    { merge: true }
+  );
+  logger.info('WhatsApp thread marked', { guestId, status });
 }
 
 /** Read a stored thread (timestamps serialized for any caller). */
