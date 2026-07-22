@@ -65,21 +65,32 @@ browser_batch actions:
 window.__waRows=null; window.__waDone=false;
 (async () => {
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-  let p=document.querySelector('[data-pre-plain-text]');
-  for(let i=0;i<40&&p;i++){if(p.scrollHeight>p.clientHeight+100&&/(auto|scroll)/.test(getComputedStyle(p).overflowY))break;p=p.parentElement;}
-  if(!p){window.__waRows=[];window.__waDone=true;return;}
   const clean=t=>(t||'').replace(/(https?:\/\/[^\s?]+)\?[^\s]*/g,'$1').replace(/\s+/g,' ').trim();
   const acc=new Map();
   const grab=()=>document.querySelectorAll('[data-pre-plain-text]').forEach(el=>{const k=el.getAttribute('data-pre-plain-text');if(k){const t=clean(el.innerText);acc.set(k+'||'+t,{ppt:k,text:t});}});
-  let last=-1,stable=0;                                   // Phase 1: load ALL older (skip for top-up)
-  for(let i=0;i<30&&stable<4;i++){p.scrollTop=0;const b=[...document.querySelectorAll('button')].find(e=>/get older messages/i.test(e.textContent||''));if(b)b.click();await sleep(600);grab();if(p.scrollHeight===last)stable++;else{stable=0;last=p.scrollHeight;}}
-  p.scrollTop=0;await sleep(400);grab();                  // Phase 2: walk top->bottom, collect each window
-  for(let g=0,lt=-1,st=0;g<800;g++){grab();if(p.scrollTop>=p.scrollHeight-p.clientHeight-5){grab();break;}p.scrollTop+=Math.floor(p.clientHeight*0.5);await sleep(130);if(p.scrollTop===lt){if(++st>4)break;}else st=0;lt=p.scrollTop;}
-  grab();window.__waRows=[...acc.values()];window.__waDone=true;
+  const pane=()=>{let p=document.querySelector('[data-pre-plain-text]');for(let i=0;i<40&&p;i++){if(p.scrollHeight>p.clientHeight+100&&/(auto|scroll)/.test(getComputedStyle(p).overflowY))return p;p=p.parentElement;}return null;};
+  grab();                                                 // collect rendered FIRST — covers short/non-scrollable chats
+  let lastN=-1,stable=0;                                  // Phase 1: click "get older" + scroll-top until msg COUNT stabilizes
+  for(let i=0;i<40&&stable<5;i++){                        //   ALWAYS click the button (a fully-phone-side chat has 0 rendered);
+    const b=[...document.querySelectorAll('button')].find(e=>/get older messages/i.test(e.textContent||'')); //  its pull is slow.
+    if(b)b.click();
+    const p=pane(); if(p)p.scrollTop=0;
+    await sleep(800); grab();
+    const n=document.querySelectorAll('[data-pre-plain-text]').length;
+    if(n===lastN)stable++; else{stable=0;lastN=n;}
+  }
+  const p=pane();                                         // Phase 2: walk top->bottom collecting each window (if scrollable)
+  if(p){ p.scrollTop=0; await sleep(400); grab();
+    for(let g=0,lt=-1,st=0;g<800;g++){grab();if(p.scrollTop>=p.scrollHeight-p.clientHeight-5){grab();break;}p.scrollTop+=Math.floor(p.clientHeight*0.5);await sleep(130);if(p.scrollTop===lt){if(++st>4)break;}else st=0;lt=p.scrollTop;}
+    grab(); }
+  window.__waRows=[...acc.values()];window.__waDone=true;
 })()
 ```
-WhatsApp **virtualizes** (~50 msgs in the DOM at once), so a single `querySelectorAll` silently
-truncates long threads — the scroll-and-collect is mandatory.
+WhatsApp **virtualizes** long threads (~50 msgs in the DOM at once), so a single `querySelectorAll`
+silently truncates them — scroll-and-collect is mandatory. But `grab()` must run FIRST (short chats
+have no scroll pane), Phase 1 must ALWAYS click "get older messages" (a fully-phone-side chat renders
+0 until pulled, and the pull is slow — track by message COUNT), and Phase 2 only scrolls when a pane
+exists. A truly empty/media-only chat legitimately returns 0 → skip + log.
 
 **4. Wait for done** (`javascript_tool`, repeat every ~5s until `done:true`; ~10–35s by thread size):
 ```js
