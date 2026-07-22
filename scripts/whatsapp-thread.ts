@@ -11,24 +11,36 @@
 //      Save that JSON to a file.
 //   3. `save`   → parse + merge + persist (idempotent; dedupes on re-run)
 //
-// EXTRACTOR (run in WhatsApp Web via the browser js tool). The js tool truncates its
-// return at ~1KB, so DON'T return the rows — have the page DOWNLOAD them to a file
-// (one call per guest, no chunking; a Blob download is not a JS modal, so it doesn't
-// block the extension), then point `--rows` at ~/Downloads/wa-<guestId>.json. URL query
-// strings are stripped (path-only) to satisfy the browser's anti-exfil guard and drop
-// tokens; whitespace is collapsed to keep the file small (the parser does both anyway).
-//   (() => {
-//     const rows = [...document.querySelectorAll('[data-pre-plain-text]')].map(el => ({
-//       ppt: el.getAttribute('data-pre-plain-text'),
-//       text: (el.innerText||'').replace(/(https?:\/\/[^\s?]+)\?[^\s]*/g,'$1').replace(/\s+/g,' ').trim()
-//     }));
-//     const a = document.createElement('a');
-//     a.href = URL.createObjectURL(new Blob([JSON.stringify(rows)], {type:'application/json'}));
-//     a.download = 'wa-<guestId>.json'; document.body.appendChild(a); a.click(); a.remove();
-//     return rows.length;
-//   })()
-// For a FULL backfill, first click "get older messages from your phone" and wait for the
-// history to load before extracting; for an incremental top-up the recent tail is enough.
+// EXTRACTOR (run in WhatsApp Web via the browser js tool). Two hard constraints learned
+// in testing: (1) the js tool truncates its return at ~1KB, and (2) WhatsApp VIRTUALIZES
+// the message list — only ~50 messages near the scroll position are in the DOM at once,
+// so a single querySelectorAll captures ONLY the visible window (this silently truncated
+// long threads until caught). You must SCROLL the whole thread and ACCUMULATE (dedup by
+// the ppt+text key), stash into a global (a long async returns `{}` through the tool, but
+// its side effects run — read the global after), then DOWNLOAD the global to a file (a
+// Blob download is not a JS modal, so it won't block the extension). Point `--rows` at it.
+// URL query strings are stripped (anti-exfil guard + token hygiene); whitespace collapsed.
+//
+//   // 1) scroll-load + collect the FULL thread into window.__waRows (returns {}; read the global after):
+//   (async () => {
+//     const sleep = ms => new Promise(r => setTimeout(r, ms));
+//     let p = document.querySelector('[data-pre-plain-text]');
+//     for (let i=0;i<40&&p;i++){ if(p.scrollHeight>p.clientHeight+100 && /(auto|scroll)/.test(getComputedStyle(p).overflowY)) break; p=p.parentElement; }
+//     const clean = t => (t||'').replace(/(https?:\/\/[^\s?]+)\?[^\s]*/g,'$1').replace(/\s+/g,' ').trim();
+//     const acc = new Map();
+//     const grab = () => document.querySelectorAll('[data-pre-plain-text]').forEach(el => { const k=el.getAttribute('data-pre-plain-text'); if(k){ const t=clean(el.innerText); acc.set(k+'||'+t,{ppt:k,text:t}); } });
+//     let last=-1, stable=0;                                     // Phase 1: force-load all older
+//     for (let i=0;i<30 && stable<4;i++){ p.scrollTop=0; const b=[...document.querySelectorAll('button')].find(e=>/get older messages/i.test(e.textContent||'')); if(b)b.click(); await sleep(600); grab(); if(p.scrollHeight===last) stable++; else {stable=0; last=p.scrollHeight;} }
+//     p.scrollTop=0; await sleep(400); grab();                   // Phase 2: walk top->bottom, collecting each window
+//     for (let g=0, lt=-1, st=0; g<800; g++){ grab(); if(p.scrollTop>=p.scrollHeight-p.clientHeight-5){grab();break;} p.scrollTop+=Math.floor(p.clientHeight*0.5); await sleep(130); if(p.scrollTop===lt){if(++st>4)break;}else st=0; lt=p.scrollTop; }
+//     grab(); window.__waRows=[...acc.values()];
+//   })()   // then verify: JSON.stringify({n: window.__waRows.length, first: window.__waRows[0].ppt, last: window.__waRows.at(-1).ppt})
+//
+//   // 2) download window.__waRows:
+//   (() => { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(window.__waRows)],{type:'application/json'})); a.download='wa-<guestId>.json'; document.body.appendChild(a); a.click(); a.remove(); return window.__waRows.length; })()
+//
+// INCREMENTAL top-up: the recent tail is already rendered, so Phase 2 alone (skip Phase 1)
+// suffices; `save` dedupes against the stored thread, appending only genuinely-new messages.
 //
 // Usage:
 //   npx tsx scripts/whatsapp-thread.ts queue [--lang ro|en|all] [--missing]
