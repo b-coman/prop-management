@@ -429,6 +429,7 @@ export interface WhatsAppThread {
   phone: string;              // E.164, the number the thread belongs to
   messages: WhatsAppMessage[];
   messageCount: number;
+  status?: 'ok' | 'no-chat' | 'empty'; // 'no-chat'/'empty' = processed, nothing to store (still a signal + resumable)
   lastMessageTs?: string;     // ts of the newest captured message — drives incremental top-up
   firstFetchedAt?: SerializableTimestamp;
   lastFetchedAt?: SerializableTimestamp;
