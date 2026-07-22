@@ -11,11 +11,24 @@
 //      Save that JSON to a file.
 //   3. `save`   → parse + merge + persist (idempotent; dedupes on re-run)
 //
-// EXTRACTOR (run in WhatsApp Web via the browser js tool; returns RawRow[]):
-//   [...document.querySelectorAll('[data-pre-plain-text]')].map(el => ({
-//     ppt: el.getAttribute('data-pre-plain-text'),
-//     text: (el.innerText || '')
-//   }))
+// EXTRACTOR (run in WhatsApp Web via the browser js tool). The js tool truncates its
+// return at ~1KB, so DON'T return the rows — have the page DOWNLOAD them to a file
+// (one call per guest, no chunking; a Blob download is not a JS modal, so it doesn't
+// block the extension), then point `--rows` at ~/Downloads/wa-<guestId>.json. URL query
+// strings are stripped (path-only) to satisfy the browser's anti-exfil guard and drop
+// tokens; whitespace is collapsed to keep the file small (the parser does both anyway).
+//   (() => {
+//     const rows = [...document.querySelectorAll('[data-pre-plain-text]')].map(el => ({
+//       ppt: el.getAttribute('data-pre-plain-text'),
+//       text: (el.innerText||'').replace(/(https?:\/\/[^\s?]+)\?[^\s]*/g,'$1').replace(/\s+/g,' ').trim()
+//     }));
+//     const a = document.createElement('a');
+//     a.href = URL.createObjectURL(new Blob([JSON.stringify(rows)], {type:'application/json'}));
+//     a.download = 'wa-<guestId>.json'; document.body.appendChild(a); a.click(); a.remove();
+//     return rows.length;
+//   })()
+// For a FULL backfill, first click "get older messages from your phone" and wait for the
+// history to load before extracting; for an incremental top-up the recent tail is enough.
 //
 // Usage:
 //   npx tsx scripts/whatsapp-thread.ts queue [--lang ro|en|all] [--missing]
