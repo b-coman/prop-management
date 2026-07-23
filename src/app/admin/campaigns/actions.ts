@@ -7,8 +7,10 @@ import type { Campaign, SegmentDefinition, MessageVariant, OutboxMessage } from 
 import { PREDEFINED_SEGMENTS, previewAudience } from '@/services/segmentService';
 import { listCampaigns, createCampaign, approveCampaign, sendCampaign, createManualCampaign, markCampaignQueued, markCampaignSent, deleteCampaign, getCampaign } from '@/services/campaignService';
 import { buildAudience, type AudienceCandidate } from '@/services/audienceService';
-import { renderMessages, queueMessages, type RenderedMessage, type SkippedRender } from '@/services/campaignMessaging';
+import { renderMessages, queueMessages, queueDrafts, type RenderedMessage, type SkippedRender } from '@/services/campaignMessaging';
 import { fetchOutboxForCampaign, markOutboxSent } from '@/services/outboxService';
+import { getGuestById } from '@/services/guestService';
+import type { CampaignProposal, ProposedDraft } from '@/lib/growth/contracts';
 
 const logger = loggers.campaign;
 
@@ -263,6 +265,95 @@ export async function approveAndQueueAction(
   } catch (error) {
     logger.error('approveAndQueueAction failed', error as Error);
     return { success: false, error: 'Failed to queue messages' };
+  }
+}
+
+// ── Opportunity-Engine proposal review (Gate 1 for landed campaigns) ──────────
+
+/** One recipient row shown in the proposal review — the draft + resolved name/phone. */
+export interface ProposalReviewRow extends ProposedDraft {
+  name: string;
+  phone: string | null;
+}
+
+/**
+ * Gate 1 (proposal): load a landed campaign's proposal + per-guest drafts, with guest names
+ * resolved for display. Read-only. Returns an error if the campaign has no perGuestDrafts
+ * (i.e. it's a plain manual campaign — the variant composer handles those).
+ */
+export async function fetchProposalAction(
+  campaignId: string
+): Promise<{ success: boolean; proposal?: CampaignProposal; rows?: ProposalReviewRow[]; error?: string }> {
+  try {
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return handleAuthError(error);
+    throw error;
+  }
+  try {
+    const campaign = await getCampaign(campaignId);
+    if (!campaign) return { success: false, error: 'Campaign not found' };
+    const drafts = (campaign as unknown as { perGuestDrafts?: ProposedDraft[] }).perGuestDrafts;
+    const proposal = (campaign as unknown as { proposal?: CampaignProposal }).proposal;
+    if (!drafts?.length || !proposal) return { success: false, error: 'This campaign has no prepared proposal' };
+
+    const rows: ProposalReviewRow[] = await Promise.all(
+      drafts.map(async (d) => {
+        const g = await getGuestById(d.guestId).catch(() => null);
+        const name = [g?.firstName, g?.lastName].filter(Boolean).join(' ') || d.guestId;
+        return { ...d, name, phone: g?.normalizedPhone || g?.phone || null };
+      })
+    );
+    return { success: true, proposal, rows };
+  } catch (error) {
+    logger.error('fetchProposalAction failed', error as Error);
+    return { success: false, error: 'Failed to load proposal' };
+  }
+}
+
+/**
+ * Gate 1 (proposal) approve: queue the owner-reviewed per-guest bodies through the gateway
+ * (all guardrails re-run) and move the campaign to `sending`. `edits` carries any body the owner
+ * changed and each recipient's include flag — an excluded recipient is simply not queued.
+ */
+export async function approveProposalAction(
+  campaignId: string,
+  edits: Array<{ guestId: string; body: string; include: boolean }>
+): Promise<{ success: boolean; queued?: number; error?: string }> {
+  let approver: string;
+  try {
+    const user = await requireSuperAdmin();
+    approver = user.email || user.uid;
+  } catch (error) {
+    if (error instanceof AuthorizationError) return handleAuthError(error);
+    throw error;
+  }
+  try {
+    const campaign = await getCampaign(campaignId);
+    if (!campaign) return { success: false, error: 'Campaign not found' };
+    const drafts = (campaign as unknown as { perGuestDrafts?: ProposedDraft[] }).perGuestDrafts;
+    if (!drafts?.length) return { success: false, error: 'This campaign has no prepared proposal' };
+
+    // Apply the owner's edits/exclusions onto the stored drafts (server-side is the source of truth).
+    const editBy = new Map(edits.map((e) => [e.guestId, e]));
+    const selected = drafts
+      .map((d) => { const e = editBy.get(d.guestId); return { guestId: d.guestId, body: (e?.body ?? d.body), include: e ? e.include : true }; })
+      .filter((d) => d.include && d.body.trim().length > 0);
+
+    if (selected.length === 0) return { success: false, error: 'No recipients selected' };
+
+    const res = await queueDrafts({
+      campaignId,
+      propertyId: campaign.propertyId,
+      drafts: selected.map(({ guestId, body }) => ({ guestId, body })),
+    });
+    // Move to sending. Bodies live in the outbox, so no message variants are stored.
+    await markCampaignQueued(campaignId, { approvedBy: approver, variants: [] });
+    revalidatePath(`/admin/campaigns/${campaignId}`);
+    return { success: true, queued: res.queued };
+  } catch (error) {
+    logger.error('approveProposalAction failed', error as Error);
+    return { success: false, error: 'Failed to queue proposal' };
   }
 }
 
