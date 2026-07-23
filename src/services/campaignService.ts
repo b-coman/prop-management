@@ -109,6 +109,63 @@ export async function createManualCampaign(input: {
   return ref.id;
 }
 
+/**
+ * Land a validated Opportunity-Engine proposal as a reviewable DRAFT campaign.
+ *
+ * The planner brief + copywriter drafts (both already through validatePlan/validateDrafts)
+ * are joined into per-guest rows and written onto the campaign doc. It reuses the same
+ * whatsapp/manual/status:'draft' shape as `createManualCampaign` — so the existing admin
+ * workspace and Gate-2 send path work unchanged — and adds two fields the Gate-1 UI reads:
+ *   `proposal`       — the campaign-level "what & why now" (occasion, offer, rationale)
+ *   `perGuestDrafts` — each recipient's bespoke body + the planner's reason, edited then queued
+ * Nothing is queued or sent here; the owner reviews in Admin, then approves → outbox.
+ */
+export async function createProposedCampaign(input: {
+  name: string;
+  brief: import('@/lib/growth/contracts').CampaignBrief;
+  drafts: import('@/lib/growth/contracts').DraftMessage[];
+}): Promise<string> {
+  const { briefGuestIds, isDeclined, toProposedDrafts, toCampaignProposal } = await import('@/lib/growth/contracts');
+  if (isDeclined(input.brief)) {
+    throw new Error('createProposedCampaign: brief declined to act (no audience) — nothing to land');
+  }
+  const guestIds = briefGuestIds(input.brief);
+  const perGuestDrafts = toProposedDrafts(input.brief, input.drafts);
+  if (perGuestDrafts.length === 0) {
+    throw new Error('createProposedCampaign: no per-guest drafts after join — validate drafts before landing');
+  }
+  const proposal = toCampaignProposal(input.brief);
+
+  const db = await getAdminDb();
+  const ref = await db.collection('campaigns').add({
+    name: input.name,
+    propertyId: input.brief.propertyId,
+    channel: 'whatsapp',
+    templateName: 'manual',
+    variables: {},
+    segmentDefinition: { propertyId: input.brief.propertyId },
+    audienceGuestIds: guestIds,
+    messageVariants: [],       // per-guest bodies live in perGuestDrafts, not per-language variants
+    perGuestDrafts,
+    proposal,
+    source: 'opportunity-engine',
+    scheduleAt: null,
+    status: 'draft',
+    stats: emptyStats(),
+    approvedBy: null,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+    sentAt: null,
+  });
+  logger.info('Proposed campaign landed', {
+    campaignId: ref.id,
+    propertyId: input.brief.propertyId,
+    recipients: perGuestDrafts.length,
+    occasion: proposal.occasion.name,
+  });
+  return ref.id;
+}
+
 /** Approve a manual campaign: store the copy, record the approver, move to sending. */
 export async function markCampaignQueued(
   id: string,

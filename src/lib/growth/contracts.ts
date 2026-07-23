@@ -58,11 +58,76 @@ export interface DraftMessage {
   careHandled?: string;          // how a careFlag was addressed (e.g. resolved-issue PS)
 }
 
-// ── pure guards ──────────────────────────────────────────────────────────────
+// ── landing: planner brief + copywriter drafts → a reviewable draft campaign ──
+/**
+ * One recipient's fully-prepared row, ready for Gate-1 review: the planner's per-guest
+ * reasoning (`angle`, `careFlags`) joined to the copywriter's bespoke `body`. This is what
+ * the owner sees and edits in Admin, and what queues to the outbox verbatim on approve.
+ */
+export interface ProposedDraft {
+  guestId: string;
+  angle: string;              // from the brief — why this guest (shown at Gate 1)
+  careFlags?: string[];       // carried from the brief for the reviewer's context
+  language: LanguageCode;
+  body: string;               // the copywriter's per-guest message
+  factsUsed: string[];        // grounding contract (already validated)
+  careHandled?: string;
+}
+
+/** The campaign-level "what & why now" stored alongside the per-guest drafts. */
+export interface CampaignProposal {
+  intent: CampaignIntent;
+  occasion: { name: string | null; point: string };
+  offer: { discountPct: number | null; description: string };
+  generalAngle: string;
+  rationale: string;
+  opportunity: Opportunity;
+}
+
+// ── pure guards / joins ──────────────────────────────────────────────────────
 export function briefGuestIds(brief: Pick<CampaignBrief, 'audience'>): string[] {
   return brief.audience.map((a) => a.guestId);
 }
 
 export function isDeclined(brief: Pick<CampaignBrief, 'act' | 'audience'>): boolean {
   return !brief.act && brief.audience.length === 0;
+}
+
+/**
+ * Join a validated brief + drafts into per-guest reviewable rows. Pure. Assumes both were
+ * already validated (validatePlan + validateDrafts) so coverage is 1:1 — a guest in the brief
+ * with no matching draft is dropped here (the validators are the gate, not this join).
+ */
+export function toProposedDrafts(
+  brief: Pick<CampaignBrief, 'audience'>,
+  drafts: DraftMessage[]
+): ProposedDraft[] {
+  const draftFor = new Map(drafts.map((d) => [d.guestId, d]));
+  const rows: ProposedDraft[] = [];
+  for (const a of brief.audience) {
+    const d = draftFor.get(a.guestId);
+    if (!d) continue;
+    rows.push({
+      guestId: a.guestId,
+      angle: a.angle,
+      careFlags: a.careFlags,
+      language: d.language,
+      body: d.body,
+      factsUsed: d.factsUsed,
+      careHandled: d.careHandled,
+    });
+  }
+  return rows;
+}
+
+/** Extract the campaign-level proposal metadata from a brief. Pure. */
+export function toCampaignProposal(brief: CampaignBrief): CampaignProposal {
+  return {
+    intent: brief.intent,
+    occasion: brief.occasion,
+    offer: brief.offer,
+    generalAngle: brief.generalAngle,
+    rationale: brief.rationale,
+    opportunity: brief.opportunity,
+  };
 }

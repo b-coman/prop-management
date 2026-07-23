@@ -7,6 +7,7 @@ import { getCampaign } from '@/services/campaignService';
 import type { MessageVariant } from '@/types';
 import { MessageComposer } from '../_components/message-composer';
 import { OutboxSender } from '../_components/outbox-sender';
+import { ProposalReview } from '../_components/proposal-review';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,14 +29,19 @@ export default async function CampaignWorkspacePage({
   const isDraft = campaign.status === 'draft';
   const variants = (campaign.messageVariants ?? []) as MessageVariant[];
   const audienceCount = campaign.audienceGuestIds?.length ?? 0;
+  // A landed Opportunity-Engine proposal has per-guest drafts already written — Gate 1
+  // reviews those instead of the manual variant composer.
+  const isProposal = ((campaign as unknown as { perGuestDrafts?: unknown[] }).perGuestDrafts?.length ?? 0) > 0;
 
   return (
     <AdminPage
       title={campaign.name}
       description={
-        isDraft
-          ? 'Write the message, preview exactly what each guest will get, then approve to queue it for sending.'
-          : 'Send each queued message from your own WhatsApp, one tap at a time.'
+        !isDraft
+          ? 'Send each queued message from your own WhatsApp, one tap at a time.'
+          : isProposal
+            ? 'Review the prepared campaign — each recipient’s own message and why they were chosen — then approve to queue it.'
+            : 'Write the message, preview exactly what each guest will get, then approve to queue it for sending.'
       }
     >
       <div className="mb-4">
@@ -46,10 +52,12 @@ export default async function CampaignWorkspacePage({
         </Link>
       </div>
 
-      {isDraft ? (
-        <MessageComposer campaignId={id} audienceCount={audienceCount} initialVariants={variants} />
-      ) : (
+      {!isDraft ? (
         <OutboxSender campaignId={id} status={campaign.status} />
+      ) : isProposal ? (
+        <ProposalReview campaignId={id} />
+      ) : (
+        <MessageComposer campaignId={id} audienceCount={audienceCount} initialVariants={variants} />
       )}
     </AdminPage>
   );

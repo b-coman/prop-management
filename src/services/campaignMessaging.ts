@@ -160,3 +160,45 @@ export async function queueMessages(input: RenderInput & { campaignId: string })
   });
   return { queued, results, skipped };
 }
+
+/**
+ * Queue pre-drafted per-guest bodies (the Opportunity-Engine path). Unlike `queueMessages`,
+ * there is no variant rotation or token fill — each recipient's body is bespoke and used
+ * verbatim. Every message still routes through `executeSend` with `deliveryMode:'manual_queue'`,
+ * so the SAME guardrails (consent, suppression, active-future-booking, frequency-cap, dedup)
+ * run at send time — the landed proposal is a suggestion, never a bypass. Bodies are the
+ * owner-reviewed text from the campaign doc's `perGuestDrafts` (already through validateDrafts).
+ */
+export async function queueDrafts(input: {
+  campaignId: string;
+  propertyId: string;
+  drafts: Array<{ guestId: string; body: string }>;
+}): Promise<QueueResult> {
+  const results: QueueResult['results'] = [];
+  const skipped: SkippedRender[] = [];
+  let queued = 0;
+
+  for (const d of input.drafts) {
+    if (!d.body?.trim()) { skipped.push({ guestId: d.guestId, reason: 'no-variant-for-language' }); continue; }
+    const res = await executeSend({
+      guestId: d.guestId,
+      propertyId: input.propertyId,
+      channel: 'whatsapp',
+      templateName: MANUAL_QUEUE_TEMPLATE,
+      campaignId: input.campaignId,
+      deliveryMode: 'manual_queue',
+      body: d.body,
+    });
+    if (res.status === 'queued') queued++;
+    results.push({ guestId: d.guestId, status: res.status, reason: res.reason });
+  }
+
+  logger.info('queueDrafts complete', {
+    campaignId: input.campaignId,
+    propertyId: input.propertyId,
+    drafts: input.drafts.length,
+    queued,
+    skipped: skipped.length,
+  });
+  return { queued, results, skipped };
+}
