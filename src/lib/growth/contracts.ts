@@ -162,15 +162,17 @@ export function toProposedDrafts(
   for (const a of brief.audience) {
     const d = draftFor.get(a.guestId);
     if (!d) continue;
+    // Default every optional field — Firestore's Admin SDK rejects `undefined` on write, and these
+    // are persisted verbatim by createProposedCampaign/setCampaignDrafts.
     rows.push({
       guestId: a.guestId,
-      angle: a.angle,
-      careFlags: a.careFlags,
-      additive: a.additive,
+      angle: a.angle ?? '',
+      careFlags: a.careFlags ?? [],
+      additive: a.additive ?? false,
       language: d.language,
       body: d.body,
-      factsUsed: d.factsUsed,
-      careHandled: d.careHandled,
+      factsUsed: d.factsUsed ?? [],
+      careHandled: d.careHandled ?? '',
     });
   }
   return rows;
