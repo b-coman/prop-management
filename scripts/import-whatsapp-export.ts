@@ -81,8 +81,9 @@ async function importOne(file: string, guestByPhone: Map<string, { id: string; n
   console.log(`\n${guest.name} [${guest.id}]  ← ${label}`);
   console.log(`  parsed: ${msgs.length} msgs (${textMsgs.length} text, ${msgs.length - textMsgs.length} media) · ${outCount} owner-sent · ${msgs[0]?.ts.slice(0,10)}→${msgs[msgs.length-1]?.ts.slice(0,10)}`);
   if (DRY) { console.log('  (dry-run — not written)'); return; }
-  const res = await upsertThreadMessages({ guestId: guest.id, phone: guest.phone, messages: msgs });
-  console.log(`  merged → +${res.added} new, ${res.total} total in vault`);
+  // The official export is the COMPLETE, clean history → REPLACE the (partial, artifact-laden) scrape.
+  const res = await upsertThreadMessages({ guestId: guest.id, phone: guest.phone, messages: msgs, replace: true });
+  console.log(`  replaced → ${res.total} messages in vault (was scrape/partial)`);
 }
 
 async function main() {
