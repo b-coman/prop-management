@@ -9,7 +9,7 @@
  * approves. "Approve & queue" pushes the reviewed bodies through the gateway into the outbox — it
  * sends nothing; the owner sends manually in Gate 2. All guardrails re-run at send time.
  */
-import { useEffect, useState, useTransition } from 'react';
+import { useCallback, useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Send, Trash2, Sparkles, Tag, CheckCircle2, Circle, AlertTriangle } from 'lucide-react';
 import { fetchProposalAction, approveProposalAction, discardDraftCampaignAction, type ProposalReviewRow } from '../actions';
 import type { CampaignProposal } from '@/lib/growth/contracts';
+import { FramingEditor } from './framing-editor';
 
 export function ProposalReview({ campaignId }: { campaignId: string }) {
   const router = useRouter();
@@ -33,22 +34,22 @@ export function ProposalReview({ campaignId }: { campaignId: string }) {
   const [rows, setRows] = useState<ProposalReviewRow[]>([]);
   const [bodies, setBodies] = useState<Record<string, string>>({});
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
+  const [copywriterAvailable, setCopywriterAvailable] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
-    fetchProposalAction(campaignId).then((res) => {
-      if (!alive) return;
-      if (res.success && res.proposal && res.rows) {
-        setProposal(res.proposal);
-        setRows(res.rows);
-        setBodies(Object.fromEntries(res.rows.map((r) => [r.guestId, r.body])));
-      } else {
-        setError(res.error ?? 'Failed to load proposal');
-      }
-      setLoading(false);
-    });
-    return () => { alive = false; };
+  const load = useCallback(async () => {
+    const res = await fetchProposalAction(campaignId);
+    if (res.success && res.proposal && res.rows) {
+      setProposal(res.proposal);
+      setRows(res.rows);
+      setBodies(Object.fromEntries(res.rows.map((r) => [r.guestId, r.body])));
+      setCopywriterAvailable(!!res.copywriterAvailable);
+    } else {
+      setError(res.error ?? 'Failed to load proposal');
+    }
+    setLoading(false);
   }, [campaignId]);
+
+  useEffect(() => { void load(); }, [load]);
 
   const toggle = (guestId: string) =>
     setExcluded((prev) => { const next = new Set(prev); next.has(guestId) ? next.delete(guestId) : next.add(guestId); return next; });
@@ -84,7 +85,17 @@ export function ProposalReview({ campaignId }: { campaignId: string }) {
 
   return (
     <div className="space-y-6">
-      {/* What & why now */}
+      {/* Gate 0 — edit the framing, regenerate the messages */}
+      {proposal && (
+        <FramingEditor
+          campaignId={campaignId}
+          proposal={proposal}
+          copywriterAvailable={copywriterAvailable}
+          onRegenerated={() => { void load(); }}
+        />
+      )}
+
+      {/* What & why now (read-only summary of the current framing) */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

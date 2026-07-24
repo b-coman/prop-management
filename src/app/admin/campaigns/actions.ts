@@ -5,12 +5,14 @@ import { loggers } from '@/lib/logger';
 import { requireSuperAdmin, handleAuthError, AuthorizationError } from '@/lib/authorization';
 import type { Campaign, SegmentDefinition, MessageVariant, OutboxMessage } from '@/types';
 import { PREDEFINED_SEGMENTS, previewAudience } from '@/services/segmentService';
-import { listCampaigns, createCampaign, approveCampaign, sendCampaign, createManualCampaign, markCampaignQueued, markCampaignSent, deleteCampaign, getCampaign } from '@/services/campaignService';
+import { listCampaigns, createCampaign, approveCampaign, sendCampaign, createManualCampaign, markCampaignQueued, markCampaignSent, deleteCampaign, getCampaign, updateCampaignFraming, campaignToBrief, setCampaignDrafts } from '@/services/campaignService';
 import { buildAudience, type AudienceCandidate } from '@/services/audienceService';
 import { renderMessages, queueMessages, queueDrafts, type RenderedMessage, type SkippedRender } from '@/services/campaignMessaging';
 import { fetchOutboxForCampaign, markOutboxSent } from '@/services/outboxService';
 import { getGuestById } from '@/services/guestService';
-import type { CampaignProposal, ProposedDraft } from '@/lib/growth/contracts';
+import { generateDrafts } from '@/services/growth/copywriter';
+import { isCopywriterAvailable } from '@/lib/growth/anthropic';
+import { toProposedDrafts, type CampaignProposal, type ProposedDraft, type CampaignOffer, type CampaignUpdate } from '@/lib/growth/contracts';
 
 const logger = loggers.campaign;
 
@@ -283,7 +285,7 @@ export interface ProposalReviewRow extends ProposedDraft {
  */
 export async function fetchProposalAction(
   campaignId: string
-): Promise<{ success: boolean; proposal?: CampaignProposal; rows?: ProposalReviewRow[]; error?: string }> {
+): Promise<{ success: boolean; proposal?: CampaignProposal; rows?: ProposalReviewRow[]; copywriterAvailable?: boolean; error?: string }> {
   try {
     await requireSuperAdmin();
   } catch (error) {
@@ -304,10 +306,45 @@ export async function fetchProposalAction(
         return { ...d, name, phone: g?.normalizedPhone || g?.phone || null };
       })
     );
-    return { success: true, proposal, rows };
+    return { success: true, proposal, rows, copywriterAvailable: isCopywriterAvailable() };
   } catch (error) {
     logger.error('fetchProposalAction failed', error as Error);
     return { success: false, error: 'Failed to load proposal' };
+  }
+}
+
+/**
+ * Gate 0: save the owner's edited FRAMING and (re)generate the per-guest messages with the in-app
+ * copywriter. Persists new drafts only if they pass validation — a rejected generation returns its
+ * errors and leaves the existing drafts untouched. This is the "edit the idea → regenerate" loop.
+ */
+export async function generateMessagesAction(
+  campaignId: string,
+  framing: { occasion: { name: string | null; point: string }; offer: CampaignOffer; updates: CampaignUpdate[]; generalAngle: string }
+): Promise<{ success: boolean; ok?: boolean; count?: number; errors?: string[]; warnings?: string[]; error?: string }> {
+  try {
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return handleAuthError(error);
+    throw error;
+  }
+  if (!isCopywriterAvailable()) {
+    return { success: false, error: 'The copywriter is not configured (ANTHROPIC_API_KEY missing).' };
+  }
+  try {
+    await updateCampaignFraming(campaignId, framing);
+    const campaign = await getCampaign(campaignId);
+    if (!campaign) return { success: false, error: 'Campaign not found' };
+    const brief = campaignToBrief(campaign);
+    const res = await generateDrafts(brief);
+    if (res.ok) {
+      await setCampaignDrafts(campaignId, toProposedDrafts(brief, res.drafts));
+    }
+    revalidatePath(`/admin/campaigns/${campaignId}`);
+    return { success: true, ok: res.ok, count: res.drafts.length, errors: res.errors, warnings: res.warnings };
+  } catch (error) {
+    logger.error('generateMessagesAction failed', error as Error);
+    return { success: false, error: (error as Error).message || 'Failed to generate messages' };
   }
 }
 

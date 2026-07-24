@@ -132,6 +132,13 @@ env:
     availability:
         - RUNTIME
 
+# Anthropic API — the in-app copywriter (Opportunity Engine). Server-side only, RUNTIME.
+# The framing→per-guest adaptation calls Claude here; inert (copywriter degrades) until this is set.
+  - variable: ANTHROPIC_API_KEY
+    secret: projects/1061532538391/secrets/ANTHROPIC_API_KEY/versions/latest
+    availability:
+        - RUNTIME
+
 # Google Places API for review sync
   - variable: GOOGLE_PLACES_API_KEY
     secret: projects/1061532538391/secrets/GOOGLE_PLACES_API_KEY/versions/latest

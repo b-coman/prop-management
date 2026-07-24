@@ -41,8 +41,10 @@ export interface BriefAudienceEntry {
  * the form, `effectiveDiscountPct()` derives the economic size the margin guard checks — the
  * copywriter only ever PHRASES this (channel-aware), never inflates it.
  */
+export type CampaignOfferType = 'percent' | 'free_night' | 'fixed' | 'none';
+
 export interface CampaignOffer {
-  type?: 'percent' | 'free_night' | 'fixed' | 'none';
+  type?: CampaignOfferType;
   discountPct?: number | null;   // percent offers (also the back-compat field)
   freeNightAfter?: number;       // free_night: stay N nights, the (N+1)th is free
   amount?: number;               // fixed: absolute amount off (currency = RON)

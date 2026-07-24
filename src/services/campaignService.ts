@@ -166,6 +166,55 @@ export async function createProposedCampaign(input: {
   return ref.id;
 }
 
+/** Reconstruct a CampaignBrief from a stored proposed campaign (framing + audience with angles). */
+export function campaignToBrief(
+  campaign: Campaign
+): import('@/lib/growth/contracts').CampaignBrief {
+  const p = (campaign as unknown as { proposal?: import('@/lib/growth/contracts').CampaignProposal }).proposal;
+  const drafts = (campaign as unknown as { perGuestDrafts?: import('@/lib/growth/contracts').ProposedDraft[] }).perGuestDrafts ?? [];
+  if (!p) throw new Error('campaignToBrief: campaign has no proposal (framing)');
+  return {
+    propertyId: campaign.propertyId,
+    opportunity: p.opportunity,
+    act: true,
+    intent: p.intent,
+    occasion: p.occasion,
+    offer: p.offer,
+    updates: p.updates ?? [],
+    audience: drafts.map((d) => ({ guestId: d.guestId, angle: d.angle, careFlags: d.careFlags })),
+    generalAngle: p.generalAngle,
+    rationale: p.rationale,
+  };
+}
+
+/** Persist owner edits to a draft campaign's FRAMING (the Gate-0 fields). Does not regenerate. */
+export async function updateCampaignFraming(
+  id: string,
+  framing: Partial<Pick<import('@/lib/growth/contracts').CampaignProposal, 'occasion' | 'offer' | 'updates' | 'generalAngle'>>
+): Promise<void> {
+  const db = await getAdminDb();
+  const patch: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
+  if (framing.occasion !== undefined) patch['proposal.occasion'] = framing.occasion;
+  if (framing.offer !== undefined) patch['proposal.offer'] = framing.offer;
+  if (framing.updates !== undefined) patch['proposal.updates'] = framing.updates;
+  if (framing.generalAngle !== undefined) patch['proposal.generalAngle'] = framing.generalAngle;
+  await db.collection('campaigns').doc(id).update(patch);
+  logger.info('Campaign framing updated', { campaignId: id, fields: Object.keys(framing) });
+}
+
+/** Replace the per-guest drafts on a campaign (after a copywriter (re)generation). */
+export async function setCampaignDrafts(
+  id: string,
+  drafts: import('@/lib/growth/contracts').ProposedDraft[]
+): Promise<void> {
+  const db = await getAdminDb();
+  await db.collection('campaigns').doc(id).update({
+    perGuestDrafts: drafts,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  logger.info('Campaign drafts set', { campaignId: id, count: drafts.length });
+}
+
 /** Approve a manual campaign: store the copy, record the approver, move to sending. */
 export async function markCampaignQueued(
   id: string,

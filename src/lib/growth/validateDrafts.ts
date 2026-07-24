@@ -33,7 +33,7 @@ export interface DraftRules {
 const DEFAULTS: Required<DraftRules> = {
   minChars: 200, maxChars: 700,
   selfIdMarkers: ['bogdan', 'comarnic', 'casuta', 'căsuța'],
-  optOutMarkers: ['stop', 'dezabon', 'nu va mai', 'nu mai doriti', 'nu mai vreti', 'spuneti-mi', 'scrieti-mi', 'nu va mai deranjez'],
+  optOutMarkers: ['stop', 'dezabon', 'nu va mai', 'nu te mai', 'nu iti mai scriu', 'nu mai doriti', 'nu mai vreti', 'spuneti-mi', 'scrieti-mi', 'nu va mai deranjez'],
 };
 const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}️]/u;
 const COMPLAINT_WORDS = /problem|scuze|imi pare rau|îmi pare rău|neplac|deranj|presiune|defect|stricat|reparat|rezolvat/i;
