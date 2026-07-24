@@ -35,7 +35,9 @@ const DEFAULTS: Required<DraftRules> = {
   selfIdMarkers: ['bogdan', 'comarnic', 'casuta', 'căsuța'],
   optOutMarkers: ['stop', 'dezabon', 'nu va mai', 'nu te mai', 'nu iti mai scriu', 'nu mai doriti', 'nu mai vreti', 'spuneti-mi', 'scrieti-mi', 'nu va mai deranjez'],
 };
-const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}️]/u;
+// Emoji are ALLOWED (the owner uses them lightly in his real messages) — we only flag OVERUSE.
+const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}]/gu;
+const EMOJI_MAX = 3;
 const COMPLAINT_WORDS = /problem|scuze|imi pare rau|îmi pare rău|neplac|deranj|presiune|defect|stricat|reparat|rezolvat/i;
 const loose = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
@@ -80,7 +82,8 @@ export function validateDrafts(
 
     // 2. voice
     const firstContact = (g.thread || []).length === 0;
-    if (EMOJI.test(body)) errors.push('contains emoji (forbidden)');
+    const emojiCount = (body.match(EMOJI) || []).length;
+    if (emojiCount > EMOJI_MAX) warnings.push(`${emojiCount} emoji — keep them light (1-2, only to underline)`);
     // Self-ID: a first/cold contact MUST say who is writing (a stranger needs it); when continuing an
     // active thread, re-introducing reads as a form letter — so it is only a soft nudge there.
     if (!r.selfIdMarkers.some((m) => loose(body).includes(loose(m)))) {
