@@ -28,13 +28,17 @@ export async function upsertThreadMessages(input: {
   guestId: string;
   phone: string;
   messages: WhatsAppMessage[];
+  replace?: boolean;   // true = this batch IS the complete, authoritative history (official phone
+                       // export) — overwrite, don't merge. The browser scrape uses minute-precision
+                       // timestamps + text artifacts that would NOT dedupe against a clean export,
+                       // so merging the two double-stores every shared message. Replace avoids that.
 }): Promise<{ added: number; total: number }> {
   const db = await getAdminDb();
   const ref = db.collection('whatsappThreads').doc(input.guestId);
   const snap = await ref.get();
-  const existing = snap.exists ? ((snap.data() as WhatsAppThread).messages ?? []) : [];
+  const existing = (!input.replace && snap.exists) ? ((snap.data() as WhatsAppThread).messages ?? []) : [];
 
-  const merged = mergeMessages(existing, input.messages);
+  const merged = mergeMessages(existing, input.messages);   // dedups within the batch + sorts
   const added = merged.length - existing.length;
   const lastMessageTs = merged.length ? merged[merged.length - 1].ts : undefined;
   const now = FieldValue.serverTimestamp();
