@@ -18,6 +18,7 @@ import type { CampaignBrief } from '@/lib/growth/contracts';
 
 const toD = (v: any): Date | null => v?._seconds ? new Date(v._seconds * 1000) : v?.toDate ? v.toDate() : typeof v === 'string' ? new Date(v) : v instanceof Date ? v : null;
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
+const days = (a: Date, b: Date) => Math.round((+b - +a) / 86400000);
 const seasonOf = (d: Date) => { const m = d.getUTCMonth() + 1; return m === 12 || m <= 2 ? 'winter' : m <= 5 ? 'spring' : m <= 8 ? 'summer' : 'autumn'; };
 function lastStayPhrase(last: Date | null, asOf: Date): string | null {
   if (!last) return null;
@@ -100,6 +101,18 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
     const detected = detectLanguage(threadText);
     const writeLanguage = detected === 'unknown' ? (g.language || 'ro') : detected;
 
+    // Relationship state — so the copywriter continues the conversation instead of cold-opening,
+    // and decides self-ID / opt-out from the REAL history (facts; the LLM judges from these).
+    const inboundCount = thread.filter(m => m.dir === 'in').length;
+    const lastExchange = thread.length ? String(thread[thread.length - 1].ts).slice(0, 10) : null;
+    const daysSinceLastExchange = lastExchange ? days(new Date(`${lastExchange}T00:00:00Z`), AS_OF) : null;
+    const relationshipState =
+      thread.length === 0 ? 'first-contact'                       // never messaged
+      : inboundCount === 0 ? 'silent'                              // messaged before, never replied
+      : (daysSinceLastExchange ?? 999) <= 120 ? 'active'          // replied + spoke recently
+      : 'lapsed';                                                 // replied before, but long ago
+    const relationship = { state: relationshipState, totalMessages: thread.length, replies: inboundCount, lastExchange, daysSinceLastExchange };
+
     const groundedFacts: any[] = [];
     if (g.firstName) groundedFacts.push({ key: 'firstName', value: g.firstName, source: `guests/${gid}` });
     if (g.partnerName) groundedFacts.push({ key: 'partnerName', value: g.partnerName, source: `guests/${gid}` });
@@ -119,6 +132,7 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
       recordLanguage: g.language || null,
       threadLanguageDetected: detected,
       careFlags: careByGuest.get(gid) || [],
+      relationship,
       dossier: {
         tier: totalBookings >= 2 ? 'repeat' : 'single',
         totalBookings,
@@ -149,12 +163,13 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
       register: 'Pick ONE register per message and keep it consistent throughout — either tu (informal: tu/iti/te/ai) OR voi/dumneavoastra (formal: voi/va/ati). NEVER mix them in the same message (not even "ati fost… iti dau"). Choose per guest: if there is a prior thread, match how the owner addressed them there; if there is NO prior thread (a first contact), use polite voi (you do not address a stranger with tu); otherwise default to the warm informal tu.',
       length: '300–600 characters, 3–6 short sentences',
       noEmoji: true,
-      selfIdRequired: 'open by identifying the sender (e.g. "Bogdan sunt, de la casuta din Comarnic")',
+      continuity: 'These are ONGOING relationships, not cold sends. READ the guest\'s `thread` and `relationship` and continue it naturally — pick up where you left off, and where it fits, nod to the last exchange. NEVER re-say something the thread shows you already told them (see `updates`). Use `relationship.state`: "active" (replied, spoke ≤120d ago) → continue warmly, do NOT re-introduce yourself; "lapsed" (replied before, long ago) → a light reconnect ("a trecut ceva vreme"); "silent" (messaged, never replied) → a fresh, low-pressure note; "first-contact" (no thread) → introduce yourself.',
+      selfId: 'Identify yourself ("Bogdan sunt, de la casuta din Comarnic") ONLY when it helps — a first-contact, a "lapsed"/"silent" state, or a long gap. For an "active" recent thread they know who you are; opening with a re-introduction reads as a form letter — just continue. (Self-ID must still appear somewhere for a first/cold contact — the validator checks it there.)',
       partnerGreeting: 'If a `partnerName` grounded fact is present, the WhatsApp number belongs to that partner (who booked under the guest firstName) — greet BOTH warmly, e.g. "Buna Razvan si Loredana!", and tag `partnerName` in factsUsed. If there is no partnerName, greet only by firstName.',
-      optOut: 'include a soft opt-out line only on a FIRST contact (no prior thread); otherwise rely on WhatsApp block/report',
+      optOut: 'Give a graceful, low-pressure way out to a FIRST contact AND to a "silent" guest (messaged before, never replied) — e.g. "daca preferi sa nu-ti mai scriu, spune-mi". An "active"/"lapsed" guest who has replied does NOT need one — it would be odd. Use judgment from `relationship.state`.',
       grounding: 'assert ONLY facts present in that guest\'s groundedFacts; tag each claim in factsUsed with its key. No emoji. No invented stays/preferences.',
       offerPresentation: 'The offer (campaign.offer) is set by the owner — never inflate or invent one, only phrase it. Adapt HOW you present it per guest: a guest with a `booksDirect` fact already knows they get your best price directly, so acknowledge that warmly (e.g. "si asa cum stii deja, iti pot da cea mai buna oferta direct") rather than quoting a discount as if it were news; a guest who has only booked via an OTA gets the explicit offer. For a free-night/value offer, describe the value in words, not a bare percentage. Tag `booksDirect` in factsUsed when you use that angle.',
-      updates: 'Each guest\'s `applicableUpdates` lists campaign news that is genuinely new SINCE THAT guest\'s last stay (already date-filtered — a guest who was here after a change does not see it). Decide per guest whether an update is worth mentioning and how to weave it in — do not force it into every message. You may mention ONLY updates in that guest\'s applicableUpdates, tagging factsUsed with the `update:<id>` key.',
+      updates: 'Each guest\'s `applicableUpdates` lists campaign news new SINCE THAT guest\'s last stay (date-filtered). BUT before mentioning one, CHECK the thread: if you already told this guest about it in a previous message, do NOT re-announce it as "noutate" — either build on it ("cum ti-am zis, avem acum…") or leave it out; mention only the part that is genuinely new to them. Decide per guest whether it is worth raising at all — do not force it into every message. You may mention ONLY updates in that guest\'s applicableUpdates, tagging factsUsed with the `update:<id>` key.',
       sentiment: 'always positive. For a careFlag complaint: if (and only if) an issueResolved:* fact is present, you MAY add a warm PS acknowledging the fix; otherwise do NOT mention the past problem at all — write a normal forward-looking message.',
     },
     guests,
