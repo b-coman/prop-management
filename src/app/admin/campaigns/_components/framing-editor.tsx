@@ -62,21 +62,26 @@ export function FramingEditor({
   const regenerate = () =>
     startGen(async () => {
       setErrors([]);
-      const framing = {
-        occasion: { name: occasionName || null, point },
-        offer: buildOffer(),
-        updates: updates.filter((u) => u.text.trim() && u.effectiveDate.trim()),
-        generalAngle,
-      };
-      const res = await generateMessagesAction(campaignId, framing);
-      if (res.success && res.ok) {
-        toast({ title: `Regenerated ${res.count ?? 0} messages`, description: 'Review them below, then approve to queue.' });
-        onRegenerated();
-      } else if (res.success && !res.ok) {
-        setErrors(res.errors ?? ['The copywriter output failed validation — nothing was changed.']);
-        toast({ title: 'Generation rejected', description: 'Some drafts failed the checks — messages left unchanged.', variant: 'destructive' });
-      } else {
-        toast({ title: 'Could not generate', description: res.error, variant: 'destructive' });
+      try {
+        const framing = {
+          occasion: { name: occasionName || null, point },
+          offer: buildOffer(),
+          updates: updates.filter((u) => u.text.trim() && u.effectiveDate.trim()),
+          generalAngle,
+        };
+        const res = await generateMessagesAction(campaignId, framing);
+        if (res.success && res.ok) {
+          toast({ title: `Regenerated ${res.count ?? 0} messages`, description: 'Review them below, then approve to queue.' });
+          onRegenerated();
+        } else if (res.success && !res.ok) {
+          setErrors(res.errors ?? ['The copywriter output failed validation — nothing was changed.']);
+          toast({ title: 'Generation rejected', description: 'Some drafts failed the checks — messages left unchanged.', variant: 'destructive' });
+        } else {
+          toast({ title: 'Could not generate', description: res.error, variant: 'destructive' });
+        }
+      } catch (e) {
+        // Never let a rejection bubble to the root error boundary — show it inline.
+        toast({ title: 'Could not generate', description: (e as Error)?.message || 'Unexpected error', variant: 'destructive' });
       }
     });
 

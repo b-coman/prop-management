@@ -340,7 +340,9 @@ export async function generateMessagesAction(
     if (res.ok) {
       await setCampaignDrafts(campaignId, toProposedDrafts(brief, res.drafts));
     }
-    revalidatePath(`/admin/campaigns/${campaignId}`);
+    // NOTE: no revalidatePath here — the client refetches via fetchProposalAction (load()).
+    // Revalidating the route mid-transition forced a redundant RSC re-render that surfaced as
+    // the root error boundary on success; the client-side refetch is the single refresh path.
     return { success: true, ok: res.ok, count: res.drafts.length, errors: res.errors, warnings: res.warnings };
   } catch (error) {
     logger.error('generateMessagesAction failed', error as Error);
