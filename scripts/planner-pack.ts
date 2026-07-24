@@ -21,7 +21,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 import { getAdminDb } from '../src/lib/firebaseAdminSafe';
-import { isRomaniaBased } from '../src/lib/growth/audience';
+import { isRomaniaBased, classifyResidency } from '../src/lib/growth/audience';
 
 const arg = (n: string, d?: string) => { const i = process.argv.indexOf(`--${n}`); return i >= 0 ? process.argv[i + 1] : d; };
 const PROPERTY = arg('property', 'prahova-mountain-chalet')!;
@@ -152,6 +152,7 @@ async function main() {
       eligible: reasons.length === 0,
       ineligibleReasons: reasons,
       tier,
+      residency: classifyResidency({ normalizedPhone: g.normalizedPhone, phone: g.phone, country: g.country, stays: stayB.length }),
       totalBookings,
       lastStay: last ? ymd(last) : null,
       daysSinceLastStay: last ? days(last, AS_OF) : null,
@@ -207,6 +208,7 @@ async function main() {
       note: 'Choose WHO (a subset of eligible), the occasion/angle, and the offer. This pack gives raw dossier inputs, NOT a ranking — the selection is your reasoning. Weigh: is the guest DUE (days-since-stay against the return clock)? Does the window FIT them (see below), and does the OCCASION suit them (a school break is a kids window; a quiet weekend suits adults-only)? Prefer people the window actually suits over the merely warm. Do not exceed the run cap. Give a per-guest reason and say what you rejected.',
       returnClock: { medianDays: 147, p25: 76, p75: 278, note: 'days-since-last-stay near/after this range = due' },
       fitInputs: 'Per dossier: lastStaySeason (match via returnSeasonTransitionsToThisTarget below, NOT "same season"), lastHadChildren (vs whether this is a family window), typicalNights (vs the gap\'s nights), reviewThemes (vs the occasion — e.g. "Peaceful"/"Private" suit a quiet escape).',
+      residency: 'domestic = lives in RO (any window, incl. short-notice local gaps). diaspora = Romanian living abroad — they travel home for MAJOR holidays/vacations (Christmas, Easter, summer, 1 Dec / national days); target them ONLY when this window is such an occasion, NOT for a short-notice local mid-week gap (they will not fly in for a random Tuesday). foreign = a proven repeat returner kept for loyalty; judge case by case. Weigh residency against this window\'s occasion.',
       returnSeasonTransitionsToThisTarget: transitionsToTarget,
       returnSeasonTransitionsNote: `how often a guest whose last stay was in season X returned in ${targetSeason} (X->${targetSeason}). A guest whose lastStaySeason is a strong source here fits this window even though it is a different season.`,
     },
