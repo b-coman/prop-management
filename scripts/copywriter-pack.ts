@@ -44,6 +44,7 @@ async function main() {
   const brief = JSON.parse(fs.readFileSync(briefFile, 'utf8'));
   const wantIds: string[] = brief.audience.map((a: any) => a.guestId);
   const careByGuest = new Map(brief.audience.map((a: any) => [a.guestId, a.careFlags || []]));
+  const framingUpdates: any[] = brief.updates || [];   // campaign news to weave in, date-targeted
 
   const db = await getAdminDb();
   const [gSnap, bSnap, rSnap, tSnap] = await Promise.all([
@@ -87,6 +88,18 @@ async function main() {
       .sort((a: any, b: any) => +toD(a.checkInDate)! - +toD(b.checkInDate)!);
     const lastBk: any = stayB.length ? stayB[stayB.length - 1] : null;
     const last = lastBk ? toD(lastBk.checkInDate) : null;
+    // booking-channel history — so the copywriter presents the offer the RIGHT way per guest
+    // (a direct booker already knows they get the best price; an OTA booker needs the explicit offer).
+    const channels = stayB.map((b: any) => String(b.source || '').toLowerCase()).filter(Boolean);
+    const directCount = channels.filter((c: string) => c === 'direct').length;
+    const otaCount = channels.length - directCount;
+    const lastChannel = channels.length ? channels[channels.length - 1] : null;
+    const booksDirect = directCount > 0;
+    // campaign updates that are genuinely NEW to this guest (their last stay predates the update).
+    // This is the TRUTH gate — the copywriter still decides whether/how to mention each.
+    const applicableUpdates = framingUpdates.filter((u: any) => {
+      const eff = toD(u.effectiveDate); return eff && last && +last < +eff;
+    }).map((u: any) => ({ id: u.id, text: u.text }));
     const rv = reviewsBy.get(gid) || [];
     const reviewThemes = [...new Set(rv.flatMap((r: any) => { const t = r.tags; return Array.isArray(t) ? t : t && typeof t === 'object' ? Object.values(t).flat() : []; }))]
       .filter(x => typeof x === 'string' && !/^\+\d+ more$/i.test(x));  // drop the "+N more" truncation artifact
@@ -107,7 +120,9 @@ async function main() {
     if (lastBk?.numberOfGuests) groundedFacts.push({ key: 'partySize', value: lastBk.numberOfGuests, source: `bookings/${lastBk.id}` });
     if (lastBk && (lastBk.numberOfChildren ?? 0) > 0) groundedFacts.push({ key: 'hadChildren', value: true, source: `bookings/${lastBk.id}` });
     if (totalBookings >= 2) groundedFacts.push({ key: 'isRepeatGuest', value: totalBookings, source: `guests/${gid}` });
+    if (booksDirect) groundedFacts.push({ key: 'booksDirect', value: { directBookings: directCount, otaBookings: otaCount }, source: `bookings(guests/${gid})` });
     reviewThemes.forEach(t => groundedFacts.push({ key: `reviewPraised:${t}`, value: t, source: `reviews/${(rv[0] || {}).id || gid}` }));
+    applicableUpdates.forEach((u: any) => groundedFacts.push({ key: `update:${u.id}`, value: u.text, source: 'campaign.updates' }));
     // NOTE: no `issueResolved:*` facts are emitted here — the pack cannot know a problem was fixed.
     // Those are owner-supplied (a future input); until then a complaint guest gets neutral treatment.
 
@@ -127,7 +142,9 @@ async function main() {
         partySize: lastBk?.numberOfGuests ?? null,
         hadChildren: lastBk ? (lastBk.numberOfChildren ?? 0) > 0 : null,
         reviewThemes,
+        bookingChannel: { lastChannel, directCount, otaCount },
       },
+      applicableUpdates,   // campaign news the copywriter MAY mention (already date-filtered to this guest)
       groundedFacts,
       thread,
       threadNote: thread.length ? `${thread.length} prior messages — read to AVOID repeating what was already said, and to match tone. Do NOT assert a new guest-specific fact from the thread that is not in groundedFacts.` : 'no prior WhatsApp history — a first contact; include the opt-out line.',
@@ -136,7 +153,7 @@ async function main() {
 
   const pack = {
     meta: { generatedFor: brief.propertyId, asOf: ymd(AS_OF), generator: 'scripts/copywriter-pack.ts', briefId: brief.opportunity?.id },
-    campaign: { occasion: brief.occasion, offer: brief.offer, intent: brief.intent, generalAngle: brief.generalAngle },
+    campaign: { occasion: brief.occasion, offer: brief.offer, updates: framingUpdates, intent: brief.intent, generalAngle: brief.generalAngle },
     voiceProfile: {
       note: 'Imitate this register — these are the owner\'s REAL past messages, tagged by outcome (booked/replied/silent). Copy the voice, not the content. Prefer what "booked".',
       exemplars: voiceExemplars,
@@ -148,6 +165,8 @@ async function main() {
       selfIdRequired: 'open by identifying the sender (e.g. "Bogdan sunt, de la casuta din Comarnic")',
       optOut: 'include a soft opt-out line only on a FIRST contact (no prior thread); otherwise rely on WhatsApp block/report',
       grounding: 'assert ONLY facts present in that guest\'s groundedFacts; tag each claim in factsUsed with its key. No emoji. No invented stays/preferences.',
+      offerPresentation: 'The offer (campaign.offer) is set by the owner — never inflate or invent one, only phrase it. Adapt HOW you present it per guest: a guest with a `booksDirect` fact already knows they get your best price directly, so acknowledge that warmly (e.g. "si asa cum stii deja, iti pot da cea mai buna oferta direct") rather than quoting a discount as if it were news; a guest who has only booked via an OTA gets the explicit offer. For a free-night/value offer, describe the value in words, not a bare percentage. Tag `booksDirect` in factsUsed when you use that angle.',
+      updates: 'Each guest\'s `applicableUpdates` lists campaign news that is genuinely new SINCE THAT guest\'s last stay (already date-filtered — a guest who was here after a change does not see it). Decide per guest whether an update is worth mentioning and how to weave it in — do not force it into every message. You may mention ONLY updates in that guest\'s applicableUpdates, tagging factsUsed with the `update:<id>` key.',
       sentiment: 'always positive. For a careFlag complaint: if (and only if) an issueResolved:* fact is present, you MAY add a warm PS acknowledging the fix; otherwise do NOT mention the past problem at all — write a normal forward-looking message.',
     },
     guests,

@@ -35,17 +35,66 @@ export interface BriefAudienceEntry {
   careFlags?: string[];          // e.g. ['complaint-in-thread'] — the copywriter must handle gently
 }
 
-/** The planner's typed output — validated before anything queues (plan §7.4). */
+/**
+ * The offer, as part of the campaign FRAMING (owner-editable). A superset so a plain percent
+ * offer stays `{discountPct}` (back-compat) while richer forms carry their own params. Whatever
+ * the form, `effectiveDiscountPct()` derives the economic size the margin guard checks — the
+ * copywriter only ever PHRASES this (channel-aware), never inflates it.
+ */
+export interface CampaignOffer {
+  type?: 'percent' | 'free_night' | 'fixed' | 'none';
+  discountPct?: number | null;   // percent offers (also the back-compat field)
+  freeNightAfter?: number;       // free_night: stay N nights, the (N+1)th is free
+  amount?: number;               // fixed: absolute amount off (currency = RON)
+  description: string;           // human phrasing shown at the gate; the copywriter may reword per guest
+}
+
+/**
+ * A campaign-level UPDATE to announce (part of the framing). `effectiveDate` is what makes it
+ * TRUTHFUL to call "new": the copywriter-pack surfaces an update to a guest ONLY if their last
+ * stay predates it (they haven't experienced it). Whether it's worth mentioning to that guest,
+ * and how, is the copywriter's judgment — this only bounds it to guests it's genuinely new to.
+ */
+export interface CampaignUpdate {
+  id: string;                    // stable slug, e.g. 'fire-pit'
+  text: string;                  // what changed, in the owner's words
+  effectiveDate: string;         // YYYY-MM-DD — only guests whose last stay is BEFORE this hear it as new
+}
+
+/** The planner's typed output — the draft FRAMING the human gate edits before the copywriter runs (§7.4). */
 export interface CampaignBrief {
   propertyId: string;
   opportunity: Opportunity;
   act: boolean;                  // false = decline; audience must then be empty
   intent: CampaignIntent;
   occasion: { name: string | null; point: string };   // the "what & why now"
-  offer: { discountPct: number | null; description: string };
+  offer: CampaignOffer;
+  updates?: CampaignUpdate[];                           // news to weave in, date-targeted (framing)
   audience: BriefAudienceEntry[];                       // ⊆ the eligible set (enforced by validatePlan)
   generalAngle: string;                                 // the brief the copywriter particularises
   rationale: string;
+}
+
+/**
+ * Derive the economic size of an offer as a percentage, for the margin guard. Pure.
+ * - percent    → discountPct
+ * - free_night → 1/(freeNightAfter+1)  (stay 3 get 4th free = 25%)
+ * - none       → 0
+ * - fixed      → null (can't be a % without an ADR; the guard warns rather than blocks)
+ */
+export function effectiveDiscountPct(offer: CampaignOffer | undefined | null): number | null {
+  if (!offer) return null;
+  const type = offer.type ?? (offer.discountPct != null ? 'percent' : 'none');
+  switch (type) {
+    case 'none': return 0;
+    case 'percent': return offer.discountPct ?? 0;
+    case 'free_night': {
+      const n = offer.freeNightAfter ?? 0;
+      return n > 0 ? Math.round((1 / (n + 1)) * 100) : null;
+    }
+    case 'fixed': return null;
+    default: return offer.discountPct ?? null;
+  }
 }
 
 // ── copywriter → grounding validator / outbox ────────────────────────────────
@@ -78,7 +127,8 @@ export interface ProposedDraft {
 export interface CampaignProposal {
   intent: CampaignIntent;
   occasion: { name: string | null; point: string };
-  offer: { discountPct: number | null; description: string };
+  offer: CampaignOffer;
+  updates?: CampaignUpdate[];
   generalAngle: string;
   rationale: string;
   opportunity: Opportunity;
@@ -126,6 +176,7 @@ export function toCampaignProposal(brief: CampaignBrief): CampaignProposal {
     intent: brief.intent,
     occasion: brief.occasion,
     offer: brief.offer,
+    updates: brief.updates ?? [],
     generalAngle: brief.generalAngle,
     rationale: brief.rationale,
     opportunity: brief.opportunity,
