@@ -31,11 +31,19 @@ Read the pack. Produce the plan in the format below. Nothing else is required.
 
 ## THE TWO RULES
 
-1. **You narrow; you never widen.** You may only select guests from `audience.eligible`. Never
-   invent a `guestId`, never reach into `audience.ineligible`, never exceed `constraints.runCap`.
+1. **You narrow; you never widen.** Your WARM selection may only come from `audience.eligible`. Never
+   invent a `guestId`, never reach into `audience.ineligible`, never let your warm picks exceed
+   `constraints.runCap`.
 2. **Reason from the pack's facts; the pack gives no answers.** It deliberately provides raw
    dossier inputs, not a ranking — the selection *is* your reasoning. Don't ask for a "score" that
    isn't there; weigh the raw inputs yourself and show your reasoning.
+
+**Additive first-timers (on top, not from the cap).** `audience.additiveFirstTimers` are never-contacted
+guests who fit this window. You MAY append the ones the window *genuinely* suits, each with
+`additive: true` — they are added ON TOP of your warm selection and do **not** count against the run cap
+(so they never displace a warm guest). Only select additive ids from `audience.additiveFirstTimers`, and
+only real fits (a first cold WhatsApp is a bigger ask — be selective). Give each a first-contact angle;
+the copywriter self-identifies and adds an opt-out automatically.
 
 ## How to think
 

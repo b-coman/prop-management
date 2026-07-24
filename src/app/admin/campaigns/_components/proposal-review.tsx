@@ -148,6 +148,9 @@ export function ProposalReview({ campaignId }: { campaignId: string }) {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{r.name}</span>
                       <Badge variant="outline" className="uppercase text-[10px]">{r.language}</Badge>
+                      {r.additive && (
+                        <Badge variant="outline" className="border-blue-300 text-[10px] text-blue-700">first-timer · added on top</Badge>
+                      )}
                       {(r.careFlags ?? []).map((f) => (
                         <Badge key={f} variant="outline" className="border-amber-300 text-[10px] text-amber-700">
                           <AlertTriangle className="mr-1 h-3 w-3" />{f}

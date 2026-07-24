@@ -170,7 +170,13 @@ async function main() {
     });
   }
 
-  const eligible = dossiers.filter(d => d.eligible);
+  const eligibleAll = dossiers.filter(d => d.eligible);
+  // WARM audience = contacted-before or repeat (tier != unknown) — the run cap applies to these.
+  // ADDITIVE first-timers = never-contacted (tier 'unknown') who are recent enough to still remember
+  // (<=600d since stay) — appended ON TOP of the warm selection, NOT counted against the run cap.
+  // (unknown + cold >600d are left out of the gap-fill entirely; they belong to the cold-reintro warm-up.)
+  const eligible = eligibleAll.filter(d => d.tier !== 'unknown');
+  const additiveFirstTimers = eligibleAll.filter(d => d.tier === 'unknown' && d.daysSinceLastStay != null && d.daysSinceLastStay <= 600);
 
   // live return-season-transition matrix over Romania-based repeat guests (the fit signal: a guest
   // whose last-stay season → target season is a common transition is a good fit, NOT "same season").
@@ -215,14 +221,17 @@ async function main() {
     audience: {
       romaniaBasedReachable: dossiers.length,
       eligibleCount: eligible.length,
-      ineligibleCount: dossiers.length - eligible.length,
+      additiveFirstTimerCount: additiveFirstTimers.length,
+      ineligibleCount: dossiers.length - eligibleAll.length,
       eligible,
+      additiveFirstTimers,   // append the FITTING ones with additive:true — ON TOP, they don't use the run cap
+      additiveNote: 'additiveFirstTimers are never-contacted guests who fit this window (recent enough to remember). You MAY append the ones the window genuinely suits with `additive:true` — they are ADDED ON TOP of your warm selection and do NOT count against the run cap. Give each a first-contact angle; the copywriter self-IDs + adds an opt-out automatically. Do not force them in; pick only real fits.',
       ineligible: dossiers.filter(d => !d.eligible).map(d => ({ guestId: d.guestId, tier: d.tier, reasons: d.ineligibleReasons })),
     },
   };
 
   const json = JSON.stringify(pack, null, 2);
-  if (OUT) { fs.writeFileSync(OUT, json); console.error(`wrote ${OUT} (${Math.round(json.length / 1024)} KB) · ${eligible.length} eligible of ${dossiers.length} RO`); }
+  if (OUT) { fs.writeFileSync(OUT, json); console.error(`wrote ${OUT} (${Math.round(json.length / 1024)} KB) · ${eligible.length} warm eligible + ${additiveFirstTimers.length} additive first-timers of ${dossiers.length} RO`); }
   else console.log(json);
 }
 main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });

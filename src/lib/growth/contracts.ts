@@ -33,6 +33,8 @@ export interface BriefAudienceEntry {
   guestId: string;
   angle: string;                 // why this guest, in one line (due? fit? relationship?)
   careFlags?: string[];          // e.g. ['complaint-in-thread'] — the copywriter must handle gently
+  additive?: boolean;            // true = a first-timer appended ON TOP of the warm audience (does NOT
+                                 // count against the run cap; a first WhatsApp contact for a fitting guest)
 }
 
 /**
@@ -119,6 +121,7 @@ export interface ProposedDraft {
   guestId: string;
   angle: string;              // from the brief — why this guest (shown at Gate 1)
   careFlags?: string[];       // carried from the brief for the reviewer's context
+  additive?: boolean;         // a first-timer added on top of the warm audience (badged at Gate 1)
   language: LanguageCode;
   body: string;               // the copywriter's per-guest message
   factsUsed: string[];        // grounding contract (already validated)
@@ -163,6 +166,7 @@ export function toProposedDrafts(
       guestId: a.guestId,
       angle: a.angle,
       careFlags: a.careFlags,
+      additive: a.additive,
       language: d.language,
       body: d.body,
       factsUsed: d.factsUsed,
