@@ -23,8 +23,9 @@ export interface PlannerPackForValidation {
   constraints: { runCap: number };
   offer: { maxDiscountPct: number | null };
   audience: {
-    eligible: Array<{ guestId: string }>;
+    eligible: Array<{ guestId: string }>;              // the WARM audience — the run cap applies here
     ineligible?: Array<{ guestId: string }>;
+    additiveFirstTimers?: Array<{ guestId: string }>;  // first-timers that may be appended ON TOP (no cap)
   };
 }
 
@@ -49,7 +50,11 @@ export function validatePlan(
 
   const eligible = new Set(pack.audience.eligible.map((g) => g.guestId));
   const ineligible = new Set((pack.audience.ineligible ?? []).map((g) => g.guestId));
+  const additiveSet = new Set((pack.audience.additiveFirstTimers ?? []).map((g) => g.guestId));
   const ids = brief.audience.map((a) => a.guestId);
+  // WARM picks count against the run cap; ADDITIVE first-timers are appended on top (no cap).
+  const warmIds = brief.audience.filter((a) => !a.additive).map((a) => a.guestId);
+  const additiveIds = brief.audience.filter((a) => a.additive).map((a) => a.guestId);
   const cap = pack.constraints.runCap;
 
   // A plan that declined to act is valid iff it selected nobody.
@@ -60,22 +65,24 @@ export function validatePlan(
     return { ok: errors.length === 0, errors, warnings, stats: { selected: ids.length, eligible: eligible.size, runCap: cap } };
   }
 
-  // 1. Narrows-never-widens: every selected id must be in the eligible set.
-  const notEligible = ids.filter((id) => !eligible.has(id));
+  // 1. Narrows-never-widens. Warm picks must be in the eligible (warm) set; additive picks must be in
+  //    the additive-first-timer set. Neither may reach outside its set.
+  const notEligible = warmIds.filter((id) => !eligible.has(id));
   if (notEligible.length) {
-    // Distinguish "reached into the ineligible set" from "invented an id" — different failure modes.
     const fromIneligible = notEligible.filter((id) => ineligible.has(id));
     const invented = notEligible.filter((id) => !ineligible.has(id));
     if (fromIneligible.length) errors.push(`selected ${fromIneligible.length} INELIGIBLE guest(s): ${fromIneligible.join(', ')}`);
     if (invented.length) errors.push(`selected ${invented.length} UNKNOWN guest id(s) not in the pack: ${invented.join(', ')}`);
   }
+  const additiveNotAllowed = additiveIds.filter((id) => !additiveSet.has(id));
+  if (additiveNotAllowed.length) errors.push(`marked ${additiveNotAllowed.length} guest(s) additive that are not in the additive-first-timer set: ${additiveNotAllowed.join(', ')}`);
 
-  // 2. No duplicates.
+  // 2. No duplicates (across warm + additive).
   const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
   if (dupes.length) errors.push(`duplicate guest id(s): ${[...new Set(dupes)].join(', ')}`);
 
-  // 3. Run cap.
-  if (ids.length > cap) errors.push(`selected ${ids.length} > run cap ${cap}`);
+  // 3. Run cap — WARM picks only; additive first-timers are on top and do not count.
+  if (warmIds.length > cap) errors.push(`selected ${warmIds.length} warm > run cap ${cap} (additive first-timers don't count, but warm picks do)`);
 
   // 4. Empty acting plan.
   if (ids.length === 0) errors.push('act:true but no guests selected');
