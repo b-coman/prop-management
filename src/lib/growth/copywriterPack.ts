@@ -102,6 +102,7 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
 
     const groundedFacts: any[] = [];
     if (g.firstName) groundedFacts.push({ key: 'firstName', value: g.firstName, source: `guests/${gid}` });
+    if (g.partnerName) groundedFacts.push({ key: 'partnerName', value: g.partnerName, source: `guests/${gid}` });
     if (last) groundedFacts.push({ key: 'lastStayPhrase', value: lastStayPhrase(last, AS_OF), source: `bookings/${lastBk.id}` });
     if (last) groundedFacts.push({ key: 'lastStaySeason', value: seasonOf(last), source: `bookings/${lastBk.id}` });
     if (lastBk?.numberOfGuests) groundedFacts.push({ key: 'partySize', value: lastBk.numberOfGuests, source: `bookings/${lastBk.id}` });
@@ -149,6 +150,7 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
       length: '300–600 characters, 3–6 short sentences',
       noEmoji: true,
       selfIdRequired: 'open by identifying the sender (e.g. "Bogdan sunt, de la casuta din Comarnic")',
+      partnerGreeting: 'If a `partnerName` grounded fact is present, the WhatsApp number belongs to that partner (who booked under the guest firstName) — greet BOTH warmly, e.g. "Buna Razvan si Loredana!", and tag `partnerName` in factsUsed. If there is no partnerName, greet only by firstName.',
       optOut: 'include a soft opt-out line only on a FIRST contact (no prior thread); otherwise rely on WhatsApp block/report',
       grounding: 'assert ONLY facts present in that guest\'s groundedFacts; tag each claim in factsUsed with its key. No emoji. No invented stays/preferences.',
       offerPresentation: 'The offer (campaign.offer) is set by the owner — never inflate or invent one, only phrase it. Adapt HOW you present it per guest: a guest with a `booksDirect` fact already knows they get your best price directly, so acknowledge that warmly (e.g. "si asa cum stii deja, iti pot da cea mai buna oferta direct") rather than quoting a discount as if it were news; a guest who has only booked via an OTA gets the explicit offer. For a free-night/value offer, describe the value in words, not a bare percentage. Tag `booksDirect` in factsUsed when you use that angle.',
