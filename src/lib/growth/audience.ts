@@ -35,21 +35,38 @@ export interface RomaniaBasedInput {
 }
 
 /**
- * Is this guest reachable domestically for reactivation ("lives in Romania", or a proven repeat)?
+ * Is this guest a Romanian-affinity reactivation target (domestic OR diaspora OR proven repeat)?
  *
- * `country` is UNRELIABLE (defaulted to RO across the base, like `language`), so a foreign phone —
- * a much stronger signal of where someone actually lives — OVERRIDES country=RO. Owner's rule
- * (2026-07-24): "George lives in the USA, you can see by the phone number." Several RO-diaspora
- * guests (name Romanian, phone +33/+1/+34/+49/+31) carry country=RO but cannot pop over for a
- * dated window — they are ads/OTA targets, not WhatsApp reactivation. A proven repeat returner
- * (2+ stays) still qualifies regardless of location (Artem ×3, Bianca ×2).
+ * `country` IS meaningful (it varies across ~30 countries, NOT a blanket-RO default — corrected
+ * 2026-07-24). Combined with the phone it cleanly separates three groups:
+ *   - domestic  : Romanian phone (+40)                → lives here; good for any window.
+ *   - diaspora  : country=RO but a FOREIGN phone      → Romanian living abroad; visits RO for major
+ *                 holidays (Christmas/Easter/summer/national days). Owner's rule (2026-07-24): do NOT
+ *                 exclude them — they travel home and are a real seasonal target; just target the
+ *                 right occasions (not a short-notice local gap). Use classifyResidency() + the
+ *                 planner's occasion reasoning to decide when.
+ *   - foreign   : country≠RO                          → a tourist; ads/OTA, NOT WhatsApp reactivation.
+ * A proven repeat returner (2+ stays) qualifies regardless of origin (Artem ×3, Bianca ×2).
+ * (Individuals we never want to contact are handled separately via suppressionList / unsubscribed.)
  */
 export function isRomaniaBased(g: RomaniaBasedInput): boolean {
-  if ((g.stays ?? 0) >= 2) return true;                 // proven repeat returner — worth it wherever they live
-  const phone = g.normalizedPhone || g.phone;
-  if (hasRomanianPhone(phone)) return true;             // RO phone = strongest "based here" signal
-  if (phone && !hasRomanianPhone(phone)) return false;  // a FOREIGN phone overrides an unreliable country=RO
-  return ['RO', 'ROMANIA'].includes(String(g.country || '').toUpperCase()); // no phone → fall back to country
+  if ((g.stays ?? 0) >= 2) return true;                                          // proven repeat returner
+  if (hasRomanianPhone(g.normalizedPhone) || hasRomanianPhone(g.phone)) return true; // domestic
+  if (['RO', 'ROMANIA'].includes(String(g.country || '').toUpperCase())) return true; // Romanian (diaspora if foreign phone)
+  return false;                                                                  // foreign tourist — not a reactivation target
+}
+
+export type Residency = 'domestic' | 'diaspora' | 'foreign';
+
+/**
+ * Classify where a reactivation target lives, so the planner can match them to the right occasion:
+ * domestic → any window; diaspora → major-holiday/vacation windows they travel home for; foreign →
+ * only present here as a proven repeat returner (kept for loyalty, judge case by case).
+ */
+export function classifyResidency(g: RomaniaBasedInput): Residency {
+  if (hasRomanianPhone(g.normalizedPhone) || hasRomanianPhone(g.phone)) return 'domestic';
+  if (['RO', 'ROMANIA'].includes(String(g.country || '').toUpperCase())) return 'diaspora';
+  return 'foreign';
 }
 
 /** Coarse thread-language sniff for the copywriter: which language to actually write in. */
