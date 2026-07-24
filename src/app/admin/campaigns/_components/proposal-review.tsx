@@ -101,6 +101,16 @@ export function ProposalReview({ campaignId }: { campaignId: string }) {
               <span className="text-muted-foreground">{offer.description}</span>
             </div>
           )}
+          {(proposal?.updates?.length ?? 0) > 0 && (
+            <div className="rounded-md border border-dashed p-2">
+              <p className="mb-1 text-xs font-medium">News woven in (only for guests who last stayed before each date):</p>
+              <ul className="space-y-0.5 text-xs text-muted-foreground">
+                {proposal!.updates!.map((u) => (
+                  <li key={u.id}>• {u.text} <span className="opacity-60">(since {u.effectiveDate})</span></li>
+                ))}
+              </ul>
+            </div>
+          )}
           {proposal?.rationale && (
             <p className="text-muted-foreground"><span className="font-medium text-foreground">Why: </span>{proposal.rationale}</p>
           )}

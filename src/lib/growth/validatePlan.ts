@@ -16,6 +16,7 @@
  */
 
 import type { CampaignBrief } from './contracts';
+import { effectiveDiscountPct } from './contracts';
 
 /** The subset of the planner pack this validator needs. */
 export interface PlannerPackForValidation {
@@ -79,14 +80,17 @@ export function validatePlan(
   // 4. Empty acting plan.
   if (ids.length === 0) errors.push('act:true but no guests selected');
 
-  // 5. Offer inequality: a discount must not exceed the ceiling that keeps direct above OTA net.
-  const d = brief.offer?.discountPct;
-  if (d != null && d > 0) {
+  // 5. Offer inequality: whatever the offer FORM (percent, free-night, fixed), its economic size
+  // must not exceed the ceiling that keeps direct above OTA net. effectiveDiscountPct() derives it.
+  const d = effectiveDiscountPct(brief.offer);
+  if (d == null && brief.offer?.type === 'fixed') {
+    warnings.push('a fixed-amount offer was set — its % value depends on the nightly rate; confirm it keeps direct above OTA net manually');
+  } else if (d != null && d > 0) {
     const ceiling = pack.offer.maxDiscountPct;
     if (ceiling == null) {
-      warnings.push(`a ${d}% discount was set but the pack has no maxDiscountPct (missing net-ADR data) — confirm the offer manually`);
+      warnings.push(`an offer worth ~${d}% was set but the pack has no maxDiscountPct (missing net-ADR data) — confirm the offer manually`);
     } else if (d > ceiling) {
-      errors.push(`discount ${d}% exceeds the ceiling ${ceiling}% — it would give away the direct-channel margin (§0.5 offer inequality)`);
+      errors.push(`offer worth ~${d}% exceeds the ceiling ${ceiling}% — it would give away the direct-channel margin (§0.5 offer inequality)`);
     }
   }
 
