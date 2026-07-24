@@ -105,7 +105,7 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
       .filter(x => typeof x === 'string' && !/^\+\d+ more$/i.test(x)) as string[];
     const th = threads.get(gid);
     const thread = ((th?.messages || []) as any[]).filter(m => m.ts < ymd(AS_OF)).map(m => ({ ts: m.ts, dir: m.direction, text: m.text }));
-    const totalBookings = g.totalBookings ?? stayB.length;
+    const totalBookings = stayB.length;   // REAL completed (non-cancelled, past) stays — g.totalBookings is unreliable (inflated; e.g. Roy Levi shows 2 with one cancelled booking), so never claim "repeat" from it
     const threadText = thread.map(m => m.text || '').join(' ');
     const detected = detectLanguage(threadText);
     const writeLanguage = detected === 'unknown' ? (g.language || 'ro') : detected;

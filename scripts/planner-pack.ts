@@ -118,7 +118,7 @@ async function main() {
     const lastOut = msgs.filter(m => m.direction === 'out' && m.ts < ymd(AS_OF)).map(m => String(m.ts).slice(0, 10)).sort().pop();
     const daysSinceOut = lastOut ? days(new Date(`${lastOut}T00:00:00Z`), AS_OF) : null;
 
-    const totalBookings = g.totalBookings ?? stays.length;
+    const totalBookings = stayB.length;   // REAL completed stays — g.totalBookings is unreliable (inflated; counts cancelled)
     const tier = totalBookings >= 2 ? 'repeat' : inbound >= 3 ? 'engaged' : inbound >= 1 ? 'responsive' : outbound >= 1 ? 'silent' : 'unknown';
 
     // coarse complaint signal (the copywriter does the real sentiment read over the full thread)
