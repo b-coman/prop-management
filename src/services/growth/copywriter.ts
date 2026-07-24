@@ -48,17 +48,23 @@ const SYSTEM = `You are the WhatsApp copywriter for a small Romanian mountain-ch
 message per selected past guest, in the OWNER's voice, grounded in what is genuinely true about THAT
 guest, never a broadcast. You draft only — the owner reviews and sends by hand.
 
-THE THREE RULES
-1. Ground every guest-specific claim. You may only state a fact about a guest that appears in that
-   guest's groundedFacts. List in factsUsed the exact keys of every guest-specific claim you made.
-   Never invent stays, preferences, names, numbers, or updates. The thread is for AVOIDING repetition
-   and matching tone — not a licence to assert new facts.
-2. Write in the owner's voice (study voiceProfile.exemplars — lean toward what "booked"; copy the
-   register, not the content) and in each guest's writeLanguage. Romanian WITHOUT diacritics. Obey
-   every rule in voiceRules (length, no emoji, self-identification on line one, opt-out only on a
-   first contact = empty thread, offer presentation, updates).
-3. Positive and careful. Every message is warm and forward-looking. Follow voiceRules.sentiment for
+THE RULES
+1. CONTINUE THE RELATIONSHIP — do not cold-open. Each guest has a thread (verbatim history) and a
+   relationship state. Read them and write the NEXT message in an ongoing conversation: pick up the
+   thread, never re-introduce yourself to someone you spoke with recently, and NEVER re-announce
+   something the thread shows you already told them. Follow voiceRules.continuity / selfId / updates.
+2. Ground every guest-specific claim. You may only state a fact about a guest that appears in that
+   guest's groundedFacts; list the exact keys in factsUsed. Never invent stays, preferences, names,
+   numbers, or updates. The thread is context for continuity and tone — not a source of new claims.
+3. Write in the owner's voice (study voiceProfile.exemplars — lean toward what "booked"; copy the
+   register, not the content) and in each guest's writeLanguage, WITHOUT diacritics. Obey voiceRules
+   (length, no emoji, register consistency, self-ID/opt-out/offer/updates as they apply per relationship).
+4. Positive and careful. Every message is warm and forward-looking. Follow voiceRules.sentiment for
    any careFlag; never reference an unresolved problem.
+
+You are trusted to make the judgment calls the rules frame — whether to self-ID, whether to raise an
+update, whether to offer an opt-out, how much to reference the last exchange — from each guest's real
+history. Be the thoughtful host writing to someone you know, not a mail-merge.
 
 Return your work by calling the emit_drafts tool with exactly one draft per guest in the pack — no
 prose, no extra guests, none skipped.`;
@@ -110,6 +116,7 @@ export async function generateDrafts(brief: CampaignBrief, opts?: { asOf?: Date;
     });
     const toolUse = resp.content.find((b: any) => b.type === 'tool_use') as any;
     drafts = (toolUse?.input?.drafts ?? []) as DraftMessage[];
+    const toolUseId = toolUse?.id as string | undefined;
 
     lastValidation = validateDrafts(validationGuests, drafts);
     const warnings = lastValidation.perGuest.flatMap((p) => p.warnings.map((w) => `${p.guestId}: ${w}`));
@@ -120,13 +127,18 @@ export async function generateDrafts(brief: CampaignBrief, opts?: { asOf?: Date;
     }
     if (attempt > maxRepairs) break;
 
-    // Bounded repair: hand back the exact per-guest errors and ask to fix only those.
+    // Bounded repair: hand back the exact per-guest errors and ask to fix only those. Because the
+    // assistant turn contains a tool_use, the API REQUIRES the next turn to carry a matching
+    // tool_result — so the error feedback rides in the tool_result block, not a plain user message.
     const perGuestErrs = lastValidation.perGuest.filter((p) => p.errors.length).map((p) => `- ${p.guestId}: ${p.errors.join('; ')}`).join('\n');
     const campErrs = lastValidation.errors.length ? `Campaign-level: ${lastValidation.errors.join('; ')}\n` : '';
+    const repairText = `The validator rejected some drafts. Fix EXACTLY these and re-emit ALL guests via emit_drafts (a bounded repair, not a rewrite):\n${campErrs}${perGuestErrs}\n\nReminder: assert only groundedFacts keys and list them in factsUsed; no emoji; a first/cold contact must self-identify; give first-contact and silent guests an opt-out.`;
     messages.push({ role: 'assistant', content: resp.content });
     messages.push({
       role: 'user',
-      content: `The validator rejected some drafts. Fix EXACTLY these and re-emit ALL guests via emit_drafts (a bounded repair, not a rewrite):\n${campErrs}${perGuestErrs}\n\nReminder: assert only groundedFacts keys and list them in factsUsed; no emoji; self-ID on line one; opt-out only on first contact.`,
+      content: toolUseId
+        ? [{ type: 'tool_result', tool_use_id: toolUseId, content: repairText }]
+        : repairText,
     });
   }
 

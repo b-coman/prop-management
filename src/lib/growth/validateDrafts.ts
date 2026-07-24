@@ -79,11 +79,16 @@ export function validateDrafts(
     }
 
     // 2. voice
+    const firstContact = (g.thread || []).length === 0;
     if (EMOJI.test(body)) errors.push('contains emoji (forbidden)');
-    if (!r.selfIdMarkers.some((m) => loose(body).includes(loose(m)))) errors.push('no self-identification (open by saying who is writing)');
+    // Self-ID: a first/cold contact MUST say who is writing (a stranger needs it); when continuing an
+    // active thread, re-introducing reads as a form letter — so it is only a soft nudge there.
+    if (!r.selfIdMarkers.some((m) => loose(body).includes(loose(m)))) {
+      if (firstContact) errors.push('no self-identification (a first contact must say who is writing)');
+      else warnings.push('no self-identification (fine when continuing an active thread)');
+    }
     if (body.length < r.minChars) errors.push(`too short (${body.length} < ${r.minChars})`);
     else if (body.length > r.maxChars) warnings.push(`long (${body.length} > ${r.maxChars})`);
-    const firstContact = (g.thread || []).length === 0;
     if (firstContact && !r.optOutMarkers.some((m) => loose(body).includes(loose(m)))) warnings.push('first contact but no opt-out line found');
 
     return { guestId: d.guestId, errors, warnings };
