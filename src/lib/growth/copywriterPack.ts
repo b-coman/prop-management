@@ -19,6 +19,12 @@ import type { CampaignBrief } from '@/lib/growth/contracts';
 const toD = (v: any): Date | null => v?._seconds ? new Date(v._seconds * 1000) : v?.toDate ? v.toDate() : typeof v === 'string' ? new Date(v) : v instanceof Date ? v : null;
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
 const days = (a: Date, b: Date) => Math.round((+b - +a) / 86400000);
+
+// Voice-exemplar filters (owner request 2026-07-24): EXCLUDE operational messages (directions,
+// check-in access, heating/water troubleshooting) from the voice pool — they are not the warm
+// reactivation register we want modeled; and PREFER outreach/reactivation messages within the pool.
+const VOICE_LOGISTICS = /waze|goo\.gl\/maps|maps\.app|maps\.google|google maps|plus code|localizare|check[\s-]?in|codul de acces|cheia|drum bun|\bharta\b|calorifer|presiune|termometru|temperatur/i;
+const VOICE_OUTREACH = /perioada liber|fereastra liber|s-a eliberat|s-a deschis|\bmi s-a\b|anulare|revii|reveni|prima ocazie|imi aduc aminte|mi-am adus aminte|va doriti|discount|reducere|oferta|weekendul asta liber/i;
 const seasonOf = (d: Date) => { const m = d.getUTCMonth() + 1; return m === 12 || m <= 2 ? 'winter' : m <= 5 ? 'spring' : m <= 8 ? 'summer' : 'autumn'; };
 function lastStayPhrase(last: Date | null, asOf: Date): string | null {
   if (!last) return null;
@@ -60,19 +66,22 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
     const t: any = d.data(); const g = guestById.get(d.id);
     const stays = g ? ((g as any).bookingIds || []).map((id: string) => bookingById.get(id)).filter(Boolean) : [];
     (t.messages || []).forEach((m: any, i: number) => {
-      if (m.direction !== 'out' || (m.text || '').length < 260) return;
+      const text = m.text || '';
+      if (m.direction !== 'out' || text.length < 260) return;
+      if (VOICE_LOGISTICS.test(text)) return;   // strip directions / check-in / troubleshooting from the voice pool
       const after = (t.messages || []).slice(i + 1);
       const replied = after.some((x: any) => x.direction === 'in' && (+new Date(x.ts) - +new Date(m.ts)) / 86400000 <= 14);
       const booked = stays.some((b: any) => { const c = toD(b.createdAt); return c && +c > +new Date(m.ts) && (+c - +new Date(m.ts)) / 86400000 <= 90; });
-      exemplars.push({ text: m.text, len: (m.text || '').length, outcome: booked ? 'booked' : replied ? 'replied' : 'silent', date: String(m.ts).slice(0, 10) });
+      exemplars.push({ text, len: text.length, outcome: booked ? 'booked' : replied ? 'replied' : 'silent', date: String(m.ts).slice(0, 10), isOutreach: VOICE_OUTREACH.test(text) });
     });
   });
-  exemplars.sort((a, b) => (b.outcome === 'booked' ? 1 : 0) - (a.outcome === 'booked' ? 1 : 0) || b.len - a.len);
+  // Within each outcome bucket, prefer warm OUTREACH/reactivation messages, then the longer ones.
+  const rank = (arr: any[]) => arr.sort((a, b) => (b.isOutreach ? 1 : 0) - (a.isOutreach ? 1 : 0) || b.len - a.len);
   const voiceExemplars = [
-    ...exemplars.filter(e => e.outcome === 'booked').slice(0, 3),
-    ...exemplars.filter(e => e.outcome === 'replied').slice(0, 5),
-    ...exemplars.filter(e => e.outcome === 'silent').slice(0, 2),
-  ].map(e => ({ outcome: e.outcome, date: e.date, text: e.text }));
+    ...rank(exemplars.filter(e => e.outcome === 'booked')).slice(0, 3),
+    ...rank(exemplars.filter(e => e.outcome === 'replied')).slice(0, 5),
+    ...rank(exemplars.filter(e => e.outcome === 'silent')).slice(0, 2),
+  ].map(e => ({ outcome: e.outcome, date: e.date, text: String(e.text).replace(/^\d+\s*kB\s+/, '').trim() })); // strip scrape file-size artifacts
 
   // ── per-guest packs ──
   const guests = wantIds.map(gid => {
