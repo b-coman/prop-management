@@ -145,7 +145,7 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
     },
     voiceRules: {
       language: 'Write each message in that guest\'s writeLanguage (thread-detected: "ro" or "en"). Romanian is written WITHOUT diacritics (matches the owner). Do NOT trust recordLanguage — it is a blanket "ro" default. An English-speaking expat living here (RO phone) gets an English message.',
-      register: 'Pick ONE register per message and keep it consistent throughout — either tu (informal: tu/iti/te) OR voi/dumneavoastra (formal: voi/va/ati). Never mix the two in the same message. If the thread shows how the owner addressed this guest before, match it; otherwise default to the informal tu for a warm, personal feel.',
+      register: 'Pick ONE register per message and keep it consistent throughout — either tu (informal: tu/iti/te/ai) OR voi/dumneavoastra (formal: voi/va/ati). NEVER mix them in the same message (not even "ati fost… iti dau"). Choose per guest: if there is a prior thread, match how the owner addressed them there; if there is NO prior thread (a first contact), use polite voi (you do not address a stranger with tu); otherwise default to the warm informal tu.',
       length: '300–600 characters, 3–6 short sentences',
       noEmoji: true,
       selfIdRequired: 'open by identifying the sender (e.g. "Bogdan sunt, de la casuta din Comarnic")',
