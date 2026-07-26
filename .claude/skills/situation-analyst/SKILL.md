@@ -59,6 +59,17 @@ Two method rules that follow from data provenance in general:
 - **Respect n.** Check `yearsOfData` / `n` on any field before drawing a conclusion.
   State the n. Do not assert a trend from a single month or a handful of observations.
 
+## `currentSignals` — live brand & acquisition state
+
+`pack.currentSignals` carries LIVE Facebook **page** + **ad-account** health, read from Meta
+at pack-build. It is *current state* — it has no history and does **not** correspond to `--as-of`
+(`dataQuality.currentSignals.isAsOfReproducible: false`), and it is **withheld on a backtest**
+(`available: false`). So: never put a `currentSignals` number into a trend or a like-for-like
+comparison. Use it only to answer "how do the page and ad account stand *right now*", and surface
+each block's `warnings` as flags — several are **owner/brand actions or prerequisites**, not guest
+campaigns (see the instruments below). If `available` is false, say the signal was unavailable and
+move on; do not infer all-is-well from its absence.
+
 ## How to think
 
 Work in this order. Do not jump to step 3.
@@ -110,6 +121,12 @@ does not tell you which to use for any given situation.
   `audience.segments` and the occasion each week.
 - **Ads** (Meta, built separately) — reaches strangers; scales with budget. Hand over
   as a dated, sized proposal.
+- **Brand / page fixes** (from `currentSignals`, owner actions — not guest campaigns) — some
+  health flags are prerequisites or one-off fixes, not something to route to a campaign: a page
+  `websiteIsOtaLink` (the page sends clicks to an OTA → leaks direct-booking margin), a `dormant`
+  page, `no-account-spend-limit` (must be set before any ad spend), an unpublished page. Raise
+  these as FLAGS with the **owner** as the actor. (The organic-posting instrument — keeping the
+  page alive — is being built; for now, flag a dormant page, don't propose posting to it.)
 - **Price change** — the largest lever; never a message. (Check `dataQuality.pricing`
   for whether in-system pricing is even the live rate before reasoning about it.)
 - **Minimum-stay change** — see `inventory` for the current min-stay and any gaps it

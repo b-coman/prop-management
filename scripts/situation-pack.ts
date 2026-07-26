@@ -18,7 +18,9 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs';
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+import { execSync } from 'child_process';
 import { getAdminDb } from '../src/lib/firebaseAdminSafe';
+import { getPageHealth, getAdAccountHealth } from '@/services/growth/metaAds/brandHealth';
 
 const arg = (n: string, d?: string) => {
   const i = process.argv.indexOf(`--${n}`);
@@ -101,6 +103,15 @@ async function main() {
       'history (we cannot observe whether domestic demand would rise to fill vacated foreign dates).',
     amountsNote: 'booking.pricing.total is NET-TO-OWNER — the amount that actually landed in the owner\'s account (owner-confirmed). OTA figures are post-commission (Booking.com / Airbnb pay out net); direct figures are the full amount the guest paid the owner by phone. Therefore ADR and RevPAR are true take-home, and cross-channel ADR is directly comparable as-is — do NOT subtract commission again, it is already out. Caveat: a direct-vs-OTA ADR gap reflects BOTH saved commission AND booking mix (which stays land on which channel), not commission alone.',
     sampleSize: { totalBookings: live.length, completedAsOf: completed.length, cancelled: allBookings.length - live.length },
+    currentSignals: {
+      isAsOfReproducible: false,
+      note:
+        'pack.currentSignals holds LIVE Facebook page + ad-account state read from Meta at pack-build ' +
+        'time. It has NO history and does NOT correspond to --as-of, so it is WITHHELD on a historical ' +
+        'backtest. Use it only for "current brand/acquisition health" (is the page alive, is the website ' +
+        'link correct, is an account spend limit set, is there conversion history) — never as a dated ' +
+        'fact inside a trend or a like-for-like comparison.',
+    },
   };
 
   // ---------- night ledger (stay-date based — fully reliable) ----------
@@ -607,9 +618,52 @@ async function main() {
       return { date: day, recipients: gset.size, repliedWithin14d: replied, replyRatePct: round(replied / gset.size * 100), stayedWithin120d: booked };
     });
 
+  // ---------- current brand + acquisition signals (LIVE Meta state — NOT as-of reproducible) ----------
+  // Fetched DIRECTLY from Meta at pack-build (promotion-system-architecture.md §3.1). Unlike every
+  // other block, this is CURRENT state with no history and no as-of, so it is WITHHELD on a historical
+  // backtest — the same discipline `inventory` uses — and flagged in dataQuality.currentSignals so the
+  // analyst never treats it as a dated fact. Best-effort: any failure (no token in this environment,
+  // a Graph hiccup) degrades to available:false; it never breaks the pack build.
+  let currentSignals: unknown;
+  if (isHistorical) {
+    currentSignals = {
+      available: false,
+      withheldReason:
+        `Generated with --as-of ${ymd(AS_OF)} (a backtest). Facebook page + ad-account health is CURRENT ` +
+        `state only (no history, no as-of), so it is withheld to avoid mixing today's brand state into a ` +
+        `historical view. Do not reason about the page or ad account from this pack.`,
+    };
+  } else {
+    // resolveAdContext reads the ads token from META_ADS_TOKENS. Load it best-effort from Secret
+    // Manager if this environment doesn't already carry it (mirrors scripts/growth-page-audit.ts);
+    // if gcloud/creds are absent the reads below simply return available:false.
+    if (!process.env.META_ADS_TOKENS) {
+      try {
+        process.env.META_ADS_TOKENS = execSync(
+          'gcloud secrets versions access latest --secret=META_ADS_TOKENS --project=rentalspot-fzwom',
+          { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }
+        ).trim();
+      } catch {
+        /* no creds in this environment → currentSignals degrades to available:false */
+      }
+    }
+    const [pageRes, acctRes] = await Promise.all([getPageHealth(PROPERTY), getAdAccountHealth(PROPERTY)]);
+    currentSignals = {
+      available: pageRes.ok || acctRes.ok,
+      note:
+        'LIVE current Facebook/Meta state at pack-build time — NOT as-of-reproducible and NOT part of the ' +
+        'historical series. Treat as "how things stand right now". Each block\'s `warnings` are actionable ' +
+        'flags (dormant page, OTA website link, no account spend limit, no conversion history). ' +
+        'available:false means the ads token was not reachable from this environment, not that all is well.',
+      page: pageRes.ok ? pageRes.data : { available: false, error: pageRes.error },
+      adAccount: acctRes.ok ? acctRes.data : { available: false, error: acctRes.error },
+    };
+  }
+
   const pack = {
     meta: { generatedFor: PROPERTY, asOf: ymd(AS_OF), generator: 'scripts/situation-pack.ts' },
     dataQuality,
+    currentSignals,
     performance,
     channels: bySrcYear,
     origin: byOriginYear,
