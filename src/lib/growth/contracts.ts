@@ -9,7 +9,7 @@
  *
  * Pure types + a couple of pure guards — no Firestore, no network.
  */
-import type { LanguageCode } from '@/types';
+import type { AdObjective, CityTarget, LanguageCode } from '@/types';
 
 // ── analyst → router → per-instrument planner ────────────────────────────────
 /**
@@ -119,6 +119,35 @@ export function effectiveDiscountPct(offer: CampaignOffer | undefined | null): n
     case 'fixed': return null;
     default: return offer.discountPct ?? null;
   }
+}
+
+// ── ad planner → ad creative intelligence / validateAdPlan ───────────────────
+/**
+ * The ad planner's typed output — the reviewable BRIEF for a Meta acquisition push
+ * (promotion-system-architecture.md §4.2, the twin of `CampaignBrief`). The planner
+ * decides WHERE (geo), HOW MUCH (budget), HOW LONG (end time), and the ANGLE; it does
+ * NOT write copy or pick photos — that is the creative intelligence (step 4), which
+ * turns this brief into a PAUSED Meta ad via `adComposer.composeAndCreateAd`.
+ *
+ * `targeting.cities` and `objective` reuse the NEUTRAL `@/types` shapes so a validated
+ * brief threads straight into `ComposeAndCreateAdInput` without remapping. No age/gender/
+ * interests: the composer's baked `advantage_audience:1` OWNS demographics (§9f) — geo +
+ * copy qualify the audience. `validateAdPlan` is the money/margin gate (budget ceiling,
+ * future end time, geo present, cities ⊆ the pack's candidates — narrows-never-widens).
+ */
+export interface AdBrief {
+  propertyId: string;
+  opportunity: AdOpportunity;   // the ads arm only ever plans an ads-routed opportunity
+  act: boolean;                 // false = decline; a declined plan carries no targeting
+  objective: AdObjective;       // 2a: 'sales' (→ Meta OUTCOME_SALES)
+  targeting: {
+    /** Selected city targets — a SUBSET of the pack's candidate cities (validateAdPlan enforces). */
+    cities: CityTarget[];
+  };
+  dailyBudgetMinor: number;     // bani — ≤ MAX_DAILY_BUDGET_MINOR (validated)
+  endTime: string;              // ISO 8601 — bounds the run + the spend-cap math
+  creativeBrief: string;        // the brief the creative intelligence particularises: what to say/show, tone, which photo themes
+  rationale: string;            // why this geo / budget / timing
 }
 
 // ── copywriter → grounding validator / outbox ────────────────────────────────
