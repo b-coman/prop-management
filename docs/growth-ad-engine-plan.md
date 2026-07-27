@@ -238,3 +238,33 @@ Don't build 2b/2c before 2a proves photos → bookings.
 - Which external provider(s) for relight vs people-compositing (quality-led; A/B vs Advantage+).
 - Video: split the existing tour/drone master into short-clip variants now, or wait for more footage.
 - Exact catalog-snapshot/versioning + agent-API auth mechanism (part of the §7 brain seam).
+
+---
+
+## 15. Current state (26 Jul 2026) — what actually shipped and where it sits
+
+The **execution engine is built and proven at zero spend; it has never run live.** Verified against code + live account (see `docs/meta-ads-infrastructure-2026.md` §11):
+- **Enabled but dry-run:** `GROWTH_ADS_ENABLED="true"` in `apphosting.yaml` (switch 1 ON → `/admin/ads` composes drafts + dry-run activates). `GROWTH_ADS_MODE=live` deliberately absent → **zero spend possible.**
+- **Config wired:** Prahova `analytics.{metaAdAccountId,metaPageId,metaTokenRef,metaInstagramActorId,metaPixelId}` all present; `META_ADS_TOKENS` secret live; pixel firing.
+- **2 leftover draft `adCampaigns`** from July machinery validation — confirmed PAUSED/inert in Meta, stale end-times, harmless.
+- **Never activated:** no campaign approved, none carries `spendCapMinor`, the only `adAuditLog` entry is one `dry-run`.
+- **Open gaps:** (a) **no reconciliation cron** — insights/effective-status refresh is manual (`refreshAdInsightsAction` only); (b) **no `/api/growth/ad-proposals`** brain seam; (c) 🔴 account `spend_cap = 0` (owner must set it before live).
+
+## 16. The ads INTELLIGENCE build — the missing brain (mirrors the WhatsApp arm)
+
+The engine is a safe *console where a human does 100% of the thinking*. The WhatsApp arm proves the intelligent shape end-to-end (`analyst → planner → copywriter → Gate-1 review → send`); the ads arm reuses it. See `docs/promotion-system-architecture.md` §4.2 for the cross-channel framing. Concretely:
+
+- **16.1 Generalize the Opportunity contract** — `contracts.ts` `Opportunity.instrument` is the literal `'whatsapp'` today; widen to `'whatsapp' | 'ads' | 'page'` so the analyst can route an opportunity to ads and a planner can consume it.
+- **16.2 Ad planner** (twin of `.claude/skills/whatsapp-planner` + `planner-pack.ts`): an ad-planner-pack (geo/interest candidates, budget ceiling `MAX_DAILY_BUDGET_MINOR`, opportunity nights/value, past-ad performance, page-best content) → LLM sizes targeting + budget + angle + creative brief → an ad-brief validator (spend-cap math via `validateApprovalCap`, geo sanity — "narrows-never-widens" against the candidate set) → a **PAUSED `adCampaigns` draft** via the existing `composeAndCreateAd`.
+- **16.3 Ad creative/copy intelligence** (twin of `copywriter.ts`): grounded in real gallery photos + best-performing past ad copy + the page's best posts; writes primary-text/headline/CTA + picks photos; validated for truth (no invented amenities) and the **public brand voice** (distinct from the private WhatsApp voice — architecture §5.1). Feeds the composer.
+- **16.4 The hand-off** — `POST /api/growth/ad-proposals` (the §7 brain seam), mirroring `land-campaign.ts → /admin/campaigns`: lands a proposal as a PAUSED draft in `/admin/ads`.
+- **16.5 Admin symmetry** — reshape `/admin/ads` from a blank compose form into the campaigns-workspace pattern: **framing → "Generate ad" → Gate-1 review → guarded activate.**
+- **16.6 Reconciliation cron** — the durability backstop the plan always intended (§13 C2/M2): a cron that syncs `effective_status` + insights and flags any non-paused campaign not in the approved set. Build before ongoing (vs one-shot) ads.
+
+## 17. Go-live runbook (when the brain is trusted — a deliberate act, not a default)
+
+1. **Owner Meta preflight:** set an **account-level spend limit** in Ads Manager (`spend_cap` is 0); confirm the app is Live and the pixel is firing.
+2. **Compose one fresh ad** in `/admin/ads` (the 2 existing drafts are stale) — real gallery photos, city + radius, ~5 RON/day, a near future end-date.
+3. **Dry-run validation:** with `GROWTH_ADS_MODE` unset, Approve → Activate returns `dry-run` (proves the whole pipeline, zero spend).
+4. **Flip `GROWTH_ADS_MODE=live`** (deploy) → Approve → Activate the one small ad → measure via Pixel/CAPI + `utm_campaign=<adCampaignId>` ROAS join → Pause. That is the proven first loop.
+5. Emergency stop = the Pause button + the account spend limit — **never** the env switch (that's a deploy).

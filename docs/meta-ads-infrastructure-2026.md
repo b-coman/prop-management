@@ -249,3 +249,42 @@ All verified live PAUSED + deleted, zero spend. This is the contract for the ric
 **GOTCHA:** a Dynamic-Creative ad fails on a normal ad set — err 100/**1885998** "Cannot Create Dynamic Creative ad In Non-Dynamic Creative Ad Set". The AD SET must be created with **`is_dynamic_creative:true`**. Single-image `object_story_spec` creatives stay on normal (non-dynamic) ad sets. So the composer picks the path by asset count: 1 image → object_story_spec/normal adset; 2+ images or copy variants → asset_feed_spec + `is_dynamic_creative:true` adset.
 
 **§9f addendum (asset_feed_spec duplicate values):** Meta rejects DUPLICATE values within an `asset_feed_spec` array — err 100/**1815809** "Duplicate of ad asset values are not allowed / enter a unique headline for each field". Two copy variants sharing one headline → duplicate `titles[]` → rejected. Fix: dedup each array by value (`campaignBuilder.createCreative`). A single shared title + multiple distinct bodies is valid. Found via the Brain-simulated real-campaign compose (4 photos + 2 variants sharing a headline).
+
+---
+
+## 11. Live account + PAGE + token audit — read-only Graph v25 (26 Jul 2026)
+
+Verified directly against the live account with the `META_ADS_TOKENS` system-user token (GET-only, zero spend, no writes). This section is ground truth for what the token can see/do *today* and what needs owner provisioning. Re-verify before relying (beta).
+
+### 11.1 Token capabilities (matrix)
+System user **"rentalspot"** (id `122096486619395064`), app **"Rentalspot"** (`1020612017421319`), BM Comarnic. **Non-expiring** (`expires_at:0`). Scopes: `pages_show_list, ads_management, ads_read, business_management, pages_read_engagement, pages_manage_ads, public_profile`. The system user is on the Comarnic page (`me/accounts` returns a derivable **Page access token**) with tasks **`ANALYZE, ADVERTISE`** only.
+
+| Capability | Today? | Needs |
+|---|---|---|
+| Manage ads (create/activate/pause/insights), read ad account | ✅ | — |
+| Read pixel; read page **public profile**; read page **aggregate insights** | ✅ | ANALYZE task + derived page token |
+| Read page **post content / feed** | ❌ | `pages_read_user_content` |
+| **Publish** organic posts | ❌ | `pages_manage_posts` + `CREATE_CONTENT` page task |
+| Read/reply comments & DMs | ❌ | `pages_read_user_content` / `pages_messaging` + `MODERATE` |
+| Any **Instagram** (read/post) | ❌ | `instagram_basic` / `instagram_manage_insights` / `instagram_content_publish` |
+
+v25 page-insight metrics are a **shrunken set** — valid: `page_post_engagements, page_daily_follows_unique, page_follows, page_views_total, page_total_actions`. Deprecated/removed: `page_impressions`, `page_fans`, `page_fans_country`, `page_fans_gender_age`. `/published_posts` and `/feed` both require `pages_read_user_content` (a page token alone is not enough).
+
+### 11.2 Provisioning checklist (owner) — do in ONE batch when building the page arm
+1. Business Settings → Users → **System Users → "rentalspot"** → Assigned assets → the Comarnic page → add task **Create content** (+ Moderate if comment/DM handling wanted).
+2. Ensure the **Instagram** account (`17841435421272996`) is added to the business and assigned to the system user.
+3. **Regenerate the system-user token** including the new scopes (`pages_read_user_content`, `pages_manage_posts`, `instagram_basic`, `instagram_manage_insights`, `instagram_content_publish` as needed) on top of the existing ads scopes.
+4. **Advanced Access:** these page/IG scopes typically need Advanced Access (App Dashboard → App Review → Permissions and Features) — usually a toggle for own business-owned assets, but confirm; some may prompt the standard review.
+5. Paste the new token into the `META_ADS_TOKENS` secret (same JSON map, key `prahova-mountain-chalet`) — ads keep working (same identity), page/IG unlock.
+
+### 11.3 Page state (the "keep-alive" opportunity, quantified)
+"Comarnic Mountain Chalet" (@ComarnicChalet, id `107610677616243`): **552 followers, `talking_about_count:0` (DORMANT), 0 ratings, published, not verified.** ⚠️ Page `website` field = `airbnb.com/rooms/43265214` — **leaks direct-booking margin; change to `prahova-chalet.ro`** (Page settings, no token change).
+
+### 11.4 Ad account state + history
+`act_543311232953437` "Bogdan-Comarnic": ACTIVE, RON, CET, VISA funding, `min_daily_budget` 463 bani. 🔴 **`spend_cap = "0"` — NO account-level spending limit set** (set one in Ads Manager before any live spend — the platform backstop; the env switch is a deploy, not the emergency stop). `web_custom_audience_tos` accepted; customer-file ToS NOT.
+- **Lifetime (2023→now):** ~412 RON spend, 90.6k impressions, 6,062 clicks, **CTR 6.69% / CPC 0.068 RON**, reach 41.9k. ~11 campaigns, **ALL PAUSED**, all `LINK_CLICKS`/`TRAFFIC`/`MESSAGES` pointed at **OTA URLs** — **ZERO conversion-optimized history** → the pixel has no purchase learning; `OUTCOME_SALES` campaigns start COLD. Nothing ran in the last 90 days. (Strong CTR = good creative/audience instincts to reuse.)
+- **Pixel** "Prahova Chalet Web" (`1010060168431159`): **last fired 2026-07-24, alive** — measurement half ready.
+- The **2 leftover `adCampaigns` drafts** (`PC2fnhq3…`, `mfgGzG…`) confirmed **PAUSED/effective PAUSED** in Meta, inert, past/near stop_times — harmless July machinery-validation leftovers.
+
+### 11.5 apphosting.yaml flag state (26 Jul)
+`GROWTH_ADS_ENABLED="true"` (switch 1 ON → console composes + dry-run activates, zero spend); `GROWTH_ADS_MODE` ABSENT (→ dry-run). Never driven to live spend; no campaign approved / carries a spend cap; only audit entry is one `dry-run`. Reconciliation cron NOT built (insights refresh is manual-only).

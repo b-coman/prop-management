@@ -9,10 +9,19 @@
  *
  * Pure types + a couple of pure guards — no Firestore, no network.
  */
-import type { LanguageCode } from '@/types';
+import type { AdObjective, CityTarget, LanguageCode } from '@/types';
 
-// ── analyst → planner ────────────────────────────────────────────────────────
-/** One routed opportunity the analyst decided WhatsApp should act on (plan §3.1). */
+// ── analyst → router → per-instrument planner ────────────────────────────────
+/**
+ * The instrument the analyst routed an opportunity to (promotion-system-architecture.md §3.3/§3.4).
+ * ONE shared detector, MANY responses: a warm past-guest message (`whatsapp`), a paid acquisition
+ * push to strangers (`ads`), or an organic brand post (`page`). Each instrument has its own planner
+ * downstream — this field says which one owns a given opportunity. The analyst emits the general
+ * `Opportunity`; the router/planners narrow (see the subtypes below).
+ */
+export type OpportunityInstrument = 'whatsapp' | 'ads' | 'page';
+
+/** One sized/dated/priced opportunity the analyst routed to an instrument (plan §3.1). */
 export interface Opportunity {
   id: string;
   propertyId: string;
@@ -21,9 +30,20 @@ export interface Opportunity {
   daysOut: number;
   occasion?: { name: string; type: string; startDate: string; endDate: string; source?: string | null } | null;
   valueAtRisk?: number | null;                              // nights × baseline ADR, if known
-  instrument: 'whatsapp';                                   // the analyst routed it here
+  instrument: OpportunityInstrument;                        // which instrument the analyst routed it to
   rationale?: string;
 }
+
+/**
+ * Instrument-narrowed opportunity subtypes. Each arm's planner consumes ONLY its own kind — the
+ * WhatsApp planner/copywriter path takes a `WhatsAppOpportunity`, the ad planner (being built) an
+ * `AdOpportunity`, the page planner a `PageOpportunity`. Narrowing here makes a mis-routed
+ * opportunity a COMPILE error, not a runtime surprise, while the analyst still emits the general
+ * `Opportunity`.
+ */
+export type WhatsAppOpportunity = Opportunity & { instrument: 'whatsapp' };
+export type AdOpportunity = Opportunity & { instrument: 'ads' };
+export type PageOpportunity = Opportunity & { instrument: 'page' };
 
 // ── planner → copywriter / validator / createManualCampaign ──────────────────
 export type CampaignIntent = 'gap_fill' | 'share';
@@ -68,7 +88,7 @@ export interface CampaignUpdate {
 /** The planner's typed output — the draft FRAMING the human gate edits before the copywriter runs (§7.4). */
 export interface CampaignBrief {
   propertyId: string;
-  opportunity: Opportunity;
+  opportunity: WhatsAppOpportunity;   // the WhatsApp arm only ever plans a whatsapp-routed opportunity
   act: boolean;                  // false = decline; audience must then be empty
   intent: CampaignIntent;
   occasion: { name: string | null; point: string };   // the "what & why now"
@@ -99,6 +119,35 @@ export function effectiveDiscountPct(offer: CampaignOffer | undefined | null): n
     case 'fixed': return null;
     default: return offer.discountPct ?? null;
   }
+}
+
+// ── ad planner → ad creative intelligence / validateAdPlan ───────────────────
+/**
+ * The ad planner's typed output — the reviewable BRIEF for a Meta acquisition push
+ * (promotion-system-architecture.md §4.2, the twin of `CampaignBrief`). The planner
+ * decides WHERE (geo), HOW MUCH (budget), HOW LONG (end time), and the ANGLE; it does
+ * NOT write copy or pick photos — that is the creative intelligence (step 4), which
+ * turns this brief into a PAUSED Meta ad via `adComposer.composeAndCreateAd`.
+ *
+ * `targeting.cities` and `objective` reuse the NEUTRAL `@/types` shapes so a validated
+ * brief threads straight into `ComposeAndCreateAdInput` without remapping. No age/gender/
+ * interests: the composer's baked `advantage_audience:1` OWNS demographics (§9f) — geo +
+ * copy qualify the audience. `validateAdPlan` is the money/margin gate (budget ceiling,
+ * future end time, geo present, cities ⊆ the pack's candidates — narrows-never-widens).
+ */
+export interface AdBrief {
+  propertyId: string;
+  opportunity: AdOpportunity;   // the ads arm only ever plans an ads-routed opportunity
+  act: boolean;                 // false = decline; a declined plan carries no targeting
+  objective: AdObjective;       // 2a: 'sales' (→ Meta OUTCOME_SALES)
+  targeting: {
+    /** Selected city targets — a SUBSET of the pack's candidate cities (validateAdPlan enforces). */
+    cities: CityTarget[];
+  };
+  dailyBudgetMinor: number;     // bani — ≤ MAX_DAILY_BUDGET_MINOR (validated)
+  endTime: string;              // ISO 8601 — bounds the run + the spend-cap math
+  creativeBrief: string;        // the brief the creative intelligence particularises: what to say/show, tone, which photo themes
+  rationale: string;            // why this geo / budget / timing
 }
 
 // ── copywriter → grounding validator / outbox ────────────────────────────────
@@ -136,7 +185,7 @@ export interface CampaignProposal {
   updates?: CampaignUpdate[];
   generalAngle: string;
   rationale: string;
-  opportunity: Opportunity;
+  opportunity: WhatsAppOpportunity;
 }
 
 // ── pure guards / joins ──────────────────────────────────────────────────────
