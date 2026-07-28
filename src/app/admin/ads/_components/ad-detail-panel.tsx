@@ -28,9 +28,76 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ExternalLink, RefreshCw, Ban, ShieldCheck, Rocket } from 'lucide-react';
+import Image from 'next/image';
+import { Loader2, ExternalLink, RefreshCw, Ban, ShieldCheck, Rocket, Sparkles, Trash2, MapPin } from 'lucide-react';
 import type { AdCampaign } from '@/types';
-import { approveAdAction, activateAdAction, pauseAdAction, refreshAdInsightsAction } from '../actions';
+import { approveAdAction, activateAdAction, pauseAdAction, refreshAdInsightsAction, discardAdDraftAction } from '../actions';
+
+/** The AI proposal (copy + photos + geo + rationale) shown for in-console review when a draft was drafted by the Opportunity Engine. */
+function ProposalCard({ proposal }: { proposal: NonNullable<AdCampaign['proposal']> }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-muted-foreground" />
+          Proposal
+          <Badge variant="secondary" className="text-[10px]">Opportunity Engine</Badge>
+        </CardTitle>
+        {proposal.occasion && (
+          <CardDescription>
+            {proposal.occasion.name ? `${proposal.occasion.name} · ` : ''}
+            {proposal.occasion.start} → {proposal.occasion.end} ({proposal.occasion.nights}n)
+          </CardDescription>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-4 text-sm">
+        {proposal.cities.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+            {proposal.cities.map((c) => (
+              <Badge key={c.name} variant="outline" className="text-[11px]">
+                {c.name} · {c.radius}km
+              </Badge>
+            ))}
+          </div>
+        )}
+        {proposal.photos.length > 0 && (
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+            {proposal.photos.map((p) => (
+              <div key={p.storagePath} className="relative aspect-square overflow-hidden rounded-md border">
+                {p.url ? (
+                  <Image src={p.url} alt="" fill className="object-cover" sizes="120px" />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-[10px] text-muted-foreground">no preview</div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">Copy variants ({proposal.copy.length})</p>
+          {proposal.copy.map((v, i) => (
+            <div key={i} className="rounded-md border p-2">
+              {v.headline && <p className="text-xs font-medium">{v.headline}</p>}
+              <p className="text-sm">{v.primary}</p>
+              <p className="mt-1 text-[10px] uppercase text-muted-foreground">{v.cta}</p>
+            </div>
+          ))}
+        </div>
+        {proposal.creativeBrief && (
+          <details className="rounded-md border bg-muted/30 p-2">
+            <summary className="cursor-pointer text-xs font-medium text-muted-foreground">Creative brief &amp; rationale</summary>
+            <p className="mt-2 text-xs text-muted-foreground">{proposal.creativeBrief}</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">Why: </span>
+              {proposal.rationale}
+            </p>
+          </details>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
   draft: 'outline',
@@ -64,7 +131,9 @@ export function AdDetailPanel({ campaign }: { campaign: AdCampaign & { adsManage
   const [activating, startActivate] = useTransition();
   const [pausing, startPause] = useTransition();
   const [refreshing, startRefresh] = useTransition();
+  const [discarding, startDiscard] = useTransition();
   const [approveOpen, setApproveOpen] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [spendCapRon, setSpendCapRon] = useState('50');
 
   const days = daysToEndTime(campaign.endTime);
@@ -115,6 +184,18 @@ export function AdDetailPanel({ campaign }: { campaign: AdCampaign & { adsManage
     });
   };
 
+  const discard = () => {
+    startDiscard(async () => {
+      const res = await discardAdDraftAction(campaign.id);
+      if (res.ok) {
+        toast({ title: 'Draft discarded' });
+        router.push('/admin/ads');
+      } else {
+        toast({ title: 'Could not discard', description: res.error, variant: 'destructive' });
+      }
+    });
+  };
+
   const refresh = () => {
     startRefresh(async () => {
       const res = await refreshAdInsightsAction(campaign.id);
@@ -134,6 +215,8 @@ export function AdDetailPanel({ campaign }: { campaign: AdCampaign & { adsManage
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+      <div className="space-y-6">
+      {campaign.proposal && <ProposalCard proposal={campaign.proposal} />}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -197,6 +280,7 @@ export function AdDetailPanel({ campaign }: { campaign: AdCampaign & { adsManage
           </Button>
         </CardFooter>
       </Card>
+      </div>
 
       <Card className="h-fit">
         <CardHeader>
@@ -270,6 +354,23 @@ export function AdDetailPanel({ campaign }: { campaign: AdCampaign & { adsManage
             {pausing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Ban className="mr-1 h-4 w-4" />}
             Pause
           </Button>
+
+          {campaign.status === 'draft' &&
+            (confirmDiscard ? (
+              <div className="flex items-center justify-center gap-2 text-xs">
+                <span className="text-muted-foreground">Delete this draft?</span>
+                <Button size="sm" variant="destructive" className="h-7" onClick={discard} disabled={discarding}>
+                  {discarding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Yes, discard'}
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7" onClick={() => setConfirmDiscard(false)} disabled={discarding}>
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <Button className="w-full" variant="ghost" size="sm" onClick={() => setConfirmDiscard(true)}>
+                <Trash2 className="mr-1 h-4 w-4" /> Discard draft
+              </Button>
+            ))}
         </CardContent>
       </Card>
     </div>
