@@ -261,6 +261,12 @@ service cloud.firestore {
       allow write: if false;  // Admin SDK only
     }
 
+    match /adOutcomes/{outcomeId} {
+      // Frozen per-campaign learning records — the ad learning loop reads these.
+      allow read: if isSuperAdmin() || isPropertyOwner();
+      allow write: if false;  // Admin SDK only (written by finalizeAdOutcome)
+    }
+
     match /adImageCache/{cacheId} {
       // Per-(platform, ad account, content hash) image-hash dedup cache
       // (Phase 2a Build A) — no user-facing write path exists.

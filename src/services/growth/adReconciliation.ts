@@ -16,6 +16,7 @@ import type { AdCampaignStatus } from '@/types';
 import { getInsights, getEffectiveStatus } from './metaAds/insights';
 import { resolveAdContext } from './metaAds/adContext';
 import { metaGraph } from './metaAds/client';
+import { finalizeAdOutcome, DEFAULT_SETTLE_DAYS } from './adOutcomes';
 
 const logger = loggers.ads;
 
@@ -54,6 +55,7 @@ export interface ReconcileResult {
   checked: number;
   updated: number;
   escapes: number;
+  finalized: number;
   flags: string[];
 }
 
@@ -61,6 +63,8 @@ interface AdCampaignReconData {
   propertyId?: string;
   metaCampaignId?: string;
   status?: AdCampaignStatus;
+  endTime?: string | null;
+  outcomeCapturedAt?: unknown;
 }
 
 /**
@@ -100,7 +104,16 @@ export async function reconcileAdCampaigns(): Promise<ReconcileResult> {
       ]);
       const patch: Record<string, unknown> = { lastSyncedAt: FieldValue.serverTimestamp() };
       if (ins.ok) {
-        patch.insights = { spend: ins.data.spend, impressions: ins.data.impressions, clicks: ins.data.clicks, bookings: ins.data.purchases, roas: ins.data.roas };
+        // NB: `bookings` here is Meta's MODELED pixel purchases (kept for the console); the outcome
+        // record splits it from the first-party utm join. `purchaseValue` was previously dropped.
+        patch.insights = {
+          spend: ins.data.spend,
+          impressions: ins.data.impressions,
+          clicks: ins.data.clicks,
+          bookings: ins.data.purchases,
+          purchaseValue: ins.data.purchaseValue,
+          roas: ins.data.roas,
+        };
       }
       const effStatus = eff.ok ? eff.data.effectiveStatus : undefined;
       if (effStatus) patch.effectiveStatus = effStatus;
@@ -135,9 +148,27 @@ export async function reconcileAdCampaigns(): Promise<ReconcileResult> {
     }
   }
 
+  // Finalize outcomes for campaigns that RAN and have ended + settled — freeze the learning record
+  // (Fable §1.2/§1.6). Only campaigns that were activated (status active/paused) — a never-run draft
+  // has nothing to learn. Idempotent: `outcomeCapturedAt` gates re-finalization.
+  let finalized = 0;
+  const now = Date.now();
+  for (const d of snap.docs) {
+    const data = d.data() as AdCampaignReconData;
+    if (data.outcomeCapturedAt || !data.metaCampaignId || !data.endTime) continue;
+    if (data.status !== 'active' && data.status !== 'paused') continue;
+    const endMs = Date.parse(data.endTime);
+    if (Number.isNaN(endMs) || endMs + DEFAULT_SETTLE_DAYS * 86_400_000 > now) continue;
+    try {
+      if (await finalizeAdOutcome(d.id)) finalized += 1;
+    } catch (error) {
+      logger.warn('reconcileAdCampaigns: finalize failed (continuing)', { adCampaignId: d.id, error: String(error) });
+    }
+  }
+
   if (flags.length) {
     logger.error('reconcileAdCampaigns: DRIFT/ESCAPE detected', undefined, { count: flags.length, flags });
   }
-  logger.info('reconcileAdCampaigns: done', { checked, updated, escapes, flagCount: flags.length });
-  return { checked, updated, escapes, flags };
+  logger.info('reconcileAdCampaigns: done', { checked, updated, escapes, finalized, flagCount: flags.length });
+  return { checked, updated, escapes, finalized, flags };
 }

@@ -87,6 +87,10 @@ THE RULES
 5. OR DECLINE. If the opportunity is weak — no occasion, tiny value, or the account is blocked — set
    act:false and say why in the rationale, with cities empty. A forced ad spends real money, unlike
    a WhatsApp message; declining is a valid, valuable output.
+6. LEARN, WEAKLY. If learnings.available, prefer angles/cities/audiences with supporting evidence when
+   they fit this occasion EQUALLY well, and note in the rationale which past result influenced you.
+   But the occasion + framing ALWAYS win, and one campaign proves nothing — read learnings.note and
+   weight CTR/CPC over booking counts at low volume.
 
 Return your plan by calling emit_ad_brief. Nothing else.`;
 
@@ -138,6 +142,7 @@ export async function generateAdPlan(
     targeting: pack.targeting,
     account: pack.account,
     page: pack.page,
+    learnings: pack.learnings,
     assets: pack.assets,
     landing: pack.landing,
     method: pack.method,
