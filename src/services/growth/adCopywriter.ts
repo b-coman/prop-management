@@ -16,7 +16,7 @@
 import { getAnthropicClient, COPYWRITER_MODEL } from '@/lib/growth/anthropic';
 import { validateAdCreative, type AdCreativePackForValidation } from '@/lib/growth/validateAdCreative';
 import type { AdBrief, AdFraming } from '@/lib/growth/contracts';
-import type { CopyVariant } from '@/types';
+import type { CopyVariant, AiImageDescription } from '@/types';
 import { loggers } from '@/lib/logger';
 
 const logger = loggers.ads;
@@ -26,6 +26,8 @@ export interface AdCreativeAsset {
   storagePath: string;
   alt: string;
   tags: string[];
+  /** Rich vision description (season/mood/features/fitsAngles) — the primary signal for picking a photo that fits. */
+  aiDescription?: AiImageDescription;
 }
 
 const AD_CREATIVE_TOOL = {
@@ -69,10 +71,13 @@ THE RULES
    AND every photo you pick must serve THIS audience for THIS goal and period. A couples/off-peak ad
    and a families/school-break ad read and look different. Lead with a scroll-stopping hook, then the
    point of the trip. 1-3 short sentences per variant.
-2. GROUND IN REALITY. Choose photos ONLY from the provided assets, by their EXACT storagePath — you
-   cannot show something the property does not have. Never claim an amenity or experience that isn't
-   evident in the brief or the assets (no invented pools, spas, or activities). Match photo THEMES to
-   the copy (use the assets' alt/tags to judge what each shows).
+2. GROUND IN REALITY, PICK PHOTOS THAT TRULY FIT. Choose photos ONLY from the provided assets, by
+   their EXACT storagePath — you cannot show something the property does not have (no invented pools,
+   spas, or activities). Each asset carries a rich aiDescription (season, mood, people, features,
+   fitsAngles) from a vision model that actually LOOKED at it — USE IT to pick photos that fit the
+   goal, the season/period, and the audience: a summer photo for an autumn ad is wrong; a
+   kids/playground photo for a couples ad is wrong. Match the aiDescription fitsAngles + season to the
+   brief; fall back to alt/tags only for an asset with no aiDescription.
 3. META SHAPE. 1-5 primary-text variants, each DISTINCT (Meta rejects duplicates). Headlines short
    (≤27 chars ideal); if you reuse a headline, use the SAME one across all variants (never two
    different-but-duplicate). Pick 1-6 photos with variety (exterior / interior / lifestyle) so
@@ -123,7 +128,7 @@ export async function generateAdCreative(
     creativeBrief: brief.creativeBrief,
     objective: brief.objective,
     cities: brief.targeting.cities.map((c) => c.name),
-    assets: assets.map((a) => ({ storagePath: a.storagePath, alt: a.alt, tags: a.tags })),
+    assets: assets.map((a) => ({ storagePath: a.storagePath, alt: a.alt, tags: a.tags, aiDescription: a.aiDescription })),
   };
   const messages: Array<{ role: 'user' | 'assistant'; content: unknown }> = [
     { role: 'user', content: `Here is the ad brief + the available gallery assets. Write the creative and call emit_ad_creative.\n\n${JSON.stringify(creativePack)}` },

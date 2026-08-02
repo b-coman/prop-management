@@ -15,6 +15,29 @@ export type MultilingualString = {
   [languageCode: string]: string | undefined;
 };
 
+/**
+ * Rich, vision-generated description of a gallery photo — the AI-readable field the ad/page selectors
+ * reason over to decide if a photo FITS a goal/period/audience (promotion-system-architecture.md §4.2,
+ * ad plan §14.2 `llmDescription`). Produced by `galleryVision.describeImage` (a vision model actually
+ * LOOKS at the image); grounds ONLY in what's visible — never invents amenities. Far richer than
+ * `alt`/`tags`: it captures season, mood, light, features, people, and which marketing angles fit.
+ */
+export interface AiImageDescription {
+  summary: string;            // one line: what the photo shows
+  setting: string;            // exterior | interior | garden | aerial | detail | ...
+  season: string;             // autumn | winter | spring | summer | indeterminate
+  timeOfDay: string;          // day | golden-hour | night | indeterminate
+  mood: string;               // e.g. "cozy, warm", "tranquil", "lively"
+  subjects: string[];         // concrete things visible: "cast-iron cauldron over a fire", "valley view"
+  features: string[];         // amenities/features VISIBLE: "wood-burning stove", "terrace", "bunk beds"
+  people: string;             // none | adults | children | family | mixed
+  activities: string[];       // implied: "outdoor cooking", "kids playing"
+  palette: string[];          // dominant colours: "golden", "warm wood"
+  fitsAngles: string[];       // marketing angles it suits: "romantic", "family", "food-and-fire", "nature", "cozy-winter"
+  model: string;              // provenance — which model described it
+  describedAt: string;        // ISO timestamp
+}
+
 export interface PropertyImage {
   url: string;
   /**
@@ -27,6 +50,8 @@ export interface PropertyImage {
   isFeatured?: boolean;
   'data-ai-hint'?: string; // For AI image generation hints
   tags?: string[]; // For gallery filtering
+  /** Rich vision-generated description for AI ad/post selection (galleryVision.describeImage). */
+  aiDescription?: AiImageDescription;
   sortOrder?: number; // For gallery ordering
   showInGallery?: boolean; // false = hidden from gallery (undefined/true = visible)
   thumbnailUrl?: string; // Resized thumbnail URL from Storage

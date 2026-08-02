@@ -27,7 +27,7 @@ import { searchCities } from '@/services/growth/metaAds/geo';
 import { getAdAccountHealth, getPageHealth } from '@/services/growth/metaAds/brandHealth';
 import type { AdOpportunity, AdFraming } from '@/lib/growth/contracts';
 import type { CityMatch } from '@/services/growth/metaAds/geo';
-import type { PropertyImage } from '@/types';
+import type { PropertyImage, AiImageDescription } from '@/types';
 
 /**
  * RO feeder markets for a Prahova-valley chalet — the candidate geo the planner picks from. Names
@@ -86,7 +86,7 @@ export interface AdPlannerPack {
       }
     | { available: false; error: string };
   page: { available: true; dormant: boolean; followers: number; warnings: string[] } | { available: false; error: string };
-  assets: Array<{ storagePath: string; alt: string; tags: string[] }>;
+  assets: Array<{ storagePath: string; alt: string; tags: string[]; aiDescription?: AiImageDescription }>;
   landing: { baseUrl: string; note: string };
   method: string[];
 }
@@ -132,7 +132,7 @@ export async function buildAdPlannerPack(
   const ownPrefix = `properties/${propertyId}/`;
   const assets = (propData?.images ?? [])
     .filter((img): img is PropertyImage & { storagePath: string } => Boolean(img.storagePath && img.storagePath.startsWith(ownPrefix)))
-    .map((img) => ({ storagePath: img.storagePath, alt: serverTranslateContent(img.alt, 'en'), tags: img.tags ?? [] }));
+    .map((img) => ({ storagePath: img.storagePath, alt: serverTranslateContent(img.alt, 'en'), tags: img.tags ?? [], aiDescription: img.aiDescription }));
 
   const account: AdPlannerPack['account'] = accountRes.ok
     ? {

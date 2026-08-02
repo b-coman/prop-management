@@ -41,6 +41,7 @@ if (!start || !end) {
 const property = arg('property', 'prahova-mountain-chalet')!;
 const value = arg('value');
 const occasionName = arg('occasion');
+const framing = { goal: arg('goal'), audience: arg('audience') };
 const keep = process.argv.includes('--keep');
 
 const nights = Math.round((Date.parse(end) - Date.parse(start)) / 86400000);
@@ -58,7 +59,7 @@ const opportunity: AdOpportunity = {
 };
 
 (async () => {
-  const res = await proposeAd(opportunity);
+  const res = await proposeAd(opportunity, { framing });
   console.log(`\n=== proposeAd — ${res.ok ? (res.declined ? 'DECLINED (no draft)' : 'DRAFT CREATED') : `FAILED at ${res.stage}`} ===`);
   if (res.brief) console.log(`plan: act=${res.brief.act} · ${res.brief.targeting.cities.map((c) => c.name).join(', ')} · ${(res.brief.dailyBudgetMinor / 100).toFixed(0)} RON/day`);
   if (res.creative) console.log(`creative: ${res.creative.copy.length} copy variants · ${res.creative.assetPaths.length} photos`);
