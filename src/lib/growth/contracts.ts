@@ -135,6 +135,21 @@ export function effectiveDiscountPct(offer: CampaignOffer | undefined | null): n
  * copy qualify the audience. `validateAdPlan` is the money/margin gate (budget ceiling,
  * future end time, geo present, cities ⊆ the pack's candidates — narrows-never-widens).
  */
+/**
+ * The operator (or analyst) FRAMING that shapes an ad to the OUTCOME + AUDIENCE, on top of the
+ * opportunity's period/occasion. Threaded through the planner's `creativeBrief` so the copy AND the
+ * photo choice BOTH bend to it — the connective tissue that makes the ad one coherent thing rather
+ * than disparate stages. `audience` steers the copy ANGLE + photo THEMES (not Meta demographics —
+ * Advantage+ owns those), so a "couples, off-peak, food-and-fire" ad reads and looks different from
+ * a "families, school-break, playground" ad for the very same window.
+ */
+export interface AdFraming {
+  /** What success looks like — e.g. "fill these nights with high-margin DIRECT bookings", not just clicks. */
+  goal?: string;
+  /** Who the ad is for — e.g. "adult couples for a quiet off-peak weekend" / "families with kids for the school break". */
+  audience?: string;
+}
+
 export interface AdBrief {
   propertyId: string;
   opportunity: AdOpportunity;   // the ads arm only ever plans an ads-routed opportunity

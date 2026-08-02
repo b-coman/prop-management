@@ -19,7 +19,7 @@ import { buildAdPlannerPack } from '@/lib/growth/adPlannerPack';
 import { generateAdPlan } from './adPlanner';
 import { generateAdCreative } from './adCopywriter';
 import { composeAndCreateAd } from './adComposer';
-import type { AdOpportunity, AdBrief } from '@/lib/growth/contracts';
+import type { AdOpportunity, AdBrief, AdFraming } from '@/lib/growth/contracts';
 import type { ComposeAndCreateAdInput, CopyVariant } from '@/types';
 import { loggers } from '@/lib/logger';
 
@@ -43,10 +43,10 @@ export interface AdProposalResult {
  * Produce a PAUSED ad draft for an opportunity. Returns at the first stage that fails (with its
  * errors), or `declined:true` if the planner chose not to act, or the created draft ids on success.
  */
-export async function proposeAd(opportunity: AdOpportunity, opts?: { asOf?: Date }): Promise<AdProposalResult> {
-  const pack = await buildAdPlannerPack(opportunity, { asOf: opts?.asOf });
+export async function proposeAd(opportunity: AdOpportunity, opts?: { asOf?: Date; framing?: AdFraming }): Promise<AdProposalResult> {
+  const pack = await buildAdPlannerPack(opportunity, { asOf: opts?.asOf, framing: opts?.framing });
 
-  // 1. Plan (geo + budget + timing + creative brief).
+  // 1. Plan (geo + budget + timing + creative brief) — the pack carries the framing (goal + audience).
   const plan = await generateAdPlan(opportunity, { pack });
   if (!plan.ok || !plan.brief) {
     logger.warn('proposeAd: planning failed', { opportunityId: opportunity.id, errors: plan.errors });
@@ -58,8 +58,8 @@ export async function proposeAd(opportunity: AdOpportunity, opts?: { asOf?: Date
     return { ok: true, stage: 'plan', declined: true, brief, errors: [] };
   }
 
-  // 2. Creative (grounded copy + real photos).
-  const creativeRes = await generateAdCreative(brief, pack.assets);
+  // 2. Creative (grounded copy + real photos) — reinforce the same goal + audience shaping.
+  const creativeRes = await generateAdCreative(brief, pack.assets, { framing: opts?.framing });
   if (!creativeRes.ok || !creativeRes.creative) {
     logger.warn('proposeAd: creative failed', { opportunityId: opportunity.id, errors: creativeRes.errors });
     return { ok: false, stage: 'creative', declined: false, brief, errors: creativeRes.errors };

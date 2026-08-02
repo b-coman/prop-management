@@ -51,6 +51,22 @@ function ProposalCard({ proposal }: { proposal: NonNullable<AdCampaign['proposal
         )}
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
+        {(proposal.goal || proposal.audience) && (
+          <div className="space-y-1 rounded-md border bg-muted/30 p-2 text-xs">
+            {proposal.goal && (
+              <p>
+                <span className="font-medium text-foreground">Goal: </span>
+                <span className="text-muted-foreground">{proposal.goal}</span>
+              </p>
+            )}
+            {proposal.audience && (
+              <p>
+                <span className="font-medium text-foreground">Audience: </span>
+                <span className="text-muted-foreground">{proposal.audience}</span>
+              </p>
+            )}
+          </div>
+        )}
         {proposal.cities.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
             <MapPin className="h-3.5 w-3.5 text-muted-foreground" />

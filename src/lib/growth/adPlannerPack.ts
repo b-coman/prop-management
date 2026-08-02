@@ -25,7 +25,7 @@ import { serverTranslateContent } from '@/lib/server-language-utils';
 import { getMaxDailyBudgetMinor } from '@/config/growth-ads';
 import { searchCities } from '@/services/growth/metaAds/geo';
 import { getAdAccountHealth, getPageHealth } from '@/services/growth/metaAds/brandHealth';
-import type { AdOpportunity } from '@/lib/growth/contracts';
+import type { AdOpportunity, AdFraming } from '@/lib/growth/contracts';
 import type { CityMatch } from '@/services/growth/metaAds/geo';
 import type { PropertyImage } from '@/types';
 
@@ -62,6 +62,8 @@ function pickBestCity(query: string, matches: CityMatch[]): CityMatch | undefine
 export interface AdPlannerPack {
   meta: { generatedFor: string; asOf: string; generator: string; opportunityId: string };
   opportunity: AdOpportunity;
+  /** The operator's OUTCOME + AUDIENCE steering — shapes the creativeBrief (and thus copy + photos). */
+  framing: { goal: string | null; audience: string | null; note: string };
   constraints: {
     maxDailyBudgetMinor: number;
     /** Spend envelope for this plan, bani = min(revenue-at-risk, absolute cap). Null if value unknown → planner sizes conservatively. */
@@ -92,7 +94,7 @@ export interface AdPlannerPack {
 /** Build the ad-planner fact pack for one ads-routed opportunity. `asOf` defaults to now (UTC date). */
 export async function buildAdPlannerPack(
   opportunity: AdOpportunity,
-  opts?: { asOf?: Date }
+  opts?: { asOf?: Date; framing?: AdFraming }
 ): Promise<AdPlannerPack> {
   const asOf = opts?.asOf ?? new Date();
   const propertyId = opportunity.propertyId;
@@ -156,6 +158,11 @@ export async function buildAdPlannerPack(
   return {
     meta: { generatedFor: propertyId, asOf: asOf.toISOString().slice(0, 10), generator: 'src/lib/growth/adPlannerPack.ts', opportunityId: opportunity.id },
     opportunity,
+    framing: {
+      goal: opts?.framing?.goal?.trim() || null,
+      audience: opts?.framing?.audience?.trim() || null,
+      note: 'The OUTCOME (goal) + AUDIENCE the operator wants for THIS period. Shape EVERYTHING to these together: the creativeBrief\'s angle, the copy the copywriter will write, AND which asset themes to favor must all serve this goal + this audience. Audience steers the copy angle + photo themes (NOT Meta demographics — Advantage+ owns those). If goal/audience are null, infer sensible ones from the occasion + what the property sells, and say what you assumed.',
+    },
     constraints: {
       maxDailyBudgetMinor: getMaxDailyBudgetMinor(),
       maxTotalSpendMinor,

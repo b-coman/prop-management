@@ -15,7 +15,7 @@
 import { getAnthropicClient, COPYWRITER_MODEL } from '@/lib/growth/anthropic';
 import { buildAdPlannerPack, type AdPlannerPack } from '@/lib/growth/adPlannerPack';
 import { validateAdPlan, type AdPlannerPackForValidation } from '@/lib/growth/validateAdPlan';
-import type { AdBrief, AdOpportunity } from '@/lib/growth/contracts';
+import type { AdBrief, AdOpportunity, AdFraming } from '@/lib/growth/contracts';
 import { loggers } from '@/lib/logger';
 
 const logger = loggers.ads;
@@ -57,6 +57,15 @@ HOW MUCH (a daily budget within the envelope), HOW LONG (a bounded end date), an
 creativeBrief (the angle + which asset themes to favor + tone). You PLAN only — you do NOT write the
 final ad copy or choose exact photos (the creative stage does that), and nothing you emit spends
 money until a human approves and activates it.
+
+SHAPE THE WHOLE AD TO THE FRAMING. The pack's framing.goal (the OUTCOME wanted) and framing.audience
+(WHO) — together with the occasion + the period to fill — must shape your creativeBrief as ONE
+coherent thing: the angle, the tone, and which asset THEMES to favor all serve this goal + this
+audience for this window. A "couples, off-peak, food-and-fire" ad and a "families, school-break,
+playground" ad for the SAME dates get materially different briefs and different photo themes. Write
+the creativeBrief so a downstream copywriter cannot help but produce copy AND pick photos that match.
+If framing.goal/audience are null, INFER sensible ones from the occasion + what the property sells,
+and state the assumption in your rationale.
 
 THE RULES
 1. NARROW, NEVER WIDEN. Pick cities ONLY from the pack's targeting.candidateCities, using their exact
@@ -108,14 +117,14 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 export async function generateAdPlan(
   opportunity: AdOpportunity,
-  opts?: { asOf?: Date; maxRepairs?: number; pack?: AdPlannerPack }
+  opts?: { asOf?: Date; maxRepairs?: number; pack?: AdPlannerPack; framing?: AdFraming }
 ): Promise<GenerateAdPlanResult> {
   const client = getAnthropicClient();
   if (!client) throw new Error('ANTHROPIC_API_KEY not configured — the in-app ad planner is unavailable');
 
   // Reuse a prebuilt pack when the caller already has one (the orchestrator builds it ONCE and feeds
   // both the planner and the copywriter) — else build it here.
-  const pack = opts?.pack ?? (await buildAdPlannerPack(opportunity, { asOf: opts?.asOf }));
+  const pack = opts?.pack ?? (await buildAdPlannerPack(opportunity, { asOf: opts?.asOf, framing: opts?.framing }));
   const validationPack: AdPlannerPackForValidation = {
     constraints: { maxDailyBudgetMinor: pack.constraints.maxDailyBudgetMinor, maxTotalSpendMinor: pack.constraints.maxTotalSpendMinor },
     targeting: { candidateCityKeys: pack.targeting.candidateCityKeys },
@@ -124,6 +133,7 @@ export async function generateAdPlan(
 
   const packJson = JSON.stringify({
     opportunity: pack.opportunity,
+    framing: pack.framing,
     constraints: pack.constraints,
     targeting: pack.targeting,
     account: pack.account,
