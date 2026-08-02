@@ -45,6 +45,7 @@ import { resolveAdContext } from '@/services/growth/metaAds/adContext';
 import { searchCities, type CityMatch } from '@/services/growth/metaAds/geo';
 import { deleteResource } from '@/services/growth/metaAds/client';
 import { proposeAd } from '@/services/growth/adProposal';
+import { buildGenerationPrompt } from '@/lib/growth/generationPrompt';
 import type { AdOpportunity } from '@/lib/growth/contracts';
 
 const logger = loggers.ads;
@@ -531,7 +532,17 @@ export async function generateAdProposalAction(input: {
     const propDoc = await db.collection('properties').doc(input.propertyId).get();
     const images = (propDoc.data()?.images ?? []) as PropertyImage[];
     const urlByPath = new Map(images.filter((i) => i.storagePath).map((i) => [i.storagePath!, i.thumbnailUrl || i.url]));
+    const descByPath = new Map(images.filter((i) => i.storagePath).map((i) => [i.storagePath!, i.aiDescription?.summary ?? '']));
     const photos = res.creative.assetPaths.map((storagePath) => ({ storagePath, url: urlByPath.get(storagePath) ?? '' }));
+    // Missing-shot gaps the copywriter declared → each with a ready generation prompt (manual-gen v1).
+    const assetGaps = (res.creative.assetGaps ?? []).map((g) => ({
+      need: g.need,
+      nearestAssetPath: g.nearestAssetPath,
+      nearestAssetUrl: urlByPath.get(g.nearestAssetPath) ?? '',
+      whyInsufficient: g.whyInsufficient,
+      transform: g.transform,
+      generationPrompt: buildGenerationPrompt(g.transform, g.need, descByPath.get(g.nearestAssetPath) ?? ''),
+    }));
 
     await db.collection('adCampaigns').doc(res.draft.adCampaignId).update({
       proposal: {
@@ -549,6 +560,7 @@ export async function generateAdProposalAction(input: {
         cities: res.brief.targeting.cities.map((c) => ({ name: c.name, radius: c.radius })),
         creativeBrief: res.brief.creativeBrief,
         rationale: res.brief.rationale,
+        assetGaps,
       },
       updatedAt: FieldValue.serverTimestamp(),
     });

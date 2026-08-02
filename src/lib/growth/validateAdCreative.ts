@@ -41,6 +41,8 @@ export interface AdCreativeForValidation {
   copy: CopyVariant[];
   /** The chosen photo storagePaths — a SUBSET of the pack's assetPaths. */
   assetPaths: string[];
+  /** Declared missing-photo gaps — each must anchor to a REAL offered photo (never-invent applies to gaps too). */
+  assetGaps?: Array<{ nearestAssetPath: string }>;
 }
 
 export interface AdCreativeValidationResult {
@@ -103,6 +105,11 @@ export function validateAdCreative(
 
   const dupPhoto = [...new Set(chosen.filter((p, i) => chosen.indexOf(p) !== i))];
   if (dupPhoto.length) errors.push(`the same photo selected more than once — Meta rejects duplicate images in asset_feed_spec`);
+
+  // ── gaps ── a declared gap must anchor to a REAL offered photo (never invent a scene).
+  for (const g of creative.assetGaps ?? []) {
+    if (!available.has(g.nearestAssetPath)) errors.push(`assetGap.nearestAssetPath is not a real offered photo: ${g.nearestAssetPath}`);
+  }
 
   return { ok: errors.length === 0, errors, warnings };
 }

@@ -608,6 +608,22 @@ export interface AdLearnings {
   note: string;                     // the statistical contract, shipped verbatim to the LLM
 }
 
+/**
+ * A photo the copywriter WANTED for a theme the brief needs but the gallery can't supply (Fable §2.1).
+ * It always anchors to the nearest REAL photo (never "invent a scene"), and carries a ready-to-paste
+ * generation prompt so the operator can produce it in their own image-AI and upload the result (which
+ * then gets auto-described). The manual-generation v1 — the honest "the system tells you what's
+ * missing and how to make it" flow, before any paid generation gateway exists.
+ */
+export interface AdAssetGap {
+  need: string;                    // what's missing, e.g. "a family at the fire pit at winter dusk"
+  nearestAssetPath: string;        // a REAL offered gallery storagePath — the base to edit
+  nearestAssetUrl?: string;        // for the review preview
+  whyInsufficient: string;         // why the nearest real photo falls short
+  transform: 'relight' | 'populate_people' | 'seasonal';
+  generationPrompt: string;        // guarded, ready to paste into an image-AI (built server-side)
+}
+
 export interface AdCampaign {
   id: string;
   propertyId: string;
@@ -658,6 +674,8 @@ export interface AdCampaign {
     cities: Array<{ name: string; radius: number }>;
     creativeBrief: string;
     rationale: string;
+    /** Photos the AI wanted but the gallery lacks — each with a ready generation prompt (manual-gen v1). */
+    assetGaps?: AdAssetGap[];
   };
   lastSyncedAt?: SerializableTimestamp;
   createdAt?: SerializableTimestamp;
