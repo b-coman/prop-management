@@ -553,6 +553,21 @@ export interface AdCampaign {
     bookings?: number;
     roas?: number;
   };
+  /**
+   * Opportunity-Engine proposal content (promotion-system-architecture.md §4.2) — the AI-drafted
+   * plan + copy + photos, stored so the operator can REVIEW it in the console before approving
+   * (the Meta chain already exists — Model A). Present only on drafts created via the "Generate from
+   * an opportunity" flow (`generateAdProposalAction` / `proposeAd`), absent on manual composes.
+   */
+  proposal?: {
+    source: 'opportunity-engine';
+    occasion?: { name: string | null; start: string; end: string; nights: number } | null;
+    copy: CopyVariant[];
+    photos: Array<{ storagePath: string; url: string }>;
+    cities: Array<{ name: string; radius: number }>;
+    creativeBrief: string;
+    rationale: string;
+  };
   lastSyncedAt?: SerializableTimestamp;
   createdAt?: SerializableTimestamp;
   updatedAt?: SerializableTimestamp;

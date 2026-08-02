@@ -3,7 +3,7 @@ import { AdminPage, EmptyState } from '@/components/admin';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PropertyUrlSync } from '@/components/admin/PropertyUrlSync';
-import { Target, Plus } from 'lucide-react';
+import { Target, Plus, Sparkles } from 'lucide-react';
 import { fetchAdCampaignsAction } from './actions';
 import { AdTable } from './_components/ad-table';
 
@@ -25,12 +25,20 @@ export default async function AdsPage({
       title="Ads"
       description="Compose, approve, and activate Meta (Facebook + Instagram) ads from a property photo. Dark-launched — composing always creates a zero-spend PAUSED draft; activation only spends once both engine switches are on."
       actions={
-        <Button asChild>
-          <Link href={`/admin/ads/new?propertyId=${property}`}>
-            <Plus className="mr-1 h-4 w-4" />
-            New ad
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild>
+            <Link href={`/admin/ads/generate?propertyId=${property}`}>
+              <Sparkles className="mr-1 h-4 w-4" />
+              Generate from opportunity
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href={`/admin/ads/new?propertyId=${property}`}>
+              <Plus className="mr-1 h-4 w-4" />
+              New ad
+            </Link>
+          </Button>
+        </div>
       }
     >
       <PropertyUrlSync />

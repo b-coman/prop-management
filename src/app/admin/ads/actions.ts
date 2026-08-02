@@ -43,6 +43,9 @@ import { pauseCampaign, type PauseResult } from '@/services/growth/metaAds/lifec
 import { getInsights, getEffectiveStatus } from '@/services/growth/metaAds/insights';
 import { resolveAdContext } from '@/services/growth/metaAds/adContext';
 import { searchCities, type CityMatch } from '@/services/growth/metaAds/geo';
+import { deleteResource } from '@/services/growth/metaAds/client';
+import { proposeAd } from '@/services/growth/adProposal';
+import type { AdOpportunity } from '@/lib/growth/contracts';
 
 const logger = loggers.ads;
 
@@ -460,6 +463,144 @@ export async function refreshAdInsightsAction(adCampaignId: string): Promise<
     return { ok: true, insights, effectiveStatus };
   } catch (error) {
     logger.error('refreshAdInsightsAction failed', error as Error, { adCampaignId });
+    return { ok: false, error: 'internal-error' };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Opportunity-Engine: generate a PAUSED ad DRAFT from a window (framing → generate)
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate an AI ad proposal for an opportunity window and land it as a PAUSED, reviewable draft
+ * (promotion-system-architecture.md §4.2). Super-admin gate; the whole intelligence chain runs in
+ * `proposeAd` (plan → creative → composeAndCreateAd, zero spend). On a created draft we ALSO persist
+ * a `proposal` blob (copy + photo URLs + cities + rationale) onto the doc so the detail page can
+ * review it in-console. A planner DECLINE is a valid, non-error outcome (no draft). No money logic
+ * here — spend cap + activation stay the existing approve/activate gates.
+ */
+export async function generateAdProposalAction(input: {
+  propertyId: string;
+  start: string;
+  end: string;
+  occasion?: string;
+  valueAtRisk?: number;
+}): Promise<
+  | { ok: true; adCampaignId: string }
+  | { ok: true; declined: true; rationale: string }
+  | { ok: false; error: string; stage?: string }
+> {
+  let actor: string;
+  try {
+    actor = await requireActor();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return { ok: false, error: handleAuthError(error).error };
+    throw error;
+  }
+
+  try {
+    const nights = Math.max(1, Math.round((Date.parse(input.end) - Date.parse(input.start)) / 86400000));
+    const daysOut = Math.max(0, Math.round((Date.parse(input.start) - Date.now()) / 86400000));
+    const opportunity: AdOpportunity = {
+      id: `oe-${input.propertyId}-${input.start}-${input.end}`,
+      propertyId: input.propertyId,
+      source: 'gap',
+      window: { start: input.start, end: input.end, nights },
+      daysOut,
+      occasion: input.occasion?.trim()
+        ? { name: input.occasion.trim(), type: 'ad-hoc', startDate: input.start, endDate: input.end }
+        : null,
+      valueAtRisk: input.valueAtRisk ?? null,
+      instrument: 'ads',
+      rationale: 'operator-initiated (console)',
+    };
+
+    logger.info('generateAdProposalAction: generating', { actor, propertyId: input.propertyId, window: `${input.start}..${input.end}` });
+    const res = await proposeAd(opportunity);
+
+    if (!res.ok) return { ok: false, error: res.errors.join('; ') || 'proposal-failed', stage: res.stage };
+    if (res.declined || !res.draft || !res.brief || !res.creative) {
+      return { ok: true, declined: true, rationale: res.brief?.rationale ?? 'The planner declined to run an ad for this window.' };
+    }
+
+    // Persist the reviewable proposal blob (resolve photo URLs from the property gallery).
+    const db = await getAdminDb();
+    const propDoc = await db.collection('properties').doc(input.propertyId).get();
+    const images = (propDoc.data()?.images ?? []) as PropertyImage[];
+    const urlByPath = new Map(images.filter((i) => i.storagePath).map((i) => [i.storagePath!, i.thumbnailUrl || i.url]));
+    const photos = res.creative.assetPaths.map((storagePath) => ({ storagePath, url: urlByPath.get(storagePath) ?? '' }));
+
+    await db.collection('adCampaigns').doc(res.draft.adCampaignId).update({
+      proposal: {
+        source: 'opportunity-engine',
+        occasion: {
+          name: res.brief.opportunity.occasion?.name ?? null,
+          start: res.brief.opportunity.window.start,
+          end: res.brief.opportunity.window.end,
+          nights: res.brief.opportunity.window.nights,
+        },
+        copy: res.creative.copy,
+        photos,
+        cities: res.brief.targeting.cities.map((c) => ({ name: c.name, radius: c.radius })),
+        creativeBrief: res.brief.creativeBrief,
+        rationale: res.brief.rationale,
+      },
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    logger.info('generateAdProposalAction: draft created', { actor, adCampaignId: res.draft.adCampaignId });
+    revalidatePath('/admin/ads');
+    return { ok: true, adCampaignId: res.draft.adCampaignId };
+  } catch (error) {
+    logger.error('generateAdProposalAction failed', error as Error, { propertyId: input.propertyId });
+    return { ok: false, error: 'internal-error' };
+  }
+}
+
+/**
+ * Discard a draft ad — delete its Meta chain (ad set + campaign cascade the ad; creative is
+ * account-level) and the Firestore doc. Only a `draft` or `failed` campaign may be discarded (never
+ * an approved/active one — pause that first). Super-admin gate. A Dynamic-Creative ad can't be
+ * deleted directly (Meta err 100/1340029), so we delete the ad set + campaign (which cascade the ad)
+ * + the creative.
+ */
+export async function discardAdDraftAction(adCampaignId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  let actor: string;
+  try {
+    actor = await requireActor();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return { ok: false, error: handleAuthError(error).error };
+    throw error;
+  }
+
+  try {
+    const db = await getAdminDb();
+    const ref = db.collection('adCampaigns').doc(adCampaignId);
+    const snap = await ref.get();
+    if (!snap.exists) return { ok: false, error: 'not-found' };
+    const doc = snap.data() as AdCampaignDocData;
+    if (doc.status !== 'draft' && doc.status !== 'failed') {
+      return { ok: false, error: `cannot-discard:${doc.status ?? 'unknown'} (pause an active/approved ad first)` };
+    }
+
+    // Best-effort delete of the Meta objects (never blocks the doc removal).
+    if (doc.propertyId && doc.metaCampaignId) {
+      const ctx = await resolveAdContext(doc.propertyId);
+      if (ctx) {
+        const ids = [...(doc.metaAdSetIds ?? []), doc.metaCampaignId, ...(doc.creativeRef ? [doc.creativeRef] : [])];
+        for (const id of ids) {
+          const del = await deleteResource(id, ctx.token, doc.propertyId);
+          if (!del.ok) logger.warn('discardAdDraftAction: Meta delete failed (continuing)', { adCampaignId, id, error: del.error });
+        }
+      }
+    }
+
+    await ref.delete();
+    logger.info('discardAdDraftAction: discarded', { actor, adCampaignId });
+    revalidatePath('/admin/ads');
+    return { ok: true };
+  } catch (error) {
+    logger.error('discardAdDraftAction failed', error as Error, { adCampaignId });
     return { ok: false, error: 'internal-error' };
   }
 }

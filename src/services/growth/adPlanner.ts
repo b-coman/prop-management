@@ -13,7 +13,7 @@
  * Server-only. Degrades (throws a clear error) if ANTHROPIC_API_KEY is absent.
  */
 import { getAnthropicClient, COPYWRITER_MODEL } from '@/lib/growth/anthropic';
-import { buildAdPlannerPack } from '@/lib/growth/adPlannerPack';
+import { buildAdPlannerPack, type AdPlannerPack } from '@/lib/growth/adPlannerPack';
 import { validateAdPlan, type AdPlannerPackForValidation } from '@/lib/growth/validateAdPlan';
 import type { AdBrief, AdOpportunity } from '@/lib/growth/contracts';
 import { loggers } from '@/lib/logger';
@@ -108,12 +108,14 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 export async function generateAdPlan(
   opportunity: AdOpportunity,
-  opts?: { asOf?: Date; maxRepairs?: number }
+  opts?: { asOf?: Date; maxRepairs?: number; pack?: AdPlannerPack }
 ): Promise<GenerateAdPlanResult> {
   const client = getAnthropicClient();
   if (!client) throw new Error('ANTHROPIC_API_KEY not configured — the in-app ad planner is unavailable');
 
-  const pack = await buildAdPlannerPack(opportunity, { asOf: opts?.asOf });
+  // Reuse a prebuilt pack when the caller already has one (the orchestrator builds it ONCE and feeds
+  // both the planner and the copywriter) — else build it here.
+  const pack = opts?.pack ?? (await buildAdPlannerPack(opportunity, { asOf: opts?.asOf }));
   const validationPack: AdPlannerPackForValidation = {
     constraints: { maxDailyBudgetMinor: pack.constraints.maxDailyBudgetMinor, maxTotalSpendMinor: pack.constraints.maxTotalSpendMinor },
     targeting: { candidateCityKeys: pack.targeting.candidateCityKeys },
