@@ -15,6 +15,29 @@ export type MultilingualString = {
   [languageCode: string]: string | undefined;
 };
 
+/**
+ * Rich, vision-generated description of a gallery photo — the AI-readable field the ad/page selectors
+ * reason over to decide if a photo FITS a goal/period/audience (promotion-system-architecture.md §4.2,
+ * ad plan §14.2 `llmDescription`). Produced by `galleryVision.describeImage` (a vision model actually
+ * LOOKS at the image); grounds ONLY in what's visible — never invents amenities. Far richer than
+ * `alt`/`tags`: it captures season, mood, light, features, people, and which marketing angles fit.
+ */
+export interface AiImageDescription {
+  summary: string;            // one line: what the photo shows
+  setting: string;            // exterior | interior | garden | aerial | detail | ...
+  season: string;             // autumn | winter | spring | summer | indeterminate
+  timeOfDay: string;          // day | golden-hour | night | indeterminate
+  mood: string;               // e.g. "cozy, warm", "tranquil", "lively"
+  subjects: string[];         // concrete things visible: "cast-iron cauldron over a fire", "valley view"
+  features: string[];         // amenities/features VISIBLE: "wood-burning stove", "terrace", "bunk beds"
+  people: string;             // none | adults | children | family | mixed
+  activities: string[];       // implied: "outdoor cooking", "kids playing"
+  palette: string[];          // dominant colours: "golden", "warm wood"
+  fitsAngles: string[];       // marketing angles it suits: "romantic", "family", "food-and-fire", "nature", "cozy-winter"
+  model: string;              // provenance — which model described it
+  describedAt: string;        // ISO timestamp
+}
+
 export interface PropertyImage {
   url: string;
   /**
@@ -27,6 +50,8 @@ export interface PropertyImage {
   isFeatured?: boolean;
   'data-ai-hint'?: string; // For AI image generation hints
   tags?: string[]; // For gallery filtering
+  /** Rich vision-generated description for AI ad/post selection (galleryVision.describeImage). */
+  aiDescription?: AiImageDescription;
   sortOrder?: number; // For gallery ordering
   showInGallery?: boolean; // false = hidden from gallery (undefined/true = visible)
   thumbnailUrl?: string; // Resized thumbnail URL from Storage
@@ -520,6 +545,69 @@ export type AdCampaignStatus =
  * gates activation on); the remaining fields land with Phase 2 campaign
  * creation but are declared now so the shape is stable.
  */
+/**
+ * AdOutcome — the FROZEN learning record for one finished campaign (id == adCampaigns id == utm_campaign).
+ * Written once by `finalizeAdOutcome` at `endTime + settleDays`, so learnings are stable and auditable
+ * rather than drifting as late bookings trickle in. Keeps Meta's MODELED attribution (`metaReported`)
+ * strictly separate from our FIRST-PARTY utm→booking join (`utmAttributed`) — they are different
+ * numbers and must never be conflated (Fable finding). `caveats` carries the machine-readable honesty.
+ */
+export interface AdOutcome {
+  id: string;
+  propertyId: string;
+  capturedAt: SerializableTimestamp;
+  settleDays: number;
+  // ── what we tried (denormalized so it survives later proposal/doc edits) ──
+  window: { start: string; end: string; nights: number } | null;
+  occasion: string | null;
+  goal: string | null;
+  audience: string | null;
+  creativeBrief: string | null;
+  copyCount: number;
+  photos: string[];                 // storagePaths from the proposal
+  cities: Array<{ key?: string; name: string; radius: number }>;
+  dailyBudgetMinor: number;
+  endTime: string;
+  source: 'opportunity-engine' | 'manual';
+  // ── what happened ──
+  finalEffectiveStatus: string;
+  delivery: { spend: number; impressions: number; clicks: number; ctr: number; cpc: number };
+  metaReported: { purchases: number; purchaseValue: number; roas: number };   // Meta MODELED — not first-party
+  utmAttributed: { bookings: number; revenue: number; bookingIds: string[] }; // FIRST-PARTY utm→booking join (a floor)
+  verdict: 'converted' | 'clicked-no-booking' | 'no-delivery' | 'rejected' | 'never-activated';
+  caveats: string[];
+}
+
+/**
+ * AdLearnings — the compact "weak priors" block added to the ad-planner pack (Fable §1.5). RAW rows +
+ * the statistical METHOD, never conclusions/"winner" labels — the same facts+method+constraints
+ * discipline as the rest of the pack, which is also exactly the right small-n statistics. `available`
+ * is false until the first outcome exists (ships dark, prompts no-op).
+ */
+export interface AdLearnings {
+  available: boolean;
+  campaignsCompleted: number;
+  totals: { spend: number; impressions: number; clicks: number; utmBookings: number; utmRevenue: number };
+  campaigns: Array<{
+    occasion: string | null;
+    goal: string | null;
+    audience: string | null;
+    window: string;
+    cities: string[];
+    spend: number;
+    impressions: number;
+    clicks: number;
+    ctr: number;
+    cpc: number;
+    metaPurchases: number;
+    utmBookings: number;
+    utmRevenue: number;
+    verdict: AdOutcome['verdict'];
+    angle: string;                  // creativeBrief, truncated
+  }>;
+  note: string;                     // the statistical contract, shipped verbatim to the LLM
+}
+
 export interface AdCampaign {
   id: string;
   propertyId: string;

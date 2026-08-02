@@ -25,9 +25,10 @@ import { serverTranslateContent } from '@/lib/server-language-utils';
 import { getMaxDailyBudgetMinor } from '@/config/growth-ads';
 import { searchCities } from '@/services/growth/metaAds/geo';
 import { getAdAccountHealth, getPageHealth } from '@/services/growth/metaAds/brandHealth';
+import { buildAdLearnings } from '@/lib/growth/adLearnings';
 import type { AdOpportunity, AdFraming } from '@/lib/growth/contracts';
 import type { CityMatch } from '@/services/growth/metaAds/geo';
-import type { PropertyImage } from '@/types';
+import type { PropertyImage, AiImageDescription, AdLearnings } from '@/types';
 
 /**
  * RO feeder markets for a Prahova-valley chalet — the candidate geo the planner picks from. Names
@@ -86,7 +87,9 @@ export interface AdPlannerPack {
       }
     | { available: false; error: string };
   page: { available: true; dormant: boolean; followers: number; warnings: string[] } | { available: false; error: string };
-  assets: Array<{ storagePath: string; alt: string; tags: string[] }>;
+  /** Weak priors from past campaigns (Fable §1.5) — `available:false` until the first outcome exists. */
+  learnings: AdLearnings;
+  assets: Array<{ storagePath: string; alt: string; tags: string[]; aiDescription?: AiImageDescription }>;
   landing: { baseUrl: string; note: string };
   method: string[];
 }
@@ -100,11 +103,12 @@ export async function buildAdPlannerPack(
   const propertyId = opportunity.propertyId;
 
   // Health blocks + candidate-city resolution + property doc, in parallel (all read-only, all degrade).
-  const [accountRes, pageRes, cityResults, propSnap] = await Promise.all([
+  const [accountRes, pageRes, cityResults, propSnap, learnings] = await Promise.all([
     getAdAccountHealth(propertyId),
     getPageHealth(propertyId),
     Promise.all(RO_FEEDER_CITIES.map((name) => searchCities(propertyId, name, { limit: 3 }))),
     getAdminDb().then((db) => db.collection('properties').doc(propertyId).get()),
+    buildAdLearnings(propertyId),
   ]);
 
   // Candidate cities — the best match per name, deduped by key (a resolution failure just drops that
@@ -132,7 +136,7 @@ export async function buildAdPlannerPack(
   const ownPrefix = `properties/${propertyId}/`;
   const assets = (propData?.images ?? [])
     .filter((img): img is PropertyImage & { storagePath: string } => Boolean(img.storagePath && img.storagePath.startsWith(ownPrefix)))
-    .map((img) => ({ storagePath: img.storagePath, alt: serverTranslateContent(img.alt, 'en'), tags: img.tags ?? [] }));
+    .map((img) => ({ storagePath: img.storagePath, alt: serverTranslateContent(img.alt, 'en'), tags: img.tags ?? [], aiDescription: img.aiDescription }));
 
   const account: AdPlannerPack['account'] = accountRes.ok
     ? {
@@ -175,6 +179,7 @@ export async function buildAdPlannerPack(
     },
     account,
     page,
+    learnings,
     assets,
     landing: {
       baseUrl: getBaseUrl(propData?.customDomain),
@@ -184,6 +189,7 @@ export async function buildAdPlannerPack(
       'You PLAN: pick geo (subset of candidateCities + radius), a daily budget + a bounded end time (within the envelope), and write a creativeBrief (the angle + which asset themes to favor + tone). You do NOT write final ad copy or choose exact photos — that is the creative intelligence (step 4).',
       'Ground every choice in the pack: the opportunity (window/nights/occasion), account performance (CTR/CPC to size reach), the candidate cities, the assets available. Do not invent a city key, a budget above the ceiling, or an asset not listed.',
       'If the opportunity is weak (no occasion, tiny value, or the account is blocked), set act:false and say why — a forced ad burns real money, unlike a WhatsApp message.',
+      'If learnings.available, treat past campaigns as WEAK PRIORS (read learnings.note): prefer angles/cities with supporting evidence ONLY when they fit this occasion equally — never override the occasion, and one campaign proves nothing.',
     ],
   };
 }

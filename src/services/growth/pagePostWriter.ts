@@ -79,8 +79,10 @@ RULES
    invite drives engagement. No aggressive selling, no fake urgency.
 2. SHAPE TO THE PROMPT + FRAMING. Follow the prompt (what the post is about) and any goal/audience
    given — a couples/off-peak post and a families/school-break post look different.
-3. GROUND IN REALITY. Pick ONE photo, by exact storagePath, from the provided assets — you can only
-   show what the property really has. Never claim an amenity/experience not evident in the assets.
+3. GROUND IN REALITY, PICK A PHOTO THAT FITS. Pick ONE photo, by exact storagePath, from the provided
+   assets — you can only show what the property really has. Each asset has a rich aiDescription
+   (season, mood, people, features, fitsAngles) from a vision model — use it to pick the photo that
+   truly fits the post's prompt, season, and audience. Never claim an amenity not evident in the assets.
 4. KEEP IT SHORT. A few sentences. Diacritics are fine (this is public brand copy). One or two
    tasteful emoji are OK if they fit.
 
@@ -119,7 +121,7 @@ export async function generatePagePost(
     prompt: input.prompt,
     goal: input.framing?.goal ?? null,
     audience: input.framing?.audience ?? null,
-    assets: input.assets.map((a) => ({ storagePath: a.storagePath, alt: a.alt, tags: a.tags })),
+    assets: input.assets.map((a) => ({ storagePath: a.storagePath, alt: a.alt, tags: a.tags, aiDescription: a.aiDescription })),
   };
   const messages: Array<{ role: 'user' | 'assistant'; content: unknown }> = [
     { role: 'user', content: `Here is the post brief + the available gallery assets. Write ONE organic page post and call emit_page_post.\n\n${JSON.stringify(postPack)}` },
