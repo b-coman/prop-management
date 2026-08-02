@@ -81,6 +81,10 @@ const short = (p: string) => p.split('/').pop();
     });
     console.log(`\nphotos (${c.assetPaths.length}): ${c.assetPaths.map(short).join(', ')}`);
     if (c.notes) console.log(`notes: ${c.notes}`);
+    if (c.assetGaps?.length) {
+      console.log(`\nMISSING SHOTS (${c.assetGaps.length}):`);
+      c.assetGaps.forEach((g) => console.log(`  - [${g.transform}] ${g.need}\n    nearest: ${short(g.nearestAssetPath)} — ${g.whyInsufficient}`));
+    }
   }
   if (creative.warnings.length) console.log(`\n⚠ ${creative.warnings.join(' · ')}`);
   if (!creative.ok) console.log(`\n✖ ${creative.errors.join(' · ')}`);

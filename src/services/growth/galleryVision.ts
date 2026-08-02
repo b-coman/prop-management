@@ -10,6 +10,7 @@
  * Server-only. Throws if ANTHROPIC_API_KEY is absent.
  */
 import { getAnthropicClient, COPYWRITER_MODEL } from '@/lib/growth/anthropic';
+import { loggers } from '@/lib/logger';
 import type { AiImageDescription } from '@/types';
 
 /** Vision-capable media types the Anthropic API accepts. */
@@ -98,4 +99,46 @@ export function mediaTypeFromUrl(url: string): SupportedMediaType {
   if (u.includes('.webp')) return 'image/webp';
   if (u.includes('.gif')) return 'image/gif';
   return 'image/jpeg';
+}
+
+/**
+ * Describe every gallery photo that has a storagePath but no `aiDescription` yet, and save it back —
+ * so a NEWLY uploaded image gets a rich description without anyone running a script (called by the
+ * caption-gallery cron and available as an on-demand admin action). Writes after each image so it's
+ * resumable; never throws per image. Returns how many were described. `getAdminDb` is imported lazily
+ * to keep this module client-safe at type level (the Anthropic call is the only hard server dep).
+ */
+export async function captionUndescribedImages(
+  propertyId: string,
+  opts?: { force?: boolean; limit?: number }
+): Promise<{ described: number; pending: number; total: number }> {
+  const { getAdminDb } = await import('@/lib/firebaseAdminSafe');
+  const db = await getAdminDb();
+  const ref = db.collection('properties').doc(propertyId);
+  const snap = await ref.get();
+  if (!snap.exists) return { described: 0, pending: 0, total: 0 };
+  const images = (snap.data()?.images ?? []) as Array<{ url?: string; storagePath?: string; aiDescription?: unknown }>;
+
+  const todo = images
+    .map((img, idx) => ({ img, idx }))
+    .filter(({ img }) => img.storagePath && (opts?.force || !img.aiDescription))
+    .slice(0, opts?.limit ?? Infinity);
+
+  let described = 0;
+  for (const { img, idx } of todo) {
+    if (!img.url) continue;
+    try {
+      const res = await fetch(img.url);
+      if (!res.ok) continue;
+      const bytes = Buffer.from(await res.arrayBuffer());
+      const desc = await describeImage(bytes.toString('base64'), mediaTypeFromUrl(img.url));
+      if (!desc) continue;
+      images[idx] = { ...img, aiDescription: desc };
+      await ref.update({ images }); // write-after-each → resumable
+      described += 1;
+    } catch (error) {
+      loggers.ads.warn('captionUndescribedImages: failed for one image (continuing)', { propertyId, idx, error: String(error) });
+    }
+  }
+  return { described, pending: todo.length, total: images.length };
 }

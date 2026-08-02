@@ -54,6 +54,20 @@ const AD_CREATIVE_TOOL = {
         description: 'the chosen photos, by EXACT storagePath from the pack\'s assets — 1-6 that carry the brief\'s themes (favor variety: exterior / interior / lifestyle). Never invent a path.',
         items: { type: 'string' },
       },
+      assetGaps: {
+        type: 'array',
+        description: 'ONLY when a theme the brief genuinely needs has NO fitting real photo in the assets. Do NOT skip real photos to force a gap. Each: what is missing, the nearest real asset (exact storagePath), why it falls short, and the transform that would fix it.',
+        items: {
+          type: 'object',
+          properties: {
+            need: { type: 'string', description: 'the missing shot, e.g. "a family at the fire pit at winter dusk"' },
+            nearestAssetPath: { type: 'string', description: 'the nearest REAL offered storagePath — the base photo to edit' },
+            whyInsufficient: { type: 'string', description: 'why that nearest photo does not fully work' },
+            transform: { type: 'string', enum: ['relight', 'populate_people', 'seasonal'], description: 'the edit that would fix it' },
+          },
+          required: ['need', 'nearestAssetPath', 'whyInsufficient', 'transform'],
+        },
+      },
       notes: { type: 'string', description: 'brief note on the creative choices (optional).' },
     },
     required: ['copy', 'assetPaths'],
@@ -84,12 +98,24 @@ THE RULES
    Dynamic Creative has range. CTA: 'learn_more' unless 'book_now' clearly fits.
 4. DIRECT BOOKING. The destination is the property's own site — a light nudge to book direct is good,
    but the ad's job is to earn the click, not to close.
+5. DECLARE MISSING SHOTS (only real gaps). If a theme the brief genuinely needs has NO fitting real
+   photo, STILL pick the best real photos for assetPaths, AND add an assetGaps entry: what is missing,
+   the nearest real photo (its storagePath), why it falls short, and the transform (relight/seasonal/
+   populate_people). Never skip real photos to force a gap, and never invent a scene — the gap always
+   points at a real photo to edit.
 
 Return the creative by calling emit_ad_creative. Nothing else.`;
 
+export interface RawAssetGap {
+  need: string;
+  nearestAssetPath: string;
+  whyInsufficient: string;
+  transform: 'relight' | 'populate_people' | 'seasonal';
+}
+
 export interface GenerateAdCreativeResult {
   ok: boolean;
-  creative: { copy: CopyVariant[]; assetPaths: string[]; notes?: string } | null;
+  creative: { copy: CopyVariant[]; assetPaths: string[]; notes?: string; assetGaps?: RawAssetGap[] } | null;
   errors: string[];
   warnings: string[];
   attempts: number;
@@ -99,6 +125,7 @@ interface EmitAdCreativeInput {
   copy: CopyVariant[];
   assetPaths: string[];
   notes?: string;
+  assetGaps?: RawAssetGap[];
 }
 
 /**
@@ -150,10 +177,10 @@ export async function generateAdCreative(
     const input = toolUse?.input;
     const toolUseId = toolUse?.id;
 
-    creative = input ? { copy: input.copy ?? [], assetPaths: input.assetPaths ?? [], notes: input.notes } : null;
+    creative = input ? { copy: input.copy ?? [], assetPaths: input.assetPaths ?? [], notes: input.notes, assetGaps: input.assetGaps ?? [] } : null;
 
     const v = creative
-      ? validateAdCreative(validationPack, { copy: creative.copy, assetPaths: creative.assetPaths })
+      ? validateAdCreative(validationPack, { copy: creative.copy, assetPaths: creative.assetPaths, assetGaps: creative.assetGaps })
       : { ok: false, errors: ['the model returned no creative'], warnings: [] };
     lastValidation = { ok: v.ok, errors: v.errors, warnings: v.warnings };
     logger.info('adCopywriter generateAdCreative attempt', { attempt, variants: creative?.copy.length, photos: creative?.assetPaths.length, ok: v.ok, errors: v.errors.length });

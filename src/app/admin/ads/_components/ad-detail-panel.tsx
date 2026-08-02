@@ -35,6 +35,7 @@ import { approveAdAction, activateAdAction, pauseAdAction, refreshAdInsightsActi
 
 /** The AI proposal (copy + photos + geo + rationale) shown for in-console review when a draft was drafted by the Opportunity Engine. */
 function ProposalCard({ proposal }: { proposal: NonNullable<AdCampaign['proposal']> }) {
+  const { toast } = useToast();
   return (
     <Card>
       <CardHeader>
@@ -109,6 +110,45 @@ function ProposalCard({ proposal }: { proposal: NonNullable<AdCampaign['proposal
               {proposal.rationale}
             </p>
           </details>
+        )}
+
+        {(proposal.assetGaps?.length ?? 0) > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-amber-700">
+              Missing shots the AI wanted ({proposal.assetGaps!.length}) — generate these & upload, and they self-describe
+            </p>
+            {proposal.assetGaps!.map((g, i) => (
+              <div key={i} className="rounded-md border border-amber-200 bg-amber-50/40 p-2 text-xs">
+                <p className="font-medium">
+                  {g.need}
+                  <Badge variant="outline" className="ml-1 text-[10px]">{g.transform}</Badge>
+                </p>
+                <p className="mt-0.5 text-muted-foreground">{g.whyInsufficient}</p>
+                <div className="mt-2 flex items-start gap-2">
+                  {g.nearestAssetUrl && (
+                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded border" title="Edit this base photo">
+                      <Image src={g.nearestAssetUrl} alt="" fill className="object-cover" sizes="56px" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="mb-1 text-[10px] text-muted-foreground">Paste into your image-AI, using the photo on the left as the base:</p>
+                    <code className="block whitespace-pre-wrap rounded bg-muted p-1.5 text-[10px] leading-snug">{g.generationPrompt}</code>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-1 h-6 text-[10px]"
+                      onClick={() => {
+                        void navigator.clipboard?.writeText(g.generationPrompt);
+                        toast({ title: 'Prompt copied' });
+                      }}
+                    >
+                      Copy prompt
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </CardContent>
     </Card>

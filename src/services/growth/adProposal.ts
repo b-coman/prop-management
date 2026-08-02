@@ -17,7 +17,7 @@
  */
 import { buildAdPlannerPack } from '@/lib/growth/adPlannerPack';
 import { generateAdPlan } from './adPlanner';
-import { generateAdCreative } from './adCopywriter';
+import { generateAdCreative, type RawAssetGap } from './adCopywriter';
 import { composeAndCreateAd } from './adComposer';
 import type { AdOpportunity, AdBrief, AdFraming } from '@/lib/growth/contracts';
 import type { ComposeAndCreateAdInput, CopyVariant } from '@/types';
@@ -33,7 +33,7 @@ export interface AdProposalResult {
   /** The planner chose NOT to act (weak opportunity). `ok:true`, no draft created. */
   declined: boolean;
   brief?: AdBrief;
-  creative?: { copy: CopyVariant[]; assetPaths: string[]; notes?: string };
+  creative?: { copy: CopyVariant[]; assetPaths: string[]; notes?: string; assetGaps?: RawAssetGap[] };
   /** The created PAUSED draft ids (present only on a full success). */
   draft?: { adCampaignId: string; metaCampaignId: string; metaAdSetId: string; metaAdId: string; creativeId: string };
   errors: string[];
