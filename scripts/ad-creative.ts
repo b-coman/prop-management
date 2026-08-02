@@ -36,6 +36,7 @@ if (!start || !end) {
 const property = arg('property', 'prahova-mountain-chalet')!;
 const value = arg('value');
 const occasionName = arg('occasion');
+const framing = { goal: arg('goal'), audience: arg('audience') };
 
 const nights = Math.round((Date.parse(end) - Date.parse(start)) / 86400000);
 const daysOut = Math.max(0, Math.round((Date.parse(start) - Date.now()) / 86400000));
@@ -57,7 +58,8 @@ const short = (p: string) => p.split('/').pop();
 
 (async () => {
   const t0 = Date.now();
-  const pack = await buildAdPlannerPack(opportunity);
+  if (framing.goal || framing.audience) console.log(`framing → goal: ${framing.goal ?? '(none)'} · audience: ${framing.audience ?? '(none)'}`);
+  const pack = await buildAdPlannerPack(opportunity, { framing });
   const plan = await generateAdPlan(opportunity, { pack });
   console.log(`\n=== PLAN — ${plan.ok ? 'VALID' : 'REJECTED'} (${plan.attempts} attempt(s)) ===`);
   const b = plan.brief;
@@ -68,7 +70,7 @@ const short = (p: string) => p.split('/').pop();
   console.log(`cities: ${b.targeting.cities.map((c) => `${c.name} r${c.radius}km`).join(', ')}`);
   console.log(`budget: ${ron(b.dailyBudgetMinor)}/day · end ${b.endTime.slice(0, 10)}`);
 
-  const creative = await generateAdCreative(b, pack.assets);
+  const creative = await generateAdCreative(b, pack.assets, { framing });
   const secs = Math.round((Date.now() - t0) / 1000);
   console.log(`\n=== CREATIVE — ${creative.ok ? 'VALID' : 'REJECTED'} (${creative.attempts} attempt(s), ${secs}s total) ===`);
   const c = creative.creative;

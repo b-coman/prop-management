@@ -25,6 +25,8 @@ export function GenerateForm({ propertyId }: { propertyId: string }) {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [occasion, setOccasion] = useState('');
+  const [goal, setGoal] = useState('');
+  const [audience, setAudience] = useState('');
   const [value, setValue] = useState('');
   const [declined, setDeclined] = useState<string | null>(null);
 
@@ -44,6 +46,8 @@ export function GenerateForm({ propertyId }: { propertyId: string }) {
         start: startDate,
         end: endDate,
         occasion: occasion.trim() || undefined,
+        goal: goal.trim() || undefined,
+        audience: audience.trim() || undefined,
         valueAtRisk: value ? Number(value) : undefined,
       });
       if (!res.ok) {
@@ -94,6 +98,32 @@ export function GenerateForm({ propertyId }: { propertyId: string }) {
           />
           <p className="text-xs text-muted-foreground">
             A real reason to come now. With no occasion the planner may decline — an ad with nothing to say wastes spend.
+          </p>
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="goal">Goal — the outcome you want (optional)</Label>
+          <Textarea
+            id="goal"
+            value={goal}
+            onChange={(e) => setGoal(e.target.value)}
+            rows={2}
+            placeholder="e.g. Fill these nights with high-margin DIRECT bookings — quality over volume"
+          />
+          <p className="text-xs text-muted-foreground">Shapes the whole ad — angle, budget posture, and the call to action.</p>
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="audience">Audience — who it&apos;s for (optional)</Label>
+          <Textarea
+            id="audience"
+            value={audience}
+            onChange={(e) => setAudience(e.target.value)}
+            rows={2}
+            placeholder="e.g. Adult couples wanting a quiet off-peak weekend — food, fire, no crowds"
+          />
+          <p className="text-xs text-muted-foreground">
+            Steers the copy angle and which photos are picked (not Meta targeting — Advantage+ handles that).
           </p>
         </div>
 

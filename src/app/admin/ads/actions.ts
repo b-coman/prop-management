@@ -485,6 +485,8 @@ export async function generateAdProposalAction(input: {
   end: string;
   occasion?: string;
   valueAtRisk?: number;
+  goal?: string;
+  audience?: string;
 }): Promise<
   | { ok: true; adCampaignId: string }
   | { ok: true; declined: true; rationale: string }
@@ -515,8 +517,9 @@ export async function generateAdProposalAction(input: {
       rationale: 'operator-initiated (console)',
     };
 
+    const framing = { goal: input.goal?.trim() || undefined, audience: input.audience?.trim() || undefined };
     logger.info('generateAdProposalAction: generating', { actor, propertyId: input.propertyId, window: `${input.start}..${input.end}` });
-    const res = await proposeAd(opportunity);
+    const res = await proposeAd(opportunity, { framing });
 
     if (!res.ok) return { ok: false, error: res.errors.join('; ') || 'proposal-failed', stage: res.stage };
     if (res.declined || !res.draft || !res.brief || !res.creative) {
@@ -539,6 +542,8 @@ export async function generateAdProposalAction(input: {
           end: res.brief.opportunity.window.end,
           nights: res.brief.opportunity.window.nights,
         },
+        goal: framing.goal ?? null,
+        audience: framing.audience ?? null,
         copy: res.creative.copy,
         photos,
         cities: res.brief.targeting.cities.map((c) => ({ name: c.name, radius: c.radius })),

@@ -562,6 +562,9 @@ export interface AdCampaign {
   proposal?: {
     source: 'opportunity-engine';
     occasion?: { name: string | null; start: string; end: string; nights: number } | null;
+    /** The operator's outcome + audience steering, shown at review so it's clear what shaped the ad. */
+    goal?: string | null;
+    audience?: string | null;
     copy: CopyVariant[];
     photos: Array<{ storagePath: string; url: string }>;
     cities: Array<{ name: string; radius: number }>;
