@@ -21,6 +21,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 import { execSync } from 'child_process';
 import { getAdminDb } from '../src/lib/firebaseAdminSafe';
 import { getPageHealth, getAdAccountHealth } from '@/services/growth/metaAds/brandHealth';
+import { computeRecentCancellations, computeOutreachLedger } from '@/lib/growth/signals';
 
 const arg = (n: string, d?: string) => {
   const i = process.argv.indexOf(`--${n}`);
@@ -514,35 +515,8 @@ async function main() {
     .map(h => ({ name: h.name, type: h.type, startDate: h.startDate, endDate: h.endDate, source: h.source ?? null }));
 
   // ---------- recent cancellations (re-opened inventory + a demand signal) ----------
-  // A cancelled FUTURE stay is BOTH an open gap that returned to inventory AND fresh evidence that
-  // demand for that window is soft — someone who had committed backed out. It is surfaced here (not
-  // silently dropped with the other cancelled rows in `live`) so the analyst can weight it. Facts
-  // only; the method (how to route on it) lives in the analyst skill. "Forward" = the stay had not
-  // yet started as of the pack date. Names are never included — window + value + timing only.
-  const forwardCancellations = allBookings
-    .filter(b => b.status === 'cancelled' && b.ci && b.ci >= AS_OF)
-    .map(b => {
-      const cancelledAt = toD(b.cancelledAt);
-      return {
-        window: `${ymd(b.ci!)}→${ymd(b.co!)}`,
-        month: `${b.ci!.getUTCFullYear()}-${String(b.ci!.getUTCMonth() + 1).padStart(2, '0')}`,
-        nights: nightsBetween(b.ci!, b.co!),
-        valueLost: round(price(b)),
-        channel: b.source ?? null,
-        cancelledDaysAgo: cancelledAt ? nightsBetween(cancelledAt, AS_OF) : null,
-      };
-    })
-    .sort((a, b) => (a.window < b.window ? -1 : 1));
-  const recentCancellations = {
-    note:
-      'Cancelled bookings whose stay is still in the FUTURE as of the pack date. Each one both re-opened ' +
-      'that window to inventory (it now sits inside a freeRun) AND is a signal demand there was soft — a ' +
-      'guest who had committed backed out. `cancelledDaysAgo` shows how fresh the signal is (null if the ' +
-      'cancellation timestamp was not recorded). valueLost is net-to-owner (dataQuality.amountsNote).',
-    forwardCount: forwardCancellations.length,
-    nightsReopened: forwardCancellations.reduce((s, c) => s + c.nights, 0),
-    items: forwardCancellations.slice(0, 12),
-  };
+  // Logic lives in src/lib/growth/signals.ts so any in-app arm can read the same signal (arch §7 M1).
+  const recentCancellations = computeRecentCancellations(allBookings, AS_OF);
 
   const inventory = isHistorical
     ? {
@@ -625,35 +599,9 @@ async function main() {
       };
 
   // ---------- outreach history ----------
-  const outboundDays = new Map<string, Set<string>>();
-  tSnap.docs.forEach(d => {
-    const t: any = d.data();
-    (t.messages || []).forEach((m: any) => {
-      if (m.direction !== 'out' || m.ts >= ymd(AS_OF)) return;
-      const day = String(m.ts).slice(0, 10);
-      if (!outboundDays.has(day)) outboundDays.set(day, new Set());
-      outboundDays.get(day)!.add(d.id);
-    });
-  });
-  const campaigns = [...outboundDays.entries()].filter(([, s]) => s.size >= 8).sort()
-    .map(([day, gset]) => {
-      const dayD = new Date(`${day}T00:00:00Z`);
-      let replied = 0, booked = 0;
-      gset.forEach(gid => {
-        const msgs = ((threads.get(gid)?.messages || []) as any[]);
-        if (msgs.some(m => m.direction === 'in' && new Date(m.ts) > dayD && nightsBetween(dayD, new Date(m.ts)) <= 14)) replied++;
-        const g = guests.find(x => x.id === gid);
-        // ATTRIBUTABLE conversion: a booking MADE (createdAt) AFTER the outreach, within 120d — NOT
-        // merely a stay whose check-in falls after it (that would count pre-existing reservations a
-        // recipient already held). Gated to imported===false because imported rows carry the import
-        // timestamp, not the real booking date (dataQuality.bookingDate) — they can't support
-        // attribution.
-        const after = (g?.bookingIds || []).map((id: string) => bookingById.get(id)).filter(Boolean)
-          .some((b: any) => b.imported === false && b.created && b.created > dayD && nightsBetween(dayD, b.created) <= 120);
-        if (after) booked++;
-      });
-      return { date: day, daysAgo: nightsBetween(dayD, AS_OF), recipients: gset.size, repliedWithin14d: replied, replyRatePct: round(replied / gset.size * 100), bookedWithin120d: booked };
-    });
+  // Logic lives in src/lib/growth/signals.ts (arch §7 M1). `threads` (:292) + property-filtered
+  // `guests` (:289) + `bookingById` (:291) are the same inputs the inline version used.
+  const campaigns = computeOutreachLedger(threads, guests, bookingById, AS_OF);
 
   // ---------- current brand + acquisition signals (LIVE Meta state — NOT as-of reproducible) ----------
   // Fetched DIRECTLY from Meta at pack-build (promotion-system-architecture.md §3.1). Unlike every
