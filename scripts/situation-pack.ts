@@ -513,6 +513,37 @@ async function main() {
     .slice(0, 20)
     .map(h => ({ name: h.name, type: h.type, startDate: h.startDate, endDate: h.endDate, source: h.source ?? null }));
 
+  // ---------- recent cancellations (re-opened inventory + a demand signal) ----------
+  // A cancelled FUTURE stay is BOTH an open gap that returned to inventory AND fresh evidence that
+  // demand for that window is soft — someone who had committed backed out. It is surfaced here (not
+  // silently dropped with the other cancelled rows in `live`) so the analyst can weight it. Facts
+  // only; the method (how to route on it) lives in the analyst skill. "Forward" = the stay had not
+  // yet started as of the pack date. Names are never included — window + value + timing only.
+  const forwardCancellations = allBookings
+    .filter(b => b.status === 'cancelled' && b.ci && b.ci >= AS_OF)
+    .map(b => {
+      const cancelledAt = toD(b.cancelledAt);
+      return {
+        window: `${ymd(b.ci!)}→${ymd(b.co!)}`,
+        month: `${b.ci!.getUTCFullYear()}-${String(b.ci!.getUTCMonth() + 1).padStart(2, '0')}`,
+        nights: nightsBetween(b.ci!, b.co!),
+        valueLost: round(price(b)),
+        channel: b.source ?? null,
+        cancelledDaysAgo: cancelledAt ? nightsBetween(cancelledAt, AS_OF) : null,
+      };
+    })
+    .sort((a, b) => (a.window < b.window ? -1 : 1));
+  const recentCancellations = {
+    note:
+      'Cancelled bookings whose stay is still in the FUTURE as of the pack date. Each one both re-opened ' +
+      'that window to inventory (it now sits inside a freeRun) AND is a signal demand there was soft — a ' +
+      'guest who had committed backed out. `cancelledDaysAgo` shows how fresh the signal is (null if the ' +
+      'cancellation timestamp was not recorded). valueLost is net-to-owner (dataQuality.amountsNote).',
+    forwardCount: forwardCancellations.length,
+    nightsReopened: forwardCancellations.reduce((s, c) => s + c.nights, 0),
+    items: forwardCancellations.slice(0, 12),
+  };
+
   const inventory = isHistorical
     ? {
         valid: false,
@@ -526,6 +557,7 @@ async function main() {
         valid: true,
         horizonDays: 240,
         freeRuns: runs.slice(0, 25).map(priceRun),
+        recentCancellations,
         orphanNights: {
           definition: `free runs of exactly ${MIN_STAY} nights (equal to the min-stay minimum in dataQuality.constraints)`,
           count: orphanRuns.length,
@@ -615,7 +647,7 @@ async function main() {
           .some((b: any) => b.ci && b.ci > dayD && nightsBetween(dayD, b.ci) <= 120);
         if (after) booked++;
       });
-      return { date: day, recipients: gset.size, repliedWithin14d: replied, replyRatePct: round(replied / gset.size * 100), stayedWithin120d: booked };
+      return { date: day, daysAgo: nightsBetween(dayD, AS_OF), recipients: gset.size, repliedWithin14d: replied, replyRatePct: round(replied / gset.size * 100), stayedWithin120d: booked };
     });
 
   // ---------- current brand + acquisition signals (LIVE Meta state — NOT as-of reproducible) ----------
@@ -672,7 +704,14 @@ async function main() {
     product,
     audience,
     inventory,
-    outreachHistory: { pastCampaigns: campaigns, note: 'past manual outreach runs, with reply and subsequent-stay counts per run' },
+    outreachHistory: {
+      pastCampaigns: campaigns,
+      note:
+        'Past manual outreach runs (WhatsApp), newest-last. Per run: `daysAgo` (recency), `recipients`, ' +
+        '`repliedWithin14d`/`replyRatePct`, and `stayedWithin120d` = how many recipients actually booked a ' +
+        'stay afterwards (the conversion outcome). A recent run with stayedWithin120d ≈ 0 means the warm ' +
+        'channel was already fired and did NOT convert — the method reads this before routing a window to it.',
+    },
   };
 
   const json = JSON.stringify(pack, null, 2);

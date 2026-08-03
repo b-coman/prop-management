@@ -94,9 +94,44 @@ truth, and do not invent a "corrected" one — if the yardstick is ambiguous, re
 month as ambiguous and say why.
 
 **3. What to do?** Pick the smallest instrument that fits the thing you found, and say
-why the others don't. Match the instrument to the *size and cause* of the problem —
-a structural shortfall and a single dated gap call for different tools. "Do nothing,
-because this is normal / outside our control" is a valid and sometimes correct answer.
+why the others don't. Before you pick, read the window's history:
+`outreachHistory.pastCampaigns` (has a lever just been fired at this audience, and did
+anyone stay?) and `inventory.recentCancellations` (was this "empty" window sold and
+handed back?). Either can overrule the instrument the window's character suggests — see
+*Choosing the instrument* below. Match the instrument to the *size and cause* of the
+problem — a structural shortfall and a single dated gap call for different tools. "Do
+nothing, because this is normal / outside our control" is a valid and sometimes correct
+answer.
+
+## Choosing the instrument (a prior is not a verdict)
+
+A window's character — a warm audience, an occasion to borrow, nearness — *suggests*
+an instrument. It never selects one. Character is a prior; the window's history is
+evidence, and evidence outranks the prior. Two ledgers to read before you route:
+
+- **The outreach ledger.** Check `outreachHistory.pastCampaigns` before proposing any
+  past-guest outreach. A recent run whose `stayedWithin120d` is ≈nothing against its
+  `recipients` means the warm pool has just been pitched and did not book — that lever
+  is **spent for now** for whatever it was aimed at. Proposing it again is not the
+  smallest instrument; it is the same instrument failing twice. Escalate to a different
+  lever and cite the ledger as the reason. What counts as "recent" and "≈nothing" is
+  your judgment from `daysAgo` and the run's size — read the magnitudes as stated; do
+  not invent a cutoff, and do not compute a rate the pack doesn't carry. Scope the
+  verdict: one run is strong evidence about this audience *under current conditions*,
+  thin evidence about the channel in general.
+- **The cancellation ledger.** A forward cancellation (`inventory.recentCancellations`)
+  is two signals, not one: the window returned to inventory, AND someone who had
+  committed backed out — fresh evidence demand there is soft. A free run that was
+  sold-then-cancelled is not the same as one that never sold: it is more urgent, and
+  the softness argues for broader or stronger tools than a warm nudge. Read
+  `forwardCount`, `nightsReopened` and each item's `cancelledDaysAgo` before treating
+  an empty window as merely unsold. Respect n here as everywhere: one cancellation is
+  an episode; several into the same window is a pattern.
+
+So the rule in step 3, stated precisely: the smallest fitting instrument is the
+smallest one **not already tried and failed on this window under current conditions**.
+Warm, cheap channels remain first-resort — but first-resort means first *considered*,
+not exempt from the ledger.
 
 ## Operating constraints (owner's standing decisions — obey; do not re-derive or re-litigate)
 
@@ -118,9 +153,12 @@ does not tell you which to use for any given situation.
   `inventory.unsellableUnderMinStay` (the latter cannot be booked as-is).
 - **Outreach to past guests** (WhatsApp) — a warm, no-commission channel; targets
   Romanian guests (see the operating constraint above). Judge the fit from
-  `audience.segments` and the occasion each week.
-- **Ads** (Meta, built separately) — reaches strangers; scales with budget. Hand over
-  as a dated, sized proposal.
+  `audience.segments` and the occasion each week — and from
+  `outreachHistory.pastCampaigns`: a recent run that converted ≈no stays leaves this
+  channel spent for now (see *Choosing the instrument*).
+- **Ads** (Meta, built separately) — reaches strangers; scales with budget; the natural
+  escalation when the warm channel is spent or the buyer you need isn't in the
+  past-guest pool. Hand over as a dated, sized proposal.
 - **Brand / page fixes** (from `currentSignals`, owner actions — not guest campaigns) — some
   health flags are prerequisites or one-off fixes, not something to route to a campaign: a page
   `websiteIsOtaLink` (the page sends clicks to an OTA → leaks direct-booking margin), a `dormant`

@@ -80,6 +80,8 @@ Not a rules engine. It reads the pack and produces a **Situation Report** (headl
 ### 3.4 Routing — audience-math-driven, "both" allowed
 The split is already encoded: the analyst's standing constraint (*"WhatsApp targets Romanian guests; foreign demand is an ads or OTA matter"*) plus `src/lib/growth/audience.ts` (`isRomaniaBased` / `classifyResidency` → **domestic / diaspora / foreign**). For a detected gap the router reasons: the **warm RO/diaspora/repeat** slice → WhatsApp; the **residual/strangers/foreign** slice → ads; a **silent brand page** → an organic post. *Often the answer is several arms for the same gap, to different people* — that is the cohesion, and only one shared analyst keeps it coherent.
 
+**A window's character is a prior, not a verdict.** Detection and routing are deliberately separate: one detector surfaces the window; the router chooses the instrument, and it treats the window's character (warmth, occasion, nearness) as a prior only. Before selecting, the router reads two outcome streams — recent outreach results (a lever recently fired that converted ≈zero stays is *spent* for that window: escalate, don't repeat — `outreachHistory.pastCampaigns`) and forward cancellations (sold-then-cancelled inventory is simultaneously re-opened supply and fresh demand-softness evidence, raising urgency and shifting selection toward broader instruments — `inventory.recentCancellations`). The same gap can therefore route to different levers in different weeks: eligibility is a function of recorded history under current conditions, not of the window's character alone.
+
 ---
 
 ## 4. The channel arms
