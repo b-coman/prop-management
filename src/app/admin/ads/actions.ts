@@ -36,15 +36,15 @@ import { convertTimestampsToISOStrings } from '@/lib/utils';
 import { serverTranslateContent } from '@/lib/server-language-utils';
 import { getBaseUrl } from '@/lib/structured-data';
 import { getMaxDailyBudgetMinor } from '@/config/growth-ads';
-import type { AdCampaign, AdCampaignStatus, ComposeAndCreateAdInput, PropertyImage } from '@/types';
-import { composeAndCreateAd, validateApprovalCap, type ComposeAndCreateAdResult } from '@/services/growth/adComposer';
+import type { AdCampaign, AdCampaignStatus, ComposeAndCreateAdInput, CopyVariant, PropertyImage } from '@/types';
+import { composeAndCreateAd, validateApprovalCap, validateDailyBudget, type ComposeAndCreateAdResult } from '@/services/growth/adComposer';
 import { activateCampaign, type ActivateResult } from '@/services/growth/adExecutionGateway';
 import { pauseCampaign, type PauseResult } from '@/services/growth/metaAds/lifecycle';
 import { getInsights, getEffectiveStatus } from '@/services/growth/metaAds/insights';
 import { resolveAdContext } from '@/services/growth/metaAds/adContext';
 import { searchCities, type CityMatch } from '@/services/growth/metaAds/geo';
 import { deleteResource } from '@/services/growth/metaAds/client';
-import { proposeAd } from '@/services/growth/adProposal';
+import { planAndCreative } from '@/services/growth/adProposal';
 import { buildGenerationPrompt } from '@/lib/growth/generationPrompt';
 import type { AdOpportunity } from '@/lib/growth/contracts';
 
@@ -244,7 +244,15 @@ export async function composeAdAction(input: ComposeAndCreateAdInput): Promise<C
   logger.info('composeAdAction: composing', { actor, propertyId: input.propertyId });
   const result = await composeAndCreateAd(input);
   if (result.ok) {
-    logger.info('composeAdAction: composed draft', { actor, adCampaignId: result.adCampaignId });
+    // The manual form creates the Meta chain directly (no Firestore-only draft stage), so the doc is
+    // already ON Meta (PAUSED) — mark it 'pushed' so it enters the same approve/Go-live gates.
+    try {
+      const db = await getAdminDb();
+      await db.collection('adCampaigns').doc(result.adCampaignId).update({ status: 'pushed', pushedBy: actor, updatedAt: FieldValue.serverTimestamp() });
+    } catch (e) {
+      logger.warn('composeAdAction: could not mark pushed (non-fatal)', { adCampaignId: result.adCampaignId, error: (e as Error).message });
+    }
+    logger.info('composeAdAction: composed draft (on Meta, PAUSED)', { actor, adCampaignId: result.adCampaignId });
     revalidatePath('/admin/ads');
   } else {
     logger.warn('composeAdAction: compose failed', { actor, propertyId: input.propertyId, stage: result.stage, error: result.error });
@@ -256,8 +264,9 @@ export async function composeAdAction(input: ComposeAndCreateAdInput): Promise<C
  * Approve a draft ad campaign — the state machine + spend-bound gate (plan
  * REVISIONS S3/B2). Super-admin gate; actor from session (S4).
  *
- *  1. Require `status === 'draft'` — approving anything else (already
- *     approved/active/paused) is rejected with `not-draft:<status>`.
+ *  1. Require `status === 'pushed'` — the ad must already exist on Meta (PAUSED)
+ *     before a spend cap can be approved; anything else is rejected with
+ *     `not-pushed:<status>`. (A Firestore-only `draft` must be Pushed first.)
  *  2. `validateApprovalCap` — the ONLY place spend-cap arithmetic runs; this
  *     action never re-derives or duplicates that math, it only surfaces the
  *     policy's verdict.
@@ -286,8 +295,8 @@ export async function approveAdAction(
     }
     const doc = snap.data() as AdCampaignDocData;
 
-    if (doc.status !== 'draft') {
-      return { ok: false, error: `not-draft:${doc.status ?? 'unknown'}` };
+    if (doc.status !== 'pushed') {
+      return { ok: false, error: `not-pushed:${doc.status ?? 'unknown'} (push the draft to Meta before approving)` };
     }
 
     const dailyBudgetMinor = doc.dailyBudgetMinor ?? 0;
@@ -520,14 +529,16 @@ export async function generateAdProposalAction(input: {
 
     const framing = { goal: input.goal?.trim() || undefined, audience: input.audience?.trim() || undefined };
     logger.info('generateAdProposalAction: generating', { actor, propertyId: input.propertyId, window: `${input.start}..${input.end}` });
-    const res = await proposeAd(opportunity, { framing });
+
+    // Intelligence only — plan + creative, ZERO Meta footprint. Nothing reaches Meta until Push.
+    const res = await planAndCreative(opportunity, { framing });
 
     if (!res.ok) return { ok: false, error: res.errors.join('; ') || 'proposal-failed', stage: res.stage };
-    if (res.declined || !res.draft || !res.brief || !res.creative) {
+    if (res.declined || !res.brief || !res.creative || !res.composeInput) {
       return { ok: true, declined: true, rationale: res.brief?.rationale ?? 'The planner declined to run an ad for this window.' };
     }
 
-    // Persist the reviewable proposal blob (resolve photo URLs from the property gallery).
+    // Resolve photo URLs from the property gallery for the reviewable proposal blob.
     const db = await getAdminDb();
     const propDoc = await db.collection('properties').doc(input.propertyId).get();
     const images = (propDoc.data()?.images ?? []) as PropertyImage[];
@@ -544,7 +555,18 @@ export async function generateAdProposalAction(input: {
       generationPrompt: buildGenerationPrompt(g.transform, g.need, descByPath.get(g.nearestAssetPath) ?? ''),
     }));
 
-    await db.collection('adCampaigns').doc(res.draft.adCampaignId).update({
+    // Create a Firestore-ONLY draft (status 'draft', no metaCampaignId). `composeInput` is the neutral
+    // request that `pushAdToMetaAction` will replay verbatim (with any operator edits) to build the
+    // real PAUSED Meta chain. Top-level dailyBudgetMinor/endTime/objective mirror it for display + the
+    // later approve cap-check.
+    const ref = db.collection('adCampaigns').doc();
+    await ref.set({
+      propertyId: input.propertyId,
+      status: 'draft',
+      objective: res.composeInput.objective,
+      dailyBudgetMinor: res.composeInput.dailyBudgetMinor,
+      endTime: res.composeInput.endTime,
+      composeInput: res.composeInput,
       proposal: {
         source: 'opportunity-engine',
         occasion: {
@@ -562,12 +584,14 @@ export async function generateAdProposalAction(input: {
         rationale: res.brief.rationale,
         assetGaps,
       },
+      createdBy: actor,
+      createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
 
-    logger.info('generateAdProposalAction: draft created', { actor, adCampaignId: res.draft.adCampaignId });
+    logger.info('generateAdProposalAction: Firestore-only draft created (no Meta)', { actor, adCampaignId: ref.id });
     revalidatePath('/admin/ads');
-    return { ok: true, adCampaignId: res.draft.adCampaignId };
+    return { ok: true, adCampaignId: ref.id };
   } catch (error) {
     logger.error('generateAdProposalAction failed', error as Error, { propertyId: input.propertyId });
     return { ok: false, error: 'internal-error' };
@@ -575,11 +599,125 @@ export async function generateAdProposalAction(input: {
 }
 
 /**
+ * Edit a Firestore draft before it is pushed to Meta (operator review + adjust). v1 covers copy text
+ * + daily budget; photo/geo edits are a follow-up. Keeps `proposal` (what the console shows) and
+ * `composeInput` (what push replays) in sync, so the ad that reaches Meta is exactly what was reviewed.
+ * Super-admin gate; only a `draft` (no Meta objects yet) can be edited.
+ */
+export async function updateAdDraftAction(
+  adCampaignId: string,
+  patch: { copy?: CopyVariant[]; dailyBudgetMinor?: number }
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  let actor: string;
+  try {
+    actor = await requireActor();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return { ok: false, error: handleAuthError(error).error };
+    throw error;
+  }
+
+  try {
+    const db = await getAdminDb();
+    const ref = db.collection('adCampaigns').doc(adCampaignId);
+    const snap = await ref.get();
+    if (!snap.exists) return { ok: false, error: 'not-found' };
+    const doc = snap.data() as AdCampaignDocData & { composeInput?: ComposeAndCreateAdInput };
+    if (doc.status !== 'draft') return { ok: false, error: `not-draft:${doc.status ?? 'unknown'}` };
+    const composeInput = doc.composeInput;
+    if (!composeInput) return { ok: false, error: 'draft-missing-composeInput' };
+
+    const update: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
+    let nextComposeInput = composeInput;
+
+    if (patch.copy) {
+      const clean = patch.copy.filter((c) => c && (c.headline?.trim() || c.primary?.trim()));
+      if (clean.length === 0) return { ok: false, error: 'copy-empty' };
+      nextComposeInput = { ...nextComposeInput, copy: clean };
+      update['proposal.copy'] = clean;
+    }
+    if (typeof patch.dailyBudgetMinor === 'number') {
+      const budgetCheck = validateDailyBudget(patch.dailyBudgetMinor);
+      if (!budgetCheck.ok) return { ok: false, error: budgetCheck.reason };
+      nextComposeInput = { ...nextComposeInput, dailyBudgetMinor: patch.dailyBudgetMinor };
+      update['dailyBudgetMinor'] = patch.dailyBudgetMinor;
+    }
+
+    update['composeInput'] = nextComposeInput;
+    await ref.update(update);
+    logger.info('updateAdDraftAction: draft edited', { actor, adCampaignId, fields: Object.keys(patch) });
+    revalidatePath('/admin/ads');
+    revalidatePath(`/admin/ads/${adCampaignId}`);
+    return { ok: true };
+  } catch (error) {
+    logger.error('updateAdDraftAction failed', error as Error, { adCampaignId });
+    return { ok: false, error: 'internal-error' };
+  }
+}
+
+/**
+ * Push a reviewed Firestore draft to Meta — the FIRST moment anything is created on Meta. Builds the
+ * real PAUSED Meta chain (zero spend) from the draft's `composeInput` (carrying any operator edits),
+ * carries the reviewed proposal onto the composed doc, and removes the Firestore-only draft. Meta runs
+ * its policy review at THIS point (the "your ad was approved" email is expected here, by the operator's
+ * choice — never at generate). Spend stays gated behind the separate Go-live (approve + activate).
+ * Super-admin gate; requires status 'draft'. The composed doc gets a NEW id (returned to the caller).
+ */
+export async function pushAdToMetaAction(
+  adCampaignId: string
+): Promise<{ ok: true; adCampaignId: string } | { ok: false; error: string; stage?: string }> {
+  let actor: string;
+  try {
+    actor = await requireActor();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return { ok: false, error: handleAuthError(error).error };
+    throw error;
+  }
+
+  try {
+    const db = await getAdminDb();
+    const ref = db.collection('adCampaigns').doc(adCampaignId);
+    const snap = await ref.get();
+    if (!snap.exists) return { ok: false, error: 'not-found' };
+    const doc = snap.data() as AdCampaignDocData & { composeInput?: ComposeAndCreateAdInput; proposal?: unknown };
+    if (doc.status !== 'draft') return { ok: false, error: `not-draft:${doc.status ?? 'unknown'}` };
+    if (!doc.composeInput) return { ok: false, error: 'draft-missing-composeInput' };
+
+    // Create the real (PAUSED) Meta chain — this is what makes Meta policy-review the creative.
+    const compose = await composeAndCreateAd(doc.composeInput);
+    if (!compose.ok) {
+      logger.warn('pushAdToMetaAction: compose failed', { actor, adCampaignId, stage: compose.stage, error: compose.error });
+      // Leave the draft intact so the operator can fix + retry; surface the last error in the console.
+      await ref.update({ lastPushError: `${compose.stage}:${compose.error}`, updatedAt: FieldValue.serverTimestamp() });
+      return { ok: false, error: compose.error, stage: compose.stage };
+    }
+
+    // Carry the reviewed proposal onto the freshly composed doc, mark 'pushed', then remove the
+    // Firestore-only draft (its content now lives on the composed doc under a new id).
+    await db.collection('adCampaigns').doc(compose.adCampaignId).update({
+      proposal: doc.proposal ?? null,
+      status: 'pushed',
+      pushedBy: actor,
+      pushedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    await ref.delete();
+
+    logger.info('pushAdToMetaAction: pushed to Meta (PAUSED, zero spend)', { actor, from: adCampaignId, adCampaignId: compose.adCampaignId });
+    revalidatePath('/admin/ads');
+    revalidatePath(`/admin/ads/${compose.adCampaignId}`);
+    return { ok: true, adCampaignId: compose.adCampaignId };
+  } catch (error) {
+    logger.error('pushAdToMetaAction failed', error as Error, { adCampaignId });
+    return { ok: false, error: 'internal-error' };
+  }
+}
+
+/**
  * Discard a draft ad — delete its Meta chain (ad set + campaign cascade the ad; creative is
- * account-level) and the Firestore doc. Only a `draft` or `failed` campaign may be discarded (never
- * an approved/active one — pause that first). Super-admin gate. A Dynamic-Creative ad can't be
- * deleted directly (Meta err 100/1340029), so we delete the ad set + campaign (which cascade the ad)
- * + the creative.
+ * account-level) and the Firestore doc. Only a `draft` (Firestore-only, nothing on Meta to delete),
+ * `pushed` (PAUSED on Meta), or `failed` campaign may be discarded (never an approved/active one —
+ * pause that first). Super-admin gate. A Dynamic-Creative ad can't be deleted directly (Meta err
+ * 100/1340029), so we delete the ad set + campaign (which cascade the ad) + the creative.
  */
 export async function discardAdDraftAction(adCampaignId: string): Promise<{ ok: true } | { ok: false; error: string }> {
   let actor: string;
@@ -596,7 +734,7 @@ export async function discardAdDraftAction(adCampaignId: string): Promise<{ ok: 
     const snap = await ref.get();
     if (!snap.exists) return { ok: false, error: 'not-found' };
     const doc = snap.data() as AdCampaignDocData;
-    if (doc.status !== 'draft' && doc.status !== 'failed') {
+    if (doc.status !== 'draft' && doc.status !== 'pushed' && doc.status !== 'failed') {
       return { ok: false, error: `cannot-discard:${doc.status ?? 'unknown'} (pause an active/approved ad first)` };
     }
 

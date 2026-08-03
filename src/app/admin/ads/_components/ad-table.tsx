@@ -7,6 +7,7 @@ import type { AdCampaign } from '@/types';
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
   draft: 'outline',
+  pushed: 'secondary',
   pending_approval: 'secondary',
   approved: 'secondary',
   active: 'default',
