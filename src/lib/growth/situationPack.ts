@@ -488,6 +488,8 @@ export async function buildSituationPack(
       bookedPct: round(booked / days.length * 100),
       baselineOccupancyPct: base?.baselineOccupancyPct ?? null,
       hasAvailabilityDoc: monthsPresent.has(m),
+      // no doc = no bookings = fully open (empty), not "no data" — treat as a real, high-priority gap
+      fullyOpen: !monthsPresent.has(m),
     };
   });
 
@@ -513,7 +515,10 @@ export async function buildSituationPack(
     const spansUnknownMonths = [...monthsSpanned].filter(m => !monthsPresent.has(m) && m >= ymd(AS_OF).slice(0, 7));
     return {
       ...r, baselineAdr: adr, nightsXBaselineAdr: adr ? round(adr * r.nights) : null,
-      ...(spansUnknownMonths.length ? { trustworthy: false, warning: `spans month(s) with no availability doc (${spansUnknownMonths.join(', ')}); those nights are absent data, not confirmed-empty inventory` } : {}),
+      // A booking ALWAYS writes an availability doc, so on a LIVE pack "no doc" = NO bookings =
+      // fully-open, confirmed-empty inventory — the emptiest, highest-priority to fill, NOT missing
+      // data. (This block only runs on a live pack; a backtest withholds inventory entirely.)
+      ...(spansUnknownMonths.length ? { fullyOpen: true, openMonths: spansUnknownMonths, note: `covers month(s) with no availability doc (${spansUnknownMonths.join(', ')}) — no doc means no bookings, i.e. FULLY OPEN / confirmed-empty inventory, not absent data. baselineAdr is the historical month average.` } : {}),
     };
   };
 
@@ -557,7 +562,10 @@ export async function buildSituationPack(
           runs: unsellableRuns.slice(0, 20).map(priceRun),
         },
         monthsAhead: forwardMonths,
-        monthsWithoutAvailabilityDoc: forwardMonths.filter(m => !m.hasAvailabilityDoc).map(m => m.month),
+        fullyOpenMonths: {
+          note: 'Forward months with NO availability doc. A booking always writes a doc, so no doc = no bookings = FULLY OPEN, confirmed-empty inventory — the emptiest, highest-priority to fill, NOT missing/absent data. Treat these as real gaps and consider a flag + an opportunity, not "cannot assess".',
+          months: forwardMonths.filter(m => !m.hasAvailabilityDoc).map(m => m.month),
+        },
         occasions: {
           count: occasions.length,
           note: occasions.length ? 'upcoming public holidays and school breaks (from the `holidays` collection)' : 'the `holidays` collection is empty — no occasions available; seed it with scripts/seed-holidays.ts',
