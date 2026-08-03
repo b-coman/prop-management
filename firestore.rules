@@ -273,6 +273,18 @@ service cloud.firestore {
       allow write: if false;  // Admin SDK only (page-posts server actions)
     }
 
+    match /situationReports/{reportId} {
+      // The in-app analyst's persisted Situation Reports (Move 2 · P3) — super-admin/owner read.
+      allow read: if isSuperAdmin() || isPropertyOwner();
+      allow write: if false;  // Admin SDK only (situationAnalyst service via runAnalysisAction)
+    }
+
+    match /opportunities/{oppId} {
+      // Routed opportunities the analyst produced — super-admin/owner read.
+      allow read: if isSuperAdmin() || isPropertyOwner();
+      allow write: if false;  // Admin SDK only
+    }
+
     match /adImageCache/{cacheId} {
       // Per-(platform, ad account, content hash) image-hash dedup cache
       // (Phase 2a Build A) — no user-facing write path exists.
