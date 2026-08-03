@@ -267,6 +267,12 @@ service cloud.firestore {
       allow write: if false;  // Admin SDK only (written by finalizeAdOutcome)
     }
 
+    match /pagePosts/{postId} {
+      // Drafted organic page posts (manual-post flow) — super-admin/owner read.
+      allow read: if isSuperAdmin() || isPropertyOwner();
+      allow write: if false;  // Admin SDK only (page-posts server actions)
+    }
+
     match /adImageCache/{cacheId} {
       // Per-(platform, ad account, content hash) image-hash dedup cache
       // (Phase 2a Build A) — no user-facing write path exists.
