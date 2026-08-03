@@ -68,7 +68,33 @@ const opportunity: AdOpportunity = {
     console.log(`draft ids: adCampaign=${res.draft.adCampaignId} campaign=${res.draft.metaCampaignId} adset=${res.draft.metaAdSetId} ad=${res.draft.metaAdId} creative=${res.draft.creativeId}`);
 
     if (keep) {
-      console.log('\n--keep: PAUSED draft left in place for inspection (remember to delete it in Ads Manager / Firestore).');
+      // Persist the proposal blob so /admin/ads/[id] shows the full review (mirrors generateAdProposalAction).
+      const { getAdminDb, FieldValue } = await import('@/lib/firebaseAdminSafe');
+      const { buildGenerationPrompt } = await import('@/lib/growth/generationPrompt');
+      const db = await getAdminDb();
+      const propDoc = await db.collection('properties').doc(property).get();
+      const imgs = (propDoc.data()?.images ?? []) as Array<{ storagePath?: string; url?: string; thumbnailUrl?: string; aiDescription?: { summary?: string } }>;
+      const urlBy = new Map(imgs.filter((i) => i.storagePath).map((i) => [i.storagePath!, i.thumbnailUrl || i.url || '']));
+      const descBy = new Map(imgs.filter((i) => i.storagePath).map((i) => [i.storagePath!, i.aiDescription?.summary ?? '']));
+      const b = res.brief!;
+      const c = res.creative!;
+      const photos = c.assetPaths.map((sp) => ({ storagePath: sp, url: urlBy.get(sp) ?? '' }));
+      const assetGaps = (c.assetGaps ?? []).map((g) => ({
+        need: g.need, nearestAssetPath: g.nearestAssetPath, nearestAssetUrl: urlBy.get(g.nearestAssetPath) ?? '',
+        whyInsufficient: g.whyInsufficient, transform: g.transform,
+        generationPrompt: buildGenerationPrompt(g.transform, g.need, descBy.get(g.nearestAssetPath) ?? ''),
+      }));
+      await db.collection('adCampaigns').doc(res.draft.adCampaignId).update({
+        proposal: {
+          source: 'opportunity-engine',
+          occasion: { name: b.opportunity.occasion?.name ?? null, start: b.opportunity.window.start, end: b.opportunity.window.end, nights: b.opportunity.window.nights },
+          goal: framing.goal ?? null, audience: framing.audience ?? null,
+          copy: c.copy, photos, cities: b.targeting.cities.map((city) => ({ name: city.name, radius: city.radius })),
+          creativeBrief: b.creativeBrief, rationale: b.rationale, assetGaps,
+        },
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      console.log(`\n--keep: PAUSED draft + proposal persisted (zero spend). Review at /admin/ads/${res.draft.adCampaignId}`);
     } else {
       console.log('\nself-cleaning (zero spend was possible — everything was PAUSED)…');
       const ctx = await resolveAdContext(property);
