@@ -110,6 +110,20 @@ problem — a structural shortfall and a single dated gap call for different too
 nothing, because this is normal / outside our control" is a valid and sometimes correct
 answer.
 
+**Read inventory finely — a month's aggregate hides holes.** A month at or above its
+baseline can still contain an empty HIGH-VALUE sub-window: a peak week, a holiday or
+school-break span, or the nights next to an occasion. Check WHERE the free nights fall,
+not just the month total — read `inventory.freeRuns` against `inventory.occasions.upcoming`
+(and `extendedWindows`), and flag an empty run that overlaps a peak/occasion window as an
+opportunity in its own right, anchored to that occasion, even when its month looks healthy
+(a month can be 70% booked because the first three weeks sold while the last week — still
+peak — sits empty). Segment a long free run by the occasions inside it: a still-in-holiday
+sub-window (families, school break) is a different, warmer opportunity than the shoulder
+days after it, and they may route to different instruments. And `inventory.fullyOpenMonths`
+(forward months with no availability doc) are EMPTY inventory — no bookings, fully open —
+NOT missing data; they are often the emptiest months and deserve a flag + an opportunity,
+never a "cannot assess".
+
 ## Choosing the instrument (a prior is not a verdict)
 
 A window's character — a warm audience, an occasion to borrow, nearness — *suggests*
@@ -117,17 +131,19 @@ an instrument. It never selects one. Character is a prior; the window's history 
 evidence, and evidence outranks the prior. Two ledgers to read before you route:
 
 - **The outreach ledger.** Check `outreachHistory.pastCampaigns` before proposing any
-  past-guest outreach. A recent run whose `bookedWithin120d` is ≈nothing against its
-  `recipients` means the warm pool has just been pitched and did not book — that lever
-  is **spent for now** for whatever it was aimed at. (`bookedWithin120d` counts only
-  bookings *made after* the run, so a pre-existing reservation whose stay merely falls
-  later does not inflate it; it is a proxy for attribution, not proof of cause.)
-  Proposing it again is not the smallest instrument; it is the same instrument failing
-  twice. Escalate to a different lever and cite the ledger as the reason. What counts as
-  "recent" and "≈nothing" is your judgment from `daysAgo` and the run's size — read the
-  magnitudes as stated; do not invent a cutoff, and do not compute a rate the pack
-  doesn't carry. Scope the verdict: one run is strong evidence about this audience
-  *under current conditions*, thin evidence about the channel in general.
+  past-guest outreach — read the WHOLE series, not just the last run, and weigh the
+  channel's OWN baseline. A channel that books ~1-2 per decent-sized run is CONVERTING,
+  not exhausted; a single small or recent run's 0 is weak evidence (small n) and more
+  often means the ASK was wrong for that window (no compelling reason-to-come) than that
+  the pool is tapped. (`bookedWithin120d` counts only bookings *made after* the run, so a
+  pre-existing reservation whose stay merely falls later does not inflate it; a proxy for
+  attribution, not proof of cause.) Declare the warm channel **spent** only when MULTIPLE
+  recent runs, or its own recent trend, converted ≈nothing — never on one weak run against
+  a channel that otherwise works. When it has a working baseline but the latest run missed,
+  prefer fixing the OFFER/occasion over abandoning it: propose the warm channel WITH a
+  better ask ALONGSIDE a broader tool, rather than rejecting it outright. What counts as
+  "recent" and "≈nothing" is your judgment from `daysAgo`, the run size, and the baseline —
+  read the magnitudes; do not invent a cutoff or compute a rate the pack doesn't carry.
 - **The cancellation ledger.** A forward cancellation (`inventory.recentCancellations`)
   is two signals, not one: the window returned to inventory, AND someone who had
   committed backed out — fresh evidence demand there is soft. A free run that was
