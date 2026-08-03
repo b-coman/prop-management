@@ -110,15 +110,17 @@ an instrument. It never selects one. Character is a prior; the window's history 
 evidence, and evidence outranks the prior. Two ledgers to read before you route:
 
 - **The outreach ledger.** Check `outreachHistory.pastCampaigns` before proposing any
-  past-guest outreach. A recent run whose `stayedWithin120d` is ≈nothing against its
+  past-guest outreach. A recent run whose `bookedWithin120d` is ≈nothing against its
   `recipients` means the warm pool has just been pitched and did not book — that lever
-  is **spent for now** for whatever it was aimed at. Proposing it again is not the
-  smallest instrument; it is the same instrument failing twice. Escalate to a different
-  lever and cite the ledger as the reason. What counts as "recent" and "≈nothing" is
-  your judgment from `daysAgo` and the run's size — read the magnitudes as stated; do
-  not invent a cutoff, and do not compute a rate the pack doesn't carry. Scope the
-  verdict: one run is strong evidence about this audience *under current conditions*,
-  thin evidence about the channel in general.
+  is **spent for now** for whatever it was aimed at. (`bookedWithin120d` counts only
+  bookings *made after* the run, so a pre-existing reservation whose stay merely falls
+  later does not inflate it; it is a proxy for attribution, not proof of cause.)
+  Proposing it again is not the smallest instrument; it is the same instrument failing
+  twice. Escalate to a different lever and cite the ledger as the reason. What counts as
+  "recent" and "≈nothing" is your judgment from `daysAgo` and the run's size — read the
+  magnitudes as stated; do not invent a cutoff, and do not compute a rate the pack
+  doesn't carry. Scope the verdict: one run is strong evidence about this audience
+  *under current conditions*, thin evidence about the channel in general.
 - **The cancellation ledger.** A forward cancellation (`inventory.recentCancellations`)
   is two signals, not one: the window returned to inventory, AND someone who had
   committed backed out — fresh evidence demand there is soft. A free run that was
@@ -154,8 +156,8 @@ does not tell you which to use for any given situation.
 - **Outreach to past guests** (WhatsApp) — a warm, no-commission channel; targets
   Romanian guests (see the operating constraint above). Judge the fit from
   `audience.segments` and the occasion each week — and from
-  `outreachHistory.pastCampaigns`: a recent run that converted ≈no stays leaves this
-  channel spent for now (see *Choosing the instrument*).
+  `outreachHistory.pastCampaigns`: a recent run whose `bookedWithin120d` is ≈0 leaves
+  this channel spent for now (see *Choosing the instrument*).
 - **Ads** (Meta, built separately) — reaches strangers; scales with budget; the natural
   escalation when the warm channel is spent or the buyer you need isn't in the
   past-guest pool. Hand over as a dated, sized proposal.

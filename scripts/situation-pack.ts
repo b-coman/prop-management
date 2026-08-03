@@ -643,11 +643,16 @@ async function main() {
         const msgs = ((threads.get(gid)?.messages || []) as any[]);
         if (msgs.some(m => m.direction === 'in' && new Date(m.ts) > dayD && nightsBetween(dayD, new Date(m.ts)) <= 14)) replied++;
         const g = guests.find(x => x.id === gid);
+        // ATTRIBUTABLE conversion: a booking MADE (createdAt) AFTER the outreach, within 120d — NOT
+        // merely a stay whose check-in falls after it (that would count pre-existing reservations a
+        // recipient already held). Gated to imported===false because imported rows carry the import
+        // timestamp, not the real booking date (dataQuality.bookingDate) — they can't support
+        // attribution.
         const after = (g?.bookingIds || []).map((id: string) => bookingById.get(id)).filter(Boolean)
-          .some((b: any) => b.ci && b.ci > dayD && nightsBetween(dayD, b.ci) <= 120);
+          .some((b: any) => b.imported === false && b.created && b.created > dayD && nightsBetween(dayD, b.created) <= 120);
         if (after) booked++;
       });
-      return { date: day, daysAgo: nightsBetween(dayD, AS_OF), recipients: gset.size, repliedWithin14d: replied, replyRatePct: round(replied / gset.size * 100), stayedWithin120d: booked };
+      return { date: day, daysAgo: nightsBetween(dayD, AS_OF), recipients: gset.size, repliedWithin14d: replied, replyRatePct: round(replied / gset.size * 100), bookedWithin120d: booked };
     });
 
   // ---------- current brand + acquisition signals (LIVE Meta state — NOT as-of reproducible) ----------
@@ -708,9 +713,12 @@ async function main() {
       pastCampaigns: campaigns,
       note:
         'Past manual outreach runs (WhatsApp), newest-last. Per run: `daysAgo` (recency), `recipients`, ' +
-        '`repliedWithin14d`/`replyRatePct`, and `stayedWithin120d` = how many recipients actually booked a ' +
-        'stay afterwards (the conversion outcome). A recent run with stayedWithin120d ≈ 0 means the warm ' +
-        'channel was already fired and did NOT convert — the method reads this before routing a window to it.',
+        '`repliedWithin14d`/`replyRatePct`, and `bookedWithin120d` = recipients who MADE a booking (createdAt) ' +
+        'in the 120 days AFTER the run — the attributable conversion (it does NOT count a pre-existing ' +
+        'reservation whose stay merely falls after the run, and excludes imported rows that lack a real ' +
+        'booking date). A recent run with bookedWithin120d ≈ 0 means the warm channel was already fired and ' +
+        'did NOT convert — the method reads this before routing a window to it. Attribution is a proxy, not ' +
+        'proof of cause; treat it as evidence, not certainty.',
     },
   };
 
