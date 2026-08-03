@@ -529,7 +529,8 @@ export interface Campaign {
  * ever un-pause the Meta campaign (plan §13 H5).
  */
 export type AdCampaignStatus =
-  | 'draft'
+  | 'draft'          // Firestore-only proposal, editable, NO Meta objects exist yet (nothing on Meta)
+  | 'pushed'         // pushed to Meta (PAUSED, zero spend, Meta policy-reviewing) — awaiting Go-live
   | 'pending_approval'
   | 'approved'
   | 'active'
