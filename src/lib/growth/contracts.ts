@@ -45,6 +45,63 @@ export type WhatsAppOpportunity = Opportunity & { instrument: 'whatsapp' };
 export type AdOpportunity = Opportunity & { instrument: 'ads' };
 export type PageOpportunity = Opportunity & { instrument: 'page' };
 
+// ── analyst output: the Situation Report + its recommendations (Move 2, arch §7 M2) ──────────────
+/**
+ * The analyst's FULL instrument menu — deliberately broader than `OpportunityInstrument` (which is
+ * only the three campaign arms). The analyst may recommend a price/min-stay/LOS/OTA change or, most
+ * importantly, `none` (do nothing). Only `CAMPAIGN_ACTIONS` have a downstream arm; the rest are owner
+ * actions surfaced for the human to act on. A routable recommendation converts to a narrow
+ * `Opportunity` at hand-off (P5).
+ */
+export type RecommendedAction = OpportunityInstrument | 'price' | 'minstay' | 'los' | 'ota' | 'none';
+export const CAMPAIGN_ACTIONS = ['whatsapp', 'ads', 'page'] as const;
+export function isRoutable(o: Pick<AnalystOpportunity, 'action'>): boolean {
+  return (CAMPAIGN_ACTIONS as readonly string[]).includes(o.action);
+}
+
+/** One ranked flag in the Situation Report. `evidence` is the grounding contract: a pack path + the value there. */
+export interface Flag {
+  severity: 'red' | 'amber' | 'yellow';
+  what: string;
+  evidence: { path: string; value: string };
+  whoActs: 'owner' | 'system';
+}
+
+/**
+ * The analyst's diagnosis — the typed twin of the `situation-analyst` skill's text Situation Report.
+ * Every number must trace to the pack (the validator checks flag evidence paths). "Nothing is wrong"
+ * is a valid, important output — that is what `normal` + an empty/low-severity `flags` express.
+ */
+export interface SituationReport {
+  headline: string;
+  flags: Flag[];                                   // ranked by money at risk
+  normal: string[];                                // what looks alarming but isn't, and why
+  questions: string[];                             // what the data cannot explain (a human answer would change the call)
+  confidence: { sure: string[]; thin: string[]; guessing: string[] };
+  packGaps?: string[];                             // facts it needed and could not get
+}
+
+/**
+ * One recommendation the analyst routed to an action. If `action ∈ CAMPAIGN_ACTIONS` it has an arm
+ * (P5 hand-off → a PAUSED draft); otherwise it is an owner action (price/min-stay/OTA) or `none`.
+ * The analyst EMITS this shape; the service adds id/propertyId/source when persisting (P3).
+ */
+export interface AnalystOpportunity {
+  window?: { start: string; end: string; nights: number } | null;   // the dated window (absent for price/ota/none)
+  occasion?: string | null;
+  valueAtRisk?: number | null;                     // money at stake, cited from the pack, if known
+  action: RecommendedAction;
+  audience?: string | null;                        // for campaign actions: who to reach
+  rationale: string;                               // why this action fits the size + cause
+  rejected?: string | null;                        // the instrument(s) it considered and rejected, and why
+}
+
+/** The analyst's complete output: the diagnosis + the routed recommendations. */
+export interface AnalystOutput {
+  report: SituationReport;
+  opportunities: AnalystOpportunity[];
+}
+
 // ── planner → copywriter / validator / createManualCampaign ──────────────────
 export type CampaignIntent = 'gap_fill' | 'share';
 
