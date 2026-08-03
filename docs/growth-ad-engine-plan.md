@@ -241,25 +241,27 @@ Don't build 2b/2c before 2a proves photos → bookings.
 
 ---
 
-## 15. Current state (26 Jul 2026) — what actually shipped and where it sits
+## 15. Current state — what actually shipped and where it sits (updated 2026-08-03)
 
-The **execution engine is built and proven at zero spend; it has never run live.** Verified against code + live account (see `docs/meta-ads-infrastructure-2026.md` §11):
+> **Update 2026-08-03:** the ads **intelligence** (§16) has since shipped — the arm is now built end to end (planner + creative + validators + review-before-push console + learning loop + reconcile cron). What remains is upstream (an in-app analyst/router to feed it automatically) + the deliberate go-live. The 26-Jul snapshot below is kept for history with corrections inline.
+
+The **whole arm is built and proven at zero spend; it has never run live.** Verified against code + live account (see `docs/meta-ads-infrastructure-2026.md` §11):
 - **Enabled but dry-run:** `GROWTH_ADS_ENABLED="true"` in `apphosting.yaml` (switch 1 ON → `/admin/ads` composes drafts + dry-run activates). `GROWTH_ADS_MODE=live` deliberately absent → **zero spend possible.**
 - **Config wired:** Prahova `analytics.{metaAdAccountId,metaPageId,metaTokenRef,metaInstagramActorId,metaPixelId}` all present; `META_ADS_TOKENS` secret live; pixel firing.
-- **2 leftover draft `adCampaigns`** from July machinery validation — confirmed PAUSED/inert in Meta, stale end-times, harmless.
-- **Never activated:** no campaign approved, none carries `spendCapMinor`, the only `adAuditLog` entry is one `dry-run`.
-- **Open gaps:** (a) **no reconciliation cron** — insights/effective-status refresh is manual (`refreshAdInsightsAction` only); (b) **no `/api/growth/ad-proposals`** brain seam; (c) 🔴 account `spend_cap = 0` (owner must set it before live).
+- **Draft `adCampaigns` come and go** via the console/CLI (all PAUSED, zero spend); e.g. the Oct autumn-break draft was created, then pulled back to a Firestore-only draft when review-before-push landed.
+- **Never activated:** no campaign approved for live, none carries a live-spend `spendCapMinor` beyond dry-run, the only real `adAuditLog` activation entry is `dry-run`.
+- **Corrected open gaps (was a/b/c):** (a) ~~no reconciliation cron~~ → **BUILT** (`api/cron/ad-reconcile` → `reconcileAdCampaigns`, incl. drift/escape detection + outcome finalize); (b) **no `/api/growth/ad-proposals` route** — *by design the console calls the intelligence in-process* (`generateAdProposalAction → planAndCreative`); the HTTP seam is only needed if an out-of-app brain is ever added; (c) account `spend_cap` — owner set it (300 RON); confirm before live.
 
-## 16. The ads INTELLIGENCE build — the missing brain (mirrors the WhatsApp arm)
+## 16. The ads INTELLIGENCE build — ✅ SHIPPED (2026-08-03; mirrors the WhatsApp arm)
 
-The engine is a safe *console where a human does 100% of the thinking*. The WhatsApp arm proves the intelligent shape end-to-end (`analyst → planner → copywriter → Gate-1 review → send`); the ads arm reuses it. See `docs/promotion-system-architecture.md` §4.2 for the cross-channel framing. Concretely:
+The engine *was* a safe console where a human did 100% of the thinking; the intelligence below has since been built, so the arm now generates its own plan + creative and the human reviews. Status per sub-item (verified against code):
 
-- **16.1 Generalize the Opportunity contract** — `contracts.ts` `Opportunity.instrument` is the literal `'whatsapp'` today; widen to `'whatsapp' | 'ads' | 'page'` so the analyst can route an opportunity to ads and a planner can consume it.
-- **16.2 Ad planner** (twin of `.claude/skills/whatsapp-planner` + `planner-pack.ts`): an ad-planner-pack (geo/interest candidates, budget ceiling `MAX_DAILY_BUDGET_MINOR`, opportunity nights/value, past-ad performance, page-best content) → LLM sizes targeting + budget + angle + creative brief → an ad-brief validator (spend-cap math via `validateApprovalCap`, geo sanity — "narrows-never-widens" against the candidate set) → a **PAUSED `adCampaigns` draft** via the existing `composeAndCreateAd`.
-- **16.3 Ad creative/copy intelligence** (twin of `copywriter.ts`): grounded in real gallery photos + best-performing past ad copy + the page's best posts; writes primary-text/headline/CTA + picks photos; validated for truth (no invented amenities) and the **public brand voice** (distinct from the private WhatsApp voice — architecture §5.1). Feeds the composer.
-- **16.4 The hand-off** — `POST /api/growth/ad-proposals` (the §7 brain seam), mirroring `land-campaign.ts → /admin/campaigns`: lands a proposal as a PAUSED draft in `/admin/ads`.
-- **16.5 Admin symmetry** — reshape `/admin/ads` from a blank compose form into the campaigns-workspace pattern: **framing → "Generate ad" → Gate-1 review → guarded activate.**
-- **16.6 Reconciliation cron** — the durability backstop the plan always intended (§13 C2/M2): a cron that syncs `effective_status` + insights and flags any non-paused campaign not in the approved set. Build before ongoing (vs one-shot) ads.
+- **16.1 Generalize the Opportunity contract** — ✅ **Done.** `contracts.ts:22` ships `OpportunityInstrument = 'whatsapp' | 'ads' | 'page'` + narrowed subtypes (`:44-46`).
+- **16.2 Ad planner** — ✅ **Built.** `adPlannerPack.ts` (geo candidates, `MAX_DAILY_BUDGET_MINOR`, opportunity value, past-ad performance + `buildAdLearnings`) → `adPlanner.ts:123` (`generateAdPlan`, forced-tool LLM) → `validateAdPlan.ts` (spend-cap + geo "narrows-never-widens") → PAUSED draft via `composeAndCreateAd`.
+- **16.3 Ad creative/copy intelligence** — ✅ **Built.** `adCopywriter.ts` grounded in real gallery photos (+ `aiDescription`) + asset-gap declarations; `validateAdCreative.ts` (truth + public brand voice).
+- **16.4 The hand-off** — ◐ **In-process, not an HTTP route.** `generateAdProposalAction → planAndCreative` lands the draft directly; `POST /api/growth/ad-proposals` was never built and is only needed if an out-of-app brain is added. (The real remaining hand-off is upstream: an in-app **analyst/router** that *produces* the routed `AdOpportunity` — see `promotion-system-architecture.md` §0.5 / §7 M2–M3.)
+- **16.5 Admin symmetry** — ✅ **Built + improved.** `/admin/ads` is framing → generate → **review-before-push** (edit copy/budget, nothing on Meta until Push) → approve → activate.
+- **16.6 Reconciliation cron** — ✅ **Built.** `api/cron/ad-reconcile` → `reconcileAdCampaigns` (`adReconciliation.ts`), incl. drift/escape detection + `finalizeAdOutcome`. A **learning loop** (`adOutcomes.ts` + `adLearnings.ts`) feeds outcomes back into the planner pack.
 
 ## 17. Go-live runbook (when the brain is trusted — a deliberate act, not a default)
 
