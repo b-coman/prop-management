@@ -1,10 +1,14 @@
 /**
- * adProposal — the orchestrator that turns ONE ads-routed opportunity into a PAUSED, reviewable ad
- * DRAFT, end to end (promotion-system-architecture.md §4.2). It is the single seam the brain / the
- * `/admin/ads` "Generate" action / the `/api/growth/ad-proposals` endpoint all call:
+ * adProposal — the orchestrator that turns ONE ads-routed opportunity into an ad DRAFT, end to end
+ * (promotion-system-architecture.md §4.2). Two entry points:
+ *   - `planAndCreative(opportunity)` — plan + creative only, ZERO Meta footprint (what the `/admin/ads`
+ *     "Generate" action calls; it lands a Firestore-only draft, and `pushAdToMetaAction` composes later).
+ *   - `proposeAd(opportunity)` — planAndCreative + `composeAndCreateAd` in one shot (the CLI harness).
+ * NB: there is NO `/api/growth/ad-proposals` HTTP route today — the console calls these functions
+ * in-process. Such a seam is only needed if an out-of-app "brain" is ever added.
  *
  *   opportunity → buildAdPlannerPack → generateAdPlan (AdBrief) → generateAdCreative (copy+photos)
- *              → composeAndCreateAd (PAUSED Meta chain + adCampaigns draft)
+ *              → [proposeAd only] composeAndCreateAd (PAUSED Meta chain + adCampaigns draft)
  *
  * The pack is built ONCE and fed to both LLM stages. Every money/geo/creative guard already lives in
  * the stages it belongs to (`validateAdPlan`, `validateAdCreative`, `adComposer`'s budget policy) —
