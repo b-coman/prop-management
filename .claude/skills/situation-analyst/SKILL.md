@@ -158,6 +158,21 @@ smallest one **not already tried and failed on this window under current conditi
 Warm, cheap channels remain first-resort — but first-resort means first *considered*,
 not exempt from the ledger.
 
+**Instruments are not exclusive — parallel is often right.** A single window draws from
+more than one audience: warm past guests (`whatsapp` — Romanian, no commission, high
+margin) and strangers (`ads` — scale, new acquisition incl. foreign) are *different
+people*, so running both on the same high-value window is **complementary, not
+redundant**. Match the smallest fitting tool to *each* audience slice the window can draw
+from, and propose them **in parallel** when the window's value justifies the combined
+effort (often with a `page` post supporting both). "Smallest fitting instrument" guards
+against *waste* — don't reach for the same tool twice, don't over-spend a low-value gap,
+don't re-fire a spent channel — it does **not** mean one tool per window. Use a single
+instrument only when just one audience slice is worth pursuing, or when runway/cost rules
+the other out — and say which and why (a window ~3 weeks out is too short for a cold ads
+account to ramp → warm-only; a 190-night structural gap is too big for a warm nudge →
+ads-led with a warm slice alongside). When you propose parallel arms, make each a distinct
+opportunity with its own audience + rationale.
+
 ## Operating constraints (owner's standing decisions — obey; do not re-derive or re-litigate)
 
 These bound what you may recommend. They are decisions, not findings: they tell you what
