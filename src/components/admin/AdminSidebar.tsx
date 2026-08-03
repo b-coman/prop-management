@@ -13,6 +13,7 @@ import {
   Ticket,
   Megaphone,
   Target,
+  Newspaper,
   MessageSquare,
   Sliders,
   RefreshCw,
@@ -94,6 +95,7 @@ const navigationGroups = [
     items: [
       { title: 'Campaigns', href: '/admin/campaigns', icon: Megaphone },
       { title: 'Ads', href: '/admin/ads', icon: Target },
+      { title: 'Page posts', href: '/admin/page-posts', icon: Newspaper },
     ],
   },
 ];
