@@ -14,6 +14,7 @@ import {
   Megaphone,
   Target,
   Newspaper,
+  Brain,
   MessageSquare,
   Sliders,
   RefreshCw,
@@ -93,6 +94,7 @@ const navigationGroups = [
   {
     label: 'Growth',
     items: [
+      { title: 'Situation', href: '/admin/situation', icon: Brain },
       { title: 'Campaigns', href: '/admin/campaigns', icon: Megaphone },
       { title: 'Ads', href: '/admin/ads', icon: Target },
       { title: 'Page posts', href: '/admin/page-posts', icon: Newspaper },
