@@ -14,6 +14,8 @@ import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { convertTimestampsToISOStrings } from '@/lib/utils';
 import { runSituationAnalysis, type RunSituationAnalysisResult } from '@/services/growth/situationAnalyst';
 import type { SituationReport, AnalystOpportunity, RecommendedAction } from '@/lib/growth/contracts';
+import { generateAdProposalAction } from '@/app/admin/ads/actions';
+import { generatePagePostAction } from '@/app/admin/page-posts/actions';
 
 const logger = loggers.campaign;
 
@@ -236,10 +238,77 @@ export async function restoreOpportunityAction(oppId: string): Promise<{ ok: tru
   }
 }
 
+/**
+ * Approve an opportunity → hand it to the matching arm's DRAFT flow (P5 — the seam that closes the
+ * loop). ads/page create a real draft (which keeps its OWN review — nothing goes live here); whatsapp
+ * routes to /admin/campaigns to pick recipients (the in-app WhatsApp planner is M6, deferred);
+ * price/minstay/los/ota are owner actions → marked 'accepted'. Only a 'pending' opportunity can be
+ * approved. Super-admin gated.
+ */
+export async function approveOpportunityAction(oppId: string): Promise<
+  | { ok: true; status: 'approved' | 'accepted'; handoffUrl?: string; note?: string }
+  | { ok: false; error: string }
+> {
+  let actor: string;
+  try {
+    actor = await requireActor();
+  } catch (e) {
+    if (e instanceof AuthorizationError) return { ok: false, error: handleAuthError(e).error };
+    throw e;
+  }
+  try {
+    const db = await getAdminDb();
+    const ref = db.collection('opportunities').doc(oppId);
+    const snap = await ref.get();
+    if (!snap.exists) return { ok: false, error: 'not-found' };
+    const o = snap.data() as AnalystOpportunity & { propertyId: string; status: string };
+    if (o.status !== 'pending') return { ok: false, error: `not-pending:${o.status}` };
+
+    let handoff: { arm: string; ref?: string; url?: string; note?: string };
+    let status: 'approved' | 'accepted' = 'approved';
+
+    if (o.action === 'ads') {
+      if (!o.window) return { ok: false, error: 'ads opportunity has no window' };
+      const res = await generateAdProposalAction({
+        propertyId: o.propertyId,
+        start: o.window.start,
+        end: o.window.end,
+        occasion: o.occasion ?? undefined,
+        valueAtRisk: o.valueAtRisk ?? undefined,
+        audience: o.audience ?? undefined,
+      });
+      if (!res.ok) return { ok: false, error: `ad draft failed: ${res.error}` };
+      if ('declined' in res) return { ok: false, error: `the ad planner declined: ${res.rationale}` };
+      handoff = { arm: 'ads', ref: res.adCampaignId, url: `/admin/ads/${res.adCampaignId}` };
+    } else if (o.action === 'page') {
+      const prompt = o.occasion?.trim()
+        ? o.occasion.trim()
+        : `A warm post to help fill ${o.window ? `${o.window.start}–${o.window.end}` : 'the upcoming window'}`;
+      const res = await generatePagePostAction({ propertyId: o.propertyId, prompt, goal: 'keep the page warm and support the fill', audience: o.audience ?? undefined });
+      if (!res.ok) return { ok: false, error: `page draft failed: ${res.error}` };
+      handoff = { arm: 'page', ref: res.id, url: '/admin/page-posts' };
+    } else if (o.action === 'whatsapp') {
+      handoff = { arm: 'whatsapp', url: '/admin/campaigns', note: 'Pick recipients + generate messages in Campaigns (the in-app WhatsApp recipient planner is a later phase).' };
+    } else {
+      // price / minstay / los / ota — owner actions; nothing to draft.
+      status = 'accepted';
+      handoff = { arm: 'owner', note: 'Owner action — no draft. Marked accepted for the record.' };
+    }
+
+    await ref.update({ status, handoff, approvedBy: actor, approvedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+    logger.info('approveOpportunityAction', { actor, oppId, action: o.action, status, handoffRef: handoff.ref });
+    revalidatePath('/admin/situation');
+    return { ok: true, status, handoffUrl: handoff.url, note: handoff.note };
+  } catch (e) {
+    logger.error('approveOpportunityAction failed', e as Error, { oppId });
+    return { ok: false, error: (e as Error).message || 'internal-error' };
+  }
+}
+
 /** Fetch the newest report + its opportunities for the console. Null if none/auth failure. */
 export async function fetchLatestSituationAction(propertyId: string): Promise<{
   report: { id: string; propertyId: string; asOf: string; createdAt?: string; createdBy?: string; status: string; report: SituationReport; warnings?: string[]; steer?: string | null };
-  opportunities: Array<AnalystOpportunity & { id: string; runId: string; propertyId: string; status: string; createdAt?: string; edited?: boolean; dismissReason?: string | null }>;
+  opportunities: Array<AnalystOpportunity & { id: string; runId: string; propertyId: string; status: string; createdAt?: string; edited?: boolean; dismissReason?: string | null; handoff?: { arm: string; ref?: string; url?: string; note?: string } | null }>;
 } | null> {
   try {
     await requireSuperAdmin();
@@ -264,7 +333,7 @@ export async function fetchLatestSituationAction(propertyId: string): Promise<{
 
     const oppSnap = await db.collection('opportunities').where('runId', '==', doc.id).get();
     const opportunities = oppSnap.docs
-      .map((d) => convertTimestampsToISOStrings({ id: d.id, ...d.data() }) as AnalystOpportunity & { id: string; runId: string; propertyId: string; status: string; createdAt?: string; edited?: boolean; dismissReason?: string | null })
+      .map((d) => convertTimestampsToISOStrings({ id: d.id, ...d.data() }) as AnalystOpportunity & { id: string; runId: string; propertyId: string; status: string; createdAt?: string; edited?: boolean; dismissReason?: string | null; handoff?: { arm: string; ref?: string; url?: string; note?: string } | null })
       .sort((a, b) => String(a.createdAt ?? '').localeCompare(String(b.createdAt ?? '')));
 
     return { report, opportunities };

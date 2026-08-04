@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, AlertTriangle, MapPin, MessageSquareWarning, Pencil, Ban, Clock, RotateCcw, Check, X } from 'lucide-react';
+import { Loader2, Sparkles, AlertTriangle, MapPin, MessageSquareWarning, Pencil, Ban, Clock, RotateCcw, Check, X, ArrowRight, ExternalLink } from 'lucide-react';
 import type { SituationReport, Flag, AnalystOpportunity, RecommendedAction } from '@/lib/growth/contracts';
 import {
   runAnalysisAction,
@@ -23,9 +23,10 @@ import {
   dismissOpportunityAction,
   snoozeOpportunityAction,
   restoreOpportunityAction,
+  approveOpportunityAction,
 } from '../actions';
 
-type OppDoc = AnalystOpportunity & { id: string; runId: string; propertyId: string; status: string; edited?: boolean; dismissReason?: string | null };
+type OppDoc = AnalystOpportunity & { id: string; runId: string; propertyId: string; status: string; edited?: boolean; dismissReason?: string | null; handoff?: { arm: string; ref?: string; url?: string; note?: string } | null };
 interface ReportDoc {
   id: string; propertyId: string; asOf: string; createdAt?: string; createdBy?: string; status: string; report: SituationReport; warnings?: string[]; steer?: string | null;
 }
@@ -201,6 +202,15 @@ function OpportunityCard({ opp, onChanged }: { opp: OppDoc; onChanged: () => voi
     });
   const snooze = () => startBusy(async () => { const res = await snoozeOpportunityAction(opp.id); if (res.ok) onChanged(); else toast({ title: 'Failed', description: res.error, variant: 'destructive' }); });
   const restore = () => startBusy(async () => { const res = await restoreOpportunityAction(opp.id); if (res.ok) onChanged(); else toast({ title: 'Failed', description: res.error, variant: 'destructive' }); });
+  const approve = () =>
+    startBusy(async () => {
+      const res = await approveOpportunityAction(opp.id);
+      if (res.ok) { toast({ title: res.status === 'approved' ? 'Approved — draft created' : 'Accepted', description: res.handoffUrl ? `Draft ready at ${res.handoffUrl}` : res.note }); onChanged(); }
+      else toast({ title: 'Approve failed', description: res.error, variant: 'destructive' });
+    });
+
+  const approved = opp.status === 'approved' || opp.status === 'accepted';
+  const isCampaign = opp.action === 'ads' || opp.action === 'page' || opp.action === 'whatsapp';
 
   if (mode === 'edit') {
     return (
@@ -240,13 +250,23 @@ function OpportunityCard({ opp, onChanged }: { opp: OppDoc; onChanged: () => voi
           {opp.edited ? <Badge variant="outline" className="text-[10px] text-emerald-700">edited</Badge> : null}
           {opp.status === 'dismissed' ? <Badge variant="outline" className="text-[10px] text-destructive">dismissed</Badge> : null}
           {opp.status === 'snoozed' ? <Badge variant="outline" className="text-[10px]">snoozed</Badge> : null}
+          {approved ? <Badge variant="outline" className="text-[10px] text-emerald-700">{opp.status}</Badge> : null}
         </div>
         {opp.audience && <p className="text-xs"><span className="font-medium">Audience:</span> <span className="text-muted-foreground">{opp.audience}</span></p>}
         <p><span className="font-medium">Why:</span> {opp.rationale}</p>
         {opp.rejected && <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">Rejected:</span> {opp.rejected}</p>}
         {opp.dismissReason && <p className="text-xs text-destructive"><span className="font-medium">Dismissed:</span> {opp.dismissReason}</p>}
 
-        {mode === 'dismiss' ? (
+        {approved ? (
+          <div className="text-xs text-muted-foreground">
+            {opp.handoff?.url ? (
+              <a href={opp.handoff.url} className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
+                Open the {opp.handoff.arm} draft <ExternalLink className="h-3 w-3" />
+              </a>
+            ) : null}
+            {opp.handoff?.note ? <p className="mt-1">{opp.handoff.note}</p> : null}
+          </div>
+        ) : mode === 'dismiss' ? (
           <div className="flex flex-wrap items-center gap-2">
             <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why dismiss? (a calibration signal)" className="h-8 flex-1 min-w-[200px]" />
             <Button size="sm" variant="destructive" onClick={dismiss} disabled={busy}>{busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Confirm'}</Button>
@@ -256,6 +276,12 @@ function OpportunityCard({ opp, onChanged }: { opp: OppDoc; onChanged: () => voi
           <Button size="sm" variant="outline" onClick={restore} disabled={busy}><RotateCcw className="mr-1 h-3.5 w-3.5" /> Restore</Button>
         ) : (
           <div className="flex flex-wrap gap-2">
+            {opp.action !== 'none' && (
+              <Button size="sm" onClick={approve} disabled={busy}>
+                {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="mr-1 h-3.5 w-3.5" />}
+                {isCampaign ? 'Approve →' : 'Accept'}
+              </Button>
+            )}
             <Button size="sm" variant="outline" onClick={() => setMode('edit')} disabled={busy}><Pencil className="mr-1 h-3.5 w-3.5" /> Edit</Button>
             <Button size="sm" variant="ghost" onClick={() => setMode('dismiss')} disabled={busy}><Ban className="mr-1 h-3.5 w-3.5" /> Dismiss</Button>
             <Button size="sm" variant="ghost" onClick={snooze} disabled={busy}><Clock className="mr-1 h-3.5 w-3.5" /> Snooze</Button>
