@@ -292,8 +292,49 @@ export interface Booking {
   updatedAt?: SerializableTimestamp;
 }
 
+/**
+ * Why a lead never became a guest. This changes the next message more than almost any other fact,
+ * and the four cases are NOT interchangeable:
+ *   unavailable — we could not serve the dates. Nothing negative happened; a later "that constraint
+ *                 is gone" message is welcome.
+ *   declined    — they chose not to (price, went elsewhere, a quote went quiet). Weak ground: do not
+ *                 re-offer the same terms as though nothing had happened.
+ *   unservable  — a structural mismatch we cannot fix (payment method, capacity, pets). Usually do
+ *                 not re-contact unless the constraint itself changed.
+ *   unresolved  — the conversation simply stopped. Unknown; a light re-open, not a follow-up.
+ */
+export type NonConversionReason = 'unavailable' | 'declined' | 'unservable' | 'unresolved';
+
+/**
+ * A period someone asked for. Doubles as DEMAND TELEMETRY: a request we could not fill is evidence
+ * about pricing and calendar pressure that no booking record can show, because it never became one.
+ */
+export interface RequestedPeriod {
+  start: string;        // 'YYYY-MM-DD'
+  end: string;          // 'YYYY-MM-DD'
+  askedOn: string;      // 'YYYY-MM-DD'
+  outcome: 'unavailable' | 'declined' | 'booked' | 'unresolved';
+  note?: string;
+}
+
 export interface Guest {
   id: string;
+  /**
+   * 'lead' = contacted us directly but never stayed. Absent/'guest' = has stayed (the historical
+   * default). Leads live on this collection rather than a parallel one so that threads, notes,
+   * consent, suppression, frequency caps and the send gateway — all keyed on a guest doc — work
+   * unchanged, and so a lead who books keeps its id, and with it its whole conversation history.
+   */
+  kind?: 'guest' | 'lead';
+  /**
+   * How much to trust `firstName`. WhatsApp hands over a push-name that may be a nickname, all
+   * caps, emoji-laden, or absent entirely — greeting someone by it is a real risk.
+   */
+  nameSource?: 'booking' | 'pushname' | 'manual' | 'unknown';
+  leadSource?: string;                        // 'whatsapp' | 'phone' | 'website' | ...
+  firstContactAt?: string;                    // 'YYYY-MM-DD' — a lead's recency anchor (there is no stay)
+  nonConversionReason?: NonConversionReason;
+  requestedPeriods?: RequestedPeriod[];
   email?: string; // Normalized lowercase (optional for imported guests without email)
   firstName: string;
   lastName?: string;
@@ -458,6 +499,69 @@ export interface WhatsAppThread {
   lastMessageTs?: string;     // ts of the newest captured message — drives incremental top-up
   firstFetchedAt?: SerializableTimestamp;
   lastFetchedAt?: SerializableTimestamp;
+}
+
+/**
+ * One immutable capture of a conversation, exactly as parsed, before reconciliation.
+ * `whatsappThreads/{guestId}` is the derived view; this is the source of record — the insurance
+ * that lets a thread be rebuilt when the chat itself is gone (disappearing timers, trimmed phones).
+ */
+export interface WhatsAppThreadImport {
+  id: string;
+  guestId: string;
+  phone: string;
+  source: 'export' | 'scrape';
+  label: string;              // export filename / capture label
+  messageCount: number;
+  firstTs?: string;
+  lastTs?: string;
+  messages: WhatsAppMessage[];
+  importedAt: SerializableTimestamp;
+}
+
+// ============================================================================
+// Guest notes — the interactions that never touched WhatsApp
+// ============================================================================
+
+/**
+ * `call`/`inperson` are real two-way TOUCHES: they prove engagement and they count against pacing
+ * floors (you must not send a "we haven't spoken in a while" message the day after a phone call).
+ * `observation` is something the owner noticed, not an exchange — context only, never a touch.
+ */
+export type GuestNoteKind = 'call' | 'inperson' | 'observation';
+
+/** A specific claim a note licenses the copywriter to make, tagged as `note:<key>` in factsUsed. */
+export interface GuestNoteFact {
+  key: string;
+  value: string;
+}
+
+/**
+ * One recorded interaction or observation that lives outside the message vault — overwhelmingly a
+ * phone call. Without these, a relationship conducted by phone is invisible: the system reads three
+ * unanswered outbound WhatsApps and concludes "silent — never replied" about someone who was warm
+ * and enthusiastic on the phone. That inversion is the reason this type exists.
+ *
+ * A note is OWNER RECALL, not system truth. It is unverified, it can be wrong, and it goes stale.
+ * So it is truth-tiered: `assertable` decides whether the copywriter may state it at all, `facts`
+ * narrows that to specific claims, and `expiresAt` retires notes whose relevance has a shelf life
+ * ("planning something for October" is worthless in December).
+ */
+export interface GuestNote {
+  id: string;
+  guestId: string;
+  occurredAt: string;          // 'YYYY-MM-DD' — when it HAPPENED, not when it was typed
+  kind: GuestNoteKind;
+  text: string;                // the owner's own words
+  initiatedBy?: 'owner' | 'guest';
+  /** May the copywriter assert this? Default false — a note shapes tone; it does not license claims. */
+  assertable: boolean;
+  /** Specific assertable claims. Only meaningful when `assertable` is true. */
+  facts?: GuestNoteFact[];
+  /** Withheld from packs after this date. */
+  expiresAt?: string;          // 'YYYY-MM-DD'
+  createdAt: SerializableTimestamp;
+  createdBy?: string;
 }
 
 export interface SuppressionEntry {

@@ -240,6 +240,18 @@ service cloud.firestore {
       allow write: if false;  // Admin SDK only (backfill / incremental fetcher)
     }
 
+    match /whatsappThreadImports/{importId} {
+      // Immutable raw captures the threads above are derived from — same sensitivity.
+      allow read: if isSuperAdmin();
+      allow write: if false;  // Admin SDK only (importer)
+    }
+
+    match /guestNotes/{noteId} {
+      // Off-WhatsApp interactions (phone calls, in-person) — private conversation content.
+      allow read: if isSuperAdmin();
+      allow write: if false;  // Admin SDK only (CLI / admin actions)
+    }
+
     match /campaigns/{campaignId} {
       allow read: if isSuperAdmin() || isPropertyOwner();
       allow write: if false;  // Admin SDK only

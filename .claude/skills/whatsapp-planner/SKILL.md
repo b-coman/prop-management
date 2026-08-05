@@ -68,7 +68,8 @@ discount and spends no margin. Only `gap_fill` carries an offer.
   (a guest whose `lastStaySeason` is a strong *source* season for this target fits — NOT "same
   season"), `lastHadChildren` vs whether the occasion is a family window, `typicalNights` vs the
   gap's nights, and `reviewThemes` vs the occasion.
-- **Relationship** — `tier` and `daysSinceLastOutbound`. Warm repeat/engaged guests are safe
+- **Relationship** — `tier` and `daysSinceLastContact` (WhatsApp outbound OR a logged phone call —
+  see `loggedCalls`/`lastCall`; a call counts as both engagement and contact). Warm repeat/engaged guests are safe
   ground; `unknown` (never contacted) is a real growth pool; a `complaintSignals > 0` guest is
   fine to include but flag it so the copywriter handles the past issue with care (never hard-sell
   someone with an unresolved problem).

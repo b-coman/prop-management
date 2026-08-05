@@ -17,6 +17,7 @@
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { getPageHealth, getAdAccountHealth } from '@/services/growth/metaAds/brandHealth';
 import { computeRecentCancellations, computeOutreachLedger } from '@/lib/growth/signals';
+import { getNotesByGuest, isTouch } from '@/services/guestNoteService';
 
 const toD = (v: any): Date | null =>
   v?._seconds ? new Date(v._seconds * 1000) : v?.toDate ? v.toDate() : typeof v === 'string' ? new Date(v) : v instanceof Date ? v : null;
@@ -59,12 +60,13 @@ export async function buildSituationPack(
   const generator = opts?.generator ?? 'src/lib/growth/situationPack.ts';
 
   const db = await getAdminDb();
-  const [bSnap, gSnap, aSnap, rSnap, tSnap] = await Promise.all([
+  const [bSnap, gSnap, aSnap, rSnap, tSnap, notesByGuest] = await Promise.all([
     db.collection('bookings').get(),
     db.collection('guests').get(),
     db.collection('availability').get(),
     db.collection('reviews').get(),
     db.collection('whatsappThreads').get(),
+    getNotesByGuest(),
   ]);
 
   const price = (b: any) => b.pricing?.total ?? b.pricing?.totalPrice ?? 0;
@@ -320,10 +322,20 @@ export async function buildSituationPack(
     const msgs = (th?.messages || []) as any[];
     const inbound = msgs.filter(m => m.direction === 'in' && m.ts < ymd(AS_OF)).length;
     const outbound = msgs.filter(m => m.direction === 'out' && m.ts < ymd(AS_OF)).length;
-    const lastOut = msgs.filter(m => m.direction === 'out' && m.ts < ymd(AS_OF)).map(m => m.ts).sort().pop();
-    const tier = stays.length >= 2 ? 'repeat' : inbound >= 3 ? 'engaged' : inbound >= 1 ? 'responsive' : outbound >= 1 ? 'silent' : 'unknown';
+    const lastOutMsg = msgs.filter(m => m.direction === 'out' && m.ts < ymd(AS_OF)).map(m => String(m.ts).slice(0, 10)).sort().pop();
+    // Logged phone/in-person contact counts as engagement AND as contact (see guestNoteService):
+    // without it a phone-first relationship reads as "messaged, never replied".
+    const calls = (notesByGuest.get(g.id) || []).filter(n => isTouch(n.kind) && n.occurredAt <= ymd(AS_OF));
+    const lastCall = calls.map(n => n.occurredAt).sort().pop();
+    const lastOut = [lastOutMsg, lastCall].filter(Boolean).sort().pop();
+    const engagements = inbound + calls.length;
+    const tier = stays.length >= 2 ? 'repeat' : engagements >= 3 ? 'engaged' : engagements >= 1 ? 'responsive' : outbound >= 1 ? 'silent' : 'unknown';
     return {
       guestId: g.id, tier,
+      kind: (g.kind || 'guest') as 'guest' | 'lead',
+      nonConversionReason: g.nonConversionReason || null,
+      requestedPeriods: (g.requestedPeriods || []) as Array<{ start: string; end: string; askedOn: string; outcome: string; note?: string }>,
+      firstContactAt: g.firstContactAt || null,
       reachable: !!g.normalizedPhone && !g.unsubscribed,
       language: g.language || 'unknown',
       stays: stays.length,
@@ -333,22 +345,27 @@ export async function buildSituationPack(
       lastStayHadChildren: lastBooking ? (lastBooking.numberOfChildren ?? 0) > 0 : null,
       hasReview: (reviewsBy.get(g.id) || 0) > 0,
       inboundMessages: inbound,
+      loggedCalls: calls.length,
       // Romanian = the ONLY audience that returns. Verified: of 146 foreign guests ever, exactly 1
       // came back (14 repeat guests = 13 RO + 1 DE). Reactivation/outreach is Romanian by evidence,
       // not assumption. Foreigners are one-and-done OTA/ads acquisition, never retention.
       // Match on language OR country so RO-diaspora and missing-country guests aren't dropped.
       isRomanian: (g.language || '').toLowerCase() === 'ro' || ['RO', 'ROMANIA'].includes(String(g.country || '').toUpperCase()),
       // relationship depth — neutral INFORMATION for the owner, not a permission gate.
-      relationship: stays.length >= 2 ? 'repeat' : inbound >= 1 ? 'replied' : outbound >= 1 ? 'messaged-no-reply' : 'never-contacted',
+      relationship: stays.length >= 2 ? 'repeat' : engagements >= 1 ? 'replied' : outbound >= 1 ? 'messaged-no-reply' : 'never-contacted',
       // freq-cap: is this guest inside a cooling-off window right now?
       // ts is 'YYYY-MM-DDTHH:MM:SS' — slice to the date before making a Date (appending another
       // 'T..Z' to a string that already has a 'T' yields Invalid Date → NaN → everyone mis-flagged).
       contactableNow: !lastOut || nightsBetween(new Date(`${String(lastOut).slice(0, 10)}T00:00:00Z`), AS_OF) >= FREQ_CAP_DAYS,
-      daysSinceLastOutbound: lastOut ? nightsBetween(new Date(`${String(lastOut).slice(0, 10)}T00:00:00Z`), AS_OF) : null,
+      daysSinceLastOutbound: lastOut ? nightsBetween(new Date(`${String(lastOut).slice(0, 10)}T00:00:00Z`), AS_OF) : null,   // outbound message OR logged call
     };
   });
 
-  const reachable = guestRows.filter(g => g.reachable);
+  // Leads never stayed, so they must not dilute the stay-based audience view — they are reported
+  // separately under `audience.leads`.
+  const leadRows = guestRows.filter(g => g.kind === 'lead');
+  const guestOnlyRows = guestRows.filter(g => g.kind !== 'lead');
+  const reachable = guestOnlyRows.filter(g => g.reachable);
   const dueWindow = (g: typeof guestRows[0]) => g.daysSinceLastStay !== null && g.daysSinceLastStay >= 70 && g.daysSinceLastStay <= 252;
   // Return intervals over ALL repeat guests (2+ stays). Origin is carried as a dimension
   // (repeatGuests.byOrigin) rather than filtered — so the RO/foreign split is visible as data.
@@ -394,8 +411,8 @@ export async function buildSituationPack(
 
   // Raw fact behind any origin-based retention judgement: how many foreign vs Romanian guests
   // ever returned. No interpretation — the numbers are here; the conclusion is the reader's.
-  const everStayed = guestRows.filter(g => g.stays >= 1);
-  const repeatGuestRows = guestRows.filter(g => g.stays >= 2);
+  const everStayed = guestOnlyRows.filter(g => g.stays >= 1);
+  const repeatGuestRows = guestOnlyRows.filter(g => g.stays >= 2);
   const foreignEver = everStayed.filter(g => !g.isRomanian);
 
   const audience = {
@@ -406,8 +423,24 @@ export async function buildSituationPack(
       familySegment: 'children present on the guest\'s most recent stay',
       recencyBuckets: 'days since last stay; cumulative-eligible (a 2-year-lapsed guest is still a guest)',
     },
-    totalGuests: guests.length,
+    totalGuests: guestOnlyRows.length,
     reachable: reachable.length,
+    // People who contacted us directly and never stayed. Kept out of the counts above (they have no
+    // stay) but tracked here, because they are the only warm audience acquired at zero commission.
+    leads: {
+      definition: 'contacted us directly but never booked. No stay to reference — what they have instead is a request and a reason it went unfilled (nonConversionReason: unavailable | declined | unservable | unresolved).',
+      total: leadRows.length,
+      reachable: leadRows.filter(g => g.reachable).length,
+      byReason: leadRows.reduce((m: Record<string, number>, g) => ((m[g.nonConversionReason || 'unset'] = (m[g.nonConversionReason || 'unset'] || 0) + 1), m), {}),
+      turnedAwayDemand: {
+        note: 'periods people ASKED for that we could not fill. Demand that never becomes a booking record and is therefore invisible to occupancy, pace and revenue alike — but it is evidence about pricing and calendar pressure. Repeated misses on the same window are worth reading as a signal, not as a list of individuals.',
+        requests: guestRows
+          .flatMap(g => g.requestedPeriods.map(p => ({ guestId: g.guestId, kind: g.kind, ...p })))
+          .filter(p => p.outcome === 'unavailable' || p.outcome === 'declined')
+          .sort((a, b) => b.askedOn.localeCompare(a.askedOn))
+          .slice(0, 40),
+      },
+    },
     // origin retention — the raw counts, no conclusion drawn
     repeatGuests: {
       total: repeatGuestRows.length,

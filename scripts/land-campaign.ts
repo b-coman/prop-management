@@ -53,11 +53,14 @@ async function main() {
     const copyPack = readJson(copyPackFile);
     const guests: GuestForDraftValidation[] = (copyPack.guests ?? copyPack).map((g: {
       guestId: string; careFlags?: string[]; groundedFacts?: Array<{ key: string; value: unknown }>; thread?: unknown[];
+      audienceKind?: 'guest' | 'lead'; relationship?: { state?: GuestForDraftValidation['relationshipState'] };
     }) => ({
       guestId: g.guestId,
       careFlags: g.careFlags ?? [],
       groundedFacts: g.groundedFacts ?? [],
       thread: g.thread ?? [],
+      audienceKind: g.audienceKind,
+      relationshipState: g.relationship?.state,
     }));
     const dv = validateDrafts(guests, drafts);
     console.log(`draft validation — ${dv.ok ? 'PASS' : 'REJECT'}`);
