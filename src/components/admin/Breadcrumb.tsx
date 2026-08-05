@@ -35,6 +35,7 @@ const pathLabels: Record<string, string> = {
   settings: 'Settings',
   calendar: 'Calendar',
   guests: 'Guests',
+  contacts: 'Contacts',
   reviews: 'Reviews',
   housekeeping: 'Housekeeping',
   revenue: 'Revenue',

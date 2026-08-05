@@ -126,6 +126,18 @@ export async function upsertGuestFromBooking(booking: Booking): Promise<string |
         updateData.country = country;
       }
 
+      // A lead just became a guest. The doc id is unchanged, so the WhatsApp thread, the notes and
+      // every prior interaction carry over intact — the conversation that convinced them survives
+      // the transition. A verified booking name also supersedes an unreliable WhatsApp push-name.
+      if (guestData.kind === 'lead') {
+        updateData.kind = 'guest';
+        if (booking.guestInfo.firstName && guestData.nameSource !== 'booking') {
+          updateData.firstName = booking.guestInfo.firstName;
+          updateData.nameSource = 'booking';
+        }
+        logger.info('Lead promoted to guest by booking', { guestId: guestDoc.id, bookingId: booking.id });
+      }
+
       // Track booking sources
       if (source) {
         updateData.sources = FieldValue.arrayUnion(source);

@@ -8,7 +8,9 @@
  *                    must declare each guest-specific claim, and we verify the declarations are all
  *                    grounded. Also: no affection/"we-fixed-it" claim for a complaint guest unless a
  *                    grounded issueResolved:* fact backs it.
- *   2. Voice       — no emoji; self-ID present; length in range; opt-out iff first contact.
+ *   1b. Audience   — a LEAD never stayed, so any phrase asserting a past stay is a factual error.
+ *   2. Voice       — emoji kept light; self-ID present; length in range; an opt-out for a first
+ *                    contact, for anyone who never engaged, and for every lead.
  *   3. Coverage    — exactly one draft per selected guest, each with matching phone/language later
  *                    (phone/lang are re-checked at send by executionGateway).
  *
@@ -22,7 +24,18 @@ export interface GuestForDraftValidation {
   careFlags?: string[];
   groundedFacts: Array<{ key: string; value: unknown }>;
   thread: Array<unknown>;               // length 0 ⇒ first contact ⇒ opt-out required
+  /** 'lead' = never stayed. Stay language is a factual error for them, not a style choice. */
+  audienceKind?: 'guest' | 'lead';
+  /** Cross-channel state from the pack (a logged phone call counts, unlike thread length alone). */
+  relationshipState?: 'first-contact' | 'silent' | 'active' | 'lapsed';
 }
+
+/**
+ * Phrases that assert a past stay. Harmless for a guest, false for a lead — and a message that
+ * tells someone "it was lovely having you" when they never came is the one error that cannot be
+ * walked back. Deliberately narrow: only patterns that CLAIM a stay, not warm language in general.
+ */
+const CLAIMS_A_STAY = /\b(c[âa]nd a[țt]i fost la noi|c[âa]nd ai fost la noi|de c[âa]nd a[țt]i stat|c[âa]nd a[țt]i stat|ne-a[țt]i vizitat|a[țt]i fost oaspe|ne bucur[ăa]m c[ăa] a[țt]i stat|sper c[ăa] v-a pl[ăa]cut (sejurul|vizita)|last time you stayed|when you stayed with us|your stay with us)\b/i;
 
 export interface DraftRules {
   minChars?: number; maxChars?: number;
@@ -80,8 +93,17 @@ export function validateDrafts(
       errors.push('references a past problem for a complaint guest with no grounded issueResolved fact — write forward-looking, do not mention it');
     }
 
+    // 1b. a lead never stayed — stay language is a factual error, not a stylistic one
+    const isLead = g.audienceKind === 'lead';
+    if (isLead && CLAIMS_A_STAY.test(body)) {
+      errors.push('claims a past stay for a LEAD who has never stayed — build on what they asked for (requestedPeriod / nonConversionReason), not on a visit that never happened');
+    }
+
     // 2. voice
-    const firstContact = (g.thread || []).length === 0;
+    // A logged phone call makes someone NOT a first contact even with an empty thread, and leaves
+    // them a first contact despite a full thread only when they never engaged at all — so prefer
+    // the pack's cross-channel state and fall back to thread length.
+    const firstContact = g.relationshipState ? g.relationshipState === 'first-contact' : (g.thread || []).length === 0;
     const emojiCount = (body.match(EMOJI) || []).length;
     if (emojiCount > EMOJI_MAX) warnings.push(`${emojiCount} emoji — keep them light (1-2, only to underline)`);
     // Self-ID: a first/cold contact MUST say who is writing (a stranger needs it); when continuing an
@@ -92,7 +114,12 @@ export function validateDrafts(
     }
     if (body.length < r.minChars) errors.push(`too short (${body.length} < ${r.minChars})`);
     else if (body.length > r.maxChars) warnings.push(`long (${body.length} > ${r.maxChars})`);
-    if (firstContact && !r.optOutMarkers.some((m) => loose(body).includes(loose(m)))) warnings.push('first contact but no opt-out line found');
+    // Opt-out: required for a first contact, for anyone who has never engaged, and for every lead —
+    // an enquiry that never became a stay is a thinner basis for writing again than a real stay is.
+    const needsOptOut = firstContact || isLead || g.relationshipState === 'silent';
+    if (needsOptOut && !r.optOutMarkers.some((m) => loose(body).includes(loose(m)))) {
+      warnings.push(`no opt-out line found (${isLead ? 'lead' : firstContact ? 'first contact' : 'never engaged'})`);
+    }
 
     return { guestId: d.guestId, errors, warnings };
   });

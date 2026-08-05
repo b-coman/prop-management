@@ -43,7 +43,8 @@
 // suffices; `save` dedupes against the stored thread, appending only genuinely-new messages.
 //
 // Usage:
-//   npx tsx scripts/whatsapp-thread.ts queue [--lang ro|en|all] [--missing]
+//   npx tsx scripts/whatsapp-thread.ts queue [--lang ro|en|all] [--missing] [--stale]
+//     --stale = order by capture staleness (never-captured, then oldest) — the re-export work-list
 //   npx tsx scripts/whatsapp-thread.ts save --guest <id> --phone <e164> --rows <file.json> [--owner "Bogdan Coman"] [--fmt MDY|DMY]
 //   npx tsx scripts/whatsapp-thread.ts mark --guest <id> --phone <e164> --status no-chat|empty   # record a guest with no retrievable messages
 //   npx tsx scripts/whatsapp-thread.ts show --guest <id>
@@ -69,11 +70,14 @@ async function main() {
 
   if (cmd === 'queue') {
     const language = (flag('lang') as 'ro' | 'en' | 'all') || 'ro';
-    const q = await getBackfillQueue({ language, onlyMissing: has('missing') });
+    const stale = has('stale');
+    const q = await getBackfillQueue({ language, onlyMissing: has('missing'), byStaleness: stale });
     const todo = q.filter((i) => !i.hasThread).length;
-    console.log(`${q.length} guests (${language})${has('missing') ? ' — missing only' : ''} · ${todo} without a thread\n`);
+    console.log(`${q.length} guests (${language})${has('missing') ? ' — missing only' : ''}${stale ? ' — stalest capture first' : ''} · ${todo} without a thread\n`);
     for (const i of q) {
-      const status = i.hasThread ? `✓ ${i.messageCount} msgs, last ${i.lastMessageTs ?? '?'}` : '— (backfill)';
+      const status = i.hasThread
+        ? `✓ ${String(i.messageCount).padStart(3)} msgs, last ${i.lastMessageTs?.slice(0, 10) ?? '?'}, captured ${i.lastFetchedAt ?? '?'}`
+        : '— (never captured)';
       console.log(`  ${i.guestId.padEnd(24)} ${i.phone.padEnd(15)} ${i.name.padEnd(26)} ${status}`);
     }
     return;

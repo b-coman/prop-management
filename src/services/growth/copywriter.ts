@@ -76,7 +76,10 @@ prose, no extra guests, none skipped.`;
 function packGuestsForValidation(pack: Awaited<ReturnType<typeof buildCopywriterPack>>): GuestForDraftValidation[] {
   return pack.guests
     .filter((g: any) => !g.error)
-    .map((g: any) => ({ guestId: g.guestId, careFlags: g.careFlags || [], groundedFacts: g.groundedFacts || [], thread: g.thread || [] }));
+    .map((g: any) => ({
+      guestId: g.guestId, careFlags: g.careFlags || [], groundedFacts: g.groundedFacts || [], thread: g.thread || [],
+      audienceKind: g.audienceKind, relationshipState: g.relationship?.state,
+    }));
 }
 
 export interface GenerateDraftsResult {

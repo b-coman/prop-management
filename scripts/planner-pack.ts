@@ -22,6 +22,7 @@ import * as fs from 'fs';
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 import { getAdminDb } from '../src/lib/firebaseAdminSafe';
 import { isRomaniaBased, classifyResidency } from '../src/lib/growth/audience';
+import { getNotesByGuest, isTouch } from '../src/services/guestNoteService';
 
 const arg = (n: string, d?: string) => { const i = process.argv.indexOf(`--${n}`); return i >= 0 ? process.argv[i + 1] : d; };
 const PROPERTY = arg('property', 'prahova-mountain-chalet')!;
@@ -53,13 +54,14 @@ function lastStayPhrase(last: Date | null): string | null {
 
 async function main() {
   const db = await getAdminDb();
-  const [bSnap, gSnap, rSnap, tSnap, sSnap, hSnap] = await Promise.all([
+  const [bSnap, gSnap, rSnap, tSnap, sSnap, hSnap, notesByGuest] = await Promise.all([
     db.collection('bookings').get(),
     db.collection('guests').get(),
     db.collection('reviews').get(),
     db.collection('whatsappThreads').get(),
     db.collection('suppressionList').get(),
     db.collection('holidays').get(),
+    getNotesByGuest(),
   ]);
 
   const price = (b: any) => b.pricing?.total ?? b.pricing?.totalPrice ?? 0;
@@ -116,10 +118,16 @@ async function main() {
     const inbound = msgs.filter(m => m.direction === 'in' && m.ts < ymd(AS_OF)).length;
     const outbound = msgs.filter(m => m.direction === 'out' && m.ts < ymd(AS_OF)).length;
     const lastOut = msgs.filter(m => m.direction === 'out' && m.ts < ymd(AS_OF)).map(m => String(m.ts).slice(0, 10)).sort().pop();
-    const daysSinceOut = lastOut ? days(new Date(`${lastOut}T00:00:00Z`), AS_OF) : null;
+    // Logged phone/in-person contact counts as BOTH engagement and contact — a relationship held on
+    // the phone is otherwise read as "we messaged them and they never answered".
+    const calls = (notesByGuest.get(g.id) || []).filter(n => isTouch(n.kind) && n.occurredAt <= ymd(AS_OF));
+    const lastCall = calls.map(n => n.occurredAt).sort().pop();
+    const lastContact = [lastOut, lastCall].filter(Boolean).sort().pop();
+    const daysSinceOut = lastContact ? days(new Date(`${lastContact}T00:00:00Z`), AS_OF) : null;
 
     const totalBookings = stayB.length;   // REAL completed stays — g.totalBookings is unreliable (inflated; counts cancelled)
-    const tier = totalBookings >= 2 ? 'repeat' : inbound >= 3 ? 'engaged' : inbound >= 1 ? 'responsive' : outbound >= 1 ? 'silent' : 'unknown';
+    const engagements = inbound + calls.length;
+    const tier = totalBookings >= 2 ? 'repeat' : engagements >= 3 ? 'engaged' : engagements >= 1 ? 'responsive' : outbound >= 1 ? 'silent' : 'unknown';
 
     // coarse complaint signal (the copywriter does the real sentiment read over the full thread)
     const complaintRe = /problem|nu merge|stricat|defect|rece|frig|murdar|nu funct|nu mai merge|scurgere|presiune/i;
@@ -149,6 +157,14 @@ async function main() {
     dossiers.push({
       guestId: g.id,
       firstName: g.firstName || null,
+      nameSource: g.nameSource || (g.firstName ? 'booking' : 'unknown'),   // 'pushname'/'unknown' ⇒ do not greet by it
+      // A LEAD never stayed: no season to reference, no review, no channel history. What it has
+      // instead is a request and a reason it went unfilled — see nonConversionReason for what a
+      // later message may honestly do.
+      kind: g.kind || 'guest',
+      firstContactAt: g.firstContactAt || null,
+      nonConversionReason: g.nonConversionReason || null,
+      requestedPeriods: g.requestedPeriods || [],
       eligible: reasons.length === 0,
       ineligibleReasons: reasons,
       tier,
@@ -166,7 +182,9 @@ async function main() {
       reviewText: reviewText || null,
       complaintSignals,
       inboundMessages: inbound,
-      daysSinceLastOutbound: daysSinceOut,
+      loggedCalls: calls.length,
+      lastCall: lastCall ?? null,
+      daysSinceLastContact: daysSinceOut,   // WhatsApp outbound OR a logged call, whichever is later
     });
   }
 

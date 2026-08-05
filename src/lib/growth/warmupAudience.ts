@@ -10,6 +10,7 @@
  */
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { isRomaniaBased } from '@/lib/growth/audience';
+import { getNotesByGuest, isTouch } from '@/services/guestNoteService';
 import type { CampaignBrief } from '@/lib/growth/contracts';
 
 export type WarmupSegment = 'keepintouch' | 'coldreintro';
@@ -36,9 +37,10 @@ export async function buildWarmupBrief(segment: WarmupSegment, opts?: { property
   const cap = opts?.cap ?? win.defaultCap;
 
   const db = await getAdminDb();
-  const [gSnap, bSnap, tSnap, sSnap] = await Promise.all([
+  const [gSnap, bSnap, tSnap, sSnap, notesByGuest] = await Promise.all([
     db.collection('guests').get(), db.collection('bookings').get(),
     db.collection('whatsappThreads').get(), db.collection('suppressionList').get(),
+    getNotesByGuest(),
   ]);
   const bookingById = new Map(bSnap.docs.map(d => [d.id, { id: d.id, ...(d.data() as any) }]));
   const threads = new Map(tSnap.docs.map(d => [d.id, d.data() as any]));
@@ -48,6 +50,9 @@ export async function buildWarmupBrief(segment: WarmupSegment, opts?: { property
   const picked: any[] = [];
   for (const g of guests) {
     if (!g.normalizedPhone || g.unsubscribed) continue;
+    // Warm-up is stay-anchored — every angle it writes references when they stayed. A lead has no
+    // stay, so it belongs to lead outreach, not here.
+    if (g.kind === 'lead') continue;
     if (suppressed.has(norm(g.normalizedPhone).slice(-9))) continue;
     const stayB = (g.bookingIds || []).map((id: string) => bookingById.get(id)).filter(Boolean)
       .filter((b: any) => b.status !== 'cancelled' && toD(b.checkInDate) && toD(b.checkInDate)! < AS_OF)
@@ -65,7 +70,11 @@ export async function buildWarmupBrief(segment: WarmupSegment, opts?: { property
     const th = threads.get(g.id);
     const msgs = (th?.messages || []) as any[];
     const lastOut = msgs.filter(m => m.direction === 'out' && m.ts < ymd(AS_OF)).map(m => String(m.ts).slice(0, 10)).sort().pop();
-    const daysSinceOut = lastOut ? days(new Date(`${lastOut}T00:00:00Z`), AS_OF) : null;
+    // A phone call is contact too. Pacing off WhatsApp alone would happily send a "we haven't
+    // spoken in a while" hello the day after speaking on the phone.
+    const lastCall = (notesByGuest.get(g.id) || []).filter(n => isTouch(n.kind) && n.occurredAt < ymd(AS_OF)).map(n => n.occurredAt).sort().pop();
+    const lastContact = [lastOut, lastCall].filter(Boolean).sort().pop();
+    const daysSinceOut = lastContact ? days(new Date(`${lastContact}T00:00:00Z`), AS_OF) : null;
     if (daysSinceOut !== null && daysSinceOut < win.recentOutboundFloor) continue;
 
     const careFlags = msgs.some(m => m.direction === 'in' && complaintRe.test(m.text || '')) ? ['complaint-in-thread'] : [];

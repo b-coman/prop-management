@@ -12,8 +12,8 @@
  */
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
-import type { Guest, WhatsAppThread, WhatsAppMessage } from '@/types';
-import { mergeMessages } from '@/lib/whatsapp/parse-thread';
+import type { Guest, WhatsAppThread, WhatsAppMessage, WhatsAppThreadImport } from '@/types';
+import { mergeMessages, reconcileAuthoritative, type ReconcileResult } from '@/lib/whatsapp/parse-thread';
 import { resolveGuestLanguage } from '@/lib/growth/language';
 
 const logger = loggers.campaign;
@@ -28,17 +28,21 @@ export async function upsertThreadMessages(input: {
   guestId: string;
   phone: string;
   messages: WhatsAppMessage[];
-  replace?: boolean;   // true = this batch IS the complete, authoritative history (official phone
-                       // export) — overwrite, don't merge. The browser scrape uses minute-precision
-                       // timestamps + text artifacts that would NOT dedupe against a clean export,
-                       // so merging the two double-stores every shared message. Replace avoids that.
-}): Promise<{ added: number; total: number }> {
+  authoritative?: boolean; // true = this batch is an official phone export — the COMPLETE history as
+                           // that device knows it. It supersedes stored duplicates (matched on a
+                           // source-independent loose fingerprint, since the scrape only knows the
+                           // minute while the export carries real seconds), but anything the vault
+                           // holds and the export lacks is RESCUED, not dropped — an export can be
+                           // legitimately short (restored phone, disappearing-messages timer) and a
+                           // blind overwrite would destroy the only surviving copy.
+}): Promise<{ added: number; total: number; reconcile?: ReconcileResult }> {
   const db = await getAdminDb();
   const ref = db.collection('whatsappThreads').doc(input.guestId);
   const snap = await ref.get();
-  const existing = (!input.replace && snap.exists) ? ((snap.data() as WhatsAppThread).messages ?? []) : [];
+  const existing = snap.exists ? ((snap.data() as WhatsAppThread).messages ?? []) : [];
 
-  const merged = mergeMessages(existing, input.messages);   // dedups within the batch + sorts
+  const reconcile = input.authoritative ? reconcileAuthoritative(existing, input.messages) : undefined;
+  const merged = reconcile ? reconcile.messages : mergeMessages(existing, input.messages);
   const added = merged.length - existing.length;
   const lastMessageTs = merged.length ? merged[merged.length - 1].ts : undefined;
   const now = FieldValue.serverTimestamp();
@@ -57,8 +61,44 @@ export async function upsertThreadMessages(input: {
     { merge: true }
   );
 
-  logger.info('WhatsApp thread upserted', { guestId: input.guestId, added, total: merged.length });
-  return { added, total: merged.length };
+  logger.info('WhatsApp thread upserted', {
+    guestId: input.guestId, added, total: merged.length,
+    ...(reconcile ? { rescued: reconcile.rescued.length, superseded: reconcile.supersededCount } : {}),
+  });
+  return { added, total: merged.length, reconcile };
+}
+
+/**
+ * Archive a raw import batch, immutably, before it is folded into a thread.
+ *
+ * The thread doc is a DERIVED view: it is reconciled, deduped and sorted, and reconciliation rules
+ * may change. The archive is the source of record — every batch ever collected, exactly as parsed,
+ * so a thread can always be rebuilt without going back to the phone. That matters most for chats
+ * that no longer exist on any device (disappearing-messages timers, trimmed history), where the
+ * vault is the only surviving copy.
+ */
+export async function archiveImport(input: {
+  guestId: string;
+  phone: string;
+  source: 'export' | 'scrape';
+  label: string;               // the export filename / capture label — provenance
+  messages: WhatsAppMessage[];
+}): Promise<string> {
+  const db = await getAdminDb();
+  const sorted = [...input.messages].sort((a, b) => a.ts.localeCompare(b.ts));
+  const doc: Omit<WhatsAppThreadImport, 'id'> = {
+    guestId: input.guestId,
+    phone: input.phone,
+    source: input.source,
+    label: input.label,
+    messageCount: sorted.length,
+    ...(sorted.length ? { firstTs: sorted[0].ts, lastTs: sorted[sorted.length - 1].ts } : {}),
+    messages: sorted,
+    importedAt: FieldValue.serverTimestamp(),
+  };
+  const ref = await db.collection('whatsappThreadImports').add(doc);
+  logger.info('WhatsApp import archived', { guestId: input.guestId, importId: ref.id, count: sorted.length });
+  return ref.id;
 }
 
 /**
@@ -100,6 +140,7 @@ export interface BackfillQueueItem {
   phone: string;            // E.164 — the number to search in WhatsApp
   hasThread: boolean;
   lastMessageTs?: string;   // present when a thread exists → the incremental cutoff
+  lastFetchedAt?: string;   // when we last CAPTURED it → drives the re-export staleness order
   messageCount: number;
 }
 
@@ -113,6 +154,8 @@ export interface BackfillQueueItem {
 export async function getBackfillQueue(opts?: {
   language?: 'ro' | 'en' | 'all';
   onlyMissing?: boolean;
+  /** Order by capture staleness (oldest `lastFetchedAt` first) — the re-export work-list. */
+  byStaleness?: boolean;
 }): Promise<BackfillQueueItem[]> {
   const db = await getAdminDb();
   const lang = opts?.language ?? 'ro';
@@ -122,10 +165,14 @@ export async function getBackfillQueue(opts?: {
     db.collection('whatsappThreads').get(),
   ]);
 
-  const threads = new Map<string, { lastMessageTs?: string; messageCount: number }>();
+  const threads = new Map<string, { lastMessageTs?: string; lastFetchedAt?: string; messageCount: number }>();
   threadSnap.docs.forEach((d) => {
-    const t = d.data() as WhatsAppThread;
-    threads.set(d.id, { lastMessageTs: t.lastMessageTs, messageCount: t.messageCount ?? (t.messages?.length ?? 0) });
+    const t = d.data() as WhatsAppThread & { lastFetchedAt?: { toDate?: () => Date } };
+    threads.set(d.id, {
+      lastMessageTs: t.lastMessageTs,
+      lastFetchedAt: t.lastFetchedAt?.toDate?.().toISOString().slice(0, 10),
+      messageCount: t.messageCount ?? (t.messages?.length ?? 0),
+    });
   });
 
   const items: BackfillQueueItem[] = [];
@@ -143,10 +190,17 @@ export async function getBackfillQueue(opts?: {
       phone: g.normalizedPhone,
       hasThread: !!th,
       lastMessageTs: th?.lastMessageTs,
+      lastFetchedAt: th?.lastFetchedAt,
       messageCount: th?.messageCount ?? 0,
     });
   });
 
-  items.sort((a, b) => a.name.localeCompare(b.name));
+  if (opts?.byStaleness) {
+    // Never-captured first, then longest-since-capture. This is the "which chats should I export
+    // next" order — without it the export path (unlike the scrape queue) is worked blind.
+    items.sort((a, b) => (a.lastFetchedAt ?? '').localeCompare(b.lastFetchedAt ?? '') || a.name.localeCompare(b.name));
+  } else {
+    items.sort((a, b) => a.name.localeCompare(b.name));
+  }
   return items;
 }

@@ -14,8 +14,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ArrowLeft, Mail, Phone, Globe, MapPin, Eye } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Globe, MapPin, Eye, PhoneCall } from 'lucide-react';
 import { fetchGuestDetailAction } from '../actions';
+import { fetchContactDetailAction } from '../../contacts/actions';
 import { getCountryName } from '@/lib/country-utils';
 import { EditGuestContactDialog } from '../_components/edit-guest-contact-dialog';
 import type { SerializableTimestamp } from '@/types';
@@ -54,13 +55,17 @@ const formatCurrency = (amount: number, currency: string): string => {
 
 export default async function GuestDetailPage({ params }: PageProps) {
   const { guestId } = await params;
-  const data = await fetchGuestDetailAction(guestId);
+  const [data, contact] = await Promise.all([
+    fetchGuestDetailAction(guestId),
+    fetchContactDetailAction(guestId),
+  ]);
 
   if (!data) {
     notFound();
   }
 
   const { guest, bookings } = data;
+  const notes = contact?.notes ?? [];
 
   return (
     <AdminPage
@@ -236,6 +241,44 @@ export default async function GuestDetailPage({ params }: PageProps) {
                   </TableBody>
                 </Table>
               </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Calls & notes — interactions that never touched WhatsApp, and are invisible without this */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-lg">Calls &amp; notes</CardTitle>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/admin/contacts?guestId=${guest.id}`}>
+                <PhoneCall className="h-4 w-4 mr-1.5" />
+                Add a note
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {notes.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nothing recorded. Phone calls are invisible to the engagement system until they are written down —
+                a guest you spoke to yesterday still reads as &ldquo;not contacted&rdquo;.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {notes.slice().reverse().map((n) => (
+                  <li key={n.id} className="rounded-md border p-3">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span>{n.occurredAt}</span>
+                      <span>·</span>
+                      <span>{n.kind === 'call' ? 'Phone call' : n.kind === 'inperson' ? 'In person' : 'Noticed'}</span>
+                      <Badge variant={n.assertable ? 'secondary' : 'outline'} className="text-[10px] py-0">
+                        {n.assertable ? 'quotable' : 'context'}
+                      </Badge>
+                      {n.expiresAt && <span className="opacity-70">until {n.expiresAt}</span>}
+                    </div>
+                    <p className="text-sm mt-1.5 whitespace-pre-wrap">{n.text}</p>
+                  </li>
+                ))}
+              </ul>
             )}
           </CardContent>
         </Card>
