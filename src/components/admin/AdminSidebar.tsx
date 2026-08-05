@@ -30,6 +30,7 @@ import {
   PanelTop,
   Settings,
   Wand2,
+  PhoneCall,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/SimpleAuthContext';
 import { usePropertySelector } from '@/contexts/PropertySelectorContext';
@@ -79,6 +80,7 @@ const navigationGroups = [
       { title: 'Bookings', href: '/admin/bookings', icon: CalendarCheck },
       { title: 'Inquiries', href: '/admin/inquiries', icon: MessageSquare },
       { title: 'Guests', href: '/admin/guests', icon: Users },
+      { title: 'Contacts', href: '/admin/contacts', icon: PhoneCall },
       { title: 'Reviews', href: '/admin/reviews', icon: Star },
       { title: 'Housekeeping', href: '/admin/housekeeping', icon: Sparkles },
     ],
