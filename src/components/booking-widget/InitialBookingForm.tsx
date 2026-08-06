@@ -13,6 +13,7 @@ import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, isAfter } from 'date-fns';
+import { ro as roLocale, enUS } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 import { Calendar as CalendarIcon, SearchCheck, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -43,6 +44,17 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
   const { toast } = useToast();
   const { tc, t, currentLanguage } = useLanguage();
 
+  // Date formatting follows the page language: the calendar was rendering English weekday headers
+  // ("Su Mo Tu…") and "Aug 28 - Aug 30" on the Romanian page. The locale also carries the week start,
+  // so Romanian visitors get a Monday-first calendar — the one they actually expect.
+  const dateLocale = currentLanguage === 'ro' ? roLocale : enUS;
+  // Romanian writes the day before the month ("28 aug."), English the reverse ("Aug 28").
+  const shortDateFormat = currentLanguage === 'ro' ? 'd MMM' : 'MMM d';
+
+  // NOTE (deliberate): this picker does NOT grey out booked nights. A visitor may choose ANY range;
+  // unavailability is handled on the booking page, which explains the conflict and offers concrete
+  // alternative windows. Do not "fix" this by disabling dates here.
+  //
   // Check if date range is valid (end date is after start date)
   const isDateRangeValid = (): boolean => {
     if (!date?.from || !date?.to) {
@@ -184,10 +196,10 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
                   {date?.from ? (
                     date.to ? (
                       <span className="font-medium relative bg-background/80 px-1 py-0.5 rounded text-foreground">
-                        {format(date.from, 'MMM d')} - {format(date.to, 'MMM d')}
+                        {format(date.from, shortDateFormat, { locale: dateLocale })} - {format(date.to, shortDateFormat, { locale: dateLocale })}
                       </span>
                     ) : (
-                      <span className="font-medium relative bg-background/80 px-1 py-0.5 rounded text-foreground">{format(date.from, 'MMM d')}</span>
+                      <span className="font-medium relative bg-background/80 px-1 py-0.5 rounded text-foreground">{format(date.from, shortDateFormat, { locale: dateLocale })}</span>
                     )
                   ) : (
                     t('booking.selectDates', 'Select Dates')
@@ -200,6 +212,7 @@ export function InitialBookingForm({ property, size = 'compressed', language = '
               <Calendar
                   initialFocus
                   mode="range"
+                  locale={dateLocale}
                   defaultMonth={date?.from || new Date()}
                   selected={date}
                   onSelect={setDate}
