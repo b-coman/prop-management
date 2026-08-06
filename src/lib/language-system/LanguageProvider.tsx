@@ -117,6 +117,7 @@ const UnifiedLanguageContext = createContext<UnifiedLanguageContextType | null>(
 export function LanguageProvider({
   children,
   initialLanguage,
+  initialTranslations,
   pageType = 'general',
   enablePerformanceTracking = false,
   enableDebugMode = false,
@@ -139,13 +140,23 @@ export function LanguageProvider({
   const [currentLang, setCurrentLang] = useState<SupportedLanguage>(
     initialLanguage || DEFAULT_LANGUAGE as SupportedLanguage
   );
-  const [isLoading, setIsLoading] = useState(true);
+  // Seeded from the server when available (see `initialTranslations`): the dictionary is then present
+  // on the very first render, so SSR + first paint are already in the right language instead of
+  // showing English `t()` fallbacks until the client fetch lands. The async load below still runs and
+  // simply re-sets the same content, so nothing else in the lifecycle changes.
+  const seeded = initialTranslations && Object.keys(initialTranslations).length > 0
+    ? (initialTranslations as Record<string, any>)
+    : null;
+
+  const [isLoading, setIsLoading] = useState(!seeded);
   const [error, setError] = useState<string | null>(null);
-  const [translations, setTranslations] = useState<Record<string, any>>({});
-  
+  const [translations, setTranslations] = useState<Record<string, any>>(seeded ?? {});
+
   // ===== PROGRESSIVE LOADING STATE =====
   // Track which languages are loaded for instant switching
-  const [allTranslations, setAllTranslations] = useState<Record<SupportedLanguage, Record<string, any>>>({});
+  const [allTranslations, setAllTranslations] = useState<Record<SupportedLanguage, Record<string, any>>>(
+    seeded && initialLanguage ? ({ [initialLanguage]: seeded } as Record<SupportedLanguage, Record<string, any>>) : {}
+  );
   const [backgroundLoadingStatus, setBackgroundLoadingStatus] = useState<Record<SupportedLanguage, 'loading' | 'loaded' | 'failed'>>({});
   
   // ===== STABLE TRANSLATION REFERENCE =====

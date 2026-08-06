@@ -7,6 +7,7 @@ import { PropertyPageRenderer } from '@/components/property/property-page-render
 import { PropertyNotFoundPage } from '@/components/property/property-not-found-page';
 import { websiteTemplateSchema, propertyOverridesSchema } from '@/lib/overridesSchemas-multipage';
 import { LanguageProvider } from '@/lib/language-system';
+import { getServerTranslations } from '@/lib/language-system/server-translations';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
 import { serverTranslateContent } from '@/lib/server-language-utils';
 import { buildVacationRentalJsonLd, buildBreadcrumbJsonLd, buildLodgingBusinessJsonLd, buildImageGalleryJsonLd, buildFAQPageJsonLd, buildAreaGuideJsonLd, buildReviewPageJsonLd, getCanonicalUrl, getBaseUrl } from '@/lib/structured-data';
@@ -509,7 +510,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     return (
       <>
         <meta name="robots" content="noindex, follow" />
-        <LanguageProvider initialLanguage={language}>
+        <LanguageProvider initialLanguage={language} initialTranslations={getServerTranslations(language)}>
           <PropertyNotFoundPage
             propertyName={resolvedName}
             propertySlug={slug}
@@ -633,7 +634,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
       <TrackViewItem property={property} />
-      <LanguageProvider initialLanguage={language}>
+      <LanguageProvider initialLanguage={language} initialTranslations={getServerTranslations(language)}>
         <Suspense fallback={<div>Loading property details...</div>}>
           <PropertyPageRenderer
             template={template}

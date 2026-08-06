@@ -109,8 +109,19 @@ function BookingPageContent({ className }: { className?: string }) {
     setSelectedAction
   } = useBooking();
   
-  const { formatPrice, convertToSelectedCurrency, selectedCurrency } = useCurrency();
+  const { formatPrice, convertToSelectedCurrency, selectedCurrency, setDefaultCurrency } = useCurrency();
   const { t, currentLang } = useLanguage();
+
+  // Apply the property's default currency, exactly as a property page does (property-page-renderer).
+  // The booking route never did this, so landing DIRECTLY on a booking link — an ad, a shared link, a
+  // bookmark — left the CurrencyContext at its initial 'USD' and a Romanian guest was quoted "US$401"
+  // instead of "1,838 lei". setDefaultCurrency still honours an explicit user choice and the
+  // timezone rule (Europe/Bucharest → RON, elsewhere → EUR), so this only fills in the missing default.
+  useEffect(() => {
+    if (property?.baseCurrency) {
+      setDefaultCurrency(property.baseCurrency);
+    }
+  }, [property?.baseCurrency, setDefaultCurrency]);
   const [activeTab, setActiveTab] = useState<'book' | 'hold' | 'contact'>('book');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formStatus, setFormStatus] = useState<{

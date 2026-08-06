@@ -55,12 +55,12 @@ export function PropertyNotFoundPage({
               404
             </p>
             <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground">
-              {tc({ en: 'Page not found', ro: 'Pagina nu a fost gasita' })}
+              {tc({ en: 'Page not found', ro: 'Pagina nu a fost găsită' })}
             </h1>
             <p className="mt-4 text-lg text-muted-foreground">
               {tc({
                 en: 'Sorry, we couldn\'t find the page you\'re looking for. It may have been moved or no longer exists.',
-                ro: 'Ne pare rau, nu am gasit pagina pe care o cautati. Este posibil sa fi fost mutata sau sa nu mai existe.',
+                ro: 'Ne pare rău, nu am găsit pagina pe care o căutați. Este posibil să fi fost mutată sau să nu mai existe.',
               })}
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">

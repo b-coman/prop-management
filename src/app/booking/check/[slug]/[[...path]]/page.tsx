@@ -56,6 +56,9 @@ import { serverTranslateContent } from '@/lib/server-language-utils';
 import { BookingPageV2 } from '@/components/booking-v2';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
 import { LanguageHtmlUpdater } from '@/components/language-html-updater';
+import { LanguageProvider } from '@/lib/language-system';
+import { getServerTranslations } from '@/lib/language-system/server-translations';
+import type { SupportedLanguage } from '@/lib/language-system/language-types';
 import { loggers } from '@/lib/logger';
 
 const logger = loggers.booking;
@@ -227,19 +230,30 @@ export default async function BookingCheckPage({ params, searchParams }: Booking
     <>
       <LanguageHtmlUpdater initialLanguage={detectedLanguage} />
       <Suspense fallback={<div>Loading booking system...</div>}>
-        <BookingClientLayout 
-          propertySlug={property.slug} 
-          themeId={propertyThemeId} 
-          heroImage={heroImage}
-          initialLanguage={detectedLanguage}
+        {/* Same pattern as the property pages: a page-scoped provider carrying the language this
+            route already resolved from its path, PLUS that language's dictionary. The root layout's
+            provider cannot supply either — middleware's `x-language` is the default for
+            /booking/check/{slug}/{lang} — so without this the Romanian booking page rendered its
+            English `t()` fallbacks ("3 Guests (Standard)") until the client fetch landed. */}
+        <LanguageProvider
+          initialLanguage={detectedLanguage as SupportedLanguage}
+          initialTranslations={getServerTranslations(detectedLanguage)}
+          pageType="booking"
         >
-          <BookingPageV2
-            property={property}
-            initialCurrency={currency as any}
-            initialLanguage={detectedLanguage}
+          <BookingClientLayout
+            propertySlug={property.slug}
             themeId={propertyThemeId}
-          />
-        </BookingClientLayout>
+            heroImage={heroImage}
+            initialLanguage={detectedLanguage}
+          >
+            <BookingPageV2
+              property={property}
+              initialCurrency={currency as any}
+              initialLanguage={detectedLanguage}
+              themeId={propertyThemeId}
+            />
+          </BookingClientLayout>
+        </LanguageProvider>
       </Suspense>
     </>
   );

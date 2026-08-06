@@ -287,6 +287,14 @@ export interface LanguageSwitchOptions {
  */
 export interface UnifiedLanguageProviderConfig {
   initialLanguage?: SupportedLanguage;
+  /**
+   * The `initialLanguage` dictionary, supplied by the server. Without it the provider starts with an
+   * EMPTY dictionary and every `t(key, fallback)` renders its English fallback until the client
+   * finishes fetching /locales/{lang}.json — so a Romanian page is served, and first-painted, in
+   * English ("7 guests / 3 bedrooms / From" instead of "7 oaspeți / 3 dormitoare / DE LA"). Seeding it
+   * makes the server-rendered HTML correct, which also matters for crawlers and link previews.
+   */
+  initialTranslations?: Record<string, unknown>;
   pageType?: PageType;
   enablePerformanceTracking?: boolean;
   enableDebugMode?: boolean;
