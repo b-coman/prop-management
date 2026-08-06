@@ -25,8 +25,13 @@ const PROBLEM_STATUSES = new Set(['DISAPPROVED', 'REJECTED', 'WITH_ISSUES', 'PEN
 /** A campaign-level `effective_status` of ACTIVE means Meta considers it live (spending-capable). */
 const DELIVERING = 'ACTIVE';
 
-/** Doc statuses whose Meta chain can plausibly deliver — worth reconciling (drafts/failed have no live chain). */
-const LIVE_CAPABLE: AdCampaignStatus[] = ['active', 'approved', 'paused'];
+/**
+ * Doc statuses whose Meta chain can plausibly deliver — worth reconciling (drafts/failed have no live
+ * chain). `pushed` is included because the Meta objects EXIST from that moment on: the owner can flip
+ * them ACTIVE straight in Ads Manager, which our app never sees. Reconciling `pushed` is what turns
+ * that invisible activation into a drift flag (and a self-heal, below) instead of silent spend.
+ */
+export const LIVE_CAPABLE: AdCampaignStatus[] = ['active', 'approved', 'paused', 'pushed'];
 
 /**
  * Pure drift detector — compares OUR believed `status` against Meta's `effectiveStatus`. Extracted so
@@ -117,6 +122,17 @@ export async function reconcileAdCampaigns(): Promise<ReconcileResult> {
       }
       const effStatus = eff.ok ? eff.data.effectiveStatus : undefined;
       if (effStatus) patch.effectiveStatus = effStatus;
+
+      // Self-heal: Meta's effective_status is the truth. A campaign activated OUTSIDE the app (in Ads
+      // Manager) leaves our doc at `pushed` forever — which would keep it out of the learning loop
+      // (`finalizeAdOutcome` only freezes activated campaigns) and show it as "not live" in the console.
+      // Record reality. This does not cause spend — it only stops us mis-remembering it.
+      if (effStatus === DELIVERING && data.status === 'pushed') {
+        patch.status = 'active';
+        patch.activatedBy = 'meta-reconcile (activated outside the app)';
+        patch.activatedAt = FieldValue.serverTimestamp();
+      }
+
       await d.ref.update(patch);
       updated += 1;
 

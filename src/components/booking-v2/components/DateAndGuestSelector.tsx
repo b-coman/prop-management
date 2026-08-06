@@ -35,6 +35,7 @@ import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
 import { addDays, isBefore, isAfter, isSameDay, format } from 'date-fns';
 import { ro } from 'date-fns/locale';
+import { buildDateSuggestions, type SuggestionReason } from '@/lib/booking/date-suggestions';
 import { useBooking } from '../contexts';
 import { useLanguage } from '@/lib/language-system';
 import { Button } from '@/components/ui/button';
@@ -593,6 +594,7 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
                   setCheckInDate={setCheckInDate}
                   setCheckOutDate={setCheckOutDate}
                   t={t}
+                  currentLang={currentLang}
                 />
               </div>
             )}
@@ -611,6 +613,7 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
                   setCheckInDate={setCheckInDate}
                   setCheckOutDate={setCheckOutDate}
                   t={t}
+                  currentLang={currentLang}
                 />
               </div>
             )}
@@ -629,7 +632,7 @@ const BookingSummaryText = memo(function BookingSummaryText({
   guests,
   t 
 }: { 
-  nights: number; 
+  nights: number;
   guests: number;
   t: (key: string, fallback: string, options?: any) => string;
 }) {
@@ -669,49 +672,9 @@ const DateRangeDisplay = memo(function DateRangeDisplay({
   );
 });
 
-// Helper functions for availability checking
-function isDateRangeAvailable(startDate: Date, endDate: Date, unavailableDates: Date[]): boolean {
-  const currentDate = new Date(startDate);
-  
-  while (currentDate < endDate) {
-    const isUnavailable = unavailableDates.some(unavailableDate => 
-      unavailableDate.getFullYear() === currentDate.getFullYear() &&
-      unavailableDate.getMonth() === currentDate.getMonth() &&
-      unavailableDate.getDate() === currentDate.getDate()
-    );
-    
-    if (isUnavailable) {
-      return false;
-    }
-    
-    currentDate.setDate(currentDate.getDate() + 1);
-  }
-  
-  return true;
-}
-
-function findNextAvailablePeriod(
-  fromDate: Date, 
-  nights: number, 
-  unavailableDates: Date[], 
-  minStay: number
-): Date | null {
-  const actualNights = Math.max(nights, minStay);
-  const maxSearchDays = 90;
-  let searchDate = new Date(fromDate);
-  
-  for (let i = 0; i < maxSearchDays; i++) {
-    const endDate = addDays(searchDate, actualNights);
-    
-    if (isDateRangeAvailable(searchDate, endDate, unavailableDates)) {
-      return searchDate;
-    }
-    
-    searchDate.setDate(searchDate.getDate() + 1);
-  }
-  
-  return null;
-}
+// Availability helpers now live in src/lib/booking/date-suggestions.ts (pure + unit-tested), so the
+// search rules exist in exactly one place. A near-identical dead copy also sits in
+// src/lib/error-messages.ts — that module has no importers.
 
 const PricingStatusDisplay = memo(function PricingStatusDisplay({
   isLoadingPricing,
@@ -723,7 +686,8 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
   property,
   setCheckInDate,
   setCheckOutDate,
-  t
+  t,
+  currentLang
 }: {
   isLoadingPricing: boolean;
   pricingError: string | null;
@@ -735,6 +699,7 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
   setCheckInDate: (date: Date | null) => void;
   setCheckOutDate: (date: Date | null) => void;
   t: (key: string, fallback: string, options?: any) => string;
+  currentLang: string;
 }) {
   if (isLoadingPricing) {
     return (
@@ -767,48 +732,37 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
       ? t(errorKey, pricingError, errorParams)
       : pricingError;
     
-    // Generate smart date suggestions with clickable date objects
-    interface DateSuggestion {
-      checkIn: Date;
-      checkOut: Date;
-      nights: number;
-    }
-    const suggestions: DateSuggestion[] = [];
-    const nights = checkInDate && checkOutDate ?
-      Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+    // Alternatives come from the shared, unit-tested engine (src/lib/booking/date-suggestions).
+    // It searches BOTH directions, can propose keeping the guest's own dates with a shorter stay, and
+    // for a minimum-stay shortfall offers extending the checkout OR arriving earlier.
+    const suggestionLocale = currentLang === 'ro' ? ro : undefined;
+    const suggestionDateFormat = currentLang === 'ro' ? 'd MMM' : 'MMM d';
     const minimumStay = property?.defaultMinimumStay || 1;
 
-    if (checkInDate && checkOutDate) {
-      // For minimum stay violations, suggest extending current dates
-      if (errorKey === 'booking.minimumStayRequiredFromDate' || nights < minimumStay) {
-        const extendedCheckout = addDays(checkInDate, minimumStay);
-        if (isDateRangeAvailable(checkInDate, extendedCheckout, unavailableDates || [])) {
-          suggestions.push({
-            checkIn: checkInDate,
-            checkOut: extendedCheckout,
-            nights: minimumStay,
-          });
-        }
-      }
+    const suggestions = checkInDate && checkOutDate
+      ? buildDateSuggestions({
+          checkIn: checkInDate,
+          checkOut: checkOutDate,
+          unavailableDates: unavailableDates || [],
+          minStay: minimumStay,
+        })
+      : [];
 
-      // Find next available period
-      const nextAvailable = findNextAvailablePeriod(
-        addDays(checkInDate, 1),
-        nights,
-        unavailableDates || [],
-        minimumStay
-      );
-
-      if (nextAvailable) {
-        const actualNights = Math.max(nights, minimumStay);
-        const endDate = addDays(nextAvailable, actualNights);
-        suggestions.push({
-          checkIn: nextAvailable,
-          checkOut: endDate,
-          nights: actualNights,
-        });
+    const reasonLabel = (reason: SuggestionReason, nights: number): string => {
+      switch (reason) {
+        case 'extend-to-minimum':
+          return t('booking.suggestionExtendToMinimum', 'Same arrival, {{nights}} nights', { nights });
+        case 'shift-earlier-to-minimum':
+          return t('booking.suggestionShiftEarlierToMinimum', 'Arrive earlier');
+        case 'shorter-stay':
+          return t('booking.suggestionShorterStay', 'Your dates, shorter stay');
+        case 'earlier-window':
+          return t('booking.suggestionEarlierWindow', 'Just before');
+        case 'later-window':
+        default:
+          return t('booking.suggestionLaterWindow', 'Just after');
       }
-    }
+    };
 
     return (
       <div className="text-center py-4">
@@ -841,11 +795,18 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
                       setCheckInDate(normalizedCheckIn);
                       setCheckOutDate(normalizedCheckOut);
                     }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-red-200 rounded-full text-xs font-medium text-red-800 hover:bg-red-100 hover:border-red-300 transition-colors cursor-pointer"
+                    className="inline-flex flex-col items-center gap-0.5 px-3 py-2 bg-white border border-red-200 rounded-xl text-xs font-medium text-red-800 hover:bg-red-100 hover:border-red-300 transition-colors cursor-pointer"
                   >
-                    <CalendarDays className="h-3.5 w-3.5" />
-                    {format(suggestion.checkIn, 'MMM d')} – {format(suggestion.checkOut, 'MMM d')}
-                    <span className="text-red-500">({nightCount} {nightLabel})</span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      {format(suggestion.checkIn, suggestionDateFormat, { locale: suggestionLocale })} – {format(suggestion.checkOut, suggestionDateFormat, { locale: suggestionLocale })}
+                      <span className="text-red-500">({nightCount} {nightLabel})</span>
+                    </span>
+                    {/* Say WHY this option is being offered — "Just before" reads very differently from
+                        "Your dates, shorter stay", and the guest can pick on meaning, not just on dates. */}
+                    <span className="text-[11px] font-normal text-red-500/90">
+                      {reasonLabel(suggestion.reason, nightCount)}
+                    </span>
                   </button>
                 );
               })}
