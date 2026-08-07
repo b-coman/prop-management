@@ -64,31 +64,35 @@ describe('rounding — the sheet rounds to the nearest 5, and VRBO weekdays up',
  * These tests recover that split — which is the single most useful thing this module does.
  */
 describe('what the owner’s sheet actually encodes', () => {
-  const base = 475; // airbnb_w_price, the sheet's weekday base
+  /**
+   * THE ANCHOR IS THE DIRECT PRICE, and getting this wrong is easy: the sheet's `airbnb_w_price = 475`
+   * looks like a base rate but is the base the AIRBNB column is derived from. The direct price is
+   * `property.pricePerNight` = 525. Measuring a channel against 475 describes a relationship that
+   * does not exist and understates every gap.
+   */
+  const DIRECT_BASE = 525;          // property.pricePerNight
+  const SHEET_AIRBNB_BASE = 475;    // airbnb_w_price — NOT the direct price
+  const LISTED_AIRBNB = SHEET_AIRBNB_BASE * 1.10;
+  const LISTED_BOOKING = SHEET_AIRBNB_BASE * 1.33;
 
-  it('Booking ×1.33 is mostly commission, plus real extra margin', () => {
-    const structural = grossUpFactor(BOOKING, DIRECT);
-    expect(structural).toBeCloseTo(1.261, 3);
-
-    const implied = impliedExtraAdjustmentPct(base, base * 1.33, BOOKING, DIRECT);
-    expect(implied).toBeGreaterThan(0.04);
-    expect(implied).toBeLessThan(0.07);
-    // So ×1.33 = ×1.261 net-parity × ~1.055 deliberate. The Genius discount the sheet declares but
-    // never uses in a formula is folded into that ~5.5%.
+  it('Booking sits slightly UNDER net parity once measured against direct', () => {
+    expect(grossUpFactor(BOOKING, DIRECT)).toBeCloseTo(1.261, 3);
+    const implied = impliedExtraAdjustmentPct(DIRECT_BASE, LISTED_BOOKING, BOOKING, DIRECT);
+    expect(implied).toBeLessThan(0);
+    expect(implied).toBeGreaterThan(-0.08);   // mildly under, ~-4.6%
   });
 
-  it('Airbnb is listed BELOW net parity — the finding, not a setting to preserve', () => {
-    // The sheet lists Airbnb at base × 1.10 (`airbnb_correction`). Net parity needs ×1.151.
-    const structural = grossUpFactor(AIRBNB, DIRECT);
-    expect(structural).toBeGreaterThan(1.10);
+  it('Airbnb sits far under, because it is listed at essentially the direct price', () => {
+    expect(grossUpFactor(AIRBNB, DIRECT)).toBeCloseTo(1.195, 3);
+    // 475 × 1.10 = 522.5 against a direct price of 525 — the same money to the guest, minus 18.755%.
+    expect(LISTED_AIRBNB / DIRECT_BASE).toBeCloseTo(0.995, 3);
+    expect(impliedExtraAdjustmentPct(DIRECT_BASE, LISTED_AIRBNB, AIRBNB, DIRECT)).toBeLessThan(-0.15);
+  });
 
-    const implied = impliedExtraAdjustmentPct(base, base * 1.10, AIRBNB, DIRECT);
-    expect(implied).toBeLessThan(0);
-
-    // The consequence, stated directly: a night sold on Airbnb at the sheet's price pays the owner
-    // LESS than the same night sold direct at the base rate. That is why Airbnb reads cheapest and
-    // earns least — arithmetic, not competitor behaviour.
-    expect(netFromOta(base * 1.10, AIRBNB)).toBeLessThan(netFromDirect(base, DIRECT));
+  it('so a night sold on Airbnb pays less than the same night sold direct', () => {
+    // The consequence, stated as arithmetic rather than as advice. What SHOULD move — the channel
+    // price, the direct price, or nothing — is a demand judgement this file does not make.
+    expect(netFromOta(LISTED_AIRBNB, AIRBNB)).toBeLessThan(netFromDirect(DIRECT_BASE, DIRECT));
   });
 
   it('VRBO carries the second-highest commission but the sheet grosses it up least', () => {
