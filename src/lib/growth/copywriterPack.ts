@@ -16,6 +16,7 @@ import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { detectLanguage } from '@/lib/growth/audience';
 import { getNotesByGuest, isTouch, isLive } from '@/services/guestNoteService';
 import type { CampaignBrief } from '@/lib/growth/contracts';
+import { normalizeChannel } from '@/lib/channels';
 
 const toD = (v: any): Date | null => v?._seconds ? new Date(v._seconds * 1000) : v?.toDate ? v.toDate() : typeof v === 'string' ? new Date(v) : v instanceof Date ? v : null;
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
@@ -94,7 +95,9 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
       .sort((a: any, b: any) => +toD(a.checkInDate)! - +toD(b.checkInDate)!);
     const lastBk: any = stayB.length ? stayB[stayB.length - 1] : null;
     const last = lastBk ? toD(lastBk.checkInDate) : null;
-    const channels = stayB.map((b: any) => String(b.source || '').toLowerCase()).filter(Boolean);
+    // Normalised: `booksDirect` decides how the copy may talk to this guest, and a guest whose
+    // booking still says `website-pending` books direct just as much as one that says `direct`.
+    const channels = stayB.map((b: any) => normalizeChannel(b.source) ?? String(b.source || '').toLowerCase()).filter(Boolean);
     const directCount = channels.filter((c: string) => c === 'direct').length;
     const otaCount = channels.length - directCount;
     const lastChannel = channels.length ? channels[channels.length - 1] : null;

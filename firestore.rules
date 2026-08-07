@@ -292,6 +292,14 @@ service cloud.firestore {
       allow write: if false;  // Admin SDK only (parity-capture / parity-pack)
     }
 
+    match /channels/{channelId} {
+      // Per-property distribution config: commission, listing URL, gross-up margin, FX.
+      // These rates decide what the owner nets on every booking, so a wrong value here quietly
+      // corrupts every parity and rate-sheet number downstream. Server-side writes only.
+      allow read: if isSuperAdmin() || isPropertyOwner();
+      allow write: if false;  // Admin SDK only (channelService / migrate-channels)
+    }
+
     match /situationReports/{reportId} {
       // The in-app analyst's persisted Situation Reports (Move 2 · P3) — super-admin/owner read.
       allow read: if isSuperAdmin() || isPropertyOwner();

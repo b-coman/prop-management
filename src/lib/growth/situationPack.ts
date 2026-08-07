@@ -18,6 +18,7 @@ import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { getPageHealth, getAdAccountHealth } from '@/services/growth/metaAds/brandHealth';
 import { computeRecentCancellations, computeOutreachLedger } from '@/lib/growth/signals';
 import { getNotesByGuest, isTouch } from '@/services/guestNoteService';
+import { normalizeChannel } from '@/lib/channels';
 
 const toD = (v: any): Date | null =>
   v?._seconds ? new Date(v._seconds * 1000) : v?.toDate ? v.toDate() : typeof v === 'string' ? new Date(v) : v instanceof Date ? v : null;
@@ -178,7 +179,10 @@ export async function buildSituationPack(
     for (let d = new Date(b.ci!); d < b.co!; d = new Date(+d + 86400000)) {
       ledger.push({
         date: ymd(d), year: d.getUTCFullYear(), month: d.getUTCMonth() + 1,
-        rate: perNight, src: b.source || 'unknown',
+        // Normalised, so one channel is one row: the live data contains a `travelmint` typo and
+        // in-flight direct bookings say `website-pending`. Unmapped values stay VISIBLE rather than
+        // being dropped or bucketed — a channel nothing recognises is worth seeing in the report.
+        rate: perNight, src: normalizeChannel(b.source) ?? (b.source ? `unmapped:${b.source}` : 'unknown'),
         country, foreign: country !== 'RO' && country !== 'unknown', bid: b.id,
       });
     }

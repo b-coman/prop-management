@@ -11,6 +11,10 @@ import { DateOverridesTable } from './_components/date-overrides-table';
 import { PriceCalendarManager } from './_components/price-calendar-manager';
 import { PricingTestPanel } from './_components/pricing-test-panel';
 import { LengthOfStayDiscounts } from './_components/length-of-stay-discounts';
+import { ChannelsCard, type ChannelRow } from './_components/channels-card';
+import { getChannels } from '@/services/channelService';
+import { headroomPct } from '@/lib/growth/parityMath';
+import { CHANNEL_IDS } from '@/lib/channels';
 
 export const dynamic = 'force-dynamic'; // Ensure the page is dynamically rendered
 
@@ -37,19 +41,39 @@ export default async function PricingPage({
   // The calendar renders money; without this it fell back to formatPrice's USD default and showed
   // RON amounts as "$523".
   let currency = 'RON';
+  let channelRows: ChannelRow[] = [];
 
   if (propertyId) {
     // Fetch in parallel
-    const [sp, dov, losd, prop] = await Promise.all([
+    const [sp, dov, losd, prop, channelSet] = await Promise.all([
       fetchSeasonalPricing(propertyId),
       fetchDateOverrides(propertyId),
       fetchLengthOfStayDiscounts(propertyId),
-      fetchProperty(propertyId)
+      fetchProperty(propertyId),
+      getChannels(propertyId),
     ]);
     seasonalPricing = sp;
     dateOverrides = dov;
     lengthOfStayDiscounts = losd;
     currency = (prop as { baseCurrency?: string } | null)?.baseCurrency ?? 'RON';
+
+    // Mapped to a plain shape here: ChannelConfig carries a Firestore Timestamp (`updatedAt`) that
+    // does not survive the server/client boundary, and headroom needs the direct economics to compute.
+    const directEcon = channelSet.byId.get('direct')?.directEconomics ?? null;
+    channelRows = CHANNEL_IDS
+      .map((id) => channelSet.byId.get(id))
+      .filter((c): c is NonNullable<typeof c> => !!c)
+      .map((c) => ({
+        channelId: c.channelId,
+        displayName: c.displayName,
+        active: c.active,
+        inactiveReason: c.inactiveReason ?? undefined,
+        commissionPct: c.economics?.commissionPct ?? null,
+        headroomPct: c.economics && directEcon ? Number(headroomPct(c.economics, directEcon).toFixed(4)) : null,
+        paymentCostPct: c.directEconomics?.paymentCostPct ?? null,
+        targetDirectDiscountPct: c.targetDirectDiscountPct ?? null,
+        listingUrl: c.listingUrl ?? undefined,
+      }));
   }
 
   return (
@@ -78,8 +102,13 @@ export default async function PricingPage({
             <TabsTrigger value="overrides">Date Overrides</TabsTrigger>
             <TabsTrigger value="discounts">Discounts</TabsTrigger>
             <TabsTrigger value="calendar">Price Calendar</TabsTrigger>
+            <TabsTrigger value="channels">Channels</TabsTrigger>
             <TabsTrigger value="testing">Testing</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="channels">
+            <ChannelsCard rows={channelRows} propertyId={propertyId} />
+          </TabsContent>
 
           <TabsContent value="seasons">
             <Card>
