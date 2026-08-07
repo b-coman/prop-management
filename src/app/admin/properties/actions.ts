@@ -43,6 +43,9 @@ const propertyActionSchema = z.object({
     pricePerNight: z.coerce.number().positive(),
     baseCurrency: z.string(),
     cleaningFee: z.coerce.number().nonnegative().optional(),
+    // Submitted by the property form but previously absent here, so Zod stripped it and every edit
+    // was silently discarded (and new properties got none, tripping BookingProvider's required check).
+    defaultMinimumStay: z.coerce.number().int().min(1).max(30).optional(),
     maxGuests: z.coerce.number().int().positive(),
     baseOccupancy: z.coerce.number().int().positive(),
     extraGuestFee: z.coerce.number().nonnegative().optional(),
@@ -284,18 +287,25 @@ export async function updatePropertyAction(
 
     await propertyRef.update(dataToUpdate);
 
-    // Detect if weekend pricing changed → regenerate price calendars
-    if (pricingConfig) {
+    // Regenerate price calendars when ANY input to calculateDayPrice changed.
+    // This gate used to watch only the weekend settings, so editing pricePerNight left all twelve
+    // months on the old price until somebody happened to press "Generate Price Calendars".
+    {
       const existingData = docSnap.data();
       const oldAdj = existingData?.pricingConfig?.weekendAdjustment;
       const oldDays = existingData?.pricingConfig?.weekendDays;
-      const adjChanged = oldAdj !== pricingConfig.weekendAdjustment;
-      const daysChanged = JSON.stringify(oldDays?.sort()) !== JSON.stringify([...pricingConfig.weekendDays].sort());
-      if (adjChanged || daysChanged) {
-        logger.info('Weekend pricing changed, regenerating calendars', {
-          slug: currentSlug,
-          oldAdj, newAdj: pricingConfig.weekendAdjustment,
-          oldDays, newDays: pricingConfig.weekendDays,
+      const adjChanged = !!pricingConfig && oldAdj !== pricingConfig.weekendAdjustment;
+      const daysChanged = !!pricingConfig &&
+        JSON.stringify(oldDays?.slice().sort()) !== JSON.stringify([...pricingConfig.weekendDays].sort());
+      // Every other field the engine reads: base rate, occupancy ladder, and the booking total.
+      const PRICE_INPUTS = ['pricePerNight', 'baseOccupancy', 'extraGuestFee', 'maxGuests', 'cleaningFee', 'baseCurrency'] as const;
+      const changedInputs = PRICE_INPUTS.filter(
+        (f) => (validatedFields.data as Record<string, unknown>)[f] !== undefined &&
+               (validatedFields.data as Record<string, unknown>)[f] !== existingData?.[f]
+      );
+      if (adjChanged || daysChanged || changedInputs.length > 0) {
+        logger.info('Pricing inputs changed, regenerating calendars', {
+          slug: currentSlug, adjChanged, daysChanged, changedInputs,
         });
         await regenerateCalendarsAfterChange(currentSlug);
       }

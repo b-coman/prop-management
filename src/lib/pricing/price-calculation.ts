@@ -23,14 +23,12 @@ export type {
   PriceCalendarDay 
 };
 
-// Predefined multipliers by season type
-export const SEASON_MULTIPLIERS: Record<SeasonType, number> = {
-  'minimum': 0.7,
-  'low': 0.85,
-  'standard': 1.0,
-  'medium': 1.2,
-  'high': 1.5
-};
+// NOTE: a `SEASON_MULTIPLIERS` ladder {minimum .7, low .85, standard 1.0, medium 1.2, high 1.5} used
+// to live here and pre-filled the multiplier from the season-type dropdown. It did not match this
+// business's tiers {min .8, low .9, base 1.0, medium 1.1, high 1.2, max 1.3}, so merely re-labelling a
+// season silently repriced it (Easter 1.1 -> 1.2, Summer 1.2 -> 1.5). `seasonType` is a label;
+// `priceMultiplier` is the price. Nothing derives one from the other. The tier ladder belongs in
+// per-property config — see docs/pricing-organ-architecture.md §2.1.
 
 // Define a MinimumStayRule interface (not included in schemas.ts)
 export interface MinimumStayRule {

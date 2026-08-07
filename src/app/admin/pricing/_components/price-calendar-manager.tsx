@@ -10,10 +10,11 @@ import { PriceCalendarDisplay } from './price-calendar-display';
 import { Separator } from '@/components/ui/separator';
 
 interface PriceCalendarManagerProps {
+  currency?: string;
   propertyId: string;
 }
 
-export function PriceCalendarManager({ propertyId }: PriceCalendarManagerProps) {
+export function PriceCalendarManager({ propertyId, currency = 'RON' }: PriceCalendarManagerProps) {
   const router = useRouter();
   const [isGenerating, setIsGenerating] = useState(false);
   const [lastGenerated, setLastGenerated] = useState<Date | null>(null);
@@ -154,7 +155,7 @@ export function PriceCalendarManager({ propertyId }: PriceCalendarManagerProps) 
             Loading price calendars...
           </div>
         ) : (
-          <PriceCalendarDisplay priceCalendars={priceCalendars} />
+          <PriceCalendarDisplay priceCalendars={priceCalendars} currency={currency} />
         )}
       </div>
     </div>

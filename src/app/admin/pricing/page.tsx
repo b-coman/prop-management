@@ -1,7 +1,7 @@
 // src/app/admin/pricing/page.tsx
 import Link from 'next/link';
 import { CalendarDays } from 'lucide-react';
-import { fetchSeasonalPricing, fetchDateOverrides, fetchLengthOfStayDiscounts } from './server-actions-hybrid';
+import { fetchSeasonalPricing, fetchDateOverrides, fetchLengthOfStayDiscounts, fetchProperty } from './server-actions-hybrid';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -34,14 +34,22 @@ export default async function PricingPage({
   let seasonalPricing = [];
   let dateOverrides = [];
   let lengthOfStayDiscounts: Awaited<ReturnType<typeof fetchLengthOfStayDiscounts>> = [];
+  // The calendar renders money; without this it fell back to formatPrice's USD default and showed
+  // RON amounts as "$523".
+  let currency = 'RON';
 
   if (propertyId) {
     // Fetch in parallel
-    [seasonalPricing, dateOverrides, lengthOfStayDiscounts] = await Promise.all([
+    const [sp, dov, losd, prop] = await Promise.all([
       fetchSeasonalPricing(propertyId),
       fetchDateOverrides(propertyId),
-      fetchLengthOfStayDiscounts(propertyId)
+      fetchLengthOfStayDiscounts(propertyId),
+      fetchProperty(propertyId)
     ]);
+    seasonalPricing = sp;
+    dateOverrides = dov;
+    lengthOfStayDiscounts = losd;
+    currency = (prop as { baseCurrency?: string } | null)?.baseCurrency ?? 'RON';
   }
 
   return (
@@ -147,7 +155,7 @@ export default async function PricingPage({
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <PriceCalendarManager propertyId={propertyId} />
+                <PriceCalendarManager propertyId={propertyId} currency={currency} />
               </CardContent>
             </Card>
           </TabsContent>

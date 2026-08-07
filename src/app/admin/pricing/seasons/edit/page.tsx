@@ -128,12 +128,14 @@ export default function EditSeasonPage() {
     }
   };
   
+  // Labels only. seasonType is a name for the period; priceMultiplier is the price. The two are set
+  // independently — see the onValueChange note below.
   const seasonTypes = [
-    { value: 'minimum', label: 'Minimum (30% OFF)', multiplier: 0.7 },
-    { value: 'low', label: 'Low (15% OFF)', multiplier: 0.85 },
-    { value: 'standard', label: 'Standard (Regular Price)', multiplier: 1.0 },
-    { value: 'medium', label: 'Medium (20% EXTRA)', multiplier: 1.2 },
-    { value: 'high', label: 'High (50% EXTRA)', multiplier: 1.5 }
+    { value: 'minimum', label: 'Minimum' },
+    { value: 'low', label: 'Low' },
+    { value: 'standard', label: 'Standard' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'high', label: 'High' }
   ];
   
   // Calculate price preview based on multiplier
@@ -199,7 +201,9 @@ export default function EditSeasonPage() {
             {/* Hidden fields */}
             <input type="hidden" name="id" value={seasonId || ''} />
             <input type="hidden" name="propertyId" value={propertyId || ''} />
-            <input type="hidden" name="enabled" value={enabled.toString()} />
+            {/* z.coerce.boolean() treats ANY non-empty string as true, so value="false" saved TRUE
+                and this switch could never disable a season. Send an empty string for false. */}
+            <input type="hidden" name="enabled" value={enabled ? 'yes' : ''} />
             
             {/* Property Info */}
             <div className="bg-slate-50 p-3 rounded-md mb-4">
@@ -243,11 +247,11 @@ export default function EditSeasonPage() {
                 name="seasonType" 
                 value={seasonType}
                 onValueChange={(value: 'minimum' | 'low' | 'standard' | 'medium' | 'high') => {
+                  // Deliberately does NOT touch priceMultiplier. It used to, from a ladder
+                  // {0.7,0.85,1.0,1.2,1.5} that does not match this business's tiers
+                  // {0.8,0.9,1.0,1.1,1.2,1.3} — so merely opening a season and changing its label
+                  // silently repriced it (Easter 1.1 -> 1.2, Summer 1.2 -> 1.5).
                   setSeasonType(value);
-                  const selectedType = seasonTypes.find(type => type.value === value);
-                  if (selectedType) {
-                    setPriceMultiplier(selectedType.multiplier);
-                  }
                 }}
                 required 
                 disabled={submitting}

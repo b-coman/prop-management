@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { deleteSeasonalPricing } from '@/app/admin/pricing/actions';
 import { requirePropertyAccess, AuthorizationError } from '@/lib/authorization';
 import { loggers } from '@/lib/logger';
+import { isNextControlFlowError } from '@/lib/next-redirect';
 
 const logger = loggers.adminPricing;
 
@@ -34,6 +35,11 @@ export async function POST(request: NextRequest) {
     await deleteSeasonalPricing(formData);
     return NextResponse.json({ success: true });
   } catch (error) {
+    // The action ends in redirect(), which THROWS NEXT_REDIRECT on success. Swallowing it here is why
+    // a successful delete reported "Failed to delete... Please try again" after the row was gone.
+    if (isNextControlFlowError(error)) {
+      return NextResponse.json({ success: true });
+    }
     logger.error('Error deleting season', error as Error);
     return NextResponse.json(
       { success: false, error: 'Failed to delete season' },
