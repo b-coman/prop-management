@@ -285,6 +285,13 @@ service cloud.firestore {
       allow write: if false;  // Admin SDK only (page-posts server actions)
     }
 
+    match /channelPriceObservations/{observationId} {
+      // Append-only record of what each channel quoted for a given window/occupancy — the evidence
+      // the parity report is built from. Append-only so a cell's history IS its price history.
+      allow read: if isSuperAdmin() || isPropertyOwner();
+      allow write: if false;  // Admin SDK only (parity-capture / parity-pack)
+    }
+
     match /situationReports/{reportId} {
       // The in-app analyst's persisted Situation Reports (Move 2 · P3) — super-admin/owner read.
       allow read: if isSuperAdmin() || isPropertyOwner();
