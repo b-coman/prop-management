@@ -12,6 +12,9 @@ import { PriceCalendarManager } from './_components/price-calendar-manager';
 import { PricingTestPanel } from './_components/pricing-test-panel';
 import { LengthOfStayDiscounts } from './_components/length-of-stay-discounts';
 import { ChannelsCard, type ChannelRow } from './_components/channels-card';
+import { RateSheetGrid, type RateSheetGridRow } from './_components/rate-sheet-grid';
+import { generateRateSheet, getPushes } from '@/services/rateSheetService';
+import { pushId } from '@/lib/pricing/rateSheet';
 import { getChannels } from '@/services/channelService';
 import { headroomPct } from '@/lib/growth/parityMath';
 import { CHANNEL_IDS } from '@/lib/channels';
@@ -42,6 +45,13 @@ export default async function PricingPage({
   // RON amounts as "$523".
   let currency = 'RON';
   let channelRows: ChannelRow[] = [];
+  let sheetRows: RateSheetGridRow[] = [];
+  let sheetChannelIds: string[] = [];
+  let sheetVersion: number | null = null;
+  let sheetComputedAt: string | null = null;
+  let sheetWarnings: string[] = [];
+  let listingUrls: Record<string, string> = {};
+  let channelLabels: Record<string, string> = {};
 
   if (propertyId) {
     // Fetch in parallel
@@ -74,6 +84,53 @@ export default async function PricingPage({
         targetDirectDiscountPct: c.targetDirectDiscountPct ?? null,
         listingUrl: c.listingUrl ?? undefined,
       }));
+    channelLabels = Object.fromEntries(channelRows.map((c) => [c.channelId, c.displayName]));
+    listingUrls = Object.fromEntries(channelRows.filter((c) => c.listingUrl).map((c) => [c.channelId, c.listingUrl!]));
+
+    // Computed live rather than read from the last stored sheet, so the grid always reflects current
+    // periods and rates. Nothing is written by rendering a page — `write` is deliberately absent.
+    try {
+      const [{ sheet, skippedChannels }, pushes] = await Promise.all([
+        generateRateSheet(propertyId, {
+          computedAt: new Date().toISOString(),
+          from: new Date().toISOString().slice(0, 10),
+        }),
+        getPushes(propertyId),
+      ]);
+      const pushById = new Map(pushes.map((p) => [p.id, p]));
+      sheetVersion = sheet.version;
+      sheetComputedAt = sheet.computedAt;
+      sheetWarnings = [
+        ...sheet.warnings,
+        ...skippedChannels.map((c) => `${c}: no commission recorded, so it is not priced here.`),
+        ...[...new Set(sheet.rows.filter((r) => r.problem).map((r) => `${r.channelId}: ${r.problem}`))],
+      ];
+      sheetChannelIds = [...new Set(sheet.rows.map((r) => r.channelId))].filter((c) => c !== 'direct');
+      const byPeriod = new Map<string, typeof sheet.rows>();
+      sheet.rows.forEach((r) => byPeriod.set(r.periodId, [...(byPeriod.get(r.periodId) ?? []), r]));
+      sheetRows = [...byPeriod.entries()].map(([periodId, rs]) => {
+        const first = rs[0];
+        return {
+          periodId,
+          periodName: first.periodName,
+          startDate: first.startDate,
+          endDate: first.endDate,
+          nights: first.nights,
+          directNightly: first.directNightly,
+          cells: rs.filter((r) => r.channelId !== 'direct').map((r) => ({
+            channelId: r.channelId,
+            nightly: r.nightly,
+            currency: r.currency,
+            status: (pushById.get(pushId(propertyId, r.channelId, r.periodId))?.status ?? 'none') as RateSheetGridRow['cells'][number]['status'],
+            problem: r.problem,
+          })),
+        };
+      }).sort((a, b) => a.startDate.localeCompare(b.startDate));
+    } catch (e) {
+      // A property with no channels configured cannot have a rate sheet. That is a normal state, not
+      // an error worth blanking the whole pricing admin for.
+      sheetWarnings = [(e as Error).message];
+    }
   }
 
   return (
@@ -106,8 +163,17 @@ export default async function PricingPage({
             <TabsTrigger value="testing">Testing</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="channels">
+          <TabsContent value="channels" className="space-y-6">
             <ChannelsCard rows={channelRows} propertyId={propertyId} />
+            <RateSheetGrid
+              rows={sheetRows}
+              channelIds={sheetChannelIds}
+              channelLabels={channelLabels}
+              listingUrls={listingUrls}
+              version={sheetVersion}
+              computedAt={sheetComputedAt}
+              warnings={sheetWarnings}
+            />
           </TabsContent>
 
           <TabsContent value="seasons">

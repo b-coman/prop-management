@@ -113,6 +113,72 @@ export function headroomPct(channel: ChannelEconomics, direct: DirectEconomics):
   return 1 - (1 - (channel.guestFeePct ?? 0)) * (1 - channel.commissionPct) / (1 - direct.paymentCostPct);
 }
 
+/**
+ * How a channel's guest-facing price is rounded after gross-up. The owner's sheet rounds to the
+ * nearest 5 lei and rounds the VRBO weekday leg UP, so it is per-channel, not a constant.
+ */
+export interface Rounding {
+  /** Round to a multiple of this. 0 or undefined means no rounding. */
+  nearest: number;
+  mode: 'nearest' | 'up' | 'down';
+}
+
+export function applyRounding(value: number, rounding?: Rounding | null): number {
+  if (!rounding?.nearest) return value;
+  const q = value / rounding.nearest;
+  const n = rounding.mode === 'up' ? Math.ceil(q) : rounding.mode === 'down' ? Math.floor(q) : Math.round(q);
+  return n * rounding.nearest;
+}
+
+/**
+ * What a channel must be listed at to net the SAME as a given direct price.
+ *
+ * This is the exact inverse of `headroomPct`: headroom says how far under an OTA price direct can go,
+ * so its reciprocal says how far above a direct price the OTA must sit. Deriving it here rather than
+ * copying the spreadsheet's magic numbers is what makes those numbers legible — the sheet's Booking
+ * factor of ×1.33 is not one decision but three (commission, the Genius discount it prices for, and
+ * margin), and only the last is a choice. `extraAdjustmentPct` is where that choice lives.
+ *
+ * A NEGATIVE extraAdjustmentPct means the channel is listed BELOW net parity — it will show the
+ * cheapest guest price and return the lowest net per night. That is not drift to be preserved
+ * silently; it is a finding to put in front of the owner.
+ */
+export function grossUpFactor(
+  channel: ChannelEconomics,
+  direct: DirectEconomics,
+  extraAdjustmentPct = 0,
+): number {
+  return (1 / (1 - headroomPct(channel, direct))) * (1 + extraAdjustmentPct);
+}
+
+/** The listed nightly price for a channel, given the direct nightly price. */
+export function channelNightly(
+  directNightly: number,
+  channel: ChannelEconomics,
+  direct: DirectEconomics,
+  opts: { extraAdjustmentPct?: number; rounding?: Rounding | null; fxRateToChannelCurrency?: number } = {},
+): number {
+  const raw = directNightly * grossUpFactor(channel, direct, opts.extraAdjustmentPct ?? 0);
+  const converted = opts.fxRateToChannelCurrency ? raw / opts.fxRateToChannelCurrency : raw;
+  return applyRounding(converted, opts.rounding);
+}
+
+/**
+ * Given what a channel is ACTUALLY listed at, recover the deliberate adjustment hiding inside it.
+ * This is how an existing spreadsheet gets decomposed instead of enshrined: feed it the real listed
+ * price and it says how far from net parity that price sits, and in which direction.
+ */
+export function impliedExtraAdjustmentPct(
+  directNightly: number,
+  listedChannelNightly: number,
+  channel: ChannelEconomics,
+  direct: DirectEconomics,
+): number {
+  if (directNightly <= 0) return 0;
+  const structural = grossUpFactor(channel, direct, 0);
+  return (listedChannelNightly / directNightly) / structural - 1;
+}
+
 export function evaluateParity(input: ParityInput): ParityVerdict {
   const { directTotal, otaTotal, otaListTotal, channel, direct, targetDiscountPct } = input;
   const notes: string[] = [];
