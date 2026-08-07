@@ -18,6 +18,7 @@
  * Facts only — these NEVER decide routing; the analyst/router does. Names are never included.
  */
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
+import { normalizeChannel } from '@/lib/channels';
 
 // ── local helpers (kept identical to scripts/situation-pack.ts to guarantee zero behaviour change) ──
 const toDate = (v: unknown): Date | null => {
@@ -97,7 +98,7 @@ export function computeRecentCancellations(allBookings: SignalBooking[], asOf: D
         month: `${b.ci!.getUTCFullYear()}-${String(b.ci!.getUTCMonth() + 1).padStart(2, '0')}`,
         nights: nights(b.ci!, b.co!),
         valueLost: round(priceOf(b)),
-        channel: b.source ?? null,
+        channel: normalizeChannel(b.source) ?? b.source ?? null,
         cancelledDaysAgo: cancelledAt ? nights(cancelledAt, asOf) : null,
       };
     })

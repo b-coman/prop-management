@@ -24,8 +24,9 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
-import { SeasonType, SEASON_MULTIPLIERS } from '@/lib/pricing/price-calculation';
+import { SeasonType } from '@/lib/pricing/price-calculation';
 import { createSeasonalPricing } from '../../actions';
+import { isNextControlFlowError } from '@/lib/next-redirect';
 
 export default function NewSeasonPage() {
   const router = useRouter();
@@ -42,10 +43,10 @@ export default function NewSeasonPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Set default price multiplier when season type changes
-  useEffect(() => {
-    setPriceMultiplier(SEASON_MULTIPLIERS[seasonType]);
-  }, [seasonType]);
+  // NOTE: the season type deliberately does NOT drive the multiplier. It used to, from a hardcoded
+  // ladder {0.7,0.85,1.0,1.2,1.5} that does not match this business's tiers {0.8,0.9,1.0,1.1,1.2,1.3},
+  // so touching the dropdown on an existing season silently repriced it (Easter 1.1 -> 1.2).
+  // seasonType is a label; priceMultiplier is the price. They are set independently.
   
   // Format multiplier for display
   const formatMultiplier = (value: number) => {
@@ -86,26 +87,24 @@ export default function NewSeasonPage() {
     setError(null);
     
     try {
-      const result = await createSeasonalPricing({
-        propertyId,
-        name,
-        seasonType,
-        startDate,
-        endDate,
-        priceMultiplier,
-        minimumStay,
-        enabled: true
-      } as any) as any;
-      
-      if (result?.success) {
-        router.push('/admin/pricing');
-      } else {
-        setError(result?.error || 'Failed to create seasonal pricing rule');
-      }
+      // The action parses FormData (`formDataToObject` calls formData.forEach), so it must be given
+      // FormData — passing a plain object threw a TypeError and made this form unusable.
+      const formData = new FormData();
+      formData.set('propertyId', propertyId);
+      formData.set('name', name);
+      formData.set('seasonType', seasonType);
+      formData.set('startDate', startDate);
+      formData.set('endDate', endDate);
+      formData.set('priceMultiplier', String(priceMultiplier));
+      formData.set('minimumStay', String(minimumStay));
+
+      // On success the action ends in redirect(), which throws NEXT_REDIRECT and never returns —
+      // so there is no result to inspect. Only a genuine failure reaches the catch below.
+      await createSeasonalPricing(formData);
     } catch (err) {
+      if (isNextControlFlowError(err)) throw err; // let Next perform the redirect
       console.error('Error creating seasonal pricing:', err);
-      setError('An unexpected error occurred while creating the seasonal pricing rule');
-    } finally {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred while creating the seasonal pricing rule');
       setLoading(false);
     }
   };

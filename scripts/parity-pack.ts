@@ -14,7 +14,8 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
-import { headroomPct, type ChannelEconomics, type DirectEconomics } from '@/lib/growth/parityMath';
+import { headroomPct } from '@/lib/growth/parityMath';
+import { getParityConfig } from '@/services/channelService';
 import { buildWorklist, computeCoverage, outstandingCells } from '@/lib/growth/parityWorklist';
 import { latestByCell, recordObservation } from '@/services/growth/parityObservations';
 import { cellId } from '@/lib/growth/parityWorklist';
@@ -30,12 +31,10 @@ const GUESTS_ARG = (() => {
 })();
 const BASE = process.env.PARITY_BASE_URL ?? 'https://prahova-chalet.ro';
 
-/** Rates the owner actually pays. Overridable per property via `property.channelPricing`. */
-const DEFAULT_CHANNELS: ChannelEconomics[] = [
-  { channel: 'airbnb', commissionPct: 0.185 },
-  { channel: 'booking.com', commissionPct: 0.23 },
-];
-const DEFAULT_DIRECT: DirectEconomics = { paymentCostPct: 0.029 };
+// Rates come from the `channels` collection — see src/services/channelService.ts. There are no
+// defaults here on purpose: this file used to carry its own copy of the commissions, as did
+// parity-report.ts and set-channel-pricing.ts, and all three still said Airbnb 18.5% long after the
+// owner confirmed 18.755%. A rate that lives in three places is a rate nobody owns.
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const addDays = (d: Date, n: number) => { const x = new Date(d); x.setUTCDate(x.getUTCDate() + n); return x; };
@@ -95,11 +94,19 @@ async function quoteDirect(propertyId: string, checkIn: string, checkOut: string
   const losTiers: number[] = (prop.pricingConfig?.lengthOfStayDiscounts ?? [])
     .filter((t: any) => t.enabled).map((t: any) => t.nightsThreshold).sort((a: number, b: number) => a - b);
 
-  // Channel economics + listing URLs: configured on the property, or the documented defaults.
+  // Probe SHAPE (which occupancies to compare, published school-break dates) is a property-level
+  // setting and stays here. Channel ECONOMICS moved to the `channels` collection.
   const configured = prop.channelPricing ?? null;
-  const channels: ChannelEconomics[] = configured?.channels ?? DEFAULT_CHANNELS;
-  const direct: DirectEconomics = configured?.direct ?? DEFAULT_DIRECT;
-  const listingUrls: Record<string, string> = configured?.listingUrls ?? {};
+
+  // Channel economics + listing URLs, from live config. Throws with instructions if unconfigured.
+  const parityConfig = await getParityConfig(SLUG);
+  const { channels, direct, listingUrls } = parityConfig;
+  if (parityConfig.unstated.length) {
+    console.log(`\nNOTE: active but no commission stated, so excluded from parity: ${parityConfig.unstated.join(', ')}`);
+  }
+  if (parityConfig.inactive.length) {
+    console.log(`NOTE: not selling on: ${parityConfig.inactive.map((c) => `${c.channelId} — ${c.reason ?? 'no reason recorded'}`).join('; ')}`);
+  }
 
   // Airbnb's listing id is recoverable from the iCal feed even when nothing else is configured.
   if (!listingUrls.airbnb) {
@@ -436,10 +443,10 @@ async function quoteDirect(propertyId: string, checkIn: string, checkOut: string
     economics: {
       direct,
       channels: channels.map((c) => ({ ...c, headroomPct: Number(headroomPct(c, direct).toFixed(4)) })),
-      configured: !!configured,
-      note: configured
-        ? 'rates read from property.channelPricing'
-        : 'rates are the documented DEFAULTS — persist them on property.channelPricing to make this authoritative',
+      source: 'channels collection (channelService.getParityConfig)',
+      note: 'Owner-stated rates. There are no fallback defaults — if this pack exists, the rates are real.',
+      unstated: parityConfig.unstated,
+      inactive: parityConfig.inactive,
     },
     listingUrls,
     property: { baseOccupancy, maxGuests, compareOccupancies, occupancyNote, cleaningFee: prop.cleaningFee ?? null, extraGuestFee: prop.extraGuestFee ?? null, losTiers },

@@ -18,6 +18,7 @@ import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { getPageHealth, getAdAccountHealth } from '@/services/growth/metaAds/brandHealth';
 import { computeRecentCancellations, computeOutreachLedger } from '@/lib/growth/signals';
 import { getNotesByGuest, isTouch } from '@/services/guestNoteService';
+import { normalizeChannel } from '@/lib/channels';
 
 const toD = (v: any): Date | null =>
   v?._seconds ? new Date(v._seconds * 1000) : v?.toDate ? v.toDate() : typeof v === 'string' ? new Date(v) : v instanceof Date ? v : null;
@@ -60,14 +61,36 @@ export async function buildSituationPack(
   const generator = opts?.generator ?? 'src/lib/growth/situationPack.ts';
 
   const db = await getAdminDb();
-  const [bSnap, gSnap, aSnap, rSnap, tSnap, notesByGuest] = await Promise.all([
+  const [bSnap, gSnap, aSnap, rSnap, tSnap, notesByGuest, cSnap] = await Promise.all([
     db.collection('bookings').get(),
     db.collection('guests').get(),
     db.collection('availability').get(),
     db.collection('reviews').get(),
     db.collection('whatsappThreads').get(),
     getNotesByGuest(),
+    db.collection('priceCalendars').where('propertyId', '==', propertyId).get(),
   ]);
+
+  // ---------- what the property is ASKING, per night ----------
+  // The pack used to carry two hardcoded claims about pricing: that in-system pricing was not live,
+  // and that the minimum stay was 2 nights everywhere. Both are read from the calendar now. The
+  // min-stay one was materially wrong on the year's most valuable dates (24-27 and 30-31 Dec require
+  // 3), which made orphanNights and unsellableUnderMinStay wrong exactly there.
+  const minStayByDate = new Map<string, number>();
+  const askingByDate = new Map<string, number>();
+  cSnap.docs.forEach(d => {
+    const data: any = d.data();
+    const mo = `${data.year}-${String(data.month).padStart(2, '0')}`;
+    Object.entries(data.days || {}).forEach(([day, v]: [string, any]) => {
+      const key = `${mo}-${String(day).padStart(2, '0')}`;
+      if (typeof v?.minimumStay === 'number') minStayByDate.set(key, v.minimumStay);
+      if (typeof v?.adjustedPrice === 'number') askingByDate.set(key, v.adjustedPrice);
+    });
+  });
+  const minStayValues = [...minStayByDate.values()];
+  const baseMinStay = minStayValues.length ? Math.min(...minStayValues) : 1;
+  const maxMinStay = minStayValues.length ? Math.max(...minStayValues) : 1;
+  const minStayFor = (dateStr: string) => minStayByDate.get(dateStr) ?? baseMinStay;
 
   const price = (b: any) => b.pricing?.total ?? b.pricing?.totalPrice ?? 0;
 
@@ -100,15 +123,29 @@ export async function buildSituationPack(
         'that is apples-to-oranges. Pace analysis is valid PROSPECTIVELY only, from 2026-02 onward.',
     },
     pricing: {
-      systemPricingInUse: false,
-      note:
-        'Real rates are managed on Booking.com / Airbnb / VRBO. The pricing config, price calendars ' +
-        'and seasonal rules in this system are NOT yet driving sales, and there is no direct booking ' +
-        'engine live. "direct" bookings are phone bookings arranged by the owner personally.',
+      // Derived, not asserted: a populated calendar means the direct booking engine quotes from these
+      // rules. (This was hardcoded `false` with a note saying no direct engine was live — untrue since
+      // the engine went live, and the analyst method tells you to read this block before reasoning
+      // about price, so it made the `price` and `ota` instruments unreachable.)
+      systemPricingInUse: cSnap.size > 0,
+      calendarsLoaded: cSnap.size,
+      askingPriceNightsKnown: askingByDate.size,
+      note: cSnap.size > 0
+        ? 'The direct booking engine quotes from these price calendars — inventory.freeRuns carries ' +
+          'askingAdr per run, which is the CURRENT ask, distinct from baselineAdr (historical achieved, ' +
+          'net-of-commission). Rates on Booking.com / Airbnb / VRBO are set separately by the owner and ' +
+          'are NOT in this pack; do not assume the direct ask equals any channel price.'
+        : 'No price calendars found — the direct ask is unknown for this property.',
     },
     constraints: {
-      minStayNights: 2,
-      note: 'Owner-stated: min-stay is 2 nights year-round, with higher minimums only at Christmas, New Year and school breaks. A free run shorter than the minimum cannot be booked as-is.',
+      // Read per-date from the price calendars rather than assumed. A run is only sellable if it meets
+      // the minimum on ITS OWN dates, which is higher over Christmas and New Year.
+      minStayNights: baseMinStay,
+      maxMinStayNights: maxMinStay,
+      note: `Minimum stay VARIES by date (read from priceCalendars.days[].minimumStay): most nights ` +
+        `require ${baseMinStay}, peaks require up to ${maxMinStay}. orphanNights and ` +
+        `unsellableUnderMinStay are evaluated against each run's OWN minimum, not a single figure. ` +
+        `A free run shorter than its own minimum cannot be booked as-is.`,
     },
     baselineCaveat:
       'performance.monthOfYearBaseline averages 2022-2026, which include large NON-RECURRING foreign ' +
@@ -142,7 +179,10 @@ export async function buildSituationPack(
     for (let d = new Date(b.ci!); d < b.co!; d = new Date(+d + 86400000)) {
       ledger.push({
         date: ymd(d), year: d.getUTCFullYear(), month: d.getUTCMonth() + 1,
-        rate: perNight, src: b.source || 'unknown',
+        // Normalised, so one channel is one row: the live data contains a `travelmint` typo and
+        // in-flight direct bookings say `website-pending`. Unmapped values stay VISIBLE rather than
+        // being dropped or bucketed — a channel nothing recognises is worth seeing in the report.
+        rate: perNight, src: normalizeChannel(b.source) ?? (b.source ? `unmapped:${b.source}` : 'unknown'),
         country, foreign: country !== 'RO' && country !== 'unknown', bid: b.id,
       });
     }
@@ -509,9 +549,10 @@ export async function buildSituationPack(
   // So a 1-NIGHT gap is UNSELLABLE: no one can book it. It only clears if the adjacent guest
   // extends into it, or the owner drops min-stay to 1 for that night. It is NOT a campaign target.
   // A 2-night gap is the minimum sellable unit — a real, fillable opportunity.
-  const MIN_STAY = 2;
-  const unsellableRuns = runs.filter(r => r.nights < MIN_STAY);   // 1-night → dead unless neighbour extends
-  const orphanRuns = runs.filter(r => r.nights === MIN_STAY);     // exactly at the floor — smallest real opportunity
+  // Each run is judged against the minimum that applies on its OWN start date.
+  const runMinStay = (r: { start: string }) => minStayFor(r.start);
+  const unsellableRuns = runs.filter(r => r.nights < runMinStay(r));  // shorter than its own floor → dead
+  const orphanRuns = runs.filter(r => r.nights === runMinStay(r));    // exactly at the floor — smallest real opportunity
   const forwardMonths = [...new Set(forwardDates.map(d => d.slice(0, 7)))].map(m => {
     const days = forwardDates.filter(d => d.startsWith(m));
     const booked = days.filter(d => availByDate.has(d) && !availByDate.get(d)).length;
@@ -585,12 +626,12 @@ export async function buildSituationPack(
         freeRuns: runs.slice(0, 25).map(priceRun),
         recentCancellations,
         orphanNights: {
-          definition: `free runs of exactly ${MIN_STAY} nights (equal to the min-stay minimum in dataQuality.constraints)`,
+          definition: `free runs exactly equal to the minimum stay that applies on their own start date (varies by date; see dataQuality.constraints)`,
           count: orphanRuns.length,
           runs: orphanRuns.slice(0, 20).map(priceRun),
         },
         unsellableUnderMinStay: {
-          definition: `free runs SHORTER than the ${MIN_STAY}-night minimum (dataQuality.constraints.minStayNights) — cannot be booked as-is under that minimum`,
+          definition: `free runs SHORTER than the minimum stay applying on their own start date — cannot be booked as-is`,
           count: unsellableRuns.length,
           runs: unsellableRuns.slice(0, 20).map(priceRun),
         },

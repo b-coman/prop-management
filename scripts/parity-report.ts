@@ -11,32 +11,27 @@
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
-import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { buildWorklist, computeCoverage, outstandingCells, cellId, type ProbeInput } from '@/lib/growth/parityWorklist';
 import { latestByCell, type ObservationRecord } from '@/services/growth/parityObservations';
-import { evaluateParity, bestOffer, channelSpreadPct, type ChannelEconomics, type DirectEconomics } from '@/lib/growth/parityMath';
+import { evaluateParity, bestOffer, channelSpreadPct } from '@/lib/growth/parityMath';
+import { getParityConfig } from '@/services/channelService';
 
 const SLUG = process.argv[2]?.startsWith('--') ? 'prahova-mountain-chalet' : (process.argv[2] ?? 'prahova-mountain-chalet');
 const AS_JSON = process.argv.includes('--json');
 const num = (n: string, d: number) => { const i = process.argv.indexOf(`--${n}`); return i > -1 ? Number(process.argv[i + 1]) : d; };
-const TARGET = num('target', 0.075);
+/** `--target` overrides; otherwise the owner's configured direct discount, read below. */
+const TARGET_ARG = process.argv.includes('--target') ? num('target', 0.075) : null;
 const FRESH_DAYS = num('fresh-days', 42);
-
-const DEFAULT_CHANNELS: ChannelEconomics[] = [
-  { channel: 'airbnb', commissionPct: 0.185 },
-  { channel: 'booking.com', commissionPct: 0.23 },
-];
-const DEFAULT_DIRECT: DirectEconomics = { paymentCostPct: 0.029 };
 
 const pct = (x: number) => `${x >= 0 ? '+' : ''}${(x * 100).toFixed(1)}%`;
 const LABEL: Record<string, string> = { losing: 'LOSING', thin: 'thin', healthy: 'OK', overshoot: 'TOO LOW' };
 
 (async () => {
-  const db = await getAdminDb();
-  const prop = (await db.collection('properties').doc(SLUG).get()).data() as any;
-  const configured = prop?.channelPricing ?? null;
-  const channels: ChannelEconomics[] = configured?.channels ?? DEFAULT_CHANNELS;
-  const direct: DirectEconomics = configured?.direct ?? DEFAULT_DIRECT;
+  // Rates from the `channels` collection. No defaults: a parity verdict computed against a guessed
+  // commission looks authoritative and is wrong in a direction the reader cannot see.
+  const parityConfig = await getParityConfig(SLUG);
+  const { channels, direct } = parityConfig;
+  const TARGET = TARGET_ARG ?? parityConfig.targetDiscountPct;
 
   const observations = [...(await latestByCell(SLUG)).values()];
   if (!observations.length) {
@@ -79,12 +74,23 @@ const LABEL: Record<string, string> = { losing: 'LOSING', thin: 'thin', healthy:
       .map((x) => ({ channel: x.econ.channel, otaTotal: x.o!.guestTotal!, list: x.o!.listTotal ?? undefined, econ: x.econ }));
 
     let verdict = '', gap = '', floor = '', spread = '';
-    if (d?.status === 'captured' && offers.length) {
+    // A verdict needs EVERY channel resolved. "Best offer" means cheapest across all of them, so a
+    // verdict computed on a subset can be wrong in the dangerous direction — judging against only the
+    // dearest captured channel reads TOO LOW when the truth may be LOSING. Resolved includes refusals
+    // (a channel that will not quote cannot be the cheapest).
+    const resolvedChannels = channels.filter((c) => {
+      const o = get(p, c.channel);
+      return o && (o.status === 'captured' || o.status === 'refused' || o.status === 'unavailable');
+    }).length;
+    const allChannelsIn = resolvedChannels === channels.length;
+    if (d?.status === 'captured' && offers.length && allChannelsIn) {
       const best = bestOffer(offers)!;
       const v = evaluateParity({ directTotal: d.guestTotal!, otaTotal: best.otaTotal, otaListTotal: best.list, channel: best.econ, direct, targetDiscountPct: TARGET });
       verdict = LABEL[v.status]; gap = pct(v.guestGapPct); floor = String(Math.round(v.indifferencePrice));
       const sp = channelSpreadPct(offers);
       spread = sp !== null ? `${(sp * 100).toFixed(0)}%` : '—';
+    } else if (d?.status === 'captured' && offers.length && !allChannelsIn) {
+      verdict = `partial ${resolvedChannels}/${channels.length}`; gap = '—'; floor = '—'; spread = '—';
     } else {
       verdict = 'no verdict'; gap = '—'; floor = '—'; spread = '—';
     }
@@ -101,7 +107,13 @@ const LABEL: Record<string, string> = { losing: 'LOSING', thin: 'thin', healthy:
   console.log(`DIRECT vs ${channelNames.map((c) => c.toUpperCase()).join(' vs ')} — ${SLUG}`);
   console.log(`target: direct ≥${(TARGET * 100).toFixed(1)}% under the cheapest channel · ` +
               channels.map((c) => `${c.channel} ${(c.commissionPct * 100).toFixed(1)}%`).join(' · ') +
-              ` · cards ${(direct.paymentCostPct * 100).toFixed(1)}%` + (configured ? '' : '  [RATES ARE DEFAULTS]'));
+              ` · cards ${(direct.paymentCostPct * 100).toFixed(1)}%`);
+  if (parityConfig.unstated.length || parityConfig.inactive.length) {
+    console.log(
+      [parityConfig.unstated.length ? `no commission stated (excluded): ${parityConfig.unstated.join(', ')}` : '',
+       parityConfig.inactive.length ? `not selling on: ${parityConfig.inactive.map((c) => c.channelId).join(', ')}` : '',
+      ].filter(Boolean).join(' · '));
+  }
   console.log('='.repeat(W));
   console.log('dates                        n  g  direct ' + channelNames.map((c) => c.slice(0, 7).padStart(7)).join(' ') + ' | gap      verdict   floor spread');
   console.log('-'.repeat(W));
@@ -113,6 +125,7 @@ const LABEL: Record<string, string> = { losing: 'LOSING', thin: 'thin', healthy:
   }
   console.log('-'.repeat(W));
   console.log(`? = never captured · n/a = channel refuses to quote · full = dates taken · ERR = capture failed`);
+  console.log(`a verdict needs ALL ${channels.length} channels resolved — "partial n/m" means the cheapest channel may not be captured yet`);
   console.log(`\nCOVERAGE  ${coverage.captured} captured · ${coverage.refused} refused · ${coverage.unavailable} full · ` +
               `${coverage.errored} error · ${coverage.missing} MISSING  of ${coverage.total} cells  (${(coverage.resolvedPct * 100).toFixed(0)}% resolved)` +
               (coverage.oldestAgeDays !== null ? ` · oldest ${coverage.oldestAgeDays}d` : ''));

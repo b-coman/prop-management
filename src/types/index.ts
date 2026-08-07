@@ -115,11 +115,9 @@ export interface Property {
   themeId?: string; // ID of the design theme to use
   ownerId?: string; // User ID of the property owner
   ownerEmail?: string; // Email address for notifications (inquiries, bookings)
-  channelIds?: { // For external platform sync
-    airbnb?: string;
-    booking_com?: string;
-    vrbo?: string;
-  };
+  // NOTE: `channelIds` was removed 2026-08-07. It was declared but null on every property and read by
+  // nothing — a fourth channel vocabulary (`booking_com`) that existed only in the type. Channels now
+  // live in the `channels` collection; see src/lib/channels.ts for the one canonical vocabulary.
   analytics?: {
     enabled: boolean;
     googleAnalyticsId?: string;

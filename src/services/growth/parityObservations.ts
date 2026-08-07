@@ -25,6 +25,17 @@ export interface ObservationRecord extends Observation {
   /** Login state / currency the capture was made in — a Genius or host session skews the number. */
   sessionState?: string;
   capturedBy?: string;
+  /**
+   * Currency conversion, kept explicit. `guestTotal` is ALWAYS in the comparison currency (RON) so the
+   * maths never mixes units, but a converted figure must stay re-derivable: some channels cannot quote
+   * in RON at all (VRBO has no Romanian region — currency is bound to region), so their number is
+   * necessarily converted. Storing only the result would leave a figure nobody could audit or correct
+   * when the rate moves.
+   */
+  rawTotal?: number | null;
+  rawCurrency?: string;
+  fxRateToRon?: number;
+  fxRateSource?: string;
 }
 
 export interface RecordObservationInput {
@@ -46,6 +57,14 @@ export interface RecordObservationInput {
   capturedBy?: string;
   /** Injected so a batch of captures can share one timestamp; defaults to now. */
   capturedAt?: string;
+  /** The figure exactly as the page displayed it, before any conversion. */
+  rawTotal?: number | null;
+  /** Currency of `rawTotal`. Defaults to RON (no conversion). */
+  rawCurrency?: string;
+  /** Multiplier from `rawCurrency` to RON. Required whenever rawCurrency is not RON. */
+  fxRateToRon?: number;
+  /** Where the rate came from — a converted price with an unattributed rate is not evidence. */
+  fxRateSource?: string;
 }
 
 /**
@@ -60,6 +79,20 @@ export async function recordObservation(input: RecordObservationInput): Promise<
     throw new Error(`cell ${input.cellId}: status '${input.status}' requires a reason — a blank is not an outcome`);
   }
 
+  // Conversion must be explicit and attributed. A foreign-currency capture with no rate would either
+  // be silently treated as RON (wrong by a factor of ~4.5) or silently dropped.
+  const rawCurrency = (input.rawCurrency ?? 'RON').toUpperCase();
+  const needsFx = rawCurrency !== 'RON';
+  if (needsFx && !input.fxRateToRon) {
+    throw new Error(`cell ${input.cellId}: ${rawCurrency} capture requires --fx (rate to RON)`);
+  }
+  if (needsFx && !input.fxRateSource) {
+    throw new Error(`cell ${input.cellId}: a converted price requires --fx-source (who says so, and when)`);
+  }
+  const guestTotalRon = input.status === 'captured'
+    ? Math.round((input.guestTotal as number) * (needsFx ? input.fxRateToRon! : 1))
+    : null;
+
   const db = await getAdminDb();
   const capturedAt = input.capturedAt ?? new Date().toISOString();
   const doc: ObservationRecord & { createdAt: unknown } = {
@@ -71,8 +104,12 @@ export async function recordObservation(input: RecordObservationInput): Promise<
     guests: input.guests,
     channel: input.channel,
     status: input.status,
-    guestTotal: input.guestTotal ?? null,
-    listTotal: input.listTotal ?? null,
+    // Always the comparison currency, so downstream maths never mixes units.
+    guestTotal: guestTotalRon,
+    listTotal: input.listTotal != null ? Math.round(input.listTotal * (needsFx ? input.fxRateToRon! : 1)) : null,
+    rawTotal: input.guestTotal ?? null,
+    rawCurrency,
+    ...(needsFx ? { fxRateToRon: input.fxRateToRon, fxRateSource: input.fxRateSource } : {}),
     promoActive: input.promoActive ?? false,
     ...(input.reason ? { reason: input.reason } : {}),
     source: input.source,
@@ -85,7 +122,8 @@ export async function recordObservation(input: RecordObservationInput): Promise<
 
   const ref = await db.collection(COLLECTION).add(doc);
   logger.info('parity observation recorded', {
-    cellId: input.cellId, channel: input.channel, status: input.status, total: input.guestTotal ?? null,
+    cellId: input.cellId, channel: input.channel, status: input.status,
+    totalRon: guestTotalRon, raw: input.guestTotal ?? null, currency: rawCurrency,
   });
   return ref.id;
 }

@@ -14,10 +14,11 @@ import { EditDayDialog } from './edit-day-dialog';
 import { useToast } from '@/hooks/use-toast';
 
 interface PriceCalendarDisplayProps {
+  currency?: string;
   priceCalendars: any[];
 }
 
-export function PriceCalendarDisplay({ priceCalendars: initialCalendars }: PriceCalendarDisplayProps) {
+export function PriceCalendarDisplay({ priceCalendars: initialCalendars, currency = 'RON' }: PriceCalendarDisplayProps) {
   // Store the calendars in local state so we can update them
   const [calendars, setCalendars] = useState<any[]>(initialCalendars);
   const [selectedCalendarId, setSelectedCalendarId] = useState<string>(
@@ -275,7 +276,7 @@ export function PriceCalendarDisplay({ priceCalendars: initialCalendars }: Price
                   </div>
 
                   <div className={`text-xs font-semibold ${isUnavailable ? 'line-through' : ''} mb-auto mt-0.5`}>
-                    {formatPrice(dayPrice)}
+                    {formatPrice(dayPrice, currency)}
                   </div>
 
                   <div className="mt-auto text-[10px]">
@@ -460,19 +461,19 @@ export function PriceCalendarDisplay({ priceCalendars: initialCalendars }: Price
                     <div className="grid grid-cols-3 gap-4">
                       <SummaryCard 
                         title="Minimum Price" 
-                        value={formatPrice(selectedCalendar.summary.minPrice)}
+                        value={formatPrice(selectedCalendar.summary.minPrice, currency)}
                         icon="💰"
                         color="emerald" 
                       />
                       <SummaryCard 
                         title="Maximum Price" 
-                        value={formatPrice(selectedCalendar.summary.maxPrice)}
+                        value={formatPrice(selectedCalendar.summary.maxPrice, currency)}
                         icon="💸"
                         color="rose" 
                       />
                       <SummaryCard 
                         title="Average Price" 
-                        value={formatPrice(selectedCalendar.summary.avgPrice)}
+                        value={formatPrice(selectedCalendar.summary.avgPrice, currency)}
                         icon="⚖️"
                         color="blue" 
                       />

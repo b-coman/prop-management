@@ -249,9 +249,12 @@ export default function EditDateOverridePage() {
                   Is this date available for booking?
                 </p>
               </div>
+              {/* Radix Switch renders a checkbox that is OMITTED from FormData when unchecked, so
+                   z.coerce.boolean().default(true) resolved unchecked to TRUE. Carry the real value in
+                   a hidden field instead and leave the Switch purely visual. */}
+              <input type="hidden" name="available" value={available ? 'yes' : ''} />
               <Switch
                 id="available"
-                name="available"
                 checked={available}
                 onCheckedChange={setAvailable}
                 disabled={submitting}
@@ -266,9 +269,12 @@ export default function EditDateOverridePage() {
                   Use the same price regardless of number of guests
                 </p>
               </div>
+              {/* Radix Switch renders a checkbox that is OMITTED from FormData when unchecked, so
+                   z.coerce.boolean().default(true) resolved unchecked to TRUE. Carry the real value in
+                   a hidden field instead and leave the Switch purely visual. */}
+              <input type="hidden" name="flatRate" value={flatRate ? 'yes' : ''} />
               <Switch
                 id="flatRate"
-                name="flatRate"
                 checked={flatRate}
                 onCheckedChange={setFlatRate}
                 disabled={submitting}

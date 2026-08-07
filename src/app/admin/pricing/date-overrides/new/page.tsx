@@ -19,6 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
 import { createDateOverride } from '../../actions';
+import { isNextControlFlowError } from '@/lib/next-redirect';
 
 export default function NewDateOverridePage() {
   const router = useRouter();
@@ -69,24 +70,25 @@ export default function NewDateOverridePage() {
     setError(null);
     
     try {
-      const result = await createDateOverride({
-        propertyId,
-        date,
-        customPrice: customPriceValue,
-        reason: reason || undefined,
-        minimumStay: minimumStayValue,
-        available,
-        flatRate
-      } as any) as any;
-      
-      if (result?.success) {
-        router.push('/admin/pricing');
-      } else {
-        setError(result?.error || 'Failed to create date override');
-      }
+      // The action parses FormData (`formDataToObject` calls formData.forEach), so it must be given
+      // FormData — passing a plain object threw a TypeError and made this form unusable.
+      // Booleans are sent as explicit 'true'/'false': z.coerce.boolean() treats ANY non-empty string
+      // as true, so omitting a false value (or sending the string "false") would store true.
+      const formData = new FormData();
+      formData.set('propertyId', propertyId);
+      formData.set('date', date);
+      formData.set('customPrice', String(customPriceValue));
+      if (reason) formData.set('reason', reason);
+      formData.set('minimumStay', String(minimumStayValue));
+      formData.set('available', available ? 'yes' : '');
+      formData.set('flatRate', flatRate ? 'yes' : '');
+
+      // On success the action ends in redirect(), which throws NEXT_REDIRECT and never returns.
+      await createDateOverride(formData);
     } catch (err) {
+      if (isNextControlFlowError(err)) throw err; // let Next perform the redirect
       console.error('Error creating date override:', err);
-      setError('An unexpected error occurred while creating the date override');
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred while creating the date override');
     } finally {
       setLoading(false);
     }

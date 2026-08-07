@@ -166,6 +166,18 @@ export async function updateBookingPaymentInfo(
             updatedAt: clientServerTimestamp(),
         };
 
+        // Promote the provisional source to the real channel. A web booking is created as
+        // 'website-pending' / 'website-hold' and nothing ever rewrote it, so a PAID direct booking kept
+        // a pending-looking source forever — splitting the "direct" bucket across four spellings in
+        // every channel-mix figure (revenue dashboard, situationPack.channels).
+        const provisionalSources = ['website-pending', 'website-hold'];
+        if (typeof bookingData.source === 'string' && provisionalSources.includes(bookingData.source)) {
+            updatePayload.source = 'direct';
+            logger.info('Promoted provisional booking source on payment', {
+                bookingId, from: bookingData.source, to: 'direct',
+            });
+        }
+
         // Update specific payment fields
         if (isHoldPayment) {
             // Validate hold currency if provided
