@@ -14,6 +14,7 @@ import * as path from 'path';
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
 import { generateRateSheet, getPushes, markApplied, verifyPushesFromObservations } from '@/services/rateSheetService';
+import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { getChannels } from '@/services/channelService';
 import { grossUpFactor, impliedExtraAdjustmentPct } from '@/lib/growth/parityMath';
 import { CHANNEL_LABELS, type ChannelId } from '@/lib/channels';
@@ -71,31 +72,51 @@ const pct = (n: number, dp = 1) => `${n >= 0 ? '+' : ''}${(n * 100).toFixed(dp)}
     const set = await getChannels(SLUG);
     const direct = set.byId.get('direct')?.directEconomics;
     if (!direct) throw new Error('No direct economics configured.');
-    const SHEET_BASE = 475;
+
+    // THE ANCHOR MATTERS, and an earlier version of this got it wrong: it used the sheet's
+    // `airbnb_w_price = 475` as if that were the direct price. It is not — it is the base the sheet
+    // derives the AIRBNB column from. The direct base is `property.pricePerNight`. Measuring a
+    // channel against the wrong anchor understates the gap and describes a relationship that does
+    // not exist.
+    const db = await getAdminDb();
+    const prop = (await db.collection('properties').doc(SLUG).get()).data() as Record<string, any> | undefined;
+    const directBase = prop?.pricePerNight;
+    if (!directBase) throw new Error(`No pricePerNight on ${SLUG}.`);
+
+    const SHEET_AIRBNB_BASE = 475;   // airbnb_w_price
     const SHEET_LISTED: Partial<Record<ChannelId, number>> = {
-      airbnb: 475 * 1.10,          // airbnb_w_price × airbnb_correction
-      'booking.com': 475 * 1.33,   // bk_factor
+      airbnb: SHEET_AIRBNB_BASE * 1.10,          // × airbnb_correction
+      'booking.com': SHEET_AIRBNB_BASE * 1.33,   // × bk_factor
     };
 
-    console.log(`\n=== what your listings encode — ${SLUG} ===`);
-    console.log(`Reference: the sheet's weekday base of ${SHEET_BASE} RON.\n`);
-    console.log('channel        commission  net-parity factor  your factor  deliberate margin');
-    console.log('-'.repeat(78));
+    console.log(`\n=== how each channel sits against DIRECT — ${SLUG} ===`);
+    console.log(`Direct base (property.pricePerNight): ${directBase} RON/night, weekday base tier.`);
+    console.log(`Channel prices from the sheet's constants (airbnb base ${SHEET_AIRBNB_BASE}).\n`);
+    console.log('channel        commission   listed   vs direct   needed for equal net   difference');
+    console.log('-'.repeat(84));
     for (const c of set.byId.values()) {
       if (c.channelId === 'direct' || !c.economics) continue;
       const structural = grossUpFactor(c.economics, direct);
       const listed = SHEET_LISTED[c.channelId];
-      const implied = listed ? impliedExtraAdjustmentPct(SHEET_BASE, listed, c.economics, direct) : null;
+      const needed = directBase * structural;
+      const implied = listed ? impliedExtraAdjustmentPct(directBase, listed, c.economics, direct) : null;
       console.log(
         `${CHANNEL_LABELS[c.channelId].padEnd(14)} ${(c.economics.commissionPct * 100).toFixed(2).padStart(9)}%  ` +
-        `${structural.toFixed(3).padStart(16)}  ` +
-        `${(listed ? (listed / SHEET_BASE).toFixed(3) : '—').padStart(11)}  ` +
-        `${(implied == null ? '— (not in the sheet)' : pct(implied)).padStart(17)}`,
+        `${(listed ? listed.toFixed(0) : '—').padStart(7)}  ` +
+        `${(listed ? `${(listed / directBase).toFixed(3)}×` : '—').padStart(10)}  ` +
+        `${`${needed.toFixed(0)} (${structural.toFixed(3)}×)`.padStart(21)}  ` +
+        `${(implied == null ? '— (not in sheet)' : pct(implied)).padStart(11)}`,
       );
     }
     console.log(
-      '\nA NEGATIVE margin means the channel is listed BELOW the factor that would make it pay the same\n' +
-      'as a direct booking — so it necessarily shows the cheapest guest price and returns the least.',
+      '\n"Needed for equal net" is the price at which a booking on that channel pays you the SAME as a\n' +
+      'direct booking, after its commission and your card costs. It is a REFERENCE LINE, not a target.\n' +
+      '\n' +
+      'A negative difference means the channel currently pays you less per night than direct does.\n' +
+      'That can be perfectly deliberate — an OTA that brings guests you would not otherwise reach is\n' +
+      'worth accepting less from. What this cannot tell you is whether the gap should close by moving\n' +
+      'the channel price, moving the direct price, or not at all. That is a demand judgement, and it\n' +
+      'is yours; this tool only measures where the lines currently are.',
     );
     return;
   }

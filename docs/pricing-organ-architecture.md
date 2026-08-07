@@ -143,24 +143,33 @@ most valuable single output of this design:
 Computed with `parityMath.headroomPct()` against the persisted rates, and the sheet's own base
 (475 weekday) versus its per-channel listed prices:
 
-| Channel | Headroom | Structural factor (net-parity) | Owner's sheet | Implied `extraAdjustmentPct` |
-|---|---|---|---|---|
-| Booking.com (23% comm.) | 20.70% | **×1.261** | ×1.330 | **+5.5%** — deliberate extra margin |
-| VRBO (20% comm.) | 17.61% | **×1.214** | — (derived from Airbnb ÷ 4.5) | — |
-| Airbnb (**18.755%** comm.) | 16.32% | **×1.195** | ×1.100 | **−8.0%** — *under* net parity |
+Measured against the **direct base price of 525** (`property.pricePerNight`):
 
-*Corrected 2026-08-07 against the persisted rates and computed by `parityMath.impliedExtraAdjustmentPct`
-(`npx tsx scripts/rate-sheet.ts --decompose`). An earlier draft of this table used a 15.65% Airbnb rate
-and reported −4.0%. The owner's confirmed rate is 15.5% host-only × 1.21 RO VAT = **18.755%**, which
-doubles the shortfall.*
+| Channel | Comm. | Listed | vs direct | Needed for equal net | Difference |
+|---|---|---|---|---|---|
+| Airbnb | 18.755% | 523 | 0.995× | 627 (**×1.195**) | **−16.7%** |
+| Booking.com | 23.00% | 632 | 1.203× | 662 (**×1.261**) | **−4.6%** |
+| VRBO | 20.00% | — (Airbnb ÷ 4.5) | — | 637 (**×1.214**) | — |
 
-**That negative number explains the entire parity finding.** Airbnb has been grossed up *below* the
-factor that would equalise net, so it necessarily shows the cheapest guest price and returns the
-lowest net per night. The 2026-08 measurement — Airbnb the cheapest channel in 20 of 22 comparable
-windows, direct losing 9 of 15 — is not drift. It is the arithmetic consequence of a gross-up set for
-the member discount but never checked against commission. At the true 18.755% the shortfall is 8%:
-a night listed at the sheet's Airbnb price pays the owner LESS than the same night sold direct at base
-(`grossUp.test.ts` asserts exactly this).
+*Twice corrected, 2026-08-07. The first draft used a 15.65% Airbnb commission (real: 15.5% host-only ×
+1.21 RO VAT = **18.755%**). The second used the sheet's `airbnb_w_price = 475` as the anchor — but 475
+is the base the AIRBNB column is derived from, **not the direct price**. Against the real direct base
+of 525 the gaps are larger and Booking is also mildly under, not over. Reproduce with
+`npx tsx scripts/rate-sheet.ts --decompose`.*
+
+**"Needed for equal net" is a reference line, not a target.** It says where a channel price would have
+to be for a booking there to pay the same as a direct booking. It does not say the channel price should
+move: accepting less from an OTA that reaches guests the direct site never would is a legitimate
+strategy, and which lever to pull — channel price, direct price, or neither — is the owner's demand
+judgement. The system measures; it does not prescribe.
+
+**That negative number explains the entire parity finding.** Airbnb is listed at essentially the
+direct price (522.5 against 525) while also taking 18.755%, so it necessarily shows the cheapest guest
+price and returns the lowest net per night. The 2026-08 measurement — Airbnb the cheapest channel in 20
+of 22 comparable windows, direct losing 9 of 15 — is not drift. It is the arithmetic consequence of a
+channel price and a direct price that were maintained independently of each other.
+`grossUp.test.ts` asserts the consequence and nothing more: a night sold on Airbnb at the sheet's price
+pays less than the same night sold direct. What should change, if anything, is not the code's call.
 
 Direct is grossed up by nothing, so it is structurally the cheapest window at comparable net — the
 owner's five-year practice, now derived rather than hand-maintained. `indifferencePrice` becomes the
