@@ -79,12 +79,23 @@ const LABEL: Record<string, string> = { losing: 'LOSING', thin: 'thin', healthy:
       .map((x) => ({ channel: x.econ.channel, otaTotal: x.o!.guestTotal!, list: x.o!.listTotal ?? undefined, econ: x.econ }));
 
     let verdict = '', gap = '', floor = '', spread = '';
-    if (d?.status === 'captured' && offers.length) {
+    // A verdict needs EVERY channel resolved. "Best offer" means cheapest across all of them, so a
+    // verdict computed on a subset can be wrong in the dangerous direction — judging against only the
+    // dearest captured channel reads TOO LOW when the truth may be LOSING. Resolved includes refusals
+    // (a channel that will not quote cannot be the cheapest).
+    const resolvedChannels = channels.filter((c) => {
+      const o = get(p, c.channel);
+      return o && (o.status === 'captured' || o.status === 'refused' || o.status === 'unavailable');
+    }).length;
+    const allChannelsIn = resolvedChannels === channels.length;
+    if (d?.status === 'captured' && offers.length && allChannelsIn) {
       const best = bestOffer(offers)!;
       const v = evaluateParity({ directTotal: d.guestTotal!, otaTotal: best.otaTotal, otaListTotal: best.list, channel: best.econ, direct, targetDiscountPct: TARGET });
       verdict = LABEL[v.status]; gap = pct(v.guestGapPct); floor = String(Math.round(v.indifferencePrice));
       const sp = channelSpreadPct(offers);
       spread = sp !== null ? `${(sp * 100).toFixed(0)}%` : '—';
+    } else if (d?.status === 'captured' && offers.length && !allChannelsIn) {
+      verdict = `partial ${resolvedChannels}/${channels.length}`; gap = '—'; floor = '—'; spread = '—';
     } else {
       verdict = 'no verdict'; gap = '—'; floor = '—'; spread = '—';
     }
@@ -113,6 +124,7 @@ const LABEL: Record<string, string> = { losing: 'LOSING', thin: 'thin', healthy:
   }
   console.log('-'.repeat(W));
   console.log(`? = never captured · n/a = channel refuses to quote · full = dates taken · ERR = capture failed`);
+  console.log(`a verdict needs ALL ${channels.length} channels resolved — "partial n/m" means the cheapest channel may not be captured yet`);
   console.log(`\nCOVERAGE  ${coverage.captured} captured · ${coverage.refused} refused · ${coverage.unavailable} full · ` +
               `${coverage.errored} error · ${coverage.missing} MISSING  of ${coverage.total} cells  (${(coverage.resolvedPct * 100).toFixed(0)}% resolved)` +
               (coverage.oldestAgeDays !== null ? ` · oldest ${coverage.oldestAgeDays}d` : ''));

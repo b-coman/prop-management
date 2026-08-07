@@ -213,10 +213,35 @@ Read `"Original price X Current price Y"` and take the **lowest** rate plan. Not
 
 Rules while capturing:
 
+- **Capture LOGGED IN, not logged out.** This is the single most important capture rule and it is
+  counter-intuitive. Most Booking.com traffic is Genius and most Airbnb traffic carries a member
+  discount — the owner *prices upward* to absorb them. So the logged-out price is a number almost no
+  real guest pays, and capturing it **systematically overstates every OTA** (Booking by roughly the
+  10% Genius tier). Use the owner's existing browser session; never sign in yourself. If a page shows
+  *"Sign in to unlock the members-only price"*, that capture is **incomplete** — record it as such
+  rather than banking the higher number.
+- Always record `--session` honestly (`"logged in, Genius"` / `"logged out, RON"`). A mixed run is
+  not comparable, and the field exists so a later reader can tell.
 - **Read only.** Never sign in, never submit a reservation, never enter payment details.
 - If a CAPTCHA or bot check appears, **stop and tell the owner.** Do not attempt to work around it.
-- Record the state you captured in: logged-in or not, currency, and the exact URL.
 - A probe you could not capture is **`unknown`**, never a pass. Say which rows are missing.
+
+## 4b. Alignment is a band, not an equality
+
+The owner's stated intent (2026-08-07), and the standard to report against:
+
+> *"Airbnb and Booking more or less on the same level; VRBO is fine if it is more expensive; my own
+> channel a bit less. 2–3% here or there won't break anything."*
+
+So:
+
+- **Differences under ~3% are noise, not findings.** Reporting `+0.5%` or `+0.0%` as a failure is false
+  precision that buries the real ones. Say "level" and move on.
+- **Airbnb ≈ Booking** within the band is the goal; a persistent gap between *those two* is the signal
+  worth raising, because it is the one the owner controls directly and did not intend.
+- **VRBO above the others is fine** — expected, not a defect.
+- **Direct below all of them** by a deliberate margin is the point of the exercise.
+- Chase magnitude, not decimals: a 20%+ gap on a peak window matters; 50 lei does not.
 
 ## 5. Judging across channels
 
