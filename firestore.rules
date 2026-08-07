@@ -292,6 +292,13 @@ service cloud.firestore {
       allow write: if false;  // Admin SDK only (parity-capture / parity-pack)
     }
 
+    match /pricingAnchors/{propertyId} {
+      // The handful of numbers the rate sheet is built from: the Airbnb base prices, each platform's
+      // multiple of it, and how far under the cheapest one the website should sit.
+      allow read: if isSuperAdmin() || isPropertyOwner();
+      allow write: if false;  // Admin SDK only (anchorConfigService, via the admin server action)
+    }
+
     match /rateSheets/{sheetId} {
       // Immutable, versioned snapshots of "what each channel should be listed at". Kept so that
       // "what did we tell ourselves to type in August?" stays answerable after the tiers change.

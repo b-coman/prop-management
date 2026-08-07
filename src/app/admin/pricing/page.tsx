@@ -12,9 +12,11 @@ import { PriceCalendarManager } from './_components/price-calendar-manager';
 import { PricingTestPanel } from './_components/pricing-test-panel';
 import { LengthOfStayDiscounts } from './_components/length-of-stay-discounts';
 import { ChannelsCard, type ChannelRow } from './_components/channels-card';
-import { RateSheetGrid, type RateSheetGridRow } from './_components/rate-sheet-grid';
-import { generateRateSheet, getPushes } from '@/services/rateSheetService';
-import { pushId } from '@/lib/pricing/rateSheet';
+import { RateSheetEditor } from './_components/rate-sheet-editor';
+import { getAnchorConfig } from '@/services/anchorConfigService';
+import { getPeriods } from '@/services/periodService';
+import { DEFAULT_TIER_MULTIPLIERS, datesInRange, type TierMultipliers } from '@/lib/pricing/periods';
+import type { AnchoredPeriodInput } from '@/lib/pricing/anchorPricing';
 import { getChannels } from '@/services/channelService';
 import { headroomPct } from '@/lib/growth/parityMath';
 import { CHANNEL_IDS } from '@/lib/channels';
@@ -45,13 +47,14 @@ export default async function PricingPage({
   // RON amounts as "$523".
   let currency = 'RON';
   let channelRows: ChannelRow[] = [];
-  let sheetRows: RateSheetGridRow[] = [];
-  let sheetChannelIds: string[] = [];
-  let sheetVersion: number | null = null;
-  let sheetComputedAt: string | null = null;
-  let sheetWarnings: string[] = [];
   let listingUrls: Record<string, string> = {};
   let channelLabels: Record<string, string> = {};
+  let anchorConfig: import('@/lib/pricing/anchorPricing').AnchorConfig | null = null;
+  let anchorSaved = false;
+  let anchorPeriods: AnchoredPeriodInput[] = [];
+  let tierMultipliers: TierMultipliers = DEFAULT_TIER_MULTIPLIERS;
+  let netRetention: Record<string, number> = {};
+  let directRetention = 1;
 
   if (propertyId) {
     // Fetch in parallel
@@ -87,50 +90,47 @@ export default async function PricingPage({
     channelLabels = Object.fromEntries(channelRows.map((c) => [c.channelId, c.displayName]));
     listingUrls = Object.fromEntries(channelRows.filter((c) => c.listingUrl).map((c) => [c.channelId, c.listingUrl!]));
 
-    // Computed live rather than read from the last stored sheet, so the grid always reflects current
-    // periods and rates. Nothing is written by rendering a page — `write` is deliberately absent.
-    try {
-      const [{ sheet, skippedChannels }, pushes] = await Promise.all([
-        generateRateSheet(propertyId, {
-          computedAt: new Date().toISOString(),
-          from: new Date().toISOString().slice(0, 10),
-        }),
-        getPushes(propertyId),
-      ]);
-      const pushById = new Map(pushes.map((p) => [p.id, p]));
-      sheetVersion = sheet.version;
-      sheetComputedAt = sheet.computedAt;
-      sheetWarnings = [
-        ...sheet.warnings,
-        ...skippedChannels.map((c) => `${c}: no commission recorded, so it is not priced here.`),
-        ...[...new Set(sheet.rows.filter((r) => r.problem).map((r) => `${r.channelId}: ${r.problem}`))],
-      ];
-      sheetChannelIds = [...new Set(sheet.rows.map((r) => r.channelId))].filter((c) => c !== 'direct');
-      const byPeriod = new Map<string, typeof sheet.rows>();
-      sheet.rows.forEach((r) => byPeriod.set(r.periodId, [...(byPeriod.get(r.periodId) ?? []), r]));
-      sheetRows = [...byPeriod.entries()].map(([periodId, rs]) => {
-        const first = rs[0];
-        return {
-          periodId,
-          periodName: first.periodName,
-          startDate: first.startDate,
-          endDate: first.endDate,
-          nights: first.nights,
-          directNightly: first.directNightly,
-          cells: rs.filter((r) => r.channelId !== 'direct').map((r) => ({
-            channelId: r.channelId,
-            nightly: r.nightly,
-            currency: r.currency,
-            status: (pushById.get(pushId(propertyId, r.channelId, r.periodId))?.status ?? 'none') as RateSheetGridRow['cells'][number]['status'],
-            problem: r.problem,
-          })),
-        };
-      }).sort((a, b) => a.startDate.localeCompare(b.startDate));
-    } catch (e) {
-      // A property with no channels configured cannot have a rate sheet. That is a normal state, not
-      // an error worth blanking the whole pricing admin for.
-      sheetWarnings = [(e as Error).message];
-    }
+    // Built from the anchor settings, the way the owner's own sheet is built. Read-only work here;
+    // rendering a page never writes.
+    const [anchor, periodDocs] = await Promise.all([
+      getAnchorConfig(propertyId),
+      getPeriods(propertyId),
+    ]);
+    anchorConfig = {
+      anchorChannelId: anchor.anchorChannelId,
+      weekdayPrice: anchor.weekdayPrice,
+      weekendPrice: anchor.weekendPrice,
+      directDiscountPct: anchor.directDiscountPct,
+      channels: anchor.channels,
+      directRounding: anchor.directRounding,
+    };
+    anchorSaved = anchor.saved;
+    tierMultipliers = (prop as { pricingConfig?: { tierMultipliers?: TierMultipliers } } | null)
+      ?.pricingConfig?.tierMultipliers ?? DEFAULT_TIER_MULTIPLIERS;
+
+    const basePrice = (prop as { pricePerNight?: number } | null)?.pricePerNight ?? 0;
+    const today = new Date().toISOString().slice(0, 10);
+    anchorPeriods = periodDocs
+      .filter((p) => p.status === 'active' && p.endDate >= today)
+      .map<AnchoredPeriodInput>((p) => ({
+        periodId: p.id,
+        periodName: p.name,
+        startDate: p.startDate,
+        endDate: p.endDate,
+        nights: datesInRange(p.startDate, p.endDate).length,
+        tier: p.tier,
+        fixedNightPrice: p.fixedNightPrice ?? null,
+        // What the booking engine quotes today, so the screen can compare rather than assert.
+        currentDirectWeekday: p.fixedNightPrice ?? Math.round(basePrice * (tierMultipliers[p.tier] ?? 1) * 100) / 100,
+      }));
+
+    // What reaches the owner from each 1 RON a guest pays, for the "you keep" column.
+    directRetention = 1 - (channelSet.byId.get('direct')?.directEconomics?.paymentCostPct ?? 0);
+    netRetention = Object.fromEntries(
+      [...channelSet.byId.values()]
+        .filter((c) => c.economics)
+        .map((c) => [c.channelId, (1 - (c.economics!.guestFeePct ?? 0)) * (1 - c.economics!.commissionPct)]),
+    );
   }
 
   return (
@@ -165,15 +165,19 @@ export default async function PricingPage({
 
           <TabsContent value="channels" className="space-y-6">
             <ChannelsCard rows={channelRows} propertyId={propertyId} />
-            <RateSheetGrid
-              rows={sheetRows}
-              channelIds={sheetChannelIds}
-              channelLabels={channelLabels}
-              listingUrls={listingUrls}
-              version={sheetVersion}
-              computedAt={sheetComputedAt}
-              warnings={sheetWarnings}
-            />
+            {anchorConfig && (
+              <RateSheetEditor
+                propertyId={propertyId}
+                initialConfig={anchorConfig}
+                configSaved={anchorSaved}
+                periods={anchorPeriods}
+                tierMultipliers={tierMultipliers}
+                channelLabels={channelLabels}
+                listingUrls={listingUrls}
+                netRetention={netRetention}
+                directRetention={directRetention}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="seasons">
