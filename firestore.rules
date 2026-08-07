@@ -292,6 +292,21 @@ service cloud.firestore {
       allow write: if false;  // Admin SDK only (parity-capture / parity-pack)
     }
 
+    match /rateSheets/{sheetId} {
+      // Immutable, versioned snapshots of "what each channel should be listed at". Kept so that
+      // "what did we tell ourselves to type in August?" stays answerable after the tiers change.
+      allow read: if isSuperAdmin() || isPropertyOwner();
+      allow write: if false;  // Admin SDK only (rateSheetService)
+    }
+
+    match /channelPushes/{pushId} {
+      // Tracks a human typing prices into three OTA dashboards: pending -> applied -> verified,
+      // or drifted. The system has NO write access to the OTAs, so `applied` is a human's claim and
+      // `verified` comes only from a parity observation. Server-side writes only.
+      allow read: if isSuperAdmin() || isPropertyOwner();
+      allow write: if false;  // Admin SDK only (rateSheetService)
+    }
+
     match /pricingPeriods/{periodId} {
       // Pricing INTENT — the owner's demand tiers and hand-set peak prices, per period. Compiles down
       // into seasonalPricing / dateOverrides, which the guest-facing engine reads; nothing here is
