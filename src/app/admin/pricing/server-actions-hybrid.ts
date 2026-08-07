@@ -537,15 +537,14 @@ export async function generatePriceCalendar(propertyId: string) {
       ...convertTimestampsToISOStrings(doc.data())
     })) as DateOverride[];
 
-    // 4. Minimum stay rules
-    const minStaySnapshot = await db.collection('minimumStayRules')
-      .where('propertyId', '==', propertyId)
-      .where('enabled', '==', true)
-      .get();
-    const minStayRules: MinimumStayRule[] = minStaySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...convertTimestampsToISOStrings(doc.data())
-    })) as MinimumStayRule[];
+    // 4. Minimum stay rules — DEAD PATH, removed 2026-08-07.
+    // The `minimumStayRules` collection is empty and has no writer anywhere in the codebase: nothing
+    // has ever created one, and no admin screen edits them. Minimum stay is set on seasons and date
+    // overrides, and now on periods (`period.minStay`), which compile into both. This query cost a
+    // Firestore round-trip on every regeneration to always return zero rows.
+    // The engine still ACCEPTS the argument — `calculateDayPrice` is frozen while the period model
+    // proves itself — so an empty array is passed rather than changing its signature.
+    const minStayRules: MinimumStayRule[] = [];
 
     // 5. Booked dates (confirmed and on-hold bookings)
     const bookingsSnapshot = await db.collection('bookings')
@@ -582,11 +581,32 @@ export async function generatePriceCalendar(propertyId: string) {
       bookedDates: bookedDates.size
     });
 
-    // --- Generate calendars for 12 months ---
+    // --- Generate calendars out to the pricing horizon ---
+    // Was a hardcoded rolling 12 months. Nothing ever advanced it, which is precisely why prices ran
+    // out: a season defined into next year had no calendar to live in. The horizon now stretches to
+    // the furthest ACTIVE pricing period, with 12 months as the floor — so defining a period is all
+    // it takes for the calendar to cover it.
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
-    const months = 12;
+
+    const periodSnapshot = await db.collection('pricingPeriods')
+      .where('propertyId', '==', propertyId)
+      .get();
+    const furthestEnd = periodSnapshot.docs
+      .map(d => d.data() as { status?: string; endDate?: string })
+      .filter(p => p.status === 'active' && typeof p.endDate === 'string')
+      .reduce((max, p) => (p.endDate! > max ? p.endDate! : max), '');
+
+    let months = 12;
+    if (furthestEnd) {
+      const [hy, hm] = furthestEnd.split('-').map(Number);
+      months = Math.max(months, (hy - currentYear) * 12 + (hm - currentMonth) + 1);
+    }
+    // Guard against a typo'd far-future endDate generating thousands of documents.
+    months = Math.min(months, 36);
+
+    logger.info('Calendar horizon resolved', { propertyId, months, furthestActivePeriodEnd: furthestEnd || null });
     const generatedCalendars: string[] = [];
 
     for (let i = 0; i < months; i++) {
