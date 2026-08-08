@@ -78,6 +78,16 @@ export async function recordObservation(input: RecordObservationInput): Promise<
   if (input.status !== 'captured' && !input.reason) {
     throw new Error(`cell ${input.cellId}: status '${input.status}' requires a reason — a blank is not an outcome`);
   }
+  // A price is meaningless without knowing whose price it is. Booking.com shows most people a Genius
+  // rate and the listing is priced expecting it, so a logged-out capture reads a number almost no real
+  // guest pays. This was optional once, and 32 of the first 77 observations ended up with no session
+  // recorded at all — unusable, because there is no way to tell afterwards what they represent.
+  if (input.status === 'captured' && !input.sessionState?.trim()) {
+    throw new Error(
+      `cell ${input.cellId}: a captured price requires --session describing how it was read ` +
+      `(e.g. "logged in, Genius" / "logged out, RON"). Without it the number cannot be compared later.`,
+    );
+  }
 
   // Conversion must be explicit and attributed. A foreign-currency capture with no rate would either
   // be silently treated as RON (wrong by a factor of ~4.5) or silently dropped.

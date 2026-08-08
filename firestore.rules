@@ -330,6 +330,13 @@ service cloud.firestore {
       allow write: if false;  // Admin SDK only (channelService / migrate-channels)
     }
 
+    match /landingPages/{slug} {
+      // Campaign landing-page configs — read server-side via Admin SDK on the public /lp route
+      // (Admin SDK bypasses rules); the admin editor is super-admin/owner. No client writes.
+      allow read: if isSuperAdmin() || isPropertyOwner();
+      allow write: if false;  // Admin SDK only (landing-page server actions)
+    }
+
     match /situationReports/{reportId} {
       // The in-app analyst's persisted Situation Reports (Move 2 · P3) — super-admin/owner read.
       allow read: if isSuperAdmin() || isPropertyOwner();

@@ -34,6 +34,15 @@ const LABEL: Record<string, string> = { losing: 'LOSING', thin: 'thin', healthy:
   const TARGET = TARGET_ARG ?? parityConfig.targetDiscountPct;
 
   const observations = [...(await latestByCell(SLUG)).values()];
+
+  // How the numbers were read decides what they mean. A run that mixes logged-in and logged-out
+  // captures is not comparable to itself, and silently averaging the two is how a 20% Genius discount
+  // disappears from a report that still looks authoritative.
+  const sessions = new Map<string, number>();
+  observations.filter((o) => o.status === 'captured').forEach((o) => {
+    const k = (o.sessionState ?? '(not recorded)').trim();
+    sessions.set(k, (sessions.get(k) ?? 0) + 1);
+  });
   if (!observations.length) {
     console.log('No observations yet. Run: npx tsx scripts/parity-pack.ts ' + SLUG);
     return;
@@ -113,6 +122,15 @@ const LABEL: Record<string, string> = { losing: 'LOSING', thin: 'thin', healthy:
       [parityConfig.unstated.length ? `no commission stated (excluded): ${parityConfig.unstated.join(', ')}` : '',
        parityConfig.inactive.length ? `not selling on: ${parityConfig.inactive.map((c) => c.channelId).join(', ')}` : '',
       ].filter(Boolean).join(' · '));
+  }
+  const distinct = [...sessions.keys()];
+  if (distinct.length > 1 || distinct.some((k) => k === '(not recorded)')) {
+    console.log('!! MIXED OR UNLABELLED CAPTURES — these numbers are not comparable to each other:');
+    [...sessions.entries()].sort((a, b) => b[1] - a[1])
+      .forEach(([k, n]) => console.log(`     ${String(n).padStart(3)} × ${k}`));
+    console.log('   Re-capture the odd ones out before trusting any verdict below.');
+  } else if (distinct.length === 1) {
+    console.log(`all captures: ${distinct[0]}`);
   }
   console.log('='.repeat(W));
   console.log('dates                        n  g  direct ' + channelNames.map((c) => c.slice(0, 7).padStart(7)).join(' ') + ' | gap      verdict   floor spread');
