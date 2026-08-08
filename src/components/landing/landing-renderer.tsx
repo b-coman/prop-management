@@ -103,7 +103,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
 
         {/* ── STORY ── */}
         {m.story && (m.story.title || m.story.body) && (
-          <section className="mx-auto max-w-3xl px-5 py-14 text-center sm:py-20">
+          <section className="mx-auto w-full max-w-3xl px-5 py-14 text-center sm:py-20">
             {m.story.title && <h2 className="text-2xl font-semibold sm:text-3xl">{m.story.title}</h2>}
             {m.story.body && <p className="mt-5 whitespace-pre-line text-base leading-relaxed text-muted-foreground sm:text-lg">{m.story.body}</p>}
           </section>
@@ -145,7 +145,9 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
         {/* ── GALLERY (no heading; balanced grid whose column count adapts to the image count so there
               are no orphaned/left-shifted cells; bigger images) ── */}
         {m.gallery.length > 0 && (
-          <section className="mx-auto max-w-5xl px-5 py-12 sm:py-16">
+          {/* w-full is REQUIRED: this section is a direct flex-column child, where mx-auto otherwise
+              shrinks it to content width — and fill-images have zero intrinsic width, collapsing it. */}
+          <section className="mx-auto w-full max-w-5xl px-5 py-12 sm:py-16">
             <div className={`grid gap-3 ${galleryCols}`}>
               {m.gallery.map((g, i) => (
                 // Inline aspect-ratio (NOT the Tailwind `aspect-[4/3]` class — the slash in an arbitrary
