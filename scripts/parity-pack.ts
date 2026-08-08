@@ -430,6 +430,9 @@ async function quoteDirect(propertyId: string, checkIn: string, checkOut: string
         guestTotal: r.direct.ok ? Math.round(r.direct.total) : null,
         reason: r.direct.ok ? undefined : (r.bookableDirect ? `engine: ${r.direct.error}` : 'dates not bookable direct'),
         source: 'api', url: `${BASE}/api/check-pricing`, capturedBy: 'parity-pack', capturedAt: stamp,
+        // The direct price has a session too, and naming it keeps the report honest: this is the
+        // engine's own quote, not a rendered page, and it carries no member discount by definition.
+        sessionState: 'direct engine quote (/api/check-pricing), RON',
       });
     }
   }
