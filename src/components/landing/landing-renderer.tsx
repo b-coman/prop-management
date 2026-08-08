@@ -7,7 +7,9 @@
  * side; the reused Header/Footer still use LanguageProvider (supplied by the route).
  */
 import Link from 'next/link';
+import { useEffect } from 'react';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { getThemeById } from '@/lib/themes/theme-definitions';
 import { themeToInlineStyles } from '@/lib/themes/theme-utils';
 import { Header } from '@/components/generic-header-multipage';
@@ -28,15 +30,36 @@ function fmtRange(start: string, end: string, lang: string): string {
   try { return `${f.format(new Date(start))} – ${f.format(new Date(end))}`; } catch { return `${start} – ${end}`; }
 }
 
+function ThemeAndCurrencyEffects({ baseCurrency }: { baseCurrency?: string }) {
+  const { setDefaultCurrency } = useCurrency();
+  useEffect(() => { if (baseCurrency) setDefaultCurrency(baseCurrency as never); }, [baseCurrency, setDefaultCurrency]);
+  return null;
+}
+
 export function LandingRenderer({ m }: { m: LandingModel }) {
   const theme = getThemeById(m.themeId);
   const themeStyles = themeToInlineStyles(theme);
   const fontUrl = theme.typography?.fontFamilyUrl;
   const lang = m.language;
 
+  // The root layout's <ThemeProvider> (default 'airbnb') sets :root --primary inline; the shared Header's
+  // applyThemeToHeader reads --primary FROM :root, so it would paint the header airbnb-red at the top.
+  // Force this landing's theme onto :root with !important (beats the provider's inline set) so the header
+  // uses the property's real theme colour. SSR-emitted, so no flash/race.
+  const rootThemeCss = `:root{${Object.entries(themeStyles).map(([k, v]) => `${k}:${v as string} !important`).join(';')}}`;
+  const galleryCols = (() => {
+    const n = m.gallery.length;
+    if (n === 1) return 'grid-cols-1';
+    if (n === 2) return 'grid-cols-2';
+    if (n === 4) return 'grid-cols-2';
+    return 'grid-cols-2 sm:grid-cols-3';
+  })();
+
   return (
     <ThemeProvider initialThemeId={m.themeId}>
       {fontUrl && <link rel="stylesheet" href={fontUrl} precedence="default" />}
+      <style dangerouslySetInnerHTML={{ __html: rootThemeCss }} />
+      <ThemeAndCurrencyEffects baseCurrency={m.baseCurrency} />
       <div style={themeStyles} className="flex min-h-screen flex-col bg-background text-foreground">
         <Header
           propertyName={m.propertyName}
@@ -92,9 +115,10 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
             <div className="mx-auto max-w-5xl px-5">
               <h2 className="text-center text-2xl font-semibold sm:text-3xl">{t(lang, 'Stays that fit this window', 'Sejururi potrivite pentru această perioadă')}</h2>
               <p className="mx-auto mt-2 max-w-xl text-center text-muted-foreground">{t(lang, 'Real dates, ready to book.', 'Date reale, gata de rezervare.')}</p>
-              <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {/* flex-wrap + justify-center keeps 1, 2, or 3 cards centered and evenly sized (no left-shifted orphans). */}
+              <div className="mt-8 flex flex-wrap justify-center gap-5">
                 {m.exampleStays.map((s, i) => (
-                  <Card key={i} className="flex flex-col overflow-hidden transition-shadow hover:shadow-lg">
+                  <Card key={i} className="flex w-full flex-col overflow-hidden transition-shadow hover:shadow-lg sm:w-[340px]">
                     <CardContent className="flex flex-1 flex-col p-5">
                       {s.occasion && <Badge variant="secondary" className="mb-3 w-fit">{s.occasion}</Badge>}
                       <p className="text-lg font-semibold">{s.label}</p>
@@ -105,7 +129,9 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                       {s.priceHint ? (
                         <p className="mt-3 text-sm text-muted-foreground">{t(lang, 'from', 'de la')} <span className="text-lg font-bold text-foreground">{s.priceHint.toLocaleString()} {m.baseCurrency}</span></p>
                       ) : null}
-                      <Button variant="cta" className="mt-5" asChild>
+                      {/* Cards in a flex-wrap row stretch to equal height; mt-auto (on the rendered <a>, which
+                          is the direct flex child of CardContent) pins each button to the bottom so they align. */}
+                      <Button variant="cta" className="mt-6 mt-auto" asChild>
                         <Link href={s.bookUrl}>{t(lang, 'Book this', 'Rezervă acesta')}<ArrowRight className="ml-1 h-4 w-4" /></Link>
                       </Button>
                     </CardContent>
@@ -116,13 +142,13 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
           </section>
         )}
 
-        {/* ── GALLERY ── */}
+        {/* ── GALLERY (no heading; balanced grid whose column count adapts to the image count so there
+              are no orphaned/left-shifted cells; bigger images) ── */}
         {m.gallery.length > 0 && (
-          <section className="mx-auto max-w-6xl px-5 py-14 sm:py-20">
-            <h2 className="mb-8 text-center text-2xl font-semibold sm:text-3xl">{t(lang, 'A look around', 'O privire de ansamblu')}</h2>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <section className="mx-auto max-w-5xl px-5 py-12 sm:py-16">
+            <div className={`grid gap-3 ${galleryCols}`}>
               {m.gallery.map((g, i) => (
-                <div key={i} className={`relative overflow-hidden rounded-card ${i === 0 ? 'col-span-2 row-span-2 aspect-square sm:col-span-2' : 'aspect-square'}`}>
+                <div key={i} className={`relative overflow-hidden rounded-xl ${m.gallery.length === 1 ? 'aspect-[16/9]' : 'aspect-[4/3]'}`}>
                   <SafeImage src={g.url} alt={g.alt} fill blurDataURL={g.blurDataURL} className="object-cover transition-transform duration-500 hover:scale-105" sizes="(max-width:640px) 50vw, 33vw" />
                 </div>
               ))}

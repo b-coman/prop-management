@@ -15,7 +15,9 @@ function resolveImage(storagePath: string | undefined, images: any[], lang: stri
   const img = images.find((i) => i?.storagePath === storagePath);
   if (!img) return null;
   return {
-    url: img.thumbnailUrl || img.url || '',
+    // Use the FULL-res url as the source and let next/image serve optimized responsive sizes.
+    // (thumbnailUrl is a small pre-resized variant — too low-res for a full-bleed hero.)
+    url: img.url || img.thumbnailUrl || '',
     blurDataURL: img.blurDataURL,
     alt: serverTranslateContent(img.alt, lang) || '',
     storagePath,
