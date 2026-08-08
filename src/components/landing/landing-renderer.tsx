@@ -148,7 +148,9 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
           <section className="mx-auto max-w-5xl px-5 py-12 sm:py-16">
             <div className={`grid gap-3 ${galleryCols}`}>
               {m.gallery.map((g, i) => (
-                <div key={i} className={`relative overflow-hidden rounded-xl ${m.gallery.length === 1 ? 'aspect-[16/9]' : 'aspect-[4/3]'}`}>
+                // Inline aspect-ratio (NOT the Tailwind `aspect-[4/3]` class — the slash in an arbitrary
+                // value breaks Tailwind's parser, collapsing the box to 0 height and hiding fill images).
+                <div key={i} className="relative overflow-hidden rounded-xl" style={{ aspectRatio: m.gallery.length === 1 ? '16 / 9' : '4 / 3' }}>
                   <SafeImage src={g.url} alt={g.alt} fill blurDataURL={g.blurDataURL} className="object-cover transition-transform duration-500 hover:scale-105" sizes="(max-width:640px) 50vw, 33vw" />
                 </div>
               ))}
