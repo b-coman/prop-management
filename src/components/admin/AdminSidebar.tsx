@@ -99,6 +99,7 @@ const navigationGroups = [
       { title: 'Situation', href: '/admin/situation', icon: Brain },
       { title: 'Campaigns', href: '/admin/campaigns', icon: Megaphone },
       { title: 'Ads', href: '/admin/ads', icon: Target },
+      { title: 'Landing pages', href: '/admin/landing', icon: PanelTop },
       { title: 'Page posts', href: '/admin/page-posts', icon: Newspaper },
     ],
   },

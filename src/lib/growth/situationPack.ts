@@ -16,7 +16,7 @@
  */
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { getPageHealth, getAdAccountHealth } from '@/services/growth/metaAds/brandHealth';
-import { computeRecentCancellations, computeOutreachLedger } from '@/lib/growth/signals';
+import { computeRecentCancellations, computeOutreachLedger, computeFreeRuns, computeOccasions, computeExtendedWindows, type HolidayDoc } from '@/lib/growth/signals';
 import { getNotesByGuest, isTouch } from '@/services/guestNoteService';
 import { normalizeChannel } from '@/lib/channels';
 
@@ -536,14 +536,9 @@ export async function buildSituationPack(
   const forwardDates: string[] = [];
   for (let d = new Date(AS_OF); d < horizon; d = new Date(+d + 86400000)) forwardDates.push(ymd(d));
 
-  const runs: { start: string; end: string; nights: number }[] = [];
-  let cur: string[] = [];
-  for (const k of forwardDates) {
-    const known = availByDate.has(k);
-    const free = known ? availByDate.get(k)! : true; // missing doc = available (availability-service.ts)
-    if (free) cur.push(k); else { if (cur.length) runs.push({ start: cur[0], end: cur[cur.length - 1], nights: cur.length }); cur = []; }
-  }
-  if (cur.length) runs.push({ start: cur[0], end: cur[cur.length - 1], nights: cur.length });
+  // missing doc = available (availability-service.ts). The run-grouping walk lives in signals.ts so
+  // the landing example-stays reasoner shares the same truth (output byte-identical to the old loop).
+  const runs = computeFreeRuns(forwardDates, k => (availByDate.has(k) ? availByDate.get(k)! : true));
 
   // Min-stay is 2 nights year-round (exceptions: Christmas, New Year, school breaks — higher).
   // So a 1-NIGHT gap is UNSELLABLE: no one can book it. It only clears if the adjacent guest
@@ -600,12 +595,8 @@ export async function buildSituationPack(
   // (docs/implementation/firestore-pricing-structure.md §5). If empty, say so — outreach cannot
   // be justified without something true to say.
   const holidaysSnap = await db.collection('holidays').get();
-  const occasions = holidaysSnap.docs
-    .map(d => d.data() as any)
-    .filter(h => h.endDate >= ymd(AS_OF))
-    .sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)))
-    .slice(0, 20)
-    .map(h => ({ name: h.name, type: h.type, startDate: h.startDate, endDate: h.endDate, source: h.source ?? null }));
+  const holidays = holidaysSnap.docs.map(d => d.data() as HolidayDoc);
+  const occasions = computeOccasions(holidays, AS_OF);
 
   // ---------- recent cancellations (re-opened inventory + a demand signal) ----------
   // Logic lives in src/lib/growth/signals.ts so any in-app arm can read the same signal (arch §7 M1).
@@ -647,50 +638,12 @@ export async function buildSituationPack(
           // Soft bridges: a public holiday sitting 1-2 working days away from a weekend (or from
           // another holiday) makes those working days likely days-off. This WIDENS the real
           // "people are actually free" window well beyond the legal holiday, and it is often the
-          // difference between a 2-night and a 5-night sell. Derived, not stored.
-          extendedWindows: (() => {
-            const holidayDates = new Set<string>();
-            holidaysSnap.docs.map(d => d.data() as any)
-              .filter(h => h.type === 'major' || h.type === 'minor' || h.type === 'bridge-day')
-              .forEach(h => {
-                for (let d = new Date(`${h.startDate}T00:00:00Z`); ymd(d) <= h.endDate; d = new Date(+d + 86400000)) holidayDates.add(ymd(d));
-              });
-            const isOff = (d: Date) => { const w = d.getUTCDay(); return w === 0 || w === 6 || holidayDates.has(ymd(d)); };
-            // walk the horizon, collect runs of off-days
-            const offRuns: { start: Date; end: Date }[] = [];
-            let run: Date[] = [];
-            for (let d = new Date(AS_OF); d < new Date(+AS_OF + 400 * 86400000); d = new Date(+d + 86400000)) {
-              if (isOff(d)) run.push(new Date(d));
-              else { if (run.length) offRuns.push({ start: run[0], end: run[run.length - 1] }); run = []; }
-            }
-            if (run.length) offRuns.push({ start: run[0], end: run[run.length - 1] });
-            // join runs separated by 1-2 working days → those days are the bridge
-            const windows: any[] = [];
-            for (let i = 0; i < offRuns.length; i++) {
-              let start = offRuns[i].start, end = offRuns[i].end;
-              const bridges: string[] = [];
-              while (i + 1 < offRuns.length) {
-                const gap = nightsBetween(end, offRuns[i + 1].start) - 1;
-                if (gap >= 1 && gap <= 2) {
-                  for (let k = 1; k <= gap; k++) bridges.push(ymd(new Date(+end + k * 86400000)));
-                  end = offRuns[i + 1].end; i++;
-                } else break;
-              }
-              const total = nightsBetween(start, end) + 1;
-              // only report windows a guest would actually travel for
-              if (total >= 4 && (bridges.length || holidayDates.has(ymd(start)) || holidayDates.has(ymd(end)))) {
-                windows.push({
-                  start: ymd(start), end: ymd(end), totalDays: total,
-                  bridgeDaysRequired: bridges.length, bridgeDays: bridges,
-                  holidaysInside: [...holidayDates].filter(h => h >= ymd(start) && h <= ymd(end)).sort(),
-                });
-              }
-            }
-            return {
-              note: 'A holiday next to a weekend with a 1-2 working-day gap: most people burn leave to bridge it. `bridgeDaysRequired` = leave days needed to take the whole window. 0 means it is already a long weekend.',
-              windows: windows.slice(0, 12),
-            };
-          })(),
+          // difference between a 2-night and a 5-night sell. Derived, not stored. Algorithm shared
+          // with the landing example-stays reasoner (signals.ts), output byte-identical to before.
+          extendedWindows: {
+            note: 'A holiday next to a weekend with a 1-2 working-day gap: most people burn leave to bridge it. `bridgeDaysRequired` = leave days needed to take the whole window. 0 means it is already a long weekend.',
+            windows: computeExtendedWindows(holidays, AS_OF),
+          },
         },
       };
 
