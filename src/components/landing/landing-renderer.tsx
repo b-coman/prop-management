@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { SafeImage } from '@/components/ui/safe-image';
 import { CallButton } from '@/components/landing/call-button';
 import { Star, MapPin, ArrowRight, CalendarDays, Moon } from 'lucide-react';
-import type { LandingModel } from '@/lib/landing/contracts';
+import type { LandingModel, LandingImage } from '@/lib/landing/contracts';
 
 const t = (lang: string, en: string, ro: string) => (lang === 'ro' ? ro : en);
 
@@ -28,6 +28,19 @@ function fmtRange(start: string, end: string, lang: string): string {
   const loc = lang === 'ro' ? 'ro-RO' : 'en-GB';
   const f = new Intl.DateTimeFormat(loc, { day: 'numeric', month: 'short' });
   try { return `${f.format(new Date(start))} – ${f.format(new Date(end))}`; } catch { return `${start} – ${end}`; }
+}
+
+// RO needs the singular for 1 (noapte) vs plural (nopți); EN night/nights.
+const nightsWord = (n: number, lang: string) => (lang === 'ro' ? (n === 1 ? 'noapte' : 'nopți') : (n === 1 ? 'night' : 'nights'));
+
+/** One gallery tile: a fixed-aspect box with a fill image (used by the single/pair/mosaic layouts). */
+function GTile({ img, ratio, sizes }: { img: LandingImage; ratio: string; sizes: string }) {
+  return (
+    <div className="relative w-full overflow-hidden rounded-xl" style={{ aspectRatio: ratio }}>
+      <SafeImage src={img.url} alt={img.alt} fill blurDataURL={img.blurDataURL}
+        className="object-cover transition-transform duration-500 hover:scale-105" sizes={sizes} />
+    </div>
+  );
 }
 
 function ThemeAndCurrencyEffects({ baseCurrency }: { baseCurrency?: string }) {
@@ -47,12 +60,13 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
   // Force this landing's theme onto :root with !important (beats the provider's inline set) so the header
   // uses the property's real theme colour. SSR-emitted, so no flash/race.
   const rootThemeCss = `:root{${Object.entries(themeStyles).map(([k, v]) => `${k}:${v as string} !important`).join(';')}}`;
-  const galleryCols = (() => {
-    const n = m.gallery.length;
-    if (n === 1) return 'grid-cols-1';
-    if (n === 2) return 'grid-cols-2';
-    if (n === 4) return 'grid-cols-2';
-    return 'grid-cols-2 sm:grid-cols-3';
+  // Example-stay cards: an equal-width grid whose column count matches the number of stays (1/2/3), so
+  // every card sits on the same row at the top breakpoint and stacks cleanly on mobile — no orphans.
+  const staysCols = (() => {
+    const n = m.exampleStays.length;
+    if (n <= 1) return 'max-w-sm grid-cols-1';
+    if (n === 2) return 'max-w-3xl grid-cols-1 sm:grid-cols-2';
+    return 'max-w-5xl grid-cols-1 md:grid-cols-3';
   })();
 
   return (
@@ -115,22 +129,20 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
             <div className="mx-auto max-w-5xl px-5">
               <h2 className="text-center text-2xl font-semibold sm:text-3xl">{t(lang, 'Stays that fit this window', 'Sejururi potrivite pentru această perioadă')}</h2>
               <p className="mx-auto mt-2 max-w-xl text-center text-muted-foreground">{t(lang, 'Real dates, ready to book.', 'Date reale, gata de rezervare.')}</p>
-              {/* flex-wrap + justify-center keeps 1, 2, or 3 cards centered and evenly sized (no left-shifted orphans). */}
-              <div className="mt-8 flex flex-wrap justify-center gap-5">
+              {/* Grid (not flex-wrap): equal columns matching the card count → all cards on one row, same
+                  width; grid items stretch to equal height so the buttons align via mt-auto. */}
+              <div className={`mx-auto mt-8 grid gap-5 ${staysCols}`}>
                 {m.exampleStays.map((s, i) => (
-                  <Card key={i} className="flex w-full flex-col overflow-hidden transition-shadow hover:shadow-lg sm:w-[340px]">
+                  <Card key={i} className="flex w-full flex-col overflow-hidden transition-shadow hover:shadow-lg">
                     <CardContent className="flex flex-1 flex-col p-5">
-                      {s.occasion && <Badge variant="secondary" className="mb-3 w-fit">{s.occasion}</Badge>}
                       <p className="text-lg font-semibold">{s.label}</p>
                       <div className="mt-3 flex items-center gap-4 text-sm text-muted-foreground">
                         <span className="inline-flex items-center gap-1"><CalendarDays className="h-4 w-4" />{fmtRange(s.start, s.end, lang)}</span>
-                        <span className="inline-flex items-center gap-1"><Moon className="h-4 w-4" />{s.nights} {t(lang, 'nights', 'nopți')}</span>
+                        <span className="inline-flex items-center gap-1"><Moon className="h-4 w-4" />{s.nights} {nightsWord(s.nights, lang)}</span>
                       </div>
                       {s.priceHint ? (
                         <p className="mt-3 text-sm text-muted-foreground">{t(lang, 'from', 'de la')} <span className="text-lg font-bold text-foreground">{s.priceHint.toLocaleString()} {m.baseCurrency}</span></p>
                       ) : null}
-                      {/* Cards in a flex-wrap row stretch to equal height; mt-auto (on the rendered <a>, which
-                          is the direct flex child of CardContent) pins each button to the bottom so they align. */}
                       <Button variant="cta" className="mt-6 mt-auto" asChild>
                         <Link href={s.bookUrl}>{t(lang, 'Book this', 'Rezervă acesta')}<ArrowRight className="ml-1 h-4 w-4" /></Link>
                       </Button>
@@ -142,21 +154,28 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
           </section>
         )}
 
-        {/* ── GALLERY (no heading; balanced grid whose column count adapts to the image count so there
-              are no orphaned/left-shifted cells; bigger images) ── */}
+        {/* ── GALLERY (a real mosaic) — 1 image = one wide hero; 2 = a clean pair; 3+ = a masonry of
+              varied-height tiles (CSS columns, so tiles interlock with no gaps) that reflows 3→2 columns
+              on mobile. `w-full` keeps the mx-auto section from collapsing around fill-images. ── */}
         {m.gallery.length > 0 && (
           <section className="mx-auto w-full max-w-5xl px-5 py-12 sm:py-16">
-            {/* w-full above is REQUIRED: as a direct flex-column child, mx-auto would otherwise shrink this
-                to content width, and fill-images have zero intrinsic width — collapsing the section to ~52px. */}
-            <div className={`grid gap-3 ${galleryCols}`}>
-              {m.gallery.map((g, i) => (
-                // Inline aspect-ratio (NOT the Tailwind `aspect-[4/3]` class — the slash in an arbitrary
-                // value breaks Tailwind's parser, collapsing the box to 0 height and hiding fill images).
-                <div key={i} className="relative overflow-hidden rounded-xl" style={{ aspectRatio: m.gallery.length === 1 ? '16 / 9' : '4 / 3' }}>
-                  <SafeImage src={g.url} alt={g.alt} fill blurDataURL={g.blurDataURL} className="object-cover transition-transform duration-500 hover:scale-105" sizes="(max-width:640px) 50vw, 33vw" />
-                </div>
-              ))}
-            </div>
+            {m.gallery.length === 1 ? (
+              <GTile img={m.gallery[0]} ratio="16 / 9" sizes="(max-width:1024px) 100vw, 1024px" />
+            ) : m.gallery.length === 2 ? (
+              <div className="grid grid-cols-2 gap-3">
+                {m.gallery.map((g, i) => <GTile key={i} img={g} ratio="4 / 3" sizes="(max-width:768px) 50vw, 33vw" />)}
+              </div>
+            ) : (
+              // Masonry: varied aspect ratios in a repeating pattern give the interlocking mosaic look;
+              // break-inside-avoid keeps each tile whole within its column.
+              <div className="columns-2 gap-3 md:columns-3">
+                {m.gallery.map((g, i) => (
+                  <div key={i} className="mb-3 break-inside-avoid">
+                    <GTile img={g} ratio={['4 / 3', '3 / 4', '1 / 1', '16 / 11', '3 / 4', '4 / 3'][i % 6]} sizes="(max-width:768px) 50vw, 33vw" />
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         )}
 

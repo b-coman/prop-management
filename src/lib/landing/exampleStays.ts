@@ -46,6 +46,9 @@ export interface BuildExampleStaysOptions {
   guests?: number;
   /** how many stays to return (default 3). */
   maxStays?: number;
+  /** floor on a stay's length regardless of the per-date calendar minimum (default 2 — a landing
+   *  should never show a single-night card even where the calendar happens to allow 1). */
+  minNights?: number;
   /** for a SEASON campaign with no explicit end, how far ahead to look (default 150 days). */
   seasonHorizonDays?: number;
 }
@@ -70,6 +73,7 @@ export async function buildExampleStays(
   const asOf = opts.asOf ?? new Date();
   const today = ymd(asOf);
   const maxStays = opts.maxStays ?? 3;
+  const minNights = Math.max(1, opts.minNights ?? 2);
 
   // 1. Search window. For a dated WINDOW, the campaign's own [start,end] (clamped to not start in the
   //    past). For a broad SEASON, from the later of today/period.start out to period.end or a horizon.
@@ -142,9 +146,9 @@ export async function buildExampleStays(
     const run = freeRuns.find(r => start >= r.start && start <= r.end);
     if (!run) return;
     const capacity = nightsBetween(start, addDays(run.end, 1)); // free nights from `start` to run end
-    const minStay = minStayFor(start);
+    const minStay = Math.max(minNights, minStayFor(start)); // per-date calendar minimum, but never below the landing floor
+    if (capacity < minStay) return; // run too short to host the minimum from here
     const nights = clamp(wantNights, minStay, capacity);
-    if (nights < minStay || nights < 1) return; // run too short to host even the minimum from here
     const daysOut = nightsBetween(today, start);
     const score = base + (includesWeekendNight(start, nights) ? 15 : 0) - daysOut * 0.05;
     candidates.push({ start, nights, kind, occasionName, score });
