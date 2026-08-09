@@ -154,9 +154,9 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
           </section>
         )}
 
-        {/* ── GALLERY (a real mosaic) — 1 image = one wide hero; 2 = a clean pair; 3+ = a masonry of
-              varied-height tiles (CSS columns, so tiles interlock with no gaps) that reflows 3→2 columns
-              on mobile. `w-full` keeps the mx-auto section from collapsing around fill-images. ── */}
+        {/* ── GALLERY (a real mosaic) — 1 image = one wide hero; 2 = a clean pair; 3+ = a bento grid
+              (a large feature tile + tightly-packed smaller ones) that reflows to 2 columns on mobile.
+              `w-full` keeps the mx-auto section from collapsing around fill-images. ── */}
         {m.gallery.length > 0 && (
           <section className="mx-auto w-full max-w-5xl px-5 py-12 sm:py-16">
             {m.gallery.length === 1 ? (
@@ -166,12 +166,15 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                 {m.gallery.map((g, i) => <GTile key={i} img={g} ratio="4 / 3" sizes="(max-width:768px) 50vw, 33vw" />)}
               </div>
             ) : (
-              // Masonry: varied aspect ratios in a repeating pattern give the interlocking mosaic look;
-              // break-inside-avoid keeps each tile whole within its column.
-              <div className="columns-2 gap-3 md:columns-3">
+              // Bento mosaic: a large feature tile (first image) + smaller ones, densely packed into a
+              // fixed-row grid so it stays tight with no gaps for the common ~5-image gallery; the feature
+              // spans 2×2 and the rest backfill via dense flow. Reflows to 2 columns (feature full-width) on mobile.
+              <div className="grid grid-flow-row-dense auto-rows-[8.5rem] grid-cols-2 gap-3 sm:auto-rows-[10.5rem] sm:grid-cols-3 lg:grid-cols-4">
                 {m.gallery.map((g, i) => (
-                  <div key={i} className="mb-3 break-inside-avoid">
-                    <GTile img={g} ratio={['4 / 3', '3 / 4', '1 / 1', '16 / 11', '3 / 4', '4 / 3'][i % 6]} sizes="(max-width:768px) 50vw, 33vw" />
+                  <div key={i} className={`relative overflow-hidden rounded-xl ${i === 0 ? 'col-span-2 row-span-2' : ''}`}>
+                    <SafeImage src={g.url} alt={g.alt} fill blurDataURL={g.blurDataURL}
+                      className="object-cover transition-transform duration-500 hover:scale-105"
+                      sizes={i === 0 ? '(max-width:640px) 100vw, 40vw' : '(max-width:640px) 50vw, 22vw'} />
                   </div>
                 ))}
               </div>
