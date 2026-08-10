@@ -107,6 +107,7 @@ const prahovaGuide = {
     {
       id: 'things-to-know',
       tier: 'guest',
+      group: 'house',
       title: { en: 'Things to know', ro: 'Bine de știut' },
       body: {
         en: 'Wi-Fi — a high-speed fibre connection, with a Wi-Fi 6 router and a hotspot.\n\nParking — on the main street, right in front of the property.\n\nHeating — fully automated. For any request or malfunction, please contact us.\n\nTap water — drinkable, supplied by the city company. We still suggest bottled water for extra safety.\n\nFirewood — available for an extra fee. Please ask us.\n\nSupplies — extra supplies on request. Fees may apply.\n\nBedsheets & towels — extra sets on request, for a small fee.\n\nCleaning — everything is carefully sanitised. A typical house prep takes about 6 hours; linens and towels are washed at 90°C, toilets and slippers disinfected.',
@@ -116,6 +117,7 @@ const prahovaGuide = {
     {
       id: 'house-rules',
       tier: 'guest',
+      group: 'house',
       title: { en: 'House rules', ro: 'Regulile casei' },
       body: {
         en: 'No smoking or vaping inside the house. Please smoke in the designated area outside, and use the ashtray provided.\n\nNo unregistered guests. Please tell us if you would like to add anyone to your booking.\n\nNo parties or large gatherings. Drug use and excessive drinking are not allowed.\n\nNo pets or animals of any kind on the property. Please don’t feed the dogs, cats or wildlife.\n\nNever leave a fire unattended. Put out the BBQ or the fireplace before going to sleep or leaving the house.\n\nPlease don’t flush anything inorganic or bulky — the risk of blocking the sewage is real.\n\nThe bins are near the entrance gate. Please don’t leave rubbish or food waste outside.\n\nPlease tell us about any damage or malfunction straight away, so we can repair or replace it.\n\nNo excessive noise, music or rowdy behaviour. We are grateful to you for not disturbing the neighbours.',
@@ -125,6 +127,7 @@ const prahovaGuide = {
     {
       id: 'appliances',
       tier: 'guest',
+      group: 'house',
       title: { en: 'Appliances & electronics', ro: 'Electrocasnice și electronice' },
       body: {
         en: 'Television — two ways to watch: cable TV, and streaming (HBO Max, SkyShowtime) through the Apple TV. To switch to the Apple TV, press any button on its remote, or change the source with the TV remote. On streaming apps, please use the “Comarnic Guest” profile.\n\nSound system — two Apple HomePods in the living room. They start automatically when the Apple TV plays, or by voice — “Hey Siri, play some jazz music”. They are linked to an Apple Music account, and controlled by voice only, so please don’t move them.\n\nDishwasher — use it whenever you like. The pods are in a basket on the back of the cabinet door under the sink. For a full load we recommend programme 2.\n\nHeating — a Bosch gas boiler with smart thermostats in each room. Please don’t change any settings on the boiler; for anything unusual, contact us.\n\nAlso in the house — a Bluetooth speaker on the terrace (instructions on the paper next to it), washing machine (pods under the sink), gas stove and oven, fridge, microwave, coffee maker, electric kettle, hair dryer, blender, crockery and cutlery, pots, and pans inside the oven.',
@@ -134,6 +137,7 @@ const prahovaGuide = {
     {
       id: 'emergency',
       tier: 'guest',
+      group: 'house',
       title: { en: 'Emergency', ro: 'Urgențe' },
       body: {
         en: 'Fire extinguishers: one in the entrance hallway next to the toilet, one next to the fireplace, one on the terrace. Please locate them when you arrive.\n\nFirst aid kit: in the ground floor toilet.\n\nWhen you call 112, your address is Str. Secăriei nr 197, Comarnic, Prahova county.\n\nThe nearest city hospital is in Sinaia, Str. Spitalului 2.\n\nTaxi: 0799 027 767',
@@ -144,6 +148,7 @@ const prahovaGuide = {
     {
       id: 'welcome',
       tier: 'public',
+      group: 'intro',
       title: { en: 'Welcome', ro: 'Bine ați venit' },
       body: {
         en: 'Welcome to our home, and thank you for choosing to stay with us. This place is close to our hearts, and we hope it becomes a warm spot for you too. Settle in, unwind, and let the magic of the place weave its spell.',
@@ -153,6 +158,7 @@ const prahovaGuide = {
     {
       id: 'host',
       tier: 'public',
+      group: 'place',
       title: { en: 'Meet your host', ro: 'Gazda' },
       body: {
         en: 'Hello, my name is Bogdan and I am happy to share my house with you. I built this place some years ago as a family retreat and a basecamp for our mountain adventures. It is a place where each stone tells a tale, and every corner holds some warmth.\n\nIt has been a while since my children were running around and their laughter filled the yard. Here they found their childhood playground, and here we and our friends bonded over the beauty of nature.\n\nFor me you are more than just guests — you are part of a story that keeps growing with the joy of everyone who stays. Enjoy, and respect the warmth in the corners.',
@@ -162,6 +168,7 @@ const prahovaGuide = {
     {
       id: 'about-house',
       tier: 'public',
+      group: 'place',
       title: { en: 'About the house', ro: 'Despre casă' },
       body: {
         en: 'The house is the perfect backdrop for family and friends to enjoy the outdoors and unwind. The terrace looks out over sunsets on the hills, and the fully equipped kitchen covers anything you might want to cook.\n\nEvenings are well spent by the indoor fireplace, or grilling at the outdoor BBQ. The yard — with its playground, zip line and hammocks — is made for both fun and for doing nothing at all.\n\n3 bedrooms · 2 bathrooms · BBQ, firepit and fireplace · high-speed internet',
@@ -171,6 +178,7 @@ const prahovaGuide = {
     {
       id: 'rooms',
       tier: 'public',
+      group: 'place',
       title: { en: 'Your rooms', ro: 'Camerele' },
       body: {
         en: 'Main bedroom — first floor, king-size double bed, storage cabinets, wood-clad walls, and a balcony with chairs and a coffee table.\n\nSecond bedroom — ground floor, sleeps 3–4, with a double bed and a bunk bed, in a cosy and welcoming room.\n\nKids’ bedroom — first floor, with a bunk bed, desk, swing, toys and pillows. Ideal for children, and cosy for one adult. Please don’t use the upper bunk if you are over 50 kg.\n\nLiving & kitchen — a spacious living room with fireplace, TV, sound system, games and a book collection; a modern kitchen and a dining area that seats a family comfortably.',
@@ -180,6 +188,7 @@ const prahovaGuide = {
     {
       id: 'kitchen',
       tier: 'public',
+      group: 'place',
       title: { en: 'The kitchen', ro: 'Bucătăria' },
       body: {
         en: 'The kitchen and dining area are the heart of the house. Equipped with all the essentials, the space caters comfortably for two families. The table seats five with ease, and there are extra chairs on the terrace.\n\nFridge, microwave, coffee maker, electric kettle, dishwasher, gas stove and oven, blender, washing machine, dishes, pots, pans and cutlery. A high chair for toddlers is available — you will find it on the main bedroom’s balcony.\n\nTea, coffee and sugar, basic condiments, dish soap and dishcloths are complimentary.',
@@ -189,6 +198,7 @@ const prahovaGuide = {
     {
       id: 'living-room',
       tier: 'public',
+      group: 'place',
       title: { en: 'The living room', ro: 'Livingul' },
       body: {
         en: 'The indoor fireplace makes the evenings, and it comes with everything you need to start a fire; special wood chunks are available on request, for an extra fee.\n\nThe TV carries cable and streaming (HBO Max, SkyShowtime) through the Apple TV, and two Apple HomePods handle the music, linked to an Apple Music account.',
@@ -198,6 +208,7 @@ const prahovaGuide = {
     {
       id: 'terrace',
       tier: 'public',
+      group: 'place',
       title: { en: 'The terrace', ro: 'Terasa' },
       body: {
         en: 'The terrace was always our favourite place. Mornings begin with coffee at a table set for six, against the backdrop of the hills. Shaded by trees, it stays pleasantly cool even on hot summer days. With a strong Wi-Fi signal, it is also a good place to work, surrounded by birdsong.\n\nIn the evening the BBQ area takes over — laid-back dinners, grilling, laughter under the open sky. There is a Bluetooth speaker on the left side of the table, ready for your music.\n\nAs night falls, low light pollution reveals a genuinely spectacular sky.',
@@ -207,6 +218,7 @@ const prahovaGuide = {
     {
       id: 'yard',
       tier: 'public',
+      group: 'place',
       title: { en: 'The yard', ro: 'Curtea' },
       body: {
         en: 'BBQ — right next to the terrace, fully equipped for evening cookouts. Wood and coal on request.\n\nFirepit — beside the BBQ, with a 15-litre cauldron for cosy nights and outdoor cooking. Wood on request, for a small fee.\n\nPlayground — a wooden playground with swings and a hammock chair, in the back yard.\n\nHammocks — several, set among the trees.\n\nSwing & lounger — a three-seater garden swing; the cushions are in the storage box behind it.\n\nZip line — about 30 m long, and the children’s clear favourite. It safely carries an adult of up to 90 kg. Free to use, at your own risk.',
@@ -216,6 +228,7 @@ const prahovaGuide = {
     {
       id: 'getting-around',
       tier: 'public',
+      group: 'around',
       title: { en: 'Getting around', ro: 'Cum vă deplasați' },
       body: {
         en: 'By car — the property is well connected to everything on the Prahova Valley (DN1) and the Doftana Valley (DJ101S and DJ102I). Expect heavy traffic in peak season and at weekends.\n\nBy train — Comarnic is a stop for most trains between Bucharest, the Prahova Valley and Brașov. A good option for a day trip to Brașov on busy summer days.\n\nBy bike — if you like climbing, this is the place. A good day ride is Secăria – Doftana Valley – Câmpina – Comarnic, or something more adventurous from Azuga to Secăria along the Baiului ridge.\n\nOn foot — some of the best trailheads are minutes away, from the village into the forest, or a short drive to the Bucegi paths. Ask us and we will match a route to your day and your energy.',
@@ -225,6 +238,7 @@ const prahovaGuide = {
     {
       id: 'things-to-do',
       tier: 'public',
+      group: 'around',
       title: { en: 'Things to do', ro: 'Ce puteți face' },
       body: {
         en: 'Mountain biking — forest tracks start right from the village. For longer rides, try the Doftana Valley loop or the Baiului ridge toward Azuga.\n\nHiking — trails of every level fan out from the Bucegi and Baiului mountains. Ask us and we will match one to your day and the weather.\n\nCable cars — from Bușteni (about 30–45 min), a cable car climbs to the Bucegi Plateau at 2,206 m, home of the Sphinx and Babele. Weather permitting.\n\nSki — in winter, Sinaia’s Cota 1400/2000 slopes are about 20–35 min away, with Azuga and Predeal close behind. Rentals and lessons on the mountain.\n\nEnduro & ATV — guided ATV and off-road tours run from Sinaia and the Prahova Valley; machine and guide included, best booked a day ahead.\n\nBungee & zip line — our 30 m garden zip line covers the children. For bigger thrills, Cheile Râșnoavei near Brașov offers bungee jumps up to 140 m and Romania’s highest zip line.\n\nWine tasting — in Azuga (about 25–40 min), the historic Rhein cellars have made sparkling wine since 1892. Book a cellar tour and a tasting, rain or shine.\n\nRainy days — tour Peleș Castle, explore Sinaia’s old town, casino and monastery, or save the Bușteni cable car for clear skies.',
@@ -234,6 +248,7 @@ const prahovaGuide = {
     {
       id: 'closer-to-home',
       tier: 'public',
+      group: 'around',
       title: { en: 'Closer to home', ro: 'Aproape de casă' },
       body: {
         en: 'Some of our own favourites are within an hour, and all of them are pinned on the map above: Belvedere Comarnic, La Antene, Barajul Paltinu and the lake, Păstrăvăria Doftana, and Vistieru.\n\nAsk us — we will tell you which one suits the weather you have got.',
@@ -243,6 +258,7 @@ const prahovaGuide = {
     {
       id: 'places-to-see',
       tier: 'public',
+      group: 'around',
       title: { en: 'Places to see', ro: 'Locuri de văzut' },
       body: {
         en: 'Peleș Castle, Sinaia — 30–50 minutes by car depending on traffic, or by train. The royal summer residence, and the single most visited thing on the valley.\n\nPaltinu Lake & Dam — about 30–45 minutes by car, with a stunning view and a big sunny meadow that is ideal for a picnic. Don’t forget the frisbee.\n\nThe Sphinx — a natural rock formation in the Bucegi at 2,216 m, and a source of myth and legend. Reachable by cable car from Bușteni, or on a medium-difficulty hike.\n\nIalomița Cave — in Bucegi National Park, a 480 m geological marvel known for its stalactites and the monastery at its entrance. A short but captivating 40-minute tour. About 1.5–2 hours by car, plus a 20-minute walk.\n\nBrașov — about 1.5–2 hours away, and a great day trip. Founded in 1211 by the Teutonic Knights, with a rich old town ringed by the Southern Carpathians. If you are only visiting the city, take the train — the road gets very busy in peak season.\n\nBran Castle — steeped in myth as the reputed home of Dracula, this 14th-century fortress houses medieval artifacts and a deep dive into Romanian history. About 2–2.5 hours by car, and crowded in high season.\n\nSeven Ladders Canyon — an exhilarating climb through gorges and waterfalls, with metal ladders aiding the ascent. One of Europe’s longest zip lines is here too: 3.8 km over 37 segments. About 2–2.5 hours by car.\n\nPoiana Secuilor — near Predeal, surrounded by forest and mountains. Established in 1935, it is the only authentic lodge in the Predeal area, and an easy hike from Cabana Trei Brazi.\n\nCheile Râșnoavei — jagged limestone cliffs and good hiking, near Predeal. Reachable by car, or on foot from Poiana Secuilor.',
@@ -252,6 +268,7 @@ const prahovaGuide = {
     {
       id: 'places-to-eat',
       tier: 'public',
+      group: 'around',
       title: { en: 'Places to eat', ro: 'Unde mâncați' },
       body: {
         en: 'Alex, Sinaia — a Hungarian restaurant we love: tasty, genuine and not too expensive. Traditional and game dishes — try the bean soup in bread and the venison goulash. Str. Theodor Aman 9, Sinaia.\n\nCabana Schiori, Sinaia — the Skiers’ Hut, quite famous in Sinaia. Really good food, a warm atmosphere, traditional dishes, and live music sometimes. Str. Cota 1400 nr 7, Sinaia.\n\nTaverna Sârbului, Sinaia — Serbian food, very tasty, big dishes. We definitely recommend it. You may need a reservation in peak season. Calea Codrului 39E, Sinaia.\n\nAntonia, Comarnic — a local restaurant, good if you want something close by, or home delivery (tel 0736 647 459). Decent prices, fair value. Str. Poiana 139, Comarnic.\n\nCernica, Comarnic — a living piece of communist-era hospitality. The food is good; don’t expect anything fancy. Worth a visit just to watch the waiters. DN1 108, Comarnic.',
@@ -261,6 +278,7 @@ const prahovaGuide = {
     {
       id: 'nearest',
       tier: 'public',
+      group: 'around',
       title: { en: 'Your nearest…', ro: 'Cel mai apropiat…' },
       body: {
         en: 'Supermarket — a big Kaufland in the village centre, with anything you might need. Str. Republicii 4, Comarnic.\n\nLocal shop — for basics, drinks and a lively local atmosphere, there is a small shop and pub right across the street. Str. Secăriei 196, Comarnic.\n\nPharmacy — two in Comarnic, usually open until 8pm on weekdays, 6pm on Saturday and 2pm on Sunday. Str. Republicii 70, Comarnic.\n\nTrain station — in the centre of Comarnic, on the main road, on the right-hand side heading toward Bucharest.\n\nHospital — the nearest city hospital is in Sinaia, Str. Spitalului 2.',
@@ -270,6 +288,7 @@ const prahovaGuide = {
     {
       id: 'history',
       tier: 'public',
+      group: 'place',
       title: { en: 'Comarnic — a piece of history', ro: 'Comarnic — o bucată de istorie' },
       body: {
         en: 'Comarnic was first documented on 27 May 1510, when it was under the control of the Margineni noblemen. By the 17th century it had passed to the Cantacuzino and Filipescu families, and two centuries later it became the property of Prince Gheorghe Bibescu.\n\nThe name and the local toponymy come from sheep farming. Comarnic — like Breaza — is believed to have been established by Transylvanian shepherds who stopped here on their way to the Danube’s ponds. Philologists trace the name to “comarnic”, the word shepherds in the Bârsa Country used for the room at the sheepfold where cheese was kept. Sheep shearing took place here at least until the 18th century.\n\nThe main occupation was the carriage trade. In 1694 the settlement was one of the 12 villages on the Câmpina–Brașov trade route, carrying merchants’ goods on horseback along mountain paths and later in caravans — close to a local monopoly by the 18th century.\n\nLocal names like Valea Lanii and Dealul Lanii still point to that shepherding heritage, as do the villages the settlers founded: Podu Neagului and Vatra Satului, now parts of Comarnic.',
@@ -280,6 +299,7 @@ const prahovaGuide = {
     {
       id: 'before-you-go',
       tier: 'guest',
+      group: 'house',
       title: { en: 'Before you go', ro: 'Înainte de plecare' },
       body: {
         en: 'Linens — please leave the beds unmade, and put used towels and dishcloths in the bin upstairs.\n\nDishes — rinse and load the dishwasher, and run the cycle before you leave.\n\nFood — please empty the fridge and cupboards of open and perishable food.\n\nLights — make sure lights, appliances and electronics are off.\n\nFireplace — if you used it, remove the ash (there is a bin outside, next to the BBQ). Please don’t leave wood burning.\n\nWindows & doors — closed and locked, please.\n\nKeys — return them to the lockbox and message us when you leave.',

@@ -5,14 +5,18 @@ import { Check, Copy, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 /**
- * Copies the guest guide link for one booking. The path is built server-side
- * (it needs the HMAC secret); the origin is filled in here so the link works on
- * whichever host the admin is actually using.
+ * Copies the guest guide link for one booking. The link is built server-side (it
+ * needs the HMAC secret) and already carries the property's own domain. Only if
+ * that property has no custom domain does it arrive relative, in which case the
+ * current host is the best guess available.
  */
-export function CopyGuideLink({ path }: { path: string }) {
+export function CopyGuideLink({ url: link }: { url: string }) {
   const [copied, setCopied] = useState(false);
 
-  const url = typeof window === 'undefined' ? path : `${window.location.origin}${path}`;
+  const url =
+    link.startsWith('http') || typeof window === 'undefined'
+      ? link
+      : `${window.location.origin}${link}`;
 
   const copy = async () => {
     try {
@@ -31,7 +35,7 @@ export function CopyGuideLink({ path }: { path: string }) {
         {copied ? 'Copied' : 'Copy guide link'}
       </Button>
       <Button variant="ghost" size="sm" asChild className="gap-1.5">
-        <a href={path} target="_blank" rel="noopener noreferrer">
+        <a href={url} target="_blank" rel="noopener noreferrer">
           <ExternalLink className="h-3.5 w-3.5" />
           Preview
         </a>
