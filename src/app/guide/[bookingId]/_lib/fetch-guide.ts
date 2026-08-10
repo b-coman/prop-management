@@ -60,23 +60,11 @@ export interface GuideSection {
   image?: { url: string; alt?: MultilingualString | string };
 }
 
-/**
- * Simplified route traces for the little map on the card. Orientation, not
- * navigation — the real thing is one tap away in Google Maps. Per property, so
- * a property without a sketch simply doesn't draw one.
- */
-export interface GuideSketch {
-  viewBox: string;
-  house?: [number, number];
-  paths: Array<{ kind: GuideRoute['kind']; d: string }>;
-}
-
 export interface GuestGuideConfig {
   enabled?: boolean;
   wifi?: { network?: string; password?: string };
   contacts?: GuideContact[];
   mapUrl?: string;
-  sketch?: GuideSketch;
   routes?: GuideRoute[];
   sections?: GuideSection[];
   pdf?: { url?: string; sizeBytes?: number };
@@ -112,7 +100,6 @@ export interface GuideData {
   wifi?: { network: string; password: string };
   contacts: ResolvedContact[];
   mapUrl?: string;
-  sketch?: GuideSketch;
   routes: Array<{ name: string; kind: GuideRoute['kind']; km: number; mapUrl?: string }>;
   sections: Array<{
     id: string;
@@ -283,7 +270,6 @@ export async function fetchGuide(bookingId: string, token?: string): Promise<Gui
     propertySlug,
     contacts: tier === 'guest' ? resolveContacts(guide.contacts ?? [], language) : [],
     mapUrl: guide.mapUrl,
-    sketch: guide.sketch,
     routes,
     sections,
     pdf: guide.pdf?.url ? { url: guide.pdf.url, sizeBytes: guide.pdf.sizeBytes } : undefined,

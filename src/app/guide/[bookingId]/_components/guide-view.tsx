@@ -47,7 +47,6 @@ const COPY = {
     copied: 'Copied',
     whoToCall: 'Who to call',
     trips: 'Trips & hikes',
-    sketchAlt: 'Sketch of the routes around the chalet',
     openMap: 'Open in Google Maps',
     downloadPdf: 'Download the printed guide',
     privateNote: 'Private link for your stay - please don’t share it.',
@@ -76,7 +75,6 @@ const COPY = {
     copied: 'Copiat',
     whoToCall: 'Pe cine suni',
     trips: 'Trasee și excursii',
-    sketchAlt: 'Schiță cu traseele din jurul cabanei',
     openMap: 'Deschide în Google Maps',
     downloadPdf: 'Descarcă ghidul tipărit',
     privateNote: 'Link privat pentru sejurul tău - te rugăm să nu îl distribui.',
@@ -166,13 +164,6 @@ function SectionBody({ text }: { text: string }) {
     </>
   );
 }
-
-const ROUTE_STROKE: Record<string, string> = {
-  walk: '#A8501F',
-  hike: '#5C6B2E',
-  bike: '#7E9A33',
-  car: '#9AA77A',
-};
 
 function WifiCard({ network, password, t }: { network: string; password: string; t: typeof COPY.en }) {
   const [copied, setCopied] = useState(false);
@@ -351,45 +342,6 @@ export default function GuideView({ data }: { data: GuideData }) {
               {t.trips}
             </h2>
 
-            {data.sketch && (
-              <svg
-                viewBox={data.sketch.viewBox}
-                className="mb-3 block w-full rounded-lg bg-[#F1EFE2]"
-                role="img"
-                aria-label={t.sketchAlt}
-              >
-                {data.sketch.paths.map((p, i) => (
-                  <path
-                    key={i}
-                    d={p.d}
-                    fill="none"
-                    stroke={ROUTE_STROKE[p.kind] ?? '#5C6B2E'}
-                    strokeWidth={p.kind === 'walk' ? 7 : 5}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    opacity={0.85}
-                  />
-                ))}
-                {data.sketch.house && (
-                  <>
-                    <circle
-                      cx={data.sketch.house[0]}
-                      cy={data.sketch.house[1]}
-                      r={15}
-                      fill="none"
-                      stroke="#A8501F"
-                      strokeWidth={4}
-                    />
-                    <circle
-                      cx={data.sketch.house[0]}
-                      cy={data.sketch.house[1]}
-                      r={6}
-                      fill="#A8501F"
-                    />
-                  </>
-                )}
-              </svg>
-            )}
             {data.routes.length > 0 && (
               <ul className="mb-3">
                 {data.routes.map((r) => (
