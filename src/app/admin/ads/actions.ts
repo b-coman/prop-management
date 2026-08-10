@@ -180,10 +180,23 @@ export async function fetchComposeDataAction(propertyId: string): Promise<{
         thumbnailUrl: img.thumbnailUrl,
       }));
 
+    // P4: default the ad destination to this property's most-recent PUBLISHED landing page (/lp), so a
+    // manually-composed ad lands on a campaign page instead of the generic home. Owner can override in
+    // the form. Filtered in memory (no composite index needed); falls back to the property home.
+    const origin = getBaseUrl(data.customDomain);
+    const lpSnap = await db.collection('landingPages').where('propertyId', '==', propertyId).get();
+    const publishedLanding = lpSnap.docs
+      .map((d) => ({ slug: d.id, ...(d.data() as { status?: string; defaultLanguage?: string; updatedAt?: { _seconds?: number } }) }))
+      .filter((l) => l.status === 'published')
+      .sort((a, b) => (b.updatedAt?._seconds ?? 0) - (a.updatedAt?._seconds ?? 0))[0];
+    const defaultLandingUrl = publishedLanding
+      ? `${origin.replace(/\/+$/, '')}/lp/${publishedLanding.slug}/${publishedLanding.defaultLanguage || 'ro'}`
+      : origin;
+
     return {
       propertyId,
       images,
-      defaultLandingUrl: getBaseUrl(data.customDomain),
+      defaultLandingUrl,
       maxDailyBudgetMinor: getMaxDailyBudgetMinor(),
     };
   } catch (error) {
@@ -682,8 +695,23 @@ export async function pushAdToMetaAction(
     if (doc.status !== 'draft') return { ok: false, error: `not-draft:${doc.status ?? 'unknown'}` };
     if (!doc.composeInput) return { ok: false, error: 'draft-missing-composeInput' };
 
+    // P4: if a PUBLISHED landing page targets this campaign, point the ad at its /lp page instead of the
+    // property home. composeInput.landingBaseUrl is the origin; append /lp/{slug}/{lang}. Resolved against
+    // the draft id — the composed doc gets a NEW id below, so the landing's campaignRef is re-pointed after.
+    const composeInput: ComposeAndCreateAdInput = { ...doc.composeInput };
+    const lpSnap = await db.collection('landingPages').where('campaignRef', '==', adCampaignId).get();
+    const landing = lpSnap.docs
+      .map((d) => ({ slug: d.id, ...(d.data() as { status?: string; defaultLanguage?: string; updatedAt?: { _seconds?: number } }) }))
+      .filter((l) => l.status === 'published')
+      .sort((a, b) => (b.updatedAt?._seconds ?? 0) - (a.updatedAt?._seconds ?? 0))[0];
+    if (landing) {
+      const origin = String(composeInput.landingBaseUrl || getBaseUrl(null)).replace(/\/+$/, '');
+      composeInput.landingBaseUrl = `${origin}/lp/${landing.slug}/${landing.defaultLanguage || 'ro'}`;
+      logger.info('pushAdToMetaAction: pointing ad at landing page', { adCampaignId, landing: landing.slug, url: composeInput.landingBaseUrl });
+    }
+
     // Create the real (PAUSED) Meta chain — this is what makes Meta policy-review the creative.
-    const compose = await composeAndCreateAd(doc.composeInput);
+    const compose = await composeAndCreateAd(composeInput);
     if (!compose.ok) {
       logger.warn('pushAdToMetaAction: compose failed', { actor, adCampaignId, stage: compose.stage, error: compose.error });
       // Leave the draft intact so the operator can fix + retry; surface the last error in the console.
@@ -700,6 +728,12 @@ export async function pushAdToMetaAction(
       pushedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
+    // Keep the landing↔campaign link alive across the id change on push (draft id → composed id).
+    if (!lpSnap.empty) {
+      const batch = db.batch();
+      lpSnap.docs.forEach((d) => batch.update(d.ref, { campaignRef: compose.adCampaignId, updatedAt: FieldValue.serverTimestamp() }));
+      await batch.commit();
+    }
     await ref.delete();
 
     logger.info('pushAdToMetaAction: pushed to Meta (PAUSED, zero spend)', { actor, from: adCampaignId, adCampaignId: compose.adCampaignId });
