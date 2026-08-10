@@ -42,11 +42,19 @@ export interface GuideRoute {
   mapUrl?: string;
 }
 
+/**
+ * Which band a section sits in. Bands are collapsed accordions except 'intro',
+ * which renders open — it is the opening paragraph of the public page, and is
+ * skipped for guests, whose header already greets them by name.
+ */
+export type GuideGroup = 'intro' | 'house' | 'around' | 'place';
+
 export interface GuideSection {
   id: string;
   title: MultilingualString | string;
   body: MultilingualString | string;
   tier?: GuideTier;
+  group?: GuideGroup;
 }
 
 export interface GuestGuideConfig {
@@ -88,7 +96,7 @@ export interface GuideData {
   contacts: ResolvedContact[];
   mapUrl?: string;
   routes: Array<{ name: string; kind: GuideRoute['kind']; km: number; mapUrl?: string }>;
-  sections: Array<{ id: string; title: string; body: string }>;
+  sections: Array<{ id: string; title: string; body: string; group: GuideGroup }>;
   pdf?: { url: string; sizeBytes?: number };
 }
 
@@ -218,11 +226,18 @@ export async function fetchGuide(bookingId: string, token?: string): Promise<Gui
   const propertyName = getLocalizedString(property.name, language, propertySlug);
 
   const sections = (guide.sections ?? [])
-    .filter((s) => s && (tier === 'guest' || (s.tier ?? 'guest') === 'public'))
+    .filter((s) => {
+      if (!s) return false;
+      // A guest sees everything except the public page's opening paragraph —
+      // the header has already welcomed them by name.
+      if (tier === 'guest') return s.group !== 'intro';
+      return (s.tier ?? 'guest') === 'public';
+    })
     .map((s) => ({
       id: s.id,
       title: getLocalizedString(s.title, language, ''),
       body: getLocalizedString(s.body, language, ''),
+      group: s.group ?? 'place',
     }))
     .filter((s) => s.title || s.body);
 

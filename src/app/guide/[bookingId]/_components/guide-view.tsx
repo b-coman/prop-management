@@ -1,8 +1,17 @@
 'use client';
 
-import { useState } from 'react';
-import { Check, Copy, Map, Phone, MessageCircle, Download, ExternalLink } from 'lucide-react';
-import type { GuideData } from '../_lib/fetch-guide';
+import { useEffect, useState } from 'react';
+import {
+  Check,
+  ChevronDown,
+  Copy,
+  Download,
+  ExternalLink,
+  Map,
+  MessageCircle,
+  Phone,
+} from 'lucide-react';
+import type { GuideData, GuideGroup } from '../_lib/fetch-guide';
 
 const COPY = {
   en: {
@@ -26,6 +35,12 @@ const COPY = {
     translationNote: (lang: string) =>
       `They don’t speak English — this button sends a message already written in ${lang}:`,
     kinds: { walk: 'walk', hike: 'hike', bike: 'bike', car: 'car' } as Record<string, string>,
+    bands: {
+      intro: '',
+      house: 'In the house',
+      around: 'Around here',
+      place: 'The place & the story',
+    } as Record<string, string>,
   },
   ro: {
     welcome: (name?: string) => (name ? `Bine ai venit, ${name}` : 'Bine ai venit'),
@@ -47,6 +62,12 @@ const COPY = {
     translationNote: (lang: string) =>
       `Nu vorbesc engleză — butonul trimite un mesaj deja scris în ${lang}:`,
     kinds: { walk: 'pe jos', hike: 'drumeție', bike: 'bicicletă', car: 'mașină' } as Record<string, string>,
+    bands: {
+      intro: '',
+      house: 'În casă',
+      around: 'Prin zonă',
+      place: 'Locul și povestea',
+    } as Record<string, string>,
   },
 };
 
@@ -104,6 +125,25 @@ function WifiCard({ network, password, t }: { network: string; password: string;
 export default function GuideView({ data }: { data: GuideData }) {
   const t = COPY[data.language] ?? COPY.en;
   const isGuest = data.tier === 'guest';
+
+  // A guest wants the practical bands first; a visitor still deciding wants the
+  // house before the surroundings.
+  const bands: GuideGroup[] = isGuest
+    ? ['intro', 'house', 'around', 'place']
+    : ['intro', 'place', 'around', 'house'];
+
+  // Open the section a link points at, e.g. /guide/x?t=y#appliances.
+  // Driven through the DOM rather than a React `open` prop: <details> toggles
+  // itself natively on click, and a controlled attribute fights that.
+  useEffect(() => {
+    const id = decodeURIComponent(window.location.hash.replace('#', ''));
+    if (!id) return;
+    const el = document.getElementById(id);
+    if (el instanceof HTMLDetailsElement) {
+      el.open = true;
+      el.scrollIntoView({ block: 'start' });
+    }
+  }, []);
 
   return (
     <main className="mx-auto min-h-screen max-w-lg bg-[#FBFAF3] pb-12">
@@ -228,12 +268,44 @@ export default function GuideView({ data }: { data: GuideData }) {
           </section>
         )}
 
-        {data.sections.map((s) => (
-          <section key={s.id} className="rounded-xl border border-[#DDDAC7] bg-white p-4">
-            <h2 className="mb-2 text-base font-bold text-[#23260F]">{s.title}</h2>
-            <p className="whitespace-pre-line text-sm leading-relaxed text-[#3B3F26]">{s.body}</p>
-          </section>
-        ))}
+        {bands.map((band) => {
+          const inBand = data.sections.filter((s) => s.group === band);
+          if (inBand.length === 0) return null;
+
+          // The intro is prose, not a lookup — it stays open and unlabelled.
+          if (band === 'intro') {
+            return inBand.map((s) => (
+              <section key={s.id} className="rounded-xl border border-[#DDDAC7] bg-white p-4">
+                <p className="whitespace-pre-line text-sm leading-relaxed text-[#3B3F26]">{s.body}</p>
+              </section>
+            ));
+          }
+
+          return (
+            <section key={band} className="mt-2">
+              <h2 className="mb-2 px-1 text-[10px] font-extrabold uppercase tracking-[0.15em] text-[#6D7154]">
+                {t.bands[band]}
+              </h2>
+              <div className="overflow-hidden rounded-xl border border-[#DDDAC7] bg-white">
+                {inBand.map((s) => (
+                  <details
+                    key={s.id}
+                    id={s.id}
+                    className="group border-b border-[#DDDAC7] last:border-b-0"
+                  >
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 text-sm font-semibold text-[#23260F] marker:content-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#7E9A33] [&::-webkit-details-marker]:hidden">
+                      {s.title}
+                      <ChevronDown className="h-4 w-4 shrink-0 text-[#6D7154] transition-transform group-open:rotate-180 motion-reduce:transition-none" />
+                    </summary>
+                    <p className="whitespace-pre-line px-4 pb-4 text-sm leading-relaxed text-[#3B3F26]">
+                      {s.body}
+                    </p>
+                  </details>
+                ))}
+              </div>
+            </section>
+          );
+        })}
 
         {!isGuest && (
           <a

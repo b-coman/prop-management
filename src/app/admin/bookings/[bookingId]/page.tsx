@@ -18,6 +18,7 @@ import { CancelBookingButton } from '../_components/cancel-booking-button';
 import { CopyGuideLink } from '../_components/copy-guide-link';
 import { fetchBookingById, fetchPropertiesForBookingForm } from '../actions';
 import { generateGuideToken, guideIdentity, guidePath } from '@/lib/guide-token';
+import { publicOriginForProperty } from '@/lib/domain-map';
 import type { SerializableTimestamp } from '@/types';
 import { cn } from '@/lib/utils';
 import { getCountryName } from '@/lib/country-utils';
@@ -90,8 +91,11 @@ export default async function BookingDetailPage({ params }: PageProps) {
 
   // The guide link is derived, not stored — so it exists for every booking,
   // including OTA imports with no email and stays made long before this feature.
-  const guideLinkPath = ['confirmed', 'completed'].includes(status)
-    ? guidePath(booking.id, generateGuideToken(booking.id, guideIdentity(guestInfo)))
+  // Built on the property's own domain: this link gets sent to guests, and admin
+  // is usually being viewed on a different host.
+  const guideLinkUrl = ['confirmed', 'completed'].includes(status)
+    ? (publicOriginForProperty(booking.propertyId) ?? '') +
+      guidePath(booking.id, generateGuideToken(booking.id, guideIdentity(guestInfo)))
     : null;
 
   return (
@@ -156,10 +160,10 @@ export default async function BookingDetailPage({ params }: PageProps) {
                   </p>
                 </div>
               )}
-              {guideLinkPath && (
+              {guideLinkUrl && (
                 <div className="pt-1">
                   <p className="text-sm text-muted-foreground mb-1.5">Guest guide</p>
-                  <CopyGuideLink path={guideLinkPath} />
+                  <CopyGuideLink url={guideLinkUrl} />
                 </div>
               )}
             </CardContent>
