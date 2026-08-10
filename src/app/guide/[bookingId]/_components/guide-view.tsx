@@ -50,11 +50,11 @@ const COPY = {
     sketchAlt: 'Sketch of the routes around the chalet',
     openMap: 'Open in Google Maps',
     downloadPdf: 'Download the printed guide',
-    privateNote: 'Private link for your stay — please don’t share it.',
+    privateNote: 'Private link for your stay - please don’t share it.',
     bookCta: 'Check dates & book direct',
     // Deliberately subject-less: a contact may be one person or a couple.
     translationNote: (lang: string) =>
-      `They don’t speak English — this button sends a message already written in ${lang}:`,
+      `They don’t speak English - this button sends a message already written in ${lang}:`,
     kinds: { walk: 'walk', hike: 'hike', bike: 'bike', car: 'car' } as Record<string, string>,
     bands: {
       intro: '',
@@ -79,10 +79,10 @@ const COPY = {
     sketchAlt: 'Schiță cu traseele din jurul cabanei',
     openMap: 'Deschide în Google Maps',
     downloadPdf: 'Descarcă ghidul tipărit',
-    privateNote: 'Link privat pentru sejurul tău — te rugăm să nu îl distribui.',
+    privateNote: 'Link privat pentru sejurul tău - te rugăm să nu îl distribui.',
     bookCta: 'Vezi disponibilitatea și rezervă direct',
     translationNote: (lang: string) =>
-      `Nu vorbesc engleză — butonul trimite un mesaj deja scris în ${lang}:`,
+      `Nu vorbesc engleză - butonul trimite un mesaj deja scris în ${lang}:`,
     kinds: { walk: 'pe jos', hike: 'drumeție', bike: 'bicicletă', car: 'mașină' } as Record<string, string>,
     bands: {
       intro: '',
@@ -125,6 +125,48 @@ const SECTION_ICONS: Record<string, LucideIcon> = {
   history: BookOpen,
 };
 
+/**
+ * Bold the lead-in term of each paragraph so the eye can skim to the right one.
+ * Content is written as "Term - description" or "Term: description", so lead-ins
+ * are inferred rather than marked up. Two guards keep this from bolding prose,
+ * which contains dashes mid-sentence:
+ *
+ *   1. a label is at most four words ("Bedsheets & towels", not "For me you are
+ *      more than just guests - you are part of a story");
+ *   2. a labelled list has at least two of them. One match in a section means a
+ *      sentence happened to contain a dash, so nothing is bolded.
+ */
+const LEAD_IN = /^([^\n:]{1,42}?)(\s-\s|:\s)/;
+
+function leadIn(para: string): string | null {
+  const m = para.match(LEAD_IN);
+  if (!m) return null;
+  return m[1].trim().split(/\s+/).length <= 4 ? m[1] : null;
+}
+
+function SectionBody({ text }: { text: string }) {
+  const paras = text.split('\n\n');
+  const leads = paras.map(leadIn);
+  const isLabelledList = leads.filter(Boolean).length >= 2;
+
+  return (
+    <>
+      {paras.map((para, i) => (
+        <p key={i} className="mt-2 whitespace-pre-line first:mt-0">
+          {isLabelledList && leads[i] ? (
+            <>
+              <strong className="font-semibold text-[#23260F]">{leads[i]}</strong>
+              {para.slice(leads[i]!.length)}
+            </>
+          ) : (
+            para
+          )}
+        </p>
+      ))}
+    </>
+  );
+}
+
 const ROUTE_STROKE: Record<string, string> = {
   walk: '#A8501F',
   hike: '#5C6B2E',
@@ -141,7 +183,7 @@ function WifiCard({ network, password, t }: { network: string; password: string;
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Clipboard blocked (insecure context or denied) — the password is on
+      // Clipboard blocked (insecure context or denied) - the password is on
       // screen anyway, so there is nothing to recover from.
     }
   };
@@ -187,6 +229,20 @@ export default function GuideView({ data }: { data: GuideData }) {
   const bands: GuideGroup[] = isGuest
     ? ['intro', 'house', 'around', 'place']
     : ['intro', 'place', 'around', 'house'];
+
+  // One section open at a time. Closing a section above the one just opened
+  // would slide it out from under the finger, so the scroll position is
+  // corrected by however much the tapped row moved.
+  const handleToggle = (e: React.SyntheticEvent<HTMLDetailsElement>) => {
+    const el = e.currentTarget;
+    if (!el.open) return;
+    const before = el.getBoundingClientRect().top;
+    document.querySelectorAll<HTMLDetailsElement>('details[data-guide-section]').forEach((d) => {
+      if (d !== el) d.open = false;
+    });
+    const shift = el.getBoundingClientRect().top - before;
+    if (shift !== 0) window.scrollBy({ top: shift });
+  };
 
   // Open the section a link points at, e.g. /guide/x?t=y#appliances.
   // Driven through the DOM rather than a React `open` prop: <details> toggles
@@ -370,7 +426,7 @@ export default function GuideView({ data }: { data: GuideData }) {
           const inBand = data.sections.filter((s) => s.group === band);
           if (inBand.length === 0) return null;
 
-          // The intro is prose, not a lookup — it stays open and unlabelled.
+          // The intro is prose, not a lookup - it stays open and unlabelled.
           if (band === 'intro') {
             return inBand.map((s) => (
               <section key={s.id} className="rounded-xl border border-[#DDDAC7] bg-white p-4">
@@ -389,6 +445,8 @@ export default function GuideView({ data }: { data: GuideData }) {
                   <details
                     key={s.id}
                     id={s.id}
+                    data-guide-section
+                    onToggle={handleToggle}
                     className="group border-b border-[#DDDAC7] last:border-b-0"
                   >
                     <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3.5 text-sm font-semibold text-[#23260F] marker:content-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#7E9A33] [&::-webkit-details-marker]:hidden">
@@ -403,9 +461,17 @@ export default function GuideView({ data }: { data: GuideData }) {
                       <span className="flex-1">{s.title}</span>
                       <ChevronDown className="h-4 w-4 shrink-0 text-[#6D7154] transition-transform group-open:rotate-180 motion-reduce:transition-none" />
                     </summary>
-                    <p className="whitespace-pre-line px-4 pb-4 pl-[52px] text-sm leading-relaxed text-[#3B3F26]">
-                      {s.body}
-                    </p>
+                    <div className="px-4 pb-4 pl-[52px] text-sm leading-relaxed text-[#3B3F26]">
+                      {s.image?.url && (
+                        <img
+                          src={s.image.url}
+                          alt={s.image.alt ?? ''}
+                          loading="lazy"
+                          className="mb-3 h-40 w-full rounded-lg object-cover"
+                        />
+                      )}
+                      <SectionBody text={s.body} />
+                    </div>
                   </details>
                 ))}
               </div>

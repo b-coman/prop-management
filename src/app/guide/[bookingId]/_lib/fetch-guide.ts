@@ -55,6 +55,9 @@ export interface GuideSection {
   body: MultilingualString | string;
   tier?: GuideTier;
   group?: GuideGroup;
+  /** Optional photo. Earns its place where it helps a decision (the host, an
+   *  attraction), not where the guest is already standing. */
+  image?: { url: string; alt?: MultilingualString | string };
 }
 
 /**
@@ -111,7 +114,13 @@ export interface GuideData {
   mapUrl?: string;
   sketch?: GuideSketch;
   routes: Array<{ name: string; kind: GuideRoute['kind']; km: number; mapUrl?: string }>;
-  sections: Array<{ id: string; title: string; body: string; group: GuideGroup }>;
+  sections: Array<{
+    id: string;
+    title: string;
+    body: string;
+    group: GuideGroup;
+    image?: { url: string; alt?: string };
+  }>;
   pdf?: { url: string; sizeBytes?: number };
 }
 
@@ -254,6 +263,9 @@ export async function fetchGuide(bookingId: string, token?: string): Promise<Gui
       title: getLocalizedString(s.title, language, ''),
       body: getLocalizedString(s.body, language, ''),
       group: s.group ?? 'place',
+      image: s.image?.url
+        ? { url: s.image.url, alt: getLocalizedString(s.image.alt, language, '') }
+        : undefined,
     }))
     .filter((s) => s.title || s.body);
 
