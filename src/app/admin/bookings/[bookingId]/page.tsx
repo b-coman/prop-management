@@ -15,7 +15,9 @@ import { CancelHoldButton } from '../_components/cancel-hold-button';
 import { ConvertHoldButton } from '../_components/convert-hold-button';
 import { EditBookingDialog } from '../_components/edit-booking-dialog';
 import { CancelBookingButton } from '../_components/cancel-booking-button';
+import { CopyGuideLink } from '../_components/copy-guide-link';
 import { fetchBookingById, fetchPropertiesForBookingForm } from '../actions';
+import { generateGuideToken, guideIdentity, guidePath } from '@/lib/guide-token';
 import type { SerializableTimestamp } from '@/types';
 import { cn } from '@/lib/utils';
 import { getCountryName } from '@/lib/country-utils';
@@ -86,6 +88,12 @@ export default async function BookingDetailPage({ params }: PageProps) {
   const { guestInfo, pricing, paymentInfo } = booking;
   const currency = pricing?.currency || 'EUR';
 
+  // The guide link is derived, not stored — so it exists for every booking,
+  // including OTA imports with no email and stays made long before this feature.
+  const guideLinkPath = ['confirmed', 'completed'].includes(status)
+    ? guidePath(booking.id, generateGuideToken(booking.id, guideIdentity(guestInfo)))
+    : null;
+
   return (
     <AdminPage
       title="Booking Details"
@@ -146,6 +154,12 @@ export default async function BookingDetailPage({ params }: PageProps) {
                       .filter(Boolean)
                       .join(', ')}
                   </p>
+                </div>
+              )}
+              {guideLinkPath && (
+                <div className="pt-1">
+                  <p className="text-sm text-muted-foreground mb-1.5">Guest guide</p>
+                  <CopyGuideLink path={guideLinkPath} />
                 </div>
               )}
             </CardContent>
