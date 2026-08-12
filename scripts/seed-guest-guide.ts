@@ -70,8 +70,11 @@ const prahovaGuide = {
   arrival: {
     wazeUrl:
       'https://www.waze.com/en/live-map/directions?to=ll.45.25477736%2C25.64310908',
-    mapsUrl: 'https://goo.gl/maps/nw7UumH3r9mio4fUA',
-    plusCode: '7J3V+W77 Comarnic',
+    // Google's documented URL API rather than a goo.gl short link, which is a
+    // shortener Google has been retiring. Directions-to, not a place pin, and on
+    // the same coordinates as the Waze link above so the two agree.
+    mapsUrl:
+      'https://www.google.com/maps/dir/?api=1&destination=45.25477736,25.64310908',
     call: {
       en: 'Call Bogdan 10-15 minutes before you arrive. If Corina or Gigi are around they will meet you at the house with the key. If not, we will tell you exactly where to find it.',
       ro: 'Sunați-l pe Bogdan cu 10-15 minute înainte să ajungeți. Dacă doamna Corina sau domnul Gigi sunt prin zonă, vă întâmpină ei la casă cu cheia. Dacă nu, vă spunem exact unde o găsiți.',

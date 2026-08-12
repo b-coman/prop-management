@@ -48,7 +48,6 @@ const COPY = {
     copied: 'Copied',
     arrival: 'Getting here',
     maps: 'Maps',
-    plusCode: 'Plus code',
     lockbox: 'Key box code',
     whoToCall: 'Who to call',
     trips: 'Trips & hikes',
@@ -80,7 +79,6 @@ const COPY = {
     copied: 'Copiat',
     arrival: 'Cum ajungeți',
     maps: 'Maps',
-    plusCode: 'Cod Plus',
     lockbox: 'Codul cutiei de chei',
     whoToCall: 'Pe cine suni',
     trips: 'Trasee și excursii',
@@ -227,19 +225,9 @@ function ArrivalCard({
   a: NonNullable<GuideData['arrival']>;
   t: typeof COPY.en;
 }) {
-  const [copied, setCopied] = useState(false);
-
-  const copyPlusCode = async () => {
-    if (!a.plusCode) return;
-    try {
-      await navigator.clipboard.writeText(a.plusCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // On screen anyway; nothing to recover from.
-    }
-  };
-
+  // No Plus code here on purpose: it resolves to the same point in the same app
+  // as the Maps link, but costs the guest a copy, an app switch and a paste. It
+  // stays in the platform message, where a link can be mangled or read aloud.
   const link =
     'flex items-center justify-center gap-1.5 rounded-lg border-[1.5px] border-[#414A22] px-2 py-2.5 text-[12px] font-bold text-[#414A22] transition hover:bg-[#F4F2E7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7E9A33]';
 
@@ -250,22 +238,28 @@ function ArrivalCard({
         {t.arrival}
       </h2>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="flex gap-2">
         {a.wazeUrl && (
-          <a className={link} href={a.wazeUrl} target="_blank" rel="noopener noreferrer">
+          <a
+            className={`${link} flex-1`}
+            href={a.wazeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Navigation className="h-3.5 w-3.5" />
             Waze
           </a>
         )}
         {a.mapsUrl && (
-          <a className={link} href={a.mapsUrl} target="_blank" rel="noopener noreferrer">
+          <a
+            className={`${link} flex-1`}
+            href={a.mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Map className="h-3.5 w-3.5" />
             {t.maps}
           </a>
-        )}
-        {a.plusCode && (
-          <button type="button" onClick={copyPlusCode} className={link}>
-            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-            {copied ? t.copied : t.plusCode}
-          </button>
         )}
       </div>
 
