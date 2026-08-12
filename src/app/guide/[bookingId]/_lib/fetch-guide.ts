@@ -78,6 +78,13 @@ export interface GuideArrival {
 
 export interface GuestGuideConfig {
   enabled?: boolean;
+  /**
+   * Render the guide in this language whatever the guest booked in. Set while a
+   * translation is being reworked: the other language's content stays in place
+   * and untouched, it is simply not served yet. Remove the field to go back to
+   * following the booking.
+   */
+  languageOverride?: LanguageCode;
   wifi?: { network?: string; password?: string };
   contacts?: GuideContact[];
   arrival?: GuideArrival;
@@ -191,12 +198,19 @@ function buildContactHref(phone: string, channel: ContactChannel, message?: stri
   return `tel:${digits}`;
 }
 
-function resolveContacts(contacts: GuideContact[], language: LanguageCode): ResolvedContact[] {
+function resolveContacts(
+  contacts: GuideContact[],
+  language: LanguageCode,
+  guestLanguage: LanguageCode,
+): ResolvedContact[] {
   return contacts
     .filter((c) => c?.phone)
     .map((c) => {
-      const speaks = Array.isArray(c.speaks) && c.speaks.length > 0 ? c.speaks : [language];
-      const needsTranslation = !speaks.includes(language);
+      const speaks = Array.isArray(c.speaks) && c.speaks.length > 0 ? c.speaks : [guestLanguage];
+      // Against the guest's own language: a Romanian guest reading an English
+      // page still shares a language with Corina and Gigi, so no note and no
+      // pre-written message.
+      const needsTranslation = !speaks.includes(guestLanguage);
       const channel: ContactChannel = c.channel ?? 'whatsapp';
 
       // Only prefill when there's a language gap — a guest who shares a language
@@ -232,7 +246,9 @@ export async function fetchGuide(bookingId: string, token?: string): Promise<Gui
   const propertySlug: string = booking.propertyId;
   if (!propertySlug) return null;
 
-  const language: LanguageCode = booking.language === 'ro' ? 'ro' : 'en';
+  // What the guest actually speaks. Drives whether a contact needs translating,
+  // which is a fact about the guest, not about which language the page is in.
+  const guestLanguage: LanguageCode = booking.language === 'ro' ? 'ro' : 'en';
 
   // ---- decide the tier -------------------------------------------------
   let tier: GuideTier = 'public';
@@ -266,6 +282,10 @@ export async function fetchGuide(bookingId: string, token?: string): Promise<Gui
   const property = propertySnap.data() ?? {};
   const guide: GuestGuideConfig = overridesSnap.data()?.guestGuide ?? {};
   if (guide.enabled === false) return null;
+
+  // The language the page is written in, which an override can detach from the
+  // guest's own.
+  const language: LanguageCode = guide.languageOverride ?? guestLanguage;
 
   const propertyName = getLocalizedString(property.name, language, propertySlug);
 
@@ -303,7 +323,7 @@ export async function fetchGuide(bookingId: string, token?: string): Promise<Gui
     arrivalLeads: false,
     stayStarted: false,
     departing: false,
-    contacts: tier === 'guest' ? resolveContacts(guide.contacts ?? [], language) : [],
+    contacts: tier === 'guest' ? resolveContacts(guide.contacts ?? [], language, guestLanguage) : [],
     mapUrl: guide.mapUrl,
     routes,
     sections,
