@@ -68,7 +68,6 @@ export interface GuideSection {
 export interface GuideArrival {
   wazeUrl?: string;
   mapsUrl?: string;
-  plusCode?: string;
   call?: MultilingualString | string;
   access?: MultilingualString | string;
   /** Guest tier only, and never stored in the repo. */
@@ -118,7 +117,6 @@ export interface GuideData {
   arrival?: {
     wazeUrl?: string;
     mapsUrl?: string;
-    plusCode?: string;
     call?: string;
     access?: string;
     lockboxCode?: string;
@@ -318,8 +316,7 @@ export async function fetchGuide(bookingId: string, token?: string): Promise<Gui
       data.arrival = {
         wazeUrl: guide.arrival.wazeUrl,
         mapsUrl: guide.arrival.mapsUrl,
-        plusCode: guide.arrival.plusCode,
-        call: getLocalizedString(guide.arrival.call, language, '') || undefined,
+            call: getLocalizedString(guide.arrival.call, language, '') || undefined,
         access: getLocalizedString(guide.arrival.access, language, '') || undefined,
         lockboxCode: guide.arrival.lockboxCode,
       };
