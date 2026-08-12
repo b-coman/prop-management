@@ -126,6 +126,10 @@ export interface GuideData {
   };
   /** True until the day after check-in: arrival still leads the page. */
   arrivalLeads: boolean;
+  /** True once they are in the house: the header switches to past tense. */
+  stayStarted: boolean;
+  /** True from midday before checkout: the departure checklist leads instead. */
+  departing: boolean;
   contacts: ResolvedContact[];
   mapUrl?: string;
   routes: Array<{ name: string; kind: GuideRoute['kind']; km: number; mapUrl?: string }>;
@@ -297,6 +301,8 @@ export async function fetchGuide(bookingId: string, token?: string): Promise<Gui
     propertyName,
     propertySlug,
     arrivalLeads: false,
+    stayStarted: false,
+    departing: false,
     contacts: tier === 'guest' ? resolveContacts(guide.contacts ?? [], language) : [],
     mapUrl: guide.mapUrl,
     routes,
@@ -331,6 +337,18 @@ export async function fetchGuide(bookingId: string, token?: string): Promise<Gui
         const demoteAfter = new Date(checkInDate.getTime() + 36 * 60 * 60 * 1000);
         data.arrivalLeads = new Date() < demoteAfter;
       }
+    }
+
+    // The stay has three acts and the page should know which one it is in.
+    const now = new Date();
+    if (checkInDate) data.stayStarted = now >= checkInDate;
+    if (checkOutDate) {
+      // checkOutDate carries the real checkout time (11:00 local here), so the
+      // window opens the evening before and closes once they have gone - a
+      // checklist is no use to someone who left yesterday.
+      const opens = checkOutDate.getTime() - 18 * 60 * 60 * 1000;
+      const closes = checkOutDate.getTime() + 12 * 60 * 60 * 1000;
+      data.departing = now.getTime() >= opens && now.getTime() < closes;
     }
   }
 

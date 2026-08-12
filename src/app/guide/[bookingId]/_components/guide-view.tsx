@@ -40,6 +40,8 @@ const COPY = {
     guide: 'Guest guide',
     arrive: 'You arrive',
     leave: 'You leave',
+    arrived: 'You arrived',
+    leaving: 'You leave',
     from: 'from',
     by: 'by',
     wifi: 'Wi-Fi',
@@ -64,7 +66,7 @@ const COPY = {
       intro: '',
       house: 'In the house',
       around: 'Around here',
-      place: 'The place & the story',
+      place: 'The house & the valley',
     } as Record<string, string>,
   },
   ro: {
@@ -72,6 +74,8 @@ const COPY = {
     guide: 'Ghidul oaspetelui',
     arrive: 'Sosiți',
     leave: 'Plecați',
+    arrived: 'Ați sosit',
+    leaving: 'Plecați',
     from: 'de la',
     by: 'până la',
     wifi: 'Wi-Fi',
@@ -95,7 +99,7 @@ const COPY = {
       intro: '',
       house: 'În casă',
       around: 'Prin zonă',
-      place: 'Locul și povestea',
+      place: 'Casa și valea',
     } as Record<string, string>,
   },
 };
@@ -220,6 +224,48 @@ function WifiCard({ network, password, t }: { network: string; password: string;
   );
 }
 
+function TripsCard({ data, t }: { data: GuideData; t: typeof COPY.en }) {
+  if (data.routes.length === 0 && !data.mapUrl) return null;
+  return (
+<section className="rounded-xl border border-[#DDDAC7] bg-white p-4">
+      <h2 className="mb-2 flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.15em] text-[#6D7154]">
+        <Map className="h-3 w-3" />
+        {t.trips}
+      </h2>
+
+      {data.routes.length > 0 && (
+        <ul className="mb-3">
+          {data.routes.map((r) => (
+            <li
+              key={`${r.name}-${r.km}`}
+              className="flex items-baseline gap-2 border-b border-[#DDDAC7] py-1.5 text-[12px] last:border-b-0"
+            >
+              <span className="w-16 shrink-0 text-[8.5px] font-extrabold uppercase tracking-[0.1em] text-[#414A22]">
+                {t.kinds[r.kind] ?? r.kind}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-[#23260F]">{r.name}</span>
+              <span className="shrink-0 font-mono text-[10.5px] tabular-nums text-[#6D7154]">
+                {r.km} km
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {data.mapUrl && (
+        <a
+          href={data.mapUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-1.5 rounded-lg border-[1.5px] border-[#414A22] px-3 py-2.5 text-[12px] font-bold text-[#414A22] transition hover:bg-[#F4F2E7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7E9A33]"
+        >
+          {t.openMap}
+          <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+      )}
+    </section>
+  );
+}
+
 function ArrivalCard({
   a,
   t,
@@ -306,6 +352,15 @@ export default function GuideView({ data }: { data: GuideData }) {
     ? ['intro', 'house', 'around', 'place']
     : ['intro', 'place', 'around', 'house'];
 
+  // On checkout morning the departure checklist is lifted out of its band and
+  // shown open at the top, so it is not row five of something collapsed.
+  const departure = data.departing
+    ? data.sections.find((s) => s.id === 'before-you-go')
+    : undefined;
+  const sections = departure
+    ? data.sections.filter((s) => s.id !== departure.id)
+    : data.sections;
+
   // One section open at a time. Closing a section above the one just opened
   // would slide it out from under the finger, so the scroll position is
   // corrected by however much the tapped row moved.
@@ -347,7 +402,7 @@ export default function GuideView({ data }: { data: GuideData }) {
           <dl className="mt-4 flex gap-4 border-t border-[#F4F2E7]/25 pt-3">
             <div className="flex-1">
               <dt className="text-[9.5px] font-bold uppercase tracking-[0.13em] opacity-75">
-                {t.arrive}
+                {data.stayStarted ? t.arrived : t.arrive}
               </dt>
               <dd className="mt-0.5 text-sm font-semibold">{data.checkIn}</dd>
               {data.checkInTime && (
@@ -356,7 +411,7 @@ export default function GuideView({ data }: { data: GuideData }) {
             </div>
             <div className="flex-1">
               <dt className="text-[9.5px] font-bold uppercase tracking-[0.13em] opacity-75">
-                {t.leave}
+                {data.stayStarted ? t.leaving : t.leave}
               </dt>
               <dd className="mt-0.5 text-sm font-semibold">{data.checkOut}</dd>
               {data.checkOutTime && (
@@ -373,6 +428,20 @@ export default function GuideView({ data }: { data: GuideData }) {
         {data.wifi && <WifiCard network={data.wifi.network} password={data.wifi.password} t={t} />}
 
         {data.arrival && !data.arrivalLeads && <ArrivalCard a={data.arrival} t={t} />}
+
+        {/* Checkout morning: the list of things the host needs done stops being
+            row five of a collapsed band and leads instead. */}
+        {departure && (
+          <section className="rounded-xl border-[1.5px] border-[#7E9A33] bg-white p-4">
+            <h2 className="mb-2 flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.15em] text-[#6D7154]">
+              <ClipboardCheck className="h-3 w-3" />
+              {departure.title}
+            </h2>
+            <div className="text-sm leading-relaxed text-[#3B3F26]">
+              <SectionBody text={departure.body} />
+            </div>
+          </section>
+        )}
 
         {data.contacts.length > 0 && (
           <section className="rounded-xl border border-[#DDDAC7] bg-white p-4">
@@ -424,48 +493,13 @@ export default function GuideView({ data }: { data: GuideData }) {
           </section>
         )}
 
-        {(data.routes.length > 0 || data.mapUrl) && (
-          <section className="rounded-xl border border-[#DDDAC7] bg-white p-4">
-            <h2 className="mb-2 flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.15em] text-[#6D7154]">
-              <Map className="h-3 w-3" />
-              {t.trips}
-            </h2>
-
-            {data.routes.length > 0 && (
-              <ul className="mb-3">
-                {data.routes.map((r) => (
-                  <li
-                    key={`${r.name}-${r.km}`}
-                    className="flex items-baseline gap-2 border-b border-[#DDDAC7] py-1.5 text-[12px] last:border-b-0"
-                  >
-                    <span className="w-16 shrink-0 text-[8.5px] font-extrabold uppercase tracking-[0.1em] text-[#414A22]">
-                      {t.kinds[r.kind] ?? r.kind}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-[#23260F]">{r.name}</span>
-                    <span className="shrink-0 font-mono text-[10.5px] tabular-nums text-[#6D7154]">
-                      {r.km} km
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {data.mapUrl && (
-              <a
-                href={data.mapUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-1.5 rounded-lg border-[1.5px] border-[#414A22] px-3 py-2.5 text-[12px] font-bold text-[#414A22] transition hover:bg-[#F4F2E7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7E9A33]"
-              >
-                {t.openMap}
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-            )}
-          </section>
-        )}
 
         {bands.map((band) => {
-          const inBand = data.sections.filter((s) => s.group === band);
-          if (inBand.length === 0) return null;
+          const inBand = sections.filter((s) => s.group === band);
+          // Trips keeps its card treatment, but belongs with the rest of
+          // "around here" rather than competing with the utility block.
+          const lead = band === 'around' ? <TripsCard data={data} t={t} /> : null;
+          if (inBand.length === 0 && !lead) return null;
 
           // The intro is prose, not a lookup - it stays open and unlabelled.
           if (band === 'intro') {
@@ -477,10 +511,12 @@ export default function GuideView({ data }: { data: GuideData }) {
           }
 
           return (
-            <section key={band} className="mt-2">
-              <h2 className="mb-2 px-1 text-[10px] font-extrabold uppercase tracking-[0.15em] text-[#6D7154]">
+            <div key={band} className="mt-2 flex flex-col gap-3">
+              <h2 className="px-1 text-[10px] font-extrabold uppercase tracking-[0.15em] text-[#6D7154]">
                 {t.bands[band]}
               </h2>
+              {lead}
+              <section>
               <div className="overflow-hidden rounded-xl border border-[#DDDAC7] bg-white">
                 {inBand.map((s) => (
                   <details
@@ -515,8 +551,9 @@ export default function GuideView({ data }: { data: GuideData }) {
                     </div>
                   </details>
                 ))}
-              </div>
-            </section>
+                </div>
+              </section>
+            </div>
           );
         })}
 
