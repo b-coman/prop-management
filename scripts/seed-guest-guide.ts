@@ -36,6 +36,12 @@ const MAP_URL =
 const prahovaGuide = {
   enabled: true,
 
+  // TEMPORARY: serve the English guide to everyone, including Romanian guests.
+  // The Romanian copy below is complete but does not yet sound like the owner,
+  // so it stays in place and unserved until he has reworked it. Delete this line
+  // to go back to following each booking's language.
+  languageOverride: 'en',
+
   wifi: { network: 'coman_guest', password: WIFI_PASSWORD },
 
   contacts: [
