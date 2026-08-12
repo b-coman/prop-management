@@ -60,10 +60,26 @@ export interface GuideSection {
   image?: { url: string; alt?: MultilingualString | string };
 }
 
+/**
+ * Everything a guest needs on the road and at the gate. Rendered first until the
+ * day after check-in, then demoted below the WiFi - by then they are inside and
+ * arrival is history.
+ */
+export interface GuideArrival {
+  wazeUrl?: string;
+  mapsUrl?: string;
+  plusCode?: string;
+  call?: MultilingualString | string;
+  access?: MultilingualString | string;
+  /** Guest tier only, and never stored in the repo. */
+  lockboxCode?: string;
+}
+
 export interface GuestGuideConfig {
   enabled?: boolean;
   wifi?: { network?: string; password?: string };
   contacts?: GuideContact[];
+  arrival?: GuideArrival;
   mapUrl?: string;
   routes?: GuideRoute[];
   sections?: GuideSection[];
@@ -98,6 +114,17 @@ export interface GuideData {
   checkInTime?: string;
   checkOutTime?: string;
   wifi?: { network: string; password: string };
+  /** Guest tier only. Absent once the stay is under way. */
+  arrival?: {
+    wazeUrl?: string;
+    mapsUrl?: string;
+    plusCode?: string;
+    call?: string;
+    access?: string;
+    lockboxCode?: string;
+  };
+  /** True until the day after check-in: arrival still leads the page. */
+  arrivalLeads: boolean;
   contacts: ResolvedContact[];
   mapUrl?: string;
   routes: Array<{ name: string; kind: GuideRoute['kind']; km: number; mapUrl?: string }>;
@@ -268,6 +295,7 @@ export async function fetchGuide(bookingId: string, token?: string): Promise<Gui
     language,
     propertyName,
     propertySlug,
+    arrivalLeads: false,
     contacts: tier === 'guest' ? resolveContacts(guide.contacts ?? [], language) : [],
     mapUrl: guide.mapUrl,
     routes,
@@ -284,6 +312,24 @@ export async function fetchGuide(bookingId: string, token?: string): Promise<Gui
     data.checkOutTime = property.checkOutTime;
     if (guide.wifi?.network && guide.wifi?.password) {
       data.wifi = { network: guide.wifi.network, password: guide.wifi.password };
+    }
+
+    if (guide.arrival) {
+      data.arrival = {
+        wazeUrl: guide.arrival.wazeUrl,
+        mapsUrl: guide.arrival.mapsUrl,
+        plusCode: guide.arrival.plusCode,
+        call: getLocalizedString(guide.arrival.call, language, '') || undefined,
+        access: getLocalizedString(guide.arrival.access, language, '') || undefined,
+        lockboxCode: guide.arrival.lockboxCode,
+      };
+
+      // Arrival leads the page until the end of the arrival day. A whole day of
+      // slack means the exact hour, and the guest's timezone, never matter.
+      if (checkInDate) {
+        const demoteAfter = new Date(checkInDate.getTime() + 36 * 60 * 60 * 1000);
+        data.arrivalLeads = new Date() < demoteAfter;
+      }
     }
   }
 

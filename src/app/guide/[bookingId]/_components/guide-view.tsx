@@ -20,6 +20,7 @@ import {
   Map,
   MessageCircle,
   Mountain,
+  Navigation,
   Phone,
   ScrollText,
   ShoppingBasket,
@@ -45,6 +46,10 @@ const COPY = {
     network: 'network',
     password: 'password',
     copied: 'Copied',
+    arrival: 'Getting here',
+    maps: 'Maps',
+    plusCode: 'Plus code',
+    lockbox: 'Key box code',
     whoToCall: 'Who to call',
     trips: 'Trips & hikes',
     openMap: 'Open in Google Maps',
@@ -73,6 +78,10 @@ const COPY = {
     network: 'rețea',
     password: 'parolă',
     copied: 'Copiat',
+    arrival: 'Cum ajungeți',
+    maps: 'Maps',
+    plusCode: 'Cod Plus',
+    lockbox: 'Codul cutiei de chei',
     whoToCall: 'Pe cine suni',
     trips: 'Trasee și excursii',
     openMap: 'Deschide în Google Maps',
@@ -211,6 +220,77 @@ function WifiCard({ network, password, t }: { network: string; password: string;
   );
 }
 
+function ArrivalCard({
+  a,
+  t,
+}: {
+  a: NonNullable<GuideData['arrival']>;
+  t: typeof COPY.en;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const copyPlusCode = async () => {
+    if (!a.plusCode) return;
+    try {
+      await navigator.clipboard.writeText(a.plusCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // On screen anyway; nothing to recover from.
+    }
+  };
+
+  const link =
+    'flex items-center justify-center gap-1.5 rounded-lg border-[1.5px] border-[#414A22] px-2 py-2.5 text-[12px] font-bold text-[#414A22] transition hover:bg-[#F4F2E7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7E9A33]';
+
+  return (
+    <section className="rounded-xl border border-[#DDDAC7] bg-white p-4">
+      <h2 className="mb-3 flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.15em] text-[#6D7154]">
+        <Navigation className="h-3 w-3" />
+        {t.arrival}
+      </h2>
+
+      <div className="grid grid-cols-3 gap-2">
+        {a.wazeUrl && (
+          <a className={link} href={a.wazeUrl} target="_blank" rel="noopener noreferrer">
+            Waze
+          </a>
+        )}
+        {a.mapsUrl && (
+          <a className={link} href={a.mapsUrl} target="_blank" rel="noopener noreferrer">
+            {t.maps}
+          </a>
+        )}
+        {a.plusCode && (
+          <button type="button" onClick={copyPlusCode} className={link}>
+            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? t.copied : t.plusCode}
+          </button>
+        )}
+      </div>
+
+      {a.call && (
+        <p className="mt-3 rounded-lg bg-[#414A22] px-3 py-2.5 text-[12.5px] leading-relaxed text-[#F4F2E7]">
+          {a.call}
+        </p>
+      )}
+
+      {a.lockboxCode && (
+        <p className="mt-2 flex items-baseline gap-2 rounded-lg border border-[#DDDAC7] bg-[#F4F2E7] px-3 py-2.5 text-[11px] text-[#6D7154]">
+          {t.lockbox}
+          <strong className="font-mono text-base tracking-[0.15em] text-[#23260F]">
+            {a.lockboxCode}
+          </strong>
+        </p>
+      )}
+
+      {a.access && (
+        <p className="mt-2 text-[11.5px] leading-relaxed text-[#6D7154]">{a.access}</p>
+      )}
+    </section>
+  );
+}
+
 export default function GuideView({ data }: { data: GuideData }) {
   const t = COPY[data.language] ?? COPY.en;
   const isGuest = data.tier === 'guest';
@@ -283,7 +363,11 @@ export default function GuideView({ data }: { data: GuideData }) {
       </header>
 
       <div className="flex flex-col gap-3 p-4">
+        {data.arrival && data.arrivalLeads && <ArrivalCard a={data.arrival} t={t} />}
+
         {data.wifi && <WifiCard network={data.wifi.network} password={data.wifi.password} t={t} />}
+
+        {data.arrival && !data.arrivalLeads && <ArrivalCard a={data.arrival} t={t} />}
 
         {data.contacts.length > 0 && (
           <section className="rounded-xl border border-[#DDDAC7] bg-white p-4">

@@ -22,19 +22,27 @@ admin.initializeApp({
 
 const db = admin.firestore();
 
+// Contact numbers and any door code live in .env.local (untracked), not here -
+// this repo is public. Missing values are left unset rather than guessed, so a
+// half-configured guide simply omits that contact instead of shipping a blank.
+const HOST_PHONE = process.env.GUIDE_HOST_PHONE;
+const KEEPER_PHONE = process.env.GUIDE_KEEPER_PHONE;
+const WIFI_PASSWORD = process.env.GUIDE_WIFI_PASSWORD;
+const LOCKBOX_CODE = process.env.GUIDE_LOCKBOX_CODE;
+
 const MAP_URL =
   'https://www.google.com/maps/d/u/0/viewer?mid=1KGS8M8z9YF24TjVxeixWJYDr3gB6Uis';
 
 const prahovaGuide = {
   enabled: true,
 
-  wifi: { network: 'coman_guest', password: 'athome' },
+  wifi: { network: 'coman_guest', password: WIFI_PASSWORD },
 
   contacts: [
     {
       displayName: { en: 'Bogdan', ro: 'Bogdan' },
       role: { en: 'Your host', ro: 'Gazda' },
-      phone: '+40723200868',
+      phone: HOST_PHONE,
       channel: 'whatsapp',
       speaks: ['en', 'ro'],
     },
@@ -47,7 +55,7 @@ const prahovaGuide = {
         en: 'They look after the house - they live a few doors down',
         ro: 'Se ocupă de casă - locuiesc la câteva case distanță',
       },
-      phone: '+40726114540',
+      phone: KEEPER_PHONE,
       channel: 'whatsapp',
       speaks: ['ro'],
       prefill: {
@@ -55,6 +63,25 @@ const prahovaGuide = {
       },
     },
   ],
+
+  // Shown at the top of the guide until the day after check-in, then demoted.
+  // The call is not a courtesy: it is what resolves whether someone meets the
+  // guest or the key is waiting for them.
+  arrival: {
+    wazeUrl:
+      'https://www.waze.com/en/live-map/directions?to=ll.45.25477736%2C25.64310908',
+    mapsUrl: 'https://goo.gl/maps/nw7UumH3r9mio4fUA',
+    plusCode: '7J3V+W77 Comarnic',
+    call: {
+      en: 'Call Bogdan 10-15 minutes before you arrive. If Corina or Gigi are around they will meet you at the house with the key. If not, we will tell you exactly where to find it.',
+      ro: 'Sunați-l pe Bogdan cu 10-15 minute înainte să ajungeți. Dacă doamna Corina sau domnul Gigi sunt prin zonă, vă întâmpină ei la casă cu cheia. Dacă nu, vă spunem exact unde o găsiți.',
+    },
+    access: {
+      en: 'The house sits about 60 m up from the road, where you park. That climb is why it is quiet up here and why the terrace looks out over the valley - but it does mean soft bags travel better than hard trollers.',
+      ro: 'De la stradă, de unde parcați, până la casă e o alee de vreo 60 m. Urcușul ăsta e motivul pentru care e liniște sus și pentru care terasa are priveliștea pe care o are - dar înseamnă și că gențile moi se cară mai ușor decât trolerele.',
+    },
+    ...(LOCKBOX_CODE ? { lockboxCode: LOCKBOX_CODE } : {}),
+  },
 
   mapUrl: MAP_URL,
 
