@@ -52,7 +52,7 @@ const prahovaGuide = {
         ro: 'Doamna Corina și domnul Gigi',
       },
       role: {
-        en: 'They look after the house - they live a few doors down',
+        en: 'They look after the house - they live a few houses away',
         ro: 'Se ocupă de casă - locuiesc la câteva case distanță',
       },
       phone: KEEPER_PHONE,
@@ -75,6 +75,7 @@ const prahovaGuide = {
     // the same coordinates as the Waze link above so the two agree.
     mapsUrl:
       'https://www.google.com/maps/dir/?api=1&destination=45.25477736,25.64310908',
+    gateNumber: '197',
     call: {
       en: 'Call Bogdan 10-15 minutes before you arrive. If Corina or Gigi are around they will meet you at the house with the key. If not, we will tell you exactly where to find it.',
       ro: 'Sunați-l pe Bogdan cu 10-15 minute înainte să ajungeți. Dacă doamna Corina sau domnul Gigi sunt prin zonă, vă întâmpină ei la casă cu cheia. Dacă nu, vă spunem exact unde o găsiți.',
