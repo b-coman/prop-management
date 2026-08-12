@@ -47,7 +47,8 @@ const COPY = {
     password: 'password',
     copied: 'Copied',
     arrival: 'Getting here',
-    maps: 'Maps',
+    maps: 'Google Maps',
+    gate: 'Look for this number on the gate',
     lockbox: 'Key box code',
     whoToCall: 'Who to call',
     trips: 'Trips & hikes',
@@ -78,7 +79,8 @@ const COPY = {
     password: 'parolă',
     copied: 'Copiat',
     arrival: 'Cum ajungeți',
-    maps: 'Maps',
+    maps: 'Google Maps',
+    gate: 'Căutați numărul acesta pe poartă',
     lockbox: 'Codul cutiei de chei',
     whoToCall: 'Pe cine suni',
     trips: 'Trasee și excursii',
@@ -262,6 +264,15 @@ function ArrivalCard({
           </a>
         )}
       </div>
+
+      {a.gateNumber && (
+        <p className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-[#DDDAC7] bg-[#F4F2E7] px-3 py-2.5">
+          <span className="text-[11.5px] leading-snug text-[#6D7154]">{t.gate}</span>
+          <strong className="font-mono text-xl font-bold tracking-[0.08em] text-[#23260F]">
+            {a.gateNumber}
+          </strong>
+        </p>
+      )}
 
       {a.call && (
         <p className="mt-3 rounded-lg bg-[#414A22] px-3 py-2.5 text-[12.5px] leading-relaxed text-[#F4F2E7]">
