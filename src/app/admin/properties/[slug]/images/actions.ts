@@ -22,7 +22,9 @@ const propertyImageSchema = z.object({
   tags: z.array(z.string()).optional(),
   sortOrder: z.number().optional(),
   thumbnailUrl: z.string().url().optional(),
+  displayUrl: z.string().url().optional(),
   storagePath: z.string().optional(),
+  displayStoragePath: z.string().optional(),
   thumbnailStoragePath: z.string().optional(),
   'data-ai-hint': z.string().optional(),
 });
@@ -112,7 +114,8 @@ export async function savePropertyImages(
 export async function deleteImageFromStorage(
   slug: string,
   storagePath: string,
-  thumbnailPath?: string
+  thumbnailPath?: string,
+  displayPath?: string
 ): Promise<{ error?: string }> {
   try {
     await requirePropertyAccess(slug);
@@ -135,9 +138,11 @@ export async function deleteImageFromStorage(
       // File may already be deleted — ignore
     });
 
-    if (thumbnailPath && thumbnailPath.startsWith(expectedPrefix)) {
-      await bucket.file(thumbnailPath).delete().catch(() => {
-        // Thumbnail may not exist — ignore
+    // Derivatives are absent on images predating each tier, so misses are fine.
+    for (const derivative of [thumbnailPath, displayPath]) {
+      if (!derivative || !derivative.startsWith(expectedPrefix)) continue;
+      await bucket.file(derivative).delete().catch(() => {
+        // Derivative may not exist, nothing to clean up
       });
     }
 

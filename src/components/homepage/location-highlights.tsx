@@ -106,12 +106,23 @@ export function LocationHighlights({ content, language = 'en' }: LocationHighlig
                   rel="noopener noreferrer"
                   className="block h-[350px] md:h-[400px] bg-muted rounded-xl overflow-hidden shadow-sm relative group"
                 >
-                  <img
-                    src={`https://maps.googleapis.com/maps/api/staticmap?center=${coordinates.latitude},${coordinates.longitude}&zoom=11&size=1200x400&scale=2&markers=color:red%7C${coordinates.latitude},${coordinates.longitude}&key=${apiKey}`}
-                    alt={t('location.mapAlt', 'Property location map')}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
+                  {/* The desktop map is 1200x400 at scale=2, i.e. a 2400x800
+                      render. A phone shows it in a ~390px-wide box, so it was
+                      downloading roughly six times the pixels it could display.
+                      <picture> lets the small viewport ask Google for a small
+                      map instead. */}
+                  <picture>
+                    <source
+                      media="(max-width: 768px)"
+                      srcSet={`https://maps.googleapis.com/maps/api/staticmap?center=${coordinates.latitude},${coordinates.longitude}&zoom=11&size=400x350&scale=2&markers=color:red%7C${coordinates.latitude},${coordinates.longitude}&key=${apiKey}`}
+                    />
+                    <img
+                      src={`https://maps.googleapis.com/maps/api/staticmap?center=${coordinates.latitude},${coordinates.longitude}&zoom=11&size=1200x400&scale=2&markers=color:red%7C${coordinates.latitude},${coordinates.longitude}&key=${apiKey}`}
+                      alt={t('location.mapAlt', 'Property location map')}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </picture>
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
                     <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 text-foreground px-4 py-2 rounded-full text-sm font-medium shadow-md">
                       {t('location.openInMaps', 'Open in Google Maps')}

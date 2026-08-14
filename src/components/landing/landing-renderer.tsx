@@ -21,6 +21,7 @@ import { SafeImage } from '@/components/ui/safe-image';
 import { CallButton } from '@/components/landing/call-button';
 import { Star, MapPin, ArrowRight, CalendarDays, Moon } from 'lucide-react';
 import type { LandingModel, LandingImage } from '@/lib/landing/contracts';
+import { displaySrc } from '@/lib/image-src';
 
 const t = (lang: string, en: string, ro: string) => (lang === 'ro' ? ro : en);
 
@@ -37,7 +38,7 @@ const nightsWord = (n: number, lang: string) => (lang === 'ro' ? (n === 1 ? 'noa
 function GTile({ img, ratio, sizes }: { img: LandingImage; ratio: string; sizes: string }) {
   return (
     <div className="relative w-full overflow-hidden rounded-xl" style={{ aspectRatio: ratio }}>
-      <SafeImage src={img.url} alt={img.alt} fill blurDataURL={img.blurDataURL}
+      <SafeImage src={displaySrc(img)} alt={img.alt} fill blurDataURL={img.blurDataURL}
         className="object-cover transition-transform duration-500 hover:scale-105" sizes={sizes} />
     </div>
   );
@@ -89,7 +90,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
         {/* ── HERO ── */}
         <section className="relative flex min-h-[78vh] items-center justify-center overflow-hidden">
           {m.hero.image ? (
-            <SafeImage src={m.hero.image.url} alt={m.hero.image.alt || m.hero.headline} fill priority
+            <SafeImage src={displaySrc(m.hero.image)} alt={m.hero.image.alt || m.hero.headline} fill priority
               blurDataURL={m.hero.image.blurDataURL} className="object-cover" sizes="100vw" />
           ) : <div className="absolute inset-0 bg-primary/20" />}
           <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/70" />
@@ -172,7 +173,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
               <div className="grid grid-flow-row-dense auto-rows-[8.5rem] grid-cols-2 gap-3 sm:auto-rows-[10.5rem] sm:grid-cols-3 lg:grid-cols-4">
                 {m.gallery.map((g, i) => (
                   <div key={i} className={`relative overflow-hidden rounded-xl ${i === 0 ? 'col-span-2 row-span-2' : ''}`}>
-                    <SafeImage src={g.url} alt={g.alt} fill blurDataURL={g.blurDataURL}
+                    <SafeImage src={displaySrc(g)} alt={g.alt} fill blurDataURL={g.blurDataURL}
                       className="object-cover transition-transform duration-500 hover:scale-105"
                       sizes={i === 0 ? '(max-width:640px) 100vw, 40vw' : '(max-width:640px) 50vw, 22vw'} />
                   </div>

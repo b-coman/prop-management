@@ -33,7 +33,7 @@ export interface LandingConfig {
 }
 
 /** A resolved image, ready for <SafeImage>. */
-export interface LandingImage { url: string; blurDataURL?: string; alt: string; storagePath: string }
+export interface LandingImage { url: string; displayUrl?: string; blurDataURL?: string; alt: string; storagePath: string }
 
 /** Everything the client renderer needs — all Ml text pre-resolved to the target language. */
 export interface LandingModel {
