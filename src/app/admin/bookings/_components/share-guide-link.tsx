@@ -1,20 +1,15 @@
 'use client';
 
 /**
- * Hands the guest guide link over to a guest.
+ * Hands the guest guide link to a guest, in their own language.
  *
- * Same manual-send philosophy as the campaign outbox: a wa.me click-to-chat
- * link pre-fills the text and the owner presses send himself. The server never
- * touches WhatsApp.
+ * One button. The booking's language picks the wording - there is no language
+ * chooser, because the booking already knows. Same manual-send philosophy as
+ * the campaign outbox: wa.me pre-fills the text and the owner presses send, so
+ * the server never touches WhatsApp.
  *
- * Two languages because the page itself is currently English-only while the
- * Romanian copy is reworked - so a Romanian guest gets a Romanian covering
- * message even though the guide behind it is in English. The guest's booking
- * language picks the default; both are always available.
- *
- * "Copy message" matters more than it looks: most bookings arrive through
- * Airbnb or Booking, where the conversation happens in the platform inbox
- * rather than on WhatsApp, and some have no phone number at all.
+ * Falls back to copying the message when a booking has no phone number, which
+ * is the same button doing the only thing left available to it.
  */
 import { useState } from 'react';
 import { Check, Copy, ExternalLink, MessageCircle } from 'lucide-react';
@@ -24,8 +19,6 @@ import { Button } from '@/components/ui/button';
 function waLink(phone: string, text: string): string {
   return `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`;
 }
-
-type Lang = 'en' | 'ro';
 
 export function ShareGuideLink({
   url,
@@ -37,98 +30,47 @@ export function ShareGuideLink({
   url: string;
   phone?: string;
   firstName?: string;
-  guestLanguage: Lang;
-  templates: Partial<Record<Lang, string>>;
+  guestLanguage: 'en' | 'ro';
+  templates: Partial<Record<'en' | 'ro', string>>;
 }) {
-  const [copied, setCopied] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
-  const flash = (what: string) => {
-    setCopied(what);
-    setTimeout(() => setCopied(null), 2000);
-  };
+  const message = (templates[guestLanguage] ?? '{link}')
+    .replaceAll('{name}', (firstName ?? '').trim())
+    .replaceAll('{link}', url);
 
-  const message = (lang: Lang): string =>
-    (templates[lang] ?? '{link}')
-      .replaceAll('{name}', (firstName ?? '').trim())
-      .replaceAll('{link}', url);
-
-  const copy = async (text: string, what: string) => {
+  const copyMessage = async () => {
     try {
-      await navigator.clipboard.writeText(text);
-      flash(what);
+      await navigator.clipboard.writeText(message);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch {
-      window.prompt('Copy:', text);
+      window.prompt('Copy the message:', message);
     }
   };
 
-  // The guest's own language first, so the obvious button is the right one.
-  const langs: Lang[] = guestLanguage === 'ro' ? ['ro', 'en'] : ['en', 'ro'];
-
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap gap-2">
-        {langs.map((lang, i) => (
-          <Button
-            key={lang}
-            variant={i === 0 ? 'default' : 'outline'}
-            size="sm"
-            asChild={!!phone}
-            disabled={!phone}
-            className="gap-1.5"
-            title={phone ? undefined : 'No phone number on this booking'}
-          >
-            {phone ? (
-              <a href={waLink(phone, message(lang))} target="_blank" rel="noopener noreferrer">
-                <MessageCircle className="h-3.5 w-3.5" />
-                WhatsApp ({lang.toUpperCase()})
-              </a>
-            ) : (
-              <span>
-                <MessageCircle className="h-3.5 w-3.5" />
-                WhatsApp ({lang.toUpperCase()})
-              </span>
-            )}
-          </Button>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {langs.map((lang) => (
-          <Button
-            key={lang}
-            variant="outline"
-            size="sm"
-            onClick={() => copy(message(lang), `msg-${lang}`)}
-            className="gap-1.5"
-          >
-            {copied === `msg-${lang}` ? (
-              <Check className="h-3.5 w-3.5" />
-            ) : (
-              <Copy className="h-3.5 w-3.5" />
-            )}
-            {copied === `msg-${lang}` ? 'Copied' : `Copy message (${lang.toUpperCase()})`}
-          </Button>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <Button variant="ghost" size="sm" onClick={() => copy(url, 'url')} className="gap-1.5">
-          {copied === 'url' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-          {copied === 'url' ? 'Copied' : 'Copy link only'}
-        </Button>
-        <Button variant="ghost" size="sm" asChild className="gap-1.5">
-          <a href={url} target="_blank" rel="noopener noreferrer">
-            <ExternalLink className="h-3.5 w-3.5" />
-            Preview
+    <div className="flex flex-wrap items-center gap-2">
+      {phone ? (
+        <Button size="sm" asChild className="gap-1.5">
+          <a href={waLink(phone, message)} target="_blank" rel="noopener noreferrer">
+            <MessageCircle className="h-3.5 w-3.5" />
+            Send on WhatsApp
           </a>
         </Button>
-      </div>
-
-      {!phone && (
-        <p className="text-xs text-muted-foreground">
-          No phone on this booking - use Copy message and paste it into the platform inbox.
-        </p>
+      ) : (
+        <Button size="sm" onClick={copyMessage} className="gap-1.5">
+          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? 'Copied' : 'Copy message'}
+        </Button>
       )}
+
+      <Button variant="ghost" size="sm" asChild className="gap-1.5">
+        <a href={url} target="_blank" rel="noopener noreferrer">
+          <ExternalLink className="h-3.5 w-3.5" />
+          Preview
+        </a>
+      </Button>
     </div>
   );
 }
