@@ -64,6 +64,23 @@ const nextConfig: NextConfig = {
     }
     return config;
   },
+  // Property photos under public/images are content-addressed by filename and
+  // change only when a new file is added, but Next serves them with
+  // `public, max-age=0` by default, so every pageview re-downloaded the hero
+  // (392 KB) and friends. Cache them hard; rename the file to bust it.
+  async headers() {
+    return [
+      {
+        source: '/images/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+    ];
+  },
   // Handle custom domains
   async rewrites() {
     return {
