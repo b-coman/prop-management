@@ -14,6 +14,33 @@ const logger = loggers.admin;
 // Zod Schemas
 // ============================================================================
 
+/**
+ * Zod strips unknown keys, so anything missing here is silently destroyed the
+ * next time an admin saves the image list. Two fields were being lost that way:
+ *
+ *  - aiDescription: the vision-generated description the ad/post selectors
+ *    reason over. Expensive to produce, and its loss is invisible until a
+ *    campaign picks the wrong photo.
+ *  - blurDataURL: the tiny base64 placeholder behind each photo.
+ *
+ * If you add a field to PropertyImage, add it here in the same commit.
+ */
+const aiImageDescriptionSchema = z.object({
+  summary: z.string(),
+  setting: z.string(),
+  season: z.string(),
+  timeOfDay: z.string(),
+  mood: z.string(),
+  subjects: z.array(z.string()),
+  features: z.array(z.string()),
+  people: z.string(),
+  activities: z.array(z.string()),
+  palette: z.array(z.string()),
+  fitsAngles: z.array(z.string()),
+  model: z.string(),
+  describedAt: z.string(),
+});
+
 const propertyImageSchema = z.object({
   url: z.string().url(),
   alt: z.string().max(500).default(''),
@@ -26,6 +53,10 @@ const propertyImageSchema = z.object({
   storagePath: z.string().optional(),
   displayStoragePath: z.string().optional(),
   thumbnailStoragePath: z.string().optional(),
+  // Tolerant on purpose: a shape drift in the vision output should not wipe the
+  // description, which is the exact failure this schema already caused once.
+  aiDescription: aiImageDescriptionSchema.partial().passthrough().optional(),
+  blurDataURL: z.string().optional(),
   'data-ai-hint': z.string().optional(),
 });
 
