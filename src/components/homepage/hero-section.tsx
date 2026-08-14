@@ -4,6 +4,7 @@
 import Image from 'next/image';
 import type { Property } from '@/types';
 import { cn } from '@/lib/utils';
+import { getPublicImageVariants } from '@/lib/public-image-variants';
 import { useEffect, useState } from 'react';
 import { setupHeroContentAdjustment } from './hero-helper';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -96,6 +97,12 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
     'data-ai-hint': dataAiHint = "property image",
   } = content;
 
+  // Pre-generated responsive variants for hand-placed public/images photos.
+  // null for Storage images and anything without a manifest entry, which keeps
+  // the original <Image> path for them.
+  const heroVariants = getPublicImageVariants(backgroundImage);
+  const heroBlur = backgroundImageBlur || heroVariants?.blurDataURL;
+
   // Load property data with defaults
   // We'll keep this even if property data isn't available, but log a warning
   if (!bookingFormProperty) {
@@ -134,7 +141,33 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
       data-form-size={formSize} // Pass size data for future use
       style={{ position: 'relative', overflow: 'visible' }} // Ensure relative positioning for absolute children
     >
-      {backgroundImage && (
+      {backgroundImage && (heroVariants ? (
+        /* next/image runs unoptimized on Firebase App Hosting, so it emits no
+           srcset and every phone downloaded the full-size hero. This is a plain
+           img purely so we can supply our own pre-generated srcset. The widest
+           candidate is the original file at its native width, so desktop gets
+           exactly what it got before; only smaller screens pick something
+           smaller. Falls back to <Image> for any photo without variants. */
+        <img
+          src={heroVariants.src}
+          srcSet={heroVariants.srcSet}
+          sizes="100vw"
+          alt={tc(title) || property.name || t('common.heroBackgroundImage', 'Property hero image')}
+          fetchPriority="high"
+          decoding="async"
+          data-ai-hint={dataAiHint}
+          className="absolute inset-0 h-full w-full object-cover -z-10"
+          style={
+            heroBlur
+              ? {
+                  backgroundImage: `url(${heroBlur})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }
+              : undefined
+          }
+        />
+      ) : (
         <Image
           src={backgroundImage}
           alt={tc(title) || property.name || t('common.heroBackgroundImage', 'Property hero image')}
@@ -146,7 +179,7 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
           data-ai-hint={dataAiHint}
           {...(backgroundImageBlur ? { placeholder: 'blur' as const, blurDataURL: backgroundImageBlur } : {})}
         />
-      )}
+      ))}
       <div className="absolute inset-0 bg-black/40 -z-10"></div>
 
       {/* 

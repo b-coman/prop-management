@@ -1,0 +1,100 @@
+{
+  "/images/properties/prahova-mountain-chalet/IMG_3864.jpg": {
+    "widths": [
+      640,
+      828,
+      1200,
+      1600
+    ],
+    "pattern": "/images/properties/prahova-mountain-chalet/_v/IMG_3864-{w}.webp",
+    "originalWidth": 1600,
+    "blurDataURL": "data:image/webp;base64,UklGRooAAABXRUJQVlA4IH4AAADQAwCdASoUAA0APu1iqU2ppaOiMAgBMB2JZAAAOzZcEDPEryB79jAA+3WgvZ8WBNgu4mCoGclvCocowyvQOv6PXKKlQim+QyICL7q4ze//P7hHuWoqDn9IcwpSYQNlei6tvu2YjwCXUl0rEkLkgvOlAzB5+o8ZaQd3y0ECgAA="
+  },
+  "/images/properties/prahova-mountain-chalet/IMG_3868.jpg": {
+    "widths": [
+      640,
+      828,
+      1200,
+      1600
+    ],
+    "pattern": "/images/properties/prahova-mountain-chalet/_v/IMG_3868-{w}.webp",
+    "originalWidth": 1600,
+    "blurDataURL": "data:image/webp;base64,UklGRpYAAABXRUJQVlA4IIoAAACQAwCdASoUAA0APu1iqU2ppaQiMAgBMB2JaACAAAK71zx0WqcAAP7vSyj/saBTCj3TvAB28p3cT61HrZ93ezv6r1Ek3hE9FwPNqHHUrbVYAfj8soTL/JJL2gZGpREfoXR/hTE9zDdRyAkEbyDa/mrYeilqcFLwr5DU6+Q3Ug5MCcQI/ksP3+yAAAA="
+  },
+  "/images/properties/prahova-mountain-chalet/IMG_3889.jpg": {
+    "widths": [
+      640,
+      828,
+      1200,
+      1600
+    ],
+    "pattern": "/images/properties/prahova-mountain-chalet/_v/IMG_3889-{w}.webp",
+    "originalWidth": 1600,
+    "blurDataURL": "data:image/webp;base64,UklGRnwAAABXRUJQVlA4IHAAAADQAwCdASoUAA0APu1iqU2ppaOiMAgBMB2JZgCdACLt5ohaU/euw0AA/B7xhE1Rh1QVUpq3ro3f5O0aU0vBfJJH91GGzfr3BnsfAUwcQOHpspqwKDabdh7/kE8Nt5vdYyBM57Mc8HALmBk0lxwENQAA"
+  },
+  "/images/properties/prahova-mountain-chalet/canionul_7_scari.jpg": {
+    "widths": [
+      640
+    ],
+    "pattern": "/images/properties/prahova-mountain-chalet/_v/canionul_7_scari-{w}.webp",
+    "originalWidth": 768,
+    "blurDataURL": "data:image/webp;base64,UklGRogAAABXRUJQVlA4IHwAAACQAwCdASoUAAsAPu1iqU2ppaOiMAgBMB2JZQAAPpzSu3lDF4EAAP7sEZA9uwQT7hJBgzk7QGiGljIuIuAZ27UtLilaBiSRQLBAWgI5rmWLG31jFMIccqlBts1bKDcVuIuGe5/e/78lHGRCmnMj1cCQw1mjXzCkBZfpwAAA"
+  },
+  "/images/properties/prahova-mountain-chalet/castelul-bran.jpg": {
+    "widths": [
+      640
+    ],
+    "pattern": "/images/properties/prahova-mountain-chalet/_v/castelul-bran-{w}.webp",
+    "originalWidth": 800,
+    "blurDataURL": "data:image/webp;base64,UklGRooAAABXRUJQVlA4IH4AAADwAwCdASoUAAsAPu1iqU2ppaOiMAgBMB2JbACdABjulmzVkI/HEtgAAP7l/6l8vu3iN0mr9sw1A3qnqYEj8WppXb/ssn2RZOX2WlXVYB8X5kIRDpt8ePrp9eJOsH8ioPySMqjbffg0DmhQhzrD8AqV/RwbipX51vhMooTgAAA="
+  },
+  "/images/properties/prahova-mountain-chalet/cheile-dambovicioarei-1.jpg": {
+    "widths": [
+      640,
+      828
+    ],
+    "pattern": "/images/properties/prahova-mountain-chalet/_v/cheile-dambovicioarei-1-{w}.webp",
+    "originalWidth": 1024,
+    "blurDataURL": "data:image/webp;base64,UklGRpAAAABXRUJQVlA4IIQAAAAwBACdASoUAA4APu1iqU2ppaOiMAgBMB2JZACw7CMAKL+VZti7XW3KZiAA/jtHK8yprbCGdVUnjE9L7ZRarF3spKQyrztS5d8WzRMQMrv1I5uoORs0VTHMo434UHoVqHgPHm+AmUoxjNI5WXbhzLcOvqb8ddX2CKg4nqp8gU73GTAAAAA="
+  },
+  "/images/properties/prahova-mountain-chalet/comarnic-hero-1.jpg": {
+    "widths": [
+      640,
+      828,
+      1200
+    ],
+    "pattern": "/images/properties/prahova-mountain-chalet/_v/comarnic-hero-1-{w}.webp",
+    "originalWidth": 1600,
+    "blurDataURL": "data:image/webp;base64,UklGRoYAAABXRUJQVlA4IHoAAADwAwCdASoUAA8APu1iqU2ppaOiMAgBMB2JZACo9BToVlXdOq5LR+CYAPE0rHpyBiloHX8ydXHJbSSWZAJGp/Nazk3IeDG482DFATqbjpd1/Msxy0AYT0/apj9bGHlyD2OOBUylj7cMaxc0ouWAh/aU4Le4I+JIHCAAAA=="
+  },
+  "/images/properties/prahova-mountain-chalet/comarnic-position.jpg": {
+    "widths": [
+      640,
+      828,
+      1200,
+      1600
+    ],
+    "pattern": "/images/properties/prahova-mountain-chalet/_v/comarnic-position-{w}.webp",
+    "originalWidth": 1600,
+    "blurDataURL": "data:image/webp;base64,UklGRnwAAABXRUJQVlA4IHAAAADQAwCdASoUAA8APu1iqU2ppaOiMAgBMB2JZgCdLwAB0G1yhQzAixAA/lvxStKZr4Ne+YVN0lhFUNTQtswiu/4CDvdos7hME8+C8IFZ8PN1n2/X4o8O61cMKvaWmsJXwyHqgLwioCh4ny7pxHXkOgAA"
+  },
+  "/images/properties/prahova-mountain-chalet/og-image.jpg": {
+    "widths": [
+      640,
+      828
+    ],
+    "pattern": "/images/properties/prahova-mountain-chalet/_v/og-image-{w}.webp",
+    "originalWidth": 1200,
+    "blurDataURL": "data:image/webp;base64,UklGRoQAAABXRUJQVlA4IHgAAACwAwCdASoUAAoAPu1iqU2ppaOiMAgBMB2JagCnFBuOkaViN/uVoADKCiTlhy0uG7ySfVySbZuDSNOu7MQ/FIUSIvsYbj821aYycgbvbpItoWP3HWgBHCTvn4RtVAnSZeAZOKlpCUvBdJ37UOlmZkGlv3vOjwvgAAA="
+  },
+  "/images/properties/prahova-mountain-chalet/sfinx.jpg": {
+    "widths": [
+      640,
+      828,
+      1200
+    ],
+    "pattern": "/images/properties/prahova-mountain-chalet/_v/sfinx-{w}.webp",
+    "originalWidth": 1386,
+    "blurDataURL": "data:image/webp;base64,UklGRogAAABXRUJQVlA4IHwAAAAQBACdASoUAAwAPu1iqU2ppaOiMAgBMB2JZgCdMoADJ5JSQmJY/JBIoAD6lCCJabfAuaPCuKAS7qlz7w9jenrvxOsoZm3UUFiXQlz6PDI4wF+Woj3XBUwkfwWYmWCN5XpGeur8y7z7rTNq0wmEHv+8+J3nw5B1tee2nAAA"
+  }
+}
