@@ -15,9 +15,11 @@ function resolveImage(storagePath: string | undefined, images: any[], lang: stri
   const img = images.find((i) => i?.storagePath === storagePath);
   if (!img) return null;
   return {
-    // Use the FULL-res url as the source and let next/image serve optimized responsive sizes.
-    // (thumbnailUrl is a small pre-resized variant — too low-res for a full-bleed hero.)
+    // next/image runs UNOPTIMIZED on Firebase App Hosting (/_next/image 404s and
+    // no srcset is emitted), so whatever goes in here is what the phone downloads.
+    // Ship the 1200px derivative; keep `url` for anything that wants full size.
     url: img.url || img.thumbnailUrl || '',
+    displayUrl: img.displayUrl,
     blurDataURL: img.blurDataURL,
     alt: serverTranslateContent(img.alt, lang) || '',
     storagePath,

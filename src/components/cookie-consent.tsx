@@ -53,7 +53,6 @@ export function CookieConsent() {
   const [showPreferences, setShowPreferences] = useState(false);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
   const [marketingEnabled, setMarketingEnabled] = useState(false);
-  const [isFirstVisit, setIsFirstVisit] = useState(false);
 
   const suppressed = SUPPRESS_ON_PATHS.some(p => pathname?.startsWith(p));
 
@@ -72,27 +71,31 @@ export function CookieConsent() {
     const stored = getConsentCookie();
     if (stored) {
       updateGtagConsent(stored);
-    } else {
-      // Small delay so the page renders first
-      const timer = setTimeout(() => {
-        setIsFirstVisit(true);
-        setVisible(true);
-      }, 500);
-      return () => clearTimeout(timer);
+      return;
     }
-  }, [suppressed]);
 
-  // Lock body scroll when overlay is shown
-  useEffect(() => {
-    if (visible && isFirstVisit) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
+    // Ask AFTER the visitor has seen the property, not 500ms in.
+    //
+    // The Meta Pixel does not load at all without consent (see meta-pixel.tsx),
+    // so a visitor who bounces off the banner is invisible to Facebook: no
+    // PageView, no audience, nothing to optimise against. Bouncing them early
+    // costs the consent AND the measurement, which is why this waits for a sign
+    // of engagement instead of interrupting immediately.
+    let fired = false;
+    const show = () => {
+      if (fired) return;
+      fired = true;
+      setVisible(true);
     };
-  }, [visible, isFirstVisit]);
+
+    const timer = setTimeout(show, 4000);
+    window.addEventListener('scroll', show, { once: true, passive: true });
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('scroll', show);
+    };
+  }, [suppressed]);
 
   // Listen for footer "open cookie settings" event
   useEffect(() => {
@@ -103,8 +106,7 @@ export function CookieConsent() {
         setMarketingEnabled(stored.marketing);
       }
       setShowPreferences(true);
-      setIsFirstVisit(false); // No overlay when reopening from footer
-      setVisible(true);
+        setVisible(true);
     };
     window.addEventListener('open-cookie-settings', handler);
     return () => window.removeEventListener('open-cookie-settings', handler);
@@ -116,7 +118,6 @@ export function CookieConsent() {
     window.dispatchEvent(new CustomEvent('consent-updated', { detail: prefs }));
     setVisible(false);
     setShowPreferences(false);
-    setIsFirstVisit(false);
   }, []);
 
   const handleAcceptAll = useCallback(() => {
@@ -136,23 +137,21 @@ export function CookieConsent() {
 
   return (
     <>
-      {/* Dark overlay — only on first visit */}
-      {isFirstVisit && (
-        <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm" />
-      )}
-
-      {/* Banner card */}
+      {/* No dimming overlay and no scroll lock. On a phone this card is already
+          most of the screen; blanking the page behind it took the hero, the
+          price and the booking CTA with it. z-[70] keeps it clear of the
+          sticky mobile booking bar (z-50) rather than fighting it. */}
       <div
-        className={`fixed bottom-0 inset-x-0 ${isFirstVisit ? 'z-[61]' : 'z-50'} flex justify-center p-4 transition-opacity duration-300`}
+        className="fixed bottom-0 inset-x-0 z-[70] flex justify-center p-4 transition-opacity duration-300"
         style={{ opacity: visible ? 1 : 0 }}
       >
         <div className="w-full max-w-lg bg-background rounded-xl border border-border shadow-2xl">
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {!showPreferences ? (
               /* Main banner view */
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/10 flex items-center justify-center">
                     <Shield className="w-5 h-5 text-primary" />
                   </div>
                   <h3 className="text-lg font-semibold text-foreground">
@@ -164,27 +163,36 @@ export function CookieConsent() {
                   {t('cookieConsent.description', 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. You can choose which cookies you allow.')}
                 </p>
 
-                <div className="flex flex-col sm:flex-row gap-3">
+                {/* Reject must be one tap, same as accept. Burying it behind
+                    "Manage Preferences" reads as a dark pattern, which costs
+                    trust and is not what the EDPB/CNIL guidance allows. */}
+                <div className="flex flex-row gap-2 sm:gap-3">
                   <button
                     onClick={handleAcceptAll}
-                    className="flex-1 px-5 py-2.5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                    className="flex-1 px-3 py-2.5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                   >
                     {t('cookieConsent.acceptAll', 'Accept All')}
                   </button>
                   <button
-                    onClick={() => {
-                      const stored = getConsentCookie();
-                      if (stored) {
-                        setAnalyticsEnabled(stored.analytics);
-                        setMarketingEnabled(stored.marketing);
-                      }
-                      setShowPreferences(true);
-                    }}
-                    className="flex-1 px-5 py-2.5 text-sm font-medium rounded-lg border border-border bg-background hover:bg-muted transition-colors"
+                    onClick={handleRejectAll}
+                    className="flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border border-border bg-background hover:bg-muted transition-colors"
                   >
-                    {t('cookieConsent.managePreferences', 'Manage Preferences')}
+                    {t('cookieConsent.rejectAll', 'Only Necessary')}
                   </button>
                 </div>
+                <button
+                  onClick={() => {
+                    const stored = getConsentCookie();
+                    if (stored) {
+                      setAnalyticsEnabled(stored.analytics);
+                      setMarketingEnabled(stored.marketing);
+                    }
+                    setShowPreferences(true);
+                  }}
+                  className="w-full text-xs text-muted-foreground underline hover:text-foreground transition-colors"
+                >
+                  {t('cookieConsent.managePreferences', 'Manage Preferences')}
+                </button>
 
                 <p className="text-xs text-muted-foreground text-center">
                   <a href={privacyUrl} className="underline hover:text-foreground transition-colors">

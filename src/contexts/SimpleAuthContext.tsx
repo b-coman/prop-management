@@ -20,7 +20,7 @@ import {
   GoogleAuthProvider,
   signOut
 } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth } from '@/lib/firebase-auth';
 import { useRouter } from 'next/navigation';
 
 interface AuthContextType {

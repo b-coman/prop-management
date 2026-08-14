@@ -92,6 +92,7 @@ export function ImageManager({ slug, initialImages }: ImageManagerProps) {
           const result = await uploadPropertyImage(
             slug,
             processed.full,
+            processed.display,
             processed.thumbnail,
             processed.extension,
             (percent) => {
@@ -106,8 +107,10 @@ export function ImageManager({ slug, initialImages }: ImageManagerProps) {
           const newImage: PropertyImage = {
             url: result.fullUrl,
             alt: '',
+            displayUrl: result.displayUrl,
             thumbnailUrl: result.thumbnailUrl,
             storagePath: result.storagePath,
+            displayStoragePath: result.displayStoragePath,
             thumbnailStoragePath: result.thumbnailStoragePath,
           };
 
@@ -228,10 +231,10 @@ export function ImageManager({ slug, initialImages }: ImageManagerProps) {
     // Delete from Storage if it has a storagePath
     if (image.storagePath) {
       try {
-        await deleteStorageImage(image.storagePath, image.thumbnailStoragePath);
+        await deleteStorageImage(image.storagePath, image.thumbnailStoragePath, image.displayStoragePath);
       } catch {
         // Try server-side deletion as fallback
-        await deleteImageFromStorage(slug, image.storagePath, image.thumbnailStoragePath);
+        await deleteImageFromStorage(slug, image.storagePath, image.thumbnailStoragePath, image.displayStoragePath);
       }
     }
 

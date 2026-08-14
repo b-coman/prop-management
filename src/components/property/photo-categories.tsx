@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogTrigger, DialogClose } from '@/components/
 import { Button } from '@/components/ui/button';
 import { X, ArrowLeft, ArrowRight } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
+import { displaySrc, fullSrc } from '@/lib/image-src';
 
 interface PhotoCategoriesProps {
   content: PhotoCategoriesBlock;
@@ -99,7 +100,7 @@ export function PhotoCategories({ content }: PhotoCategoriesProps) {
                           onClick={() => openLightbox(index)}
                         >
                           <Image
-                            src={image.url}
+                            src={displaySrc(image)}
                             alt={tc(image.alt) || ''}
                             fill
                             className="object-cover"
@@ -147,7 +148,7 @@ export function PhotoCategories({ content }: PhotoCategoriesProps) {
               {currentCategory && currentCategory.images.length > 0 && (
                 <div className="relative h-full w-full max-h-[80vh]">
                   <Image
-                    src={currentCategory.images[currentImageIndex].url}
+                    src={fullSrc(currentCategory.images[currentImageIndex])}
                     alt={tc(currentCategory.images[currentImageIndex].alt) || ''}
                     fill
                     className="object-contain"

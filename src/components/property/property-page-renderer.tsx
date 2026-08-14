@@ -69,6 +69,7 @@ import { themeToInlineStyles } from '@/lib/themes/theme-utils';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { buildDisplayUrlMap, withDisplayVariants } from '@/lib/image-src';
 
 // Import all the block components
 import { HeroSection } from '@/components/homepage/hero-section';
@@ -237,6 +238,11 @@ export function PropertyPageRenderer({
   // Logo - use template defaults
   const logoSrc = template.header.logo?.src;
   const logoAlt = template.header.logo?.alt ? tc(template.header.logo.alt) : undefined;
+
+  // Most blocks store a bare image URL string rather than a PropertyImage, so
+  // the 1200px derivative is swapped in by exact-URL match at the block
+  // boundary below. Built once per render rather than per block.
+  const displayUrlMap = buildDisplayUrlMap(property?.images);
 
   // Render function for a specific block
   const renderBlock = (block: BlockReference) => {
@@ -466,6 +472,9 @@ export function PropertyPageRenderer({
           });
           const propertyGalleryImages = sorted.map((img) => ({
             url: img.url,
+            // Carried through so the grid can render the 1200px derivative
+            // while the lightbox still opens the full-size original.
+            displayUrl: img.displayUrl,
             alt: img.alt || '',
             'data-ai-hint': img['data-ai-hint'],
             blurDataURL: img.blurDataURL,
@@ -706,7 +715,7 @@ export function PropertyPageRenderer({
               </div>
             }
           >
-            <Component key={id} content={blockContent} language={language} />
+            <Component key={id} content={withDisplayVariants(blockContent, displayUrlMap)} language={language} />
           </ErrorBoundary>
         </div>
       );

@@ -6,8 +6,24 @@
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
+/**
+ * Size tiers. `display` is what guests actually see.
+ *
+ * Sized off the worst case on the site: the gallery is columns-1 on mobile, so
+ * a tile is the full ~390 CSS px viewport. At DPR 2.6, the common mid-range
+ * Android, that wants ~1014 device px, so 1000 is the honest number. 1200 only
+ * helps DPR 3 flagships and costs ~35% more bytes on a dense photo, and the
+ * 400px thumbnail visibly softens at any of these densities.
+ */
+export const IMAGE_TIERS = {
+  full: { maxWidth: 2048, quality: 0.85 },
+  display: { maxWidth: 1000, quality: 0.72 },
+  thumbnail: { maxWidth: 400, quality: 0.8 },
+} as const;
+
 export interface ProcessedImage {
   full: Blob;
+  display: Blob;
   thumbnail: Blob;
   mimeType: string;
   extension: string;
@@ -90,11 +106,13 @@ async function resizeImage(
 }
 
 export async function processImageForUpload(file: File): Promise<ProcessedImage> {
-  const full = await resizeImage(file, 2048, 0.85);
-  const thumbnail = await resizeImage(file, 400, 0.8);
+  const full = await resizeImage(file, IMAGE_TIERS.full.maxWidth, IMAGE_TIERS.full.quality);
+  const display = await resizeImage(file, IMAGE_TIERS.display.maxWidth, IMAGE_TIERS.display.quality);
+  const thumbnail = await resizeImage(file, IMAGE_TIERS.thumbnail.maxWidth, IMAGE_TIERS.thumbnail.quality);
 
   return {
     full: full.blob,
+    display: display.blob,
     thumbnail: thumbnail.blob,
     mimeType: full.mimeType,
     extension: full.extension,

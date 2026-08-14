@@ -54,7 +54,15 @@ export interface PropertyImage {
   aiDescription?: AiImageDescription;
   sortOrder?: number; // For gallery ordering
   showInGallery?: boolean; // false = hidden from gallery (undefined/true = visible)
-  thumbnailUrl?: string; // Resized thumbnail URL from Storage
+  thumbnailUrl?: string; // 400px thumbnail from Storage. Admin pickers only.
+  /**
+   * 1200px derivative. This is what guest-facing pages should render: cards,
+   * grids, hero. Only the lightbox needs the full `url`. Optional because
+   * images added before the display tier existed (or pasted as a raw URL)
+   * never had one, so always read it as `displayUrl || url`.
+   */
+  displayUrl?: string;
+  displayStoragePath?: string;
   storagePath?: string; // Firebase Storage path for full image
   thumbnailStoragePath?: string; // Firebase Storage path for thumbnail
   blurDataURL?: string; // Tiny base64 blur placeholder for loading UX

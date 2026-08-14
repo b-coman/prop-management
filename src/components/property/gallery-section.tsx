@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { SafeImage } from '@/components/ui/safe-image';
+import { displaySrc } from '@/lib/image-src';
 
 interface ImageType {
     url: string;
@@ -67,7 +68,7 @@ export function GallerySection({ content, language = 'en' }: GallerySectionProps
             return (
               <div key={index} className="relative aspect-[4/3] w-full overflow-hidden rounded-lg shadow-md bg-muted">
                 <SafeImage
-                  src={image.url}
+                  src={displaySrc(image)}
                   alt={tc(image.alt) || `${t('gallery.imageOf', undefined, { index: index + 1 })} ${tc(propertyName)}`}
                   fill
                   style={{ objectFit: "cover" }}

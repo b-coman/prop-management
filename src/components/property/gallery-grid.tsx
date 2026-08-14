@@ -13,6 +13,7 @@ import { X, ArrowLeft, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SafeImage } from '@/components/ui/safe-image';
 import { useLanguage } from '@/hooks/useLanguage';
+import { displaySrc, fullSrc } from '@/lib/image-src';
 
 // Default bilingual labels for common image tags.
 // Properties can override/extend via content.tagLabels in Firestore.
@@ -201,7 +202,7 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                 onClick={() => openLightbox(index)}
               >
                 <SafeImage
-                  src={image.url}
+                  src={displaySrc(image)}
                   alt={tc(image.alt) || `Property image ${index + 1}`}
                   fill
                   {...(index === 0 ? { priority: true } : { loading: "lazy" as const })}
@@ -225,7 +226,7 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                 onClick={() => openLightbox(index)}
               >
                 <SafeImage
-                  src={image.url}
+                  src={displaySrc(image)}
                   alt={tc(image.alt) || `Property image ${index + 1}`}
                   width={800}
                   height={600}
@@ -272,7 +273,7 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                   )}
                 >
                   <SafeImage
-                    src={image.url}
+                    src={displaySrc(image)}
                     alt={tc(image.alt) || `Property image ${index + 1}`}
                     fill
                     {...(index === 0 ? { priority: true } : { loading: "lazy" as const })}
@@ -319,7 +320,7 @@ export function GalleryGrid({ content }: GalleryGridProps) {
               {filteredImages.length > 0 && currentImageIndex < filteredImages.length && (
                 <div className="relative h-full w-full max-h-[80vh]">
                   <SafeImage
-                    src={filteredImages[currentImageIndex].url}
+                    src={fullSrc(filteredImages[currentImageIndex])}
                     alt={tc(filteredImages[currentImageIndex].alt) || `Property image ${currentImageIndex + 1}`}
                     fill
                     className="object-contain"
