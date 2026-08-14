@@ -139,57 +139,52 @@ export function CookieConsent() {
     <>
       {/* No dimming overlay and no scroll lock: blanking the page behind this
           took the hero, the price and the booking CTA with it.
-          Bottom-left on desktop rather than centred, because the hero booking
-          widget is centred and the two were landing on top of each other.
+          The hero booking widget sits low in the hero on every breakpoint, so
+          this has to stay out of that band: a compact card on phones, and a
+          single-row bar hugging the bottom edge from lg: up.
           z-[70] sits above the sticky mobile booking bar (z-50). */}
       <div
-        className="fixed bottom-0 inset-x-0 z-[70] flex justify-center sm:justify-start p-3 sm:p-4 transition-opacity duration-300"
+        className="fixed bottom-0 inset-x-0 z-[70] flex justify-center p-3 sm:p-4 transition-opacity duration-300"
         style={{ opacity: visible ? 1 : 0 }}
       >
-        <div className="w-full max-w-md sm:max-w-lg bg-background rounded-xl border border-border shadow-2xl">
-          <div className="p-4 sm:p-6">
+        <div className="w-full max-w-md md:max-w-6xl bg-background rounded-xl border border-border shadow-2xl">
+          <div className="p-4 md:px-6 md:py-3">
             {!showPreferences ? (
-              /* Main banner view. Kept deliberately short on phones: this
-                 overlays a booking page, and every row here is a row of the
-                 chalet the visitor cannot see. */
-              <div className="space-y-2.5 sm:space-y-3">
-                {/* The icon and heading are decoration next to two labelled
-                    buttons, so they only earn their space on wider screens. */}
-                <div className="hidden sm:flex items-center gap-3">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Shield className="w-5 h-5 text-primary" />
+              /* Main banner view. Kept deliberately short: this overlays a
+                 booking page, and every row here is a row of the chalet the
+                 visitor cannot see. */
+              <div className="space-y-2.5 md:space-y-0 md:flex md:items-center md:gap-5">
+                <div className="flex items-start gap-2.5 md:flex-1">
+                  <Shield className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary md:w-5 md:h-5 md:mt-0" />
+                  <div className="min-w-0">
+                    <span className="hidden md:block text-sm font-semibold text-foreground">
+                      {t('cookieConsent.title', 'We value your privacy')}
+                    </span>
+                    <p className="text-xs md:text-sm text-muted-foreground leading-snug">
+                      {t('cookieConsent.description', 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. You can choose which cookies you allow.')}
+                    </p>
                   </div>
-                  <h3 className="text-lg font-semibold text-foreground">
-                    {t('cookieConsent.title', 'We value your privacy')}
-                  </h3>
-                </div>
-
-                <div className="flex items-start gap-2.5">
-                  <Shield className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary sm:hidden" />
-                  <p className="text-xs sm:text-sm text-muted-foreground leading-snug sm:leading-relaxed">
-                    {t('cookieConsent.description', 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. You can choose which cookies you allow.')}
-                  </p>
                 </div>
 
                 {/* Reject must be one tap, same as accept. Burying it behind
                     "Manage Preferences" reads as a dark pattern, which costs
                     trust and is not what the EDPB/CNIL guidance allows. */}
-                <div className="flex flex-row gap-2 sm:gap-3">
+                <div className="flex flex-row gap-2 md:gap-3 md:flex-shrink-0">
                   <button
                     onClick={handleAcceptAll}
-                    className="flex-1 px-3 py-2.5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                    className="flex-1 md:flex-none px-3 md:px-5 py-2.5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors whitespace-nowrap"
                   >
                     {t('cookieConsent.acceptAll', 'Accept All')}
                   </button>
                   <button
                     onClick={handleRejectAll}
-                    className="flex-1 px-3 py-2.5 text-sm font-medium rounded-lg border border-border bg-background hover:bg-muted transition-colors"
+                    className="flex-1 md:flex-none px-3 md:px-5 py-2.5 text-sm font-medium rounded-lg border border-border bg-background hover:bg-muted transition-colors whitespace-nowrap"
                   >
                     {t('cookieConsent.rejectAll', 'Only Necessary')}
                   </button>
                 </div>
                 {/* Secondary links share one row so they cost 16px, not 48px. */}
-                <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+                <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground md:flex-shrink-0 md:flex-col md:gap-0.5 md:items-end">
                   <button
                     onClick={() => {
                       const stored = getConsentCookie();
