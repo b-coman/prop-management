@@ -197,8 +197,8 @@ function WifiCard({ network, password, t }: { network: string; password: string;
       <h2 className="mb-3 text-[10px] font-extrabold uppercase tracking-[0.15em] text-[#6D7154]">
         {t.wifi}
       </h2>
-      <div className="flex gap-4">
-        <div className="min-w-0 flex-1">
+      <div className="-mx-2 flex gap-2">
+        <div className="min-w-0 flex-1 px-2 py-1">
           <p className="truncate font-mono text-base font-semibold text-[#23260F]">{network}</p>
           <p className="mt-0.5 text-[11px] text-[#6D7154]">{t.network}</p>
         </div>
