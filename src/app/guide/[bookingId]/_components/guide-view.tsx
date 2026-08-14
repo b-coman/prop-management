@@ -256,7 +256,7 @@ function TripsCard({ data, t }: { data: GuideData; t: typeof COPY.en }) {
           href={data.mapUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-1.5 rounded-lg border-[1.5px] border-[#414A22] px-3 py-2.5 text-[12px] font-bold text-[#414A22] transition hover:bg-[#F4F2E7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7E9A33]"
+          className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border-[1.5px] border-[#414A22] px-3 py-2.5 text-[12px] font-bold text-[#414A22] transition hover:bg-[#F4F2E7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7E9A33]"
         >
           {t.openMap}
           <ExternalLink className="h-3.5 w-3.5" />
@@ -277,7 +277,7 @@ function ArrivalCard({
   // as the Maps link, but costs the guest a copy, an app switch and a paste. It
   // stays in the platform message, where a link can be mangled or read aloud.
   const link =
-    'flex items-center justify-center gap-1.5 rounded-lg border-[1.5px] border-[#414A22] px-2 py-2.5 text-[12px] font-bold text-[#414A22] transition hover:bg-[#F4F2E7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7E9A33]';
+    'flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border-[1.5px] border-[#414A22] px-2 py-2.5 text-[12px] font-bold text-[#414A22] transition hover:bg-[#F4F2E7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7E9A33]';
 
   return (
     <section className="rounded-xl border border-[#DDDAC7] bg-white p-4">
