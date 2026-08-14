@@ -281,13 +281,13 @@ export function Header({
               </svg>
             </span>
           )}
-          <span className={cn("text-lg font-semibold", spanColorClasses)}>{tc(propertyName)}</span>
+          <span className={cn("text-lg font-semibold whitespace-nowrap", spanColorClasses)}>{tc(propertyName)}</span>
         </Link>
 
         {/* Check Availability CTA — collapses to zero width when hidden */}
         <div
           className={cn(
-            "hidden md:flex items-center transition-all duration-300 overflow-hidden",
+            "hidden lg:flex items-center transition-all duration-300 overflow-hidden",
             showBookingCTA && hasMounted
               ? "opacity-100 max-w-[280px] ml-6"
               : "opacity-0 max-w-0"
@@ -306,13 +306,13 @@ export function Header({
         </div>
 
         {/* Desktop Navigation */}
-        <nav className="ml-auto hidden items-center gap-4 md:flex">
+        <nav className="ml-auto hidden items-center gap-4 lg:flex">
           {/* Regular menu items */}
           {regularMenuItems.map(item => (
             <Link
               key={item.label}
               href={item.url}
-              className={cn("text-sm font-medium transition-colors", navLinkColorClasses)}
+              className={cn("text-sm font-medium whitespace-nowrap transition-colors", navLinkColorClasses)}
             >
               {item.label}
             </Link>
@@ -354,7 +354,7 @@ export function Header({
             <Button
               variant="ghost"
               size="icon"
-              className={cn("md:hidden", mobileTriggerColorClasses)} // Apply dynamic color to trigger
+              className={cn("lg:hidden", mobileTriggerColorClasses)} // Apply dynamic color to trigger
             >
               <Menu className="h-5 w-5" />
               <span className="sr-only">Toggle Menu</span>
@@ -450,7 +450,7 @@ export function Header({
     {/* Mobile sticky bottom bar */}
     <div
       className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 md:hidden",
+        "fixed bottom-0 left-0 right-0 z-50 lg:hidden",
         "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t",
         "transition-transform duration-300 ease-in-out",
         showBookingCTA && hasMounted ? "translate-y-0" : "translate-y-full"

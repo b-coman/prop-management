@@ -137,21 +137,26 @@ export function CookieConsent() {
 
   return (
     <>
-      {/* No dimming overlay and no scroll lock. On a phone this card is already
-          most of the screen; blanking the page behind it took the hero, the
-          price and the booking CTA with it. z-[70] keeps it clear of the
-          sticky mobile booking bar (z-50) rather than fighting it. */}
+      {/* No dimming overlay and no scroll lock: blanking the page behind this
+          took the hero, the price and the booking CTA with it.
+          Bottom-left on desktop rather than centred, because the hero booking
+          widget is centred and the two were landing on top of each other.
+          z-[70] sits above the sticky mobile booking bar (z-50). */}
       <div
-        className="fixed bottom-0 inset-x-0 z-[70] flex justify-center p-4 transition-opacity duration-300"
+        className="fixed bottom-0 inset-x-0 z-[70] flex justify-center sm:justify-start p-3 sm:p-4 transition-opacity duration-300"
         style={{ opacity: visible ? 1 : 0 }}
       >
-        <div className="w-full max-w-lg bg-background rounded-xl border border-border shadow-2xl">
+        <div className="w-full max-w-md sm:max-w-lg bg-background rounded-xl border border-border shadow-2xl">
           <div className="p-4 sm:p-6">
             {!showPreferences ? (
-              /* Main banner view */
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              /* Main banner view. Kept deliberately short on phones: this
+                 overlays a booking page, and every row here is a row of the
+                 chalet the visitor cannot see. */
+              <div className="space-y-2.5 sm:space-y-3">
+                {/* The icon and heading are decoration next to two labelled
+                    buttons, so they only earn their space on wider screens. */}
+                <div className="hidden sm:flex items-center gap-3">
+                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                     <Shield className="w-5 h-5 text-primary" />
                   </div>
                   <h3 className="text-lg font-semibold text-foreground">
@@ -159,9 +164,12 @@ export function CookieConsent() {
                   </h3>
                 </div>
 
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {t('cookieConsent.description', 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. You can choose which cookies you allow.')}
-                </p>
+                <div className="flex items-start gap-2.5">
+                  <Shield className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary sm:hidden" />
+                  <p className="text-xs sm:text-sm text-muted-foreground leading-snug sm:leading-relaxed">
+                    {t('cookieConsent.description', 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. You can choose which cookies you allow.')}
+                  </p>
+                </div>
 
                 {/* Reject must be one tap, same as accept. Burying it behind
                     "Manage Preferences" reads as a dark pattern, which costs
@@ -180,25 +188,25 @@ export function CookieConsent() {
                     {t('cookieConsent.rejectAll', 'Only Necessary')}
                   </button>
                 </div>
-                <button
-                  onClick={() => {
-                    const stored = getConsentCookie();
-                    if (stored) {
-                      setAnalyticsEnabled(stored.analytics);
-                      setMarketingEnabled(stored.marketing);
-                    }
-                    setShowPreferences(true);
-                  }}
-                  className="w-full text-xs text-muted-foreground underline hover:text-foreground transition-colors"
-                >
-                  {t('cookieConsent.managePreferences', 'Manage Preferences')}
-                </button>
-
-                <p className="text-xs text-muted-foreground text-center">
+                {/* Secondary links share one row so they cost 16px, not 48px. */}
+                <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+                  <button
+                    onClick={() => {
+                      const stored = getConsentCookie();
+                      if (stored) {
+                        setAnalyticsEnabled(stored.analytics);
+                        setMarketingEnabled(stored.marketing);
+                      }
+                      setShowPreferences(true);
+                    }}
+                    className="underline hover:text-foreground transition-colors"
+                  >
+                    {t('cookieConsent.managePreferences', 'Manage Preferences')}
+                  </button>
                   <a href={privacyUrl} className="underline hover:text-foreground transition-colors">
                     {t('cookieConsent.privacyPolicy', 'Privacy Policy')}
                   </a>
-                </p>
+                </div>
               </div>
             ) : (
               /* Preferences panel */
