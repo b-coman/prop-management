@@ -41,8 +41,16 @@ export function getPublicImageVariants(src: string | null | undefined): PublicIm
   if (!entry || entry.widths.length === 0) return null;
 
   const parts = entry.widths.map((w) => `${entry.pattern.replace('{w}', String(w))} ${w}w`);
-  // The original is the top candidate, at its true width.
-  parts.push(`${src} ${entry.originalWidth}w`);
+
+  // Append the original ONLY if it is wider than every variant. When a variant
+  // already exists at the source width, adding the original gives two
+  // candidates with the same `w` descriptor and the browser picks between them
+  // arbitrarily, which in practice meant sometimes fetching the larger JPEG
+  // over the smaller WebP for identical pixels.
+  const widestVariant = Math.max(...entry.widths);
+  if (entry.originalWidth > widestVariant) {
+    parts.push(`${src} ${entry.originalWidth}w`);
+  }
 
   return { srcSet: parts.join(', '), src, blurDataURL: entry.blurDataURL };
 }
