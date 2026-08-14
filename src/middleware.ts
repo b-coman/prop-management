@@ -10,6 +10,43 @@ export const config = {
   ],
 };
 
+/**
+ * Guess-rate limit for the guest guide.
+ *
+ * The guide is a public URL whose only protection is an unguessable token, and
+ * a wrong guess costs three Firestore reads. Deliberately implemented inline
+ * rather than reusing lib/rate-limiter: middleware runs on the edge runtime,
+ * where that module's logger cannot write to stdout.
+ *
+ * In-memory, so the limit is per instance rather than global - the same caveat
+ * the existing limiter documents. It turns unbounded guessing into a crawl,
+ * which is all it needs to do.
+ */
+const GUIDE_WINDOW_MS = 60_000;
+const GUIDE_MAX = 30;
+const guideHits = new Map<string, { count: number; resetAt: number }>();
+
+function guideRateLimited(request: NextRequest): boolean {
+  const ip =
+    request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+    request.headers.get('x-real-ip') ||
+    'unknown';
+  const now = Date.now();
+
+  // Sweep expired entries so the map cannot grow without bound.
+  if (guideHits.size > 5000) {
+    for (const [k, v] of guideHits) if (v.resetAt < now) guideHits.delete(k);
+  }
+
+  const entry = guideHits.get(ip);
+  if (!entry || entry.resetAt < now) {
+    guideHits.set(ip, { count: 1, resetAt: now + GUIDE_WINDOW_MS });
+    return false;
+  }
+  entry.count += 1;
+  return entry.count > GUIDE_MAX;
+}
+
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
   const pathname = url.pathname;
@@ -23,6 +60,17 @@ export async function middleware(request: NextRequest) {
 
   // Skip middleware for health check endpoints
   if (pathname === '/api/health' || pathname === '/api/readiness') {
+    return NextResponse.next();
+  }
+
+  // Guest guide: throttle token guessing before it reaches Firestore.
+  if (pathname.startsWith('/g/') || pathname.startsWith('/guide/')) {
+    if (guideRateLimited(request)) {
+      return new NextResponse('Too many requests', {
+        status: 429,
+        headers: { 'Retry-After': '60', 'Cache-Control': 'no-store' },
+      });
+    }
     return NextResponse.next();
   }
 

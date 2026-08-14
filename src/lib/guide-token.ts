@@ -21,6 +21,14 @@ import { createHmac, timingSafeEqual } from 'crypto';
 
 const DOMAIN = 'guide';
 
+// Base62 rather than hex: 5.95 bits per character instead of 4, so eight
+// characters carry the same ~48 bits that twelve hex characters would. That is
+// far more than this needs - an attacker must already hold the booking's
+// 20-character random id before a token is worth guessing at all - and it keeps
+// the whole link short enough to sit on one line of a WhatsApp message.
+const ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+const TOKEN_LENGTH = 8;
+
 function getSecret(): string {
   const secret = process.env.REVIEW_TOKEN_SECRET;
   if (!secret) {
@@ -38,24 +46,48 @@ export function guideIdentity(guestInfo?: { email?: string | null; phone?: strin
   return raw.toLowerCase().trim();
 }
 
+function digest(bookingId: string, identity: string): Buffer {
+  const payload = `${DOMAIN}:${bookingId}:${identity.toLowerCase().trim()}`;
+  return createHmac('sha256', getSecret()).update(payload).digest();
+}
+
+function digestHex(bookingId: string, identity: string): string {
+  return digest(bookingId, identity).toString('hex');
+}
+
 /**
- * Generate an HMAC-SHA256 token for a guest guide URL.
+ * Generate the token for a guest guide URL.
  */
 export function generateGuideToken(bookingId: string, identity = ''): string {
-  const secret = getSecret();
-  const payload = `${DOMAIN}:${bookingId}:${identity.toLowerCase().trim()}`;
-  return createHmac('sha256', secret).update(payload).digest('hex');
+  // Six bytes of the digest is 48 bits, which stays exact in a double (< 2^53),
+  // so this needs no BigInt and works on the project's ES2017 target.
+  const bytes = digest(bookingId, identity);
+  let n = 0;
+  for (let i = 0; i < 6; i++) n = n * 256 + bytes[i];
+
+  let out = '';
+  for (let i = 0; i < TOKEN_LENGTH; i++) {
+    out = ALPHABET[n % 62] + out;
+    n = Math.floor(n / 62);
+  }
+  return out;
+}
+
+function matches(expected: string, token: string): boolean {
+  if (expected.length !== token.length) return false;
+  return timingSafeEqual(Buffer.from(expected), Buffer.from(token));
 }
 
 /**
  * Validate a guide token using timing-safe comparison.
+ *
+ * Accepts the full 64-character hex token as well, so links already sent to
+ * guests keep working. Old links stay valid until they expire on their own.
  */
 export function validateGuideToken(bookingId: string, identity: string, token: string): boolean {
-  const expected = generateGuideToken(bookingId, identity);
-  if (expected.length !== token.length) {
-    return false;
-  }
-  return timingSafeEqual(Buffer.from(expected), Buffer.from(token));
+  if (!token) return false;
+  if (matches(generateGuideToken(bookingId, identity), token)) return true;
+  return matches(digestHex(bookingId, identity), token);
 }
 
 /**
@@ -64,5 +96,5 @@ export function validateGuideToken(bookingId: string, identity: string, token: s
  * NEXT_PUBLIC_APP_URL, which is not provisioned in App Hosting.
  */
 export function guidePath(bookingId: string, token: string): string {
-  return `/guide/${bookingId}?t=${token}`;
+  return `/g/${bookingId}?t=${token}`;
 }
