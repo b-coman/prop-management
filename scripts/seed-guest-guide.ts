@@ -93,6 +93,15 @@ const prahovaGuide = {
     ...(LOCKBOX_CODE ? { lockboxCode: LOCKBOX_CODE } : {}),
   },
 
+  // The message the owner sends when handing over the link. The Romanian is his
+  // own wording, verbatim from what he sent Laurentiu; the English matches its
+  // register rather than translating it word for word. {name} and {link} are
+  // substituted in admin.
+  shareMessage: {
+    ro: 'Buna {name}!\nAi aici un soi de ghid, cu si despre casa. Sper sa iti fie de ajutor... Plus cateva sugestii, o harta, si alte cateva chestii care te-ar putea ajuta de-a lungul sederii voastre.\nCele bune, si enjoy :)\n\n{link}',
+    en: 'Hi {name}!\nHere is a little guide to the house, and about it. Hope it helps... Plus a few suggestions, a map, and some other bits that might come in handy during your stay.\nAll the best, and enjoy :)\n\n{link}',
+  },
+
   mapUrl: MAP_URL,
 
   // Lengths measured from the KML traces on the map above.
