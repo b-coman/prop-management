@@ -29,6 +29,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
 const DISPLAY_MAX_WIDTH = 1000;
 const DISPLAY_QUALITY = 72;
+const BLUR_WIDTH = 20;
 const CACHE_CONTROL = 'public, max-age=31536000, immutable';
 
 const serviceAccountPath = process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_PATH;
@@ -100,7 +101,7 @@ async function main() {
     for (let i = 0; i < updated.length; i++) {
       const img = updated[i];
 
-      if (img.displayUrl && !force) {
+      if (img.displayUrl && img.blurDataURL && !force) {
         totalSkipped++;
         continue;
       }
@@ -131,12 +132,25 @@ async function main() {
         const [buf] = await srcFile.download();
         bytesBefore += buf.length;
 
-        const out = await sharp(buf)
-          .rotate() // honour EXIF orientation
+        const rotated = sharp(buf).rotate(); // honour EXIF orientation
+
+        const out = await rotated
+          .clone()
           .resize({ width: DISPLAY_MAX_WIDTH, withoutEnlargement: true })
           .webp({ quality: DISPLAY_QUALITY, effort: 6 })
           .toBuffer();
         bytesAfter += out.length;
+
+        // A ~20px wide blur, inlined on the record rather than stored as an
+        // object: it is a few hundred bytes and has to arrive with the HTML to
+        // be any use. Without it SafeImage falls back to a grey box, so photos
+        // pop in as you scroll, which is the cheapest-looking thing on the site.
+        const blurBuf = await rotated
+          .clone()
+          .resize({ width: BLUR_WIDTH })
+          .webp({ quality: 40 })
+          .toBuffer();
+        const blurDataURL = `data:image/webp;base64,${blurBuf.toString('base64')}`;
 
         const token = randomUUID();
         const destFile = bucket.file(displayPath);
@@ -149,7 +163,7 @@ async function main() {
         });
 
         const url = await downloadUrl(destFile);
-        updated[i] = { ...img, displayUrl: url, displayStoragePath: displayPath };
+        updated[i] = { ...img, displayUrl: url, displayStoragePath: displayPath, blurDataURL };
         changed = true;
         totalDone++;
         console.log(
@@ -169,6 +183,7 @@ async function main() {
 
   console.log('\n--- summary ---');
   console.log(`  derivatives created  : ${totalDone}`);
+  console.log(`  blur placeholders    : ${totalDone}`);
   console.log(`  already had one      : ${totalSkipped}`);
   console.log(`  no storagePath       : ${totalNoPath}`);
   console.log(`  failed               : ${totalFailed}`);
