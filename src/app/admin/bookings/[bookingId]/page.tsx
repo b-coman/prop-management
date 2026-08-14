@@ -15,9 +15,10 @@ import { CancelHoldButton } from '../_components/cancel-hold-button';
 import { ConvertHoldButton } from '../_components/convert-hold-button';
 import { EditBookingDialog } from '../_components/edit-booking-dialog';
 import { CancelBookingButton } from '../_components/cancel-booking-button';
-import { CopyGuideLink } from '../_components/copy-guide-link';
+import { ShareGuideLink } from '../_components/share-guide-link';
 import { fetchBookingById, fetchPropertiesForBookingForm } from '../actions';
 import { generateGuideToken, guideIdentity, guidePath } from '@/lib/guide-token';
+import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { publicOriginForProperty } from '@/lib/domain-map';
 import type { SerializableTimestamp } from '@/types';
 import { cn } from '@/lib/utils';
@@ -93,6 +94,15 @@ export default async function BookingDetailPage({ params }: PageProps) {
   // including OTA imports with no email and stays made long before this feature.
   // Built on the property's own domain: this link gets sent to guests, and admin
   // is usually being viewed on a different host.
+  let shareTemplates: Partial<Record<'en' | 'ro', string>> = {};
+  try {
+    const db = await getAdminDb();
+    const ov = await db.collection('propertyOverrides').doc(booking.propertyId).get();
+    shareTemplates = ov.data()?.guestGuide?.shareMessage ?? {};
+  } catch {
+    // Templates are a convenience; the link itself still copies without them.
+  }
+
   const guideLinkUrl = ['confirmed', 'completed'].includes(status)
     ? (publicOriginForProperty(booking.propertyId) ?? '') +
       guidePath(booking.id, generateGuideToken(booking.id, guideIdentity(guestInfo)))
@@ -163,7 +173,13 @@ export default async function BookingDetailPage({ params }: PageProps) {
               {guideLinkUrl && (
                 <div className="pt-1">
                   <p className="text-sm text-muted-foreground mb-1.5">Guest guide</p>
-                  <CopyGuideLink url={guideLinkUrl} />
+                  <ShareGuideLink
+                    url={guideLinkUrl}
+                    phone={guestInfo?.phone}
+                    firstName={guestInfo?.firstName}
+                    guestLanguage={booking.language === 'ro' ? 'ro' : 'en'}
+                    templates={shareTemplates}
+                  />
                 </div>
               )}
             </CardContent>
