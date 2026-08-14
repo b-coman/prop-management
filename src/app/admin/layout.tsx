@@ -14,6 +14,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 import { SimpleAdminAuth } from '@/components/SimpleAdminAuth';
+import { AuthProvider } from '@/contexts/SimpleAuthContext';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminHeader } from '@/components/admin/AdminHeader';
@@ -41,7 +42,11 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   const properties = await fetchAdminProperties();
 
   return (
+    /* Route protection itself is SimpleAdminAuth, a server component reading
+       the session cookie. AuthProvider is only here for the client bits that
+       need the live Firebase user, such as the sidebar's email + sign-out. */
     <SimpleAdminAuth>
+      <AuthProvider>
       <PropertySelectorProvider properties={properties} initialPropertyId={selectedProperty}>
         <SidebarProvider defaultOpen={defaultOpen}>
           <AdminSidebar />
@@ -64,6 +69,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
         </SidebarInset>
         </SidebarProvider>
       </PropertySelectorProvider>
+      </AuthProvider>
     </SimpleAdminAuth>
   );
 }

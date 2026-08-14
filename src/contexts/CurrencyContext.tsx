@@ -6,7 +6,6 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo } 
 import type { CurrencyCode } from '@/types';
 import { SUPPORTED_CURRENCIES } from '@/types';
 import { useSessionStorage } from '@/hooks/use-session-storage'; // For persisting selection
-import { getCurrencyRates } from '@/services/configService'; // Import Firestore fetch function
 import { Loader2 } from 'lucide-react'; // Import Loader icon
 
 // Define a simple exchange rate structure
@@ -50,40 +49,21 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     setSelectedCurrencyState(persistedCurrency); // Sync with session storage on mount/change
   }, [persistedCurrency]);
 
-  // Fetch rates from Firestore on mount
+  // Rates are the constants above, not a Firestore read.
+  //
+  // This used to call getCurrencyRates() on mount, which pulled the whole
+  // firebase/firestore client SDK onto every guest pageview to fetch
+  // appConfig/currencyRates. That document holds {USD:1, EUR:0.92, RON:4.58},
+  // identical to DEFAULT_EXCHANGE_RATES, and was last written in May 2025:
+  // scripts/cron/update-currency-rates.ts is still an unimplemented placeholder,
+  // so nothing has ever refreshed it. The read cost a large bundle and a network
+  // round trip to return the values already compiled in.
+  //
+  // If rates ever need to be live, fetch them server-side and pass them in as a
+  // prop rather than reintroducing a client SDK call here.
   useEffect(() => {
-    const fetchRates = async () => {
-      setRatesLoading(true);
-      setRatesError(null);
-      try {
-        const rates = await getCurrencyRates();
-        if (rates) {
-          console.log("[CurrencyContext] Fetched rates from Firestore:", rates);
-          // Basic validation: ensure USD is present and is 1
-          if (rates.USD === 1) {
-             setExchangeRates(rates);
-          } else {
-             console.warn("[CurrencyContext] Firestore rates invalid (USD != 1), using default rates.");
-             setExchangeRates(DEFAULT_EXCHANGE_RATES);
-             setRatesError("Fetched currency rates were invalid.");
-          }
-        } else {
-          console.warn("[CurrencyContext] No rates found in Firestore, using default rates.");
-          setExchangeRates(DEFAULT_EXCHANGE_RATES); // Fallback to default if not found
-          // Optionally set an error if rates are critical
-          // setRatesError("Could not load currency rates.");
-        }
-      } catch (error) {
-        console.error("Error fetching currency rates from Firestore:", error);
-        setRatesError("Failed to load currency rates.");
-        setExchangeRates(DEFAULT_EXCHANGE_RATES); // Use default on error
-      } finally {
-        setRatesLoading(false);
-      }
-    };
-
-    fetchRates();
-  }, []); // Fetch only once on mount
+    setRatesLoading(false);
+  }, []);
 
   const setSelectedCurrency = useCallback((currency: CurrencyCode) => {
     setSelectedCurrencyState(currency);

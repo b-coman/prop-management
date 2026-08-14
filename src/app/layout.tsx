@@ -2,7 +2,9 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google'; // Import Inter font
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster'; // Import Toaster
-import { AuthProvider } from '@/contexts/SimpleAuthContext'; // Import SimpleAuthContext
+// AuthProvider is deliberately NOT here. It lives in src/app/admin/layout.tsx
+// and src/app/login/layout.tsx, the only places with a client that needs the
+// Firebase user. Mounting it globally put the Auth SDK on every guest pageview.
 import { CurrencyProvider } from '@/contexts/CurrencyContext'; // Import CurrencyProvider directly
 import { ThemeProvider } from '@/contexts/ThemeContext'; // Import ThemeProvider
 import { ErrorBoundary } from '@/components/error-boundary'; // Import ErrorBoundary
@@ -50,22 +52,20 @@ export default async function RootLayout({
       <body className={`${inter.variable} font-sans antialiased`}>
         <GoogleTagManagerNoscript />
         <ErrorBoundary>
-          <AuthProvider> {/* Wrap children with AuthProvider */}
-            <CurrencyProvider> {/* Wrap with CurrencyProvider */}
-              <ThemeProvider> {/* Wrap with ThemeProvider */}
-                <LanguageProvider
-                  enablePerformanceTracking={true}
-                  enableDebugMode={process.env.NODE_ENV === 'development'}
-                >
-                  <LanguageHtmlUpdater />
-                  {children}
-                  <Toaster />
-                  <CookieConsent />
-                  <UTMCapture />
-                </LanguageProvider>
-              </ThemeProvider>
-            </CurrencyProvider>
-          </AuthProvider>
+          <CurrencyProvider> {/* Wrap with CurrencyProvider */}
+            <ThemeProvider> {/* Wrap with ThemeProvider */}
+              <LanguageProvider
+                enablePerformanceTracking={true}
+                enableDebugMode={process.env.NODE_ENV === 'development'}
+              >
+                <LanguageHtmlUpdater />
+                {children}
+                <Toaster />
+                <CookieConsent />
+                <UTMCapture />
+              </LanguageProvider>
+            </ThemeProvider>
+          </CurrencyProvider>
         </ErrorBoundary>
       </body>
     </html>
