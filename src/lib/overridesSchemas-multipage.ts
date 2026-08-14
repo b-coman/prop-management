@@ -53,6 +53,13 @@ export const footerSchema = z.object({
 // These are re-used from the existing schemas and extended as needed
 export const heroSchema = z.object({
   backgroundImage: z.string().optional().nullable(),
+  /**
+   * Optional per-season override for backgroundImage, keyed by the same season
+   * vocabulary the vision layer uses ('autumn' | 'winter' | 'spring' |
+   * 'summer'). Any season left unset falls back to backgroundImage, so a
+   * property that sets none behaves exactly as before.
+   */
+  seasonalBackgrounds: z.record(z.string()).optional(),
   title: multilingualString.optional(),
   subtitle: multilingualString.optional(),
   price: z.number().optional(),

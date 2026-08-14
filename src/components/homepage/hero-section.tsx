@@ -5,6 +5,7 @@ import Image from 'next/image';
 import type { Property } from '@/types';
 import { cn } from '@/lib/utils';
 import { getPublicImageVariants } from '@/lib/public-image-variants';
+import { currentSeason } from '@/lib/season';
 import { useEffect, useState } from 'react';
 import { setupHeroContentAdjustment } from './hero-helper';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -18,6 +19,8 @@ let heroHasBeenShown = false;
 
 export interface HeroData {
   backgroundImage?: string | null;
+  /** Per-season override for backgroundImage; unset seasons fall back to it. */
+  seasonalBackgrounds?: Record<string, string> | null;
   backgroundImageBlur?: string | null;
   'data-ai-hint'?: string;
   title?: string | { [key: string]: string } | null;
@@ -86,6 +89,7 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
   // Extract properties with defaults to prevent destructuring errors
   const {
     backgroundImage = null,
+    seasonalBackgrounds = null,
     backgroundImageBlur = null,
     title = null,
     subtitle = null,
@@ -97,10 +101,15 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
     'data-ai-hint': dataAiHint = "property image",
   } = content;
 
+  // A property can supply a photo per season; anything it does not set falls
+  // back to the single backgroundImage, so this is inert until configured.
+  const seasonalImage = seasonalBackgrounds?.[currentSeason()] || null;
+  const heroImage = seasonalImage || backgroundImage;
+
   // Pre-generated responsive variants for hand-placed public/images photos.
   // null for Storage images and anything without a manifest entry, which keeps
   // the original <Image> path for them.
-  const heroVariants = getPublicImageVariants(backgroundImage);
+  const heroVariants = getPublicImageVariants(heroImage);
   const heroBlur = backgroundImageBlur || heroVariants?.blurDataURL;
 
   // Load property data with defaults
@@ -141,7 +150,7 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
       data-form-size={formSize} // Pass size data for future use
       style={{ position: 'relative', overflow: 'visible' }} // Ensure relative positioning for absolute children
     >
-      {backgroundImage && (heroVariants ? (
+      {heroImage && (heroVariants ? (
         /* next/image runs unoptimized on Firebase App Hosting, so it emits no
            srcset and every phone downloaded the full-size hero. This is a plain
            img purely so we can supply our own pre-generated srcset. The widest
@@ -169,7 +178,7 @@ export function HeroSection({ content, language = 'en' }: HeroSectionProps) {
         />
       ) : (
         <Image
-          src={backgroundImage}
+          src={heroImage}
           alt={tc(title) || property.name || t('common.heroBackgroundImage', 'Property hero image')}
           fill
           style={{ objectFit: 'cover' }}

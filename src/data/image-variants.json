@@ -67,6 +67,17 @@
     "originalWidth": 1600,
     "blurDataURL": "data:image/webp;base64,UklGRoYAAABXRUJQVlA4IHoAAADwAwCdASoUAA8APu1iqU2ppaOiMAgBMB2JZACo9BToVlXdOq5LR+CYAPE0rHpyBiloHX8ydXHJbSSWZAJGp/Nazk3IeDG482DFATqbjpd1/Msxy0AYT0/apj9bGHlyD2OOBUylj7cMaxc0ouWAh/aU4Le4I+JIHCAAAA=="
   },
+  "/images/properties/prahova-mountain-chalet/comarnic-hero-autumn.jpg": {
+    "widths": [
+      640,
+      828,
+      1200,
+      1600
+    ],
+    "pattern": "/images/properties/prahova-mountain-chalet/_v/comarnic-hero-autumn-{w}.webp",
+    "originalWidth": 1600,
+    "blurDataURL": "data:image/webp;base64,UklGRowAAABXRUJQVlA4IIAAAACQBACdASoUAAsAPu1iqU2ppaOiMAgBMB2JbACdL1G4Fb/gQFFGI0PzTuW0jQAA/sIGC4/USZWk8XZVXiHk72WeL9Yispx+giLhOwVOrq46j9NaHRukqK/HmOsS1Y7UIUQcBDrsmcUIVcApBptm1DUcj3udPPf1Q+Du0MZFdQAAAA=="
+  },
   "/images/properties/prahova-mountain-chalet/comarnic-position.jpg": {
     "widths": [
       640,
