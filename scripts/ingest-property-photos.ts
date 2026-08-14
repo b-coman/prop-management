@@ -30,6 +30,13 @@
  *      "showInGallery": true,
  *      "isFeatured": false }]
  *
+ * A manifest entry may carry `replaces: "<storagePath or uuid>"`. The named
+ * image is removed from the record and its Storage objects deleted once the new
+ * one is safely in. That matters because the ad photo pool is every image with
+ * a storagePath (admin/ads/actions.ts) with no showInGallery filter, so leaving
+ * a superseded version behind means the selector can still pick it. An edited
+ * photo that fixed exactly what made the original weak should retire it.
+ *
  * Usage:
  *   npx tsx scripts/ingest-property-photos.ts --manifest photos.json [--property slug]
  *   npx tsx scripts/ingest-property-photos.ts --manifest photos.json --apply
@@ -79,6 +86,8 @@ interface ManifestEntry {
   tags?: string[];
   showInGallery?: boolean;
   isFeatured?: boolean;
+  /** storagePath (or just the uuid) of an image this one supersedes. */
+  replaces?: string;
 }
 
 async function uploadTier(
@@ -170,9 +179,29 @@ async function main() {
     });
   }
 
+  // Retire superseded images only after every new one uploaded cleanly, so a
+  // failure halfway through can never leave the property with neither version.
+  const retiring = entries.map((e) => e.replaces).filter(Boolean) as string[];
+  const isRetired = (img: any) =>
+    retiring.some((r) => img.storagePath === r || (img.storagePath || '').includes(r));
+  const kept = existing.filter((img) => !isRetired(img));
+  const removed = existing.filter(isRetired);
+
+  for (const img of removed) {
+    console.log(`  RETIRING ${img.storagePath}`);
+    if (!apply) continue;
+    for (const path of [img.storagePath, img.displayStoragePath, img.thumbnailStoragePath]) {
+      if (!path) continue;
+      await bucket.file(path).delete().catch(() => {
+        /* already gone */
+      });
+    }
+  }
+
   if (apply && added.length) {
-    await ref.update({ images: [...existing, ...added] });
-    console.log(`\n  Firestore updated: ${existing.length} -> ${existing.length + added.length} images`);
+    await ref.update({ images: [...kept, ...added] });
+    console.log(`\n  Firestore updated: ${existing.length} -> ${kept.length + added.length} images` +
+      (removed.length ? ` (${removed.length} retired)` : ''));
     console.log('  Next: npx tsx scripts/caption-gallery.ts --property ' + slug);
   } else if (!apply) {
     console.log('\nRe-run with --apply to upload and write.');
