@@ -279,8 +279,8 @@ const prahovaGuide = {
       group: 'around',
       title: { en: 'Closer to home', ro: 'Aproape de casă' },
       body: {
-        en: 'Some of our own favourites are within an hour, and all of them are pinned on the map above: Belvedere Comarnic, La Antene, Barajul Paltinu and the lake, Păstrăvăria Doftana, and Vistieru.\n\nAsk us - we will tell you which one suits the weather you have got.',
-        ro: 'Câteva dintre locurile noastre preferate sunt la mai puțin de o oră și toate sunt marcate pe harta de mai sus: Belvedere Comarnic, La Antene, Barajul Paltinu și lacul, Păstrăvăria Doftana și Vistieru.\n\nÎntrebați-ne - vă spunem care se potrivește cu vremea pe care o prindeți.',
+        en: 'Some of our own favourites are within an hour, and all of them are pinned on our map, linked just above: Belvedere Comarnic, La Antene, Barajul Paltinu and the lake, Păstrăvăria Doftana, and Vistieru.\n\nAsk us - we will tell you which one suits the weather you have got.',
+        ro: 'Câteva dintre locurile noastre preferate sunt la mai puțin de o oră și toate sunt marcate pe harta noastră, linkul e chiar mai sus: Belvedere Comarnic, La Antene, Barajul Paltinu și lacul, Păstrăvăria Doftana și Vistieru.\n\nÎntrebați-ne - vă spunem care se potrivește cu vremea pe care o prindeți.',
       },
     },
     {
@@ -330,8 +330,8 @@ const prahovaGuide = {
       group: 'house',
       title: { en: 'Before you go', ro: 'Înainte de plecare' },
       body: {
-        en: 'Linens - please leave the beds unmade, and put used towels and dishcloths in the bin upstairs.\n\nDishes - rinse and load the dishwasher, and run the cycle before you leave.\n\nFood - please empty the fridge and cupboards of open and perishable food.\n\nLights - make sure lights, appliances and electronics are off.\n\nFireplace - if you used it, remove the ash (there is a bin outside, next to the BBQ). Please don’t leave wood burning.\n\nWindows & doors - closed and locked, please.\n\nKeys - return them to the lockbox and message us when you leave.',
-        ro: 'Lenjerie - vă rugăm să lăsați paturile nefăcute și să puneți prosoapele și lavetele folosite în coșul de la etaj.\n\nVase - clătiți-le și puneți-le în mașina de spălat vase, apoi porniți un ciclu înainte de plecare.\n\nMâncare - vă rugăm să goliți frigiderul și dulapurile de alimente deschise sau perisabile.\n\nLumini - asigurați-vă că luminile, electrocasnicele și electronicele sunt oprite.\n\nȘemineu - dacă l-ați folosit, scoateți cenușa (există o găleată afară, lângă grătar). Vă rugăm să nu lăsați lemne care ard.\n\nFerestre și uși - vă rugăm să le închideți și încuiați.\n\nChei - lăsați-le în cutia de chei și scrieți-ne la plecare.',
+        en: 'Linens - please leave the beds unmade, and put used towels and dishcloths in the bin upstairs.\n\nDishes - rinse and load the dishwasher, and run the cycle before you leave.\n\nFood - please empty the fridge and cupboards of open and perishable food.\n\nLights - make sure lights, appliances and electronics are off.\n\nFireplace - if you used it, remove the ash (there is a bin outside, next to the BBQ). Please don’t leave wood burning.\n\nWindows & doors - closed and locked, please.\n\nKeys - leave them as we arranged when you arrived, and message us when you go.',
+        ro: 'Lenjerie - vă rugăm să lăsați paturile nefăcute și să puneți prosoapele și lavetele folosite în coșul de la etaj.\n\nVase - clătiți-le și puneți-le în mașina de spălat vase, apoi porniți un ciclu înainte de plecare.\n\nMâncare - vă rugăm să goliți frigiderul și dulapurile de alimente deschise sau perisabile.\n\nLumini - asigurați-vă că luminile, electrocasnicele și electronicele sunt oprite.\n\nȘemineu - dacă l-ați folosit, scoateți cenușa (există o găleată afară, lângă grătar). Vă rugăm să nu lăsați lemne care ard.\n\nFerestre și uși - vă rugăm să le închideți și încuiați.\n\nChei - lăsați-le așa cum am stabilit la sosire și scrieți-ne când plecați.',
       },
     },
   ],

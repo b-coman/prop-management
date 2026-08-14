@@ -244,7 +244,7 @@ function TripsCard({ data, t }: { data: GuideData; t: typeof COPY.en }) {
                 {t.kinds[r.kind] ?? r.kind}
               </span>
               <span className="min-w-0 flex-1 truncate text-[#23260F]">{r.name}</span>
-              <span className="shrink-0 font-mono text-[10.5px] tabular-nums text-[#6D7154]">
+              <span className="shrink-0 font-mono text-[11px] tabular-nums text-[#6D7154]">
                 {r.km} km
               </span>
             </li>
@@ -313,7 +313,7 @@ function ArrivalCard({
 
       {a.gateNumber && (
         <p className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-[#DDDAC7] bg-[#F4F2E7] px-3 py-2.5">
-          <span className="text-[11.5px] leading-snug text-[#6D7154]">{t.gate}</span>
+          <span className="text-[12.5px] leading-snug text-[#6D7154]">{t.gate}</span>
           <strong className="font-mono text-xl font-bold tracking-[0.08em] text-[#23260F]">
             {a.gateNumber}
           </strong>
@@ -336,7 +336,7 @@ function ArrivalCard({
       )}
 
       {a.access && (
-        <p className="mt-2 text-[11.5px] leading-relaxed text-[#6D7154]">{a.access}</p>
+        <p className="mt-2 text-[13px] leading-relaxed text-[#6D7154]">{a.access}</p>
       )}
     </section>
   );
@@ -456,13 +456,13 @@ export default function GuideView({ data }: { data: GuideData }) {
                 >
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold leading-tight text-[#23260F]">{c.name}</p>
-                    {c.role && <p className="mt-0.5 text-[11px] leading-snug text-[#6D7154]">{c.role}</p>}
+                    {c.role && <p className="mt-0.5 text-[12px] leading-snug text-[#6D7154]">{c.role}</p>}
                   </div>
                   <a
                     href={c.href}
                     target={c.channel === 'whatsapp' ? '_blank' : undefined}
                     rel={c.channel === 'whatsapp' ? 'noopener noreferrer' : undefined}
-                    className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[#414A22] px-3 py-2 text-[11px] font-bold text-[#F4F2E7] transition hover:bg-[#4E5A29] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7E9A33]"
+                    className="flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-lg bg-[#414A22] px-3.5 py-2 text-[12px] font-bold text-[#F4F2E7] transition hover:bg-[#4E5A29] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7E9A33]"
                   >
                     {c.channel === 'call' ? (
                       <Phone className="h-3.5 w-3.5" />
@@ -480,12 +480,12 @@ export default function GuideView({ data }: { data: GuideData }) {
               .map((c) => (
                 <p
                   key={`${c.phone}-note`}
-                  className="mt-3 rounded-lg border border-[#DDDAC7] bg-[#F4F2E7] px-3 py-2.5 text-[11px] leading-relaxed text-[#6D7154]"
+                  className="mt-3 rounded-lg border border-[#DDDAC7] bg-[#F4F2E7] px-3 py-2.5 text-[12px] leading-relaxed text-[#6D7154]"
                 >
                   {t.translationNote(
                     LANGUAGE_NAMES[data.language]?.[c.prefillLanguage ?? 'ro'] ?? 'Romanian',
                   )}
-                  <span className="mt-1.5 block font-mono text-[10.5px] leading-relaxed text-[#414A22]">
+                  <span className="mt-1.5 block font-mono text-[11.5px] leading-relaxed text-[#414A22]">
                     „{c.prefillText}”
                   </span>
                 </p>
@@ -582,7 +582,7 @@ export default function GuideView({ data }: { data: GuideData }) {
         )}
 
         {isGuest && (
-          <p className="px-4 text-center text-[10.5px] leading-relaxed text-[#6D7154]">
+          <p className="px-4 text-center text-[11px] leading-relaxed text-[#6D7154]">
             {t.privateNote}
           </p>
         )}
