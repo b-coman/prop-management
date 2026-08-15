@@ -586,6 +586,18 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   // Local image blur map for blur placeholders (imported as JSON module)
   const localBlurMap = blurMapData as Record<string, string>;
 
+  // PropertyPageRenderer is a client component, so everything on `property`
+  // crosses into the RSC payload and ships to the browser. `aiDescription` is
+  // the vision layer's structured output for the ad/post selectors: nine
+  // server-side modules read it and not one client component does, yet it was
+  // costing roughly 31 KB of every guest page and growing with each photo
+  // added. Strip it from the copy the client gets; the server keeps the full
+  // object for JSON-LD and everything else above.
+  const clientProperty = {
+    ...property,
+    images: property.images?.map(({ aiDescription, ...img }) => img),
+  };
+
   // Always wrap in LanguageProvider to keep the component tree structure identical
   // across language switches (prevents React from unmounting/remounting everything)
   const renderedPageName = pageName === 'homepage' && language === DEFAULT_LANGUAGE ? 'homepage' : pageName;
@@ -633,7 +645,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
-      <TrackViewItem property={property} />
+      <TrackViewItem property={clientProperty} />
       <LanguageProvider initialLanguage={language} initialTranslations={getServerTranslations(language)}>
         <Suspense fallback={<div>Loading property details...</div>}>
           <PropertyPageRenderer
@@ -644,7 +656,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
             pageName={renderedPageName}
             themeId={property.themeId}
             language={language}
-            property={property}
+            property={clientProperty}
             publishedReviews={publishedReviews}
             allReviews={allReviews.length > 0 ? allReviews : undefined}
             localBlurMap={localBlurMap}
