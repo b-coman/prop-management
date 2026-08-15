@@ -57,6 +57,7 @@ const propertyImageSchema = z.object({
   // description, which is the exact failure this schema already caused once.
   aiDescription: aiImageDescriptionSchema.partial().passthrough().optional(),
   blurDataURL: z.string().optional(),
+  archived: z.boolean().optional(),
   'data-ai-hint': z.string().optional(),
 });
 

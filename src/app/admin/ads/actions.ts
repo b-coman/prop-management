@@ -170,7 +170,10 @@ export async function fetchComposeDataAction(propertyId: string): Promise<{
     const ownPrefix = `properties/${propertyId}/`;
     const images = (data.images ?? [])
       .filter((img): img is PropertyImage & { storagePath: string } =>
-        Boolean(img.storagePath && img.storagePath.startsWith(ownPrefix))
+        // Archived photos stay in the library as edit sources but must not be
+        // offered here: a superseded original competing with the edit that
+        // fixed it is exactly how the selector picks the weaker one.
+        Boolean(img.storagePath && img.storagePath.startsWith(ownPrefix) && !img.archived)
       )
       .map((img) => ({
         storagePath: img.storagePath,

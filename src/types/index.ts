@@ -63,6 +63,16 @@ export interface PropertyImage {
    */
   displayUrl?: string;
   displayStoragePath?: string;
+  /**
+   * Kept in the library but withdrawn from active use: hidden from the gallery
+   * and, importantly, excluded from the ad/post photo pool.
+   *
+   * This is what supersession should do rather than delete. An edited photo
+   * replaces its source for selection purposes, but the source is still the
+   * highest-fidelity thing we hold and the starting point for the next edit, so
+   * throwing it away costs something and saves nothing.
+   */
+  archived?: boolean;
   storagePath?: string; // Firebase Storage path for full image
   thumbnailStoragePath?: string; // Firebase Storage path for thumbnail
   blurDataURL?: string; // Tiny base64 blur placeholder for loading UX
