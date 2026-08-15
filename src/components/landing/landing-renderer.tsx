@@ -141,8 +141,11 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                         <span className="inline-flex items-center gap-1"><CalendarDays className="h-4 w-4" />{fmtRange(s.start, s.end, lang)}</span>
                         <span className="inline-flex items-center gap-1"><Moon className="h-4 w-4" />{s.nights} {nightsWord(s.nights, lang)}</span>
                       </div>
+                      {/* Rounded: this is a "from" price, and a stray decimal
+                          (4,024.5) reads as careless. Rounding up by <1 RON can only
+                          ever quote ABOVE what the booking form will charge. */}
                       {s.priceHint ? (
-                        <p className="mt-3 text-sm text-muted-foreground">{t(lang, 'from', 'de la')} <span className="text-lg font-bold text-foreground">{s.priceHint.toLocaleString()} {m.baseCurrency}</span></p>
+                        <p className="mt-3 text-sm text-muted-foreground">{t(lang, 'from', 'de la')} <span className="text-lg font-bold text-foreground">{Math.round(s.priceHint).toLocaleString()} {m.baseCurrency}</span></p>
                       ) : null}
                       <Button variant="cta" className="mt-6 mt-auto" asChild>
                         <Link href={s.bookUrl}>{t(lang, 'Book this', 'Rezervă acesta')}<ArrowRight className="ml-1 h-4 w-4" /></Link>
