@@ -27,7 +27,7 @@ const AD_BRIEF_TOOL = {
     type: 'object' as const,
     properties: {
       act: { type: 'boolean', description: 'true = run this push; false = decline (weak opportunity) — then cities must be empty' },
-      objective: { type: 'string', enum: ['sales'], description: "always 'sales' (2a's only verified objective)" },
+      objective: { type: 'string', enum: ['traffic', 'sales'], description: "'traffic' (optimise for landing-page views) unless the daily budget is large enough to produce ~50 purchases a week, which it rarely is — then 'sales'." },
       cities: {
         type: 'array',
         description: 'a SUBSET of the pack\'s targeting.candidateCities — never invent a key. Each: the exact key + name from the pack, plus a radius in km (1-80).',
@@ -104,7 +104,7 @@ export interface GenerateAdPlanResult {
 
 interface EmitAdBriefInput {
   act: boolean;
-  objective: 'sales';
+  objective: 'traffic' | 'sales';
   cities: Array<{ key: string; name: string; radius: number }>;
   dailyBudgetMinor: number;
   runDays: number;

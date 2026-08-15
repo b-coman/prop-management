@@ -56,9 +56,14 @@ const logger = loggers.ads;
 // know both vocabularies, S1/S6).
 // ---------------------------------------------------------------------------
 
-/** `'sales'` is 2a's only neutral objective; maps to Meta's OUTCOME_SALES (live-verified, §9c). */
+/**
+ * Neutral objective → Meta objective. `sales` is live-verified (§9c);
+ * `traffic` was added for small-budget flights where purchase optimisation
+ * cannot leave Meta's learning phase (see AdObjective's note).
+ */
 const OBJECTIVE_TO_META: Record<AdObjective, string> = {
   sales: 'OUTCOME_SALES',
+  traffic: 'OUTCOME_TRAFFIC',
 };
 
 /**

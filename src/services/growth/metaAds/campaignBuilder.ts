@@ -71,6 +71,14 @@ export interface AdSetTargeting {
 
 export interface CreateAdSetSpec {
   name: string;
+  /**
+   * The Meta objective of the PARENT campaign. Meta ties the two together, so
+   * the ad set's optimisation contract is derived from it here rather than
+   * passed separately — that makes a campaign/ad-set mismatch (e.g.
+   * OUTCOME_TRAFFIC with OFFSITE_CONVERSIONS, err 100) unrepresentable.
+   * Defaults to OUTCOME_SALES, preserving the pre-existing behaviour exactly.
+   */
+  objective?: string;
   /** Daily budget in bani (minor units) — NEVER major-unit RON (plan §13 M3). */
   dailyBudgetMinor: number;
   /** The page the ad ultimately sends traffic to — used ONLY to derive `conversion_domain`; the actual click-through link is set on the creative. */
@@ -222,14 +230,22 @@ export async function createAdSet(
     return { ok: false, error: 'no-ad-context' };
   }
 
+  const objective = spec.objective ?? 'OUTCOME_SALES';
+  const optimisesForConversions = objective === 'OUTCOME_SALES';
+
+  // A conversion ad set cannot exist without a pixel to optimise on. A traffic
+  // ad set can — LANDING_PAGE_VIEWS is measured by Meta's own click-to-render
+  // signal, not by our pixel — but we still require one, because the pixel is
+  // how our first-party attribution sees the visit at all. Refusing here beats
+  // creating an ad set whose results we could never read.
   const pixelId = await getPixelIdForProperty(propertyId);
   if (!pixelId) {
-    logger.warn('createAdSet: no Meta Pixel configured for property — refusing to create', { propertyId });
+    logger.warn('createAdSet: no Meta Pixel configured for property — refusing to create', { propertyId, objective });
     return { ok: false, error: 'no-pixel' };
   }
 
   const conversionDomain = deriveConversionDomain(spec.landingUrl);
-  if (!conversionDomain) {
+  if (optimisesForConversions && !conversionDomain) {
     logger.warn('createAdSet: landingUrl is not a parseable URL — refusing to create', {
       propertyId,
       landingUrl: spec.landingUrl,
@@ -262,10 +278,19 @@ export async function createAdSet(
       name: spec.name,
       campaign_id: campaignId,
       billing_event: 'IMPRESSIONS',
-      optimization_goal: 'OFFSITE_CONVERSIONS',
-      promoted_object: { pixel_id: pixelId, custom_event_type: 'PURCHASE' },
+      // OUTCOME_SALES optimises on the pixel's PURCHASE event; OUTCOME_TRAFFIC
+      // optimises on landing-page views and must NOT carry a promoted_object
+      // (Meta rejects a conversion promoted_object under a traffic objective).
+      optimization_goal: optimisesForConversions ? 'OFFSITE_CONVERSIONS' : 'LANDING_PAGE_VIEWS',
+      ...(optimisesForConversions
+        ? { promoted_object: { pixel_id: pixelId, custom_event_type: 'PURCHASE' } }
+        : {}),
       daily_budget: spec.dailyBudgetMinor,
-      conversion_domain: conversionDomain,
+      // conversion_domain belongs to the conversion contract. A traffic ad set
+      // does not even expose it as a readable field (a GET asking for it fails
+      // the whole request, §9g), so sending it there is noise Meta silently
+      // drops. Keep the payload honest.
+      ...(optimisesForConversions ? { conversion_domain: conversionDomain } : {}),
       targeting,
       bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
       ...(spec.startTime ? { start_time: spec.startTime } : {}),
@@ -543,7 +568,13 @@ export async function createCampaignChain(
   const campaignId = campaignRes.data.id;
 
   // (d) ad set
-  const adSetRes = await createAdSet(propertyId, campaignId, { ...spec.adSet, isDynamic });
+  const adSetRes = await createAdSet(propertyId, campaignId, {
+    ...spec.adSet,
+    isDynamic,
+    // Derive the ad set's optimisation contract from the campaign's objective,
+    // so the two can never disagree.
+    objective: spec.campaign.objective ?? 'OUTCOME_SALES',
+  });
   if (!adSetRes.ok) {
     logger.warn('createCampaignChain: adSet stage failed — rolling back', { propertyId, error: adSetRes.error });
     await rollback(propertyId, ctx.token, [{ kind: 'campaign', id: campaignId }]);

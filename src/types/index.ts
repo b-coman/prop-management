@@ -821,9 +821,18 @@ export interface CopyVariant {
 /**
  * Neutral ad objective — the Meta adapter (`metaAds/campaignBuilder`) maps
  * this to the platform's real objective enum (`'sales'` → `'OUTCOME_SALES'`,
- * plan REVISIONS S1). 2a supports only `'sales'`.
+ * `'traffic'` → `'OUTCOME_TRAFFIC'`, plan REVISIONS S1).
+ *
+ * Pick by BUDGET, not by ambition. Meta needs roughly 50 optimisation events
+ * per ad set per week to leave the learning phase. A small daily budget will
+ * never produce that many purchases, so a `'sales'` campaign at that size
+ * delivers semi-blind — our first live campaign spent 30 days and recorded
+ * zero purchases, giving the optimiser nothing to learn from. `'traffic'`
+ * optimises for landing-page views, which the same budget produces by the
+ * dozen, and our own first-party utm→booking join still measures what actually
+ * converted.
  */
-export type AdObjective = 'sales';
+export type AdObjective = 'sales' | 'traffic';
 
 /**
  * Neutral call-to-action — the Meta adapter maps this to Meta's CTA enum.

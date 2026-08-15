@@ -28,6 +28,15 @@ export interface AdInsights {
   purchases: number;
   purchaseValue: number;
   roas: number;
+  /**
+   * Clicks that actually rendered the page, per Meta. The metric a
+   * `traffic` campaign optimises on, and the one worth reading even on a
+   * `sales` campaign: our first live flight logged 266 link clicks against 174
+   * landing-page views, so a third of paid clicks never became a visit.
+   */
+  landingPageViews: number;
+  /** Raw link clicks. Meta's top-level `clicks` counts reactions and page clicks too, so it overstates traffic badly (1543 vs 266 on our first flight). */
+  linkClicks: number;
 }
 
 interface MetaActionItem {
@@ -61,15 +70,22 @@ interface MetaInsightsResponse {
  */
 const PURCHASE_ACTION_TYPES_BY_PRIORITY = ['offsite_conversion.fb_pixel_purchase', 'purchase'];
 
-/** Value of the highest-priority purchase-like action present (0 if none) — never sums overlapping types. */
-function pickPurchaseActionValue(actions: MetaActionItem[] | undefined): number {
+/** Same never-sum discipline as purchases: Meta mirrors this under two names. */
+const LANDING_PAGE_VIEW_TYPES_BY_PRIORITY = ['landing_page_view', 'omni_landing_page_view'];
+const LINK_CLICK_TYPES_BY_PRIORITY = ['link_click'];
+
+/** Value of the highest-priority matching action (0 if none) — never sums overlapping types. */
+function pickActionValue(actions: MetaActionItem[] | undefined, typesByPriority: string[]): number {
   if (!actions) return 0;
-  for (const type of PURCHASE_ACTION_TYPES_BY_PRIORITY) {
+  for (const type of typesByPriority) {
     const match = actions.find((action) => action.action_type === type);
     if (match) return Number(match.value) || 0;
   }
   return 0;
 }
+
+const pickPurchaseActionValue = (actions: MetaActionItem[] | undefined) =>
+  pickActionValue(actions, PURCHASE_ACTION_TYPES_BY_PRIORITY);
 
 /**
  * Fetch and parse spend/ROAS insights for a Meta object (campaign, ad set, or
@@ -113,7 +129,13 @@ export async function getInsights(
   const metaRoasEntry = row?.purchase_roas?.[0];
   const roas = metaRoasEntry ? Number(metaRoasEntry.value) || 0 : spend > 0 ? purchaseValue / spend : 0;
 
-  return { ok: true, data: { spend, impressions, clicks, purchases, purchaseValue, roas } };
+  const landingPageViews = pickActionValue(row?.actions, LANDING_PAGE_VIEW_TYPES_BY_PRIORITY);
+  const linkClicks = pickActionValue(row?.actions, LINK_CLICK_TYPES_BY_PRIORITY);
+
+  return {
+    ok: true,
+    data: { spend, impressions, clicks, purchases, purchaseValue, roas, landingPageViews, linkClicks },
+  };
 }
 
 interface MetaEffectiveStatusReadBack {

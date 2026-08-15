@@ -236,6 +236,54 @@ Ran `composeAndCreateAd` (the real console path: Storage image upload → neutra
 - **Advantage+ Audience flag REQUIRED:** ad set create with audience targeting (age/interests) → error **100 / subcode 1870227** "Advantage Audience Flag Required" — must set `targeting.targeting_automation.advantage_audience` to 0 or 1. (The §9b/§9c spikes used geo-only, so never hit it.) Fix: `createAdSet` injects `targeting_automation:{advantage_audience:0}` (respect exact targeting; caller can override). `campaignBuilder.ts`.
 - Everything else worked: image dedup cache hit on re-run, full PAUSED chain, `adCampaigns` draft doc (no spendCap = un-activatable), `activateCampaign`→`dry-run` (two-switch gate), clean delete. Zero spend. Validator: `scripts/growth-validate-compose.ts`.
 
+### 9g. Traffic-objective contract spike (live PAUSED create+delete, 15 Aug 2026)
+Ran `OUTCOME_TRAFFIC` + `LANDING_PAGE_VIEWS` through the REAL code path
+(`createCampaign`/`createAdSet`, not a hand-rolled payload) against
+`act_543311232953437`, then deleted. Reproduce with
+`npx tsx scripts/spike-traffic-objective.ts --apply`.
+
+**Why it exists:** Meta needs ~50 optimisation events per ad set per week to
+leave the learning phase. At this account's budgets a `sales` campaign cannot
+produce that many purchases — the first live flight spent 30 days and recorded
+**zero** — so it delivers semi-blind. `traffic` optimises on landing-page views,
+which the same budget produces by the dozen. Bookings are still measured
+first-party by the utm→booking join, which does not care what Meta optimised for.
+
+✅ **VERIFIED ACCEPTED** — read-back from Meta:
+```
+optimization_goal: LANDING_PAGE_VIEWS   billing_event: IMPRESSIONS
+promoted_object:   (absent)             destination_type: UNDEFINED
+status: PAUSED    effective_status: IN_PROCESS
+campaign.objective: OUTCOME_TRAFFIC
+```
+
+Findings:
+
+- **Ad-set daily budget floor is RON 4.00.** `daily_budget=100` (1 RON) →
+  error **100 / subcode 1885272** "Budget Is Too Low — must be more than
+  RON4.00 or your ads may not deliver". Splitting a ~9 RON/day budget across two
+  ad sets would breach this.
+- **`conversion_domain` is NOT a readable field on a traffic ad set.** The POST
+  tolerates it (silently dropped), but a GET that *requests* it fails the ENTIRE
+  read-back with `(#100) Tried accessing nonexisting field (conversion_domain)`
+  — which reads exactly like a contract failure when the create actually
+  succeeded. `createAdSet` now sends it only on the conversion path.
+- **`destination_type` must be omitted.** Meta returns `UNDEFINED`, which is
+  correct: the ODAX table lists only MESSENGER/WHATSAPP/PHONE_CALL for
+  OUTCOME_TRAFFIC — `WEBSITE` is not a valid value there.
+- **`promoted_object` must be omitted** for traffic (it is the conversion
+  contract). `createAdSet` derives the whole contract from the parent campaign's
+  objective, so a campaign/ad-set mismatch is unrepresentable rather than merely
+  unlikely.
+- Insights: a traffic campaign reports zero purchases by design, so
+  `insights.ts` now also reads `landing_page_view` and `link_click` (same
+  never-sum priority discipline as purchases) and `adReconciliation` persists
+  them — otherwise its `adOutcome` would be indistinguishable from a failed
+  sales campaign. Note `clicks` overstates traffic badly: the first live flight
+  showed **1543 clicks vs 266 link clicks**.
+
+---
+
 ### 9f. Phase-2b contract spike (city targeting + Advantage+ audience + multi-image, 10 Jul 2026)
 All verified live PAUSED + deleted, zero spend. This is the contract for the richer targeting/creative build.
 

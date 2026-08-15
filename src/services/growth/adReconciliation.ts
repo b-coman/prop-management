@@ -118,6 +118,11 @@ export async function reconcileAdCampaigns(): Promise<ReconcileResult> {
           bookings: ins.data.purchases,
           purchaseValue: ins.data.purchaseValue,
           roas: ins.data.roas,
+          // A traffic campaign reports zero purchases by design. Without these
+          // its outcome record would be indistinguishable from a failed sales
+          // campaign, so persist what it actually optimises on.
+          landingPageViews: ins.data.landingPageViews,
+          linkClicks: ins.data.linkClicks,
         };
       }
       const effStatus = eff.ok ? eff.data.effectiveStatus : undefined;

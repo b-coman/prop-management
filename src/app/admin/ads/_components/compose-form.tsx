@@ -88,6 +88,11 @@ export function ComposeForm({ propertyId, images, defaultLandingUrl, maxDailyBud
   // ---- rest of the form ------------------------------------------------
   const [landingBaseUrl, setLandingBaseUrl] = useState(defaultLandingUrl);
   const [dailyBudgetRon, setDailyBudgetRon] = useState<string>('20');
+  // Traffic is the default because it is the right answer at the budgets this
+  // console actually runs. Meta needs ~50 optimisation events per ad set per
+  // week to leave the learning phase; a small daily budget will never produce
+  // that many purchases, and our first sales flight recorded zero in 30 days.
+  const [objective, setObjective] = useState<'traffic' | 'sales'>('traffic');
   const [endDate, setEndDate] = useState('');
 
   const maxDailyBudgetRon = maxDailyBudgetMinor / 100;
@@ -191,7 +196,7 @@ export function ComposeForm({ propertyId, images, defaultLandingUrl, maxDailyBud
       // Each primary-text variant shares the one headline + CTA — Meta A/B
       // tests the primary-text variants against each other.
       copy: trimmedTexts.map((primary) => ({ primary, headline: trimmedHeadline, cta })),
-      objective: 'sales',
+      objective,
       landingBaseUrl: landingBaseUrl.trim(),
       dailyBudgetMinor: Math.round(Number(dailyBudgetRon) * 100),
       // No countries fallback in this UI (2b makes cities the primary/only
@@ -452,6 +457,25 @@ export function ComposeForm({ propertyId, images, defaultLandingUrl, maxDailyBud
             <p className="text-xs text-muted-foreground">
               Defaults to the property&apos;s canonical custom domain — keep it that way so Meta&apos;s conversion
               tracking matches the pixel domain.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="objective">Optimise for</Label>
+            <select
+              id="objective"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={objective}
+              onChange={(e) => setObjective(e.target.value as 'traffic' | 'sales')}
+            >
+              <option value="traffic">Traffic — landing page views</option>
+              <option value="sales">Sales — pixel purchases</option>
+            </select>
+            <p className="text-xs text-muted-foreground">
+              Pick by budget. Meta needs roughly 50 events per week to optimise: a small
+              budget produces that many landing-page views but almost never that many
+              purchases, so Sales delivers semi-blind. Either way, bookings are measured
+              first-party by the utm join.
             </p>
           </div>
 
