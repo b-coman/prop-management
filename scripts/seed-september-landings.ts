@@ -15,13 +15,25 @@
  *   zacusca-liniste  weekends, friends, autumn food, Peleș without the crowds
  *   birou-veverite   mid-week, work from the terrace, 7-night discount
  *
- * Every price here came from the LIVE engine (POST /api/check-pricing) rather
- * than being recomputed, so the page cannot drift from what the booking form
- * will quote. Every window was checked against the availability calendar — the
- * aug-heat page advertised two stays that were fully blocked.
+ * PRICES ARE FETCHED LIVE, NOT WRITTEN DOWN (changed 2026-08-17)
+ * -------------------------------------------------------------
+ * The first version hardcoded priceHint from a one-off engine quote. That drifted
+ * the moment the rate card changed: the 2026-08-17 repricing (short-stay
+ * length-of-stay tiers 3n -10% / 4n -15%, plus filling the 1-8 Sep period hole)
+ * left all four hints 20-30% too high, advertising prices the booking form would
+ * no longer charge. So this script now quotes POST /api/check-pricing at apply
+ * time and refuses to write if any window is unavailable — the aug-heat failure
+ * mode was advertising two stays that were fully blocked.
+ *
+ * OCCUPANCY IS THE ADVERTISED OCCUPANCY
+ * ------------------------------------
+ * `guests` is not cosmetic: landing-renderer shows priceHint as the "from" price
+ * and getLanding bakes `guests` into bookUrl, so the two must agree or the guest
+ * clicks through to a different number. Advertised at the counts the ads state —
+ * 4 for the friends angle, 3 for the work angle — not at maxGuests.
  *
  * Usage:
- *   npx tsx scripts/seed-september-landings.ts           # dry run
+ *   npx tsx scripts/seed-september-landings.ts           # dry run, prints live quotes
  *   npx tsx scripts/seed-september-landings.ts --apply
  */
 import * as dotenv from 'dotenv';
@@ -39,7 +51,19 @@ if (!sa) {
 admin.initializeApp({ credential: admin.credential.cert(path.resolve(sa)) });
 
 const P = 'prahova-mountain-chalet';
+const BASE = process.env.LANDING_QUOTE_BASE_URL ?? 'https://prahova-chalet.ro';
 const img = (n: string) => `properties/${P}/images/${n}`;
+
+/** Quote the real booking total. Returns null when the window is not bookable. */
+async function quote(start: string, end: string, guests: number): Promise<number | null> {
+  const r = await fetch(`${BASE}/api/check-pricing`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ propertyId: P, checkIn: start, checkOut: end, guests }),
+  });
+  const d: any = await r.json();
+  return d?.pricing?.total ?? null;
+}
 
 const ZACUSCA = {
   propertyId: P,
@@ -72,15 +96,15 @@ const ZACUSCA = {
       ro: 'Destul de cald cât să stai toată ziua în grădină, destul de liniștit cât să auzi pădurea. Ardeii și vinetele merg pe grătar, o tocană merge la ceaun, și nu se grăbește nimeni. Peleșul și Sinaia sunt la douăzeci de minute și, pentru prima oară din iunie, aproape goale.',
     },
   },
-  // Verified open in the availability calendar; totals from POST /api/check-pricing.
+  // Verified open in the availability calendar; totals quoted live at apply time.
   exampleStays: [
     {
-      start: '2026-09-04', end: '2026-09-07', nights: 3, guests: 6, priceHint: 2765,
+      start: '2026-09-04', end: '2026-09-07', nights: 3, guests: 4, priceHint: null as number | null,
       label: { en: 'A long weekend, start of September', ro: 'Un weekend prelungit, început de septembrie' },
       occasion: 'Weekend cu prietenii',
     },
     {
-      start: '2026-09-25', end: '2026-09-28', nights: 3, guests: 6, priceHint: 2576,
+      start: '2026-09-25', end: '2026-09-28', nights: 3, guests: 4, priceHint: null as number | null,
       label: { en: 'The last warm weekend', ro: 'Ultimul weekend cald' },
     },
   ],
@@ -90,7 +114,12 @@ const ZACUSCA = {
     img('255585e5-6043-4e62-9f73-55824759d29c.webp'),
     img('75908024-392c-4615-9c16-e9439baf1716.webp'),
   ],
-  offer: { text: { en: 'Direct booking — no commission', ro: 'Rezervare directă, fără comision' } },
+  offer: {
+    text: {
+      en: '3 nights, 10% off - direct booking, no commission',
+      ro: '3 nopți, 10% reducere - rezervare directă, fără comision',
+    },
+  },
   cta: { showBooking: true },
   createdBy: 'seed-script',
 };
@@ -121,20 +150,22 @@ const BIROU = {
       en: 'Half a week here costs less than you think',
       ro: 'O jumătate de săptămână aici costă mai puțin decât crezi',
     },
+    // The seven-night claim is checked against the engine, same window: 22-26 Sep (4n) quotes
+    // 1,897 and 22-29 Sep (7n) quotes 2,843, so the last three nights cost about half the first four.
     body: {
-      en: 'The terrace is covered, the table is long enough to spread out on, and the only thing that will interrupt you is something moving in the branches. September mid-weeks are the quietest of the year here. Stay seven nights and the price drops by a quarter — which makes the extra three nights cost less than the first four.',
-      ro: 'Terasa e acoperită, masa e destul de lungă cât să te întinzi pe ea, iar singurul lucru care te întrerupe e ceva care mișcă printre crengi. Mijlocul de săptămână, în septembrie, e cel mai liniștit din an aici. Stai șapte nopți și prețul scade cu un sfert — așa că ultimele trei nopți costă mai puțin decât primele patru.',
+      en: 'The terrace is covered, the table is long enough to spread out on, and the only thing that will interrupt you is something moving in the branches. September mid-weeks are the quietest of the year here. Stay seven nights and the price drops by a quarter - which makes the last three nights cost about half of what the first four did.',
+      ro: 'Terasa e acoperită, masa e destul de lungă cât să te întinzi pe ea, iar singurul lucru care te întrerupe e ceva care mișcă printre crengi. Mijlocul de săptămână, în septembrie, e cel mai liniștit din an aici. Stai șapte nopți și prețul scade cu un sfert - așa că ultimele trei nopți costă cam jumătate din cât au costat primele patru.',
     },
   },
   exampleStays: [
     {
-      start: '2026-09-14', end: '2026-09-18', nights: 4, guests: 6, priceHint: 2990,
+      start: '2026-09-14', end: '2026-09-18', nights: 4, guests: 3, priceHint: null as number | null,
       label: { en: 'Monday to Friday', ro: 'De luni până vineri' },
       occasion: 'Lucru de la munte',
     },
     {
-      start: '2026-09-22', end: '2026-09-29', nights: 7, guests: 6, priceHint: 4024.5,
-      label: { en: 'A full week — 25% off', ro: 'O săptămână întreagă — 25% reducere' },
+      start: '2026-09-22', end: '2026-09-29', nights: 7, guests: 3, priceHint: null as number | null,
+      label: { en: 'A full week - 25% off', ro: 'O săptămână întreagă - 25% reducere' },
     },
   ],
   gallery: [
@@ -145,8 +176,8 @@ const BIROU = {
   ],
   offer: {
     text: {
-      en: '7 nights, 25% off — direct booking, no commission',
-      ro: '7 nopți, 25% reducere — rezervare directă, fără comision',
+      en: '7 nights, 25% off - direct booking, no commission',
+      ro: '7 nopți, 25% reducere - rezervare directă, fără comision',
     },
   },
   cta: { showBooking: true },
@@ -160,13 +191,33 @@ const BIROU = {
     ['birou-veverite', BIROU],
   ];
 
-  console.log(`Mode: ${apply ? 'APPLY' : 'DRY RUN'}\n`);
+  console.log(`Mode: ${apply ? 'APPLY' : 'DRY RUN'}   quoting from ${BASE}\n`);
+
+  // Quote every stay first. A page with an unbookable or unpriced stay is not written at all.
+  let blocked = 0;
+  for (const [slug, doc] of pages) {
+    for (const s of (doc as any).exampleStays) {
+      const total = await quote(s.start, s.end, s.guests);
+      if (total === null) {
+        console.log(`  /lp/${slug}  ${s.start}..${s.end} ${s.guests}g  NOT BOOKABLE — refusing to advertise it`);
+        blocked++;
+        continue;
+      }
+      s.priceHint = total;
+    }
+  }
+  if (blocked) {
+    console.error(`\n${blocked} stay(s) unavailable or unpriced. Nothing written. Pick different dates.`);
+    process.exit(1);
+  }
+
   for (const [slug, doc] of pages) {
     const ref = db.collection('landingPages').doc(slug);
     const existing = await ref.get();
     console.log(`  /lp/${slug}  ${existing.exists ? '(OVERWRITES existing)' : '(new)'}`);
     console.log(`     hero    : ${(doc as any).hero.headline.ro}`);
-    console.log(`     stays   : ${(doc as any).exampleStays.map((s: any) => `${s.start}..${s.end} ${s.nights}n ${s.priceHint} RON`).join('  |  ')}`);
+    console.log(`     offer   : ${(doc as any).offer.text.ro}`);
+    console.log(`     stays   : ${(doc as any).exampleStays.map((s: any) => `${s.start}..${s.end} ${s.nights}n ${s.guests}g ${s.priceHint} RON`).join('  |  ')}`);
     console.log(`     gallery : ${(doc as any).gallery.length} photos`);
     if (!apply) continue;
     await ref.set(
