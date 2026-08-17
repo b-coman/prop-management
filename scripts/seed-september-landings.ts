@@ -77,23 +77,26 @@ const ZACUSCA = {
   },
   hero: {
     imagePath: img('94ea2267-1e73-4a53-9c77-6040cc2c5305.webp'),
+    // Romanian is the original, written by the owner (2026-08-17). English follows it rather than the
+    // other way round: "zacuscă la ceaun" is the hook and does not survive being translated into a
+    // generic grill line, which is what the first version did.
     headline: {
-      en: 'Peppers on the fire, and the mountain to yourselves',
-      ro: 'Ardei pe jar, și muntele numai al vostru',
+      en: 'Aubergines on the coals, zacuscă in the cauldron',
+      ro: 'Vinete pe jar și zacuscă la ceaun',
     },
     subcopy: {
-      en: 'An hour from Bucharest. The city is still hot, the crowds have gone back to school, and the grill is finally the right temperature for peppers and aubergines.',
-      ro: 'La o oră de București. În oraș e tot cald, lumea s-a întors la școală, iar grătarul e în sfârșit numai bun de ardei și vinete.',
+      en: 'An hour from Bucharest. The city is still hot, the children are back at school, and quiet has settled over the Bucegi and the Prahova Valley.',
+      ro: 'La o oră de București. În oraș e tot cald, copiii s-au întors la școală, iar liniștea s-a așternut peste Bucegi și Valea Prahovei.',
     },
   },
   story: {
     title: {
-      en: 'September is the good half of both seasons',
-      ro: 'Septembrie e jumătatea bună din amândouă anotimpurile',
+      en: 'September is exactly the right time',
+      ro: 'Septembrie e perioada perfectă',
     },
     body: {
-      en: 'Warm enough to spend the whole day in the garden, quiet enough that you hear the forest. The peppers and aubergines go on the grate, a stew goes in the cauldron, and nobody is in a hurry. Peleș and Sinaia are twenty minutes away and, for the first time since June, almost empty.',
-      ro: 'Destul de cald cât să stai toată ziua în grădină, destul de liniștit cât să auzi pădurea. Ardeii și vinetele merg pe grătar, o tocană merge la ceaun, și nu se grăbește nimeni. Peleșul și Sinaia sunt la douăzeci de minute și, pentru prima oară din iunie, aproape goale.',
+      en: 'Warm enough to spend the whole day in the garden, quiet enough that you hear the forest. The peppers and aubergines go on the grate, a stew goes in the cauldron. Peleș and Sinaia are twenty minutes away and, for the first time since June, almost empty.',
+      ro: 'Destul de cald cât să stai toată ziua în grădină, destul de liniștit cât să auzi pădurea. Ardeii și vinetele merg pe grătar, o tocană merge la ceaun. Peleșul și Sinaia sunt la douăzeci de minute și, pentru prima oară din iunie, aproape goale.',
     },
   },
   // Verified open in the availability calendar; totals quoted live at apply time.
