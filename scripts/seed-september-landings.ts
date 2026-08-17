@@ -61,10 +61,15 @@ const img = (n: string) => `properties/${P}/images/${n}`;
  * filenames and memory — and it showed: nine of ten slots were summer shots on a campaign whose
  * whole pitch is summer turning to autumn, while six autumn images sat unused in the gallery.
  *
- * The ad copywriter picks assets with every image's `aiDescription` in front of it, and it chose
- * the fire-pit-at-night, the autumn foliage exterior and Peleș in autumn unprompted. Reading the
- * set back from the campaign is what makes the page show the same thing the ad promised — the
- * "scent-match" generateLanding.ts is built around. First photo is the hero, the rest the gallery.
+ * The ad copywriter picks assets with every image's `aiDescription` in front of it. Reading the set
+ * back from the campaign is what makes the page show the same thing the ad promised — the
+ * "scent-match" generateLanding.ts is built around. First campaign photo becomes the hero.
+ *
+ * The AD set is deliberately narrower than the PAGE gallery. At 9 RON/day a six-image asset feed is
+ * thirty combinations sharing a few thousand impressions, so Meta never separates a winner from
+ * noise; four keeps delivery concentrated. A landing page has no such constraint — a visitor who is
+ * already reading wants more to look at, not less. GALLERY_EXTRAS are appended after the ad's own
+ * photos, so the images that carried the click still come first.
  *
  * Copy is NOT taken from the campaign: the Romanian here is the owner's own and outranks anything
  * the copywriter would write.
@@ -72,6 +77,18 @@ const img = (n: string) => `properties/${P}/images/${n}`;
 const CAMPAIGN_OF: Record<string, string> = {
   'zacusca-liniste': 'fzv0oAQa2W3rraGTjLP2',
   'birou-veverite': 'F1ZTyVxnQn4iXxke5o00',
+};
+
+/** Shown on the page but NOT bought as ad inventory — context a reader wants once the click is won. */
+const GALLERY_EXTRAS: Record<string, string[]> = {
+  'zacusca-liniste': [
+    'fb9b1471-1c57-49e0-a039-d8d622651f1e.jpg', // Peleș in autumn — the copy promises it, the ad does not need to show a castle
+    '3dffdd98-7a63-473e-8d9b-bf646e45c430.jpg', // living room — somewhere to be when it rains
+  ],
+  'birou-veverite': [
+    '591c5aee-adac-48b2-af10-a849d3ea801e.jpg', // covered balcony — proves "terasă acoperită"
+    'cf36070f-6a4c-422c-b72c-72f4983e7607.jpg', // stone fireplace living room — the indoor evening
+  ],
 };
 
 async function photosFromCampaign(db: admin.firestore.Firestore, slug: string): Promise<string[] | null> {
@@ -242,7 +259,8 @@ const BIROU = {
     if (!paths) { console.log(`  /lp/${slug}  no campaign photos — keeping the ones in this file`); continue; }
     (doc as any).campaignRef = CAMPAIGN_OF[slug];
     (doc as any).hero.imagePath = paths[0];
-    (doc as any).gallery = paths.slice(0, 6); // hero included — see generateLanding.ts
+    const extras = (GALLERY_EXTRAS[slug] ?? []).map((n) => img(n)).filter((e) => !paths.includes(e));
+    (doc as any).gallery = [...paths, ...extras].slice(0, 8); // hero included — see generateLanding.ts
   }
 
   // Quote every stay first. A page with an unbookable or unpriced stay is not written at all.
