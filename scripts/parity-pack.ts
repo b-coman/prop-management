@@ -321,6 +321,28 @@ async function quoteDirect(propertyId: string, checkIn: string, checkOut: string
            checkIn: iso(ci), checkOut: iso(addDays(ci, nights)), nights, guests: baseOccupancy, priority: 'high' });
   }
 
+  // ---- 2b. What the landing pages actually PROMISE. ----
+  // adCampaigns carries the campaign's occasion, but the offer a visitor is SHOWN is
+  // landingPages.exampleStays: exact dates, exact occupancy, and the "from" price the booking form
+  // has to honour. Section 2 probes the occasion at baseOccupancy and caps at 3 nights, so it checks
+  // windows nobody was shown — it would probe the friends page at 3 guests when it advertises 4, and
+  // would never reach the work page's 7-night stay at all. Losing on a window we are paying to
+  // advertise costs twice: the click and then the commission.
+  const lpSnap = await db.collection('landingPages').where('propertyId', '==', SLUG).get();
+  for (const d of lpSnap.docs) {
+    const x: any = d.data();
+    if (x.status !== 'published') continue;
+    for (const s of (x.exampleStays ?? [])) {
+      if (!s?.start || !s?.end || s.start < iso(today)) continue;
+      const nights = Number(s.nights)
+        || Math.round((parse(s.end).getTime() - parse(s.start).getTime()) / 86_400_000);
+      if (nights < 1) continue;
+      push({ label: `ADVERTISED /lp/${d.id}`, reason: 'advertised',
+             checkIn: s.start, checkOut: s.end, nights,
+             guests: Number(s.guests) || baseOccupancy, priority: 'high' });
+    }
+  }
+
   // ---- 3. Either side of the first length-of-stay tier: the discount flips the comparison. ----
   if (losTiers.length) {
     const tier = losTiers[0];
