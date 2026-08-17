@@ -182,20 +182,21 @@ const BIROU = {
       ro: 'Biroul tău, cu vedere la veverițe',
     },
     subcopy: {
-      en: 'An hour from Bucharest, on a covered terrace under the trees. Work the week from here, and finish the day at the fire instead of in traffic.',
-      ro: 'La o oră de București, pe o terasă acoperită, sub copaci. Lucrează săptămâna de aici și termină ziua la foc, nu în trafic.',
+      en: 'An hour from Bucharest, on a covered terrace under the trees. Work the whole week from here, and finish the day at the fire instead of in traffic.',
+      ro: 'La o oră de București, pe o terasă acoperită, sub copaci. Lucrează toată săptămâna de aici și termină ziua la foc, nu în trafic.',
     },
   },
   story: {
     title: {
-      en: 'Half a week here costs less than you think',
-      ro: 'O jumătate de săptămână aici costă mai puțin decât crezi',
+      en: 'No need to take leave - the internet is unlimited',
+      ro: 'Nu e nevoie să îți iei concediu, avem internet la discreție',
     },
-    // The seven-night claim is checked against the engine, same window: 22-26 Sep (4n) quotes
-    // 1,897 and 22-29 Sep (7n) quotes 2,843, so the last three nights cost about half the first four.
+    // Owner-stated amenities: fibre internet and firewood included. `amenities` carries only a bare
+    // 'wifi' with no connection type and no firewood entry, so neither is verifiable from the data —
+    // they stand on the owner's word, which is the right authority for what his own house offers.
     body: {
-      en: 'The terrace is covered, the table is long enough to spread out on, and the only thing that will interrupt you is something moving in the branches. September mid-weeks are the quietest of the year here. Stay seven nights and the price drops by a quarter - which makes the last three nights cost about half of what the first four did.',
-      ro: 'Terasa e acoperită, masa e destul de lungă cât să te întinzi pe ea, iar singurul lucru care te întrerupe e ceva care mișcă printre crengi. Mijlocul de săptămână, în septembrie, e cel mai liniștit din an aici. Stai șapte nopți și prețul scade cu un sfert - așa că ultimele trei nopți costă cam jumătate din cât au costat primele patru.',
+      en: 'You get a covered terrace, squirrels, birdsong and fibre-optic internet. Mid-week in September is the quietest time of year here. And the firewood is on the house.',
+      ro: 'Ai terasă acoperită, veverițe, ciripit de păsărele și internet prin fibră optică. Mijlocul de săptămână, în septembrie, e cel mai liniștit din an aici. Iar lemnele de foc le ai din partea casei.',
     },
   },
   exampleStays: [
