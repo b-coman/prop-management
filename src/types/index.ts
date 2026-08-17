@@ -932,7 +932,7 @@ export interface ComposeAndCreateAdInput {
   /** Bani (minor units) — NEVER major-unit RON (plan §13 M3). Enforced ≤ `MAX_DAILY_BUDGET_MINOR` server-side (B2). */
   dailyBudgetMinor: number;
   targeting: {
-    /** Primary control (2b). Mapped to `geo_locations.cities` + `location_types:['home','recent']` (§9f). */
+    /** Primary control (2b). Mapped to `geo_locations.cities`; `location_types` is no longer sent (Meta retired it). */
     cities: CityTarget[];
     /** Fallback ONLY — used as `geo_locations.countries` when `cities` is empty (backward-compatible with 2a's whole-country targeting). */
     countries?: string[];

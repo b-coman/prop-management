@@ -194,7 +194,10 @@ describe('composeAndCreateAd — geo targeting (2b, §9f): cities primary, count
     expect(chainSpec.adSet.targeting).toEqual({ geo_locations: { countries: ['RO', 'GB'] } });
   });
 
-  it('maps cities to geo_locations.cities (key+radius, distance_unit:kilometer) + location_types:[home,recent], IGNORING countries when cities is non-empty', async () => {
+  // location_types was in the §9f verified shape until Meta retired the option outright. The API
+  // still accepts it, but Ads Manager then refuses to publish any edit to the ad set, so an ad set
+  // we composed could deliver and yet be uneditable by hand. Omitted now; Meta applies its default.
+  it('maps cities to geo_locations.cities (key+radius, distance_unit:kilometer) and sends NO location_types, IGNORING countries when cities is non-empty', async () => {
     await composeAndCreateAd({
       ...BASE_INPUT,
       targeting: {
@@ -212,7 +215,6 @@ describe('composeAndCreateAd — geo targeting (2b, §9f): cities primary, count
           { key: '1910415', radius: 25, distance_unit: 'kilometer' },
           { key: '1925836', radius: 15, distance_unit: 'kilometer' },
         ],
-        location_types: ['home', 'recent'],
       },
     });
   });

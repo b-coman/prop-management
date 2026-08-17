@@ -60,7 +60,8 @@ export interface AdSetTargeting {
    * docs/meta-ads-infrastructure-2026.md §9/§9f). The caller (`adComposer`)
    * builds this Meta-shaped object; `createAdSet` only injects the
    * `targeting_automation` default (below) on top of it. Phase-2b shape:
-   * `{ geo_locations: { cities:[{key,radius,distance_unit:'kilometer'}], location_types:['home','recent'] } }`
+   * `{ geo_locations: { cities:[{key,radius,distance_unit:'kilometer'}] } }` — `location_types` was in
+   * the §9f shape but Meta retired the option; sending it blocks all later edits in Ads Manager.
    * (city targeting) OR `{ geo_locations: { countries:[...] } }` (2a's
    * whole-country fallback, still supported — §9c). NO `age_min`/`age_max` on
    * the default `advantage_audience:1` path (§9f: Advantage+ Audience owns

@@ -190,7 +190,7 @@ const MAX_COPY_VARIANTS = 5;
  *     reuses, cache-first) a Meta `image_hash` per image; fails fast (and
  *     never calls `createCampaignChain`) on the first upload failure.
  *  6. Map neutral → Meta: `targeting.cities` → `geo_locations.cities` (keys +
- *     radius, `distance_unit:'kilometer'`, `location_types:['home','recent']`
+ *     radius, `distance_unit:'kilometer'` (NO `location_types` — Meta retired it, see below)
  *     — §9f), falling back to `targeting.countries` when no city is selected;
  *     `copy[]` → the creative's `imageHashes`/`copy` (campaignBuilder decides
  *     single-image vs Dynamic Creative from THEIR lengths, S1). Then calls
@@ -273,13 +273,15 @@ export async function composeAndCreateAd(input: ComposeAndCreateAdInput): Promis
   if (!cities.length && !countries.length) {
     return { ok: false, error: 'no-geo-targeting', stage: 'validation' };
   }
-  // §9f verified shape: cities carry location_types; a countries-only
-  // targeting object does NOT (matches the pre-2b/§9c payload exactly).
+  // location_types is DELIBERATELY OMITTED. The §9f verified shape sent
+  // ['home','recent'], and the API still accepts it, but Meta has since retired the whole option:
+  // "Your audience contains a location targeting option that has been removed (people living in,
+  // people traveling in or people recently in a location)." Ads Manager then refuses to publish ANY
+  // edit to the ad set until the field is gone — an ad set built by this composer could deliver but
+  // could not be edited by hand. Omitting it lets Meta apply its current default, which is the merged
+  // living-in-or-recently-in behaviour the old pair described anyway.
   const geoLocations = cities.length
-    ? {
-        cities: cities.map((c) => ({ key: c.key, radius: c.radius, distance_unit: 'kilometer' })),
-        location_types: ['home', 'recent'],
-      }
+    ? { cities: cities.map((c) => ({ key: c.key, radius: c.radius, distance_unit: 'kilometer' })) }
     : { countries };
 
   // (4) allocate the doc id — NO Firestore write, just id generation (B5) —
