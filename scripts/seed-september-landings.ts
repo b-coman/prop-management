@@ -137,8 +137,12 @@ const ZACUSCA = {
       label: { en: 'A long weekend, start of September', ro: 'Un weekend prelungit, început de septembrie' },
       occasion: 'Weekend cu prietenii',
     },
+    // A REGULAR weekend, deliberately two nights. Both slots used to run Friday→Monday, so the page
+    // offered the same shape twice and only labelled one of them "prelungit". Two nights earns no
+    // length-of-stay discount and the flat cleaning fee spreads over fewer of them, so this one is
+    // dearer per night (789 vs 638) — it is the cheaper ticket, not the better value.
     {
-      start: '2026-09-25', end: '2026-09-28', nights: 3, guests: 4, priceHint: null as number | null,
+      start: '2026-09-25', end: '2026-09-27', nights: 2, guests: 4, priceHint: null as number | null,
       label: { en: 'The last warm weekend', ro: 'Ultimul weekend cald' },
     },
   ],
@@ -148,10 +152,13 @@ const ZACUSCA = {
     img('255585e5-6043-4e62-9f73-55824759d29c.webp'),
     img('75908024-392c-4615-9c16-e9439baf1716.webp'),
   ],
+  // "De la 3 nopți", not "3 nopți": one of the two stays is a two-night weekend and earns no
+  // length-of-stay discount at all. Stating it flatly would promise 10% off a booking that does not
+  // get it — the booking form would then quote higher than the page.
   offer: {
     text: {
-      en: '3 nights, 10% off - direct booking, no commission',
-      ro: '3 nopți, 10% reducere - rezervare directă, fără comision',
+      en: 'From 3 nights, 10% off - direct booking, no commission',
+      ro: 'De la 3 nopți, 10% reducere - direct, fără comision',
     },
   },
   cta: { showBooking: true },
