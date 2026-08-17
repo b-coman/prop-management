@@ -294,7 +294,7 @@ const PROBLEM_EFFECTIVE_STATUSES = new Set(['DISAPPROVED', 'REJECTED', 'WITH_ISS
 const STATUS_HELP: Record<string, string> = {
   draft: 'Nothing is on Meta yet. Review and adjust the copy/budget, then Push to Meta.',
   pushed: 'On Meta as PAUSED (zero spend) — Meta is reviewing the creative. Go live is the only step that spends.',
-  approved: 'Spend cap set. Activate to start delivery (spends only when the engine is in live mode).',
+  approved: 'Approved. Activate to start delivery (spends only when the engine is in live mode).',
   active: 'Delivering on Meta. Pause to stop spend immediately.',
   paused: 'Paused on Meta — no spend.',
   failed: 'Something went wrong creating this on Meta. Discard and regenerate.',
@@ -362,7 +362,11 @@ export function AdDetailPanel({ campaign }: { campaign: AdCampaign & { adsManage
       const res = await activateAdAction(campaign.id);
       if (isStaleAction(res, toast)) return;
       if (res.status === 'activated') {
-        toast({ title: 'Live', description: `Meta is serving this ad, capped at ${spendCapRon} RON.` });
+        // Do NOT say "capped at X on Meta". Meta's campaign spend-cap floor is 500 RON
+        // (min_campaign_group_spend_cap, docs/meta-ads-infrastructure-2026.md), so a small flight
+        // cannot carry one. This number is OUR approval gate; real spend is bounded by the daily
+        // budget, the end time, and the ad account's own cap.
+        toast({ title: 'Live', description: `Meta is serving this ad. Spend is bounded by ${formatMinor(campaign.dailyBudgetMinor)}/day and the end date — not by a Meta campaign cap.` });
       } else if (res.status === 'dry-run') {
         toast({ title: 'Approved · dry-run', description: 'Spend cap saved, but GROWTH_ADS_MODE is not live yet — nothing spends until the engine is switched to live.' });
       } else {
@@ -578,6 +582,9 @@ export function AdDetailPanel({ campaign }: { campaign: AdCampaign & { adsManage
                     <p className="text-xs text-muted-foreground">
                       Projected: {formatMinor(campaign.dailyBudgetMinor)}/day × {days} day{days === 1 ? '' : 's'} × 1.25 ={' '}
                       <strong>{formatMinor(projectedSpendMinor)}</strong> — your cap must be at least this.
+                      {' '}This is <em>our</em> approval ceiling, not a Meta one: Meta will not accept a campaign
+                      spend cap below 500 RON, so what actually bounds a small flight is the daily budget, the
+                      end date, and the ad account&apos;s own spend limit.
                     </p>
                   )}
                 </div>
