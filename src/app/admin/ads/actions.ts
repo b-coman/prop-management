@@ -522,6 +522,15 @@ export async function generateAdProposalAction(input: {
    * let the planner decide, as before.
    */
   objective?: 'traffic' | 'sales';
+  /**
+   * Where the ad sends traffic. The pack hardcodes the property's canonical root
+   * (`landing.baseUrl = getBaseUrl(customDomain)`) and nothing downstream ever appends a path, so a
+   * campaign built around a /lp page would still point at the homepage — the landing page would
+   * receive none of the traffic it was written for, and the scent-match between ad and page is lost.
+   * Same shape of gap as `objective`: the manual composer exposes this field, the intelligent path
+   * did not. Leave unset to keep the property root. The composer still stamps utm_campaign on it.
+   */
+  landingBaseUrl?: string;
 }): Promise<
   | { ok: true; adCampaignId: string }
   | { ok: true; declined: true; rationale: string }
@@ -587,9 +596,11 @@ export async function generateAdProposalAction(input: {
     // Operator's objective wins over the planner's. Applied to BOTH the composeInput that Push
     // replays and the top-level mirror the console displays and the approve cap-check reads, so the
     // two can never disagree about what will reach Meta.
-    const composeInput = input.objective
-      ? { ...res.composeInput, objective: input.objective }
-      : res.composeInput;
+    const composeInput = {
+      ...res.composeInput,
+      ...(input.objective ? { objective: input.objective } : {}),
+      ...(input.landingBaseUrl?.trim() ? { landingBaseUrl: input.landingBaseUrl.trim() } : {}),
+    };
 
     const ref = db.collection('adCampaigns').doc();
     await ref.set({

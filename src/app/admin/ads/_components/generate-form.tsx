@@ -29,6 +29,7 @@ export function GenerateForm({ propertyId }: { propertyId: string }) {
   const [audience, setAudience] = useState('');
   const [value, setValue] = useState('');
   const [objective, setObjective] = useState<'' | 'traffic' | 'sales'>('traffic');
+  const [landingUrl, setLandingUrl] = useState('');
   const [declined, setDeclined] = useState<string | null>(null);
 
   const generate = () => {
@@ -51,6 +52,7 @@ export function GenerateForm({ propertyId }: { propertyId: string }) {
         audience: audience.trim() || undefined,
         valueAtRisk: value ? Number(value) : undefined,
         objective: objective || undefined,
+        landingBaseUrl: landingUrl.trim() || undefined,
       });
       if (!res.ok) {
         toast({ title: 'Could not generate', description: `${res.stage ? `[${res.stage}] ` : ''}${res.error}`, variant: 'destructive' });
@@ -135,6 +137,21 @@ export function GenerateForm({ propertyId }: { propertyId: string }) {
           <Label htmlFor="value">Revenue at risk (RON, optional)</Label>
           <Input id="value" type="number" min={0} step="1" value={value} onChange={(e) => setValue(e.target.value)} placeholder="e.g. 6000" />
           <p className="text-xs text-muted-foreground">Nights × rate for this window, if known — it caps the spend envelope.</p>
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="landingUrl">Landing URL (optional)</Label>
+          <Input
+            id="landingUrl"
+            value={landingUrl}
+            onChange={(e) => setLandingUrl(e.target.value)}
+            placeholder="https://prahova-chalet.ro/lp/your-campaign"
+          />
+          <p className="text-xs text-muted-foreground">
+            Defaults to the property&apos;s canonical domain. Set this to a campaign landing page so the ad
+            and the page tell the same story — otherwise paid traffic lands on the homepage. Keep it on the
+            custom domain so Meta&apos;s tracking matches the pixel; utm_campaign is stamped on automatically.
+          </p>
         </div>
 
         <div className="space-y-1">
