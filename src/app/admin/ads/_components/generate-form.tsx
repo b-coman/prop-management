@@ -54,6 +54,17 @@ export function GenerateForm({ propertyId }: { propertyId: string }) {
         objective: objective || undefined,
         landingBaseUrl: landingUrl.trim() || undefined,
       });
+      // A page older than the running deployment holds a server-action id the server no longer knows,
+      // and Next resolves that to `undefined` rather than rejecting — reading `.ok` would crash the
+      // whole console via the error boundary. Nothing ran, so nothing was written.
+      if (res == null) {
+        toast({
+          title: 'Page is out of date',
+          description: 'This page was loaded before the last deploy. Reload it and try again — nothing was generated.',
+          variant: 'destructive',
+        });
+        return;
+      }
       if (!res.ok) {
         toast({ title: 'Could not generate', description: `${res.stage ? `[${res.stage}] ` : ''}${res.error}`, variant: 'destructive' });
         return;

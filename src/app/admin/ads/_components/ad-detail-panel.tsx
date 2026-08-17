@@ -43,6 +43,28 @@ import {
 } from '../actions';
 
 /**
+ * A server-action reference baked into a page older than the running deployment no longer resolves on
+ * the server: Next returns an empty payload, so the client receives `undefined` rather than a rejected
+ * promise. Reading `.ok` / `.status` / `.success` on that throws, and the error boundary takes down the
+ * entire console — which is how deploying mid-edit looked like data loss. It never is: the action did
+ * not execute at all, so nothing was written. Guard every call site, not just the editable ones — push,
+ * approve, activate and pause fail the same way, and those are money paths.
+ */
+function isStaleAction(
+  res: unknown,
+  toast: ReturnType<typeof useToast>['toast'],
+): res is null | undefined {
+  if (res != null) return false;
+  toast({
+    title: 'Page is out of date',
+    description:
+      'This page was loaded before the last deploy, so the server no longer recognises the action. Nothing was changed — reload the page and try again.',
+    variant: 'destructive',
+  });
+  return true;
+}
+
+/**
  * The AI proposal (copy + photos + geo + rationale) shown for in-console review. While the campaign is
  * a Firestore-only `draft` (nothing on Meta yet) the copy + daily budget are EDITABLE — what you save
  * here is exactly what Push sends to Meta. Once pushed, it renders read-only.
@@ -60,6 +82,7 @@ function ProposalCard({
 }) {
   const { toast } = useToast();
   const router = useRouter();
+
   const [saving, startSave] = useTransition();
   const [copy, setCopy] = useState<CopyVariant[]>(proposal.copy);
   const [budgetRon, setBudgetRon] = useState(((dailyBudgetMinor ?? 0) / 100).toFixed(0));
@@ -77,6 +100,7 @@ function ProposalCard({
     startSave(async () => {
       const dailyMinor = Math.round(Number(budgetRon) * 100);
       const res = await updateAdDraftAction(adCampaignId, { copy, dailyBudgetMinor: dailyMinor });
+      if (isStaleAction(res, toast)) return;
       if (res.ok) {
         toast({ title: 'Draft updated', description: 'Your edits are what Push will send to Meta.' });
         router.refresh();
@@ -310,6 +334,7 @@ export function AdDetailPanel({ campaign }: { campaign: AdCampaign & { adsManage
   const pushToMeta = () => {
     startPush(async () => {
       const res = await pushAdToMetaAction(campaign.id);
+      if (isStaleAction(res, toast)) return;
       if (res.ok) {
         toast({ title: 'Pushed to Meta (PAUSED)', description: 'Zero spend. Meta will review the creative and email you — that email is expected now.' });
         router.push(`/admin/ads/${res.adCampaignId}`);
@@ -329,11 +354,13 @@ export function AdDetailPanel({ campaign }: { campaign: AdCampaign & { adsManage
     }
     startGoLive(async () => {
       const ap = await approveAdAction(campaign.id, spendCapMinor);
+      if (isStaleAction(ap, toast)) return;
       if (!ap.ok) {
         toast({ title: 'Go live blocked at approval', description: ap.error, variant: 'destructive' });
         return;
       }
       const res = await activateAdAction(campaign.id);
+      if (isStaleAction(res, toast)) return;
       if (res.status === 'activated') {
         toast({ title: 'Live', description: `Meta is serving this ad, capped at ${spendCapRon} RON.` });
       } else if (res.status === 'dry-run') {
@@ -349,6 +376,7 @@ export function AdDetailPanel({ campaign }: { campaign: AdCampaign & { adsManage
   const activate = () => {
     startActivate(async () => {
       const res = await activateAdAction(campaign.id);
+      if (isStaleAction(res, toast)) return;
       if (res.status === 'activated') {
         toast({ title: 'Activated', description: 'Meta is now serving this ad.' });
       } else if (res.status === 'dry-run') {
@@ -363,6 +391,7 @@ export function AdDetailPanel({ campaign }: { campaign: AdCampaign & { adsManage
   const pause = () => {
     startPause(async () => {
       const res = await pauseAdAction(campaign.id);
+      if (isStaleAction(res, toast)) return;
       if (res.success) {
         toast({ title: 'Paused' });
       } else {
@@ -375,6 +404,7 @@ export function AdDetailPanel({ campaign }: { campaign: AdCampaign & { adsManage
   const discard = () => {
     startDiscard(async () => {
       const res = await discardAdDraftAction(campaign.id);
+      if (isStaleAction(res, toast)) return;
       if (res.ok) {
         toast({ title: 'Discarded' });
         router.push('/admin/ads');
@@ -387,6 +417,7 @@ export function AdDetailPanel({ campaign }: { campaign: AdCampaign & { adsManage
   const refresh = () => {
     startRefresh(async () => {
       const res = await refreshAdInsightsAction(campaign.id);
+      if (isStaleAction(res, toast)) return;
       if (res.ok) {
         toast({
           title: 'Insights refreshed',
