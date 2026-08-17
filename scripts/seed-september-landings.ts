@@ -54,6 +54,37 @@ const P = 'prahova-mountain-chalet';
 const BASE = process.env.LANDING_QUOTE_BASE_URL ?? 'https://prahova-chalet.ro';
 const img = (n: string) => `properties/${P}/images/${n}`;
 
+/**
+ * PHOTOS COME FROM THE CAMPAIGN, NOT FROM THIS FILE (changed 2026-08-17)
+ * ---------------------------------------------------------------------
+ * These pages were hand-seeded before their campaigns existed, so the photos were picked from
+ * filenames and memory — and it showed: nine of ten slots were summer shots on a campaign whose
+ * whole pitch is summer turning to autumn, while six autumn images sat unused in the gallery.
+ *
+ * The ad copywriter picks assets with every image's `aiDescription` in front of it, and it chose
+ * the fire-pit-at-night, the autumn foliage exterior and Peleș in autumn unprompted. Reading the
+ * set back from the campaign is what makes the page show the same thing the ad promised — the
+ * "scent-match" generateLanding.ts is built around. First photo is the hero, the rest the gallery.
+ *
+ * Copy is NOT taken from the campaign: the Romanian here is the owner's own and outranks anything
+ * the copywriter would write.
+ */
+const CAMPAIGN_OF: Record<string, string> = {
+  'zacusca-liniste': 'fzv0oAQa2W3rraGTjLP2',
+  'birou-veverite': 'F1ZTyVxnQn4iXxke5o00',
+};
+
+async function photosFromCampaign(db: admin.firestore.Firestore, slug: string): Promise<string[] | null> {
+  const id = CAMPAIGN_OF[slug];
+  if (!id) return null;
+  const snap = await db.collection('adCampaigns').doc(id).get();
+  if (!snap.exists) return null;
+  const paths = ((snap.data() as any)?.proposal?.photos ?? [])
+    .map((p: any) => p?.storagePath)
+    .filter((s: unknown): s is string => typeof s === 'string' && s.length > 0);
+  return paths.length ? [...new Set<string>(paths)] : null;
+}
+
 /** Quote the real booking total. Returns null when the window is not bookable. */
 async function quote(start: string, end: string, guests: number): Promise<number | null> {
   const r = await fetch(`${BASE}/api/check-pricing`, {
@@ -195,6 +226,16 @@ const BIROU = {
   ];
 
   console.log(`Mode: ${apply ? 'APPLY' : 'DRY RUN'}   quoting from ${BASE}\n`);
+
+  // Pull the campaign's asset set so the page shows what the ad promised. Falls back to whatever is
+  // in this file if the campaign is missing, so the seed still works before a campaign exists.
+  for (const [slug, doc] of pages) {
+    const paths = await photosFromCampaign(db, slug);
+    if (!paths) { console.log(`  /lp/${slug}  no campaign photos — keeping the ones in this file`); continue; }
+    (doc as any).campaignRef = CAMPAIGN_OF[slug];
+    (doc as any).hero.imagePath = paths[0];
+    (doc as any).gallery = paths.slice(1, 7);
+  }
 
   // Quote every stay first. A page with an unbookable or unpriced stay is not written at all.
   let blocked = 0;
