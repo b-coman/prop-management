@@ -440,7 +440,9 @@ export function AdDetailPanel({ campaign }: { campaign: AdCampaign & { adsManage
         {campaign.proposal && (
           <ProposalCard
             proposal={campaign.proposal}
-            editable={campaign.status === 'draft'}
+            // Not editable while the chain is still running: it finishes with a whole-document write,
+            // so anything typed in the meantime would be silently overwritten.
+            editable={campaign.status === 'draft' && !campaign.generating}
             adCampaignId={campaign.id}
             dailyBudgetMinor={campaign.dailyBudgetMinor}
           />

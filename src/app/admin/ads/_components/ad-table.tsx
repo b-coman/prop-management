@@ -55,6 +55,9 @@ export function AdTable({ campaigns }: { campaigns: AdCampaign[] }) {
             </TableCell>
             <TableCell className="space-x-1.5">
               <Badge variant={STATUS_VARIANT[c.status] || 'outline'}>{c.status}</Badge>
+              {/* The row is written before the LLM chain runs, so it is visible while still empty. */}
+              {c.generating && <Badge variant="outline">generating…</Badge>}
+              {c.generateError && <Badge variant="destructive">generate failed</Badge>}
               {c.effectiveStatus && PROBLEM_EFFECTIVE_STATUSES.has(c.effectiveStatus) && (
                 <Badge variant="destructive">{c.effectiveStatus}</Badge>
               )}

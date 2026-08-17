@@ -779,6 +779,15 @@ export interface AdCampaign {
     roas?: number;
   };
   /**
+   * True between the moment the Generate flow writes the row and the moment the plan+creative chain
+   * lands on it. The row exists first so the console can show the run immediately — the chain takes
+   * 60-90s, longer than Safari will hold a fetch open. A row left `generating` well past that means
+   * the run died mid-flight; `generateError` carries the reason when there is one.
+   */
+  generating?: boolean;
+  generateError?: string;
+  generateStage?: string | null;
+  /**
    * Opportunity-Engine proposal content (promotion-system-architecture.md §4.2) — the AI-drafted
    * plan + copy + photos, stored so the operator can REVIEW it in the console before approving
    * (the Meta chain already exists — Model A). Present only on drafts created via the "Generate from

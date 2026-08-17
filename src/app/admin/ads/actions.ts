@@ -564,16 +564,75 @@ export async function generateAdProposalAction(input: {
     const framing = { goal: input.goal?.trim() || undefined, audience: input.audience?.trim() || undefined };
     logger.info('generateAdProposalAction: generating', { actor, propertyId: input.propertyId, window: `${input.start}..${input.end}` });
 
-    // Intelligence only — plan + creative, ZERO Meta footprint. Nothing reaches Meta until Push.
-    const res = await planAndCreative(opportunity, { framing });
+    /**
+     * Create the document BEFORE the LLM runs.
+     *
+     * The plan + creative chain takes 60-90s (each stage retries on validation failure), and Safari
+     * aborts a fetch at ~60s — so the operator reliably saw "Load failed" while the server carried on
+     * and finished normally. The work was never the problem; depending on the response was. Writing
+     * the row up front means the draft shows up in the console within a second, marked `generating`,
+     * and fills itself in when the chain lands, whether or not the browser is still listening.
+     *
+     * `generating: true` rather than a new AdCampaignStatus value: status drives the push/approve/
+     * activate gates and the parity pack's advertised-window probe, and none of them should have to
+     * learn a state that means "not a campaign yet".
+     */
+    const db = await getAdminDb();
+    const ref = db.collection('adCampaigns').doc();
+    await ref.set({
+      propertyId: input.propertyId,
+      status: 'draft',
+      generating: true,
+      generateStartedAt: FieldValue.serverTimestamp(),
+      proposal: {
+        source: 'opportunity-engine',
+        occasion: {
+          name: opportunity.occasion?.name ?? null,
+          start: input.start,
+          end: input.end,
+          nights,
+        },
+        goal: framing.goal ?? null,
+        audience: framing.audience ?? null,
+        copy: [],
+        photos: [],
+        cities: [],
+      },
+      createdBy: actor,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    revalidatePath('/admin/ads');
 
-    if (!res.ok) return { ok: false, error: res.errors.join('; ') || 'proposal-failed', stage: res.stage };
+    // Intelligence only — plan + creative, ZERO Meta footprint. Nothing reaches Meta until Push.
+    // Every exit below must clear `generating`, or the row sits "generating" forever.
+    const fail = async (patch: Record<string, unknown>) => {
+      await ref.update({ generating: false, updatedAt: FieldValue.serverTimestamp(), ...patch });
+      revalidatePath('/admin/ads');
+    };
+
+    let res;
+    try {
+      res = await planAndCreative(opportunity, { framing });
+    } catch (e) {
+      await fail({ generateError: (e as Error).message || 'proposal-threw' });
+      throw e;
+    }
+
+    if (!res.ok) {
+      const error = res.errors.join('; ') || 'proposal-failed';
+      await fail({ generateError: error, generateStage: res.stage ?? null });
+      return { ok: false, error, stage: res.stage };
+    }
     if (res.declined || !res.brief || !res.creative || !res.composeInput) {
-      return { ok: true, declined: true, rationale: res.brief?.rationale ?? 'The planner declined to run an ad for this window.' };
+      const rationale = res.brief?.rationale ?? 'The planner declined to run an ad for this window.';
+      // A decline is a real answer, not a draft — remove the placeholder rather than leave a husk.
+      await ref.delete();
+      revalidatePath('/admin/ads');
+      return { ok: true, declined: true, rationale };
     }
 
     // Resolve photo URLs from the property gallery for the reviewable proposal blob.
-    const db = await getAdminDb();
     const propDoc = await db.collection('properties').doc(input.propertyId).get();
     const images = (propDoc.data()?.images ?? []) as PropertyImage[];
     const urlByPath = new Map(images.filter((i) => i.storagePath).map((i) => [i.storagePath!, i.thumbnailUrl || i.url]));
@@ -602,10 +661,11 @@ export async function generateAdProposalAction(input: {
       ...(input.landingBaseUrl?.trim() ? { landingBaseUrl: input.landingBaseUrl.trim() } : {}),
     };
 
-    const ref = db.collection('adCampaigns').doc();
+    // Fill in the row created before the chain ran, and clear `generating`.
     await ref.set({
       propertyId: input.propertyId,
       status: 'draft',
+      generating: false,
       objective: composeInput.objective,
       dailyBudgetMinor: composeInput.dailyBudgetMinor,
       endTime: composeInput.endTime,

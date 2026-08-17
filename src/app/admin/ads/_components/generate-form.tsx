@@ -43,7 +43,14 @@ export function GenerateForm({ propertyId }: { propertyId: string }) {
     }
     setDeclined(null);
     start(async () => {
-      const res = await generateAdProposalAction({
+      /**
+       * Deliberately not awaited before navigating. The plan+creative chain runs 60-90s (each stage
+       * retries on validation failure) and Safari aborts a fetch at ~60s, so awaiting it reported
+       * "Load failed" on runs the server had completed perfectly — twice, at 78s and 63s. The server
+       * finishes regardless of whether the browser is still listening, and the action now writes the
+       * draft row BEFORE the LLM starts, so the list has something real to show immediately.
+       */
+      const pending = generateAdProposalAction({
         propertyId,
         start: startDate,
         end: endDate,
@@ -54,14 +61,21 @@ export function GenerateForm({ propertyId }: { propertyId: string }) {
         objective: objective || undefined,
         landingBaseUrl: landingUrl.trim() || undefined,
       });
-      // A page older than the running deployment holds a server-action id the server no longer knows,
-      // and Next resolves that to `undefined` rather than rejecting — reading `.ok` would crash the
-      // whole console via the error boundary. Nothing ran, so nothing was written.
+      toast({
+        title: 'Generating…',
+        description:
+          'This takes about a minute. The draft is already in the list and will fill itself in when the engine finishes — you can leave this page.',
+      });
+      router.push(`/admin/ads?propertyId=${propertyId}`);
+
+      // Still report the outcome if the browser is around to hear it. A rejected promise here means
+      // the browser stopped waiting, NOT that the run failed — the server finishes either way, which
+      // is why this says "still working" rather than "nothing was generated".
+      const res = await pending.catch(() => null);
       if (res == null) {
         toast({
-          title: 'Page is out of date',
-          description: 'This page was loaded before the last deploy. Reload it and try again — nothing was generated.',
-          variant: 'destructive',
+          title: 'Still generating',
+          description: 'Your browser stopped waiting, but the engine is still running. Refresh the ads list in a moment.',
         });
         return;
       }
@@ -70,13 +84,12 @@ export function GenerateForm({ propertyId }: { propertyId: string }) {
         return;
       }
       if ('declined' in res) {
-        setDeclined(res.rationale);
+        toast({ title: 'The planner declined this window', description: res.rationale, variant: 'destructive' });
         return;
       }
-      // This path writes a Firestore-only draft — nothing exists on Meta until Push. Saying
-      // "PAUSED on Meta" (the compose path's wording) misdescribes the one guarantee that matters here.
-      toast({ title: 'Draft created', description: 'Saved in the console only — nothing on Meta yet. Review it, then Push.' });
-      router.push(`/admin/ads/${res.adCampaignId}`);
+      // A Firestore-only draft — nothing exists on Meta until Push.
+      toast({ title: 'Draft ready', description: 'Nothing on Meta yet. Review it, then Push.' });
+      router.refresh();
     });
   };
 
