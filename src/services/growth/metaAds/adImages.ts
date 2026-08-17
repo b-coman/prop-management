@@ -171,11 +171,41 @@ function readJpegWidth(bytes: Buffer): number | undefined {
 
 /** Best-effort pixel width from a JPEG or PNG header. Returns undefined for anything else or a malformed/truncated file — treated as "can't verify, reject" by the caller. */
 export function getImageWidthPx(bytes: Buffer): number | undefined {
-  return readPngWidth(bytes) ?? readJpegWidth(bytes);
+  return readPngWidth(bytes) ?? readJpegWidth(bytes) ?? readWebpWidth(bytes);
+}
+
+/**
+ * WebP width, from the RIFF container. Added because the gallery's newer images are WebP and this
+ * function could only read PNG and JPEG — so `width` came back undefined and the ≥600px guard
+ * rejected them as "too narrow", blocking every push whose creative used one. The three chunk
+ * layouts differ, hence three branches; anything else returns undefined and is refused as before.
+ */
+function readWebpWidth(bytes: Buffer): number | undefined {
+  if (bytes.length < 30) return undefined;
+  if (bytes.toString('ascii', 0, 4) !== 'RIFF' || bytes.toString('ascii', 8, 12) !== 'WEBP') return undefined;
+  const chunk = bytes.toString('ascii', 12, 16);
+
+  // Lossy: 3-byte sync code 0x9d 0x01 0x2a, then width in the low 14 bits of a LE uint16.
+  if (chunk === 'VP8 ') {
+    if (bytes[23] !== 0x9d || bytes[24] !== 0x01 || bytes[25] !== 0x2a) return undefined;
+    return bytes.readUInt16LE(26) & 0x3fff;
+  }
+  // Lossless: 0x2f signature, then (width - 1) in the low 14 bits.
+  if (chunk === 'VP8L') {
+    if (bytes[20] !== 0x2f) return undefined;
+    return (bytes.readUInt32LE(21) & 0x3fff) + 1;
+  }
+  // Extended: (canvas width - 1) as a 24-bit LE integer.
+  if (chunk === 'VP8X') return bytes.readUIntLE(24, 3) + 1;
+
+  return undefined;
 }
 
 function contentTypeForPath(storagePath: string): string {
-  return storagePath.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+  const p = storagePath.toLowerCase();
+  if (p.endsWith('.png')) return 'image/png';
+  if (p.endsWith('.webp')) return 'image/webp';
+  return 'image/jpeg';
 }
 
 /**
@@ -237,6 +267,18 @@ export async function uploadImageToAccount(
         bytes: bytes.length,
       });
       return { ok: false, error: 'image-too-large' };
+    }
+
+    // Format first, so an unsupported type reports itself instead of masquerading as a size problem.
+    // Meta's /adimages rejects WebP outright (FileTypeNotSupported, subcode 1487411, verified against
+    // the live account 2026-08-17). Before this check a WebP failed the width guard instead — width
+    // was simply unreadable — and surfaced as "image-too-narrow" on a 2048px image.
+    const ext = image.storagePath.toLowerCase().split('.').pop() ?? '';
+    if (!['jpg', 'jpeg', 'png'].includes(ext)) {
+      logger.warn('uploadImageToAccount: Meta does not accept this file type — refusing to upload', {
+        propertyId, storagePath: image.storagePath, ext,
+      });
+      return { ok: false, error: `unsupported-format:${ext}` };
     }
 
     const width = getImageWidthPx(bytes);

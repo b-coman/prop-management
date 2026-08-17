@@ -233,14 +233,29 @@ describe('uploadImageToAccount — width guard (min 600px)', () => {
     expect(mockUploadImage).not.toHaveBeenCalled();
   });
 
-  it('rejects a file whose width cannot be determined (unsupported format)', async () => {
+  it('names the format when Meta cannot accept it, rather than blaming the width', async () => {
+    // Regression: a WebP used to fail here as 'image-too-narrow', because the width probe could not
+    // read its header and an unreadable width counts as too small. The real reason is that Meta
+    // refuses the file type (FileTypeNotSupported, subcode 1487411) — on a 2048px image, which made
+    // the old message actively misleading.
     const { db } = makeFakeDb();
     mockGetAdminDb.mockResolvedValue(db);
     const { storage } = makeFakeStorage(Buffer.from('not an image, no header'));
     mockGetAdminStorage.mockResolvedValue(storage);
 
     const res = await uploadImageToAccount(PROPERTY, { storagePath: 'properties/prahova-mountain-chalet/images/a.gif' });
-    expect(res).toEqual({ ok: false, error: 'image-too-narrow' });
+    expect(res).toEqual({ ok: false, error: 'unsupported-format:gif' });
+    expect(mockUploadImage).not.toHaveBeenCalled();
+  });
+
+  it('rejects webp — Meta will not take it however wide the image is', async () => {
+    const { db } = makeFakeDb();
+    mockGetAdminDb.mockResolvedValue(db);
+    const { storage } = makeFakeStorage(Buffer.from('RIFF____WEBPVP8 '));
+    mockGetAdminStorage.mockResolvedValue(storage);
+
+    const res = await uploadImageToAccount(PROPERTY, { storagePath: 'properties/prahova-mountain-chalet/images/a.webp' });
+    expect(res).toEqual({ ok: false, error: 'unsupported-format:webp' });
     expect(mockUploadImage).not.toHaveBeenCalled();
   });
 });
