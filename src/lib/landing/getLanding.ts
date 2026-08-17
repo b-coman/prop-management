@@ -106,7 +106,8 @@ export async function buildLandingModel(
 
   return {
     slug: config.slug, language: lang, isCustomDomain,
-    propertySlug: config.propertyId, propertyName, themeId: property.themeId || 'airbnb',
+    propertySlug: config.propertyId, propertyName, city: (property as any).location?.city ?? null,
+    themeId: property.themeId || 'airbnb',
     baseCurrency, advertisedRate: property.advertisedRate || property.pricePerNight,
     menuItems, logoSrc, logoAlt, footer,
     ratings: property.ratings ? { average: property.ratings.average, count: property.ratings.count } : null,

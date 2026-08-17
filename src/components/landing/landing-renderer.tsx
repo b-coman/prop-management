@@ -148,7 +148,9 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                         <p className="mt-3 text-sm text-muted-foreground">{t(lang, 'from', 'de la')} <span className="text-lg font-bold text-foreground">{Math.round(s.priceHint).toLocaleString()} {m.baseCurrency}</span></p>
                       ) : null}
                       <Button variant="cta" className="mt-6 mt-auto" asChild>
-                        <Link href={s.bookUrl}>{t(lang, 'Book this', 'Rezervă acesta')}<ArrowRight className="ml-1 h-4 w-4" /></Link>
+                        {/* Just "Rezervă" — "Rezervă acesta" is a literal translation of "Book this"
+                            and reads stilted; Romanian drops the pronoun on a button. */}
+                        <Link href={s.bookUrl}>{t(lang, 'Book this', 'Rezervă')}<ArrowRight className="ml-1 h-4 w-4" /></Link>
                       </Button>
                     </CardContent>
                   </Card>
@@ -201,8 +203,16 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
         {/* ── FINAL CTA BAND ── */}
         <section className="bg-primary py-16 text-center text-primary-foreground">
           <div className="mx-auto max-w-2xl px-5">
-            <h2 className="text-2xl font-bold sm:text-3xl">{t(lang, 'Ready when you are', 'Te așteptăm la munte')}</h2>
-            <p className="mx-auto mt-3 max-w-md text-primary-foreground/85">{t(lang, 'Call us for the best direct price, or check the dates online.', 'Sună-ne pentru cel mai bun preț direct, sau vezi datele online.')}</p>
+            {/* Name the town, not the terrain. `city` comes from the property, so the Bucharest
+                apartment does not end up inviting people "la munte". */}
+            <h2 className="text-2xl font-bold sm:text-3xl">
+              {m.city
+                ? t(lang, `See you in ${m.city}`, `Te așteptăm la ${m.city}`)
+                : t(lang, 'Ready when you are', 'Te așteptăm')}
+            </h2>
+            {/* "cel mai bun preț", not "cel mai bun preț direct" — the qualifier made it sound like a
+                category of price rather than simply the best one. */}
+            <p className="mx-auto mt-3 max-w-md text-primary-foreground/85">{t(lang, 'Call us for the best price, or check the dates online.', 'Sună-ne pentru cel mai bun preț, sau vezi datele online.')}</p>
             <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
               {m.phone && <CallButton phone={m.phone} label={m.phone} size="lg" className="w-full bg-white text-foreground hover:bg-white/90 sm:w-auto" />}
               {m.showBooking && (

@@ -134,7 +134,7 @@ const ZACUSCA = {
   exampleStays: [
     {
       start: '2026-09-04', end: '2026-09-07', nights: 3, guests: 4, priceHint: null as number | null,
-      label: { en: 'A long weekend, start of September', ro: 'Un weekend prelungit, început de septembrie' },
+      label: { en: 'A long weekend, start of September', ro: 'Weekend prelungit, început de septembrie' },
       occasion: 'Weekend cu prietenii',
     },
     // A REGULAR weekend, deliberately two nights. Both slots used to run Friday→Monday, so the page
@@ -143,7 +143,7 @@ const ZACUSCA = {
     // dearer per night (789 vs 638) — it is the cheaper ticket, not the better value.
     {
       start: '2026-09-25', end: '2026-09-27', nights: 2, guests: 4, priceHint: null as number | null,
-      label: { en: 'The last warm weekend', ro: 'Ultimul weekend cald' },
+      label: { en: 'The last weekend in September', ro: 'Ultimul weekend din septembrie' },
     },
   ],
   gallery: [

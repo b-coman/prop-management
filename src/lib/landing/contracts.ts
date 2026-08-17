@@ -43,6 +43,12 @@ export interface LandingModel {
   // property/nav/footer (for the reused Header + Footer)
   propertySlug: string;
   propertyName: string;
+  /**
+   * The town, for closing copy that names where the guest is actually going ("Te așteptăm la
+   * Comarnic" reads far warmer than "la munte"). Read from the property rather than written into the
+   * template: the same renderer serves an apartment in Bucharest, where "la munte" would be a lie.
+   */
+  city?: string | null;
   themeId: string;
   baseCurrency?: string;
   advertisedRate?: number;
