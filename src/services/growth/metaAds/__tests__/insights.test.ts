@@ -87,7 +87,9 @@ describe('getInsights — parsing', () => {
     const res = await getInsights(PROPERTY, OBJECT_ID);
     expect(res).toEqual({
       ok: true,
-      data: { spend: 123.45, impressions: 1000, clicks: 50, purchases: 3, purchaseValue: 900, roas: 7.29 },
+      // linkClicks/landingPageViews accompany the purchase metrics: a traffic campaign reports zero
+      // purchases by design, so those two are the only signal it has.
+      data: { spend: 123.45, impressions: 1000, clicks: 50, linkClicks: 50, landingPageViews: 0, purchases: 3, purchaseValue: 900, roas: 7.29 },
     });
   });
 
@@ -167,7 +169,7 @@ describe('getInsights — parsing', () => {
     const res = await getInsights(PROPERTY, OBJECT_ID);
     expect(res).toEqual({
       ok: true,
-      data: { spend: 0, impressions: 0, clicks: 0, purchases: 0, purchaseValue: 0, roas: 0 },
+      data: { spend: 0, impressions: 0, clicks: 0, linkClicks: 0, landingPageViews: 0, purchases: 0, purchaseValue: 0, roas: 0 },
     });
   });
 });
