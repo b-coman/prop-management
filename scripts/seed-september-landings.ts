@@ -242,7 +242,7 @@ const BIROU = {
     if (!paths) { console.log(`  /lp/${slug}  no campaign photos — keeping the ones in this file`); continue; }
     (doc as any).campaignRef = CAMPAIGN_OF[slug];
     (doc as any).hero.imagePath = paths[0];
-    (doc as any).gallery = paths.slice(1, 7);
+    (doc as any).gallery = paths.slice(0, 6); // hero included — see generateLanding.ts
   }
 
   // Quote every stay first. A page with an unbookable or unpriced stay is not written at all.

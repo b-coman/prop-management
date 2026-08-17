@@ -69,7 +69,10 @@ export async function buildLandingDraftFromCampaign(
   // Photos: the SAME assets the ad used (scent-match). First = hero, rest = gallery (deduped, ≤6).
   const photos = [...new Set((p.photos ?? []).map(x => x.storagePath).filter((s): s is string => !!s))];
   const heroImage = photos[0] ?? '';
-  const gallery = photos.filter(sp => sp !== heroImage).slice(0, 6);
+  // The hero stays IN the gallery. It used to be filtered out to avoid showing the same picture
+  // twice, but the gallery is where people swipe on mobile — arriving there and finding the set
+  // incomplete is the worse surprise. Promoted to the top, not removed from the grid.
+  const gallery = photos.slice(0, 6);
 
   // Copy: reuse the ad copywriter's output. Hero = winning variant; story body = the most narrative one.
   const copy = p.copy ?? [];
