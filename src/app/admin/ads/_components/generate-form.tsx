@@ -28,6 +28,7 @@ export function GenerateForm({ propertyId }: { propertyId: string }) {
   const [goal, setGoal] = useState('');
   const [audience, setAudience] = useState('');
   const [value, setValue] = useState('');
+  const [objective, setObjective] = useState<'' | 'traffic' | 'sales'>('traffic');
   const [declined, setDeclined] = useState<string | null>(null);
 
   const generate = () => {
@@ -49,6 +50,7 @@ export function GenerateForm({ propertyId }: { propertyId: string }) {
         goal: goal.trim() || undefined,
         audience: audience.trim() || undefined,
         valueAtRisk: value ? Number(value) : undefined,
+        objective: objective || undefined,
       });
       if (!res.ok) {
         toast({ title: 'Could not generate', description: `${res.stage ? `[${res.stage}] ` : ''}${res.error}`, variant: 'destructive' });
@@ -58,7 +60,9 @@ export function GenerateForm({ propertyId }: { propertyId: string }) {
         setDeclined(res.rationale);
         return;
       }
-      toast({ title: 'Draft created', description: 'PAUSED on Meta, zero spend. Review and approve it next.' });
+      // This path writes a Firestore-only draft — nothing exists on Meta until Push. Saying
+      // "PAUSED on Meta" (the compose path's wording) misdescribes the one guarantee that matters here.
+      toast({ title: 'Draft created', description: 'Saved in the console only — nothing on Meta yet. Review it, then Push.' });
       router.push(`/admin/ads/${res.adCampaignId}`);
     });
   };
@@ -131,6 +135,25 @@ export function GenerateForm({ propertyId }: { propertyId: string }) {
           <Label htmlFor="value">Revenue at risk (RON, optional)</Label>
           <Input id="value" type="number" min={0} step="1" value={value} onChange={(e) => setValue(e.target.value)} placeholder="e.g. 6000" />
           <p className="text-xs text-muted-foreground">Nights × rate for this window, if known — it caps the spend envelope.</p>
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="objective">Optimise for</Label>
+          <select
+            id="objective"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            value={objective}
+            onChange={(e) => setObjective(e.target.value as '' | 'traffic' | 'sales')}
+          >
+            <option value="traffic">Traffic — landing page views</option>
+            <option value="sales">Sales — pixel purchases</option>
+            <option value="">Let the planner decide</option>
+          </select>
+          <p className="text-xs text-muted-foreground">
+            Your choice overrides the planner. Meta needs ~50 events a week to optimise: a small budget
+            produces that many landing-page views but almost never that many purchases, so Sales delivers
+            semi-blind. Left on &quot;let the planner decide&quot;, a goal worded around bookings can pull it to Sales.
+          </p>
         </div>
 
         {declined && (

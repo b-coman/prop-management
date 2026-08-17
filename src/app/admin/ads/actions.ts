@@ -513,6 +513,15 @@ export async function generateAdProposalAction(input: {
   valueAtRisk?: number;
   goal?: string;
   audience?: string;
+  /**
+   * Operator's optimisation choice. The planner picks one too, but framing is scoped to CREATIVE
+   * (the pack tells it to shape "the creativeBrief's angle, the copy, and which asset themes to
+   * favor" — it says nothing about the objective), while the objective enum carries only a soft
+   * heuristic. So a goal worded around bookings pulls it to 'sales' even on a budget that can never
+   * produce ~50 purchases a week. When the operator states an objective it WINS; leave it unset to
+   * let the planner decide, as before.
+   */
+  objective?: 'traffic' | 'sales';
 }): Promise<
   | { ok: true; adCampaignId: string }
   | { ok: true; declined: true; rationale: string }
@@ -575,14 +584,21 @@ export async function generateAdProposalAction(input: {
     // request that `pushAdToMetaAction` will replay verbatim (with any operator edits) to build the
     // real PAUSED Meta chain. Top-level dailyBudgetMinor/endTime/objective mirror it for display + the
     // later approve cap-check.
+    // Operator's objective wins over the planner's. Applied to BOTH the composeInput that Push
+    // replays and the top-level mirror the console displays and the approve cap-check reads, so the
+    // two can never disagree about what will reach Meta.
+    const composeInput = input.objective
+      ? { ...res.composeInput, objective: input.objective }
+      : res.composeInput;
+
     const ref = db.collection('adCampaigns').doc();
     await ref.set({
       propertyId: input.propertyId,
       status: 'draft',
-      objective: res.composeInput.objective,
-      dailyBudgetMinor: res.composeInput.dailyBudgetMinor,
-      endTime: res.composeInput.endTime,
-      composeInput: res.composeInput,
+      objective: composeInput.objective,
+      dailyBudgetMinor: composeInput.dailyBudgetMinor,
+      endTime: composeInput.endTime,
+      composeInput,
       proposal: {
         source: 'opportunity-engine',
         occasion: {
