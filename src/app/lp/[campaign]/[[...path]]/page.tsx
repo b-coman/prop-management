@@ -43,7 +43,7 @@ function resolveLanguage(config: { defaultLanguage?: string } | null, path?: str
 export async function generateMetadata({ params }: { params: Promise<{ campaign: string; path?: string[] }> }): Promise<Metadata> {
   const { campaign, path } = await params;
   const config = await getLandingConfig(campaign);
-  if (!config) return { title: 'Not found', robots: { index: false } };
+  if (!config || config.status === 'draft') return { title: 'Not found', robots: { index: false } };
   const host = (await headers()).get('x-forwarded-host') || (await headers()).get('host') || '';
   const m = await buildLandingModel(config, resolveLanguage(config, path), host);
   return {
@@ -58,6 +58,12 @@ export default async function LandingPage({ params }: { params: Promise<{ campai
   const { campaign, path } = await params;
   const config = await getLandingConfig(campaign);
   if (!config) notFound();
+  // `status` was carried in the contract and written by the seeds and the admin editor, but nothing
+  // ever read it — so "unpublish" did nothing and a draft stayed publicly reachable. Two pages were
+  // live because of it: a finished campaign advertising sold-out dates, and a page never published
+  // at all. Only an explicit 'draft' hides a page; a doc with no status stays public, so pages that
+  // predate the field are unaffected.
+  if (config.status === 'draft') notFound();
 
   const language = resolveLanguage(config, path);
   const hdrs = await headers();
