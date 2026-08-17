@@ -40,6 +40,15 @@ env:
     value: "true"
     availability:
       - RUNTIME
+  # The second switch. With this set to "live", pressing Go live in /admin/ads un-pauses the ad set
+  # on Meta and REAL MONEY MOVES. Set 2026-08-17 for the two September flights (zacuscă + birou),
+  # 9 RON/day each to 31 Aug, owner-confirmed. Activation still needs a per-campaign spend cap that
+  # covers dailyBudget x daysRemaining x 1.25, and the ad account carries a 300 RON lifetime cap.
+  # Set this back to "dry-run" (or remove it) when no flight should be able to start.
+  - variable: GROWTH_ADS_MODE
+    value: "live"
+    availability:
+      - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
     secret: projects/1061532538391/secrets/PUBLIC_FIREBASE_API_KEY/versions/1
     availability:
