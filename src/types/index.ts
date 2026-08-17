@@ -90,6 +90,29 @@ export interface Location {
   };
 }
 
+/**
+ * How this property's copy should sound, in the owner's own terms.
+ *
+ * Written down because the alternative is the owner rewriting every generated line by hand: without
+ * it each run starts from zero and produces competent, generic marketing Romanian. `examples` is the
+ * load-bearing field — a model matches a demonstrated sentence far more reliably than it follows an
+ * adjective like "warm", and `avoid` pairs are what actually kill a habit.
+ *
+ * Per-property on purpose: a mountain chalet and a city apartment do not share a voice.
+ */
+export interface BrandVoice {
+  /** The language the copy is written in — the voice is not portable across languages. */
+  language: string;
+  /** Rules, most important first. Short and testable beats a paragraph of adjectives. */
+  principles: string[];
+  /** Real lines the owner wrote or approved. Worth more than any principle. */
+  good: string[];
+  /** Rejected phrasings, ideally as `wrong -> right`, so the model learns the correction. */
+  avoid: string[];
+  /** Anything that does not fit the above — house facts that shape tone, names to use, etc. */
+  notes?: string;
+}
+
 export interface Property {
   id: string; // Document ID from Firestore (which is the slug)
   slug: string; // URL-friendly identifier, same as id
@@ -101,6 +124,8 @@ export interface Property {
   amenityRefs?: string[]; // References to amenity collection
   pricePerNight: number; // Base price per night in property's baseCurrency
   advertisedRate?: number; // Numeric value in property's baseCurrency
+  /** How copy for this property should sound. Read by the ad copywriter on every generation. */
+  brandVoice?: BrandVoice;
   advertisedRateType?: 'starting' | 'average' | 'special' | 'nightly'; // Type of advertised rate
   baseCurrency: CurrencyCode; // The currency in which pricePerNight & advertisedRate are set
   cleaningFee?: number;

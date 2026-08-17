@@ -28,7 +28,7 @@ import { getAdAccountHealth, getPageHealth } from '@/services/growth/metaAds/bra
 import { buildAdLearnings } from '@/lib/growth/adLearnings';
 import type { AdOpportunity, AdFraming } from '@/lib/growth/contracts';
 import type { CityMatch } from '@/services/growth/metaAds/geo';
-import type { PropertyImage, AiImageDescription, AdLearnings } from '@/types';
+import type { PropertyImage, AiImageDescription, AdLearnings, BrandVoice } from '@/types';
 
 /**
  * RO feeder markets for a Prahova-valley chalet — the candidate geo the planner picks from. Names
@@ -91,6 +91,8 @@ export interface AdPlannerPack {
   learnings: AdLearnings;
   assets: Array<{ storagePath: string; alt: string; tags: string[]; aiDescription?: AiImageDescription }>;
   landing: { baseUrl: string; note: string };
+  /** The owner's voice guide for this property, or null if none is configured. */
+  voice: BrandVoice | null;
   method: string[];
 }
 
@@ -132,7 +134,7 @@ export async function buildAdPlannerPack(
   const maxTotalSpendMinor = valueAtRiskMinor != null ? Math.min(valueAtRiskMinor, ABSOLUTE_MAX_TOTAL_MINOR) : ABSOLUTE_MAX_TOTAL_MINOR;
 
   // Gallery assets owned by this property (for the creative brief — step 4 picks the actual photos).
-  const propData = propSnap.exists ? (propSnap.data() as { images?: PropertyImage[]; customDomain?: string | null }) : undefined;
+  const propData = propSnap.exists ? (propSnap.data() as { images?: PropertyImage[]; customDomain?: string | null; brandVoice?: BrandVoice }) : undefined;
   const ownPrefix = `properties/${propertyId}/`;
   const assets = (propData?.images ?? [])
     .filter((img): img is PropertyImage & { storagePath: string } => Boolean(img.storagePath && img.storagePath.startsWith(ownPrefix)))
@@ -181,6 +183,7 @@ export async function buildAdPlannerPack(
     page,
     learnings,
     assets,
+    voice: propData?.brandVoice ?? null,
     landing: {
       baseUrl: getBaseUrl(propData?.customDomain),
       note: 'The direct-booking site — the ROAS-attributed destination. The composer stamps utm_campaign=<adCampaignId> on it (step 4); the planner just confirms the destination is the direct site, never an OTA URL.',

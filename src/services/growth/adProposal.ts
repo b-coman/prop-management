@@ -79,7 +79,7 @@ export async function planAndCreative(opportunity: AdOpportunity, opts?: { asOf?
   }
 
   // 2. Creative (grounded copy + real photos) — reinforce the same goal + audience shaping.
-  const creativeRes = await generateAdCreative(brief, pack.assets, { framing: opts?.framing });
+  const creativeRes = await generateAdCreative(brief, pack.assets, { framing: opts?.framing, voice: pack.voice });
   if (!creativeRes.ok || !creativeRes.creative) {
     logger.warn('planAndCreative: creative failed', { opportunityId: opportunity.id, errors: creativeRes.errors });
     return { ok: false, stage: 'creative', declined: false, brief, errors: creativeRes.errors };

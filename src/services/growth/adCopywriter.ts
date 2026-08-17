@@ -16,7 +16,7 @@
 import { getAnthropicClient, COPYWRITER_MODEL } from '@/lib/growth/anthropic';
 import { validateAdCreative, type AdCreativePackForValidation } from '@/lib/growth/validateAdCreative';
 import type { AdBrief, AdFraming } from '@/lib/growth/contracts';
-import type { CopyVariant, AiImageDescription } from '@/types';
+import type { CopyVariant, AiImageDescription, BrandVoice } from '@/types';
 import { loggers } from '@/lib/logger';
 
 const logger = loggers.ads;
@@ -104,6 +104,12 @@ THE RULES
    populate_people). Never skip real photos to force a gap, and never invent a scene — the gap always
    points at a real photo to edit.
 
+6. WRITE IN THE OWNER'S VOICE. When voice is present it OUTRANKS your own instincts about what good
+   marketing copy sounds like. Read voice.good as the target — those are lines the owner actually
+   wrote or approved, and matching their rhythm matters more than any rule of thumb. Read voice.avoid
+   as corrections already made once; do not reintroduce them. Concrete beats clever: if a principle
+   and a flourish conflict, keep the principle.
+
 Return the creative by calling emit_ad_creative. Nothing else.`;
 
 export interface RawAssetGap {
@@ -136,7 +142,7 @@ interface EmitAdCreativeInput {
 export async function generateAdCreative(
   brief: AdBrief,
   assets: AdCreativeAsset[],
-  opts?: { maxRepairs?: number; framing?: AdFraming }
+  opts?: { maxRepairs?: number; framing?: AdFraming; voice?: BrandVoice | null }
 ): Promise<GenerateAdCreativeResult> {
   if (!brief.act) return { ok: false, creative: null, errors: ['brief is act:false — there is no creative to write for a declined plan'], warnings: [], attempts: 0 };
   if (!assets.length) return { ok: false, creative: null, errors: ['no gallery assets available to build a creative'], warnings: [], attempts: 0 };
@@ -148,6 +154,7 @@ export async function generateAdCreative(
   const maxRepairs = opts?.maxRepairs ?? 1;
 
   const creativePack = {
+    voice: opts?.voice ?? null,
     goal: opts?.framing?.goal ?? null,
     audience: opts?.framing?.audience ?? null,
     occasion: brief.opportunity.occasion,
