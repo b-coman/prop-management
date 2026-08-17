@@ -69,6 +69,10 @@ const short = (p: string) => p.split('/').pop();
   }
   console.log(`cities: ${b.targeting.cities.map((c) => `${c.name} r${c.radius}km`).join(', ')}`);
   console.log(`budget: ${ron(b.dailyBudgetMinor)}/day · end ${b.endTime.slice(0, 10)}`);
+  // Print the brief: it is what the copywriter treats as instructions, so it is the thing to read
+  // when the creative comes out wrong. It must name THEMES — a brief naming files means the planner
+  // is choosing photos again.
+  console.log(`\nBRIEF:\n  ${b.creativeBrief.replace(/\n/g, '\n  ')}`);
 
   const creative = await generateAdCreative(b, pack.assets, { framing });
   const secs = Math.round((Date.now() - t0) / 1000);

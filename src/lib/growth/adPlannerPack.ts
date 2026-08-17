@@ -136,8 +136,15 @@ export async function buildAdPlannerPack(
   // Gallery assets owned by this property (for the creative brief — step 4 picks the actual photos).
   const propData = propSnap.exists ? (propSnap.data() as { images?: PropertyImage[]; customDomain?: string | null; brandVoice?: BrandVoice }) : undefined;
   const ownPrefix = `properties/${propertyId}/`;
+  // Meta's /adimages accepts JPEG and PNG only — it refuses WebP outright (FileTypeNotSupported,
+  // subcode 1487411, verified 2026-08-17). An asset the uploader cannot use is not inventory, and
+  // offering it here just means discovering that at push time: it surfaced as
+  // "upload-failed:image-too-narrow" on a 2048px photo and blocked a whole campaign. Archived images
+  // are excluded for the same reason — they are not on offer.
+  const META_UPLOADABLE = /\.(jpe?g|png)$/i;
   const assets = (propData?.images ?? [])
-    .filter((img): img is PropertyImage & { storagePath: string } => Boolean(img.storagePath && img.storagePath.startsWith(ownPrefix)))
+    .filter((img): img is PropertyImage & { storagePath: string } =>
+      Boolean(img.storagePath && img.storagePath.startsWith(ownPrefix) && !img.archived && META_UPLOADABLE.test(img.storagePath)))
     .map((img) => ({ storagePath: img.storagePath, alt: serverTranslateContent(img.alt, 'en'), tags: img.tags ?? [], aiDescription: img.aiDescription }));
 
   const account: AdPlannerPack['account'] = accountRes.ok

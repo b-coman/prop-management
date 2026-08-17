@@ -80,8 +80,15 @@ THE RULES
 3. GEO + ANGLE QUALIFY THE AUDIENCE. There is no age/gender/interest control (Advantage+ Audience
    owns demographics). Choose feeder cities that fit the property and the occasion (a mountain
    weekend sells to the valley's near cities + Bucharest), and let the creativeBrief's angle do the
-   rest. Favor gallery asset THEMES that match the occasion (from the pack's assets — reference
-   themes/tags, do not pick exact files).
+   rest. Favor gallery asset THEMES that match the occasion. You get assetThemes — counts by season,
+   by tag, and how many contain people — never filenames. Name themes, not photos.
+
+   MATCH THE SEASON THE GUEST WILL ARRIVE IN, not the season the ad runs in. A stay in late
+   September is autumn to the person looking at it; a green summer garden undersells it and reads as
+   a recycled ad. Check assetThemes.bySeason before you commit: if the window is autumn and autumn
+   photos exist, say so explicitly in the brief, because the creative stage follows what you write.
+   If the season you want has a count of zero, say that too — a missing shot is worth declaring, not
+   working around silently.
 4. GROUND EVERY CHOICE in the pack (the opportunity, account performance, candidate cities, assets,
    landing). Do not assert a fact the pack does not contain.
 5. OR DECLINE. If the opportunity is weak — no occasion, tiny value, or the account is blocked — set
@@ -119,6 +126,51 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * on failure feeds the validator errors back for ONE bounded repair before returning
  * (ok:false + errors) — never ships an over-budget or off-geo plan.
  */
+/**
+ * What the planner is allowed to know about the gallery: themes and counts, never filenames.
+ *
+ * It used to receive the full asset list — storagePaths and all — alongside an instruction to
+ * "reference themes/tags, do not pick exact files". It named the files anyway, and because the
+ * copywriter treats the brief as a shopping list, whatever the planner listed is what shipped: two
+ * near-identical laptop shots and a bedroom in an ad about working outdoors. Worse, the planner
+ * judged September "summer-into-early-autumn" and named only summer assets, so seven autumn photos
+ * were excluded before the copywriter ever opened the gallery.
+ *
+ * Withholding the identifiers makes that failure unrepresentable rather than merely forbidden, and
+ * costs nothing: the planner needs to know WHAT EXISTS to judge whether an angle is feasible, not
+ * which file to use. Choosing is the copywriter's job — it is the stage that holds every image's
+ * aiDescription.
+ */
+function summariseAssets(assets: AdPlannerPack['assets']): {
+  total: number;
+  bySeason: Record<string, number>;
+  byTag: Record<string, number>;
+  withPeople: number;
+  note: string;
+} {
+  const bySeason: Record<string, number> = {};
+  const byTag: Record<string, number> = {};
+  let withPeople = 0;
+  for (const a of assets) {
+    const season = a.aiDescription?.season ?? 'unknown';
+    bySeason[season] = (bySeason[season] ?? 0) + 1;
+    for (const t of a.tags ?? []) byTag[t] = (byTag[t] ?? 0) + 1;
+    const people = a.aiDescription?.people;
+    if (people && people !== 'none') withPeople++;
+  }
+  return {
+    total: assets.length,
+    bySeason,
+    byTag,
+    withPeople,
+    note:
+      'Themes and counts only — filenames are deliberately withheld. Say WHICH THEMES the creative ' +
+      'should favour and why (season, subject, whether people should appear); the creative stage ' +
+      'picks the actual photos, and it can see every image\'s full description. If a theme you want ' +
+      'has a count of zero here, do not build the angle on it.',
+  };
+}
+
 export async function generateAdPlan(
   opportunity: AdOpportunity,
   opts?: { asOf?: Date; maxRepairs?: number; pack?: AdPlannerPack; framing?: AdFraming }
@@ -143,7 +195,7 @@ export async function generateAdPlan(
     account: pack.account,
     page: pack.page,
     learnings: pack.learnings,
-    assets: pack.assets,
+    assetThemes: summariseAssets(pack.assets),
     landing: pack.landing,
     method: pack.method,
   });
