@@ -795,8 +795,21 @@ export async function pushAdToMetaAction(
       .filter((l) => l.status === 'published')
       .sort((a, b) => (b.updatedAt?._seconds ?? 0) - (a.updatedAt?._seconds ?? 0))[0];
     if (landing) {
-      const origin = String(composeInput.landingBaseUrl || getBaseUrl(null)).replace(/\/+$/, '');
-      composeInput.landingBaseUrl = `${origin}/lp/${landing.slug}/${landing.defaultLanguage || 'ro'}`;
+      // Take the ORIGIN, never the whole URL. This used to concatenate onto whatever landingBaseUrl
+      // held, on the assumption it was a bare domain. Once the Generate form grew a Landing URL field
+      // that assumption broke: an operator pointing the ad at /lp/x produced
+      // prahova-chalet.ro/lp/x/lp/x/ro — a 404 on every paid click, on a campaign that passed every
+      // other check. An explicit path now wins outright; the seam only fills in a bare origin.
+      let base: URL;
+      try {
+        base = new URL(String(composeInput.landingBaseUrl || getBaseUrl(null)));
+      } catch {
+        base = new URL(getBaseUrl(null));
+      }
+      const operatorChosePath = base.pathname.replace(/\/+$/, '') !== '';
+      composeInput.landingBaseUrl = operatorChosePath
+        ? base.toString().replace(/\/+$/, '')
+        : `${base.origin}/lp/${landing.slug}/${landing.defaultLanguage || 'ro'}`;
       logger.info('pushAdToMetaAction: pointing ad at landing page', { adCampaignId, landing: landing.slug, url: composeInput.landingBaseUrl });
     }
 
