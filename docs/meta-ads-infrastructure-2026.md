@@ -149,7 +149,7 @@ object_story_spec: { page_id, instagram_user_id, link_data: { link, message, ima
 ```
 The **`link`** field is where the `?utm_source=facebook&utm_campaign=<adCampaigns.id>` MUST go (Fable H1).
 
-**Ad-set targeting shape (validated):** `geo_locations{ cities:[{country,key,radius,distance_unit,region}], location_types:["home","recent"] }, age_min, age_max`. Owner's prior play: RO cities (Bucharest 25mi, Braila, Constanta, Galati…), age 30–45.
+**Ad-set targeting shape (validated):** `geo_locations{ cities:[{country,key,radius,distance_unit,region}] }, age_min, age_max`. (`location_types` was in the original shape - retired by Meta, see §9h.) Owner's prior play: RO cities (Bucharest 25mi, Braila, Constanta, Galati…), age 30–45.
 
 **STILL UNVERIFIED (no account precedent — verify at first PAUSED create):** `OUTCOME_SALES` needs ad-set `optimization_goal:OFFSITE_CONVERSIONS` + `promoted_object:{pixel_id, custom_event_type:PURCHASE}`. The account's history is all LINK_CLICKS/OUTCOME_TRAFFIC/MESSAGES — no conversion campaigns yet.
 
@@ -207,7 +207,7 @@ the create functions, not the spike.
 ## 10. Creative assets & AI generation — verified specs (10 Jul 2026)
 Verified against developers.facebook.com (v25.0) + facebook.com/business ad-guide. Source tiers: **[P]** = read on a Meta property, **[S]** = secondary/snippet (spot-check before hard-coding). Extends/corrects §3/§5.
 
-**Image specs [P]:** JPG/PNG, **max 30 MB**, **min width 600px**, aspect-ratio tolerance **±3%**. Per placement: FB Feed **4:5** (also 1:1, 1.91:1), rec 1440×1800, min 600×750; Stories/Reels **9:16**, 1080×1920; FB right-column **1:1**; IG Feed 1.91:1→4:5. **The "20% text rule" is RETIRED (since Sep 2020), not enforced** — only a soft "less text performs better" recommendation; claims of a silent 2026 delivery penalty are [S] folklore, unconfirmed. Text (FB Feed/Awareness only, [P]): primary **50–150 chars** before "See more", headline **27 chars**; other placement/objective limits [S]/UNCONFIRMED — use `/act_<id>/generatepreview` rather than hard-coding truncation.
+**Image specs [P]:** JPG/PNG **ONLY - WebP is refused** (err 100 / subcode 1487411 `FileTypeNotSupported`, verified against the live account 17 Aug 2026, §9h; "JPG/PNG" here is a whitelist, not an example), **max 30 MB**, **min width 600px**, aspect-ratio tolerance **±3%**. Per placement: FB Feed **4:5** (also 1:1, 1.91:1), rec 1440×1800, min 600×750; Stories/Reels **9:16**, 1080×1920; FB right-column **1:1**; IG Feed 1.91:1→4:5. **The "20% text rule" is RETIRED (since Sep 2020), not enforced** — only a soft "less text performs better" recommendation; claims of a silent 2026 delivery penalty are [S] folklore, unconfirmed. Text (FB Feed/Awareness only, [P]): primary **50–150 chars** before "See more", headline **27 chars**; other placement/objective limits [S]/UNCONFIRMED — use `/act_<id>/generatepreview` rather than hard-coding truncation.
 
 **Video specs [P]:** MP4/MOV, H.264/H.265, **16:9 → 9:16**, min width 1200px (rec 1280×720+, scale up for 9:16), 24–60 fps, "up to 10 GB recommended" (the blog "4 GB max" is NOT what Meta's doc says). Upload `/act_<id>/advideos` is **chunked + ASYNC** (`upload_phase: start→transfer→finish`) → poll `GET /<video_id>?fields=status` until `processing_phase.status=complete` before use. Length limits UNCONFIRMED on a Meta source.
 
@@ -289,7 +289,7 @@ All verified live PAUSED + deleted, zero spend. This is the contract for the ric
 
 **City name→key resolution:** `GET /search?type=adgeolocation&location_types=["city"]&q=<name>&country_code=RO&limit=1` → `data[].{key,name,region,region_id,country_code}`. Verified keys: **București=1910415, Ploiești=1925836, Constanța=1913456**. Cities MUST be targeted by `key`, never name.
 
-**City targeting (ad set):** `targeting.geo_locations.cities:[{key, radius, distance_unit:"kilometer"}]` + `location_types:["home","recent"]`. Read-back confirms.
+**City targeting (ad set):** `targeting.geo_locations.cities:[{key, radius, distance_unit:"kilometer"}]`. 🔴 **`location_types` was part of this shape and MUST NO LONGER BE SENT** - Meta retired the option (see §9h, 17 Aug 2026). The API still accepts it, which is why this read "read-back confirms" for a year, but any ad set carrying it becomes uneditable in Ads Manager. Omit it; Meta applies its own default.
 
 **Advantage+ audience OWNS demographics (KEY design fact):** with `targeting_automation.advantage_audience:1` you CANNOT hard-set `age_min` > 25 (err 100/1870188) nor `age_max` < 65 (err 100/1870189) — age becomes a *suggestion* only; **only geo is a hard control**. So: `advantage_audience:1` (Meta's conversion recommendation, best cold-start) ⇒ drop hard age, rely on GEO + ad copy to qualify. Use `advantage_audience:0` only when you need exact age/gender/interest control (then age is honored). The two are mutually exclusive on age.
 
@@ -297,6 +297,55 @@ All verified live PAUSED + deleted, zero spend. This is the contract for the ric
 **GOTCHA:** a Dynamic-Creative ad fails on a normal ad set — err 100/**1885998** "Cannot Create Dynamic Creative ad In Non-Dynamic Creative Ad Set". The AD SET must be created with **`is_dynamic_creative:true`**. Single-image `object_story_spec` creatives stay on normal (non-dynamic) ad sets. So the composer picks the path by asset count: 1 image → object_story_spec/normal adset; 2+ images or copy variants → asset_feed_spec + `is_dynamic_creative:true` adset.
 
 **§9f addendum (asset_feed_spec duplicate values):** Meta rejects DUPLICATE values within an `asset_feed_spec` array — err 100/**1815809** "Duplicate of ad asset values are not allowed / enter a unique headline for each field". Two copy variants sharing one headline → duplicate `titles[]` → rejected. Fix: dedup each array by value (`campaignBuilder.createCreative`). A single shared title + multiple distinct bodies is valid. Found via the Brain-simulated real-campaign compose (4 photos + 2 variants sharing a headline).
+
+### 9h. FIRST LIVE FLIGHT - what only real money exposed (17 Aug 2026)
+
+Two September campaigns pushed, reviewed, and set delivering (zacuscă + birou, 9 RON/day each to 31 Aug,
+`OUTCOME_TRAFFIC` → `LANDING_PAGE_VIEWS`). Every finding below survived a pre-flight that passed, and was
+caught only by **reading the object back off Meta after the write**. That is the rule this section exists to
+teach: *our record of what we sent is not evidence of what Meta holds.*
+
+**🔴 `location_types` IS RETIRED.** Sending `geo_locations.location_types` (any of `home` / `recent` /
+`travel_in`) still succeeds via the API, and the ad set delivers normally. But Ads Manager then refuses to
+publish **any** edit to it: *"Your audience contains a location targeting option that has been removed (people
+living in, people traveling in or people recently in a location)."* So a composer-built ad set can run and yet
+be un-editable by hand - the operator hits a Setup error on his own campaign. **Fix: omit the field**
+(`adComposer` no longer sends it); Meta applies its current merged default, which is what the old pair
+described anyway. **Not repairable via the API** - DELETE the key, POST the targeting back, and read-back
+returns `["home","recent"]` again. The migration exists only in the Ads Manager UI ("Edit ad set").
+
+**🔴 META REFUSES WebP.** `POST /act_<id>/adimages` rejects it outright: err 100 / subcode **1487411**,
+`FileTypeNotSupported`. Only JPEG and PNG. This is nastier than it sounds because our width guard could not
+parse a WebP header either, and an unreadable width counts as too small - so a 2048px photo failed as
+**`upload-failed:image-too-narrow`**, a message pointing at entirely the wrong thing. Fifteen gallery images
+were affected (everything the admin uploader had produced, since it preferred WebP for every tier).
+**Fix:** the full tier is now always JPEG (`processImageForUpload`), the ad asset pool is filtered to
+JPEG/PNG, and the uploader reports `unsupported-format:<ext>` before it ever looks at the width.
+
+**Creatives are immutable; editing a link in Ads Manager silently makes a NEW one.** A wrong `link_urls`
+cannot be patched. Editing the ad in Ads Manager produced fresh creative ids (the copy, images and
+`utm_campaign` all survived intact) - which is the cheap repair, versus deleting and recreating the chain and
+losing review progress.
+
+**Campaign spend caps still cannot be set here, and the console must not claim otherwise.**
+`min_campaign_group_spend_cap` = 500 RON (§10) makes a per-campaign cap impossible for a small flight. Our
+`spendCapMinor` is an APPROVAL gate held in Firestore (`validateApprovalCap`: `dailyBudget × daysRemaining ×
+1.25`), never sent to Meta. What actually bounds a live flight: **daily budget + `end_time` + the ACCOUNT
+spend cap**. Do not let UI copy imply Meta holds a per-campaign limit.
+
+**Ads Manager and the Graph API do not validate the same things.** The API accepted `location_types:["home"]`
+happily; the UI then refused to save any edit. An API-only refinement can lock the operator out of his own
+console, so prefer values Ads Manager can also express.
+
+**Flags now:** `GROWTH_ADS_ENABLED="true"` **and `GROWTH_ADS_MODE="live"`** (set 17 Aug for these two
+flights) → `getAdsMode()` resolves to `live` and the console can un-pause real campaigns. Set `GROWTH_ADS_MODE`
+back to `dry-run` or remove it when no flight should be able to start.
+
+**Deploy-timing trap:** App Hosting builds take ~10 minutes, and Cloud Run drains old instances after the new
+revision is ready. Clicks made in that window are served by the OLD revision - Go live reported
+`Approved · dry-run` for several minutes after the switch had "deployed". Verify the *serving revision carries
+the variable* (`gcloud run revisions describe … | grep GROWTH_ADS_MODE`), not merely that a newer revision
+exists, then hard-refresh.
 
 ---
 
@@ -329,10 +378,10 @@ v25 page-insight metrics are a **shrunken set** — valid: `page_post_engagement
 "Comarnic Mountain Chalet" (@ComarnicChalet, id `107610677616243`): **552 followers, `talking_about_count:0` (DORMANT), 0 ratings, published, not verified.** ⚠️ Page `website` field = `airbnb.com/rooms/43265214` — **leaks direct-booking margin; change to `prahova-chalet.ro`** (Page settings, no token change).
 
 ### 11.4 Ad account state + history
-`act_543311232953437` "Bogdan-Comarnic": ACTIVE, RON, CET, VISA funding, `min_daily_budget` 463 bani. 🔴 **`spend_cap = "0"` — NO account-level spending limit set** (set one in Ads Manager before any live spend — the platform backstop; the env switch is a deploy, not the emergency stop). `web_custom_audience_tos` accepted; customer-file ToS NOT.
+`act_543311232953437` "Bogdan-Comarnic": ACTIVE, RON, CET, VISA funding, `min_daily_budget` 463 bani. ✅ **`spend_cap = 30000` bani = 300 RON** - the owner set the account-level limit in Ads Manager before the first live flight (17 Aug 2026); 7469 bani = 74.69 RON already spent, so ~225 RON of headroom. This is the real emergency stop: the env switch is a deploy, and campaign-level caps cannot go below 500 RON. `web_custom_audience_tos` accepted; customer-file ToS NOT.
 - **Lifetime (2023→now):** ~412 RON spend, 90.6k impressions, 6,062 clicks, **CTR 6.69% / CPC 0.068 RON**, reach 41.9k. ~11 campaigns, **ALL PAUSED**, all `LINK_CLICKS`/`TRAFFIC`/`MESSAGES` pointed at **OTA URLs** — **ZERO conversion-optimized history** → the pixel has no purchase learning; `OUTCOME_SALES` campaigns start COLD. Nothing ran in the last 90 days. (Strong CTR = good creative/audience instincts to reuse.)
 - **Pixel** "Prahova Chalet Web" (`1010060168431159`): **last fired 2026-07-24, alive** — measurement half ready.
 - The **2 leftover `adCampaigns` drafts** (`PC2fnhq3…`, `mfgGzG…`) confirmed **PAUSED/effective PAUSED** in Meta, inert, past/near stop_times — harmless July machinery-validation leftovers.
 
-### 11.5 apphosting.yaml flag state (26 Jul)
+### 11.5 apphosting.yaml flag state (26 Jul; superseded 17 Aug - see §9h)
 `GROWTH_ADS_ENABLED="true"` (switch 1 ON → console composes + dry-run activates, zero spend); `GROWTH_ADS_MODE` ABSENT (→ dry-run). Never driven to live spend; no campaign approved / carries a spend cap; only audit entry is one `dry-run`. Reconciliation cron NOT built (insights refresh is manual-only).
