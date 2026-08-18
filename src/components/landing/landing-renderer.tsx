@@ -19,6 +19,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { SafeImage } from '@/components/ui/safe-image';
 import { CallButton } from '@/components/landing/call-button';
+import { useLandingTracking } from '@/components/landing/use-landing-tracking';
 import { Star, MapPin, ArrowRight, CalendarDays, Moon } from 'lucide-react';
 import type { LandingModel, LandingImage } from '@/lib/landing/contracts';
 import { displaySrc } from '@/lib/image-src';
@@ -51,6 +52,9 @@ function ThemeAndCurrencyEffects({ baseCurrency }: { baseCurrency?: string }) {
 }
 
 export function LandingRenderer({ m }: { m: LandingModel }) {
+  // Every campaign page is this one template, so instrumenting here covers all of them — the two
+  // live flights and every future one — without per-page work.
+  const track = useLandingTracking({ campaign: m.slug, landing: m.slug });
   const theme = getThemeById(m.themeId);
   const themeStyles = themeToInlineStyles(theme);
   const fontUrl = theme.typography?.fontFamilyUrl;
