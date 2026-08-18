@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { SafeImage } from '@/components/ui/safe-image';
 import { useLanguage } from '@/hooks/useLanguage';
 import { displaySrc, fullSrc } from '@/lib/image-src';
+import { trackUiEvent } from '@/lib/tracking';
 
 // Default bilingual labels for common image tags.
 // Properties can override/extend via content.tagLabels in Firestore.
@@ -51,6 +52,20 @@ const DEFAULT_TAG_LABELS: Record<string, { en: string; ro: string }> = {
   'beach-access': { en: 'Beach', ro: 'Plajă' },
   deck: { en: 'Deck', ro: 'Terasă' },
 };
+
+/**
+ * The photo's stable name, not its CDN URL — a signed/resized URL changes and would split one photo
+ * into many rows in a report. The filename is what the owner recognises when deciding which photos
+ * to shoot more of, or which to put in an ad.
+ */
+function photoId(url: string): string {
+  try {
+    const clean = decodeURIComponent(url.split('?')[0]);
+    return clean.substring(clean.lastIndexOf('/') + 1) || clean;
+  } catch {
+    return url.slice(-60);
+  }
+}
 
 interface GalleryGridProps {
   content: GalleryGridBlock;
@@ -108,6 +123,19 @@ export function GalleryGrid({ content }: GalleryGridProps) {
     if (!enableLightbox) return;
     setCurrentImageIndex(index);
     setLightboxOpen(true);
+    // The question this answers: WHICH photos earn a click. Index alone is useless once a filter is
+    // applied — position 1 under "outdoor" is a different photo than position 1 under "all" — so the
+    // filename travels with it, along with the filter that was active when they chose it.
+    const img: any = filteredImages[index];
+    if (img) {
+      trackUiEvent('select_photo', {
+        photo_id: photoId(String(img.url || '')),
+        photo_index: index,
+        photo_tag: (img.tags as string[] | undefined)?.[0],
+        gallery_filter: activeTag ?? 'all',
+        position: 'grid',
+      });
+    }
   };
 
   const handlePrevious = () => {
@@ -132,6 +160,9 @@ export function GalleryGrid({ content }: GalleryGridProps) {
   const handleTagClick = (tag: string | null) => {
     setActiveTag(tag);
     setCurrentImageIndex(0);
+    // A filter click is the visitor stating an interest in words — the most direct read available on
+    // what they came to see. Worth more per event than any scroll threshold.
+    trackUiEvent('gallery_filter', { gallery_filter: tag ?? 'all' });
   };
 
   const lang = currentLang || 'en';

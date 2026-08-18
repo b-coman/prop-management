@@ -22,6 +22,32 @@ export function trackEvent(event: string, data?: Record<string, unknown>) {
 }
 
 /**
+ * Every parameter a UI-interaction event can carry, in one list.
+ *
+ * GTM's dataLayer is a PERSISTENT model — a variable keeps its last value until something overwrites
+ * it. Verified on the wire 2026-08-18: a `check_dates_click` arrived carrying `stay_dates` from an
+ * earlier `select_item`, and a `scroll_depth` arrived carrying `position`. Left alone, that silently
+ * mis-attributes exactly the reports these events exist to feed.
+ *
+ * So every UI event emits the FULL key set, `undefined` for the keys it does not use, which clears the
+ * stale ones. This lives here rather than in each component so a new event cannot forget it — the same
+ * guard `trackEcommerceEvent` applies to `ecommerce`.
+ */
+const UI_PARAMS = [
+  'position', 'stay_dates', 'stay_nights', 'stay_guests', 'value',
+  'percent_scrolled', 'destination',
+  'photo_index', 'photo_id', 'photo_tag', 'gallery_filter',
+] as const;
+
+export function trackUiEvent(event: string, params: Record<string, unknown> = {}) {
+  const payload: Record<string, unknown> = {};
+  for (const k of UI_PARAMS) payload[k] = params[k];
+  // Anything not in the list (campaign, landing, phone, source...) passes through untouched.
+  for (const [k, v] of Object.entries(params)) if (!(k in payload)) payload[k] = v;
+  trackEvent(event, payload);
+}
+
+/**
  * Push an ecommerce event — clears ecommerce first (GA4 best practice).
  */
 export function trackEcommerceEvent(

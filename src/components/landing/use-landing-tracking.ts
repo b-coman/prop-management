@@ -18,7 +18,7 @@
  * measured capture is ~31% of arrivals, not zero, because Consent Mode still sends cookieless pings.
  */
 import { useEffect, useRef } from 'react';
-import { trackEvent } from '@/lib/tracking';
+import { trackUiEvent } from '@/lib/tracking';
 
 /** Registered as GA4 custom dimensions — parameter names must match exactly or reports show nothing. */
 export interface LandingEventBase {
@@ -26,25 +26,11 @@ export interface LandingEventBase {
   landing: string;
 }
 
-/**
- * Every parameter any landing event can carry. GTM's dataLayer is a persistent model: a variable keeps
- * its last value until something overwrites it, so a `scroll_depth` fired after a stay-card click would
- * otherwise arrive tagged with that card's dates. Verified on the wire, 2026-08-18. Emitting the full
- * key set on every push — `undefined` for the ones this event does not use — resets the stale ones,
- * the same guard `trackEcommerceEvent` already applies to `ecommerce`.
- */
-const LANDING_PARAMS = [
-  'position', 'stay_dates', 'stay_nights', 'stay_guests', 'value',
-  'percent_scrolled', 'destination', 'photo_index',
-] as const;
-
-function emit(event: string, base: LandingEventBase, params: Record<string, unknown>) {
-  const payload: Record<string, unknown> = { ...base };
-  for (const k of LANDING_PARAMS) payload[k] = params[k];
-  trackEvent(event, payload);
-}
-
 export function useLandingTracking(base: LandingEventBase) {
+  /** Folds campaign+landing into every push; the shared helper clears stale params. */
+  const emit = (event: string, b: LandingEventBase, params: Record<string, unknown>) =>
+    trackUiEvent(event, { ...b, ...params });
+
   const seen = useRef<Set<number>>(new Set());
 
   // Scroll depth. GA4's enhanced measurement only fires at 90%, which tells you who reached the end
