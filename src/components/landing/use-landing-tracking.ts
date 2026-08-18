@@ -71,7 +71,5 @@ export function useLandingTracking(base: LandingEventBase) {
     /** Leaving the landing page for the main site — the page did not close the argument. */
     trackNavToSite: (destination: string) => emit('nav_to_site', base, { destination }),
 
-    /** Gallery opened, and on which photo. */
-    trackGalleryOpen: (photoIndex: number) => emit('gallery_open', base, { photo_index: photoIndex }),
   };
 }
