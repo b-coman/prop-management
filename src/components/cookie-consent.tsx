@@ -46,6 +46,32 @@ function updateGtagConsent(prefs: ConsentPreferences) {
   });
 }
 
+
+/**
+ * Report what happened to the banner. GA4 cannot distinguish "rejected" from "never looked at it" —
+ * both end as denied with no session — so the decision is recorded first-party. Fire-and-forget:
+ * a failed beacon must never delay or block the visitor's choice.
+ */
+function reportConsentOutcome(outcome: 'shown' | 'accept' | 'reject' | 'preferences', analytics?: boolean) {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const body = JSON.stringify({
+      outcome,
+      analytics,
+      path: window.location.pathname,
+      campaign: params.get('utm_campaign') ?? undefined,
+    });
+    // sendBeacon survives the page being closed straight after a click; fetch is the fallback.
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon('/api/consent-log', new Blob([body], { type: 'application/json' }));
+    } else {
+      void fetch('/api/consent-log', { method: 'POST', body, headers: { 'Content-Type': 'application/json' }, keepalive: true });
+    }
+  } catch {
+    /* never break the page for a counter */
+  }
+}
+
 export function CookieConsent() {
   const pathname = usePathname();
   const { t } = useLanguage();
@@ -86,6 +112,7 @@ export function CookieConsent() {
       if (fired) return;
       fired = true;
       setVisible(true);
+      reportConsentOutcome('shown');
     };
 
     const timer = setTimeout(show, 4000);
@@ -121,14 +148,17 @@ export function CookieConsent() {
   }, []);
 
   const handleAcceptAll = useCallback(() => {
+    reportConsentOutcome('accept', true);
     applyConsent({ analytics: true, marketing: true, timestamp: new Date().toISOString() });
   }, [applyConsent]);
 
   const handleRejectAll = useCallback(() => {
+    reportConsentOutcome('reject', false);
     applyConsent({ analytics: false, marketing: false, timestamp: new Date().toISOString() });
   }, [applyConsent]);
 
   const handleSavePreferences = useCallback(() => {
+    reportConsentOutcome('preferences', analyticsEnabled);
     applyConsent({ analytics: analyticsEnabled, marketing: marketingEnabled, timestamp: new Date().toISOString() });
   }, [applyConsent, analyticsEnabled, marketingEnabled]);
 
@@ -147,7 +177,7 @@ export function CookieConsent() {
         className="fixed bottom-0 inset-x-0 z-[70] flex justify-center p-3 sm:p-4 transition-opacity duration-300"
         style={{ opacity: visible ? 1 : 0 }}
       >
-        <div className="w-full max-w-md md:max-w-6xl bg-background rounded-xl border border-border shadow-2xl">
+        <div className="w-full max-w-md md:max-w-4xl bg-background/95 backdrop-blur-sm rounded-2xl border border-border shadow-2xl ring-1 ring-black/5">
           <div className="p-4 md:px-6 md:py-3">
             {!showPreferences ? (
               /* Main banner view. Kept deliberately short: this overlays a
@@ -166,21 +196,21 @@ export function CookieConsent() {
                   </div>
                 </div>
 
-                {/* Reject must be one tap, same as accept. Burying it behind
-                    "Manage Preferences" reads as a dark pattern, which costs
-                    trust and is not what the EDPB/CNIL guidance allows. */}
-                <div className="flex flex-row gap-2 md:gap-3 md:flex-shrink-0">
-                  <button
-                    onClick={handleAcceptAll}
-                    className="flex-1 md:flex-none px-3 md:px-5 py-2.5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors whitespace-nowrap"
-                  >
-                    {t('cookieConsent.acceptAll', 'Accept All')}
-                  </button>
+                {/* Accept is the button; declining is a plain text link beside it. Emphasis may
+                    differ — accessibility may not — so the link stays ONE TAP, on the same layer,
+                    in a legible size with real contrast, never a grey whisper in a corner. */}
+                <div className="flex items-center justify-between gap-4 md:justify-end md:flex-shrink-0">
                   <button
                     onClick={handleRejectAll}
-                    className="flex-1 md:flex-none px-3 md:px-5 py-2.5 text-sm font-medium rounded-lg border border-border bg-background hover:bg-muted transition-colors whitespace-nowrap"
+                    className="order-2 md:order-1 text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors whitespace-nowrap py-2"
                   >
-                    {t('cookieConsent.rejectAll', 'Only Necessary')}
+                    {t('cookieConsent.rejectAll', 'Only necessary')}
+                  </button>
+                  <button
+                    onClick={handleAcceptAll}
+                    className="order-1 md:order-2 flex-1 md:flex-none px-5 md:px-8 py-2.5 text-sm md:text-base font-semibold rounded-lg bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-[0.98] transition-all whitespace-nowrap"
+                  >
+                    {t('cookieConsent.acceptAll', 'Accept')}
                   </button>
                 </div>
                 {/* Secondary links share one row so they cost 16px, not 48px. */}
