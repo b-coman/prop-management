@@ -79,6 +79,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Campaign landing pages carry their language the same way property pages do, one segment later:
+  // /lp/{campaign}/{lang}. Nothing here recognised that, so `x-language` was 'en' for EVERY paid
+  // landing - which is how a Romanian visitor arriving from a Romanian ad got <html lang="en"> and,
+  // more expensively, an English cookie notice while the root provider waited on a client fetch.
+  // The page itself already compensated for the lang attribute; the root layout could not.
+  if (pathname.startsWith('/lp/')) {
+    const segments = pathname.split('/').filter(Boolean);
+    const langFromPath = segments.length >= 3 && SUPPORTED_LANGUAGES.includes(segments[2]) ? segments[2] : DEFAULT_LANGUAGE;
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-language', langFromPath);
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
+
   // Skip if path already targets the internal property route (prevents double-rewrite)
   // But still detect language from path and pass as header for SSR lang attribute
   if (pathname.startsWith('/properties/')) {
