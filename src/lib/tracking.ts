@@ -110,14 +110,21 @@ export function trackBeginCheckout(
 }
 
 /**
- * Fire `purchase` on booking success page.
- * Returns the event_id used (for Meta CAPI dedup).
+ * Fire `purchase` on the booking success page.
+ *
+ * No event_id is sent. The old one was a `crypto.randomUUID()` documented as being "for Meta CAPI
+ * dedup", which it never was - Meta dedup runs on `purchaseEventId(booking.id)` in meta-tracking.ts,
+ * a deterministic id the server also uses. A fresh random value per call could not dedupe anything,
+ * GA4 does not read `event_id`, and no caller used the return value. Removed rather than left to
+ * imply a guarantee it did not provide.
+ *
+ * Caller responsibility: fire ONCE per booking. GA4 does not deduplicate by `transaction_id`, so a
+ * second call doubles the revenue. See TrackPurchase, which persists the guard across reloads.
  */
 export function trackPurchase(
   booking: Booking,
   property: Property
-): string {
-  const eventId = crypto.randomUUID();
+): void {
   const price = booking.pricing?.baseRate ?? 0;
 
   trackEcommerceEvent(
@@ -131,7 +138,6 @@ export function trackPurchase(
       check_out_date: booking.checkOutDate,
       number_of_guests: booking.numberOfGuests,
       number_of_nights: booking.pricing?.numberOfNights,
-      event_id: eventId,
     },
     booking.guestInfo?.email
       ? {
@@ -140,8 +146,6 @@ export function trackPurchase(
         }
       : undefined
   );
-
-  return eventId;
 }
 
 /**
