@@ -167,30 +167,36 @@ export function CookieConsent() {
 
   return (
     <>
-      {/* No dimming overlay and no scroll lock: blanking the page behind this
-          took the hero, the price and the booking CTA with it.
-          The hero booking widget sits low in the hero on every breakpoint, so
-          this has to stay out of that band: a compact card on phones, and a
-          single-row bar hugging the bottom edge from lg: up.
-          z-[70] sits above the sticky mobile booking bar (z-50). */}
+      {/* A DECISION IS REQUIRED — measured, not assumed. The passive bottom bar produced a 100%
+          ignore rate (consentEvents, 18 Aug): nobody declined, nobody accepted, everyone scrolled
+          past. A bar you can ignore collects nothing.
+
+          It is still not a cookie wall: both options are present, one tap each, and declining gives
+          the same full access to the site. What is removed is the option to not answer.
+
+          The earlier overlay was pulled on 14 Aug for a real reason — it covered the hero, the price
+          and the booking CTA. This avoids that by waiting for the visitor to have SEEN the property
+          first (4s or first scroll, unchanged), then asking once and getting out of the way. The
+          backdrop is light rather than a blackout, so the chalet stays visible behind the question. */}
+      <div className="fixed inset-0 z-[69] bg-black/25 backdrop-blur-[2px] transition-opacity duration-300" style={{ opacity: visible ? 1 : 0 }} />
       <div
-        className="fixed bottom-0 inset-x-0 z-[70] flex justify-center p-3 sm:p-4 transition-opacity duration-300"
+        className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-3 sm:p-4 transition-opacity duration-300"
         style={{ opacity: visible ? 1 : 0 }}
       >
-        <div className="w-full max-w-md md:max-w-4xl bg-background/95 backdrop-blur-sm rounded-2xl border border-border shadow-2xl ring-1 ring-black/5">
+        <div className="w-full max-w-md bg-background rounded-2xl border border-border shadow-2xl ring-1 ring-black/5">
           <div className="p-4 md:px-6 md:py-3">
             {!showPreferences ? (
               /* Main banner view. Kept deliberately short: this overlays a
                  booking page, and every row here is a row of the chalet the
                  visitor cannot see. */
-              <div className="space-y-2.5 md:space-y-0 md:flex md:items-center md:gap-5">
-                <div className="flex items-start gap-2.5 md:flex-1">
+              <div className="space-y-4">
+                <div className="flex items-start gap-2.5">
                   <Shield className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary md:w-5 md:h-5 md:mt-0" />
                   <div className="min-w-0">
-                    <span className="hidden md:block text-sm font-semibold text-foreground">
+                    <span className="block text-base md:text-lg font-semibold text-foreground mb-1">
                       {t('cookieConsent.title', 'We value your privacy')}
                     </span>
-                    <p className="text-xs md:text-sm text-muted-foreground leading-snug">
+                    <p className="text-sm text-muted-foreground leading-snug">
                       {t('cookieConsent.description', 'We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. You can choose which cookies you allow.')}
                     </p>
                   </div>
@@ -199,22 +205,26 @@ export function CookieConsent() {
                 {/* Accept is the button; declining is a plain text link beside it. Emphasis may
                     differ — accessibility may not — so the link stays ONE TAP, on the same layer,
                     in a legible size with real contrast, never a grey whisper in a corner. */}
-                <div className="flex items-center justify-between gap-4 md:justify-end md:flex-shrink-0">
-                  <button
-                    onClick={handleRejectAll}
-                    className="order-2 md:order-1 text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors whitespace-nowrap py-2"
-                  >
-                    {t('cookieConsent.rejectAll', 'Only necessary')}
-                  </button>
+                {/* Two decisions, stacked, nothing else competing for the tap. Accept fills the
+                    width; declining sits directly beneath it — one tap, same layer, legible.
+                    Preferences and the policy drop to a single quiet line so the CHOICE is the only
+                    thing that reads as an action; four equal-weight links is what produced a room
+                    full of people scrolling past. */}
+                <div className="space-y-2">
                   <button
                     onClick={handleAcceptAll}
-                    className="order-1 md:order-2 flex-1 md:flex-none px-5 md:px-8 py-2.5 text-sm md:text-base font-semibold rounded-lg bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-[0.98] transition-all whitespace-nowrap"
+                    className="w-full px-5 py-3 text-base font-semibold rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90 active:scale-[0.99] transition-all"
                   >
                     {t('cookieConsent.acceptAll', 'Accept')}
                   </button>
+                  <button
+                    onClick={handleRejectAll}
+                    className="w-full py-2 text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
+                  >
+                    {t('cookieConsent.rejectAll', 'Only necessary')}
+                  </button>
                 </div>
-                {/* Secondary links share one row so they cost 16px, not 48px. */}
-                <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground md:flex-shrink-0 md:flex-col md:gap-0.5 md:items-end">
+                <div className="flex items-center justify-center gap-3 text-[11px] text-muted-foreground/70">
                   <button
                     onClick={() => {
                       const stored = getConsentCookie();
@@ -224,11 +234,12 @@ export function CookieConsent() {
                       }
                       setShowPreferences(true);
                     }}
-                    className="underline hover:text-foreground transition-colors"
+                    className="hover:text-foreground transition-colors"
                   >
                     {t('cookieConsent.managePreferences', 'Manage Preferences')}
                   </button>
-                  <a href={privacyUrl} className="underline hover:text-foreground transition-colors">
+                  <span aria-hidden>·</span>
+                  <a href={privacyUrl} className="hover:text-foreground transition-colors">
                     {t('cookieConsent.privacyPolicy', 'Privacy Policy')}
                   </a>
                 </div>
