@@ -83,7 +83,7 @@ function reportConsentOutcome(outcome: 'shown' | 'accept' | 'reject' | 'preferen
 
 export function CookieConsent() {
   const pathname = usePathname();
-  const { t, isLoading } = useLanguage();
+  const { t } = useLanguage();
   const [visible, setVisible] = useState(false);
   /** The page says it is time to ask; rendering still waits on translations. */
   const [dueToAsk, setDueToAsk] = useState(false);
@@ -147,18 +147,23 @@ export function CookieConsent() {
   // Translations gate the RENDER, never the clock.
   //
   // These were one effect, and the coupling was quietly awful: the timers only started once
-  // translations had loaded, so the moment of asking drifted with however long a JSON fetch took
-  // (8.3s against a 1.6s page load, measured in dev). The decision of WHEN to ask belongs to the
-  // page; translations only decide whether we can put the question into words yet.
+  // translations had loaded, so the moment of asking drifted with however long a JSON fetch took.
+  // The decision of WHEN to ask belongs to the page; translations only decide whether we can put
+  // the question into words yet. Because they must: an early banner renders the English fallbacks
+  // to a Romanian reader who arrived from a Romanian ad, and a notice in the wrong language reads
+  // as a broken foreign site rather than a formality. Nobody consents to that.
   //
-  // And they must: an early banner renders the English fallbacks - "Accept" / "Only necessary" - to
-  // a Romanian reader who arrived from a Romanian ad. A cookie notice in the wrong language does
-  // not read as a formality, it reads as a broken foreign site, and nobody consents to that.
+  // Ask `t` directly rather than trusting `isLoading`. The provider sets isLoading=true for its own
+  // client-side fetch even when the server already seeded the dictionary, so gating on it inherited
+  // exactly the fetch the seeding exists to skip — measured live: banner at 11.2s on a page that
+  // finished loading at 0.6s. An empty fallback that comes back non-empty means the real copy is
+  // present, whatever the loading flag happens to say.
+  const copyReady = t('cookieConsent.title', '') !== '' && t('cookieConsent.acceptAll', '') !== '';
   useEffect(() => {
-    if (!dueToAsk || isLoading || visible) return;
+    if (!dueToAsk || !copyReady || visible) return;
     setVisible(true);
     reportConsentOutcome('shown');
-  }, [dueToAsk, isLoading, visible]);
+  }, [dueToAsk, copyReady, visible]);
 
   // A question you can scroll past is not a question.
   //
