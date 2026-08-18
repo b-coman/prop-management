@@ -24,6 +24,19 @@ export function GoogleTagManager() {
               'ad_personalization': 'denied',
               'wait_for_update': 500
             });
+            // The two settings that decide how much survives a DENIED answer, and both were missing.
+            //
+            // ads_data_redaction strips ad click identifiers from the tags that still fire when
+            // ad_storage is denied - the privacy-correct behaviour, and a precondition for Google
+            // treating this as a proper Consent Mode implementation rather than tags leaking ids.
+            //
+            // url_passthrough is the one that pays: with cookies denied there is no client id, so a
+            // paid visitor who moves from the landing page into the booking flow arrives looking
+            // like a brand new direct session. Passing gclid/gbraid through the URL keeps that hop
+            // attributed to the campaign that paid for it. That is a large part of why 40 GA4
+            // sessions had to stand in for 196 landing views.
+            gtag('set', 'ads_data_redaction', true);
+            gtag('set', 'url_passthrough', true);
           `,
         }}
       />
