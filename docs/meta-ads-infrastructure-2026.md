@@ -349,6 +349,42 @@ exists, then hard-refresh.
 
 ---
 
+### 9i. READING INSIGHTS: date presets silently drop TODAY (18 Aug 2026)
+
+**Every `date_preset` excludes the current day, and so does the aggregated `maximum`.** On a campaign
+launched yesterday, that means you read a fraction of reality and cannot tell.
+
+Measured on the two September campaigns, same call, same fields, minutes apart:
+
+| query | impressions reported |
+|---|---|
+| `date_preset=last_7d` | 271 |
+| `date_preset=maximum` (aggregated, no `time_increment`) | 271 |
+| `time_range={since:2026-08-01,until:2026-08-18}` | **3,128** |
+
+The presets showed 8.7% of the real number, and nothing in the response flags the omission. It read as
+"the campaign has barely delivered" when it had in fact spent 11.40 RON for 100 link clicks - a
+conclusion that would have prompted exactly the wrong action.
+
+**Rule: always pass an explicit `time_range` whose `until` is today, in the AD ACCOUNT's timezone.**
+This account is `CET` (`timezone_offset_hours_utc: 2`), which is NOT UTC and not necessarily the
+machine's clock - fetch `timezone_name` from the account rather than assuming.
+
+```bash
+# WRONG on any campaign still running today
+...&date_preset=last_7d
+
+# RIGHT — and add time_increment=1 whenever you need to see when delivery actually happened
+...&time_range={"since":"2026-08-01","until":"<today in account tz>"}&time_increment=1
+```
+
+Add `time_increment=1` by default when diagnosing. The daily rows are what exposed this: 271
+impressions on the 17th against 2,857 on the 18th. An aggregate cannot show you the day it is hiding.
+
+**Reconcile before reporting.** A prior reading in the same session had these campaigns at 131 clicks;
+the preset query said 34. That contradiction was the signal, and it was visible before the wrong
+conclusion was published. See the `reconcile-before-reporting` memory.
+
 ## 11. Live account + PAGE + token audit — read-only Graph v25 (26 Jul 2026)
 
 Verified directly against the live account with the `META_ADS_TOKENS` system-user token (GET-only, zero spend, no writes). This section is ground truth for what the token can see/do *today* and what needs owner provisioning. Re-verify before relying (beta).
