@@ -17,6 +17,7 @@ import { UTMCapture } from '@/components/tracking/utm-capture';
 import { LanguageHtmlUpdater } from '@/components/language-html-updater';
 import { headers } from 'next/headers';
 import { DEFAULT_LANGUAGE } from '@/lib/language-constants';
+import { getServerTranslations } from '@/lib/language-system/server-translations';
 
 // Instantiate the Inter font
 const inter = Inter({
@@ -54,7 +55,16 @@ export default async function RootLayout({
         <ErrorBoundary>
           <CurrencyProvider> {/* Wrap with CurrencyProvider */}
             <ThemeProvider> {/* Wrap with ThemeProvider */}
+              {/* Seeded from the server, which it never was. Without these the provider starts at
+                  DEFAULT_LANGUAGE with isLoading=true and fetches the dictionary client-side, so
+                  everything mounted here - the cookie notice above all - renders its English
+                  fallbacks first and races a JSON fetch to become Romanian. A cookie notice in the
+                  wrong language does not read as a routine formality, it reads as a broken foreign
+                  site, and that is a consent nobody gives. Page-level providers (the landing pages,
+                  the property pages) seed themselves already; this is the one that did not. */}
               <LanguageProvider
+                initialLanguage={detectedLang}
+                initialTranslations={getServerTranslations(detectedLang)}
                 enablePerformanceTracking={true}
                 enableDebugMode={process.env.NODE_ENV === 'development'}
               >

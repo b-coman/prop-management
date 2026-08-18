@@ -445,9 +445,9 @@
     "lastUpdated": "Ultima actualizare"
   },
   "cookieConsent": {
-    "title": "Ne ajuți să facem site-ul mai bun?",
-    "description": "Vrem să vedem ce fotografii privești, ca să le facem mai bune, și să îți arătăm reclame care chiar au sens pentru tine. Nu vindem datele nimănui.",
-    "acceptAll": "Sunt de acord",
+    "title": "Acest site folosește cookie-uri",
+    "description": "Le folosim pentru statistici de trafic și pentru a măsura eficiența reclamelor. Poți accepta sau continua doar cu cele necesare.",
+    "acceptAll": "Accept",
     "rejectAll": "Doar cele necesare",
     "managePreferences": "Gestionează Preferințele",
     "savePreferences": "Salvează Preferințele",

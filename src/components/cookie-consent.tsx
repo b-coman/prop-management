@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { usePathname } from 'next/navigation';
-import { useLanguage } from '@/hooks/useLanguage';
+import { useLanguage } from '@/lib/language-system/useLanguage';
 import { Shield } from 'lucide-react';
 
 // Routes where the cookie consent banner should NOT appear (e.g., internal/housekeeping
@@ -18,10 +18,14 @@ interface ConsentPreferences {
 const COOKIE_NAME = 'cookie_consent';
 const COOKIE_MAX_AGE = 365 * 24 * 60 * 60; // 365 days in seconds
 
-/** How far down the page counts as "this visitor is actually reading" before we interrupt. */
-const ENGAGED_SCROLL_RATIO = 0.25;
-/** Ask anyway after this long, for the visitor who reads the hero without scrolling. */
-const ENGAGED_FALLBACK_MS = 12000;
+/**
+ * A beat after the page has finished loading, so the visitor has actually SEEN the chalet before
+ * being asked anything. The hero needs >1.2s from Firebase Storage, which is why "ask at 500ms"
+ * put the question over a dark rectangle.
+ */
+const SETTLE_AFTER_LOAD_MS = 1200;
+/** Ask anyway. A slow phone must not mean no question at all. */
+const HARD_CAP_MS = 5000;
 
 function getConsentCookie(): ConsentPreferences | null {
   if (typeof document === 'undefined') return null;
@@ -79,8 +83,10 @@ function reportConsentOutcome(outcome: 'shown' | 'accept' | 'reject' | 'preferen
 
 export function CookieConsent() {
   const pathname = usePathname();
-  const { t } = useLanguage();
+  const { t, isLoading } = useLanguage();
   const [visible, setVisible] = useState(false);
+  /** The page says it is time to ask; rendering still waits on translations. */
+  const [dueToAsk, setDueToAsk] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
   const [marketingEnabled, setMarketingEnabled] = useState(false);
@@ -105,41 +111,54 @@ export function CookieConsent() {
       return;
     }
 
-    // Ask AFTER the visitor has seen the property, not 500ms in.
+    // WHEN to ask, revised twice, so the reasoning is worth stating.
     //
-    // The Meta Pixel does not load at all without consent (see meta-pixel.tsx),
-    // so a visitor who bounces off the banner is invisible to Facebook: no
-    // PageView, no audience, nothing to optimise against. Bouncing them early
-    // costs the consent AND the measurement, which is why this waits for a sign
-    // of engagement instead of interrupting immediately.
+    // 500ms was too early: the hero photo needs >1.2s, so the question landed on a dark rectangle.
+    // The correction (a quarter of the page, or 12s) then went too far the other way: it ambushes
+    // someone mid-read, and it breaks the pattern people already know. A cookie notice that appears
+    // as a page settles gets dismissed reflexively, because that is what every site does and the
+    // visitor is still in "arriving somewhere" mode. One that appears after they have started
+    // reading is an interruption, and interruptions get considered rather than dismissed.
     //
-    // "First scroll" was the wrong signal: it fires on the first pixel of movement,
-    // which on a phone is the same instant the visitor starts reading and often
-    // before the hero photo has finished arriving. Measured on 18 Aug — 166 shown,
-    // 18 answered. A quarter of the page scrolled is engagement; one flick is not.
+    // So: a beat after load. Seen the chalet, still arriving, question answered, gone.
     let fired = false;
     const show = () => {
       if (fired) return;
       fired = true;
-      setVisible(true);
-      reportConsentOutcome('shown');
+      setDueToAsk(true);
     };
 
-    const onScroll = () => {
-      const scrollable = document.documentElement.scrollHeight - window.innerHeight;
-      // A page shorter than the viewport can never reach the ratio — the timer owns that case.
-      if (scrollable <= 0) return;
-      if (window.scrollY / scrollable >= ENGAGED_SCROLL_RATIO) show();
+    let settle: ReturnType<typeof setTimeout>;
+    const cap = setTimeout(show, HARD_CAP_MS);
+    const onReady = () => {
+      clearTimeout(cap);
+      settle = setTimeout(show, SETTLE_AFTER_LOAD_MS);
     };
-
-    const timer = setTimeout(show, ENGAGED_FALLBACK_MS);
-    window.addEventListener('scroll', onScroll, { passive: true });
+    if (document.readyState === 'complete') onReady();
+    else window.addEventListener('load', onReady, { once: true });
 
     return () => {
-      clearTimeout(timer);
-      window.removeEventListener('scroll', onScroll);
+      clearTimeout(cap);
+      clearTimeout(settle);
+      window.removeEventListener('load', onReady);
     };
   }, [suppressed]);
+
+  // Translations gate the RENDER, never the clock.
+  //
+  // These were one effect, and the coupling was quietly awful: the timers only started once
+  // translations had loaded, so the moment of asking drifted with however long a JSON fetch took
+  // (8.3s against a 1.6s page load, measured in dev). The decision of WHEN to ask belongs to the
+  // page; translations only decide whether we can put the question into words yet.
+  //
+  // And they must: an early banner renders the English fallbacks - "Accept" / "Only necessary" - to
+  // a Romanian reader who arrived from a Romanian ad. A cookie notice in the wrong language does
+  // not read as a formality, it reads as a broken foreign site, and nobody consents to that.
+  useEffect(() => {
+    if (!dueToAsk || isLoading || visible) return;
+    setVisible(true);
+    reportConsentOutcome('shown');
+  }, [dueToAsk, isLoading, visible]);
 
   // A question you can scroll past is not a question.
   //
@@ -269,18 +288,23 @@ export function CookieConsent() {
                     Preferences and the policy drop to a single quiet line so the CHOICE is the only
                     thing that reads as an action; four equal-weight links is what produced a room
                     full of people scrolling past. */}
-                <div className="space-y-2">
-                  <button
-                    onClick={handleAcceptAll}
-                    className="w-full px-5 py-3 text-base font-semibold rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90 active:scale-[0.99] transition-all"
-                  >
-                    {t('cookieConsent.acceptAll', 'Accept')}
-                  </button>
+                {/* Two buttons, side by side, in the shape every consent notice on the Romanian web
+                    already uses. Declining as an underlined text link read as a link to more
+                    information rather than a decision, which is the opposite of what a notice
+                    needs: the visitor has to see two options and pick one without thinking. Accept
+                    keeps the emphasis; both are one tap, on the same layer, at the same size. */}
+                <div className="flex gap-2">
                   <button
                     onClick={handleRejectAll}
-                    className="w-full py-2 text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
+                    className="flex-1 px-4 py-3 text-sm font-medium rounded-xl border border-border bg-background text-foreground hover:bg-muted active:scale-[0.99] transition-all"
                   >
                     {t('cookieConsent.rejectAll', 'Only necessary')}
+                  </button>
+                  <button
+                    onClick={handleAcceptAll}
+                    className="flex-1 px-4 py-3 text-sm font-semibold rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90 active:scale-[0.99] transition-all"
+                  >
+                    {t('cookieConsent.acceptAll', 'Accept')}
                   </button>
                 </div>
                 <div className="flex items-center justify-center gap-3 text-[11px] text-muted-foreground/70">
