@@ -18,6 +18,11 @@ interface ConsentPreferences {
 const COOKIE_NAME = 'cookie_consent';
 const COOKIE_MAX_AGE = 365 * 24 * 60 * 60; // 365 days in seconds
 
+/** How far down the page counts as "this visitor is actually reading" before we interrupt. */
+const ENGAGED_SCROLL_RATIO = 0.25;
+/** Ask anyway after this long, for the visitor who reads the hero without scrolling. */
+const ENGAGED_FALLBACK_MS = 12000;
+
 function getConsentCookie(): ConsentPreferences | null {
   if (typeof document === 'undefined') return null;
   const match = document.cookie
@@ -107,6 +112,11 @@ export function CookieConsent() {
     // PageView, no audience, nothing to optimise against. Bouncing them early
     // costs the consent AND the measurement, which is why this waits for a sign
     // of engagement instead of interrupting immediately.
+    //
+    // "First scroll" was the wrong signal: it fires on the first pixel of movement,
+    // which on a phone is the same instant the visitor starts reading and often
+    // before the hero photo has finished arriving. Measured on 18 Aug — 166 shown,
+    // 18 answered. A quarter of the page scrolled is engagement; one flick is not.
     let fired = false;
     const show = () => {
       if (fired) return;
@@ -115,14 +125,61 @@ export function CookieConsent() {
       reportConsentOutcome('shown');
     };
 
-    const timer = setTimeout(show, 4000);
-    window.addEventListener('scroll', show, { once: true, passive: true });
+    const onScroll = () => {
+      const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+      // A page shorter than the viewport can never reach the ratio — the timer owns that case.
+      if (scrollable <= 0) return;
+      if (window.scrollY / scrollable >= ENGAGED_SCROLL_RATIO) show();
+    };
+
+    const timer = setTimeout(show, ENGAGED_FALLBACK_MS);
+    window.addEventListener('scroll', onScroll, { passive: true });
 
     return () => {
       clearTimeout(timer);
-      window.removeEventListener('scroll', show);
+      window.removeEventListener('scroll', onScroll);
     };
   }, [suppressed]);
+
+  // A question you can scroll past is not a question.
+  //
+  // The overlay covers the page but never locked the document, so the browser CHAINED the
+  // scroll straight through it: verified in the browser 19 Aug, the page scrolls freely behind
+  // the card. That is why shipping the "required decision" modal did not move the accept rate
+  // off the passive bar's — functionally it WAS the passive bar, just in the middle of the
+  // screen. 89% of visitors read the whole landing page around it and left.
+  //
+  // `overflow:hidden` alone does not hold on iOS Safari, so the body is pinned at its current
+  // offset and restored on dismiss. Still not a cookie wall: both answers are one tap and
+  // declining gives the same full access — what is removed is scrolling away from the question.
+  useEffect(() => {
+    if (!visible) return;
+    const { body } = document;
+    const scrollY = window.scrollY;
+    const prev = {
+      overflow: body.style.overflow,
+      position: body.style.position,
+      top: body.style.top,
+      width: body.style.width,
+      paddingRight: body.style.paddingRight,
+    };
+    // Removing the scrollbar would otherwise shift the whole layout sideways under the card.
+    const scrollbar = window.innerWidth - document.documentElement.clientWidth;
+    body.style.overflow = 'hidden';
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.width = '100%';
+    if (scrollbar > 0) body.style.paddingRight = `${scrollbar}px`;
+
+    return () => {
+      body.style.overflow = prev.overflow;
+      body.style.position = prev.position;
+      body.style.top = prev.top;
+      body.style.width = prev.width;
+      body.style.paddingRight = prev.paddingRight;
+      window.scrollTo(0, scrollY);
+    };
+  }, [visible]);
 
   // Listen for footer "open cookie settings" event
   useEffect(() => {
@@ -183,7 +240,9 @@ export function CookieConsent() {
         className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-3 sm:p-4 transition-opacity duration-300"
         style={{ opacity: visible ? 1 : 0 }}
       >
-        <div className="w-full max-w-md bg-background rounded-2xl border border-border shadow-2xl ring-1 ring-black/5">
+        {/* Now that the document is locked, the card is the only thing that may scroll — otherwise
+            the preferences panel can run off a short phone screen with no way to reach its buttons. */}
+        <div className="w-full max-w-md max-h-[85vh] overflow-y-auto overscroll-contain bg-background rounded-2xl border border-border shadow-2xl ring-1 ring-black/5">
           <div className="p-4 md:px-6 md:py-3">
             {!showPreferences ? (
               /* Main banner view. Kept deliberately short: this overlays a

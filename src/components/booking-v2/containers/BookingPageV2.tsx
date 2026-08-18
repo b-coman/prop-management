@@ -135,6 +135,19 @@ function BookingPageContent({ className }: { className?: string }) {
   const hasValidPricing = !!(pricing && pricing.totalPrice > 0);
   const canShowBookingOptions = !!(hasValidDates && hasValidPricing);
 
+  // Has the pricing question actually been ANSWERED yet?
+  //
+  // `!isLoadingPricing` was standing in for this, and it is not the same thing. The provider resets
+  // to `{pricing:null, error:null, loading:false}` on every date/guest change and only flips
+  // `loading` after a 500ms debounce — so there is always a window, at least half a second wide and
+  // wider on a slow connection, where nothing is loading and nothing is known. Everything keyed off
+  // `!isLoadingPricing` read that window as "we asked, and the answer is no".
+  //
+  // Measured on the live page 19 Aug: changing the guest count from 3 to 5 put "Datele Nu Sunt
+  // Disponibile" on screen in red for two full seconds before the price arrived. On the booking page.
+  // A settled answer is a price OR an error, never the absence of both.
+  const hasPricingAnswer = !!(pricing || pricingError);
+
   const propertyName = typeof property.name === 'string' ? property.name : property.name.en;
   
   // Calculate nights for display
@@ -149,8 +162,17 @@ function BookingPageContent({ className }: { className?: string }) {
   // they either accepted or left over.
   const reportedOutcome = useRef<string | null>(null);
   useEffect(() => {
-    if (!hasValidDates || isLoadingPricing) return;
-    const outcome = pricingError ? 'error' : hasValidPricing ? 'priced' : 'unavailable';
+    if (!hasValidDates || isLoadingPricing || !hasPricingAnswer) return;
+    // The provider signals a BUSINESS answer and a TECHNICAL failure through the same `pricingError`
+    // field, distinguished only by shape: a business answer is a translation key
+    // (`booking.datesUnavailable`, `booking.minimumStayRequiredFromDate:3`), a failure is a raw
+    // message. Reporting both as 'error' would have hidden the two numbers actually worth acting on
+    // — dates already taken (a calendar problem) and stays too short (a min-stay rule you set).
+    const outcome = !pricingError
+      ? hasValidPricing ? 'priced' : 'unavailable'
+      : pricingError.startsWith('booking.minimumStay') ? 'minimum_stay'
+      : pricingError.startsWith('booking.') ? 'unavailable'
+      : 'error';
     if (reportedOutcome.current === outcome) return;
     reportedOutcome.current = outcome;
     trackUiEvent('booking_page_view', {
@@ -161,7 +183,7 @@ function BookingPageContent({ className }: { className?: string }) {
       stay_nights: numberOfNights,
       stay_guests: guestCount,
     });
-  }, [hasValidDates, isLoadingPricing, pricingError, hasValidPricing, pricing, checkInDate, checkOutDate, numberOfNights, guestCount]);
+  }, [hasValidDates, isLoadingPricing, hasPricingAnswer, pricingError, hasValidPricing, pricing, checkInDate, checkOutDate, numberOfNights, guestCount]);
 
   // Handle tab click and set selected action
   const handleTabClick = (tab: 'book' | 'hold' | 'contact') => {
@@ -706,8 +728,9 @@ function BookingPageContent({ className }: { className?: string }) {
             </div>
           )}
 
-          {/* Loading state - dates selected, checking pricing */}
-          {!canShowBookingOptions && hasValidDates && isLoadingPricing && (
+          {/* Loading state - dates selected, checking pricing. Also covers the debounce window before
+              the request starts, which otherwise fell through to the "unavailable" card below. */}
+          {!canShowBookingOptions && hasValidDates && (isLoadingPricing || !hasPricingAnswer) && (
             <div className="flex items-center justify-center min-h-96">
               <Card className="w-full max-w-md">
                 <CardContent className="py-12 text-center">
@@ -722,8 +745,8 @@ function BookingPageContent({ className }: { className?: string }) {
             </div>
           )}
 
-          {/* Unavailable state - dates selected but not available */}
-          {!canShowBookingOptions && hasValidDates && !isLoadingPricing && (
+          {/* Unavailable state - dates selected, asked, and the answer really was no. */}
+          {!canShowBookingOptions && hasValidDates && !isLoadingPricing && hasPricingAnswer && (
             <div className="flex items-center justify-center min-h-96">
               <Card className="w-full max-w-md border-red-200">
                 <CardContent className="py-12 text-center">

@@ -446,7 +446,7 @@
   },
   "cookieConsent": {
     "title": "Help us make the site better?",
-    "description": "We want to see which photos you look at, so we can make them better. We do not sell your data to anyone.",
+    "description": "We want to see which photos you look at so we can make them better, and show you ads that are actually relevant to you. We do not sell your data to anyone.",
     "acceptAll": "I agree",
     "rejectAll": "Only necessary",
     "managePreferences": "Manage Preferences",
