@@ -18,7 +18,7 @@
 
 "use client";
 
-import React, { useEffect, useState, memo } from 'react';
+import React, { useEffect, useState, useRef, memo } from 'react';
 import { BookingProvider } from '../contexts';
 import { DateAndGuestSelector, PricingSummary, MobilePriceDrawer, MobileDateSelectorWrapper } from '../components';
 import { ContactFormV2, HoldFormV2, BookingFormV2 } from '../forms';
@@ -28,7 +28,7 @@ import { ArrowLeft, Calendar, CalendarX2, ChevronDown, Loader2 } from 'lucide-re
 import Link from 'next/link';
 import { CurrencySwitcherSimple } from '@/components/currency-switcher-simple';
 import { LanguageSelector } from '@/components/language-selector';
-import { trackBeginCheckout, trackGenerateLead } from '@/lib/tracking';
+import { trackBeginCheckout, trackGenerateLead, trackUiEvent } from '@/lib/tracking';
 import { getAttributionFromCookies } from '@/lib/utm';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -142,10 +142,40 @@ function BookingPageContent({ className }: { className?: string }) {
     ? Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24))
     : 0;
 
+  // Every paid click lands on this page, and until now GA4 saw nothing of it: not the arrival, not the
+  // price quoted, not whether the dates were even bookable. `begin_checkout` sits inside the form's
+  // onSubmit, which is the last step, so the entire middle of the funnel was dark. This fires once per
+  // outcome, as soon as pricing resolves, carrying what the visitor was actually shown — the number
+  // they either accepted or left over.
+  const reportedOutcome = useRef<string | null>(null);
+  useEffect(() => {
+    if (!hasValidDates || isLoadingPricing) return;
+    const outcome = pricingError ? 'error' : hasValidPricing ? 'priced' : 'unavailable';
+    if (reportedOutcome.current === outcome) return;
+    reportedOutcome.current = outcome;
+    trackUiEvent('booking_page_view', {
+      booking_outcome: outcome,
+      value: hasValidPricing ? pricing!.totalPrice : undefined,
+      currency: hasValidPricing ? pricing!.currency : undefined,
+      stay_dates: `${checkInDate!.toISOString().slice(0, 10)}_${checkOutDate!.toISOString().slice(0, 10)}`,
+      stay_nights: numberOfNights,
+      stay_guests: guestCount,
+    });
+  }, [hasValidDates, isLoadingPricing, pricingError, hasValidPricing, pricing, checkInDate, checkOutDate, numberOfNights, guestCount]);
+
   // Handle tab click and set selected action
   const handleTabClick = (tab: 'book' | 'hold' | 'contact') => {
     setActiveTab(tab);
     setSelectedAction(tab);
+    // Deliberately NOT fired by the auto-select effect below: that one picks 'book' on the visitor's
+    // behalf, and counting it as a choice would drown out the real signal. `contact` in particular is
+    // a visitor saying they want to talk rather than transact, which is worth knowing.
+    trackUiEvent('select_booking_action', {
+      booking_action: tab,
+      value: hasValidPricing ? pricing!.totalPrice : undefined,
+      stay_nights: numberOfNights,
+      stay_guests: guestCount,
+    });
   };
 
   // Auto-select Book Now when pricing becomes available

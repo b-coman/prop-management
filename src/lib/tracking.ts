@@ -37,6 +37,7 @@ const UI_PARAMS = [
   'position', 'stay_dates', 'stay_nights', 'stay_guests', 'value',
   'percent_scrolled', 'destination',
   'photo_index', 'photo_id', 'photo_tag', 'gallery_filter',
+  'booking_outcome', 'booking_action',
 ] as const;
 
 export function trackUiEvent(event: string, params: Record<string, unknown> = {}) {
