@@ -108,7 +108,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
               {m.phone && <CallButton phone={m.phone} label={t(lang, 'Call us', 'Sună-ne')} size="lg" className="w-full sm:w-auto" />}
               {m.showBooking && (
                 <Button variant="outline" size="lg" asChild className="w-full border-white bg-white/10 text-white backdrop-blur-sm hover:bg-white hover:text-foreground sm:w-auto">
-                  <Link href={m.checkDatesUrl}><CalendarDays className="mr-2 h-5 w-5" />{t(lang, 'Check dates', 'Vezi datele')}</Link>
+                  <Link href={m.checkDatesUrl} onClick={() => track.trackCtaClick('hero')}><CalendarDays className="mr-2 h-5 w-5" />{t(lang, 'Check dates', 'Vezi datele')}</Link>
                 </Button>
               )}
             </div>
@@ -154,7 +154,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                       <Button variant="cta" className="mt-6 mt-auto" asChild>
                         {/* Just "Rezervă" — "Rezervă acesta" is a literal translation of "Book this"
                             and reads stilted; Romanian drops the pronoun on a button. */}
-                        <Link href={s.bookUrl}>{t(lang, 'Book this', 'Rezervă')}<ArrowRight className="ml-1 h-4 w-4" /></Link>
+                        <Link href={s.bookUrl} onClick={() => track.trackStayClick(s, i)}>{t(lang, 'Book this', 'Rezervă')}<ArrowRight className="ml-1 h-4 w-4" /></Link>
                       </Button>
                     </CardContent>
                   </Card>
@@ -221,7 +221,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
               {m.phone && <CallButton phone={m.phone} label={m.phone} size="lg" className="w-full bg-white text-foreground hover:bg-white/90 sm:w-auto" />}
               {m.showBooking && (
                 <Button variant="outline" size="lg" asChild className="w-full border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground hover:text-primary sm:w-auto">
-                  <Link href={m.checkDatesUrl}><MapPin className="mr-2 h-5 w-5" />{t(lang, 'See availability', 'Vezi disponibilitatea')}</Link>
+                  <Link href={m.checkDatesUrl} onClick={() => track.trackCtaClick('footer')}><MapPin className="mr-2 h-5 w-5" />{t(lang, 'See availability', 'Vezi disponibilitatea')}</Link>
                 </Button>
               )}
             </div>
