@@ -54,7 +54,16 @@ function ThemeAndCurrencyEffects({ baseCurrency }: { baseCurrency?: string }) {
 export function LandingRenderer({ m }: { m: LandingModel }) {
   // Every campaign page is this one template, so instrumenting here covers all of them — the two
   // live flights and every future one — without per-page work.
-  const track = useLandingTracking({ campaign: m.slug, landing: m.slug });
+  const track = useLandingTracking(
+    { campaign: m.slug, landing: m.slug },
+    {
+      propertySlug: m.propertySlug,
+      propertyName: m.propertyName,
+      city: m.city,
+      advertisedRate: m.advertisedRate,
+      baseCurrency: m.baseCurrency,
+    }
+  );
   const theme = getThemeById(m.themeId);
   const themeStyles = themeToInlineStyles(theme);
   const fontUrl = theme.typography?.fontFamilyUrl;

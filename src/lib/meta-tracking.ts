@@ -26,11 +26,28 @@ export function purchaseEventId(bookingId: string): string {
 }
 
 /**
- * Browser ViewContent for a property page — the key retargeting-audience signal
- * ("people who viewed a property"). Browser-only; no server equivalent, so no
- * dedup needed.
+ * The fields a ViewContent actually needs, declared structurally rather than as
+ * `Property`.
+ *
+ * A full `Property` satisfies this, and so does a campaign landing page's render
+ * model — which never loads a `Property` and therefore fired NOTHING. Measured
+ * 6-18 Aug: the campaign pointed at /ro produced 88 ViewContents off 177 landing
+ * views; the two pointed at /lp produced zero off 196. The whole point of paid
+ * traffic here is to build a retargeting audience, and the pages the ads actually
+ * point at were the only ones not contributing to one.
  */
-export function trackMetaViewContent(property: Property): void {
+export interface ViewedProperty {
+  slug: string;
+  pricePerNight?: number;
+  baseCurrency?: string;
+}
+
+/**
+ * Browser ViewContent for a property or campaign landing page — the key
+ * retargeting-audience signal ("people who viewed a property"). Browser-only; no
+ * server equivalent, so no dedup needed.
+ */
+export function trackMetaViewContent(property: ViewedProperty): void {
   const fbq = getFbq();
   if (!fbq || !property?.slug) return;
   const data: Record<string, unknown> = {

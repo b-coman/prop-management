@@ -18,7 +18,8 @@
  * measured capture is ~31% of arrivals, not zero, because Consent Mode still sends cookieless pings.
  */
 import { useEffect, useRef } from 'react';
-import { trackUiEvent } from '@/lib/tracking';
+import { trackUiEvent, trackViewItem } from '@/lib/tracking';
+import { trackMetaViewContent } from '@/lib/meta-tracking';
 
 /** Registered as GA4 custom dimensions — parameter names must match exactly or reports show nothing. */
 export interface LandingEventBase {
@@ -26,7 +27,75 @@ export interface LandingEventBase {
   landing: string;
 }
 
-export function useLandingTracking(base: LandingEventBase) {
+/** Enough to identify the product being viewed — mirrors what the property page sends. */
+export interface LandingProduct {
+  propertySlug: string;
+  propertyName: string;
+  city?: string | null;
+  advertisedRate?: number;
+  baseCurrency?: string;
+}
+
+export function useLandingTracking(base: LandingEventBase, product?: LandingProduct) {
+  // The one event that was missing entirely, and the reason a month of paid traffic built no
+  // retargeting audience: `view_item` / `ViewContent` were mounted ONLY on the property pages
+  // (track-page-view.tsx, imported by /properties/[slug]). The campaign pages the ads actually point
+  // at fired neither. Measured: the flight pointed at /ro logged 88 pixel ViewContents and 675
+  // view_items; the two pointed at /lp logged 0 and 24.
+  //
+  // Same events, same shape, so a "viewed the property" audience covers both destinations rather
+  // than quietly excluding the paid half.
+  const productKey = product ? `${product.propertySlug}:${product.advertisedRate ?? ''}` : '';
+  const firedViewContent = useRef(false);
+  useEffect(() => {
+    if (!product) return;
+
+    // GA4 side goes out immediately — Consent Mode handles the denied case itself.
+    trackViewItem({
+      slug: product.propertySlug,
+      name: product.propertyName,
+      location: product.city ? { city: product.city } : null,
+      pricePerNight: product.advertisedRate,
+      baseCurrency: product.baseCurrency,
+    });
+
+    // The Pixel side CANNOT be fire-and-forget on mount. `fbq` does not exist until the visitor
+    // grants marketing consent, and the consent question now waits for a quarter of the page or
+    // twelve seconds — so at mount the answer is always "no pixel yet", and a one-shot effect would
+    // no-op every single time. This is the difference between shipping the fix and shipping nothing.
+    //
+    // So: fire when `fbq` actually appears, whether that is the script finishing on a returning
+    // visitor or the banner being accepted a minute in. Once only, and never if they decline.
+    const sendViewContent = () => {
+      if (firedViewContent.current) return false;
+      if (typeof (window as { fbq?: unknown }).fbq !== 'function') return false;
+      firedViewContent.current = true;
+      trackMetaViewContent({
+        slug: product.propertySlug,
+        pricePerNight: product.advertisedRate,
+        baseCurrency: product.baseCurrency,
+      });
+      return true;
+    };
+
+    if (sendViewContent()) return;
+
+    // The banner dispatches this the moment either button is tapped.
+    const onConsent = () => { window.setTimeout(sendViewContent, 300); };
+    window.addEventListener('consent-updated', onConsent);
+    // Plus a short poll for the returning visitor whose cookie is already set and whose pixel script
+    // is simply still loading. Bounded: if it has not appeared in 15s, consent was not given.
+    const poll = window.setInterval(() => { if (sendViewContent()) window.clearInterval(poll); }, 500);
+    const stop = window.setTimeout(() => window.clearInterval(poll), 15000);
+
+    return () => {
+      window.removeEventListener('consent-updated', onConsent);
+      window.clearInterval(poll);
+      window.clearTimeout(stop);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productKey]);
+
   /** Folds campaign+landing into every push; the shared helper clears stale params. */
   const emit = (event: string, b: LandingEventBase, params: Record<string, unknown>) =>
     trackUiEvent(event, { ...b, ...params });

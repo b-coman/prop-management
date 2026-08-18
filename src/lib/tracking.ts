@@ -66,7 +66,22 @@ export function trackEcommerceEvent(
   });
 }
 
-function propertyToItem(property: Property, price?: number) {
+/**
+ * The fields a `view_item` actually needs. Same reasoning as `ViewedProperty` in
+ * meta-tracking.ts: a campaign landing page never loads a `Property`, so until
+ * 19 Aug the /lp pages fired no `view_item` at all — 675 of them during the flight
+ * pointed at /ro, 24 during the two pointed at /lp.
+ */
+export interface ViewedItem {
+  slug: string;
+  name: Property['name'] | string;
+  propertyType?: string;
+  location?: { city?: string } | null;
+  pricePerNight?: number;
+  baseCurrency?: string;
+}
+
+function propertyToItem(property: ViewedItem, price?: number) {
   return {
     item_id: property.slug,
     item_name: typeof property.name === 'string' ? property.name : property.name?.en || property.slug,
@@ -81,9 +96,12 @@ function propertyToItem(property: Property, price?: number) {
 /**
  * Fire `view_item` event when a property page is viewed.
  */
-export function trackViewItem(property: Property) {
+export function trackViewItem(property: ViewedItem) {
   trackEcommerceEvent('view_item', {
-    currency: 'EUR',
+    // Was hardcoded 'EUR' while the value came from a RON price, so every one of the 675 view_items
+    // logged during the August flight told GA4 a 420 RON night was worth 420 EUR. Both properties
+    // are RON; the currency now comes from the property, and 'EUR' stays only as the old fallback.
+    currency: property.baseCurrency || 'EUR',
     value: property.pricePerNight ?? 0,
     items: [propertyToItem(property)],
   });
