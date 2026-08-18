@@ -445,9 +445,9 @@
     "lastUpdated": "Last updated"
   },
   "cookieConsent": {
-    "title": "Help us make the site better?",
-    "description": "We want to see which photos you look at so we can make them better, and show you ads that are actually relevant to you. We do not sell your data to anyone.",
-    "acceptAll": "I agree",
+    "title": "This site uses cookies",
+    "description": "We use them for traffic statistics and to measure how well our ads work. You can accept, or continue with only the necessary ones.",
+    "acceptAll": "Accept",
     "rejectAll": "Only necessary",
     "managePreferences": "Manage Preferences",
     "savePreferences": "Save Preferences",
