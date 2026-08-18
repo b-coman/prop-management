@@ -30,6 +30,13 @@ interface HeaderProps {
   advertisedRate?: number;
   advertisedRateType?: string | { en: string; ro: string };
   baseCurrency?: CurrencyCode;
+  /**
+   * Fired when a nav link is clicked, with the destination. Optional and unset on the main site, so
+   * nothing changes there. The landing pages pass it to record who left the funnel and where they went
+   * — the header is the only way off an /lp page other than booking, so an unwired header made that
+   * question unanswerable.
+   */
+  onNavClick?: (destination: string) => void;
 }
 
 export function Header({
@@ -42,6 +49,7 @@ export function Header({
   advertisedRate,
   advertisedRateType,
   baseCurrency,
+  onNavClick,
 }: HeaderProps) {
   const basePath = isCustomDomain ? '' : `/properties/${propertySlug}`;
   const [isScrolled, setIsScrolled] = useState(false);
@@ -215,7 +223,7 @@ export function Header({
         {/* Use container class for max-width and centering, and add padding */}
         <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
         {/* Link back to the specific property page */}
-        <Link href={isCustomDomain ? (currentLang !== DEFAULT_LANGUAGE ? `/${currentLang}` : '/') : getLocalizedPath(basePath)} className="flex items-center gap-2">
+        <Link href={isCustomDomain ? (currentLang !== DEFAULT_LANGUAGE ? `/${currentLang}` : '/') : getLocalizedPath(basePath)} className="flex items-center gap-2" onClick={() => onNavClick?.('logo')}>
           {/* Use custom logo if provided, otherwise fallback to SVG */}
           {logoSrc ? (
             logoSrc.endsWith('logo-dynamic.svg') ? (
@@ -313,6 +321,7 @@ export function Header({
               key={item.label}
               href={item.url}
               className={cn("text-sm font-medium whitespace-nowrap transition-colors", navLinkColorClasses)}
+              onClick={() => onNavClick?.(item.url)}
             >
               {item.label}
             </Link>
@@ -341,7 +350,7 @@ export function Header({
               data-theme-aware="true"
               asChild
             >
-              <Link href={buttonItem.url}>
+              <Link href={buttonItem.url} onClick={() => onNavClick?.(buttonItem.url)}>
                 {buttonItem.label}
               </Link>
             </Button>
@@ -362,7 +371,7 @@ export function Header({
           </SheetTrigger>
           <SheetContent side="right" className="bg-background text-foreground">
             <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-            <Link href={isCustomDomain ? (currentLang !== DEFAULT_LANGUAGE ? `/${currentLang}` : '/') : getLocalizedPath(basePath)} className="flex items-center gap-2 mb-8">
+            <Link href={isCustomDomain ? (currentLang !== DEFAULT_LANGUAGE ? `/${currentLang}` : '/') : getLocalizedPath(basePath)} className="flex items-center gap-2 mb-8" onClick={() => onNavClick?.('logo')}>
               {logoSrc ? (
                 <div className="h-8 w-auto relative">
                   <img
@@ -418,6 +427,7 @@ export function Header({
                       "flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground",
                       item.isButton && "text-primary font-semibold"
                     )}
+                    onClick={() => onNavClick?.(item.url)}
                   >
                     <Icon className="h-5 w-5" />
                     {item.label}

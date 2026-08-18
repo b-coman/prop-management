@@ -26,6 +26,24 @@ export interface LandingEventBase {
   landing: string;
 }
 
+/**
+ * Every parameter any landing event can carry. GTM's dataLayer is a persistent model: a variable keeps
+ * its last value until something overwrites it, so a `scroll_depth` fired after a stay-card click would
+ * otherwise arrive tagged with that card's dates. Verified on the wire, 2026-08-18. Emitting the full
+ * key set on every push — `undefined` for the ones this event does not use — resets the stale ones,
+ * the same guard `trackEcommerceEvent` already applies to `ecommerce`.
+ */
+const LANDING_PARAMS = [
+  'position', 'stay_dates', 'stay_nights', 'stay_guests', 'value',
+  'percent_scrolled', 'destination', 'photo_index',
+] as const;
+
+function emit(event: string, base: LandingEventBase, params: Record<string, unknown>) {
+  const payload: Record<string, unknown> = { ...base };
+  for (const k of LANDING_PARAMS) payload[k] = params[k];
+  trackEvent(event, payload);
+}
+
 export function useLandingTracking(base: LandingEventBase) {
   const seen = useRef<Set<number>>(new Set());
 
@@ -41,7 +59,7 @@ export function useLandingTracking(base: LandingEventBase) {
       for (const t of thresholds) {
         if (pct >= t && !seen.current.has(t)) {
           seen.current.add(t);
-          trackEvent('scroll_depth', { ...base, percent_scrolled: t });
+          emit('scroll_depth', base, { percent_scrolled: t });
         }
       }
     };
@@ -53,22 +71,21 @@ export function useLandingTracking(base: LandingEventBase) {
   return {
     /** A stay card's book button. `position` is its index so a winning slot is visible, not just a winning date. */
     trackStayClick: (stay: { start: string; end: string; nights: number; guests?: number | null; priceHint?: number | null }, index: number) =>
-      trackEvent('select_item', {
-        ...base,
+      emit('select_item', base, {
         position: `stay_${index + 1}`,
         stay_dates: `${stay.start}_${stay.end}`,
         stay_nights: stay.nights,
-        stay_guests: stay.guests ?? null,
-        value: stay.priceHint ?? null,
+        stay_guests: stay.guests ?? undefined,
+        value: stay.priceHint ?? undefined,
       }),
 
     /** Hero / footer booking CTAs. Without `position` these collapse into one meaningless total. */
-    trackCtaClick: (position: 'hero' | 'footer') => trackEvent('check_dates_click', { ...base, position }),
+    trackCtaClick: (position: 'hero' | 'footer') => emit('check_dates_click', base, { position }),
 
     /** Leaving the landing page for the main site — the page did not close the argument. */
-    trackNavToSite: (destination: string) => trackEvent('nav_to_site', { ...base, destination }),
+    trackNavToSite: (destination: string) => emit('nav_to_site', base, { destination }),
 
     /** Gallery opened, and on which photo. */
-    trackGalleryOpen: (photoIndex: number) => trackEvent('gallery_open', { ...base, photo_index: photoIndex }),
+    trackGalleryOpen: (photoIndex: number) => emit('gallery_open', base, { photo_index: photoIndex }),
   };
 }

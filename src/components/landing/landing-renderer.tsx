@@ -89,6 +89,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
           isCustomDomain={m.isCustomDomain}
           advertisedRate={m.advertisedRate}
           baseCurrency={m.baseCurrency as never}
+          onNavClick={track.trackNavToSite}
         />
 
         {/* ── HERO ── */}
@@ -235,6 +236,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
           propertyName={m.propertyName}
           propertySlug={m.propertySlug}
           isCustomDomain={m.isCustomDomain}
+          onNavClick={track.trackNavToSite}
         />
       </div>
     </ThemeProvider>

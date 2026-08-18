@@ -18,6 +18,8 @@ interface FooterProps {
   propertyName?: string;
   propertySlug?: string;
   isCustomDomain?: boolean;
+  /** See HeaderProps.onNavClick — same contract, so a landing page records both ends of its nav. */
+  onNavClick?: (destination: string) => void;
 }
 
 export function Footer({
@@ -27,6 +29,7 @@ export function Footer({
   propertyName,
   propertySlug,
   isCustomDomain = false,
+  onNavClick,
 }: FooterProps) {
   const { t, tc, currentLang, getLocalizedPath } = useLanguage();
 
@@ -56,7 +59,7 @@ export function Footer({
               </h4>
               <nav className="flex flex-col gap-2 text-sm text-muted-foreground">
                 {quickLinks.map((link, i) => (
-                  <Link key={i} href={resolveUrl(link.url)} className="hover:text-foreground">
+                  <Link key={i} href={resolveUrl(link.url)} className="hover:text-foreground" onClick={() => onNavClick?.(link.url)}>
                     {tc(link.label)}
                   </Link>
                 ))}
@@ -94,6 +97,7 @@ export function Footer({
                       target="_blank"
                       rel="noopener noreferrer"
                       className="hover:text-primary"
+                      onClick={() => onNavClick?.(`social:${link.platform}`)}
                     >
                       <Icon size={20} />
                     </a>
@@ -109,11 +113,11 @@ export function Footer({
             &copy; {new Date().getFullYear()} {propertyName || 'RentalSpot'}.{' '}
             {t('footer.rights', 'All rights reserved.')}
             {' · '}
-            <Link href={resolveUrl('/privacy-policy')} className="underline hover:text-foreground transition-colors">
+            <Link href={resolveUrl('/privacy-policy')} className="underline hover:text-foreground transition-colors" onClick={() => onNavClick?.('/privacy-policy')}>
               {t('footer.privacyPolicy', 'Privacy Policy')}
             </Link>
             {' · '}
-            <Link href={resolveUrl('/terms-of-service')} className="underline hover:text-foreground transition-colors">
+            <Link href={resolveUrl('/terms-of-service')} className="underline hover:text-foreground transition-colors" onClick={() => onNavClick?.('/terms-of-service')}>
               {t('footer.terms', 'Terms')}
             </Link>
             {' · '}
