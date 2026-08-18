@@ -69,6 +69,11 @@ function reportConsentOutcome(outcome: 'shown' | 'accept' | 'reject' | 'preferen
       analytics,
       path: window.location.pathname,
       campaign: params.get('utm_campaign') ?? undefined,
+      // Only meaningful on `shown`: how long after the page started loading the question appeared.
+      // The page is the only thing that can measure this honestly — an external probe cannot see the
+      // moment before it starts running. And it measures it where it matters, on the visitor's own
+      // phone and connection, rather than on a desktop over fibre.
+      shownAfterMs: outcome === 'shown' ? Math.round(performance.now()) : undefined,
     });
     // sendBeacon survives the page being closed straight after a click; fetch is the fallback.
     if (navigator.sendBeacon) {

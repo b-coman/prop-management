@@ -36,6 +36,13 @@ export async function POST(req: NextRequest) {
     const path = typeof body?.path === 'string' ? body.path.split('?')[0].slice(0, 120) : null;
     // Which campaign the visitor arrived on, when there is one. Lets consent rate be read per flight.
     const campaign = typeof body?.campaign === 'string' ? body.campaign.slice(0, 64) : null;
+    // How long after the page started loading the question actually appeared, in ms. Timing this from
+    // a dev console is unreliable — a probe cannot observe the moment before it starts running, which
+    // produced three contradictory readings in a row. The page knows, so the page reports it. On real
+    // phones on real connections, not a desktop over fibre. Clamped: it is a counter, not a claim.
+    const shownAfterMs = typeof body?.shownAfterMs === 'number' && Number.isFinite(body.shownAfterMs)
+      ? Math.min(120000, Math.max(0, Math.round(body.shownAfterMs)))
+      : null;
 
     const db = await getAdminDb();
     await db.collection('consentEvents').add({
@@ -43,6 +50,7 @@ export async function POST(req: NextRequest) {
       path,
       campaign,
       analytics: outcome === 'accept' ? true : outcome === 'reject' ? false : (body?.analytics ?? null),
+      shownAfterMs,
       day: new Date().toISOString().slice(0, 10),
       createdAt: FieldValue.serverTimestamp(),
     });

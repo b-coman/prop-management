@@ -28,6 +28,8 @@ const days = (() => { const i = process.argv.indexOf('--days'); return i > -1 ? 
     process.exit(0);
   }
 
+  /** How long the question took to appear, from real visitors on real phones. */
+  const shownDelays: number[] = [];
   const byDay = new Map<string, Record<string, number>>();
   const byCampaign = new Map<string, Record<string, number>>();
   const bump = (m: Map<string, Record<string, number>>, k: string, o: string) => {
@@ -38,6 +40,7 @@ const days = (() => { const i = process.argv.indexOf('--days'); return i > -1 ? 
     const x = d.data() as any;
     bump(byDay, x.day ?? '?', x.outcome);
     if (x.campaign) bump(byCampaign, x.campaign, x.outcome);
+    if (x.outcome === 'shown' && typeof x.shownAfterMs === 'number') shownDelays.push(x.shownAfterMs);
   }
 
   const line = (k: string, r: Record<string, number>) => {
@@ -58,6 +61,19 @@ const days = (() => { const i = process.argv.indexOf('--days'); return i > -1 ? 
   if (byCampaign.size) {
     console.log('\n=== by ad campaign (utm_campaign) ===');
     for (const k of [...byCampaign.keys()].sort()) console.log(line(k, byCampaign.get(k)!));
+  }
+
+  // How fast the question arrives decides half the outcome. Too early and it lands on a blank hero;
+  // too late and the visitor has already decided what to do with the page. Measured on the visitor's
+  // own device, because a probe run from a desktop console cannot see the moment before it starts.
+  if (shownDelays.length) {
+    const sorted = [...shownDelays].sort((a, b) => a - b);
+    const pct = (p: number) => sorted[Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length))];
+    const s = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
+    console.log(`\n=== how long until the question appeared (n=${sorted.length}) ===`);
+    console.log(`  median ${s(pct(50))} · p75 ${s(pct(75))} · p90 ${s(pct(90))} · slowest ${s(sorted[sorted.length - 1])}`);
+    console.log('  Target is roughly 2-3s: the hero has painted, the visitor is still arriving.');
+    console.log('  Median past ~6s means they had time to decide about the page before being asked.');
   }
 
   const decided = tot.accept + tot.reject + tot.preferences;
