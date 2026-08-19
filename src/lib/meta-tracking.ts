@@ -62,6 +62,65 @@ export function trackMetaViewContent(property: ViewedProperty): void {
 }
 
 /**
+ * Fire ViewContent as soon as the Pixel EXISTS, which is almost never at mount.
+ *
+ * `fbq` is only defined once marketing consent is granted and the pixel script has executed. The
+ * consent question is deliberately shown a beat after load, so at mount the answer is reliably "no
+ * pixel yet" and a one-shot call no-ops. Firing once on a `consent-updated` event is not enough
+ * either: accepting only STARTS the script loading, so a single check 300ms later usually still
+ * finds nothing.
+ *
+ * Measured on the live pixel, 19 Aug 06:00-07:00 UTC: 14 people accepted, 14 PageViews fired, and
+ * only 4 ViewContents. The PageView comes from the pixel's own init snippet so it cannot lose that
+ * race; ViewContent was losing it about 70% of the time.
+ *
+ * So: poll for `fbq`, briefly, with the window extended each time consent changes. Fires at most
+ * once, never without consent, and gives up rather than spinning. Returns a cleanup function.
+ */
+const FBQ_WAIT_ON_LOAD_MS = 8000;
+const FBQ_WAIT_AFTER_CONSENT_MS = 15000;
+const FBQ_POLL_MS = 300;
+
+export function trackMetaViewContentWhenReady(property: ViewedProperty): () => void {
+  if (typeof window === 'undefined') return () => {};
+  let fired = false;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let deadline = performance.now() + FBQ_WAIT_ON_LOAD_MS;
+
+  const attempt = (): boolean => {
+    if (fired) return true;
+    if (!getFbq()) return false;
+    fired = true;
+    trackMetaViewContent(property);
+    return true;
+  };
+
+  const pump = () => {
+    if (attempt() || performance.now() > deadline) {
+      timer = null;
+      return;
+    }
+    timer = setTimeout(pump, FBQ_POLL_MS);
+  };
+  const start = () => {
+    if (timer === null && !fired) pump();
+  };
+
+  // Accepting restarts the wait, because that is the moment the script begins loading.
+  const onConsent = () => {
+    deadline = performance.now() + FBQ_WAIT_AFTER_CONSENT_MS;
+    start();
+  };
+  window.addEventListener('consent-updated', onConsent);
+  start();
+
+  return () => {
+    window.removeEventListener('consent-updated', onConsent);
+    if (timer !== null) clearTimeout(timer);
+  };
+}
+
+/**
  * Browser Purchase on the booking-success page — deduped against the server-side
  * CAPI Purchase via the deterministic eventID.
  */

@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { trackViewItem } from '@/lib/tracking';
-import { trackMetaViewContent } from '@/lib/meta-tracking';
+import { trackMetaViewContentWhenReady } from '@/lib/meta-tracking';
 import type { Property } from '@/types';
 
 interface TrackViewItemProps {
@@ -12,7 +12,10 @@ interface TrackViewItemProps {
 export function TrackViewItem({ property }: TrackViewItemProps) {
   useEffect(() => {
     trackViewItem(property);            // GA4 view_item (GTM dataLayer)
-    trackMetaViewContent(property);     // Meta Pixel ViewContent (no-op without consent)
+    // Same race the landing pages had: `fbq` does not exist at mount, because the consent question
+    // is now shown a beat after load rather than immediately. A plain call here no-opped for anyone
+    // who accepted AFTER this effect ran, which is now almost everyone. Shared waiter.
+    return trackMetaViewContentWhenReady(property);
   }, [property]);
 
   return null;

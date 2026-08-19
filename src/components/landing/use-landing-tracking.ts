@@ -19,7 +19,7 @@
  */
 import { useEffect, useRef } from 'react';
 import { trackUiEvent, trackViewItem } from '@/lib/tracking';
-import { trackMetaViewContent } from '@/lib/meta-tracking';
+import { trackMetaViewContentWhenReady } from '@/lib/meta-tracking';
 
 /** Registered as GA4 custom dimensions — parameter names must match exactly or reports show nothing. */
 export interface LandingEventBase {
@@ -46,7 +46,6 @@ export function useLandingTracking(base: LandingEventBase, product?: LandingProd
   // Same events, same shape, so a "viewed the property" audience covers both destinations rather
   // than quietly excluding the paid half.
   const productKey = product ? `${product.propertySlug}:${product.advertisedRate ?? ''}` : '';
-  const firedViewContent = useRef(false);
   useEffect(() => {
     if (!product) return;
 
@@ -59,40 +58,14 @@ export function useLandingTracking(base: LandingEventBase, product?: LandingProd
       baseCurrency: product.baseCurrency,
     });
 
-    // The Pixel side CANNOT be fire-and-forget on mount. `fbq` does not exist until the visitor
-    // grants marketing consent, and the consent question now waits for a quarter of the page or
-    // twelve seconds — so at mount the answer is always "no pixel yet", and a one-shot effect would
-    // no-op every single time. This is the difference between shipping the fix and shipping nothing.
-    //
-    // So: fire when `fbq` actually appears, whether that is the script finishing on a returning
-    // visitor or the banner being accepted a minute in. Once only, and never if they decline.
-    const sendViewContent = () => {
-      if (firedViewContent.current) return false;
-      if (typeof (window as { fbq?: unknown }).fbq !== 'function') return false;
-      firedViewContent.current = true;
-      trackMetaViewContent({
-        slug: product.propertySlug,
-        pricePerNight: product.advertisedRate,
-        baseCurrency: product.baseCurrency,
-      });
-      return true;
-    };
+    // The Pixel side cannot be fire-and-forget: `fbq` does not exist until consent is granted AND
+    // the script has loaded. Shared waiter, so the property pages get the identical behaviour.
+    return trackMetaViewContentWhenReady({
+      slug: product.propertySlug,
+      pricePerNight: product.advertisedRate,
+      baseCurrency: product.baseCurrency,
+    });
 
-    if (sendViewContent()) return;
-
-    // The banner dispatches this the moment either button is tapped.
-    const onConsent = () => { window.setTimeout(sendViewContent, 300); };
-    window.addEventListener('consent-updated', onConsent);
-    // Plus a short poll for the returning visitor whose cookie is already set and whose pixel script
-    // is simply still loading. Bounded: if it has not appeared in 15s, consent was not given.
-    const poll = window.setInterval(() => { if (sendViewContent()) window.clearInterval(poll); }, 500);
-    const stop = window.setTimeout(() => window.clearInterval(poll), 15000);
-
-    return () => {
-      window.removeEventListener('consent-updated', onConsent);
-      window.clearInterval(poll);
-      window.clearTimeout(stop);
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productKey]);
 
