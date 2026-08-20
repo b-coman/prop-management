@@ -779,6 +779,19 @@ export interface AdCampaign {
   metaAdIds?: string[];
   audienceRef?: string;
   objective?: string;              // e.g. 'OUTCOME_SALES'
+  /**
+   * The ad set's `optimization_goal`, when it is NOT the default implied by `objective`.
+   *
+   * Normally the two are locked together by `campaignBuilder` (sales -> OFFSITE_CONVERSIONS,
+   * traffic -> LANDING_PAGE_VIEWS), so storing it would be redundant. It stops being redundant the
+   * moment an operator retunes a live ad set: on 20 Aug birou-veverite was switched to
+   * OFFSITE_CONVERSIONS on CONTENT_VIEW while its campaign stayed OUTCOME_TRAFFIC, which Meta
+   * accepts. Without this field the record here says "traffic" and Meta says "conversions", and the
+   * next person to read the doc draws the wrong conclusion about why delivery changed.
+   */
+  optimizationGoal?: string;
+  /** The pixel event the ad set optimises toward, e.g. 'CONTENT_VIEW'. Meta's name, not ours. */
+  optimizationEvent?: string;
   dailyBudgetMinor?: number;       // bani
   endTime?: string;                // ISO 8601 — the ad set's end_time; used by the approve-step spend-cap arithmetic
   spendCapMinor?: number;          // bani — required (snapshotted) before activation

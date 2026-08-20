@@ -271,10 +271,30 @@ Findings:
 - **`destination_type` must be omitted.** Meta returns `UNDEFINED`, which is
   correct: the ODAX table lists only MESSENGER/WHATSAPP/PHONE_CALL for
   OUTCOME_TRAFFIC — `WEBSITE` is not a valid value there.
-- **`promoted_object` must be omitted** for traffic (it is the conversion
-  contract). `createAdSet` derives the whole contract from the parent campaign's
-  objective, so a campaign/ad-set mismatch is unrepresentable rather than merely
-  unlikely.
+- ~~**`promoted_object` must be omitted** for traffic (it is the conversion~~
+  ~~contract).~~ **CORRECTED 2026-08-20 — this was wrong, and it was wrong in the
+  direction that costs money.** Meta accepts `optimization_goal=OFFSITE_CONVERSIONS`
+  + `promoted_object={pixel_id, custom_event_type:CONTENT_VIEW}` on an ad set whose
+  parent campaign is `OUTCOME_TRAFFIC`. Verified against the live account: the write
+  returned 200, the ad set read back `OFFSITE_CONVERSIONS`, went `IN_PROCESS` and then
+  `ACTIVE`. So a running traffic campaign CAN be retuned to optimise on a pixel event
+  without being rebuilt, which is worth knowing before anyone recreates a campaign to
+  get it.
+
+  What actually produced the `(#100)` this note was written from is almost certainly the
+  event NAME. `VIEW_CONTENT` is rejected; Meta's enum is **`CONTENT_VIEW`**. The error
+  body helpfully lists the whole allowed set, so read it rather than assuming a
+  campaign/ad-set mismatch. (Note the pixel event fired in the browser is still
+  `ViewContent` — the browser name and the optimisation-target name differ, which is the
+  trap.)
+
+  `createAdSet` still derives the contract from the parent objective, which remains the
+  right default for CREATE. It is no longer true that the alternative is unrepresentable
+  on Meta's side; it is only unrepresentable through our builder.
+
+  Also required on the AD, not the ad set: `conversion_domain` (e.g. `prahova-chalet.ro`).
+  An ad created under a traffic objective has none, so it must be set when retuning, or
+  the conversion contract is incomplete.
 - Insights: a traffic campaign reports zero purchases by design, so
   `insights.ts` now also reads `landing_page_view` and `link_click` (same
   never-sum priority discipline as purchases) and `adReconciliation` persists
