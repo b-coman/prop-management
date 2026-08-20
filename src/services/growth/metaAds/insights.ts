@@ -143,6 +143,50 @@ interface MetaEffectiveStatusReadBack {
   effective_status?: string;
 }
 
+interface MetaAdSetOptimisationReadBack {
+  id: string;
+  optimization_goal?: string;
+  promoted_object?: { pixel_id?: string; custom_event_type?: string };
+}
+
+/**
+ * Read-only look-up of what an ad set is ACTUALLY optimising toward.
+ *
+ * `effective_status` drift is already reconciled; this is the same idea applied to the other half
+ * of the contract, and the half that silently changes what your money buys. An operator can retune
+ * a live ad set in Ads Manager — or through a script, as happened on 20 Aug — and nothing in our
+ * record would move: the campaign doc would still read `objective: OUTCOME_TRAFFIC` and everyone
+ * would go on assuming landing-page views while Meta optimised for a pixel event.
+ *
+ * Meta ties the goal to the ad set, not the campaign, so this takes an AD SET id.
+ */
+export async function getAdSetOptimisation(
+  propertyId: string,
+  adSetId: string
+): Promise<GraphResult<{ optimizationGoal: string; optimizationEvent?: string }>> {
+  const ctx = await resolveAdContext(propertyId);
+  if (!ctx) {
+    logger.warn('getAdSetOptimisation: no ad context for property', { propertyId, adSetId });
+    return { ok: false, error: 'no-ad-context' };
+  }
+
+  const result = await metaGraph<MetaAdSetOptimisationReadBack>(adSetId, {
+    method: 'GET',
+    params: { fields: 'id,optimization_goal,promoted_object' },
+    token: ctx.token,
+    propertyId,
+  });
+  if (!result.ok) return result;
+
+  return {
+    ok: true,
+    data: {
+      optimizationGoal: result.data.optimization_goal ?? 'UNKNOWN',
+      optimizationEvent: result.data.promoted_object?.custom_event_type,
+    },
+  };
+}
+
 /**
  * Read-only `effective_status` look-up for a single Meta object (campaign, ad
  * set, or ad) — Phase 2a Build B (plan REVISIONS OD4: "on-demand `effective_status`

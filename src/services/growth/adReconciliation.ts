@@ -13,7 +13,7 @@
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
 import type { AdCampaignStatus } from '@/types';
-import { getInsights, getEffectiveStatus } from './metaAds/insights';
+import { getInsights, getEffectiveStatus, getAdSetOptimisation } from './metaAds/insights';
 import { resolveAdContext } from './metaAds/adContext';
 import { metaGraph } from './metaAds/client';
 import { finalizeAdOutcome, DEFAULT_SETTLE_DAYS } from './adOutcomes';
@@ -67,9 +67,12 @@ export interface ReconcileResult {
 interface AdCampaignReconData {
   propertyId?: string;
   metaCampaignId?: string;
+  metaAdSetIds?: string[];
   status?: AdCampaignStatus;
   endTime?: string | null;
   outcomeCapturedAt?: unknown;
+  optimizationGoal?: string;
+  optimizationEvent?: string;
 }
 
 /**
@@ -127,6 +130,27 @@ export async function reconcileAdCampaigns(): Promise<ReconcileResult> {
       }
       const effStatus = eff.ok ? eff.data.effectiveStatus : undefined;
       if (effStatus) patch.effectiveStatus = effStatus;
+
+      // What the ad set optimises toward is the other half of the contract, and the half that
+      // silently changes what the money buys. Status drift was already reconciled; this was not, so
+      // a retune done in Ads Manager (or by a script, as on 20 Aug) left our record saying "traffic"
+      // while Meta ran conversions. Mirror it, and say so out loud when it moved without us.
+      const adSetId = data.metaAdSetIds?.[0];
+      if (adSetId) {
+        const opt = await getAdSetOptimisation(data.propertyId, adSetId);
+        if (opt.ok) {
+          patch.optimizationGoal = opt.data.optimizationGoal;
+          if (opt.data.optimizationEvent) patch.optimizationEvent = opt.data.optimizationEvent;
+          const knownGoal = data.optimizationGoal;
+          if (knownGoal && knownGoal !== opt.data.optimizationGoal) {
+            flags.push(`${d.id} (${data.propertyId}): optimization_goal changed on Meta — we had ${knownGoal}, Meta has ${opt.data.optimizationGoal}`);
+          }
+          const knownEvent = data.optimizationEvent;
+          if (knownEvent && opt.data.optimizationEvent && knownEvent !== opt.data.optimizationEvent) {
+            flags.push(`${d.id} (${data.propertyId}): optimisation event changed on Meta — we had ${knownEvent}, Meta has ${opt.data.optimizationEvent}`);
+          }
+        }
+      }
 
       // Self-heal: Meta's effective_status is the truth. A campaign activated OUTSIDE the app (in Ads
       // Manager) leaves our doc at `pushed` forever — which would keep it out of the learning loop

@@ -3,7 +3,7 @@
 jest.mock('../adContext', () => ({ resolveAdContext: jest.fn() }));
 jest.mock('../client', () => ({ metaGraph: jest.fn() }));
 
-import { getInsights, getEffectiveStatus } from '../insights';
+import { getInsights, getEffectiveStatus, getAdSetOptimisation } from '../insights';
 import { resolveAdContext } from '../adContext';
 import { metaGraph } from '../client';
 
@@ -208,6 +208,47 @@ describe('getEffectiveStatus — OD4 on-demand drift/REJECTED read-back', () => 
     mockResolveAdContext.mockResolvedValue({ adAccountId: 'act_1', token: 'tok' });
     mockMetaGraph.mockResolvedValue({ ok: false, error: 'timeout' });
     const res = await getEffectiveStatus(PROPERTY, OBJECT_ID);
+    expect(res).toEqual({ ok: false, error: 'timeout' });
+  });
+});
+
+describe('getAdSetOptimisation — the other half of the contract', () => {
+  it('returns {ok:false,error:"no-ad-context"} without calling Meta for an unconfigured property', async () => {
+    mockResolveAdContext.mockResolvedValue(null);
+    const res = await getAdSetOptimisation(PROPERTY, OBJECT_ID);
+    expect(res).toEqual({ ok: false, error: 'no-ad-context' });
+    expect(mockMetaGraph).not.toHaveBeenCalled();
+  });
+
+  it('reads the goal AND the pixel event the ad set is actually optimising toward', async () => {
+    mockResolveAdContext.mockResolvedValue({ adAccountId: 'act_1', token: 'tok' });
+    mockMetaGraph.mockResolvedValue({
+      ok: true,
+      data: { id: OBJECT_ID, optimization_goal: 'OFFSITE_CONVERSIONS', promoted_object: { pixel_id: 'px', custom_event_type: 'CONTENT_VIEW' } },
+    });
+
+    const res = await getAdSetOptimisation(PROPERTY, OBJECT_ID);
+
+    expect(mockMetaGraph).toHaveBeenCalledWith(OBJECT_ID, {
+      method: 'GET',
+      params: { fields: 'id,optimization_goal,promoted_object' },
+      token: 'tok',
+      propertyId: PROPERTY,
+    });
+    expect(res).toEqual({ ok: true, data: { optimizationGoal: 'OFFSITE_CONVERSIONS', optimizationEvent: 'CONTENT_VIEW' } });
+  });
+
+  it('leaves the event undefined for a traffic ad set, which carries no promoted_object', async () => {
+    mockResolveAdContext.mockResolvedValue({ adAccountId: 'act_1', token: 'tok' });
+    mockMetaGraph.mockResolvedValue({ ok: true, data: { id: OBJECT_ID, optimization_goal: 'LANDING_PAGE_VIEWS' } });
+    const res = await getAdSetOptimisation(PROPERTY, OBJECT_ID);
+    expect(res).toEqual({ ok: true, data: { optimizationGoal: 'LANDING_PAGE_VIEWS', optimizationEvent: undefined } });
+  });
+
+  it('propagates a Graph API failure without throwing', async () => {
+    mockResolveAdContext.mockResolvedValue({ adAccountId: 'act_1', token: 'tok' });
+    mockMetaGraph.mockResolvedValue({ ok: false, error: 'timeout' });
+    const res = await getAdSetOptimisation(PROPERTY, OBJECT_ID);
     expect(res).toEqual({ ok: false, error: 'timeout' });
   });
 });
