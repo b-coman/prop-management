@@ -94,9 +94,33 @@ export async function buildLandingModel(
     end: config.period?.end ?? null,
     label: tr(config.period?.label),
   };
-  const checkDatesUrl = period.kind === 'window' && period.start && period.end
-    ? withDates(period.start, period.end)
-    : withDates();
+  /**
+   * A campaign WINDOW is not a STAY, and treating it as one was quietly killing the funnel.
+   *
+   * Both September landings run 1-30 Sep, so this sent every "Vezi datele" click to the booking
+   * page asking to book 29 CONSECUTIVE NIGHTS. The chalet has OTA bookings mid-month, so that is
+   * unavailable by construction: the visitor's reward for clicking the main call to action was a
+   * red "Datele Nu Sunt Disponibile".
+   *
+   * Measured 19-22 Aug, once booking_page_view existed to show it: 15 `unavailable` against 12
+   * `priced`, and NINE of the fifteen were the 29-night request. The hero CTA took 8 of the 9
+   * clicks the landing pages produced. It was the busiest path on the page and it led to a wall.
+   *
+   * A short window is still worth prefilling — "23-31 Aug" is a real stay someone might book whole.
+   * Past a fortnight it cannot be, so send them to the picker instead and let them choose, which is
+   * what "see the dates" says on the button anyway.
+   *
+   * Both dates are parsed the same way, so the comparison is timezone-safe even though
+   * `Date.parse` reads a bare YYYY-MM-DD as UTC — the offset cancels in the subtraction.
+   */
+  const MAX_PREFILL_NIGHTS = 14;
+  const checkDatesUrl = (() => {
+    if (period.kind !== 'window' || !period.start || !period.end) return withDates();
+    const nights = Math.round((Date.parse(period.end) - Date.parse(period.start)) / 86_400_000);
+    return nights > 0 && nights <= MAX_PREFILL_NIGHTS
+      ? withDates(period.start, period.end)
+      : withDates();
+  })();
 
   const exampleStays = (config.exampleStays ?? []).map((s) => ({
     start: s.start, end: s.end, nights: s.nights, label: tr(s.label),
