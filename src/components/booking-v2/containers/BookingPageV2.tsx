@@ -185,6 +185,29 @@ function BookingPageContent({ className }: { className?: string }) {
     });
   }, [hasValidDates, isLoadingPricing, hasPricingAnswer, pricingError, hasValidPricing, pricing, checkInDate, checkOutDate, numberOfNights, guestCount]);
 
+  // WHICH form did they start, and did they finish it?
+  //
+  // The page tracked arriving (`booking_page_view`), picking a tab (`select_booking_action`) and
+  // SUBMITTING (`begin_checkout` / `generate_lead`) — and nothing in between. So on 22 Aug, when one
+  // visitor opened the contact form and never sent it, there was no way to tell whether they typed a
+  // word or bounced off the first field. With 15 people reaching this page, 1 picking an action and
+  // 0 submitting, "did they try and give up?" was exactly the unanswerable question.
+  //
+  // Fires on the first real input inside a form, once per form per page life. `onInputCapture` on the
+  // wrapper catches any field without each form component having to know it is being measured.
+  const formStarted = useRef<Record<string, boolean>>({});
+  const reportFormStart = (which: 'book' | 'hold' | 'contact') => {
+    if (formStarted.current[which]) return;
+    formStarted.current[which] = true;
+    trackUiEvent('form_start', {
+      booking_action: which,
+      value: hasValidPricing ? pricing!.totalPrice : undefined,
+      currency: hasValidPricing ? pricing!.currency : undefined,
+      stay_nights: numberOfNights,
+      stay_guests: guestCount,
+    });
+  };
+
   // Handle tab click and set selected action
   const handleTabClick = (tab: 'book' | 'hold' | 'contact') => {
     setActiveTab(tab);
@@ -426,6 +449,7 @@ function BookingPageContent({ className }: { className?: string }) {
             <div className="space-y-6">
               {/* Form Content */}
               {selectedAction === 'contact' && (
+                <div onInputCapture={() => reportFormStart('contact')}>
                 <ContactFormV2
                   onSubmit={async (values, pricingDetails, selectedCurrency) => {
                     setIsSubmitting(true);
@@ -488,9 +512,11 @@ function BookingPageContent({ className }: { className?: string }) {
                   pricingDetails={pricing}
                   selectedCurrency={selectedCurrency}
                 />
+                </div>
               )}
 
               {selectedAction === 'hold' && (
+                <div onInputCapture={() => reportFormStart('hold')}>
                 <HoldFormV2
                   onSubmit={async (values, _pricingDetails, selectedCurrency) => {
                     setIsSubmitting(true);
@@ -509,7 +535,7 @@ function BookingPageContent({ className }: { className?: string }) {
                       }, {
                         checkIn: checkInDate!.toISOString(),
                         checkOut: checkOutDate!.toISOString(),
-                      }, guestCount);
+                      }, guestCount, 'hold');
 
                       const holdResult = await createHoldBookingAction({
                         propertySlug: property.slug,
@@ -578,9 +604,11 @@ function BookingPageContent({ className }: { className?: string }) {
                   pricingDetails={pricing}
                   selectedCurrency={selectedCurrency}
                 />
+                </div>
               )}
 
               {selectedAction === 'book' && (
+                <div onInputCapture={() => reportFormStart('book')}>
                 <BookingFormV2
                   onSubmit={async (values, pricingDetails, appliedCoupon, selectedCurrency) => {
                     setIsSubmitting(true);
@@ -599,7 +627,7 @@ function BookingPageContent({ className }: { className?: string }) {
                       }, {
                         checkIn: checkInDate!.toISOString(),
                         checkOut: checkOutDate!.toISOString(),
-                      }, guestCount);
+                      }, guestCount, 'book');
 
                       // Convert all pricing values from property's base currency to selected currency
                       const baseCurrency = pricingDetails!.currency;
@@ -705,6 +733,7 @@ function BookingPageContent({ className }: { className?: string }) {
                   pricingDetails={pricing}
                   selectedCurrency={selectedCurrency}
                 />
+                </div>
               )}
             </div>
           )}

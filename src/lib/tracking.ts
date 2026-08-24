@@ -110,13 +110,21 @@ export function trackViewItem(property: ViewedItem) {
 /**
  * Fire `begin_checkout` when guest starts the booking process.
  */
+/**
+ * @param action which flow this is. Booking and HOLD both fired a bare `begin_checkout`, so in GA4 a
+ *   50-lei date hold and a 2,843-lei booking attempt were the same undifferentiated event — and the
+ *   hold, being the cheaper commitment, is the one you would expect people to take. Worth telling
+ *   apart before reading anything into the count.
+ */
 export function trackBeginCheckout(
   property: Property,
   pricing: BookingPricingForTracking,
   dates: { checkIn: string; checkOut: string },
-  guests: number
+  guests: number,
+  action?: 'book' | 'hold'
 ) {
   trackEcommerceEvent('begin_checkout', {
+    booking_action: action,
     currency: pricing.currency,
     value: pricing.total,
     items: [propertyToItem(property, pricing.baseRate)],
