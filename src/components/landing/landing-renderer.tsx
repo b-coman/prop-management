@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { SafeImage } from '@/components/ui/safe-image';
 import { CallButton } from '@/components/landing/call-button';
 import { useLandingTracking } from '@/components/landing/use-landing-tracking';
-import { Star, MapPin, ArrowRight, CalendarDays, Moon } from 'lucide-react';
+import { Star, MapPin, ArrowRight, CalendarDays, Moon, Users } from 'lucide-react';
 import type { LandingModel, LandingImage } from '@/lib/landing/contracts';
 import { displaySrc } from '@/lib/image-src';
 
@@ -116,6 +116,40 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
             )}
             <h1 className="text-3xl font-bold leading-tight drop-shadow-md sm:text-4xl md:text-5xl">{m.hero.headline}</h1>
             {m.hero.subcopy && <p className="mx-auto mt-4 max-w-xl text-base text-white/90 drop-shadow sm:text-lg">{m.hero.subcopy}</p>}
+
+            {/* The three facts that were previously buried: what people think of it, how big it is,
+                and what it costs. Measured 19-22 Aug: the first price sat at 48% scroll depth and the
+                rating at ~80%, while only 24% of visitors ever reached 50%. So three quarters of the
+                traffic decided without ever seeing a price, a review or the capacity — which the page
+                never stated at all. A rate with no denominator reads as expensive.
+
+                Wraps to a centred stack on a phone and sits on one line from `sm` up; the dot
+                separators are hidden when wrapped so a broken row never shows a dangling bullet. */}
+            {(m.ratings || m.maxGuests || m.advertisedRate) && (
+              <ul className="mx-auto mt-5 flex max-w-2xl flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-sm text-white/95 drop-shadow sm:max-w-3xl sm:gap-x-4 sm:text-base">
+                {m.ratings && m.ratings.count > 0 && (
+                  <li className="inline-flex items-center gap-1.5">
+                    <Star className="h-4 w-4 flex-shrink-0 fill-amber-400 text-amber-400" aria-hidden />
+                    <span><span className="font-semibold">{m.ratings.average.toFixed(1)}</span>
+                      <span className="text-white/80"> · {m.ratings.count} {t(lang, 'reviews', 'recenzii')}</span></span>
+                  </li>
+                )}
+                {m.maxGuests ? (
+                  <li className="inline-flex items-center gap-1.5">
+                    <span aria-hidden className="hidden text-white/40 sm:inline">·</span>
+                    <Users className="h-4 w-4 flex-shrink-0" aria-hidden />
+                    <span>{t(lang, `Whole chalet, up to ${m.maxGuests} guests`, `Toată casa, până la ${m.maxGuests} persoane`)}</span>
+                  </li>
+                ) : null}
+                {m.advertisedRate ? (
+                  <li className="inline-flex items-center gap-1.5">
+                    <span aria-hidden className="hidden text-white/40 sm:inline">·</span>
+                    <span>{t(lang, 'from', 'de la')} <span className="font-semibold">{Math.round(m.advertisedRate).toLocaleString()} {m.baseCurrency}</span>{t(lang, ' / night', ' / noapte')}</span>
+                  </li>
+                ) : null}
+              </ul>
+            )}
+
             <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
               {m.phone && <CallButton phone={m.phone} label={t(lang, 'Call us', 'Sună-ne')} size="lg" className="w-full sm:w-auto" />}
               {m.showBooking && (
@@ -132,14 +166,16 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
           <div className="bg-primary py-3 text-center text-sm font-medium text-primary-foreground sm:text-base">{m.offer}</div>
         )}
 
-        {/* ── STORY ── */}
-        {m.story && (m.story.title || m.story.body) && (
-          <section className="mx-auto w-full max-w-3xl px-5 py-14 text-center sm:py-20">
-            {m.story.title && <h2 className="text-2xl font-semibold sm:text-3xl">{m.story.title}</h2>}
-            {m.story.body && <p className="mt-5 whitespace-pre-line text-base leading-relaxed text-muted-foreground sm:text-lg">{m.story.body}</p>}
-          </section>
-        )}
+        {/* ORDER IS THE POINT. Measured on the live page 19-22 Aug: the first price sat at 48% of the
+            scroll and the first photo beyond the hero at 69%, while only 24% of visitors reached 50%
+            and 23% reached 75%. Three quarters of paid traffic left having seen a headline, a
+            paragraph and two buttons — no price, no second photo, no reviews. The stay cards took
+            ZERO clicks in a week, not because they read badly but because almost nobody scrolled far
+            enough to see them.
 
+            So the two sections that answer "what does it cost" and "what does it look like" now come
+            first, and the story — the part that only rewards someone already reading — comes after.
+            No section was added or removed, so the page is no taller; the order changed. */}
         {/* ── EXAMPLE STAYS ── */}
         {m.exampleStays.length > 0 && (
           <section className="bg-muted/40 py-14 sm:py-20">
@@ -201,6 +237,14 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                 ))}
               </div>
             )}
+          </section>
+        )}
+
+        {/* ── STORY ── */}
+        {m.story && (m.story.title || m.story.body) && (
+          <section className="mx-auto w-full max-w-3xl px-5 py-14 text-center sm:py-20">
+            {m.story.title && <h2 className="text-2xl font-semibold sm:text-3xl">{m.story.title}</h2>}
+            {m.story.body && <p className="mt-5 whitespace-pre-line text-base leading-relaxed text-muted-foreground sm:text-lg">{m.story.body}</p>}
           </section>
         )}
 

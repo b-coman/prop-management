@@ -52,6 +52,14 @@ export interface LandingModel {
   themeId: string;
   baseCurrency?: string;
   advertisedRate?: number;
+  /**
+   * Whole-property capacity, shown next to the price in the hero.
+   *
+   * A nightly rate with no denominator reads as expensive: 420 lei is cheap for seven people and
+   * dear for two, and the page never said which. Measured 19-22 Aug: only 24% of visitors scrolled
+   * far enough to reach any price at all, and none of them were told what it buys.
+   */
+  maxGuests?: number | null;
   menuItems: Array<{ label: string; url: string; isButton?: boolean }>;
   logoSrc?: string;
   logoAlt?: string;

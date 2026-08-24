@@ -133,6 +133,7 @@ export async function buildLandingModel(
     propertySlug: config.propertyId, propertyName, city: (property as any).location?.city ?? null,
     themeId: property.themeId || 'airbnb',
     baseCurrency, advertisedRate: property.advertisedRate || property.pricePerNight,
+    maxGuests: (property as any).maxGuests ?? null,
     menuItems, logoSrc, logoAlt, footer,
     ratings: property.ratings ? { average: property.ratings.average, count: property.ratings.count } : null,
     hero: {
