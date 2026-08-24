@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/lib/language-system/useLanguage';
 import { Shield } from 'lucide-react';
@@ -92,6 +92,8 @@ export function CookieConsent() {
   const [visible, setVisible] = useState(false);
   /** The page says it is time to ask; rendering still waits on translations. */
   const [dueToAsk, setDueToAsk] = useState(false);
+  /** Set the moment either button is used, so the reveal effect can never re-open the card. */
+  const answered = useRef(false);
   const [showPreferences, setShowPreferences] = useState(false);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
   const [marketingEnabled, setMarketingEnabled] = useState(false);
@@ -165,6 +167,19 @@ export function CookieConsent() {
   // present, whatever the loading flag happens to say.
   const copyReady = t('cookieConsent.title', '') !== '' && t('cookieConsent.acceptAll', '') !== '';
   useEffect(() => {
+    // ONCE ANSWERED, NEVER RE-ASK. Without this guard the banner was unclosable, on every browser.
+    //
+    // Answering sets `visible` to false, which is a dependency of this effect, so the effect re-ran,
+    // found `dueToAsk` still true and put the banner straight back up — and logged another `shown`
+    // while doing it. Tapping Accept or Decline appeared to do nothing at all. Reported from an
+    // iPhone 24 Aug and reproduced immediately in Chrome; it was never iOS-specific.
+    //
+    // Live since 19 Aug, which also means every `shown` count since then is inflated by the re-opens
+    // and the accept RATE correspondingly understated.
+    //
+    // The cookie is the durable record of an answer, so it is what the guard reads: `answered` alone
+    // would miss a visitor who decided on an earlier page load.
+    if (answered.current || getConsentCookie()) return;
     if (!dueToAsk || !copyReady || visible) return;
     setVisible(true);
     reportConsentOutcome('shown');
@@ -219,6 +234,7 @@ export function CookieConsent() {
   }, []);
 
   const applyConsent = useCallback((prefs: ConsentPreferences) => {
+    answered.current = true;
     setConsentCookie(prefs);
     updateGtagConsent(prefs);
     window.dispatchEvent(new CustomEvent('consent-updated', { detail: prefs }));
