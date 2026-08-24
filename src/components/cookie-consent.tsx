@@ -170,43 +170,36 @@ export function CookieConsent() {
     reportConsentOutcome('shown');
   }, [dueToAsk, copyReady, visible]);
 
-  // A question you can scroll past is not a question.
+  // A question you can scroll past is not a question — but a question you cannot ANSWER is worse.
   //
-  // The overlay covers the page but never locked the document, so the browser CHAINED the
-  // scroll straight through it: verified in the browser 19 Aug, the page scrolls freely behind
-  // the card. That is why shipping the "required decision" modal did not move the accept rate
-  // off the passive bar's — functionally it WAS the passive bar, just in the middle of the
-  // screen. 89% of visitors read the whole landing page around it and left.
+  // The first version of this lock pinned the body: `position:fixed` plus a negative `top` equal to
+  // the scroll offset, the standard iOS trick. On iOS it broke the banner outright — reported from a
+  // real iPhone 24 Aug: the card renders, and neither Accept nor Decline responds. Pinning the body
+  // moves the layout viewport out from under a `position:fixed` overlay on iOS Safari, so the taps
+  // no longer land on the buttons that are visibly there.
   //
-  // `overflow:hidden` alone does not hold on iOS Safari, so the body is pinned at its current
-  // offset and restored on dismiss. Still not a cookie wall: both answers are one tap and
-  // declining gives the same full access — what is removed is scrolling away from the question.
+  // That is a total loss of the platform carrying ~89% of this site's traffic, which is far worse
+  // than a banner someone can scroll past. So the body is never repositioned now. `overflow:hidden`
+  // on the root holds desktop and Android; iOS may still scroll behind the card, and that is the
+  // right trade — a lower consent rate beats an unusable site.
   useEffect(() => {
     if (!visible) return;
-    const { body } = document;
-    const scrollY = window.scrollY;
+    const { body, documentElement: html } = document;
     const prev = {
-      overflow: body.style.overflow,
-      position: body.style.position,
-      top: body.style.top,
-      width: body.style.width,
+      bodyOverflow: body.style.overflow,
+      htmlOverflow: html.style.overflow,
       paddingRight: body.style.paddingRight,
     };
     // Removing the scrollbar would otherwise shift the whole layout sideways under the card.
-    const scrollbar = window.innerWidth - document.documentElement.clientWidth;
+    const scrollbar = window.innerWidth - html.clientWidth;
     body.style.overflow = 'hidden';
-    body.style.position = 'fixed';
-    body.style.top = `-${scrollY}px`;
-    body.style.width = '100%';
+    html.style.overflow = 'hidden';
     if (scrollbar > 0) body.style.paddingRight = `${scrollbar}px`;
 
     return () => {
-      body.style.overflow = prev.overflow;
-      body.style.position = prev.position;
-      body.style.top = prev.top;
-      body.style.width = prev.width;
+      body.style.overflow = prev.bodyOverflow;
+      html.style.overflow = prev.htmlOverflow;
       body.style.paddingRight = prev.paddingRight;
-      window.scrollTo(0, scrollY);
     };
   }, [visible]);
 
@@ -264,9 +257,14 @@ export function CookieConsent() {
           and the booking CTA. This avoids that by waiting for the visitor to have SEEN the property
           first (4s or first scroll, unchanged), then asking once and getting out of the way. The
           backdrop is light rather than a blackout, so the chalet stays visible behind the question. */}
-      <div className="fixed inset-0 z-[69] bg-black/25 backdrop-blur-[2px] transition-opacity duration-300" style={{ opacity: visible ? 1 : 0 }} />
+      <div className="fixed inset-x-0 top-0 z-[69] h-[100dvh] bg-black/25 backdrop-blur-[2px] transition-opacity duration-300" style={{ opacity: visible ? 1 : 0 }} />
       <div
-        className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-3 sm:p-4 transition-opacity duration-300"
+        /* `inset-0` resolves against the LARGE viewport on iOS Safari, which extends behind the
+           browser toolbar. Bottom-anchored on a phone, that put the decline link and the lower edge
+           of Accept underneath the toolbar: visible, and not tappable. `100dvh` tracks the viewport
+           as the toolbars come and go, and the safe-area padding keeps the buttons clear of the home
+           indicator. */
+        className="fixed inset-x-0 top-0 z-[70] flex h-[100dvh] items-end sm:items-center justify-center p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4 transition-opacity duration-300"
         style={{ opacity: visible ? 1 : 0 }}
       >
         {/* Now that the document is locked, the card is the only thing that may scroll — otherwise
@@ -306,13 +304,13 @@ export function CookieConsent() {
                 <div className="flex gap-2">
                   <button
                     onClick={handleRejectAll}
-                    className="flex-1 px-4 py-3 text-sm font-medium rounded-xl border border-border bg-background text-foreground hover:bg-muted active:scale-[0.99] transition-all"
+                    className="flex-1 touch-manipulation px-4 py-3 text-sm font-medium rounded-xl border border-border bg-background text-foreground hover:bg-muted active:scale-[0.99] transition-all"
                   >
                     {t('cookieConsent.rejectAll', 'Only necessary')}
                   </button>
                   <button
                     onClick={handleAcceptAll}
-                    className="flex-1 px-4 py-3 text-sm font-semibold rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90 active:scale-[0.99] transition-all"
+                    className="flex-1 touch-manipulation px-4 py-3 text-sm font-semibold rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90 active:scale-[0.99] transition-all"
                   >
                     {t('cookieConsent.acceptAll', 'Accept')}
                   </button>
