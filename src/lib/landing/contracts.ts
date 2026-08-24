@@ -60,6 +60,9 @@ export interface LandingModel {
    * far enough to reach any price at all, and none of them were told what it buys.
    */
   maxGuests?: number | null;
+  /** Split of the capacity for display: "5 adulți + 2 copii" is truthful where "7 persoane" is not. */
+  maxAdults?: number | null;
+  maxChildren?: number | null;
   menuItems: Array<{ label: string; url: string; isButton?: boolean }>;
   logoSrc?: string;
   logoAlt?: string;

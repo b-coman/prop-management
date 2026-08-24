@@ -312,23 +312,22 @@ export function CookieConsent() {
                     Preferences and the policy drop to a single quiet line so the CHOICE is the only
                     thing that reads as an action; four equal-weight links is what produced a room
                     full of people scrolling past. */}
-                {/* Two buttons, side by side, in the shape every consent notice on the Romanian web
-                    already uses. Declining as an underlined text link read as a link to more
-                    information rather than a decision, which is the opposite of what a notice
-                    needs: the visitor has to see two options and pick one without thinking. Accept
-                    keeps the emphasis; both are one tap, on the same layer, at the same size. */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleRejectAll}
-                    className="flex-1 touch-manipulation px-4 py-3 text-sm font-medium rounded-xl border border-border bg-background text-foreground hover:bg-muted active:scale-[0.99] transition-all"
-                  >
-                    {t('cookieConsent.rejectAll', 'Only necessary')}
-                  </button>
+                {/* Accept is the action; declining is a plain link beneath it. Emphasis may differ
+                    — accessibility may not — so the link stays ONE TAP, on the same layer, at a
+                    legible size with real contrast and a 44px tap target, never a grey whisper.
+                    `touch-manipulation` because the pair was untappable on iOS once already. */}
+                <div className="space-y-1">
                   <button
                     onClick={handleAcceptAll}
-                    className="flex-1 touch-manipulation px-4 py-3 text-sm font-semibold rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90 active:scale-[0.99] transition-all"
+                    className="w-full touch-manipulation rounded-xl bg-primary px-5 py-3 text-base font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:bg-primary/90 active:scale-[0.99]"
                   >
                     {t('cookieConsent.acceptAll', 'Accept')}
+                  </button>
+                  <button
+                    onClick={handleRejectAll}
+                    className="flex min-h-[44px] w-full touch-manipulation items-center justify-center rounded-lg text-sm text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
+                  >
+                    {t('cookieConsent.rejectAll', 'Only necessary')}
                   </button>
                 </div>
                 <div className="flex items-center justify-center gap-3 text-[11px] text-muted-foreground/70">

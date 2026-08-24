@@ -130,6 +130,14 @@ export interface Property {
   baseCurrency: CurrencyCode; // The currency in which pricePerNight & advertisedRate are set
   cleaningFee?: number;
   maxGuests: number;
+  /**
+   * Optional split of `maxGuests` for display. The booking engine still prices on `maxGuests`;
+   * these exist because "up to 7 guests" overstates what the place actually sleeps comfortably —
+   * the owner's real figure is 5 adults plus 2 children, and a landing page that promises seven
+   * adults is selling something it cannot deliver.
+   */
+  maxAdults?: number;
+  maxChildren?: number;
   baseOccupancy: number; // Number of guests included in pricePerNight
   defaultMinimumStay: number; // Required minimum nights for booking
   extraGuestFee?: number; // Fee per additional guest per night, in property's baseCurrency

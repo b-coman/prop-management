@@ -134,11 +134,18 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                       <span className="text-white/80"> · {m.ratings.count} {t(lang, 'reviews', 'recenzii')}</span></span>
                   </li>
                 )}
-                {m.maxGuests ? (
+                {(m.maxAdults || m.maxGuests) ? (
                   <li className="inline-flex items-center gap-1.5">
                     <span aria-hidden className="hidden text-white/40 sm:inline">·</span>
                     <Users className="h-4 w-4 flex-shrink-0" aria-hidden />
-                    <span>{t(lang, `Whole chalet, up to ${m.maxGuests} guests`, `Toată casa, până la ${m.maxGuests} persoane`)}</span>
+                    {/* The adults/children split when the property states one. "Up to 7 guests" is the
+                        booking engine's occupancy ceiling, not a promise the place can make to seven
+                        adults — saying so on the page would be selling something it cannot deliver. */}
+                    <span>{m.maxAdults && m.maxChildren
+                      ? t(lang, `Whole chalet, ${m.maxAdults} adults + ${m.maxChildren} children`, `Toată casa, ${m.maxAdults} adulți + ${m.maxChildren} copii`)
+                      : m.maxAdults
+                        ? t(lang, `Whole chalet, up to ${m.maxAdults} adults`, `Toată casa, până la ${m.maxAdults} adulți`)
+                        : t(lang, `Whole chalet, up to ${m.maxGuests} guests`, `Toată casa, până la ${m.maxGuests} persoane`)}</span>
                   </li>
                 ) : null}
                 {m.advertisedRate ? (

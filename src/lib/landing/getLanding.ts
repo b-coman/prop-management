@@ -134,6 +134,8 @@ export async function buildLandingModel(
     themeId: property.themeId || 'airbnb',
     baseCurrency, advertisedRate: property.advertisedRate || property.pricePerNight,
     maxGuests: (property as any).maxGuests ?? null,
+    maxAdults: (property as any).maxAdults ?? null,
+    maxChildren: (property as any).maxChildren ?? null,
     menuItems, logoSrc, logoAlt, footer,
     ratings: property.ratings ? { average: property.ratings.average, count: property.ratings.count } : null,
     hero: {
