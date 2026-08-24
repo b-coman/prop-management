@@ -99,6 +99,8 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
           advertisedRate={m.advertisedRate}
           baseCurrency={m.baseCurrency as never}
           onNavClick={track.trackNavToSite}
+          bookingHref={m.checkDatesUrl}
+          onBookingClick={track.trackCtaClick}
         />
 
         {/* ── HERO ── */}

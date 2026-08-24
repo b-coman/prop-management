@@ -108,7 +108,12 @@ export function useLandingTracking(base: LandingEventBase, product?: LandingProd
       }),
 
     /** Hero / footer booking CTAs. Without `position` these collapse into one meaningless total. */
-    trackCtaClick: (position: 'hero' | 'footer') => emit('check_dates_click', base, { position }),
+    /**
+     * `header` and `mobile_bar` are the always-visible buttons in the shared header. They were
+     * untracked, and worse than untracked: with no #hero on a landing page the header's fallback
+     * navigated paid visitors to the property homepage instead of the booking flow.
+     */
+    trackCtaClick: (position: 'hero' | 'footer' | 'header' | 'mobile_bar') => emit('check_dates_click', base, { position }),
 
     /** Leaving the landing page for the main site — the page did not close the argument. */
     trackNavToSite: (destination: string) => emit('nav_to_site', base, { destination }),

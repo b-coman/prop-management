@@ -37,6 +37,18 @@ interface HeaderProps {
    * question unanswerable.
    */
   onNavClick?: (destination: string) => void;
+  /**
+   * Where the "Check availability" buttons should go. Unset on the main site, which keeps the
+   * scroll-to-the-hero-widget behaviour below.
+   *
+   * Landing pages must set it. They have no `#hero` element, so the fallback branch was firing on
+   * every click and pushing the visitor to the PROPERTY HOMEPAGE — off the campaign page they were
+   * paid to reach, losing the offer, the dates and the example stays. Two buttons did this, the
+   * desktop header and the mobile bottom bar, and both are visible the entire time.
+   */
+  bookingHref?: string;
+  /** Reports which of the two header buttons was used, so they stop being invisible in the funnel. */
+  onBookingClick?: (position: 'header' | 'mobile_bar') => void;
 }
 
 export function Header({
@@ -50,6 +62,8 @@ export function Header({
   advertisedRateType,
   baseCurrency,
   onNavClick,
+  bookingHref,
+  onBookingClick,
 }: HeaderProps) {
   const basePath = isCustomDomain ? '' : `/properties/${propertySlug}`;
   const [isScrolled, setIsScrolled] = useState(false);
@@ -125,7 +139,14 @@ export function Header({
     setShowBookingCTA(isScrolled);
   }, [isScrolled]);
 
-  const handleBookingCTA = useCallback(() => {
+  const handleBookingCTA = useCallback((position: 'header' | 'mobile_bar' = 'header') => {
+    // An explicit destination wins. Landing pages have no hero widget to scroll to, so without this
+    // the branch below navigated them away from the page entirely.
+    if (bookingHref) {
+      onBookingClick?.(position);
+      router.push(bookingHref);
+      return;
+    }
     const hero = document.getElementById('hero');
     if (hero) {
       hero.scrollIntoView({ behavior: 'smooth' });
@@ -142,7 +163,7 @@ export function Header({
         : getLocalizedPath(basePath);
       router.push(homePath);
     }
-  }, [isCustomDomain, currentLang, getLocalizedPath, basePath, router]);
+  }, [isCustomDomain, currentLang, getLocalizedPath, basePath, router, bookingHref, onBookingClick]);
 
   // Apply theme-based header styling when scroll state or theme changes
   useEffect(() => {
@@ -306,7 +327,7 @@ export function Header({
             variant={buttonVariant}
             className={cn("whitespace-nowrap items-center gap-1.5", buttonExtraClasses)}
             data-theme-aware="true"
-            onClick={handleBookingCTA}
+            onClick={() => handleBookingCTA('header')}
           >
             <Calendar className="h-4 w-4" />
             {t('booking.checkAvailability', 'Check Availability')}
@@ -483,7 +504,7 @@ export function Header({
         <Button
           size={formattedPrice ? "default" : "lg"}
           className={cn("gap-1.5", !formattedPrice && "w-full")}
-          onClick={handleBookingCTA}
+          onClick={() => handleBookingCTA('mobile_bar')}
         >
           <Calendar className="h-4 w-4" />
           {t('booking.checkAvailability', 'Check Availability')}
