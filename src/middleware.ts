@@ -89,6 +89,12 @@ export async function middleware(request: NextRequest) {
     const langFromPath = segments.length >= 3 && SUPPORTED_LANGUAGES.includes(segments[2]) ? segments[2] : DEFAULT_LANGUAGE;
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-language', langFromPath);
+    // The property is NOT in a landing page's path (/lp/{campaign}/{lang}), so unlike the
+    // /properties/ branch below we cannot set x-property-slug here. Expose the campaign instead and
+    // let the root layout resolve campaign -> property -> pixel. Without this the layout resolved no
+    // property, MetaPixel rendered null, and `fbq` never existed on the ONLY pages the ads point at:
+    // every ViewContent landed on a page with no pixel, and paid traffic built no audience at all.
+    if (segments[1]) requestHeaders.set('x-campaign-slug', segments[1]);
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
 

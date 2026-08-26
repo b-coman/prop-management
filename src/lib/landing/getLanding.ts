@@ -4,6 +4,7 @@
  * the client renderer consumes (docs/landing-page-engine-design.md). Reuses the same data the property
  * pages use (getPropertyBySlug, propertyOverrides, websiteTemplates) — no duplication.
  */
+import { cache } from 'react';
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { getPropertyBySlug } from '@/lib/property-utils';
 import { serverTranslateContent } from '@/lib/server-language-utils';
@@ -26,13 +27,19 @@ function resolveImage(storagePath: string | undefined, images: any[], lang: stri
   };
 }
 
-/** Fetch the raw config (Admin SDK). Null if not found. */
-export async function getLandingConfig(slug: string): Promise<LandingConfig | null> {
+/**
+ * Fetch the raw config (Admin SDK). Null if not found.
+ *
+ * `cache()`d per request: generateMetadata, the page and now the root layout (which needs the
+ * property behind the campaign to resolve the Meta pixel) all ask for the same document, and
+ * without this that is three Firestore reads on the hottest paid-traffic page. One read now.
+ */
+export const getLandingConfig = cache(async (slug: string): Promise<LandingConfig | null> => {
   const db = await getAdminDb();
   const snap = await db.collection('landingPages').doc(slug).get();
   if (!snap.exists) return null;
   return { slug, ...(snap.data() as Omit<LandingConfig, 'slug'>) };
-}
+});
 
 /**
  * Build the full render model for a landing page in a given language. Returns null if the config or its

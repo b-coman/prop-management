@@ -12,6 +12,7 @@ import { LanguageProvider } from '@/lib/language-system'; // Import unified lang
 import { GoogleTagManager, GoogleTagManagerNoscript } from '@/components/tracking/gtm';
 import { MetaPixel } from '@/components/tracking/meta-pixel';
 import { getPixelIdForProperty } from '@/lib/meta-pixels';
+import { getLandingConfig } from '@/lib/landing/getLanding';
 import { CookieConsent } from '@/components/cookie-consent';
 import { UTMCapture } from '@/components/tracking/utm-capture';
 import { LanguageHtmlUpdater } from '@/components/language-html-updater';
@@ -31,6 +32,17 @@ export const metadata: Metadata = {
   description: 'Book unique vacation rentals like the Prahova Mountain Chalet and Coltei Apartment Bucharest.', // Updated description
 };
 
+/**
+ * The property behind a campaign landing page (/lp/{campaign}), so its pixel loads like every other
+ * page's. Returns null for an unknown campaign, which resolves to no pixel - same multi-property
+ * discipline as an unconfigured property.
+ */
+async function propertyForCampaign(campaign: string | null): Promise<string | null> {
+  if (!campaign) return null;
+  const config = await getLandingConfig(campaign);
+  return config?.propertyId ?? null;
+}
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -40,7 +52,11 @@ export default async function RootLayout({
   const headersList = await headers();
   const detectedLang = headersList.get('x-language') || DEFAULT_LANGUAGE;
   // Per-property Meta pixel: only the current property's pixel loads (multi-property).
-  const metaPixelId = await getPixelIdForProperty(headersList.get('x-property-slug'));
+  // Campaign landing pages have no property in their URL, so middleware hands us the campaign and we
+  // resolve the owning property here. Skipping this is what left /lp/* with NO pixel at all.
+  const metaPixelId = await getPixelIdForProperty(
+    headersList.get('x-property-slug') ?? (await propertyForCampaign(headersList.get('x-campaign-slug')))
+  );
 
   return (
     <html lang={detectedLang}>
