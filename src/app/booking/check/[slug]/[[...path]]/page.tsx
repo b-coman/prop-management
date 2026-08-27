@@ -54,6 +54,8 @@ import BookingClientLayout from './booking-client-layout';
 import { AvailabilityErrorHandler } from '../../error-handler';
 import { serverTranslateContent } from '@/lib/server-language-utils';
 import { BookingPageV2 } from '@/components/booking-v2';
+import { getChannels } from '@/services/channelService';
+import type { OtaLink } from '@/components/booking-v2/components';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
 import { LanguageHtmlUpdater } from '@/components/language-html-updater';
 import { LanguageProvider } from '@/lib/language-system';
@@ -166,6 +168,20 @@ export default async function BookingCheckPage({ params, searchParams }: Booking
 
   logger.debug('Property found', { propertyName: property.name, slug });
 
+  // The property's own OTA listings, for the "also on Airbnb / Booking.com" line at the foot of the
+  // page. Read from the `channels` collection so it stays per-property and follows whatever the
+  // owner has actually listed — a delisted channel (Travelminit, Aug 2026) has active:false and
+  // drops out on its own. Never fatal: a channels read that fails costs us a footer, not the page.
+  let otaLinks: OtaLink[] = [];
+  try {
+    const channels = await getChannels(slug);
+    otaLinks = channels.active
+      .filter((c) => c.channelId !== 'direct' && !!c.listingUrl)
+      .map((c) => ({ id: c.channelId, label: c.displayName, url: c.listingUrl as string }));
+  } catch (err) {
+    logger.warn('Could not read channels for OTA links', { slug, error: (err as Error)?.message });
+  }
+
   // Basic validation for search params (only dates now)
   if (!checkIn || !checkOut) {
     logger.warn('Missing date parameters in URL', {
@@ -251,6 +267,7 @@ export default async function BookingCheckPage({ params, searchParams }: Booking
               initialCurrency={currency as any}
               initialLanguage={detectedLanguage}
               themeId={propertyThemeId}
+              otaLinks={otaLinks}
             />
           </BookingClientLayout>
         </LanguageProvider>

@@ -766,8 +766,14 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
 
     return (
       <div className="text-center py-4">
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg space-y-3">
-          <p className="text-red-800 text-sm font-medium">{translatedError}</p>
+        {/* THE HELP MUST NOT WEAR THE ERROR PALETTE.
+            This block used to be bg-red-50 / border-red-200 / text-red-800 throughout — including
+            the suggestions, which are the one genuinely useful thing on the screen. Red means stop,
+            and these options are the opposite of stop: they are the way forward, and dressing them
+            as part of the failure buried them. The news stays one quiet line; the alternatives now
+            read as offers. */}
+        <div className="p-3 bg-muted/40 border border-border rounded-lg space-y-3">
+          <p className="text-foreground text-sm font-medium">{translatedError}</p>
 
           {suggestions.length > 0 && (
             <div className="flex flex-wrap justify-center gap-2">
@@ -795,16 +801,16 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
                       setCheckInDate(normalizedCheckIn);
                       setCheckOutDate(normalizedCheckOut);
                     }}
-                    className="inline-flex flex-col items-center gap-0.5 px-3 py-2 bg-white border border-red-200 rounded-xl text-xs font-medium text-red-800 hover:bg-red-100 hover:border-red-300 transition-colors cursor-pointer"
+                    className="inline-flex flex-col items-center gap-0.5 px-3 py-2 bg-background border border-border rounded-xl text-xs font-medium text-foreground hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer min-h-[44px]"
                   >
                     <span className="inline-flex items-center gap-1.5">
                       <CalendarDays className="h-3.5 w-3.5" />
                       {format(suggestion.checkIn, suggestionDateFormat, { locale: suggestionLocale })} – {format(suggestion.checkOut, suggestionDateFormat, { locale: suggestionLocale })}
-                      <span className="text-red-500">({nightCount} {nightLabel})</span>
+                      <span className="text-muted-foreground">({nightCount} {nightLabel})</span>
                     </span>
                     {/* Say WHY this option is being offered — "Just before" reads very differently from
                         "Your dates, shorter stay", and the guest can pick on meaning, not just on dates. */}
-                    <span className="text-[11px] font-normal text-red-500/90">
+                    <span className="text-[11px] font-normal text-muted-foreground">
                       {reasonLabel(suggestion.reason, nightCount)}
                     </span>
                   </button>

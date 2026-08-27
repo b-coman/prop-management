@@ -20,7 +20,8 @@
 
 import React, { useEffect, useState, useRef, memo } from 'react';
 import { BookingProvider } from '../contexts';
-import { DateAndGuestSelector, PricingSummary, MobilePriceDrawer, MobileDateSelectorWrapper } from '../components';
+import { DateAndGuestSelector, PricingSummary, MobilePriceDrawer, MobileDateSelectorWrapper, TalkActions, OtaAlternatives } from '../components';
+import type { OtaLink } from '../components';
 import { ContactFormV2, HoldFormV2, BookingFormV2 } from '../forms';
 import type { Property, CurrencyCode } from '@/types';
 import { loggers } from '@/lib/logger';
@@ -93,10 +94,12 @@ interface BookingPageV2Props {
   initialLanguage?: string;
   themeId?: string;
   className?: string;
+  /** The property's own OTA listings, resolved server-side from the `channels` collection. */
+  otaLinks?: OtaLink[];
 }
 
 // Internal component that uses the booking context
-function BookingPageContent({ className }: { className?: string }) {
+function BookingPageContent({ className, otaLinks = [] }: { className?: string; otaLinks?: OtaLink[] }) {
   const {
     property,
     checkInDate,
@@ -388,25 +391,37 @@ function BookingPageContent({ className }: { className?: string }) {
                     >
                       {t('booking.holdDates', 'Hold Dates')}
                     </button>
+                    {/* The talk path replaces the old "Contact Host" button rather than joining it.
+                        That button opened a four-field form before anyone could say a word, which is
+                        the friction, not the cure — and a panel of five equal buttons reads as five
+                        equal choices. The form is still here, one text link down. */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <span className="h-px flex-1 bg-border" />
+                      <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                        {t('booking.haveAQuestion', 'Have a question?')}
+                      </span>
+                      <span className="h-px flex-1 bg-border" />
+                    </div>
+                    <TalkActions position="summary_panel" />
                     <button
                       type="button"
                       onClick={() => handleTabClick('contact')}
-                      className={`w-full px-4 py-3 rounded-md font-medium text-sm transition-all duration-200 ${
-                        selectedAction === 'contact'
-                          ? 'bg-primary text-primary-foreground shadow-sm'
-                          : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
-                      }`}
+                      className="w-full text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
                     >
-                      {t('booking.contactHost', 'Contact Host')}
+                      {t('booking.orSendAMessage', 'or send a message')}
                     </button>
                   </div>
                 </CardContent>
               </Card>
             ) : hasValidDates && pricingError ? (
-              <Card className="border-red-200 bg-red-50">
+              // Same reasoning as the larger unavailable card in the content column: a date that is
+              // already booked is information, not an error the visitor caused. The suggestions sit
+              // directly above this in the selector, so a red block here framed them as part of a
+              // failure. (The form-submission error further down IS a real error and stays red.)
+              <Card>
                 <CardContent className="py-8 text-center">
-                  <CalendarX2 className="h-12 w-12 mx-auto text-red-400 mb-4" />
-                  <p className="text-sm text-red-700 font-medium">
+                  <CalendarX2 className="h-12 w-12 mx-auto text-muted-foreground/40 mb-4" />
+                  <p className="text-sm text-foreground font-medium">
                     {t('booking.datesNotAvailable', "These dates aren't available")}
                   </p>
                 </CardContent>
@@ -777,17 +792,33 @@ function BookingPageContent({ className }: { className?: string }) {
           {/* Unavailable state - dates selected, asked, and the answer really was no. */}
           {!canShowBookingOptions && hasValidDates && !isLoadingPricing && hasPricingAnswer && (
             <div className="flex items-center justify-center min-h-96">
-              <Card className="w-full max-w-md border-red-200">
-                <CardContent className="py-12 text-center">
+              {/* 29-37% of everyone who reaches this page lands here, which makes it the busiest
+                  state on the page after "priced". It used to be styled entirely in the error
+                  palette — red icon, red heading, red border — which reads as "stop" at the exact
+                  moment the visitor needs to be handed the next step. The news is now one quiet
+                  line, and the two ways forward (the suggestions to the left, a person on
+                  WhatsApp) carry the weight instead.
+
+                  Deliberately NO OTA links here: the calendar is iCal-synced, so a date taken
+                  direct is taken on Airbnb and Booking too — offering them would be a second
+                  closed door. */}
+              <Card className="w-full max-w-md">
+                <CardContent className="py-10 text-center">
                   <div className="mb-4">
-                    <CalendarX2 className="h-16 w-16 mx-auto text-red-300" />
+                    <CalendarX2 className="h-12 w-12 mx-auto text-muted-foreground/40" />
                   </div>
-                  <h3 className="text-lg font-semibold mb-2 text-red-800">
+                  <h3 className="text-lg font-semibold mb-2">
                     {t('booking.datesUnavailableTitle', 'These Dates Are Unavailable')}
                   </h3>
                   <p className="text-sm text-muted-foreground">
                     {t('booking.datesUnavailableHint', "The dates you selected aren't available. Check the suggestions on the left, or try different dates.")}
                   </p>
+                  <div className="mt-6 pt-5 border-t border-border">
+                    <p className="mb-3 text-sm text-muted-foreground">
+                      {t('booking.askWhatIsFree', "Or ask me — I'll tell you what's free.")}
+                    </p>
+                    <TalkActions position="unavailable_dates" variant="unavailable" />
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -811,6 +842,12 @@ function BookingPageContent({ className }: { className?: string }) {
               </Card>
             </div>
           )}
+
+          {/* Last thing on the page, by design. Placed beside the price it would invite a comparison
+              we don't control; placed here it reads as reassurance to someone who was leaving
+              anyway. Text links, never buttons — see OtaAlternatives for why the economics make
+              this worth offering at all. */}
+          <OtaAlternatives links={otaLinks} className="mt-10" />
         </div>
       </div>
       </div>
@@ -863,17 +900,11 @@ function BookingPageContent({ className }: { className?: string }) {
               >
                 {t('booking.holdDates', 'Hold Dates')}
               </button>
-              <button
-                type="button"
-                onClick={() => handleTabClick('contact')}
-                className={`flex-1 py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 ${
-                  selectedAction === 'contact'
-                    ? 'bg-primary text-primary-foreground shadow-md' 
-                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                }`}
-              >
-                {t('common.contact', 'Contact')}
-              </button>
+              {/* 87% of this page's traffic is mobile and this bar is thumb territory, so the
+                  primary CTA has to stay dominant: WhatsApp goes in as a 44px icon beside it, not a
+                  third equal-width button. The contact FORM is reachable from the link under the
+                  form area — it does not need a permanent slot in the sticky bar. */}
+              <TalkActions position="mobile_bar" compact />
             </div>
           </div>
         </div>
@@ -888,7 +919,8 @@ export function BookingPageV2({
   initialCurrency, 
   initialLanguage,
   themeId,
-  className 
+  className,
+  otaLinks
 }: BookingPageV2Props) {
   const { setTheme } = useTheme();
   const [isMounted, setIsMounted] = useState(false);
@@ -911,7 +943,7 @@ export function BookingPageV2({
       property={property}
       initialCurrency={initialCurrency}
     >
-      <BookingPageContent className={className} />
+      <BookingPageContent className={className} otaLinks={otaLinks} />
     </BookingProvider>
   );
 }

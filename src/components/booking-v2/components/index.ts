@@ -12,3 +12,5 @@ export { DateAndGuestSelector } from './DateAndGuestSelector';
 export { PricingSummary } from './PricingSummary';
 export { MobilePriceDrawer } from './MobilePriceDrawer';
 export { MobileDateSelectorWrapper } from './MobileDateSelectorWrapper';
+export { TalkActions, OtaAlternatives, useTalkLinks, reportTalkClick } from './GuestContactActions';
+export type { OtaLink, TalkPosition } from './GuestContactActions';

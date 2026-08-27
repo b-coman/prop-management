@@ -271,7 +271,19 @@
       "bookingProcessed": "Your {{type}} (ID: {{id}}) has been processed. You should receive a confirmation email shortly.",
       "noImage": "No image",
       "notes": "Notes"
-    }
+    },
+    "haveAQuestion": "Have a question?",
+    "orSendAMessage": "or send a message",
+    "askWhatIsFree": "Or ask me — I'll tell you what's free.",
+    "whatsApp": "WhatsApp",
+    "callUs": "Call",
+    "writeOnWhatsApp": "Write on WhatsApp",
+    "alsoListedOn": "Also on",
+    "directIsUsuallyCheaper": "Booking here is usually 10-15% less.",
+    "waGreeting": "Hello! I'm interested in {{property}}.",
+    "waDates": "Dates: {{stay}}, {{guests}} guests.",
+    "waQuoted": "Quoted total: {{total}} {{currency}}.",
+    "waUnavailable": "Hello! I tried {{stay}} at {{property}} but those dates show as taken. What else is free?"
   },
   "property": {
     "amenities": "Amenities",

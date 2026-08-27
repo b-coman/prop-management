@@ -271,7 +271,19 @@
     "errors": {
       "invalidDates": "Date invalide",
       "invalidDatesDescription": "Te rugăm să selectezi date valide de check-in și check-out."
-    }
+    },
+    "haveAQuestion": "Ai o întrebare?",
+    "orSendAMessage": "sau trimite un mesaj",
+    "askWhatIsFree": "Sau scrie-mi — îți spun ce e liber.",
+    "whatsApp": "WhatsApp",
+    "callUs": "Sună",
+    "writeOnWhatsApp": "Scrie pe WhatsApp",
+    "alsoListedOn": "Și pe",
+    "directIsUsuallyCheaper": "Rezervarea directă e de obicei cu 10-15% mai ieftină.",
+    "waGreeting": "Bună ziua! Sunt interesat de {{property}}.",
+    "waDates": "Perioada: {{stay}}, {{guests}} persoane.",
+    "waQuoted": "Total afișat: {{total}} {{currency}}.",
+    "waUnavailable": "Bună ziua! Am încercat {{stay}} la {{property}}, dar datele apar ocupate. Ce alte perioade aveți libere?"
   },
   "property": {
     "amenities": "Facilități",
