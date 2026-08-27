@@ -32,6 +32,7 @@ import React from 'react';
 import { useBooking } from '../contexts';
 import { useLanguage } from '@/hooks/useLanguage';
 import { trackUiEvent } from '@/lib/tracking';
+import { trackMetaContact } from '@/lib/meta-tracking';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
 
@@ -124,9 +125,15 @@ export function useTalkLinks(variant: 'general' | 'unavailable' = 'general') {
   };
 }
 
-/** One place to report a talk click, so channel and position are always both present. */
+/**
+ * One place to report a talk click, so channel and position are always both present — and so the
+ * Meta side cannot be forgotten by a future caller. GA4 gets the detail (which control, where on the
+ * page); Meta gets the standard `Contact` event, which is the only mid-funnel intent signal this
+ * property produces. See `trackMetaContact` for why it is worth collecting long before it is usable.
+ */
 export function reportTalkClick(channel: 'whatsapp' | 'call', position: TalkPosition) {
   trackUiEvent('talk_click', { talk_channel: channel, talk_position: position });
+  trackMetaContact(channel);
 }
 
 /**

@@ -121,6 +121,28 @@ export function trackMetaViewContentWhenReady(property: ViewedProperty): () => v
 }
 
 /**
+ * `Contact` — someone opened WhatsApp or tapped the phone number from the booking page.
+ *
+ * WHY BOTHER, GIVEN THE VOLUME. The ad set optimises on CONTENT_VIEW, which on a one-property site
+ * is barely more selective than "arrived and the pixel fired". This is real intent: a person who
+ * opens a conversation about specific dates is far closer to booking than one who scrolled a page.
+ * `Contact` is a Meta STANDARD event, so it needs no custom-conversion plumbing.
+ *
+ * It will NOT be usable as an optimisation target for a long time — at current traffic it is a
+ * couple of events a week against Meta's ~50/week learning threshold, and switching the ad set to
+ * it would starve delivery. That is exactly why it starts now: pixel history cannot be created
+ * retroactively, so the option only exists in a few months if the collecting begins today.
+ *
+ * Fire-and-forget, and silent without consent — `fbq` does not exist until the pixel loads, so this
+ * no-ops for anyone who declined, which is the correct behaviour rather than a gap.
+ */
+export function trackMetaContact(channel: 'whatsapp' | 'call'): void {
+  const fbq = getFbq();
+  if (!fbq) return;
+  fbq('track', 'Contact', { content_category: channel });
+}
+
+/**
  * Browser Purchase on the booking-success page — deduped against the server-side
  * CAPI Purchase via the deterministic eventID.
  */

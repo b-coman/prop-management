@@ -528,6 +528,7 @@ const externalBookingSchema = z.object({
   checkInDate: z.string().min(1, 'Check-in date is required'),
   checkOutDate: z.string().min(1, 'Check-out date is required'),
   bookedAt: z.string().optional(),
+  referredBy: z.string().optional(),
   numberOfGuests: z.coerce.number().int().min(1).default(1),
   numberOfAdults: z.coerce.number().int().min(1).optional(),
   numberOfChildren: z.coerce.number().int().min(0).optional(),
@@ -631,6 +632,7 @@ export async function createExternalBookingAction(
       },
       language: data.language || 'en',
       notes: data.notes || null,
+      referredBy: data.referredBy || null,
       bookedAt: Timestamp.fromDate(bookedAt),
       createdAt: Timestamp.fromDate(now),
       updatedAt: Timestamp.fromDate(now),
@@ -682,6 +684,7 @@ const editBookingSchema = z.object({
   checkInDate: z.string().min(1),
   checkOutDate: z.string().min(1),
   bookedAt: z.string().optional(),
+  referredBy: z.string().optional(),
   numberOfGuests: z.coerce.number().int().min(1).default(1),
   numberOfAdults: z.coerce.number().int().min(1).optional(),
   numberOfChildren: z.coerce.number().int().min(0).optional(),
@@ -788,6 +791,7 @@ export async function editBookingAction(
       'paymentInfo.amount': data.netPayout,
       language: data.language || 'en',
       notes: data.notes || null,
+      referredBy: data.referredBy || null,
       updatedAt: FieldValue.serverTimestamp(),
     };
 

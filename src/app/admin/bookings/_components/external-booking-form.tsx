@@ -59,6 +59,7 @@ function cleanPhone(raw: string): string {
 const formSchema = z.object({
   propertyId: z.string().min(1, 'Property is required'),
   source: z.string().min(1, 'Source is required'),
+  referredBy: z.string().optional(),
   externalId: z.string().optional(),
   checkInDate: z.string().min(1, 'Check-in date is required'),
   checkOutDate: z.string().min(1, 'Check-out date is required'),
@@ -116,6 +117,7 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess, comp
     defaultValues: mode === 'edit' && booking ? {
       propertyId: booking.propertyId,
       source: booking.source || '',
+      referredBy: (booking as any).referredBy || '',
       externalId: booking.externalId || '',
       checkInDate: booking.checkInDate ? String(booking.checkInDate).split('T')[0] : '',
       checkOutDate: booking.checkOutDate ? String(booking.checkOutDate).split('T')[0] : '',
@@ -138,6 +140,7 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess, comp
     } : {
       propertyId: defaultProperty?.id || '',
       source: '',
+      referredBy: '',
       externalId: '',
       checkInDate: '',
       checkOutDate: '',
@@ -511,6 +514,29 @@ function FullForm({ form, mode, properties, nights, isPending, hardDisabledDates
                     {properties.map(p => (
                       <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            {/* WHAT PRODUCED THE CONVERSATION, as opposed to which channel the money came through.
+                Without it a WhatsApp enquiry that becomes a booking is typed in as source 'direct'
+                and is indistinguishable from an organic visit — so the talk buttons on the booking
+                page generate clicks we can count and bookings we can never trace back to them. */}
+            <FormField control={form.control} name="referredBy" render={({ field }) => (
+              <FormItem>
+                <FormLabel>How did they reach you? <span className="font-normal text-muted-foreground">(optional)</span></FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl><SelectTrigger><SelectValue placeholder="Unknown" /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                    <SelectItem value="phone">Phone call</SelectItem>
+                    <SelectItem value="email">Email</SelectItem>
+                    <SelectItem value="returning_guest">Returning guest</SelectItem>
+                    <SelectItem value="referral">Referral / word of mouth</SelectItem>
+                    <SelectItem value="website">Website form</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />

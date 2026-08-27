@@ -381,6 +381,14 @@ export interface Guest {
    */
   nameSource?: 'booking' | 'pushname' | 'manual' | 'unknown';
   leadSource?: string;                        // 'whatsapp' | 'phone' | 'website' | ...
+  /**
+   * HOW they reached us, for a booking typed in by hand. `source` says which CHANNEL the money came
+   * through ('direct', 'airbnb'); this says what actually produced the conversation. A guest who
+   * taps WhatsApp on the booking page and books over the phone is entered as source 'direct' and is
+   * then indistinguishable from someone who found the site on Google — so the talk buttons generate
+   * clicks we can count and bookings we can never attribute to them. One field closes that.
+   */
+  referredBy?: 'whatsapp' | 'phone' | 'email' | 'returning_guest' | 'referral' | 'website' | 'other' | null;
   firstContactAt?: string;                    // 'YYYY-MM-DD' — a lead's recency anchor (there is no stay)
   nonConversionReason?: NonConversionReason;
   requestedPeriods?: RequestedPeriod[];
