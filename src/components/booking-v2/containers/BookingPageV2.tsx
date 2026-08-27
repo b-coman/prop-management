@@ -868,7 +868,7 @@ function BookingPageContent({ className, otaLinks = [] }: { className?: string; 
               <button
                 type="button"
                 onClick={() => handleTabClick('contact')}
-                className="text-sm text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
+                className="inline-flex min-h-[44px] items-center px-2 text-sm text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
               >
                 {t('booking.orSendAMessage', 'or send a message')}
               </button>

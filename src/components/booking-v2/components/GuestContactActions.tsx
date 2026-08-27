@@ -154,7 +154,10 @@ export function CallIconButton({ position = 'mobile_header' }: { position?: Talk
       href={links.tel}
       aria-label={t('booking.callUs', 'Call')}
       onClick={() => reportTalkClick('call', position)}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      // 44px, not the 36px this first shipped at. Audited on production at 390px: it was the only
+      // control I added that fell under the guideline, in the header, on the hand-held half of the
+      // traffic. Its neighbours are 40px so the header grows ~3px; the icon itself stays 18px.
+      className="inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
     >
       <PhoneGlyph className="h-[18px] w-[18px]" />
     </a>
