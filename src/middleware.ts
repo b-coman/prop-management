@@ -1,5 +1,6 @@
 // src/middleware.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { NO_TRACK_COOKIE, NO_TRACK_PARAM, NO_TRACK_HEADER, NO_TRACK_MAX_AGE, isInternalPath } from '@/lib/no-track';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
 import { DOMAIN_TO_PROPERTY_MAP } from '@/lib/domain-map';
 
@@ -63,6 +64,52 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // ── Keep the owner's own visits out of the numbers ──────────────────────────────────────────
+  //
+  // `?rs_test=1` sets a year-long cookie and bounces to the clean URL; `?rs_test=0` clears it. The
+  // root layout reads the cookie and renders NO GTM and NO Meta pixel, which is stronger than
+  // loading them and asking them not to send. See src/lib/no-track.ts for why the usual answers
+  // (GA4 IP filters, declining consent, browser extensions) do not cover a phone on mobile data.
+  //
+  // The redirect is built from x-forwarded-host, not `request.url`: App Hosting sets `host` to the
+  // internal Cloud Run URL, so redirecting off nextUrl would bounce the visitor out of the custom
+  // domain entirely.
+  const trackParam = url.searchParams.get(NO_TRACK_PARAM);
+  if (trackParam === '1' || trackParam === '0') {
+    url.searchParams.delete(NO_TRACK_PARAM);
+    // Build the destination from the HOST HEADER, not from nextUrl. Two reasons, both found by
+    // testing: nextUrl does not carry the port (locally this redirected to http://localhost/ro and
+    // landed on a Chrome error page), and on App Hosting `host` is the internal Cloud Run URL, so
+    // trusting it would bounce a visitor off the custom domain. hostHeader keeps the port for dev;
+    // forwardedHost is the real client-facing domain in production.
+    const targetHost = forwardedHost || hostHeader;
+    const proto =
+      request.headers.get('x-forwarded-proto') ??
+      (targetHost.startsWith('localhost') || targetHost.startsWith('127.0.0.1') ? 'http' : 'https');
+    const dest = new URL(`${url.pathname}${url.search}`, `${proto}://${targetHost}`);
+    const res = NextResponse.redirect(dest);
+    if (trackParam === '1') {
+      res.cookies.set(NO_TRACK_COOKIE, '1', {
+        maxAge: NO_TRACK_MAX_AGE,
+        path: '/',
+        sameSite: 'lax',
+        httpOnly: true,
+        secure: proto === 'https',
+      });
+    } else {
+      res.cookies.delete(NO_TRACK_COOKIE);
+    }
+    return res;
+  }
+
+  // The admin dashboard renders the same root layout as the guest site, so every hour spent in it
+  // was firing pageviews into the property used to judge the guest funnel. Internal by definition.
+  if (isInternalPath(pathname)) {
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set(NO_TRACK_HEADER, '1');
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
+
   // Guest guide: throttle token guessing before it reaches Firestore.
   if (pathname.startsWith('/g/') || pathname.startsWith('/guide/')) {
     if (guideRateLimited(request)) {
@@ -71,11 +118,6 @@ export async function middleware(request: NextRequest) {
         headers: { 'Retry-After': '60', 'Cache-Control': 'no-store' },
       });
     }
-    return NextResponse.next();
-  }
-
-  // Admin routes - let the pages handle auth (simpler, avoids loops)
-  if (pathname.startsWith('/admin')) {
     return NextResponse.next();
   }
 

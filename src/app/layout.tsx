@@ -16,7 +16,8 @@ import { getLandingConfig } from '@/lib/landing/getLanding';
 import { CookieConsent } from '@/components/cookie-consent';
 import { UTMCapture } from '@/components/tracking/utm-capture';
 import { LanguageHtmlUpdater } from '@/components/language-html-updater';
-import { headers } from 'next/headers';
+import { headers, cookies } from 'next/headers';
+import { NO_TRACK_COOKIE, NO_TRACK_HEADER, shouldSuppressTracking } from '@/lib/no-track';
 import { DEFAULT_LANGUAGE } from '@/lib/language-constants';
 import { getServerTranslations } from '@/lib/language-system/server-translations';
 
@@ -58,16 +59,25 @@ export default async function RootLayout({
     headersList.get('x-property-slug') ?? (await propertyForCampaign(headersList.get('x-campaign-slug')))
   );
 
+  // The owner's own visits, and every hour spent in /admin, used to land in the same GA4 property
+  // and the same pixel as real guests. At 33 booking-page visitors a week that is not noise. When
+  // this is on the tags are never RENDERED — not loaded-but-silenced — so there is nothing to
+  // misfire, and the consent question is not asked either (there would be nothing to consent to).
+  const noTrack = shouldSuppressTracking(
+    (await cookies()).get(NO_TRACK_COOKIE)?.value,
+    headersList.get(NO_TRACK_HEADER)
+  );
+
   return (
     <html lang={detectedLang}>
       <head>
         <link rel="preconnect" href="https://firebasestorage.googleapis.com" />
-        <GoogleTagManager />
-        <MetaPixel pixelId={metaPixelId} />
+        {!noTrack && <GoogleTagManager />}
+        {!noTrack && <MetaPixel pixelId={metaPixelId} />}
       </head>
       {/* Apply font variable to body */}
       <body className={`${inter.variable} font-sans antialiased`}>
-        <GoogleTagManagerNoscript />
+        {!noTrack && <GoogleTagManagerNoscript />}
         <ErrorBoundary>
           <CurrencyProvider> {/* Wrap with CurrencyProvider */}
             <ThemeProvider> {/* Wrap with ThemeProvider */}
@@ -87,8 +97,19 @@ export default async function RootLayout({
                 <LanguageHtmlUpdater />
                 {children}
                 <Toaster />
-                <CookieConsent />
+                {!noTrack && <CookieConsent />}
                 <UTMCapture />
+                {/* A kill-switch you cannot see is one you forget you left on, and then spend an
+                    afternoon wondering why your own visit never reached GA4. Deliberately plain and
+                    out of the way; `?rs_test=0` turns it off. */}
+                {noTrack && (
+                  <div
+                    aria-live="polite"
+                    className="fixed bottom-2 left-2 z-[9999] rounded-md border border-amber-500/60 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-900 shadow-sm dark:bg-amber-950 dark:text-amber-100"
+                  >
+                    Test mode &middot; not tracked
+                  </div>
+                )}
               </LanguageProvider>
             </ThemeProvider>
           </CurrencyProvider>
