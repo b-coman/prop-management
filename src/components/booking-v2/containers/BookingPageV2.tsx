@@ -791,7 +791,11 @@ function BookingPageContent({ className, otaLinks = [] }: { className?: string; 
 
           {/* Unavailable state - dates selected, asked, and the answer really was no. */}
           {!canShowBookingOptions && hasValidDates && !isLoadingPricing && hasPricingAnswer && (
-            <div className="flex items-start justify-center lg:min-h-96 lg:items-center">
+            /* `hidden lg:flex`, not just hidden CONTENTS. Both halves of this card are desktop-only
+               — the heading because the selector already says it, the talk buttons because they
+               moved to the sticky bar — which left a 65px empty bordered box sitting on the phone.
+               Caught by rendering the page in a 390px iframe; the stylesheet could not show it. */
+            <div className="hidden lg:flex lg:min-h-96 lg:items-center lg:justify-center">
               {/* 29-37% of everyone who reaches this page lands here, which makes it the busiest
                   state on the page after "priced". It used to be styled entirely in the error
                   palette — red icon, red heading, red border — which reads as "stop" at the exact
@@ -809,7 +813,7 @@ function BookingPageContent({ className, otaLinks = [] }: { className?: string; 
                       the situation to fill it. On mobile the two stack, and restating it turns into
                       the same sentence twice with a large empty icon between the suggestions and the
                       way out. Reported from a real iPhone, 27 Aug. */}
-                  <div className="hidden lg:block">
+                  <div>
                     <div className="mb-4">
                       <CalendarX2 className="h-12 w-12 mx-auto text-muted-foreground/40" />
                     </div>
@@ -823,7 +827,7 @@ function BookingPageContent({ className, otaLinks = [] }: { className?: string; 
                   {/* Desktop only. On a phone these two live in the sticky bar at the bottom of the
                       screen instead — stranded mid-page they were a scroll away from the person who
                       needed them, which is the opposite of the point. */}
-                  <div className="hidden lg:mt-6 lg:block lg:border-t lg:border-border lg:pt-5">
+                  <div className="mt-6 border-t border-border pt-5">
                     <p className="mb-3 text-sm text-muted-foreground">
                       {t('booking.askWhatIsFree', "Or ask me — I'll tell you what's free.")}
                     </p>
