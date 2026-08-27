@@ -282,8 +282,7 @@
     "waDates": "Perioada: {{stay}}, {{guests}} persoane.",
     "waQuoted": "Total afișat: {{total}} {{currency}}.",
     "waUnavailable": "Bună ziua! Am încercat {{stay}} la {{property}}, dar datele apar ocupate. Ce alte perioade aveți libere?",
-    "bookAlsoOn": "Poți rezerva și pe",
-    "directNoPlatformFee": "Aici prețul este cel direct, fără comision de platformă."
+    "bookAlsoOn": "Poți rezerva și pe"
   },
   "property": {
     "amenities": "Facilități",

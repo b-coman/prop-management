@@ -130,6 +130,31 @@ export function reportTalkClick(channel: 'whatsapp' | 'call', position: TalkPosi
 }
 
 /**
+ * Call, on its own, as a header icon.
+ *
+ * The mobile sticky bar can carry ONE secondary action beside the primary CTA without crowding it,
+ * and on a 390px screen that slot goes to WhatsApp. That left the priced state with no way to phone
+ * at all — the desktop pair holding both is `lg:` only. Audited across all four states at 390px:
+ * `tel: 0` on the one state where someone is closest to booking. So calling lives up here, in the
+ * header that is sticky on mobile anyway.
+ */
+export function CallIconButton({ position = 'mobile_header' }: { position?: TalkPosition }) {
+  const links = useTalkLinks('general');
+  const { t } = useLanguage();
+  if (!links) return null;
+  return (
+    <a
+      href={links.tel}
+      aria-label={t('booking.callUs', 'Call')}
+      onClick={() => reportTalkClick('call', position)}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+    >
+      <PhoneGlyph className="h-[18px] w-[18px]" />
+    </a>
+  );
+}
+
+/**
  * The outlined pair. `compact` drops the labels to glyphs — for the mobile sticky bar, where the
  * primary CTA has to stay dominant and a 44px icon is the most that can sit beside it without
  * competing.
@@ -205,12 +230,14 @@ export function TalkActions({
  * clears. Some people will not hand their card to a site they have never heard of, and would rather
  * pay more inside an app they already trust. That is a booking either way.
  *
- * WHAT IT MUST NOT CLAIM. This first shipped saying direct is "usually 10-15% less". That number
- * was invented. The only figure in the data is `targetDirectDiscountPct: 0.1` on the direct channel
- * — a 10% TARGET recorded from the 17 Aug parity findings, not a measured guarantee, and 2 of 17
- * windows still price higher direct. Quoting a saving the page cannot honour on a given date is
- * worse than quoting none. So it states the structural fact instead: no platform commission here.
- * That is true on every date, needs no re-verification, and still makes the case for booking direct.
+ * NO PRICE ARGUMENT HERE, AND THAT IS DELIBERATE. Two versions of one were tried and both were
+ * wrong. "Usually 10-15% less" was invented — the only figure in the data is
+ * `targetDirectDiscountPct: 0.1`, a TARGET from the 17 Aug parity findings, not a measurement, and
+ * 2 of 17 windows still price higher direct. Replacing it with the structural fact ("no platform
+ * commission here") was true but still wrong in KIND: a line arguing for direct, placed directly
+ * under the alternative, turns a courtesy into a hedge. The visitor has just been shown our price
+ * further up the same page; they do not need to be told what it means. Offer the option plainly and
+ * let the number they already saw do the work. A defection costs ~8% anyway — not worth an argument.
  *
  * WHERE IT GOES. Foot of the content column, never beside our own price — next to "1,145 RON" it
  * invites a comparison we don't control; at the foot it reads as reassurance to someone who was
@@ -258,9 +285,6 @@ export function OtaAlternatives({
           </a>
         ))}
       </div>
-      <p className="mt-3 text-center text-xs text-muted-foreground">
-        {t('booking.directNoPlatformFee', 'The price here is the direct price, with no platform commission.')}
-      </p>
     </div>
   );
 }

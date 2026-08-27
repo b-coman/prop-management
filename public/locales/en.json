@@ -282,8 +282,7 @@
     "waDates": "Dates: {{stay}}, {{guests}} guests.",
     "waQuoted": "Quoted total: {{total}} {{currency}}.",
     "waUnavailable": "Hello! I tried {{stay}} at {{property}} but those dates show as taken. What else is free?",
-    "bookAlsoOn": "You can also book on",
-    "directNoPlatformFee": "The price here is the direct price, with no platform commission."
+    "bookAlsoOn": "You can also book on"
   },
   "property": {
     "amenities": "Amenities",

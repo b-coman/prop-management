@@ -20,7 +20,7 @@
 
 import React, { useEffect, useState, useRef, memo } from 'react';
 import { BookingProvider } from '../contexts';
-import { DateAndGuestSelector, PricingSummary, MobilePriceDrawer, MobileDateSelectorWrapper, TalkActions, OtaAlternatives } from '../components';
+import { DateAndGuestSelector, PricingSummary, MobilePriceDrawer, MobileDateSelectorWrapper, TalkActions, OtaAlternatives, CallIconButton } from '../components';
 import type { OtaLink } from '../components';
 import { ContactFormV2, HoldFormV2, BookingFormV2 } from '../forms';
 import type { Property, CurrencyCode } from '@/types';
@@ -253,8 +253,9 @@ function BookingPageContent({ className, otaLinks = [] }: { className?: string; 
               </Link>
             </div>
             
-            {/* Right: Currency + Language Selectors */}
+            {/* Right: Call + Currency + Language */}
             <div className="flex items-center gap-1 ml-2">
+              <CallIconButton />
               <CurrencySwitcherSimple variant="booking" />
               <LanguageSelector variant="booking" />
             </div>
@@ -857,10 +858,27 @@ function BookingPageContent({ className, otaLinks = [] }: { className?: string; 
             </div>
           )}
 
+          {/* Mobile only. The desktop summary panel carries this link, but that panel is `lg:` — and
+              replacing the "Contact" tab with a WhatsApp icon in the sticky bar left the written
+              form with no route at all on a phone. Audited across four states at 390px: msgLink
+              false everywhere. WhatsApp and calling cover most people; this is for the ones who
+              would rather type than talk. */}
+          {selectedAction !== 'contact' && pricing && (
+            <div className="mt-8 text-center lg:hidden">
+              <button
+                type="button"
+                onClick={() => handleTabClick('contact')}
+                className="text-sm text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
+              >
+                {t('booking.orSendAMessage', 'or send a message')}
+              </button>
+            </div>
+          )}
+
           {/* Last thing on the page, by design. Placed beside the price it would invite a comparison
               we don't control; placed here it reads as reassurance to someone who was leaving
-              anyway. Text links, never buttons — see OtaAlternatives for why the economics make
-              this worth offering at all. */}
+              anyway. Neutral chips, no accent — see OtaAlternatives for why the economics make this
+              worth offering at all. */}
           <OtaAlternatives links={otaLinks} className="mt-8 lg:mt-10" />
         </div>
       </div>
