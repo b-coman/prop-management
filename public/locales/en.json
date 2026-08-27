@@ -75,7 +75,7 @@
     "checkingAvailabilityMessage": "Please wait while we check the dates.",
     "datesNotAvailable": "These dates aren't available",
     "datesUnavailableTitle": "These Dates Are Unavailable",
-    "datesUnavailableHint": "The dates you selected aren't available. Check the suggestions on the left, or try different dates.",
+    "datesUnavailableHint": "Try one of the suggested dates, or pick different ones.",
     "loadingTooLong": "This is taking longer than expected.",
     "reloadToTryAgain": "Reload to try again",
     "someUnavailableDates": "Some dates are not available (marked with strikethrough)",

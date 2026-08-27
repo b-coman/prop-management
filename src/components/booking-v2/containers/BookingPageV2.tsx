@@ -803,17 +803,25 @@ function BookingPageContent({ className, otaLinks = [] }: { className?: string; 
                   direct is taken on Airbnb and Booking too — offering them would be a second
                   closed door. */}
               <Card className="w-full max-w-md">
-                <CardContent className="py-10 text-center">
-                  <div className="mb-4">
-                    <CalendarX2 className="h-12 w-12 mx-auto text-muted-foreground/40" />
+                <CardContent className="py-8 text-center lg:py-10">
+                  {/* DESKTOP ONLY. On desktop this column would otherwise be empty while the
+                      selector on the left carries the message and the suggestions — so it restates
+                      the situation to fill it. On mobile the two stack, and restating it turns into
+                      the same sentence twice with a large empty icon between the suggestions and the
+                      way out. Reported from a real iPhone, 27 Aug. */}
+                  <div className="hidden lg:block">
+                    <div className="mb-4">
+                      <CalendarX2 className="h-12 w-12 mx-auto text-muted-foreground/40" />
+                    </div>
+                    <h3 className="text-lg font-semibold mb-2">
+                      {t('booking.datesUnavailableTitle', 'These Dates Are Unavailable')}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {t('booking.datesUnavailableHint', 'Try one of the suggested dates, or pick different ones.')}
+                    </p>
                   </div>
-                  <h3 className="text-lg font-semibold mb-2">
-                    {t('booking.datesUnavailableTitle', 'These Dates Are Unavailable')}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {t('booking.datesUnavailableHint', "The dates you selected aren't available. Check the suggestions on the left, or try different dates.")}
-                  </p>
-                  <div className="mt-6 pt-5 border-t border-border">
+                  {/* The divider only divides when there is something above it. */}
+                  <div className="lg:mt-6 lg:pt-5 lg:border-t lg:border-border">
                     <p className="mb-3 text-sm text-muted-foreground">
                       {t('booking.askWhatIsFree', "Or ask me — I'll tell you what's free.")}
                     </p>

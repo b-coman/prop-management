@@ -75,7 +75,7 @@
     "checkingAvailabilityMessage": "Vă rugăm așteptați în timp ce verificăm datele.",
     "datesNotAvailable": "Aceste date nu sunt disponibile",
     "datesUnavailableTitle": "Datele Nu Sunt Disponibile",
-    "datesUnavailableHint": "Datele selectate nu sunt disponibile. Verifică sugestiile din stânga sau încearcă alte date.",
+    "datesUnavailableHint": "Încearcă una dintre datele sugerate sau alege altele.",
     "loadingTooLong": "Acest lucru durează mai mult decât ne așteptam.",
     "reloadToTryAgain": "Reîncărcați pentru a încerca din nou",
     "someUnavailableDates": "Unele date nu sunt disponibile (marcate cu linie tăiată)",
