@@ -1,9 +1,9 @@
 /**
  * GuestContactActions — the two low-friction ways off the booking page.
  *
- * `TalkActions` is a WhatsApp + phone pair; `OtaAlternatives` is a pair of text links to the
- * property's own OTA listings. They exist for the same reason and are deliberately weighted
- * differently, so this file holds both and the hierarchy stays visible in one place.
+ * `TalkActions` is a WhatsApp + phone pair; `OtaAlternatives` offers the property's own OTA
+ * listings. They exist for the same reason and are deliberately weighted differently, so this file
+ * holds both and the hierarchy stays visible in one place.
  *
  * WHY THIS EXISTS. The page already had a "Contact Host" action, but it opened a four-field form
  * (name, surname, email, phone) before anyone could say a word — which is the friction, not the
@@ -14,10 +14,12 @@
  * THE HIERARCHY IS THE DESIGN. Four weights, never five equals:
  *   1. Book now      filled, accent      the only filled button on the page
  *   2. Hold dates    muted fill
- *   3. TalkActions   outlined pair, grouped under a label  ← here
- *   4. OtaAlternatives  text links, no button chrome        ← here
- * If the OTA block looks like a button it gets pressed like one, and an Airbnb booking costs ~8%
- * more than a direct one (see `OtaAlternatives` for the arithmetic).
+ *   3. TalkActions   outlined pair in the accent, grouped under a label   ← here
+ *   4. OtaAlternatives  neutral chips, no accent, foot of the page          ← here
+ * The OTA chips share no colour with the CTAs above them: pressed by mistake, an Airbnb booking
+ * costs ~8% more than a direct one (see `OtaAlternatives` for the arithmetic). They first shipped as
+ * bare underlined links with a "↗" and read as an unstyled browser default, so they are now proper
+ * chips — quiet, but built.
  *
  * MULTI-PROPERTY. Nothing here is specific to one property: the phone comes from
  * `property.contactPhone` and the OTA links from the `channels` collection. A property with no
@@ -193,22 +195,26 @@ export function TalkActions({
 }
 
 /**
- * "Also on Airbnb / Booking.com", as text links.
+ * "You can also book on Airbnb / Booking.com / VRBO."
  *
  * WHY OFFER THEM AT ALL. The naive fear is cannibalisation, but the arithmetic is milder than the
  * commission rates suggest: because the OTAs are priced ABOVE direct, the higher gross absorbs most
- * of the commission. A 2-night stay quoted at 1,145 RON direct is ~1,294 on Airbnb, and 18.755% of
+ * of the commission. A 2-night stay quoted 1,145 RON direct is ~1,294 on Airbnb, and 18.755% of
  * that still leaves 1,051 — so a defection costs ~8%, not ~19%. Break-even therefore needs the link
  * to rescue extra bookings worth only ~1% of direct volume, which the trust signal alone plausibly
- * clears.
+ * clears. Some people will not hand their card to a site they have never heard of, and would rather
+ * pay more inside an app they already trust. That is a booking either way.
  *
- * WHY IT LOOKS LIKE THIS. Text links, never buttons, and never adjacent to our own price — beside
- * "1,145 RON" it invites a comparison we don't control; at the foot of the page it reads as
- * reassurance. The sentence underneath does the commercial work.
+ * WHAT IT MUST NOT CLAIM. This first shipped saying direct is "usually 10-15% less". That number
+ * was invented. The only figure in the data is `targetDirectDiscountPct: 0.1` on the direct channel
+ * — a 10% TARGET recorded from the 17 Aug parity findings, not a measured guarantee, and 2 of 17
+ * windows still price higher direct. Quoting a saving the page cannot honour on a given date is
+ * worse than quoting none. So it states the structural fact instead: no platform commission here.
+ * That is true on every date, needs no re-verification, and still makes the case for booking direct.
  *
- * "USUALLY", NOT "ALWAYS". After the 17 Aug repricing direct wins 15 of 17 windows, not all of
- * them. A price claim that is false even occasionally is worse than no claim, so the copy hedges
- * and the parity tool (`scripts/parity-*`) is what keeps it honest.
+ * WHERE IT GOES. Foot of the content column, never beside our own price — next to "1,145 RON" it
+ * invites a comparison we don't control; at the foot it reads as reassurance to someone who was
+ * leaving anyway.
  */
 export function OtaAlternatives({
   links,
@@ -222,34 +228,38 @@ export function OtaAlternatives({
   if (!links.length) return null;
 
   return (
-    <div className={`border-t border-border pt-4 text-center ${className}`}>
-      <p className="text-sm text-muted-foreground">
-        {t('booking.alsoListedOn', 'Also on')}{' '}
-        {links.map((l, i) => (
-          <React.Fragment key={l.id}>
-            {i > 0 && <span aria-hidden="true"> · </span>}
-            <a
-              href={l.url}
-              target="_blank"
-              rel="noopener noreferrer nofollow"
-              onClick={() =>
-                trackUiEvent('ota_click', {
-                  ota_channel: l.id,
-                  // What the visitor was being quoted here at the moment they left.
-                  direct_total: pricing?.totalPrice ?? undefined,
-                  currency: pricing?.currency ?? undefined,
-                })
-              }
-              className="underline underline-offset-4 hover:text-foreground"
-            >
-              {l.label}
-              <span aria-hidden="true"> ↗</span>
-            </a>
-          </React.Fragment>
-        ))}
+    <div className={`border-t border-border pt-6 ${className}`}>
+      <p className="text-center text-sm font-medium text-foreground">
+        {t('booking.bookAlsoOn', 'You can also book on')}
       </p>
-      <p className="mt-1 text-xs text-muted-foreground/80">
-        {t('booking.directIsUsuallyCheaper', 'Booking here is usually 10-15% less.')}
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+        {links.map((l) => (
+          <a
+            key={l.id}
+            href={l.url}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            onClick={() =>
+              trackUiEvent('ota_click', {
+                ota_channel: l.id,
+                // What we were quoting here at the moment they chose to leave.
+                direct_total: pricing?.totalPrice ?? undefined,
+                currency: pricing?.currency ?? undefined,
+              })
+            }
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-border bg-background px-3.5 py-2 text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+          >
+            {l.label}
+            {/* A drawn arrow, not "↗". U+2197 is in an emoji block, so iOS renders it as a blue
+                emoji tile — three of them turned this row into something that looked broken. */}
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="flex-shrink-0 opacity-60">
+              <path d="M7 17 17 7M8 7h9v9" />
+            </svg>
+          </a>
+        ))}
+      </div>
+      <p className="mt-3 text-center text-xs text-muted-foreground">
+        {t('booking.directNoPlatformFee', 'The price here is the direct price, with no platform commission.')}
       </p>
     </div>
   );

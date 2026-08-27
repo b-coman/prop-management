@@ -755,7 +755,7 @@ function BookingPageContent({ className, otaLinks = [] }: { className?: string; 
 
           {/* Empty state for right column when no action selected */}
           {!selectedAction && canShowBookingOptions && (
-            <div className="flex items-center justify-center min-h-96">
+            <div className="flex items-start justify-center lg:min-h-96 lg:items-center">
               <Card className="w-full max-w-md">
                 <CardContent className="py-12 text-center">
                   <div className="mb-4">
@@ -775,7 +775,7 @@ function BookingPageContent({ className, otaLinks = [] }: { className?: string; 
           {/* Loading state - dates selected, checking pricing. Also covers the debounce window before
               the request starts, which otherwise fell through to the "unavailable" card below. */}
           {!canShowBookingOptions && hasValidDates && (isLoadingPricing || !hasPricingAnswer) && (
-            <div className="flex items-center justify-center min-h-96">
+            <div className="flex items-start justify-center lg:min-h-96 lg:items-center">
               <Card className="w-full max-w-md">
                 <CardContent className="py-12 text-center">
                   <div className="mb-4">
@@ -791,7 +791,7 @@ function BookingPageContent({ className, otaLinks = [] }: { className?: string; 
 
           {/* Unavailable state - dates selected, asked, and the answer really was no. */}
           {!canShowBookingOptions && hasValidDates && !isLoadingPricing && hasPricingAnswer && (
-            <div className="flex items-center justify-center min-h-96">
+            <div className="flex items-start justify-center lg:min-h-96 lg:items-center">
               {/* 29-37% of everyone who reaches this page lands here, which makes it the busiest
                   state on the page after "priced". It used to be styled entirely in the error
                   palette — red icon, red heading, red border — which reads as "stop" at the exact
@@ -820,8 +820,10 @@ function BookingPageContent({ className, otaLinks = [] }: { className?: string; 
                       {t('booking.datesUnavailableHint', 'Try one of the suggested dates, or pick different ones.')}
                     </p>
                   </div>
-                  {/* The divider only divides when there is something above it. */}
-                  <div className="lg:mt-6 lg:pt-5 lg:border-t lg:border-border">
+                  {/* Desktop only. On a phone these two live in the sticky bar at the bottom of the
+                      screen instead — stranded mid-page they were a scroll away from the person who
+                      needed them, which is the opposite of the point. */}
+                  <div className="hidden lg:mt-6 lg:block lg:border-t lg:border-border lg:pt-5">
                     <p className="mb-3 text-sm text-muted-foreground">
                       {t('booking.askWhatIsFree', "Or ask me — I'll tell you what's free.")}
                     </p>
@@ -834,7 +836,7 @@ function BookingPageContent({ className, otaLinks = [] }: { className?: string; 
 
           {/* No dates selected state */}
           {!canShowBookingOptions && !hasValidDates && (
-            <div className="flex items-center justify-center min-h-96">
+            <div className="flex items-start justify-center lg:min-h-96 lg:items-center">
               <Card className="w-full max-w-md">
                 <CardContent className="py-12 text-center">
                   <div className="mb-4">
@@ -855,10 +857,23 @@ function BookingPageContent({ className, otaLinks = [] }: { className?: string; 
               we don't control; placed here it reads as reassurance to someone who was leaving
               anyway. Text links, never buttons — see OtaAlternatives for why the economics make
               this worth offering at all. */}
-          <OtaAlternatives links={otaLinks} className="mt-10" />
+          <OtaAlternatives links={otaLinks} className="mt-8 lg:mt-10" />
         </div>
       </div>
       </div>
+
+      {/* No price means no sticky bar at all, which left the phone with nothing pinned and the only
+          way forward buried mid-scroll. If we cannot offer a price we can still offer a person. */}
+      {!(hasValidPricing && pricing) && hasValidDates && !isLoadingPricing && hasPricingAnswer && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] backdrop-blur lg:hidden">
+          <div className="container px-4 py-3">
+            <p className="mb-2 text-center text-xs text-muted-foreground">
+              {t('booking.askWhatIsFree', "Or ask me — I'll tell you what's free.")}
+            </p>
+            <TalkActions position="unavailable_dates" variant="unavailable" />
+          </div>
+        </div>
+      )}
 
       {/* Mobile Sticky Bottom Bar - Professional Design */}
       {hasValidPricing && pricing && (

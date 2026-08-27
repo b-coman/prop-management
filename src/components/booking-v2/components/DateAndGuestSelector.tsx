@@ -772,11 +772,15 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
             and these options are the opposite of stop: they are the way forward, and dressing them
             as part of the failure buried them. The news stays one quiet line; the alternatives now
             read as offers. */}
-        <div className="p-3 bg-muted/40 border border-border rounded-lg space-y-3">
-          <p className="text-foreground text-sm font-medium">{translatedError}</p>
+        <div className="space-y-3">
+          <p className="text-left text-sm text-muted-foreground">{translatedError}</p>
 
           {suggestions.length > 0 && (
-            <div className="flex flex-wrap justify-center gap-2">
+            /* Stacked full-width rows, not centred content-width pills. Wrapped pills left the
+               options floating as small islands inside a much wider card — see the 27 Aug phone
+               screenshots. A list of dates is a list: one per row, aligned, scannable, and each one
+               a full-width tap target. */
+            <div className="flex flex-col gap-2">
               {suggestions.map((suggestion, index) => {
                 const nightCount = suggestion.nights;
                 const nightLabel = nightCount === 1
@@ -801,17 +805,22 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
                       setCheckInDate(normalizedCheckIn);
                       setCheckOutDate(normalizedCheckOut);
                     }}
-                    className="inline-flex flex-col items-center gap-0.5 px-3 py-2 bg-background border border-border rounded-xl text-xs font-medium text-foreground hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer min-h-[44px]"
+                    className="flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2.5 text-left transition-colors hover:border-primary hover:bg-primary/5 cursor-pointer min-h-[48px]"
                   >
-                    <span className="inline-flex items-center gap-1.5">
-                      <CalendarDays className="h-3.5 w-3.5" />
-                      {format(suggestion.checkIn, suggestionDateFormat, { locale: suggestionLocale })} – {format(suggestion.checkOut, suggestionDateFormat, { locale: suggestionLocale })}
-                      <span className="text-muted-foreground">({nightCount} {nightLabel})</span>
+                    <span className="flex min-w-0 flex-col gap-0.5">
+                      <span className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+                        <CalendarDays className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                        {format(suggestion.checkIn, suggestionDateFormat, { locale: suggestionLocale })} – {format(suggestion.checkOut, suggestionDateFormat, { locale: suggestionLocale })}
+                      </span>
+                      {/* Say WHY this option is being offered — "Just before" reads very differently
+                          from "Your dates, shorter stay", and the guest can pick on meaning rather
+                          than having to diff two date ranges in their head. */}
+                      <span className="truncate text-xs text-muted-foreground">
+                        {reasonLabel(suggestion.reason, nightCount)}
+                      </span>
                     </span>
-                    {/* Say WHY this option is being offered — "Just before" reads very differently from
-                        "Your dates, shorter stay", and the guest can pick on meaning, not just on dates. */}
-                    <span className="text-[11px] font-normal text-muted-foreground">
-                      {reasonLabel(suggestion.reason, nightCount)}
+                    <span className="flex-shrink-0 text-xs text-muted-foreground">
+                      {nightCount} {nightLabel}
                     </span>
                   </button>
                 );

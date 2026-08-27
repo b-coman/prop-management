@@ -278,12 +278,12 @@
     "whatsApp": "WhatsApp",
     "callUs": "Sună",
     "writeOnWhatsApp": "Scrie pe WhatsApp",
-    "alsoListedOn": "Și pe",
-    "directIsUsuallyCheaper": "Rezervarea directă e de obicei cu 10-15% mai ieftină.",
     "waGreeting": "Bună ziua! Sunt interesat de {{property}}.",
     "waDates": "Perioada: {{stay}}, {{guests}} persoane.",
     "waQuoted": "Total afișat: {{total}} {{currency}}.",
-    "waUnavailable": "Bună ziua! Am încercat {{stay}} la {{property}}, dar datele apar ocupate. Ce alte perioade aveți libere?"
+    "waUnavailable": "Bună ziua! Am încercat {{stay}} la {{property}}, dar datele apar ocupate. Ce alte perioade aveți libere?",
+    "bookAlsoOn": "Poți rezerva și pe",
+    "directNoPlatformFee": "Aici prețul este cel direct, fără comision de platformă."
   },
   "property": {
     "amenities": "Facilități",
