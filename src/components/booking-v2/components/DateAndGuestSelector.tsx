@@ -36,6 +36,7 @@ import 'react-day-picker/dist/style.css';
 import { addDays, isBefore, isAfter, isSameDay, format } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { buildDateSuggestions, type SuggestionReason } from '@/lib/booking/date-suggestions';
+import { trackUiEvent } from '@/lib/tracking';
 import { useBooking } from '../contexts';
 import { useLanguage } from '@/lib/language-system';
 import { Button } from '@/components/ui/button';
@@ -804,6 +805,17 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
 
                       setCheckInDate(normalizedCheckIn);
                       setCheckOutDate(normalizedCheckOut);
+
+                      // The rescue was untracked, which made it unanswerable whether it works at
+                      // all — and roughly a third of everyone who reaches this page lands in the
+                      // state it serves. Carries WHICH kind of alternative was taken, so "just
+                      // after" and "your dates, shorter stay" can be told apart: they are different
+                      // concessions and people will not accept them equally.
+                      trackUiEvent('suggestion_click', {
+                        suggestion_reason: suggestion.reason,
+                        stay_nights: nightCount,
+                        stay_dates: `${normalizedCheckIn.toISOString().slice(0, 10)}_${normalizedCheckOut.toISOString().slice(0, 10)}`,
+                      });
                     }}
                     className="flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2.5 text-left transition-colors hover:border-primary hover:bg-primary/5 cursor-pointer min-h-[48px]"
                   >

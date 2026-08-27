@@ -38,6 +38,12 @@ const UI_PARAMS = [
   'percent_scrolled', 'destination',
   'photo_index', 'photo_id', 'photo_tag', 'gallery_filter',
   'booking_outcome', 'booking_action',
+  // Talk + OTA + the alternative-dates rescue. These MUST be listed here, not merely passed: params
+  // that only ride the pass-through are never cleared, so a `talk_channel` from a WhatsApp click
+  // would still be attached to the next scroll_depth — the very bleed this list exists to stop.
+  'talk_channel', 'talk_position',
+  'ota_channel', 'direct_total', 'currency',
+  'suggestion_reason',
 ] as const;
 
 export function trackUiEvent(event: string, params: Record<string, unknown> = {}) {
