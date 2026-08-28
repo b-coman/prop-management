@@ -45,6 +45,13 @@ export interface PostEngagement {
   shares: number;
   createdTime?: string;
   permalink?: string;
+  /**
+   * The caption as it stands ON FACEBOOK, which is not always what we published. The owner edited
+   * the first real post directly on the page after publishing, leaving our record holding the draft
+   * text while the page showed his. Any loop that learns which captions worked has to read the words
+   * that actually ran.
+   */
+  message?: string;
 }
 
 /**
@@ -155,7 +162,7 @@ export async function fetchPostEngagement(
     url.searchParams.set('ids', postIds.join(','));
     url.searchParams.set(
       'fields',
-      'created_time,permalink_url,reactions.summary(true),comments.summary(true),shares'
+      'created_time,permalink_url,message,reactions.summary(true),comments.summary(true),shares'
     );
     url.searchParams.set('access_token', page.token);
 
@@ -172,6 +179,7 @@ export async function fetchPostEngagement(
         | {
             created_time?: string;
             permalink_url?: string;
+            message?: string;
             reactions?: { summary?: { total_count?: number } };
             comments?: { summary?: { total_count?: number } };
             shares?: { count?: number };
@@ -185,6 +193,7 @@ export async function fetchPostEngagement(
         shares: row.shares?.count ?? 0,
         createdTime: row.created_time,
         permalink: row.permalink_url,
+        message: row.message,
       });
     }
     return { ok: true, data };

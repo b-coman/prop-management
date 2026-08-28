@@ -66,6 +66,9 @@ export async function GET(request: NextRequest) {
         const docId = byPostId.get(e.postId);
         if (!docId) continue;
         batch.update(db.collection('pagePosts').doc(docId), {
+          // What the page actually SHOWS. An edit made on Facebook after publishing is invisible
+          // to us otherwise — the first real post was edited there and our record kept the draft.
+          publishedMessage: e.message ?? null,
           reactions: e.reactions,
           comments: e.comments,
           shares: e.shares,

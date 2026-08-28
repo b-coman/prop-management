@@ -32,9 +32,24 @@ const MESSAGE_MIN = 20;
 const MESSAGE_MAX = 2000;
 /** Albums win, but past ~5 the extra photos stop being looked at and start being scrolled. */
 const PHOTOS_MIN = 1;
-const PHOTOS_MAX = 5;
-/** Below this an "album" is really a single photo wearing a costume — warn, don't block. */
-const ALBUM_MIN = 3;
+/**
+ * TEN, NOT FIVE — and the five was my assumption, not this page's evidence.
+ *
+ * Capped at 5 on the general principle that past ~5 photos people scroll rather than look. Measured
+ * against the page's own 17 posts on 28 Aug 2026, that is backwards here:
+ *
+ *   >= 5 photos   n=4   avg 13.0 reactions
+ *   <  5 photos   n=13  avg  2.0 reactions
+ *
+ * Every post with five or more beat every post with fewer, and the two best carried 9 and 10 photos.
+ * The old cap put this page's strongest format at the bottom of the permitted range. The single
+ * 12-photo post fell back to 7 reactions, so 10 is where the evidence stops supporting more.
+ *
+ * Small sample — four posts — but consistent, and it is the only evidence there is.
+ */
+const PHOTOS_MAX = 10;
+/** Below five, this page's own history says an album stops performing like one. */
+const ALBUM_MIN = 5;
 
 /**
  * The 60/25/15 mix. `place` earns reach, `proof` earns replies, `offer` converts — and only `offer`
@@ -96,7 +111,7 @@ export function validatePagePost(
       else if (!path.startsWith(`properties/${pack.propertyId}/`)) errors.push(`photo not owned by ${pack.propertyId}`);
     }
     if (paths.length >= PHOTOS_MIN && paths.length < ALBUM_MIN) {
-      warnings.push(`${paths.length} photo(s) — this page's albums out-perform single photos about 3:1, so ${ALBUM_MIN}-${PHOTOS_MAX} is usually better`);
+      warnings.push(`${paths.length} photo(s) — on this page, posts with ${ALBUM_MIN}+ photos average 13 reactions against 2 for smaller ones; ${ALBUM_MIN}-${PHOTOS_MAX} is the range that has actually worked`);
     }
 
     // FOUR WIDE SHOTS OF THE SAME BUILDING IS NOT AN ALBUM. FOUR BBQ PHOTOS IS.
@@ -151,7 +166,7 @@ const PAGE_POST_TOOL = {
     type: 'object' as const,
     properties: {
       message: { type: 'string', description: 'the post caption in ROMANIAN — warm, organic, community feel (NOT a hard-sell ad). Short, a few sentences. END WITH A REAL QUESTION unless postType is "offer": this page has earned exactly one comment in six years, and it came from the one caption that spoke to a person instead of describing a property.' },
-      assetPaths: { type: 'array', items: { type: 'string' }, description: '3 to 5 photos by EXACT storagePath from the assets, as an ALBUM that tells one small story in order. This page\'s albums out-perform its single photos about 3:1. Never invent a path, never repeat one.' },
+      assetPaths: { type: 'array', items: { type: 'string' }, description: '6 to 10 photos by EXACT storagePath from the assets, as an ALBUM that tells one story in order. Measured on this page: posts with 5+ photos average 13 reactions, posts with fewer average 2, and the two best carried 9 and 10. Never invent a path, never repeat one.' },
       postType: { type: 'string', enum: ['place', 'proof', 'offer'], description: 'place = the chalet/season with no offer and no link (earns reach). proof = guests, a review, the place in use, ending in a question (earns replies). offer = specific dates and a real price (converts). Follow the type asked for in the brief.' },
       notes: { type: 'string', description: 'brief note on the choices (optional).' },
     },
@@ -170,7 +185,7 @@ RULES
    invite drives engagement. No aggressive selling, no fake urgency.
 2. SHAPE TO THE PROMPT + FRAMING. Follow the prompt (what the post is about) and any goal/audience
    given — a couples/off-peak post and a families/school-break post look different.
-3. GROUND IN REALITY, BUILD AN ALBUM. Pick 3-5 photos, by exact storagePath, from the provided assets
+3. GROUND IN REALITY, BUILD A GENEROUS ALBUM. Pick 6-10 photos, by exact storagePath, from the provided assets
    — you can only show what the property really has. Order them so they tell one small story: the
    wide shot that sets the scene, then the details that reward a second look. Each asset has a rich
    aiDescription (season, mood, people, features, fitsAngles) from a vision model — use it so the

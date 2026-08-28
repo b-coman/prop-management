@@ -4,14 +4,7 @@ import { validatePagePost } from '../pagePostWriter';
 
 const PACK = {
   propertyId: 'prahova-mountain-chalet',
-  assetPaths: [
-    'properties/prahova-mountain-chalet/autumn.jpg',
-    'properties/prahova-mountain-chalet/fire.jpg',
-    'properties/prahova-mountain-chalet/terrace.jpg',
-    'properties/prahova-mountain-chalet/kitchen.jpg',
-    'properties/prahova-mountain-chalet/view.jpg',
-    'properties/prahova-mountain-chalet/swing.jpg',
-  ],
+  assetPaths: Array.from({ length: 12 }, (_, i) => `properties/prahova-mountain-chalet/p${i}.jpg`),
 };
 const okMsg =
   'Toamna se așterne peste Valea Prahovei — frunze aurii și dimineți liniștite. Ce vă place cel mai mult la munte în septembrie?';
@@ -19,7 +12,7 @@ const okMsg =
 const album = (n: number) => PACK.assetPaths.slice(0, n);
 const post = (over: Partial<{ message: string; assetPaths: string[]; postType: string }> = {}) => ({
   message: okMsg,
-  assetPaths: album(3),
+  assetPaths: album(6),
   postType: 'place',
   ...over,
 });
@@ -60,20 +53,20 @@ describe('validatePagePost', () => {
   // ── albums ──────────────────────────────────────────────────────────────────
   // The page's six-year record: every one of its five best posts is an album, every single-photo
   // post sits at four reactions or below. A single photo is allowed but should not pass silently.
-  it('warns on a single photo, because this page’s albums beat singles ~3:1', () => {
-    const res = validatePagePost(post({ assetPaths: album(1) }), PACK);
+  it('warns below five, the size that has never worked on this page', () => {
+    const res = validatePagePost(post({ assetPaths: album(3) }), PACK);
     expect(res.ok).toBe(true);
-    expect(res.warnings.some((w) => w.includes('3:1'))).toBe(true);
+    expect(res.warnings.some((w) => w.includes('average 13 reactions'))).toBe(true);
   });
 
   it('does not warn once it is a real album', () => {
-    const res = validatePagePost(post({ assetPaths: album(4) }), PACK);
+    const res = validatePagePost(post({ assetPaths: album(8) }), PACK);
     expect(res.ok).toBe(true);
-    expect(res.warnings.some((w) => w.includes('3:1'))).toBe(false);
+    expect(res.warnings.some((w) => w.includes('average 13 reactions'))).toBe(false);
   });
 
-  it('rejects more than five photos', () => {
-    const res = validatePagePost(post({ assetPaths: album(6) }), PACK);
+  it('rejects more than ten photos', () => {
+    const res = validatePagePost(post({ assetPaths: album(11) }), PACK);
     expect(res.ok).toBe(false);
     expect(res.errors.some((e) => e.includes('too many photos'))).toBe(true);
   });
@@ -142,89 +135,49 @@ describe('validatePagePost', () => {
 });
 
 describe('album composition', () => {
-  // First real draft, 28 Aug 2026: 5 photos, 4 of them the chalet exterior from different angles.
-  // The first version of this check warned whenever ANY tag dominated. The owner pointed out that is
-  // wrong: "maybe another post won't be only about season, could be kids, could be BBQ activities,
-  // cooking, walking" — a themed album SHOULD be dominated by its theme.
-  const TAGS: Record<string, string[]> = {
-    'properties/prahova-mountain-chalet/autumn.jpg': ['exterior', 'outdoor', 'autumn'],
-    'properties/prahova-mountain-chalet/fire.jpg': ['exterior', 'outdoor', 'autumn', 'bbq'],
-    'properties/prahova-mountain-chalet/terrace.jpg': ['exterior', 'outdoor', 'terrace'],
-    'properties/prahova-mountain-chalet/kitchen.jpg': ['interior', 'kitchen'],
-    'properties/prahova-mountain-chalet/view.jpg': ['view', 'landscape'],
-    'properties/prahova-mountain-chalet/swing.jpg': ['garden', 'kids'],
-  };
-  const packWithTags = { ...PACK, tagsByPath: TAGS };
+  // The composition check only runs on real albums (ALBUM_MIN+), so these fixtures are 6 photos.
+  const P = (i: number) => `properties/prahova-mountain-chalet/p${i}.jpg`;
+  const tags = (m: Record<number, string[]>) => ({
+    ...PACK,
+    tagsByPath: Object.fromEntries(Object.entries(m).map(([i, t]) => [P(Number(i)), t])),
+  });
 
   it('warns when a FRAMING tag dominates — the same shot repeated', () => {
-    // three exteriors: where the camera stood, with no unifying subject
-    const res = validatePagePost(post({ assetPaths: album(3) }), packWithTags);
+    // six wide exteriors: where the camera stood, with nothing tying them together
+    const pack = tags({ 0: ['exterior', 'outdoor'], 1: ['exterior', 'outdoor'], 2: ['exterior', 'outdoor'],
+                        3: ['exterior', 'outdoor'], 4: ['exterior', 'outdoor'], 5: ['exterior', 'view'] });
+    const res = validatePagePost(post({ assetPaths: album(6) }), pack);
     expect(res.ok).toBe(true);
     expect(res.warnings.some((w) => w.includes('where the camera stood'))).toBe(true);
   });
 
-  it('does NOT warn when a SUBJECT tag dominates — that is a themed album', () => {
-    // A barbecue post should be mostly barbecue. This is the case that broke the first rule.
-    const bbqPack = {
-      ...PACK,
-      tagsByPath: {
-        'properties/prahova-mountain-chalet/autumn.jpg': ['bbq', 'outdoor'],
-        'properties/prahova-mountain-chalet/fire.jpg': ['bbq', 'fire'],
-        'properties/prahova-mountain-chalet/terrace.jpg': ['bbq', 'interior'],
-        'properties/prahova-mountain-chalet/kitchen.jpg': ['bbq', 'kitchen', 'interior'],
-      } as Record<string, string[]>,
-    };
-    const res = validatePagePost(post({ assetPaths: album(4) }), bbqPack);
+  // The real second draft, 28 Aug: every photo `outdoor` because cooking over a fire happens
+  // outdoors. The owner caught the first version of this rule firing on exactly this case.
+  it('does NOT warn when a SUBJECT tag is as strong as the framing — a themed album', () => {
+    const pack = tags({ 0: ['outdoor', 'bbq', 'garden'], 1: ['outdoor', 'bbq', 'fire'], 2: ['outdoor', 'bbq', 'fire'],
+                        3: ['outdoor', 'bbq', 'autumn'], 4: ['outdoor', 'bbq', 'view'], 5: ['outdoor', 'bbq'] });
+    const res = validatePagePost(post({ assetPaths: album(6) }), pack);
     expect(res.ok).toBe(true);
     expect(res.warnings.some((w) => w.includes('where the camera stood'))).toBe(false);
   });
 
   it('does not warn on a varied album', () => {
-    const varied = [
-      'properties/prahova-mountain-chalet/autumn.jpg',
-      'properties/prahova-mountain-chalet/kitchen.jpg',
-      'properties/prahova-mountain-chalet/view.jpg',
-      'properties/prahova-mountain-chalet/swing.jpg',
-    ];
-    const res = validatePagePost(post({ assetPaths: varied }), packWithTags);
+    const pack = tags({ 0: ['exterior', 'autumn'], 1: ['interior', 'kitchen'], 2: ['view', 'landscape'],
+                        3: ['garden', 'kids'], 4: ['interior', 'bedroom'], 5: ['fire', 'evening'] });
+    const res = validatePagePost(post({ assetPaths: album(6) }), pack);
     expect(res.ok).toBe(true);
     expect(res.warnings.some((w) => w.includes('where the camera stood'))).toBe(false);
   });
 
   it('stays silent when no tags are supplied', () => {
-    const res = validatePagePost(post({ assetPaths: album(3) }), PACK);
+    const res = validatePagePost(post({ assetPaths: album(6) }), PACK);
     expect(res.warnings.some((w) => w.includes('where the camera stood'))).toBe(false);
   });
 
-  // The real second draft, 28 Aug: a barbecue album where ALL FOUR photos are `outdoor` — because
-  // cooking over a fire happens outdoors. The framing overlap is a consequence of the subject.
-  it('does not warn when a framing tag is matched by an equally strong subject', () => {
-    const realDraft = {
-      ...PACK,
-      tagsByPath: {
-        'properties/prahova-mountain-chalet/autumn.jpg': ['exterior', 'outdoor', 'garden', 'autumn', 'bbq'],
-        'properties/prahova-mountain-chalet/fire.jpg': ['outdoor', 'bbq', 'fire', 'lifestyle'],
-        'properties/prahova-mountain-chalet/terrace.jpg': ['outdoor', 'bbq', 'fire', 'autumn'],
-        'properties/prahova-mountain-chalet/kitchen.jpg': ['outdoor', 'bbq', 'fire', 'autumn', 'view'],
-      } as Record<string, string[]>,
-    };
-    const res = validatePagePost(post({ assetPaths: album(4) }), realDraft);
-    expect(res.ok).toBe(true);
-    // outdoor 4/4, but bbq is also 4/4 — the album has a theme
-    expect(res.warnings.some((w) => w.includes('where the camera stood'))).toBe(false);
-  });
-
-  it('still warns when framing dominates and no subject holds it together', () => {
-    const wide = {
-      ...PACK,
-      tagsByPath: {
-        'properties/prahova-mountain-chalet/autumn.jpg': ['exterior', 'outdoor', 'autumn'],
-        'properties/prahova-mountain-chalet/fire.jpg': ['exterior', 'outdoor', 'garden'],
-        'properties/prahova-mountain-chalet/terrace.jpg': ['exterior', 'outdoor', 'terrace'],
-        'properties/prahova-mountain-chalet/kitchen.jpg': ['exterior', 'outdoor', 'view'],
-      } as Record<string, string[]>,
-    };
-    const res = validatePagePost(post({ assetPaths: album(4) }), wide);
-    expect(res.warnings.some((w) => w.includes('where the camera stood'))).toBe(true);
+  // The cap was 5 on my assumption; the page's record says 5+ averages 13 reactions and <5 averages 2.
+  it('allows the nine- and ten-photo albums that actually performed here', () => {
+    for (const n of [9, 10]) {
+      expect(validatePagePost(post({ assetPaths: album(n) }), PACK).ok).toBe(true);
+    }
   });
 });
