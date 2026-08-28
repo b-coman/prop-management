@@ -149,7 +149,14 @@ export async function discardPagePostAction(id: string): Promise<{ ok: boolean; 
  * a draft that can be retried rather than a phantom marked done.
  */
 export async function publishPagePostAction(
-  id: string
+  id: string,
+  /**
+   * The caption AS EDITED in the console. Publishing shipped without this and read `message`
+   * straight from Firestore, so the operator's edits were silently discarded and the toast still
+   * said "Published" — the first real post went out in the draft's words, not his. `markPagePosted`
+   * had always taken the edited text; the new path simply forgot to.
+   */
+  finalText?: string
 ): Promise<{ ok: true; postId: string; permalink?: string } | { ok: false; error: string }> {
   try {
     await requireSuperAdmin();
@@ -166,15 +173,21 @@ export async function publishPagePostAction(
       propertyId?: string; message?: string; assetUrls?: string[]; assetUrl?: string; status?: string;
     };
     if (data.status === 'posted') return { ok: false, error: 'already-posted' };
-    if (!data.propertyId || !data.message) return { ok: false, error: 'draft-incomplete' };
+    if (!data.propertyId) return { ok: false, error: 'draft-incomplete' };
+
+    // What the operator is looking at wins over what the model wrote.
+    const message = (finalText ?? data.message ?? '').trim();
+    if (!message) return { ok: false, error: 'draft-incomplete' };
 
     const urls = (data.assetUrls?.length ? data.assetUrls : [data.assetUrl]).filter(Boolean) as string[];
     if (!urls.length) return { ok: false, error: 'no-photo-urls' };
 
-    const res = await publishPagePost(data.propertyId, { message: data.message, photoUrls: urls });
+    const res = await publishPagePost(data.propertyId, { message, photoUrls: urls });
     if (!res.ok || !res.postId) return { ok: false, error: res.error ?? 'publish-failed' };
 
     await ref.update({
+      // Store what was ACTUALLY published, so the record matches the page rather than the draft.
+      message,
       status: 'posted',
       postId: res.postId,
       publishedAt: FieldValue.serverTimestamp(),

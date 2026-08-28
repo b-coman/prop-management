@@ -112,7 +112,9 @@ export function PagePostConsole({ propertyId, initialPosts, mix }: { propertyId:
 
   const publish = async (post: PagePost) => {
     setPending((p) => new Set(p).add(post.id));
-    const res = await publishPagePostAction(post.id);
+    // Pass the EDITED caption, exactly as `markPosted` always has. Omitting it published the model's
+    // draft instead of the operator's words, and reported success while doing it.
+    const res = await publishPagePostAction(post.id, edited[post.id] ?? post.message);
     setPending((p) => { const n = new Set(p); n.delete(post.id); return n; });
     if (res.ok) { toast({ title: 'Published to the page' }); router.refresh(); }
     else toast({ title: 'Could not publish', description: res.error, variant: 'destructive' });
