@@ -32,6 +32,14 @@
  *      two posts a week is under two months of runway; the operator should learn that from a plan,
  *      not from a post that repeats itself.
  *
+ * THE BRIEFS ARE IN ROMANIAN, and that is not cosmetic. The operator reads and edits every one of
+ * them before a word is written, and he writes in Romanian — the two briefs he typed by hand
+ * produced the two best posts the page has. An English brief also has to be translated by the model
+ * on its way to a Romanian caption, and translation is where borrowed phrasing creeps in: the
+ * English brief's "the drive that takes an hour" came back out of the model as "drumul care se face
+ * într-o oră", nearly word for word. So the briefs are plain INSTRUCTIONS in Romanian, deliberately
+ * unpoetic — the facts and the constraints, never a ready-made image for the model to lift.
+ *
  * Server-only (Admin SDK + pricing/availability services). Never throws: a source it cannot read
  * becomes a note on the plan, and the plan is still returned.
  */
@@ -42,6 +50,7 @@ import { getHolidays, computeOccasions } from '@/lib/growth/signals';
 import { pickReview, type ReviewRow, type PickedReview } from '@/lib/growth/reviewPicker';
 import { POST_TYPES, type PagePostType } from './pagePostWriter';
 import type { PropertyImage } from '@/types';
+import { tagLabelRo } from '@/lib/tag-labels';
 
 const logger = loggers.ads;
 const DAY = 86400000;
@@ -528,34 +537,36 @@ function planOffer(ctx: {
   const [h, m] = hourFor(day);
   const nightsWord = `${stay.nights} nopți`;
   const occLine =
-    rel === 'inside' ? `The stay falls inside "${occ}".`
-    : rel === 'ends-before' ? `The stay ENDS as "${occ}" begins — it is the last free window before it. That is the hook.`
-    : rel === 'starts-after' ? `The stay begins right after "${occ}".`
+    rel === 'inside' ? `Sejurul cade în "${occ}".`
+    : rel === 'ends-before' ? `Sejurul se termină exact când începe "${occ}" - e ultima fereastră liberă dinainte. Ăsta e cârligul.`
+    : rel === 'starts-after' ? `Sejurul începe imediat după "${occ}".`
     : '';
 
   return {
     publishAt: bucharestIso(day, h, m),
     postType: 'offer',
-    goal: 'fill a specific free window',
-    audience: weekend ? 'families and groups of friends planning this weekend' : 'couples, remote workers, people without school-age children',
+    goal: 'umple o fereastră liberă anume',
+    audience: weekend ? 'familii și grupuri de prieteni care își fac planuri pentru weekendul ăsta' : 'cupluri, oameni care lucrează de oriunde, oameni fără copii de școală',
     anchor: {
       kind: 'stay',
       start: stay.start, end: stay.end, nights: stay.nights, guests,
       priceRon, label: labelRo, occasion: occ, occasionRelation: rel, includesWeekend: weekend,
     },
     brief: [
-      `Write the OFFER post for one real, currently free window at the chalet. It goes out on ${roDate(day, h, m)} - write it for that time of day, without printing the clock time in the caption.`,
+      `Scrie postarea de tip OFERTĂ pentru o fereastră liberă reală de la cabană.`,
+      `Apare pe pagină ${roDate(day, h, m)} - scrie-o pentru momentul acela din zi, fără să pomenești ora.`,
       ``,
-      `THE FACTS — state them exactly, invent nothing:`,
+      `DATELE REALE - spune-le exact, nu inventa nimic:`,
       `  check-in ${stay.start}, check-out ${stay.end} (${nightsWord})`,
-      `  total ${priceRon} lei for ${guests} guests, everything included`,
-      occLine ? `  ${occLine}` : ``,
+      `  total ${priceRon} lei pentru ${guests} persoane, totul inclus`,
+      occLine ? `  ${occLine}` : null,
       ``,
-      `THIS IS NOT A PRICE LIST. Open with the reason someone would want THESE nights — the last`,
-      `warm weekend, the quiet before the season turns, the drive that takes an hour. Then the dates`,
-      `and the price, plainly, once. Close by telling them how to take it.`,
-      `Name the price ONCE and write it as digits. Do not mention any other number.`,
-    ].filter(Boolean).join('\n'),
+      `NU E O LISTĂ DE PREȚURI. Începe cu motivul pentru care cineva ar vrea exact nopțile astea -`,
+      `găsește-l singur, nu ți-l dau eu aici. Abia apoi datele și suma, o singură dată, simplu.`,
+      `Închide spunându-le cum o pot lua.`,
+      `Suma se scrie o singură dată, cu cifre. Niciun alt număr în text.`,
+      `Textul de mai sus e instrucțiune, nu material de copiat.`,
+    ].filter((l) => l !== null).join('\n'),
     why: `offer · published ${weekdayName(day)} ${day}, ${daysBetween(day, stay.start)} days before check-in · ${weekend ? 'a weekend' : 'a midweek window'}${occ ? ` · ${rel === 'ends-before' ? 'the last free window before' : 'anchored to'} "${occ}"` : ''} · ${priceRon} lei`,
   };
 }
@@ -568,27 +579,28 @@ function buildProofSlot(day: string, review: PickedReview): PlannedSlot {
     postType: 'proof',
     anchor: { kind: 'review', review },
     brief: [
-      `Write the PROOF post around this real ${review.rating}-star review, left by ${review.author} on ${review.source}${review.at ? ` in ${roMonthYear(review.at)}` : ''}.`,
-      `It goes out on ${roDate(day, h, m)}.`,
-      review.at
-        ? `DO NOT IMPLY IT IS RECENT. It was written in ${roMonthYear(review.at)}; "ne-a lăsat zilele astea" would be a small lie about a real person. Quote it without dating it, or date it honestly.`
-        : ``,
+      `Scrie postarea de tip DOVADĂ pornind de la această recenzie reală de ${review.rating} stele,`,
+      `lăsată de ${review.author} pe ${review.source}${review.at ? ` în ${roMonthYear(review.at)}` : ''}.`,
+      `Apare pe pagină ${roDate(day, h, m)}.`,
       ``,
-      `THE REVIEW, VERBATIM:`,
+      `RECENZIA, TEXTUAL:`,
       `"""${review.text}"""`,
       ``,
+      review.at
+        ? `NU LĂSA IMPRESIA CĂ E RECENTĂ. A fost scrisă în ${roMonthYear(review.at)}; "ne-a lăsat zilele astea" ar fi o mică minciună despre un om real. Ori o citezi fără s-o datezi, ori o datezi corect.`
+        : null,
       foreign
-        ? `It was written in ${review.langNameRo ?? 'another language'}. Quote it TRANSLATED INTO ROMANIAN, ` +
+        ? `E scrisă în ${review.langNameRo ?? 'altă limbă'}. Citeaz-o TRADUSĂ ÎN ROMÂNĂ` +
           (review.langNameRo
-            ? `and say plainly that ${review.author} wrote it in ${review.langNameRo} — a guest who travelled from abroad is itself proof. Never state which country they are from: we do not know it.`
-            : `and do not claim which language or country it came from — we are not sure enough to say.`)
-        : `It is already in Romanian. Quote it as written; you may tidy diacritics and trim it, but never put words in ${review.author}'s mouth.`,
+            ? `, și spune limpede că ${review.author} a scris-o în ${review.langNameRo} - un oaspete venit de departe e el însuși o dovadă. Nu spune niciodată din ce țară e: nu știm.`
+            : `, dar nu pretinde din ce limbă sau din ce țară vine - nu suntem destul de siguri ca s-o spunem.`)
+        : `E deja în română. Citeaz-o cum e; poți repara diacriticele și poți scurta, dar nu-i pune lui ${review.author} cuvinte în gură.`,
       ``,
-      `Quote the part that carries a FEELING, not the part that lists features. Then add one or two`,
-      `sentences in the host's own voice about what that guest is describing. End with a real question`,
-      `someone could actually answer.`,
-      `Choose the photos to match what the review talks about.`,
-    ].filter(Boolean).join('\n'),
+      `Citează partea care transmite un SENTIMENT, nu partea care înșiră dotări. Apoi una-două fraze`,
+      `cu vocea gazdei, despre ce descrie omul acela. Închide cu o întrebare reală, la care se poate`,
+      `răspunde. Alege pozele care se potrivesc cu ce spune recenzia.`,
+      `Textul de mai sus e instrucțiune, nu material de copiat.`,
+    ].filter((l) => l !== null).join('\n'),
     why: `proof · ${review.author} ${review.rating}★ (${review.source}${review.langNameRo ? `, ${review.langNameRo}` : ''})${foreign ? ' · translated' : ''}`,
   };
 }
@@ -596,20 +608,24 @@ function buildProofSlot(day: string, review: PickedReview): PlannedSlot {
 function buildPlaceSlot(day: string, tag: string, photos: number, alternatives: Array<{ tag: string; photos: number }>): PlannedSlot {
   const [h, m] = hourFor(day);
   const when = roDate(day, h, m);
+  // The Romanian name for the tag, from the same map the gallery's filter pills use — a brief that
+  // says `SUBIECTUL E "terrace"` is half in the language of the database, not of the post.
+  const ro = tagLabelRo(tag);
+  const subject = ro === tag ? `"${tag}"` : `${ro.toLocaleLowerCase('ro-RO')} ("${tag}")`;
   return {
     publishAt: bucharestIso(day, h, m),
     postType: 'place',
     anchor: { kind: 'subject', tag, photosAvailable: photos, alternatives },
     brief: [
-      `Write the PLACE post — no offer, no dates, no price, no link.`,
+      `Scrie postarea de tip LOC - fără ofertă, fără date, fără preț, fără link.`,
       ``,
-      `THE SUBJECT IS "${tag}". Build the album around it: most of the photos should show it, and the`,
-      `caption should be about it rather than about the chalet in general. There are ${photos} photos`,
-      `tagged "${tag}" free to use.`,
+      `SUBIECTUL E: ${subject}. Construiește albumul în jurul lui: majoritatea pozelor să-l arate, iar`,
+      `textul să fie despre el, nu despre cabană în general. Ai ${photos} poze disponibile cu eticheta "${tag}".`,
       ``,
-      `It goes out on ${when}. Write it for that time of day - a small moment someone would recognise`,
-      `then, not a description of a property, and never print the clock time. End with a question`,
-      `specific to what is actually in the photos.`,
+      `Apare pe pagină ${when}. Scrie-o pentru momentul acela din zi, fără să pomenești ora - un moment`,
+      `mic, pe care cineva îl recunoaște, nu o descriere de proprietate. Închide cu o întrebare legată`,
+      `de ce se vede efectiv în poze.`,
+      `Textul de mai sus e instrucțiune, nu material de copiat.`,
     ].join('\n'),
     why: `place · subject "${tag}" (${photos} free photos) · nothing sold`,
   };

@@ -15,43 +15,9 @@ import { SafeImage } from '@/components/ui/safe-image';
 import { useLanguage } from '@/hooks/useLanguage';
 import { displaySrc, fullSrc } from '@/lib/image-src';
 import { trackUiEvent } from '@/lib/tracking';
+import { DEFAULT_TAG_LABELS, type TagLabel } from '@/lib/tag-labels';
 
 // Default bilingual labels for common image tags.
-// Properties can override/extend via content.tagLabels in Firestore.
-// Having a label here is what makes a tag eligible to become a filter pill
-// (see tagCounts below), so this map doubles as the pill allowlist. Broad
-// structural tags like `interior` are deliberately left out: they sit on most
-// indoor photos, so they would out-count every real category while filtering
-// almost nothing.
-// `exterior` is the building seen from outside; `outdoor` is the outdoor spaces.
-// They are distinct pills, so they must not share a Romanian label.
-const DEFAULT_TAG_LABELS: Record<string, { en: string; ro: string }> = {
-  bedroom: { en: 'Bedrooms', ro: 'Dormitoare' },
-  'living-room': { en: 'Living Areas', ro: 'Zone de zi' },
-  kitchen: { en: 'Kitchen', ro: 'Bucătărie' },
-  bathroom: { en: 'Bathrooms', ro: 'Băi' },
-  dining: { en: 'Dining', ro: 'Sufragerie' },
-  kids: { en: 'Kids Areas', ro: 'Zone pentru copii' },
-  playroom: { en: 'Play Room', ro: 'Cameră de joacă' },
-  fireplace: { en: 'Fireplace', ro: 'Șemineu' },
-  terrace: { en: 'Terrace', ro: 'Terasă' },
-  garden: { en: 'Garden', ro: 'Grădină' },
-  outdoor: { en: 'Outdoors', ro: 'Exterior' },
-  exterior: { en: 'Exterior', ro: 'Fațadă' },
-  bbq: { en: 'BBQ', ro: 'Grătar' },
-  hammock: { en: 'Hammocks', ro: 'Hamace' },
-  playground: { en: 'Playground', ro: 'Loc de joacă' },
-  view: { en: 'Views', ro: 'Priveliști' },
-  landscape: { en: 'Landscape', ro: 'Peisaj' },
-  autumn: { en: 'Autumn', ro: 'Toamna' },
-  lifestyle: { en: 'Lifestyle', ro: 'Atmosferă' },
-  pool: { en: 'Pool', ro: 'Piscină' },
-  spa: { en: 'Spa', ro: 'Spa' },
-  balcony: { en: 'Balcony', ro: 'Balcon' },
-  parking: { en: 'Parking', ro: 'Parcare' },
-  'beach-access': { en: 'Beach', ro: 'Plajă' },
-  deck: { en: 'Deck', ro: 'Terasă' },
-};
 
 /**
  * The photo's stable name, not its CDN URL — a signed/resized URL changes and would split one photo
@@ -81,7 +47,7 @@ export function GalleryGrid({ content }: GalleryGridProps) {
 
   // Merge default tag labels with per-property overrides from Firestore
   const tagLabels = useMemo(() => {
-    const customLabels = (content as any).tagLabels as Record<string, { en: string; ro: string }> | undefined;
+    const customLabels = (content as any).tagLabels as Record<string, TagLabel> | undefined;
     if (!customLabels) return DEFAULT_TAG_LABELS;
     return { ...DEFAULT_TAG_LABELS, ...customLabels };
   }, [content]);
