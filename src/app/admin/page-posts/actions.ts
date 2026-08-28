@@ -208,7 +208,12 @@ export async function publishPagePostAction(
     const data = doc.data() as {
       propertyId?: string; message?: string; assetUrls?: string[]; assetUrl?: string; status?: string;
     };
-    if (data.status === 'posted') return { ok: false, error: 'already-posted' };
+    // Scheduled counts too: Meta is already holding that copy, so publishing now would put the same
+    // post out twice and orphan the queued one. The console hides the button, but a stale tab still
+    // has it — the tab being stale is precisely how this page has already failed once.
+    if (data.status === 'posted' || data.status === 'scheduled') {
+      return { ok: false, error: `already-${data.status}` };
+    }
     if (!data.propertyId) return { ok: false, error: 'draft-incomplete' };
 
     // What the operator is looking at wins over what the model wrote.

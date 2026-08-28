@@ -66,13 +66,34 @@ export function PagePostConsole({ propertyId, initialPosts, mix }: { propertyId:
   const [edited, setEdited] = useState<Record<string, string>>({});
   const [pending, setPending] = useState<Set<string>>(new Set());
 
+  /**
+   * Every server action on this page goes through this. Next keys an action to an id baked into the
+   * BUILD, so a deploy while the page sits open makes the call fail before our code runs. That is
+   * exactly what happened on 28 Aug: a revision shipped 33 seconds after the draft was generated,
+   * and Schedule then did NOTHING — no post, no error, no toast — because nothing here caught the
+   * rejection. A button that fails silently is worse than one that fails loudly.
+   */
+  const call = async <T,>(fn: () => Promise<T>): Promise<T | undefined> => {
+    try {
+      return await fn();
+    } catch {
+      toast({
+        title: 'That did not reach the server',
+        description: 'This page is probably left over from an earlier version of the site. Reload it and try again — nothing was sent.',
+        variant: 'destructive',
+      });
+      return undefined;
+    }
+  };
+
   const generate = () => {
     if (!prompt.trim()) {
       toast({ title: 'Add a prompt', description: 'What should the post be about?', variant: 'destructive' });
       return;
     }
     startGenerate(async () => {
-      const res = await generatePagePostAction({ propertyId, prompt: prompt.trim(), postType: postType as never, goal: goal.trim() || undefined, audience: audience.trim() || undefined });
+      const res = await call(() => generatePagePostAction({ propertyId, prompt: prompt.trim(), postType: postType as never, goal: goal.trim() || undefined, audience: audience.trim() || undefined }));
+      if (!res) return;
       if (res.ok) {
         toast({ title: 'Post drafted', description: 'Review it below, then post it by hand.' });
         setPrompt('');
@@ -95,7 +116,8 @@ export function PagePostConsole({ propertyId, initialPosts, mix }: { propertyId:
 
   const markPosted = (post: PagePost) =>
     withPending(post.id, async () => {
-      const res = await markPagePostedAction(post.id, edited[post.id] ?? post.message);
+      const res = await call(() => markPagePostedAction(post.id, edited[post.id] ?? post.message));
+      if (!res) return;
       if (res.ok) {
         toast({ title: 'Marked posted' });
         router.refresh();
@@ -106,12 +128,15 @@ export function PagePostConsole({ propertyId, initialPosts, mix }: { propertyId:
 
   const discard = (id: string) =>
     withPending(id, async () => {
-      const res = await discardPagePostAction(id);
+      const res = await call(() => discardPagePostAction(id));
+      if (!res) return;
       if (res.ok) router.refresh();
       else toast({ title: 'Could not discard', description: res.error, variant: 'destructive' });
     });
 
-  const drafts = initialPosts.filter((p) => p.status !== 'posted');
+  // 'scheduled' is NOT a draft. It showed in both lists after the first real schedule, which left a
+  // live "Publish to page" button on a post Meta was already holding — one click from a double post.
+  const drafts = initialPosts.filter((p) => p.status !== 'posted' && p.status !== 'scheduled');
   const posted = initialPosts.filter((p) => p.status === 'posted');
   const scheduled = initialPosts
     .filter((p) => p.status === 'scheduled')
@@ -121,8 +146,9 @@ export function PagePostConsole({ propertyId, initialPosts, mix }: { propertyId:
     setPending((p) => new Set(p).add(post.id));
     // Pass the EDITED caption, exactly as `markPosted` always has. Omitting it published the model's
     // draft instead of the operator's words, and reported success while doing it.
-    const res = await publishPagePostAction(post.id, edited[post.id] ?? post.message);
+    const res = await call(() => publishPagePostAction(post.id, edited[post.id] ?? post.message));
     setPending((p) => { const n = new Set(p); n.delete(post.id); return n; });
+    if (!res) return;
     if (res.ok) { toast({ title: 'Published to the page' }); router.refresh(); }
     else toast({ title: 'Could not publish', description: res.error, variant: 'destructive' });
   };
@@ -131,14 +157,16 @@ export function PagePostConsole({ propertyId, initialPosts, mix }: { propertyId:
     const at = when[post.id];
     if (!at) { toast({ title: 'Pick a date and time first', variant: 'destructive' }); return; }
     setPending((p) => new Set(p).add(post.id));
-    const res = await schedulePagePostAction(post.id, new Date(at).toISOString(), edited[post.id] ?? post.message);
+    const res = await call(() => schedulePagePostAction(post.id, new Date(at).toISOString(), edited[post.id] ?? post.message));
     setPending((p) => { const n = new Set(p); n.delete(post.id); return n; });
+    if (!res) return;
     if (res.ok) { toast({ title: `Scheduled for ${new Date(res.scheduledFor).toLocaleString('ro-RO')}` }); router.refresh(); }
     else toast({ title: 'Could not schedule', description: res.error, variant: 'destructive' });
   };
 
   const syncEngagement = async () => {
-    const res = await syncPageEngagementAction(propertyId);
+    const res = await call(() => syncPageEngagementAction(propertyId));
+    if (!res) return;
     if (res.ok) { toast({ title: `Refreshed ${res.updated} post(s)` }); router.refresh(); }
     else toast({ title: 'Could not read engagement', description: res.error, variant: 'destructive' });
   };
