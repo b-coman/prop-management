@@ -1,6 +1,6 @@
 import { AdminPage } from '@/components/admin';
 import { PropertyUrlSync } from '@/components/admin/PropertyUrlSync';
-import { fetchPagePostsAction } from './actions';
+import { fetchPagePostsAction, fetchMixAction } from './actions';
 import { PagePostConsole } from './_components/page-post-console';
 
 export const dynamic = 'force-dynamic';
@@ -14,7 +14,7 @@ export default async function PagePostsPage({
 }) {
   const { propertyId } = await searchParams;
   const property = propertyId || DEFAULT_PROPERTY;
-  const posts = await fetchPagePostsAction(property);
+  const [posts, mix] = await Promise.all([fetchPagePostsAction(property), fetchMixAction(property)]);
 
   return (
     <AdminPage
@@ -22,7 +22,7 @@ export default async function PagePostsPage({
       description="Draft warm organic Facebook posts to keep the page alive — the engine writes one grounded in a real photo; you post it from your own account, one tap. (Auto-publish needs a page-scope grant.)"
     >
       <PropertyUrlSync />
-      <PagePostConsole propertyId={property} initialPosts={posts} />
+      <PagePostConsole propertyId={property} initialPosts={posts} mix={mix} />
     </AdminPage>
   );
 }

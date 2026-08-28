@@ -14,7 +14,8 @@ import { requireSuperAdmin, handleAuthError, AuthorizationError } from '@/lib/au
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { convertTimestampsToISOStrings } from '@/lib/utils';
 import { serverTranslateContent } from '@/lib/server-language-utils';
-import { generatePagePost } from '@/services/growth/pagePostWriter';
+import { generatePagePost, POST_TYPES, type PagePostType } from '@/services/growth/pagePostWriter';
+import { publishPagePost, fetchPostEngagement } from '@/services/growth/pagePublisher';
 import type { PropertyImage } from '@/types';
 
 const logger = loggers.ads;
@@ -23,6 +24,7 @@ const logger = loggers.ads;
 export async function generatePagePostAction(input: {
   propertyId: string;
   prompt: string;
+  postType?: PagePostType;
   goal?: string;
   audience?: string;
 }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
@@ -45,7 +47,7 @@ export async function generatePagePostAction(input: {
     if (!assets.length) return { ok: false, error: 'no gallery photos for this property' };
 
     const framing = { goal: input.goal?.trim() || undefined, audience: input.audience?.trim() || undefined };
-    const res = await generatePagePost({ propertyId: input.propertyId, prompt: input.prompt.trim(), assets, framing });
+        const res = await generatePagePost({ propertyId: input.propertyId, prompt: input.prompt, assets, framing, postType: input.postType });
     if (!res.ok || !res.post) return { ok: false, error: res.errors.join('; ') || 'generation-failed' };
 
     const urlByPath = new Map(images.filter((i) => i.storagePath).map((i) => [i.storagePath!, i.url]));
@@ -56,8 +58,12 @@ export async function generatePagePostAction(input: {
       goal: framing.goal ?? null,
       audience: framing.audience ?? null,
       message: res.post.message,
-      assetPath: res.post.assetPath,
-      assetUrl: urlByPath.get(res.post.assetPath) ?? '',
+      postType: res.post.postType,
+      assetPaths: res.post.assetPaths,
+      assetUrls: res.post.assetPaths.map((a) => urlByPath.get(a) ?? '').filter(Boolean),
+      // Kept so older drafts and any UI still reading the singular fields do not break.
+      assetPath: res.post.assetPaths[0],
+      assetUrl: urlByPath.get(res.post.assetPaths[0]) ?? '',
       status: 'draft',
       createdAt: FieldValue.serverTimestamp(),
     });
@@ -71,7 +77,7 @@ export async function generatePagePostAction(input: {
 
 /** List a property's page posts (drafts + posted), newest first. */
 export async function fetchPagePostsAction(propertyId: string): Promise<
-  Array<{ id: string; message: string; assetPath: string; assetUrl: string; status: string; prompt?: string; goal?: string | null; audience?: string | null; createdAt?: string }>
+  Array<{ id: string; message: string; postType?: string; assetPaths?: string[]; assetUrls?: string[]; assetPath: string; assetUrl: string; status: string; postId?: string; reactions?: number; comments?: number; shares?: number; permalink?: string; prompt?: string; goal?: string | null; audience?: string | null; createdAt?: string }>
 > {
   try {
     await requireSuperAdmin();
@@ -128,5 +134,158 @@ export async function discardPagePostAction(id: string): Promise<{ ok: boolean; 
   } catch (error) {
     logger.error('discardPagePostAction failed', error as Error, { id });
     return { ok: false, error: 'internal-error' };
+  }
+}
+
+
+/**
+ * Publish a draft to the page, for real.
+ *
+ * The step that has always been manual — and the page's failure mode has never been bad posts, it
+ * has been NO posts: 17 in six years, silence since 27 June 2024. Requires the page scopes the owner
+ * granted on 28 Aug 2026.
+ *
+ * The draft's status only moves to 'posted' if Meta returns a post id, so a failed publish leaves it
+ * a draft that can be retried rather than a phantom marked done.
+ */
+export async function publishPagePostAction(
+  id: string
+): Promise<{ ok: true; postId: string; permalink?: string } | { ok: false; error: string }> {
+  try {
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return { ok: false, error: handleAuthError(error).error };
+    throw error;
+  }
+  try {
+    const db = await getAdminDb();
+    const ref = db.collection('pagePosts').doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) return { ok: false, error: 'post-not-found' };
+    const data = doc.data() as {
+      propertyId?: string; message?: string; assetUrls?: string[]; assetUrl?: string; status?: string;
+    };
+    if (data.status === 'posted') return { ok: false, error: 'already-posted' };
+    if (!data.propertyId || !data.message) return { ok: false, error: 'draft-incomplete' };
+
+    const urls = (data.assetUrls?.length ? data.assetUrls : [data.assetUrl]).filter(Boolean) as string[];
+    if (!urls.length) return { ok: false, error: 'no-photo-urls' };
+
+    const res = await publishPagePost(data.propertyId, { message: data.message, photoUrls: urls });
+    if (!res.ok || !res.postId) return { ok: false, error: res.error ?? 'publish-failed' };
+
+    await ref.update({
+      status: 'posted',
+      postId: res.postId,
+      publishedAt: FieldValue.serverTimestamp(),
+      publishedVia: 'api',
+    });
+    revalidatePath('/admin/page-posts');
+    return { ok: true, postId: res.postId };
+  } catch (error) {
+    logger.error('publishPagePostAction failed', error as Error, { id });
+    return { ok: false, error: 'internal-error' };
+  }
+}
+
+/**
+ * Refresh reactions/comments/shares for everything we published.
+ *
+ * This is what turns the mix from a rule into a feedback loop: with six years and ONE comment on
+ * record, "did anyone reply?" is the question the whole strategy hangs on, and until the token could
+ * read the page nobody could answer it.
+ */
+export async function syncPageEngagementAction(
+  propertyId: string
+): Promise<{ ok: boolean; updated: number; error?: string }> {
+  try {
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return { ok: false, updated: 0, error: handleAuthError(error).error };
+    throw error;
+  }
+  try {
+    const db = await getAdminDb();
+    const snap = await db
+      .collection('pagePosts')
+      .where('propertyId', '==', propertyId)
+      .where('status', '==', 'posted')
+      .limit(100)
+      .get();
+    const byPostId = new Map<string, string>();
+    snap.docs.forEach((d) => {
+      const pid = (d.data() as { postId?: string }).postId;
+      if (pid) byPostId.set(pid, d.id);
+    });
+    if (!byPostId.size) return { ok: true, updated: 0 };
+
+    const res = await fetchPostEngagement(propertyId, [...byPostId.keys()]);
+    if (!res.ok || !res.data) return { ok: false, updated: 0, error: res.error };
+
+    const batch = db.batch();
+    for (const e of res.data) {
+      const docId = byPostId.get(e.postId);
+      if (!docId) continue;
+      batch.update(db.collection('pagePosts').doc(docId), {
+        reactions: e.reactions,
+        comments: e.comments,
+        shares: e.shares,
+        permalink: e.permalink ?? null,
+        engagementSyncedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+    revalidatePath('/admin/page-posts');
+    return { ok: true, updated: res.data.length };
+  } catch (error) {
+    logger.error('syncPageEngagementAction failed', error as Error, { propertyId });
+    return { ok: false, updated: 0, error: 'internal-error' };
+  }
+}
+
+/**
+ * The 60/25/15 mix over the last 10 posts, so the ratio is visible instead of remembered.
+ *
+ * `suggestion` is the type most behind its target — the answer to "what should I post next?" without
+ * anyone having to count. A page that managed 17 posts in six years does not need another thing to
+ * keep track of.
+ */
+export async function fetchMixAction(
+  propertyId: string
+): Promise<{ counts: Record<string, number>; targets: Record<string, number>; total: number; suggestion: PagePostType }> {
+  const targets: Record<string, number> = { place: 0.6, proof: 0.25, offer: 0.15 };
+  try {
+    await requireSuperAdmin();
+  } catch {
+    return { counts: {}, targets, total: 0, suggestion: 'place' };
+  }
+  try {
+    const db = await getAdminDb();
+    const snap = await db
+      .collection('pagePosts')
+      .where('propertyId', '==', propertyId)
+      .where('status', '==', 'posted')
+      .orderBy('createdAt', 'desc')
+      .limit(10)
+      .get();
+    const counts: Record<string, number> = { place: 0, proof: 0, offer: 0 };
+    snap.docs.forEach((d) => {
+      const t = (d.data() as { postType?: string }).postType ?? 'place';
+      if (t in counts) counts[t] += 1;
+    });
+    const total = snap.size;
+    // Furthest below target wins. With nothing posted yet every gap is equal, and `place` — the type
+    // that earns reach — is the right way to restart a page nobody has seen in fourteen months.
+    let suggestion: PagePostType = 'place';
+    let worst = Infinity;
+    for (const t of POST_TYPES) {
+      const share = total ? counts[t] / total : 0;
+      const gap = share - targets[t];
+      if (gap < worst) { worst = gap; suggestion = t; }
+    }
+    return { counts, targets, total, suggestion };
+  } catch (error) {
+    logger.error('fetchMixAction failed', error as Error, { propertyId });
+    return { counts: {}, targets, total: 0, suggestion: 'place' };
   }
 }

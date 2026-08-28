@@ -1,16 +1,24 @@
 /**
  * pagePostWriter (in-app) — drafts an ORGANIC Facebook page post to keep the brand page alive
  * (promotion-system-architecture.md §4.3). The page-arm twin of the ad copywriter, but simpler: an
- * organic post is ONE warm caption + ONE real photo, not a paid ad. It is grounded in the property's
- * real gallery + the public brand voice, and shaped to the same goal/audience framing.
+ * organic post is a warm caption + real photos, not a paid ad. It is grounded in the property's real
+ * gallery + the public brand voice, and shaped to the same goal/audience framing.
  *
- * DELIVERY PHILOSOPHY (mirrors WhatsApp): the server DRAFTS, it does not publish. v1 is manual — the
- * operator reviews the draft and posts it by hand (copy the caption, download the photo), exactly
- * like the wa.me one-tap send. API auto-publish is the later upgrade and needs the owner's one-time
- * token-scope grant (pages_manage_posts + a CREATE_CONTENT page task, infra doc §11.2) plus a
- * contract spike — NOT built blind here.
+ * ALBUMS, NOT ONE PHOTO — and that is the page's own verdict, not a preference. Its six-year record,
+ * read on 28 Aug 2026: every one of the five best posts is a multi-photo album (20 · 16 · 9 · 7 · 7
+ * reactions) and every single-photo post sits at four or below. The old contract could only emit the
+ * weaker format.
  *
- * Truth is anchored in CODE (validatePagePost): the chosen photo must be a REAL owned gallery asset.
+ * POST TYPE carries the strategy's 60/25/15 mix into the data. Without it the ratio lives only in
+ * someone's head, and a page that has posted 17 times in six years does not need another thing to
+ * remember.
+ *
+ * NO OTA LINKS, enforced not advised. The one post in the page's history carrying an airbnb.com link
+ * is also the only caption-bearing post with ZERO reactions — and it routed the page's own followers
+ * to a channel charging 18.755%. That is a validation error here, not a matter of discipline.
+ *
+ * Truth is anchored in CODE (validatePagePost): every chosen photo must be a REAL owned gallery asset.
+ * Publishing lives in `pagePublisher.ts`; this module only drafts.
  * Server-only. Degrades (throws) if ANTHROPIC_API_KEY is absent.
  */
 import { getAnthropicClient, COPYWRITER_MODEL } from '@/lib/growth/anthropic';
@@ -22,10 +30,27 @@ const logger = loggers.ads;
 
 const MESSAGE_MIN = 20;
 const MESSAGE_MAX = 2000;
+/** Albums win, but past ~5 the extra photos stop being looked at and start being scrolled. */
+const PHOTOS_MIN = 1;
+const PHOTOS_MAX = 5;
+/** Below this an "album" is really a single photo wearing a costume — warn, don't block. */
+const ALBUM_MIN = 3;
+
+/**
+ * The 60/25/15 mix. `place` earns reach, `proof` earns replies, `offer` converts — and only `offer`
+ * may carry a booking link, which is what stops the page drifting back into being a shop window.
+ */
+export const POST_TYPES = ['place', 'proof', 'offer'] as const;
+export type PagePostType = (typeof POST_TYPES)[number];
+
+/** Channels that charge us commission. A page post must never hand its own followers to one. */
+const OTA_LINK = /\b(airbnb|booking\.com|vrbo|expedia|trip\.com|hotels\.com|travelminit)\b/i;
 
 export interface PagePost {
   message: string;
-  assetPath: string;
+  /** 1-5 gallery storagePaths. Multi-photo is the point; see the header. */
+  assetPaths: string[];
+  postType: PagePostType;
   notes?: string;
 }
 
@@ -35,9 +60,9 @@ export interface PagePostValidationResult {
   warnings: string[];
 }
 
-/** Pure validator: the post must have a sane-length message and ONE photo that is a real owned asset. */
+/** Pure validator: sane message, real owned photos, a known type, and never an OTA link. */
 export function validatePagePost(
-  post: { message: string; assetPath: string },
+  post: { message: string; assetPaths: string[]; postType?: string },
   pack: { propertyId: string; assetPaths: string[] }
 ): PagePostValidationResult {
   const errors: string[] = [];
@@ -47,9 +72,29 @@ export function validatePagePost(
   else if (msg.length > MESSAGE_MAX) errors.push(`message too long (${msg.length} > ${MESSAGE_MAX})`);
   else if (msg.length > 500) warnings.push(`message ${msg.length} chars — long for a page post; shorter usually performs better`);
 
-  if (!post.assetPath) errors.push('no photo chosen');
-  else if (!pack.assetPaths.includes(post.assetPath)) errors.push(`photo not in the available gallery assets: ${post.assetPath}`);
-  else if (!post.assetPath.startsWith(`properties/${pack.propertyId}/`)) errors.push(`photo not owned by ${pack.propertyId}`);
+  // The page's own history is the argument: its single OTA-link post scored zero and sent followers
+  // to an 18.755% channel. Blocked, so it cannot happen on a busy day.
+  const ota = msg.match(OTA_LINK);
+  if (ota) errors.push(`caption links to an OTA (${ota[0]}) — page posts point at the direct site or nowhere`);
+
+  const paths = post.assetPaths ?? [];
+  if (!paths.length) errors.push('no photos chosen');
+  else if (paths.length > PHOTOS_MAX) errors.push(`too many photos (${paths.length} > ${PHOTOS_MAX})`);
+  else {
+    const seen = new Set<string>();
+    for (const path of paths) {
+      if (seen.has(path)) { errors.push(`the same photo twice: ${path}`); continue; }
+      seen.add(path);
+      if (!pack.assetPaths.includes(path)) errors.push(`photo not in the available gallery assets: ${path}`);
+      else if (!path.startsWith(`properties/${pack.propertyId}/`)) errors.push(`photo not owned by ${pack.propertyId}`);
+    }
+    if (paths.length >= PHOTOS_MIN && paths.length < ALBUM_MIN) {
+      warnings.push(`${paths.length} photo(s) — this page's albums out-perform single photos about 3:1, so ${ALBUM_MIN}-${PHOTOS_MAX} is usually better`);
+    }
+  }
+
+  if (!post.postType) errors.push('no postType chosen');
+  else if (!(POST_TYPES as readonly string[]).includes(post.postType)) errors.push(`unknown postType: ${post.postType}`);
 
   return { ok: errors.length === 0, errors, warnings };
 }
@@ -60,11 +105,12 @@ const PAGE_POST_TOOL = {
   input_schema: {
     type: 'object' as const,
     properties: {
-      message: { type: 'string', description: 'the post caption in ROMANIAN — warm, organic, community feel (NOT a hard-sell ad). Short, a few sentences; a light question or invite is good for engagement.' },
-      assetPath: { type: 'string', description: 'ONE photo by EXACT storagePath from the assets — the one that best carries the post. Never invent a path.' },
-      notes: { type: 'string', description: 'brief note on the choice (optional).' },
+      message: { type: 'string', description: 'the post caption in ROMANIAN — warm, organic, community feel (NOT a hard-sell ad). Short, a few sentences. END WITH A REAL QUESTION unless postType is "offer": this page has earned exactly one comment in six years, and it came from the one caption that spoke to a person instead of describing a property.' },
+      assetPaths: { type: 'array', items: { type: 'string' }, description: '3 to 5 photos by EXACT storagePath from the assets, as an ALBUM that tells one small story in order. This page\'s albums out-perform its single photos about 3:1. Never invent a path, never repeat one.' },
+      postType: { type: 'string', enum: ['place', 'proof', 'offer'], description: 'place = the chalet/season with no offer and no link (earns reach). proof = guests, a review, the place in use, ending in a question (earns replies). offer = specific dates and a real price (converts). Follow the type asked for in the brief.' },
+      notes: { type: 'string', description: 'brief note on the choices (optional).' },
     },
-    required: ['message', 'assetPath'],
+    required: ['message', 'assetPaths', 'postType'],
   },
 };
 
@@ -79,12 +125,20 @@ RULES
    invite drives engagement. No aggressive selling, no fake urgency.
 2. SHAPE TO THE PROMPT + FRAMING. Follow the prompt (what the post is about) and any goal/audience
    given — a couples/off-peak post and a families/school-break post look different.
-3. GROUND IN REALITY, PICK A PHOTO THAT FITS. Pick ONE photo, by exact storagePath, from the provided
-   assets — you can only show what the property really has. Each asset has a rich aiDescription
-   (season, mood, people, features, fitsAngles) from a vision model — use it to pick the photo that
-   truly fits the post's prompt, season, and audience. Never claim an amenity not evident in the assets.
-4. KEEP IT SHORT. A few sentences. Diacritics are fine (this is public brand copy). One or two
-   tasteful emoji are OK if they fit.
+3. GROUND IN REALITY, BUILD AN ALBUM. Pick 3-5 photos, by exact storagePath, from the provided assets
+   — you can only show what the property really has. Order them so they tell one small story: the
+   wide shot that sets the scene, then the details that reward a second look. Each asset has a rich
+   aiDescription (season, mood, people, features, fitsAngles) from a vision model — use it so the
+   photos genuinely fit the prompt, the season and the audience. Never claim an amenity not evident
+   in the assets, and never repeat a photo.
+4. KEEP IT SHORT, AND ASK SOMETHING. A few sentences. For 'place' and 'proof', end on a real question
+   someone could answer — not "who else loves autumn?" but something specific to what is in the
+   photos. Diacritics are fine (this is public brand copy). One or two tasteful emoji are OK.
+5. NEVER LINK TO AN OTA. Not Airbnb, not Booking.com, not VRBO. The only booking link a page post may
+   carry is the property's own site, and only when postType is 'offer'. This is enforced in code.
+6. MATCH THE TYPE. 'place' shares a moment and sells nothing. 'proof' shows the place being used and
+   invites a reply. 'offer' names real dates and a real price — the one type allowed to ask for the
+   booking.
 
 Return the post by calling emit_page_post. Nothing else.`;
 
@@ -98,7 +152,8 @@ export interface GeneratePagePostResult {
 
 interface EmitPagePostInput {
   message: string;
-  assetPath: string;
+  assetPaths: string[];
+  postType: PagePostType;
   notes?: string;
 }
 
@@ -107,7 +162,7 @@ interface EmitPagePostInput {
  * failure feeds the errors back for ONE bounded repair. Produces a DRAFT only — never publishes.
  */
 export async function generatePagePost(
-  input: { propertyId: string; prompt: string; assets: AdCreativeAsset[]; framing?: AdFraming },
+  input: { propertyId: string; prompt: string; assets: AdCreativeAsset[]; framing?: AdFraming; postType?: PagePostType },
   opts?: { maxRepairs?: number }
 ): Promise<GeneratePagePostResult> {
   if (!input.assets.length) return { ok: false, post: null, errors: ['no gallery assets available'], warnings: [], attempts: 0 };
@@ -119,6 +174,7 @@ export async function generatePagePost(
 
   const postPack = {
     prompt: input.prompt,
+    postType: input.postType ?? 'place',
     goal: input.framing?.goal ?? null,
     audience: input.framing?.audience ?? null,
     assets: input.assets.map((a) => ({ storagePath: a.storagePath, alt: a.alt, tags: a.tags, aiDescription: a.aiDescription })),
@@ -141,7 +197,9 @@ export async function generatePagePost(
     });
     const toolUse = resp.content.find((b: { type: string }) => b.type === 'tool_use') as { id?: string; input?: EmitPagePostInput } | undefined;
     const emitted = toolUse?.input;
-    post = emitted ? { message: emitted.message, assetPath: emitted.assetPath, notes: emitted.notes } : null;
+    post = emitted
+      ? { message: emitted.message, assetPaths: emitted.assetPaths ?? [], postType: emitted.postType, notes: emitted.notes }
+      : null;
 
     const v = post ? validatePagePost(post, validationPack) : { ok: false, errors: ['the model returned no post'], warnings: [] };
     lastValidation = { ok: v.ok, errors: v.errors, warnings: v.warnings };
@@ -150,7 +208,7 @@ export async function generatePagePost(
     if (v.ok) return { ok: true, post, errors: [], warnings: v.warnings, attempts: attempt };
     if (attempt > maxRepairs) break;
 
-    const repairText = `The post failed validation. Fix EXACTLY these and re-emit via emit_page_post:\n- ${lastValidation.errors.join('\n- ')}\n\nReminder: pick ONE photo by exact storagePath from the assets; message ${MESSAGE_MIN}-${MESSAGE_MAX} chars.`;
+    const repairText = `The post failed validation. Fix EXACTLY these and re-emit via emit_page_post:\n- ${lastValidation.errors.join('\n- ')}\n\nReminder: ${ALBUM_MIN}-${PHOTOS_MAX} DISTINCT photos by exact storagePath from the assets; message ${MESSAGE_MIN}-${MESSAGE_MAX} chars; postType one of ${POST_TYPES.join('/')}; no OTA links.`;
     messages.push({ role: 'assistant', content: resp.content });
     messages.push({ role: 'user', content: toolUse?.id ? [{ type: 'tool_result', tool_use_id: toolUse.id, content: repairText }] : repairText });
   }
