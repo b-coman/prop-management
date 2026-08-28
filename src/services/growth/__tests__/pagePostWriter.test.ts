@@ -141,24 +141,42 @@ describe('validatePagePost', () => {
   });
 });
 
-describe('album variety', () => {
-  // First real draft, 28 Aug 2026: 5 photos, 4 of them the chalet exterior. Only 7 of 59 gallery
-  // photos are tagged `autumn` and 5 of those are `exterior`, so the model had almost no choice —
-  // but the result still reads as one photo posted five times.
+describe('album composition', () => {
+  // First real draft, 28 Aug 2026: 5 photos, 4 of them the chalet exterior from different angles.
+  // The first version of this check warned whenever ANY tag dominated. The owner pointed out that is
+  // wrong: "maybe another post won't be only about season, could be kids, could be BBQ activities,
+  // cooking, walking" — a themed album SHOULD be dominated by its theme.
   const TAGS: Record<string, string[]> = {
-    'properties/prahova-mountain-chalet/autumn.jpg': ['exterior', 'autumn'],
-    'properties/prahova-mountain-chalet/fire.jpg': ['exterior', 'autumn', 'bbq'],
-    'properties/prahova-mountain-chalet/terrace.jpg': ['exterior', 'terrace'],
+    'properties/prahova-mountain-chalet/autumn.jpg': ['exterior', 'outdoor', 'autumn'],
+    'properties/prahova-mountain-chalet/fire.jpg': ['exterior', 'outdoor', 'autumn', 'bbq'],
+    'properties/prahova-mountain-chalet/terrace.jpg': ['exterior', 'outdoor', 'terrace'],
     'properties/prahova-mountain-chalet/kitchen.jpg': ['interior', 'kitchen'],
     'properties/prahova-mountain-chalet/view.jpg': ['view', 'landscape'],
     'properties/prahova-mountain-chalet/swing.jpg': ['garden', 'kids'],
   };
   const packWithTags = { ...PACK, tagsByPath: TAGS };
 
-  it('warns when most of the album shares one subject', () => {
-    const res = validatePagePost(post({ assetPaths: album(3) }), packWithTags); // all `exterior`
+  it('warns when a FRAMING tag dominates — the same shot repeated', () => {
+    // three exteriors: where the camera stood, with no unifying subject
+    const res = validatePagePost(post({ assetPaths: album(3) }), packWithTags);
     expect(res.ok).toBe(true);
-    expect(res.warnings.some((w) => w.includes('repeats one subject'))).toBe(true);
+    expect(res.warnings.some((w) => w.includes('where the camera stood'))).toBe(true);
+  });
+
+  it('does NOT warn when a SUBJECT tag dominates — that is a themed album', () => {
+    // A barbecue post should be mostly barbecue. This is the case that broke the first rule.
+    const bbqPack = {
+      ...PACK,
+      tagsByPath: {
+        'properties/prahova-mountain-chalet/autumn.jpg': ['bbq', 'outdoor'],
+        'properties/prahova-mountain-chalet/fire.jpg': ['bbq', 'fire'],
+        'properties/prahova-mountain-chalet/terrace.jpg': ['bbq', 'interior'],
+        'properties/prahova-mountain-chalet/kitchen.jpg': ['bbq', 'kitchen', 'interior'],
+      } as Record<string, string[]>,
+    };
+    const res = validatePagePost(post({ assetPaths: album(4) }), bbqPack);
+    expect(res.ok).toBe(true);
+    expect(res.warnings.some((w) => w.includes('where the camera stood'))).toBe(false);
   });
 
   it('does not warn on a varied album', () => {
@@ -170,11 +188,11 @@ describe('album variety', () => {
     ];
     const res = validatePagePost(post({ assetPaths: varied }), packWithTags);
     expect(res.ok).toBe(true);
-    expect(res.warnings.some((w) => w.includes('repeats one subject'))).toBe(false);
+    expect(res.warnings.some((w) => w.includes('where the camera stood'))).toBe(false);
   });
 
   it('stays silent when no tags are supplied', () => {
     const res = validatePagePost(post({ assetPaths: album(3) }), PACK);
-    expect(res.warnings.some((w) => w.includes('repeats one subject'))).toBe(false);
+    expect(res.warnings.some((w) => w.includes('where the camera stood'))).toBe(false);
   });
 });

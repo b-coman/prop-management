@@ -43,6 +43,13 @@ const ALBUM_MIN = 3;
 export const POST_TYPES = ['place', 'proof', 'offer'] as const;
 export type PagePostType = (typeof POST_TYPES)[number];
 
+/**
+ * Tags describing WHERE the camera stood rather than what the photo is of. An album dominated by one
+ * of these is the same shot repeated; an album dominated by a SUBJECT tag (bbq, kids, fire) is a
+ * themed album, which is what we want.
+ */
+const FRAMING_TAGS = new Set(['exterior', 'outdoor', 'interior']);
+
 /** Channels that charge us commission. A page post must never hand its own followers to one. */
 const OTA_LINK = /\b(airbnb|booking\.com|vrbo|expedia|trip\.com|hotels\.com|travelminit)\b/i;
 
@@ -92,21 +99,30 @@ export function validatePagePost(
       warnings.push(`${paths.length} photo(s) — this page's albums out-perform single photos about 3:1, so ${ALBUM_MIN}-${PHOTOS_MAX} is usually better`);
     }
 
-    // AN ALBUM OF NEAR-DUPLICATES IS NOT AN ALBUM.
+    // FOUR WIDE SHOTS OF THE SAME BUILDING IS NOT AN ALBUM. FOUR BBQ PHOTOS IS.
+    //
     // First real draft, 28 Aug 2026: five photos, four of them the chalet exterior from slightly
-    // different angles. Not the model's fault — only 7 of 59 gallery photos are tagged `autumn` and
-    // 5 of those 7 are `exterior`, so an autumn brief has almost nothing else to choose. But the
-    // result still reads as one photo posted five times, which wastes the format that this page's
-    // record says is its strongest. A warning, never an error: with a thin seasonal set a hard block
-    // could be impossible to satisfy, and a mediocre album still beats no post.
+    // different angles. The first version of this check warned whenever ANY tag dominated — which
+    // was wrong, and the owner said so: a post about the barbecue, or the kids, or cooking SHOULD be
+    // mostly barbecue/kids/cooking photos. A themed album is the goal, not a fault.
+    //
+    // The real distinction is what KIND of tag dominates. `exterior`/`outdoor`/`interior` say where
+    // the camera stood, not what the photo is about — so an album dominated by one of those is the
+    // same shot repeated with no unifying subject. A subject tag dominating (bbq, kids, fire,
+    // hammock) means the album has a theme, which is exactly right.
+    //
+    // Still a warning and never an error: composition is a judgement, and a mediocre album beats no
+    // post on a page that has managed 17 in six years.
     if (pack.tagsByPath && paths.length >= ALBUM_MIN) {
       const counts = new Map<string, number>();
       for (const path of paths) {
-        for (const tag of pack.tagsByPath[path] ?? []) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+        for (const tag of pack.tagsByPath[path] ?? []) {
+          if (FRAMING_TAGS.has(tag)) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+        }
       }
       for (const [tag, n] of counts) {
         if (n > Math.ceil(paths.length * 0.6)) {
-          warnings.push(`${n} of ${paths.length} photos are "${tag}" — the album repeats one subject; vary it even if that means a photo slightly off-season`);
+          warnings.push(`${n} of ${paths.length} photos are "${tag}" — that is where the camera stood, not what the post is about; vary the subject or the framing`);
           break;
         }
       }
@@ -151,11 +167,21 @@ RULES
    aiDescription (season, mood, people, features, fitsAngles) from a vision model — use it so the
    photos genuinely fit the prompt and the audience. Never claim an amenity not evident in the
    assets, and never repeat a photo.
-3b. VARY THE SUBJECT — this matters more than matching the season. Do NOT pick four exteriors from
-   slightly different angles; that reads as one photo posted four times and wastes the album. Aim for
-   at most two photos sharing the same primary subject (exterior / interior / garden / fire / view),
-   and reach for an interior or a close detail even if it was shot in another season. A varied album
-   in mixed light beats five near-identical wide shots that all match the month.
+3b. COMPOSE AROUND THE POST'S SUBJECT, NOT THE SEASON.
+   - If the post has a real subject — the barbecue, the kids, cooking, a walk, the fireplace — then
+     MOST of the album should show that subject. A themed album is right, not repetitive.
+   - If the post is about a season or a mood, that is a CONDITION and not a subject, so the album has
+     to find its variety elsewhere: something wide, something being used, something close.
+   - Either way do not pick four wide exteriors of the building from slightly different angles. That
+     is one photo posted four times.
+3c. SEASON ONLY APPLIES OUTDOORS. Every asset carries "season", and interiors are marked
+   "indeterminate" because a bedroom in July looks like a bedroom in November. NEVER reject an
+   interior for being the wrong season — it has none. Match season only on photos whose season is a
+   real value, and feel free to mix an interior into an autumn album; it will read as the same place
+   on the same day.
+3d. VARY THE FRAME. Aim for a wide shot that sets the scene, one or two that show the subject in use,
+   and a close detail. Use "subjects" and "features" on each asset to tell these apart — two photos
+   listing nearly the same subjects are near-duplicates however differently they are tagged.
 4. KEEP IT SHORT, AND ASK SOMETHING. A few sentences. For 'place' and 'proof', end on a real question
    someone could answer — not "who else loves autumn?" but something specific to what is in the
    photos. Diacritics are fine (this is public brand copy). One or two tasteful emoji are OK.
