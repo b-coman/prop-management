@@ -26,6 +26,8 @@ interface PagePost {
   assetUrl: string;
   assetUrls?: string[];
   status: string;
+  /** What the page actually shows — set by the engagement sync, and not always what we published. */
+  publishedMessage?: string;
   scheduledFor?: string;
   permalink?: string;
   reactions?: number;
@@ -315,7 +317,10 @@ export function PagePostConsole({ propertyId, initialPosts, mix }: { propertyId:
                   <Image src={post.assetUrl} alt="" fill className="object-cover" sizes="40px" />
                 </div>
               )}
-              <p className="line-clamp-2 flex-1 text-muted-foreground">{post.message}</p>
+              {/* Prefer what is ON THE PAGE. The owner edited his first post on Facebook after
+                  publishing, so our stored draft no longer matched what anyone can actually read —
+                  and this list was showing him words that are not on his page. */}
+              <p className="line-clamp-2 flex-1 text-muted-foreground">{post.publishedMessage ?? post.message}</p>
               {/* Six years, one comment. Comments first, because that is the number the strategy is
                   trying to move — reach on a revived page recovers on its own. */}
               <span className="shrink-0 font-mono text-[11px] text-muted-foreground">

@@ -19,7 +19,7 @@ export default async function PagePostsPage({
   return (
     <AdminPage
       title="Page posts"
-      description="Draft warm organic Facebook posts to keep the page alive — the engine writes one grounded in a real photo; you post it from your own account, one tap. (Auto-publish needs a page-scope grant.)"
+      description="Draft warm organic Facebook posts to keep the page alive — the engine writes an album grounded in your real photos, never reusing ones from recent posts. Publish now or schedule it; Meta holds the queue."
     >
       <PropertyUrlSync />
       <PagePostConsole propertyId={property} initialPosts={posts} mix={mix} />

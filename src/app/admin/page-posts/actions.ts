@@ -113,7 +113,7 @@ export async function generatePagePostAction(input: {
 
 /** List a property's page posts (drafts + posted), newest first. */
 export async function fetchPagePostsAction(propertyId: string): Promise<
-  Array<{ id: string; message: string; postType?: string; assetPaths?: string[]; assetUrls?: string[]; assetPath: string; assetUrl: string; status: string; scheduledFor?: string; postId?: string; reactions?: number; comments?: number; shares?: number; permalink?: string; prompt?: string; goal?: string | null; audience?: string | null; createdAt?: string }>
+  Array<{ id: string; message: string; postType?: string; assetPaths?: string[]; assetUrls?: string[]; assetPath: string; assetUrl: string; status: string; publishedMessage?: string; scheduledFor?: string; postId?: string; reactions?: number; comments?: number; shares?: number; permalink?: string; prompt?: string; goal?: string | null; audience?: string | null; createdAt?: string }>
 > {
   try {
     await requireSuperAdmin();
