@@ -93,7 +93,17 @@ async function pageToken(propertyId: string): Promise<{ token: string; pageId: s
  */
 export async function publishPagePost(
   propertyId: string,
-  input: { message: string; photoUrls: string[] }
+  input: {
+    message: string;
+    photoUrls: string[];
+    /**
+     * Unix seconds. When set, Meta holds the post and publishes it itself — 10 minutes to 6 months
+     * ahead. Deliberately Meta's scheduler rather than our own cron: it survives our infrastructure
+     * being down, and the queue is visible in Meta's Publishing Tools as a second pair of eyes on
+     * what is about to go out in the owner's name.
+     */
+    scheduledPublishTime?: number;
+  }
 ): Promise<PublishResult> {
   const page = await pageToken(propertyId);
   if (!page) return { ok: false, error: 'no-page-token' };
@@ -123,6 +133,12 @@ export async function publishPagePost(
     // 2. ONE feed post carrying the caption and every uploaded photo.
     const body = new URLSearchParams({ message: input.message, access_token: page.token });
     mediaIds.forEach((id, i) => body.append(`attached_media[${i}]`, JSON.stringify({ media_fbid: id })));
+    if (input.scheduledPublishTime) {
+      // `published=false` WITH a time means scheduled. Without the time it would mean a hidden draft
+      // that never goes out on its own — a silent failure that looks exactly like success.
+      body.set('published', 'false');
+      body.set('scheduled_publish_time', String(input.scheduledPublishTime));
+    }
 
     const res = await fetch(`${GRAPH}/${page.pageId}/feed`, { method: 'POST', body });
     const json = (await res.json()) as { id?: string; error?: { message?: string } };
@@ -131,7 +147,10 @@ export async function publishPagePost(
       return { ok: false, error: `feed-post-failed: ${json.error?.message ?? res.status}` };
     }
 
-    logger.info('pagePublisher: published', { propertyId, postId: json.id, photos: mediaIds.length });
+    logger.info('pagePublisher: published', {
+      propertyId, postId: json.id, photos: mediaIds.length,
+      scheduledFor: input.scheduledPublishTime ?? null,
+    });
     return { ok: true, postId: json.id };
   } catch (error) {
     logger.error('pagePublisher: publish threw', error as Error, { propertyId });

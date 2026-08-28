@@ -16,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Sparkles, Copy, ExternalLink, Check, Trash2 } from 'lucide-react';
-import { generatePagePostAction, markPagePostedAction, discardPagePostAction, publishPagePostAction, syncPageEngagementAction } from '../actions';
+import { generatePagePostAction, markPagePostedAction, discardPagePostAction, publishPagePostAction, syncPageEngagementAction, schedulePagePostAction } from '../actions';
 
 interface PagePost {
   id: string;
@@ -26,6 +26,7 @@ interface PagePost {
   assetUrl: string;
   assetUrls?: string[];
   status: string;
+  scheduledFor?: string;
   permalink?: string;
   reactions?: number;
   comments?: number;
@@ -57,6 +58,7 @@ export function PagePostConsole({ propertyId, initialPosts, mix }: { propertyId:
   // Defaults to whatever the mix is most short of, so the 60/25/15 ratio is the default rather than a
   // rule to remember. A page that managed 17 posts in six years needs one less thing to track.
   const [postType, setPostType] = useState<string>(mix?.suggestion ?? 'place');
+  const [when, setWhen] = useState<Record<string, string>>({});
   const [goal, setGoal] = useState('');
   const [audience, setAudience] = useState('');
   const [edited, setEdited] = useState<Record<string, string>>({});
@@ -109,6 +111,9 @@ export function PagePostConsole({ propertyId, initialPosts, mix }: { propertyId:
 
   const drafts = initialPosts.filter((p) => p.status !== 'posted');
   const posted = initialPosts.filter((p) => p.status === 'posted');
+  const scheduled = initialPosts
+    .filter((p) => p.status === 'scheduled')
+    .sort((a, b) => (a.scheduledFor ?? '').localeCompare(b.scheduledFor ?? ''));
 
   const publish = async (post: PagePost) => {
     setPending((p) => new Set(p).add(post.id));
@@ -118,6 +123,16 @@ export function PagePostConsole({ propertyId, initialPosts, mix }: { propertyId:
     setPending((p) => { const n = new Set(p); n.delete(post.id); return n; });
     if (res.ok) { toast({ title: 'Published to the page' }); router.refresh(); }
     else toast({ title: 'Could not publish', description: res.error, variant: 'destructive' });
+  };
+
+  const schedule = async (post: PagePost) => {
+    const at = when[post.id];
+    if (!at) { toast({ title: 'Pick a date and time first', variant: 'destructive' }); return; }
+    setPending((p) => new Set(p).add(post.id));
+    const res = await schedulePagePostAction(post.id, new Date(at).toISOString(), edited[post.id] ?? post.message);
+    setPending((p) => { const n = new Set(p); n.delete(post.id); return n; });
+    if (res.ok) { toast({ title: `Scheduled for ${new Date(res.scheduledFor).toLocaleString('ro-RO')}` }); router.refresh(); }
+    else toast({ title: 'Could not schedule', description: res.error, variant: 'destructive' });
   };
 
   const syncEngagement = async () => {
@@ -242,11 +257,48 @@ export function PagePostConsole({ propertyId, initialPosts, mix }: { propertyId:
                         <Trash2 className="mr-1 h-3.5 w-3.5" /> Discard
                       </Button>
                     </div>
+                    {/* Meta holds scheduled posts and publishes them itself, so the queue survives us
+                        being down. An offer must be seen BEFORE the weekend it is about — the action
+                        refuses Fri/Sat/Sun for offers rather than letting one land too late. */}
+                    <div className="flex flex-wrap items-center gap-2 border-t pt-2">
+                      <Input
+                        type="datetime-local"
+                        value={when[post.id] ?? ''}
+                        onChange={(e) => setWhen((prev) => ({ ...prev, [post.id]: e.target.value }))}
+                        className="h-9 w-[210px] text-sm"
+                      />
+                      <Button size="sm" variant="secondary" onClick={() => schedule(post)} disabled={busy}>
+                        Schedule
+                      </Button>
+                      {post.postType === 'offer' && (
+                        <span className="text-[11px] text-muted-foreground">offers go out Tue or Wed, ahead of the weekend</span>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {scheduled.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-medium text-muted-foreground">Scheduled</h3>
+          {scheduled.map((post) => (
+            <div key={post.id} className="flex items-center gap-3 rounded-md border border-primary/30 bg-primary/5 p-2 text-sm">
+              {post.assetUrl && (
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded border">
+                  <Image src={post.assetUrl} alt="" fill className="object-cover" sizes="40px" />
+                </div>
+              )}
+              <p className="line-clamp-2 flex-1 text-muted-foreground">{post.message}</p>
+              <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                {post.scheduledFor ? new Date(post.scheduledFor).toLocaleString('ro-RO', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
+              </span>
+              <Badge variant="outline" className="shrink-0">{post.postType ?? 'place'}</Badge>
+            </div>
+          ))}
         </div>
       )}
 

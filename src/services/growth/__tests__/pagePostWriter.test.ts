@@ -12,7 +12,7 @@ const okMsg =
 const album = (n: number) => PACK.assetPaths.slice(0, n);
 const post = (over: Partial<{ message: string; assetPaths: string[]; postType: string }> = {}) => ({
   message: okMsg,
-  assetPaths: album(6),
+  assetPaths: album(4),
   postType: 'place',
   ...over,
 });
@@ -53,20 +53,20 @@ describe('validatePagePost', () => {
   // ── albums ──────────────────────────────────────────────────────────────────
   // The page's six-year record: every one of its five best posts is an album, every single-photo
   // post sits at four reactions or below. A single photo is allowed but should not pass silently.
-  it('warns below five, the size that has never worked on this page', () => {
-    const res = validatePagePost(post({ assetPaths: album(3) }), PACK);
+  it('warns on a single photo', () => {
+    const res = validatePagePost(post({ assetPaths: album(1) }), PACK);
     expect(res.ok).toBe(true);
-    expect(res.warnings.some((w) => w.includes('average 13 reactions'))).toBe(true);
+    expect(res.warnings.some((w) => w.includes('burning the library'))).toBe(true);
   });
 
   it('does not warn once it is a real album', () => {
-    const res = validatePagePost(post({ assetPaths: album(8) }), PACK);
+    const res = validatePagePost(post({ assetPaths: album(4) }), PACK);
     expect(res.ok).toBe(true);
-    expect(res.warnings.some((w) => w.includes('average 13 reactions'))).toBe(false);
+    expect(res.warnings.some((w) => w.includes('burning the library'))).toBe(false);
   });
 
-  it('rejects more than ten photos', () => {
-    const res = validatePagePost(post({ assetPaths: album(11) }), PACK);
+  it('rejects more than five photos', () => {
+    const res = validatePagePost(post({ assetPaths: album(6) }), PACK);
     expect(res.ok).toBe(false);
     expect(res.errors.some((e) => e.includes('too many photos'))).toBe(true);
   });
@@ -134,6 +134,41 @@ describe('validatePagePost', () => {
   });
 });
 
+describe('photo rotation', () => {
+  // 59 photos and two posts a week: without rotation the library is exhausted in about seven posts
+  // and the page starts repeating itself, which performs worse than a smaller fresh album.
+  const P = (i: number) => `properties/prahova-mountain-chalet/p${i}.jpg`;
+
+  it('rejects a photo used by a recent post', () => {
+    const res = validatePagePost(post({ assetPaths: [P(0), P(1), P(2)] }), {
+      ...PACK,
+      recentlyUsedPaths: [P(1), P(7)],
+    });
+    expect(res.ok).toBe(false);
+    expect(res.errors.some((e) => e.includes('already used by a recent post'))).toBe(true);
+  });
+
+  it('names the offending photos so the repair can fix exactly those', () => {
+    const res = validatePagePost(post({ assetPaths: [P(0), P(1), P(2)] }), {
+      ...PACK,
+      recentlyUsedPaths: [P(0), P(2)],
+    });
+    expect(res.errors.some((e) => e.includes('p0.jpg') && e.includes('p2.jpg'))).toBe(true);
+  });
+
+  it('passes when nothing overlaps', () => {
+    const res = validatePagePost(post({ assetPaths: [P(0), P(1), P(2)] }), {
+      ...PACK,
+      recentlyUsedPaths: [P(8), P(9)],
+    });
+    expect(res.ok).toBe(true);
+  });
+
+  it('is inert when the caller supplies no history', () => {
+    expect(validatePagePost(post(), PACK).ok).toBe(true);
+  });
+});
+
 describe('album composition', () => {
   // The composition check only runs on real albums (ALBUM_MIN+), so these fixtures are 6 photos.
   const P = (i: number) => `properties/prahova-mountain-chalet/p${i}.jpg`;
@@ -146,7 +181,7 @@ describe('album composition', () => {
     // six wide exteriors: where the camera stood, with nothing tying them together
     const pack = tags({ 0: ['exterior', 'outdoor'], 1: ['exterior', 'outdoor'], 2: ['exterior', 'outdoor'],
                         3: ['exterior', 'outdoor'], 4: ['exterior', 'outdoor'], 5: ['exterior', 'view'] });
-    const res = validatePagePost(post({ assetPaths: album(6) }), pack);
+    const res = validatePagePost(post({ assetPaths: album(5) }), pack);
     expect(res.ok).toBe(true);
     expect(res.warnings.some((w) => w.includes('where the camera stood'))).toBe(true);
   });
@@ -156,7 +191,7 @@ describe('album composition', () => {
   it('does NOT warn when a SUBJECT tag is as strong as the framing — a themed album', () => {
     const pack = tags({ 0: ['outdoor', 'bbq', 'garden'], 1: ['outdoor', 'bbq', 'fire'], 2: ['outdoor', 'bbq', 'fire'],
                         3: ['outdoor', 'bbq', 'autumn'], 4: ['outdoor', 'bbq', 'view'], 5: ['outdoor', 'bbq'] });
-    const res = validatePagePost(post({ assetPaths: album(6) }), pack);
+    const res = validatePagePost(post({ assetPaths: album(5) }), pack);
     expect(res.ok).toBe(true);
     expect(res.warnings.some((w) => w.includes('where the camera stood'))).toBe(false);
   });
@@ -164,20 +199,14 @@ describe('album composition', () => {
   it('does not warn on a varied album', () => {
     const pack = tags({ 0: ['exterior', 'autumn'], 1: ['interior', 'kitchen'], 2: ['view', 'landscape'],
                         3: ['garden', 'kids'], 4: ['interior', 'bedroom'], 5: ['fire', 'evening'] });
-    const res = validatePagePost(post({ assetPaths: album(6) }), pack);
+    const res = validatePagePost(post({ assetPaths: album(5) }), pack);
     expect(res.ok).toBe(true);
     expect(res.warnings.some((w) => w.includes('where the camera stood'))).toBe(false);
   });
 
   it('stays silent when no tags are supplied', () => {
-    const res = validatePagePost(post({ assetPaths: album(6) }), PACK);
+    const res = validatePagePost(post({ assetPaths: album(5) }), PACK);
     expect(res.warnings.some((w) => w.includes('where the camera stood'))).toBe(false);
   });
 
-  // The cap was 5 on my assumption; the page's record says 5+ averages 13 reactions and <5 averages 2.
-  it('allows the nine- and ten-photo albums that actually performed here', () => {
-    for (const n of [9, 10]) {
-      expect(validatePagePost(post({ assetPaths: album(n) }), PACK).ok).toBe(true);
-    }
-  });
 });

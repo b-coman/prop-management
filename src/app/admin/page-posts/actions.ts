@@ -15,6 +15,19 @@ import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { convertTimestampsToISOStrings } from '@/lib/utils';
 import { serverTranslateContent } from '@/lib/server-language-utils';
 import { generatePagePost, POST_TYPES, type PagePostType } from '@/services/growth/pagePostWriter';
+
+/**
+ * How many recent posts' photos are off-limits. Six at two posts a week is three weeks of not
+ * repeating yourself — long enough that nobody scrolling the page sees the same photo twice, short
+ * enough that a 59-photo library can still sustain it.
+ */
+const RECENT_POSTS_FOR_ROTATION = 6;
+
+/**
+ * How far back the 60/25/15 ratio is measured. Twenty posts at two a week is about ten weeks —
+ * long enough that one odd fortnight cannot skew it, short enough to still track the seasons.
+ */
+const MIX_WINDOW = 20;
 import { publishPagePost, fetchPostEngagement } from '@/services/growth/pagePublisher';
 import type { PropertyImage } from '@/types';
 
@@ -47,7 +60,30 @@ export async function generatePagePostAction(input: {
     if (!assets.length) return { ok: false, error: 'no gallery photos for this property' };
 
     const framing = { goal: input.goal?.trim() || undefined, audience: input.audience?.trim() || undefined };
-        const res = await generatePagePost({ propertyId: input.propertyId, prompt: input.prompt, assets, framing, postType: input.postType });
+        // WHAT THE LAST FEW POSTS ALREADY SHOWED.
+    // 59 photos and two posts a week: without this the library is exhausted in about seven posts and
+    // the page starts repeating itself, which performs worse than a smaller fresh album. Counts
+    // scheduled posts too — they are already committed even though nobody has seen them yet.
+    const recentSnap = await db
+      .collection('pagePosts')
+      .where('propertyId', '==', input.propertyId)
+      .get();
+    const recentlyUsedPaths = recentSnap.docs
+      .map((d) => d.data() as { status?: string; assetPaths?: string[]; createdAt?: { toMillis?: () => number } })
+      .filter((d) => d.status === 'posted' || d.status === 'scheduled')
+      .sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0))
+      .slice(0, RECENT_POSTS_FOR_ROTATION)
+      .flatMap((d) => d.assetPaths ?? []);
+
+    // If rotation has eaten the library there is nothing left to pick from — better a repeat than no
+    // post, so the window is dropped and the operator is told rather than handed a failure.
+    const usable = assets.length - new Set(recentlyUsedPaths).size;
+    const rotation = usable >= 3 ? recentlyUsedPaths : [];
+
+    const res = await generatePagePost({
+      propertyId: input.propertyId, prompt: input.prompt, assets, framing,
+      postType: input.postType, recentlyUsedPaths: rotation,
+    });
     if (!res.ok || !res.post) return { ok: false, error: res.errors.join('; ') || 'generation-failed' };
 
     const urlByPath = new Map(images.filter((i) => i.storagePath).map((i) => [i.storagePath!, i.url]));
@@ -77,7 +113,7 @@ export async function generatePagePostAction(input: {
 
 /** List a property's page posts (drafts + posted), newest first. */
 export async function fetchPagePostsAction(propertyId: string): Promise<
-  Array<{ id: string; message: string; postType?: string; assetPaths?: string[]; assetUrls?: string[]; assetPath: string; assetUrl: string; status: string; postId?: string; reactions?: number; comments?: number; shares?: number; permalink?: string; prompt?: string; goal?: string | null; audience?: string | null; createdAt?: string }>
+  Array<{ id: string; message: string; postType?: string; assetPaths?: string[]; assetUrls?: string[]; assetPath: string; assetUrl: string; status: string; scheduledFor?: string; postId?: string; reactions?: number; comments?: number; shares?: number; permalink?: string; prompt?: string; goal?: string | null; audience?: string | null; createdAt?: string }>
 > {
   try {
     await requireSuperAdmin();
@@ -282,15 +318,20 @@ export async function fetchMixAction(
     // mix, leaving the meter silently blank rather than visibly broken. Verified against live
     // Firestore before shipping. Two equality filters need no index, so the sort happens in memory;
     // one property's page posts are counted in dozens, not thousands.
+    // COUNTS SCHEDULED AS WELL AS POSTED, and over a long window rather than the current batch.
+    // The owner's point: "the post mix should keep their mix over longer periods, not only for the
+    // bulk you create for two weeks. It should consider the history too." A fortnight planned in one
+    // go would otherwise blow the ratio, and two fortnights would double the error — scheduled posts
+    // are already committed even though nobody has seen them.
     const snap = await db
       .collection('pagePosts')
       .where('propertyId', '==', propertyId)
-      .where('status', '==', 'posted')
       .get();
     const recent = snap.docs
-      .map((d) => d.data() as { postType?: string; createdAt?: { toMillis?: () => number } })
+      .map((d) => d.data() as { status?: string; postType?: string; createdAt?: { toMillis?: () => number } })
+      .filter((d) => d.status === 'posted' || d.status === 'scheduled')
       .sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0))
-      .slice(0, 10);
+      .slice(0, MIX_WINDOW);
     const counts: Record<string, number> = { place: 0, proof: 0, offer: 0 };
     recent.forEach((d) => {
       const t = d.postType ?? 'place';
@@ -310,5 +351,81 @@ export async function fetchMixAction(
   } catch (error) {
     logger.error('fetchMixAction failed', error as Error, { propertyId });
     return { counts: {}, targets, total: 0, suggestion: 'place' };
+  }
+}
+
+
+/**
+ * Schedule a draft instead of publishing it now.
+ *
+ * Meta holds it and publishes it itself, which is the point: it survives our infrastructure being
+ * down, and the pending queue shows in Meta's Publishing Tools so there is a second place to see
+ * what is about to go out.
+ *
+ * A weekend offer has to be seen before the weekend — Meta's own floor is 10 minutes, which is no
+ * use as a guard, so the meaningful window is enforced here.
+ */
+export async function schedulePagePostAction(
+  id: string,
+  whenIso: string,
+  finalText?: string
+): Promise<{ ok: true; postId: string; scheduledFor: string } | { ok: false; error: string }> {
+  try {
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return { ok: false, error: handleAuthError(error).error };
+    throw error;
+  }
+  try {
+    const when = new Date(whenIso);
+    if (Number.isNaN(when.getTime())) return { ok: false, error: 'invalid-date' };
+    const minutesAhead = (when.getTime() - Date.now()) / 60000;
+    if (minutesAhead < 20) return { ok: false, error: 'schedule at least 20 minutes ahead' };
+    if (minutesAhead > 180 * 24 * 60) return { ok: false, error: 'Meta will not schedule more than 6 months ahead' };
+
+    const db = await getAdminDb();
+    const ref = db.collection('pagePosts').doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) return { ok: false, error: 'post-not-found' };
+    const data = doc.data() as {
+      propertyId?: string; message?: string; postType?: string;
+      assetUrls?: string[]; assetUrl?: string; status?: string;
+    };
+    if (data.status === 'posted' || data.status === 'scheduled') return { ok: false, error: `already-${data.status}` };
+    if (!data.propertyId) return { ok: false, error: 'draft-incomplete' };
+
+    const message = (finalText ?? data.message ?? '').trim();
+    if (!message) return { ok: false, error: 'draft-incomplete' };
+    const urls = (data.assetUrls?.length ? data.assetUrls : [data.assetUrl]).filter(Boolean) as string[];
+    if (!urls.length) return { ok: false, error: 'no-photo-urls' };
+
+    // An OFFER names dates. Landing it the night before is worthless — nobody plans a weekend on
+    // Friday evening. The owner's rule: a weekend offer goes out Tuesday or Wednesday.
+    if (data.postType === 'offer') {
+      const day = when.getDay(); // 0 Sun … 6 Sat
+      if (day === 5 || day === 6 || day === 0) {
+        return { ok: false, error: 'an offer scheduled for Fri/Sat/Sun arrives too late — put it on Tue or Wed' };
+      }
+    }
+
+    const res = await publishPagePost(data.propertyId, {
+      message,
+      photoUrls: urls,
+      scheduledPublishTime: Math.floor(when.getTime() / 1000),
+    });
+    if (!res.ok || !res.postId) return { ok: false, error: res.error ?? 'schedule-failed' };
+
+    await ref.update({
+      message,
+      status: 'scheduled',
+      postId: res.postId,
+      scheduledFor: when.toISOString(),
+      publishedVia: 'api-scheduled',
+    });
+    revalidatePath('/admin/page-posts');
+    return { ok: true, postId: res.postId, scheduledFor: when.toISOString() };
+  } catch (error) {
+    logger.error('schedulePagePostAction failed', error as Error, { id });
+    return { ok: false, error: 'internal-error' };
   }
 }

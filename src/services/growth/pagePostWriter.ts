@@ -33,23 +33,24 @@ const MESSAGE_MAX = 2000;
 /** Albums win, but past ~5 the extra photos stop being looked at and start being scrolled. */
 const PHOTOS_MIN = 1;
 /**
- * TEN, NOT FIVE — and the five was my assumption, not this page's evidence.
+ * THREE TO FIVE — and the engagement data that argued for ten was measuring the wrong thing.
  *
- * Capped at 5 on the general principle that past ~5 photos people scroll rather than look. Measured
- * against the page's own 17 posts on 28 Aug 2026, that is backwards here:
+ * The page's own posts said 5+ photos average 13 reactions against 2 for smaller ones, so I raised
+ * the cap to 10. The owner pushed back: "I don't have such a big image stock to sustain it on long
+ * term." He is right, and it exposes what that number actually measured. Those big albums are the
+ * 2020 launch and the 2023 batches — posts where every photo was NEW. Novelty was doing the work,
+ * not the count.
  *
- *   >= 5 photos   n=4   avg 13.0 reactions
- *   <  5 photos   n=13  avg  2.0 reactions
+ * With 59 photos and two posts a week, 8-photo albums exhaust the library in about seven posts and
+ * then repeat, and a repeat performs worse than a small fresh album. At 3-5 with no reuse the same
+ * library yields roughly 15 genuinely distinct posts — two months — instead of seven tired ones.
  *
- * Every post with five or more beat every post with fewer, and the two best carried 9 and 10 photos.
- * The old cap put this page's strongest format at the bottom of the permitted range. The single
- * 12-photo post fell back to 7 reactions, so 10 is where the evidence stops supporting more.
- *
- * Small sample — four posts — but consistent, and it is the only evidence there is.
+ * So the real lever is not the count, it is `recentlyUsedPaths`: never show the same photo twice in
+ * a row of posts. That is what keeps novelty alive on a finite library, which is the thing the
+ * engagement numbers were really rewarding.
  */
-const PHOTOS_MAX = 10;
-/** Below five, this page's own history says an album stops performing like one. */
-const ALBUM_MIN = 5;
+const PHOTOS_MAX = 5;
+const ALBUM_MIN = 3;
 
 /**
  * The 60/25/15 mix. `place` earns reach, `proof` earns replies, `offer` converts — and only `offer`
@@ -85,7 +86,18 @@ export interface PagePostValidationResult {
 /** Pure validator: sane message, real owned photos, a known type, and never an OTA link. */
 export function validatePagePost(
   post: { message: string; assetPaths: string[]; postType?: string },
-  pack: { propertyId: string; assetPaths: string[]; tagsByPath?: Record<string, string[]> }
+  pack: {
+    propertyId: string;
+    assetPaths: string[];
+    tagsByPath?: Record<string, string[]>;
+    /**
+     * Photos already used by the last few posts. With a 59-photo library and two posts a week,
+     * reuse is what turns a fresh album into a tired one — so this is an ERROR, not advice. The
+     * repair loop makes the model pick again, and when the library genuinely runs dry the caller
+     * relaxes the window rather than letting a silent repeat through.
+     */
+    recentlyUsedPaths?: string[];
+  }
 ): PagePostValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -111,7 +123,7 @@ export function validatePagePost(
       else if (!path.startsWith(`properties/${pack.propertyId}/`)) errors.push(`photo not owned by ${pack.propertyId}`);
     }
     if (paths.length >= PHOTOS_MIN && paths.length < ALBUM_MIN) {
-      warnings.push(`${paths.length} photo(s) — on this page, posts with ${ALBUM_MIN}+ photos average 13 reactions against 2 for smaller ones; ${ALBUM_MIN}-${PHOTOS_MAX} is the range that has actually worked`);
+      warnings.push(`${paths.length} photo(s) — ${ALBUM_MIN}-${PHOTOS_MAX} reads as an album without burning the library; a single photo has never performed on this page`);
     }
 
     // FOUR WIDE SHOTS OF THE SAME BUILDING IS NOT AN ALBUM. FOUR BBQ PHOTOS IS.
@@ -153,6 +165,14 @@ export function validatePagePost(
     }
   }
 
+  const recent = new Set(pack.recentlyUsedPaths ?? []);
+  const reused = (post.assetPaths ?? []).filter((p) => recent.has(p));
+  if (reused.length) {
+    errors.push(
+      `${reused.length} photo(s) already used by a recent post — pick different ones: ${reused.map((p) => p.split('/').pop()).join(', ')}`
+    );
+  }
+
   if (!post.postType) errors.push('no postType chosen');
   else if (!(POST_TYPES as readonly string[]).includes(post.postType)) errors.push(`unknown postType: ${post.postType}`);
 
@@ -166,7 +186,7 @@ const PAGE_POST_TOOL = {
     type: 'object' as const,
     properties: {
       message: { type: 'string', description: 'the post caption in ROMANIAN — warm, organic, community feel (NOT a hard-sell ad). Short, a few sentences. END WITH A REAL QUESTION unless postType is "offer": this page has earned exactly one comment in six years, and it came from the one caption that spoke to a person instead of describing a property.' },
-      assetPaths: { type: 'array', items: { type: 'string' }, description: '6 to 10 photos by EXACT storagePath from the assets, as an ALBUM that tells one story in order. Measured on this page: posts with 5+ photos average 13 reactions, posts with fewer average 2, and the two best carried 9 and 10. Never invent a path, never repeat one.' },
+      assetPaths: { type: 'array', items: { type: 'string' }, description: '3 to 5 photos by EXACT storagePath from the assets, as an ALBUM that tells one story in order. The library is small and finite, so NEVER pick a path listed in recentlyUsed — a repeat reads as a tired page. Never invent a path, never repeat one within the album.' },
       postType: { type: 'string', enum: ['place', 'proof', 'offer'], description: 'place = the chalet/season with no offer and no link (earns reach). proof = guests, a review, the place in use, ending in a question (earns replies). offer = specific dates and a real price (converts). Follow the type asked for in the brief.' },
       notes: { type: 'string', description: 'brief note on the choices (optional).' },
     },
@@ -185,7 +205,7 @@ RULES
    invite drives engagement. No aggressive selling, no fake urgency.
 2. SHAPE TO THE PROMPT + FRAMING. Follow the prompt (what the post is about) and any goal/audience
    given — a couples/off-peak post and a families/school-break post look different.
-3. GROUND IN REALITY, BUILD A GENEROUS ALBUM. Pick 6-10 photos, by exact storagePath, from the provided assets
+3. GROUND IN REALITY, BUILD AN ALBUM. Pick 3-5 photos, by exact storagePath, from the provided assets
    — you can only show what the property really has. Order them so they tell one small story: the
    wide shot that sets the scene, then the details that reward a second look. Each asset has a rich
    aiDescription (season, mood, people, features, fitsAngles) from a vision model — use it so the
@@ -237,7 +257,14 @@ interface EmitPagePostInput {
  * failure feeds the errors back for ONE bounded repair. Produces a DRAFT only — never publishes.
  */
 export async function generatePagePost(
-  input: { propertyId: string; prompt: string; assets: AdCreativeAsset[]; framing?: AdFraming; postType?: PagePostType },
+  input: {
+    propertyId: string;
+    prompt: string;
+    assets: AdCreativeAsset[];
+    framing?: AdFraming;
+    postType?: PagePostType;
+    recentlyUsedPaths?: string[];
+  },
   opts?: { maxRepairs?: number }
 ): Promise<GeneratePagePostResult> {
   if (!input.assets.length) return { ok: false, post: null, errors: ['no gallery assets available'], warnings: [], attempts: 0 };
@@ -249,12 +276,15 @@ export async function generatePagePost(
     assetPaths: input.assets.map((a) => a.storagePath),
     // Tags feed the variety check — without them an album of five near-identical exteriors passes.
     tagsByPath: Object.fromEntries(input.assets.map((a) => [a.storagePath, a.tags ?? []])),
+    recentlyUsedPaths: input.recentlyUsedPaths ?? [],
   };
   const maxRepairs = opts?.maxRepairs ?? 1;
 
   const postPack = {
     prompt: input.prompt,
     postType: input.postType ?? 'place',
+    // Shown to the model so it can avoid them, and enforced in the validator so it cannot ignore it.
+    recentlyUsed: input.recentlyUsedPaths ?? [],
     goal: input.framing?.goal ?? null,
     audience: input.framing?.audience ?? null,
     assets: input.assets.map((a) => ({ storagePath: a.storagePath, alt: a.alt, tags: a.tags, aiDescription: a.aiDescription })),
