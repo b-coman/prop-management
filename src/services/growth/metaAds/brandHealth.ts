@@ -215,11 +215,33 @@ export async function getPageHealth(propertyId: string): Promise<GraphResult<Pag
   const websiteUrl = p.website;
   const websiteIsOtaLink = !!websiteUrl && OTA_HOST.test(websiteUrl);
   const isPublished = p.is_published !== false;
-  const dormant = talkingAboutCount === 0;
+  /**
+   * DORMANT MEANS "NOTHING IS HAPPENING", NOT "talking_about_count IS ZERO".
+   *
+   * This keyed solely off `talking_about_count`, and on 28 Aug 2026 that produced a false negative
+   * on exactly the page it exists to watch: the count read 41, so the check reported a healthy page
+   * while the owner's own description was "my page is dormant". He was right. The 28-day insights
+   * came back `"data": []` — not a parse failure and not a permissions failure, since the derived
+   * page token worked: Meta had no rows to give for page_post_engagements, page_views_total,
+   * page_total_actions or page_follows. Zero measurable activity for four weeks.
+   *
+   * `talking_about_count` is a rolling 7-day figure Meta has largely stopped maintaining, so it can
+   * sit at a stale non-zero value on a page nobody has touched. Insights being READABLE BUT EMPTY is
+   * the stronger signal, and it is only trustworthy when we know the read succeeded — hence the
+   * `canReadInsights` guard: an unreadable page is unknown, not dormant.
+   */
+  const noMeasurableActivity = canReadInsights && Object.keys(insights28d).length === 0;
+  const dormant = talkingAboutCount === 0 || noMeasurableActivity;
 
   const warnings: string[] = [];
   if (websiteIsOtaLink) warnings.push(`page-website-points-to-ota:${websiteUrl}`);
-  if (dormant) warnings.push('page-dormant:talking_about_count=0');
+  if (dormant) {
+    warnings.push(
+      noMeasurableActivity
+        ? 'page-dormant:no-insight-data-28d'
+        : 'page-dormant:talking_about_count=0'
+    );
+  }
   if (!isPublished) warnings.push('page-not-published');
   if (!canReadInsights) warnings.push('page-insights-unreadable:no-page-token-or-analyze-task');
 
