@@ -195,4 +195,36 @@ describe('album composition', () => {
     const res = validatePagePost(post({ assetPaths: album(3) }), PACK);
     expect(res.warnings.some((w) => w.includes('where the camera stood'))).toBe(false);
   });
+
+  // The real second draft, 28 Aug: a barbecue album where ALL FOUR photos are `outdoor` — because
+  // cooking over a fire happens outdoors. The framing overlap is a consequence of the subject.
+  it('does not warn when a framing tag is matched by an equally strong subject', () => {
+    const realDraft = {
+      ...PACK,
+      tagsByPath: {
+        'properties/prahova-mountain-chalet/autumn.jpg': ['exterior', 'outdoor', 'garden', 'autumn', 'bbq'],
+        'properties/prahova-mountain-chalet/fire.jpg': ['outdoor', 'bbq', 'fire', 'lifestyle'],
+        'properties/prahova-mountain-chalet/terrace.jpg': ['outdoor', 'bbq', 'fire', 'autumn'],
+        'properties/prahova-mountain-chalet/kitchen.jpg': ['outdoor', 'bbq', 'fire', 'autumn', 'view'],
+      } as Record<string, string[]>,
+    };
+    const res = validatePagePost(post({ assetPaths: album(4) }), realDraft);
+    expect(res.ok).toBe(true);
+    // outdoor 4/4, but bbq is also 4/4 — the album has a theme
+    expect(res.warnings.some((w) => w.includes('where the camera stood'))).toBe(false);
+  });
+
+  it('still warns when framing dominates and no subject holds it together', () => {
+    const wide = {
+      ...PACK,
+      tagsByPath: {
+        'properties/prahova-mountain-chalet/autumn.jpg': ['exterior', 'outdoor', 'autumn'],
+        'properties/prahova-mountain-chalet/fire.jpg': ['exterior', 'outdoor', 'garden'],
+        'properties/prahova-mountain-chalet/terrace.jpg': ['exterior', 'outdoor', 'terrace'],
+        'properties/prahova-mountain-chalet/kitchen.jpg': ['exterior', 'outdoor', 'view'],
+      } as Record<string, string[]>,
+    };
+    const res = validatePagePost(post({ assetPaths: album(4) }), wide);
+    expect(res.warnings.some((w) => w.includes('where the camera stood'))).toBe(true);
+  });
 });

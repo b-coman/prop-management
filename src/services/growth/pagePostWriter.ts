@@ -114,17 +114,26 @@ export function validatePagePost(
     // Still a warning and never an error: composition is a judgement, and a mediocre album beats no
     // post on a page that has managed 17 in six years.
     if (pack.tagsByPath && paths.length >= ALBUM_MIN) {
+      let topFraming = { tag: '', n: 0 };
+      let topSubject = 0;
       const counts = new Map<string, number>();
       for (const path of paths) {
-        for (const tag of pack.tagsByPath[path] ?? []) {
-          if (FRAMING_TAGS.has(tag)) counts.set(tag, (counts.get(tag) ?? 0) + 1);
-        }
+        for (const tag of pack.tagsByPath[path] ?? []) counts.set(tag, (counts.get(tag) ?? 0) + 1);
       }
       for (const [tag, n] of counts) {
-        if (n > Math.ceil(paths.length * 0.6)) {
-          warnings.push(`${n} of ${paths.length} photos are "${tag}" — that is where the camera stood, not what the post is about; vary the subject or the framing`);
-          break;
-        }
+        if (FRAMING_TAGS.has(tag)) { if (n > topFraming.n) topFraming = { tag, n }; }
+        else if (n > topSubject) topSubject = n;
+      }
+      // A STRONG SUBJECT EXCUSES THE FRAMING OVERLAP.
+      // Second real draft, 28 Aug: a barbecue album where all four photos are `outdoor` — because
+      // cooking over a fire happens outdoors. Warning there would be the same false positive the
+      // owner already caught once, one level down: the shared framing is a CONSEQUENCE of the
+      // subject, not evidence of a repeated shot. So it only fires when nothing ties the album
+      // together more strongly than where the camera happened to be standing.
+      if (topFraming.n > Math.ceil(paths.length * 0.6) && topSubject < topFraming.n) {
+        warnings.push(
+          `${topFraming.n} of ${paths.length} photos are "${topFraming.tag}" with no stronger shared subject — that is where the camera stood, not what the post is about; vary the subject or the framing`
+        );
       }
     }
   }
