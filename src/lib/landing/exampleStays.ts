@@ -220,6 +220,49 @@ export async function buildExampleStays(
   return stays;
 }
 
+/**
+ * Re-quote ONE known window, standalone. Same arithmetic and same sources as the reasoner above, so
+ * a price shown on a landing page, quoted in a Facebook offer and charged by the booking engine are
+ * one number rather than three that happen to agree.
+ *
+ * WHY IT IS EXPORTED. A page-post offer is drafted days before it goes out, and both availability
+ * and price can move in between — a booking lands, the operator edits the calendar. The scheduler
+ * re-runs this immediately before handing the post to Meta and refuses to publish a stale price.
+ *
+ * Returns `{ available, priceRon }`; `priceRon` is null when any night lacks calendar data.
+ */
+export async function quoteStay(
+  propertyId: string,
+  start: string,
+  nights: number,
+  guests?: number,
+): Promise<{ available: boolean; priceRon: number | null; guests: number }> {
+  const end = addDays(start, nights);
+  let available = false;
+  try {
+    const res = await checkAvailabilityWithFlags(propertyId, parseYmd(start), parseYmd(end));
+    available = res.isAvailable;
+  } catch (e) {
+    logger.warn('quoteStay: availability unreadable', { propertyId, start, error: (e as Error).message });
+    return { available: false, priceRon: null, guests: guests ?? 0 };
+  }
+  const property = await getPropertyWithDb(propertyId);
+  const px = property as typeof property & { cleaningFee?: number };
+  const baseOccupancy = property.baseOccupancy ?? 2;
+  const g = clamp(guests ?? baseOccupancy, 1, property.maxGuests ?? 20);
+  const monthKeys = [...new Set(Array.from({ length: nights }, (_, i) => addDays(start, i).slice(0, 7)))];
+  const calendars = await Promise.all(monthKeys.map(mk => getPriceCalendarWithDb(propertyId, +mk.slice(0, 4), +mk.slice(5, 7))));
+  const dayCell = (dateStr: string) => {
+    const [y, mo, da] = dateStr.split('-').map(Number);
+    const cal = calendars.find(c => c && c.year === y && c.month === mo);
+    return cal?.days?.[String(da)] ?? null;
+  };
+  const priceRon = priceStay(start, nights, g, dayCell,
+    { baseOccupancy, extraGuestFee: property.extraGuestFee ?? 0, cleaningFee: px.cleaningFee ?? 0 },
+    property.pricingConfig?.lengthOfStayDiscounts);
+  return { available, priceRon, guests: g };
+}
+
 /** Real quoted total for a stay at `guests` occupancy (occupancy price + cleaning fee + LoS discount),
  *  identical to the booking page. Null if any night lacks calendar data (card renders without a price). */
 function priceStay(

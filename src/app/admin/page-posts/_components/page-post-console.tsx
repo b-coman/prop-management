@@ -15,8 +15,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Copy, ExternalLink, Check, Trash2 } from 'lucide-react';
-import { generatePagePostAction, markPagePostedAction, discardPagePostAction, publishPagePostAction, syncPageEngagementAction, schedulePagePostAction } from '../actions';
+import { Loader2, Sparkles, Copy, ExternalLink, Check, Trash2, CalendarRange, Wand2 } from 'lucide-react';
+import { generatePagePostAction, markPagePostedAction, discardPagePostAction, publishPagePostAction, syncPageEngagementAction, schedulePagePostAction, planFortnightAction, generateSlotAction } from '../actions';
+import type { Slate, PlannedSlot } from '@/services/growth/fortnightPlanner';
 
 interface PagePost {
   id: string;
@@ -29,6 +30,9 @@ interface PagePost {
   /** What the page actually shows — set by the engagement sync, and not always what we published. */
   publishedMessage?: string;
   scheduledFor?: string;
+  /** Set on drafts written by the fortnight planner — the time the slate intends for them. */
+  plannedFor?: string;
+  plannedWhy?: string;
   permalink?: string;
   reactions?: number;
   comments?: number;
@@ -51,6 +55,18 @@ const TYPE_HELP: Record<string, string> = {
   offer: 'real dates and a real price · the only type that may link · converts',
 };
 
+/** An ISO instant as the value an `<input type="datetime-local">` wants: the BROWSER's wall clock,
+ *  which is exactly what `new Date(value)` reads back on submit. */
+const toLocalInput = (iso: string) => {
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+
+/** The same instant as a Romanian reader would say it. */
+const roWhen = (iso: string) =>
+  new Date(iso).toLocaleString('ro-RO', { timeZone: 'Europe/Bucharest', weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+
 export function PagePostConsole({ propertyId, initialPosts, mix }: { propertyId: string; initialPosts: PagePost[]; mix?: Mix }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -65,6 +81,11 @@ export function PagePostConsole({ propertyId, initialPosts, mix }: { propertyId:
   const [audience, setAudience] = useState('');
   const [edited, setEdited] = useState<Record<string, string>>({});
   const [pending, setPending] = useState<Set<string>>(new Set());
+  const [slate, setSlate] = useState<Slate | null>(null);
+  const [planning, startPlan] = useTransition();
+  const [slotBriefs, setSlotBriefs] = useState<Record<number, string>>({});
+  /** null = idle; otherwise which slot of how many is being written right now. */
+  const [filling, setFilling] = useState<{ at: number; of: number } | null>(null);
 
   /**
    * Every server action on this page goes through this. Next keys an action to an id baked into the
@@ -154,7 +175,9 @@ export function PagePostConsole({ propertyId, initialPosts, mix }: { propertyId:
   };
 
   const schedule = async (post: PagePost) => {
-    const at = when[post.id];
+    // The field SHOWS the planned time for a planned draft, so pressing Schedule without touching it
+    // must use that time rather than complain the field is empty.
+    const at = when[post.id] ?? (post.plannedFor ? toLocalInput(post.plannedFor) : '');
     if (!at) { toast({ title: 'Pick a date and time first', variant: 'destructive' }); return; }
     setPending((p) => new Set(p).add(post.id));
     const res = await call(() => schedulePagePostAction(post.id, new Date(at).toISOString(), edited[post.id] ?? post.message));
@@ -164,6 +187,58 @@ export function PagePostConsole({ propertyId, initialPosts, mix }: { propertyId:
     else toast({ title: 'Could not schedule', description: res.error, variant: 'destructive' });
   };
 
+  const plan = () =>
+    startPlan(async () => {
+      const res = await call(() => planFortnightAction(propertyId, 4));
+      if (!res) return;
+      if (!res.ok) { toast({ title: 'Could not plan', description: res.error, variant: 'destructive' }); return; }
+      setSlate(res.slate);
+      setSlotBriefs({});
+    });
+
+  /**
+   * Write the slate, one slot at a time. Sequential ON PURPOSE — each call reads the rotation the
+   * previous one just wrote, so slot 2 cannot reuse slot 1's photos, and a slot that fails leaves
+   * the ones before it intact instead of losing the batch.
+   */
+  const fillSlate = async () => {
+    if (!slate) return;
+    const failures: string[] = [];
+    for (let i = 0; i < slate.slots.length; i++) {
+      setFilling({ at: i + 1, of: slate.slots.length });
+      const slot: PlannedSlot = { ...slate.slots[i], brief: slotBriefs[i] ?? slate.slots[i].brief };
+      const res = await call(() => generateSlotAction(propertyId, slot));
+      if (!res) { setFilling(null); return; }
+      if (!res.ok) failures.push(`${slot.postType}: ${res.error}`);
+    }
+    setFilling(null);
+    setSlate(null);
+    router.refresh();
+    toast(
+      failures.length
+        ? { title: `Wrote ${slate.slots.length - failures.length} of ${slate.slots.length}`, description: failures.join(' · '), variant: 'destructive' }
+        : { title: `${slate.slots.length} drafts written`, description: 'Review them below, then schedule.' }
+    );
+  };
+
+  /** Schedule every planned draft at the time the slate chose for it. */
+  const scheduleAllPlanned = async () => {
+    const queue = initialPosts.filter((p) => p.status === 'draft' && p.plannedFor);
+    if (!queue.length) return;
+    const failures: string[] = [];
+    for (const post of queue) {
+      const res = await call(() => schedulePagePostAction(post.id, post.plannedFor!, edited[post.id] ?? post.message));
+      if (!res) return;
+      if (!res.ok) failures.push(`${post.postType}: ${res.error}`);
+    }
+    router.refresh();
+    toast(
+      failures.length
+        ? { title: `Scheduled ${queue.length - failures.length} of ${queue.length}`, description: failures.join(' · '), variant: 'destructive' }
+        : { title: `${queue.length} posts scheduled`, description: 'Meta is holding them.' }
+    );
+  };
+
   const syncEngagement = async () => {
     const res = await call(() => syncPageEngagementAction(propertyId));
     if (!res) return;
@@ -171,8 +246,93 @@ export function PagePostConsole({ propertyId, initialPosts, mix }: { propertyId:
     else toast({ title: 'Could not read engagement', description: res.error, variant: 'destructive' });
   };
 
+  const plannedDrafts = initialPosts.filter((p) => p.status === 'draft' && p.plannedFor);
+
   return (
     <div className="space-y-6">
+      {/* ── the fortnight planner ────────────────────────────────────────────
+          Planning is READ-ONLY and free: no words are written until "Write these
+          four" is pressed, so the operator argues with the plan, not with four
+          finished posts he then has to throw away. */}
+      <Card className="max-w-4xl">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><CalendarRange className="h-5 w-5" /> The next fortnight</CardTitle>
+          <CardDescription>
+            Two posts a week, planned against what is actually true right now — the free nights and their real prices, the
+            holiday calendar, the reviews nobody has quoted yet, and the photos not used recently. Nothing is written until you say so.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!slate && (
+            <Button onClick={plan} disabled={planning} variant="secondary">
+              {planning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CalendarRange className="mr-2 h-4 w-4" />}
+              Plan the next fortnight
+            </Button>
+          )}
+
+          {slate && (
+            <div className="space-y-4">
+              {slate.slots.map((slot, i) => {
+                const alt = slot.anchor.kind === 'subject' ? slot.anchor.alternatives : [];
+                return (
+                  <div key={i} className="space-y-2 rounded-md border p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className="capitalize">{slot.postType}</Badge>
+                      <span className="text-sm font-medium">{roWhen(slot.publishAt)}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{slot.why}</p>
+                    {/* The brief is editable: the planner proposes a subject from what is available,
+                        but which subject makes a good post is the operator's call until the page has
+                        enough engagement data to answer it. */}
+                    <Textarea
+                      rows={5}
+                      className="font-mono text-[11px]"
+                      value={slotBriefs[i] ?? slot.brief}
+                      onChange={(e) => setSlotBriefs((prev) => ({ ...prev, [i]: e.target.value }))}
+                    />
+                    {alt.length > 0 && (
+                      <p className="text-[11px] text-muted-foreground">
+                        other subjects with enough free photos: {alt.map((a) => `${a.tag} (${a.photos})`).join(' · ')}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+
+              <div className="space-y-1 rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
+                <p>
+                  <strong>Photos:</strong> {slate.diagnostics.photoBudget.library} in the library, {slate.diagnostics.photoBudget.lockedByRotation} resting,
+                  {' '}{slate.diagnostics.photoBudget.neededForSlate} needed here — about{' '}
+                  <strong>{slate.diagnostics.photoBudget.weeksOfRunway} weeks</strong> before the page must repeat itself.
+                </p>
+                {slate.diagnostics.photoBudget.thin.map((t, i) => <p key={i}>· {t}</p>)}
+                {slate.diagnostics.notes.map((n, i) => <p key={`n${i}`}>· {n}</p>)}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={fillSlate} disabled={!!filling}>
+                  {filling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                  {filling ? `Writing ${filling.at} of ${filling.of}…` : `Write these ${slate.slots.length}`}
+                </Button>
+                <Button variant="ghost" onClick={() => setSlate(null)} disabled={!!filling}>Discard the plan</Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {plannedDrafts.length > 0 && (
+        <Card className="max-w-4xl border-primary/40">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+            <p className="text-sm">
+              <strong>{plannedDrafts.length}</strong> planned draft{plannedDrafts.length === 1 ? '' : 's'} below, each with a time already chosen.
+              Edit any caption first — scheduling sends what you see.
+            </p>
+            <Button size="sm" onClick={scheduleAllPlanned}>Schedule all at their planned times</Button>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="max-w-2xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -244,7 +404,15 @@ export function PagePostConsole({ propertyId, initialPosts, mix }: { propertyId:
             const busy = pending.has(post.id);
             const text = edited[post.id] ?? post.message;
             return (
-              <Card key={post.id} className="max-w-4xl">
+              <Card key={post.id} className={post.plannedFor ? 'max-w-4xl border-primary/40' : 'max-w-4xl'}>
+                {post.plannedFor && (
+                  <CardHeader className="pb-0">
+                    <CardDescription className="text-xs">
+                      planned for <strong className="text-foreground">{roWhen(post.plannedFor)}</strong>
+                      {post.plannedWhy ? ` · ${post.plannedWhy}` : ''}
+                    </CardDescription>
+                  </CardHeader>
+                )}
                 <CardContent className="grid gap-4 pt-6 sm:grid-cols-[160px_1fr]">
                   {/* Albums, shown as albums — this page's five best posts are all multi-photo. */}
                   {(post.assetUrls?.length ? post.assetUrls : [post.assetUrl]).filter(Boolean).length ? (
@@ -293,7 +461,7 @@ export function PagePostConsole({ propertyId, initialPosts, mix }: { propertyId:
                     <div className="flex flex-wrap items-center gap-2 border-t pt-2">
                       <Input
                         type="datetime-local"
-                        value={when[post.id] ?? ''}
+                        value={when[post.id] ?? (post.plannedFor ? toLocalInput(post.plannedFor) : '')}
                         onChange={(e) => setWhen((prev) => ({ ...prev, [post.id]: e.target.value }))}
                         className="h-9 w-[210px] text-sm"
                       />

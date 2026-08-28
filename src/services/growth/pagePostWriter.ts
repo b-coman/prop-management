@@ -66,6 +66,24 @@ export type PagePostType = (typeof POST_TYPES)[number];
  */
 const FRAMING_TAGS = new Set(['exterior', 'outdoor', 'interior']);
 
+/** Romanian month names WITHOUT diacritics — the caption is normalised the same way before the
+ *  comparison, so "septembrie" matches whether or not the writer typed it with them. */
+const MONTHS_RO = ['ianuarie','februarie','martie','aprilie','mai','iunie','iulie','august','septembrie','octombrie','noiembrie','decembrie'];
+
+/**
+ * Romanian words that DO NOT EXIST without their diacritics. Not a style list — every one of these
+ * is simply misspelled as written, so finding one is proof the caption slipped out of proper
+ * Romanian rather than evidence of a preference. Deliberately excludes the ambiguous cases
+ * ("noua"/"nouă", "fata"/"față", "sa"/"să"), which are real words either way.
+ *
+ * The second real slate produced "Trees peste tot, liniște, si laptopul ramane inchis daca vrei" —
+ * an English noun and five misspellings in one sentence, in a caption that started clean. A model
+ * that is merely ASKED for diacritics gets them most of the time, which is the worst rate for
+ * something that appears on a public page.
+ */
+const MISSPELLED_WITHOUT_DIACRITICS =
+  /\b(si|ramane|raman|daca|inchis|inchisa|padure|padurea|liniste|linistit|linistita|gradina|gradini|casuta|sfarsit|rachita|cateva|catva|usor|usoara|dimineata|dimineti|bucatarie|mancare|impreuna|inainte|incepe|incepem|langa|catre|tarziu|frumusete|caldura|racoare|sanatate|batranesc|intalnire|apropiere)\b/gi;
+
 /** Channels that charge us commission. A page post must never hand its own followers to one. */
 const OTA_LINK = /\b(airbnb|booking\.com|vrbo|expedia|trip\.com|hotels\.com|travelminit)\b/i;
 
@@ -97,6 +115,13 @@ export function validatePagePost(
      * relaxes the window rather than letting a silent repeat through.
      */
     recentlyUsedPaths?: string[];
+    /**
+     * For an `offer` ONLY: the real window and the real quoted total. An offer is the one post type
+     * that names money and dates, so it is the one place a fluent sentence can be expensively wrong
+     * — a price the booking page will not honour, or a weekend that is already taken. Supplying
+     * these turns "the model was told the right numbers" into "the caption provably carries them".
+     */
+    offerFacts?: { priceRon: number; checkIn: string; checkOut: string };
   }
 ): PagePostValidationResult {
   const errors: string[] = [];
@@ -110,6 +135,13 @@ export function validatePagePost(
   // to an 18.755% channel. Blocked, so it cannot happen on a busy day.
   const ota = msg.match(OTA_LINK);
   if (ota) errors.push(`caption links to an OTA (${ota[0]}) — page posts point at the direct site or nowhere`);
+
+  const misspelled = [...new Set((msg.match(MISSPELLED_WITHOUT_DIACRITICS) ?? []).map((w) => w.toLowerCase()))];
+  if (misspelled.length) {
+    errors.push(
+      `written without diacritics: ${misspelled.join(', ')} — these are not Romanian words as spelled; write proper Romanian throughout (și, rămâne, dacă, liniște…)`
+    );
+  }
 
   const paths = post.assetPaths ?? [];
   if (!paths.length) errors.push('no photos chosen');
@@ -176,6 +208,35 @@ export function validatePagePost(
   if (!post.postType) errors.push('no postType chosen');
   else if (!(POST_TYPES as readonly string[]).includes(post.postType)) errors.push(`unknown postType: ${post.postType}`);
 
+  // AN OFFER MUST CARRY THE REAL NUMBERS, AND ONLY THE REAL NUMBERS.
+  //
+  // Everywhere else in this file the guardrail is on photos, because a caption that overpromises
+  // atmosphere costs nothing. An offer is different: it names a price the booking page has to
+  // honour and nights the calendar has to still have free. "We put the right facts in the prompt"
+  // is not a guarantee — this is. Errors, not warnings, so the repair loop fixes them.
+  if (post.postType === 'offer' && pack.offerFacts && msg.length >= MESSAGE_MIN) {
+    const f = pack.offerFacts;
+    // Join thousands separators first: "1.711" and "1 711" are the same number as "1711".
+    const joined = msg.replace(/(\d)[.\s](\d{3})\b/g, '$1$2');
+    const flat = joined.normalize('NFD').replace(new RegExp('[\u0300-\u036f]', 'g'), '').toLowerCase();
+
+    if (!new RegExp(`\\b${f.priceRon}\\b`).test(joined)) {
+      errors.push(`the caption does not state the real total (${f.priceRon} lei) — an offer names its price`);
+    }
+    // Any OTHER large number is invented. Years are the one benign exception.
+    const stray = [...joined.matchAll(/\d+/g)]
+      .map((m) => Number(m[0]))
+      .filter((n) => n >= 100 && n !== f.priceRon && !(n >= 2020 && n <= 2035));
+    if (stray.length) {
+      errors.push(`the caption states ${stray.join(', ')} — we did not give it those numbers; the only figure an offer may name is ${f.priceRon}`);
+    }
+    const day = Number(f.checkIn.slice(8, 10));
+    const month = MONTHS_RO[Number(f.checkIn.slice(5, 7)) - 1];
+    if (!new RegExp(`\\b${day}\\b`).test(flat) || !flat.includes(month)) {
+      errors.push(`the caption does not name the real dates (${day} ${month}) — an offer without its dates is not an offer`);
+    }
+  }
+
   return { ok: errors.length === 0, errors, warnings };
 }
 
@@ -186,7 +247,7 @@ const PAGE_POST_TOOL = {
     type: 'object' as const,
     properties: {
       message: { type: 'string', description: 'the post caption in ROMANIAN — warm, organic, community feel (NOT a hard-sell ad). Short, a few sentences. END WITH A REAL QUESTION unless postType is "offer": this page has earned exactly one comment in six years, and it came from the one caption that spoke to a person instead of describing a property.' },
-      assetPaths: { type: 'array', items: { type: 'string' }, description: '3 to 5 photos by EXACT storagePath from the assets, as an ALBUM that tells one story in order. The library is small and finite, so NEVER pick a path listed in recentlyUsed — a repeat reads as a tired page. Never invent a path, never repeat one within the album.' },
+      assetPaths: { type: 'array', items: { type: 'string' }, description: '3 to 5 photos by EXACT storagePath from the assets, as an ALBUM that tells one story in order. Every path must be copied WHOLE from the assets list — the full "properties/.../images/....jpg", never just the filename. The list already excludes anything used recently, so everything in it is fair game; never invent a path and never repeat one within the album.' },
       postType: { type: 'string', enum: ['place', 'proof', 'offer'], description: 'place = the chalet/season with no offer and no link (earns reach). proof = guests, a review, the place in use, ending in a question (earns replies). offer = specific dates and a real price (converts). Follow the type asked for in the brief.' },
       notes: { type: 'string', description: 'brief note on the choices (optional).' },
     },
@@ -226,16 +287,63 @@ RULES
 3d. VARY THE FRAME. Aim for a wide shot that sets the scene, one or two that show the subject in use,
    and a close detail. Use "subjects" and "features" on each asset to tell these apart — two photos
    listing nearly the same subjects are near-duplicates however differently they are tagged.
+3e. HOW THE OWNER ACTUALLY WRITES — this is the voice, learned from his own edits to two real drafts.
+   He rewrote "Nouă ne-au rămas în minte exact aceleași lucruri" as "Cam asta ne rămâne si nouă de
+   fiecare dată când mergem acolo", "curtea cu loc de joacă" as "curtea aia mare", and
+   "grătarul de cărămidă" as just "grătarul". He cut a three-way question down to two options and
+   opened a post with a folk rhyme. The pattern, in order of importance:
+   - COLLOQUIAL OVER CORRECT. "aia", "asta", "cam", the familiar register. Write it the way it would
+     be said out loud, not the way it would be written down.
+   - CUT THE QUALIFIER. If the noun works alone, use the noun alone. Do not specify what nobody
+     asked about — the material the barbecue is built from, the equipment in the yard.
+   - HE IS SOMEONE WHO GOES THERE, not someone who owns a listing. "de fiecare dată când mergem
+     acolo", not "oaspeții noștri se bucură de".
+   - TWO CHOICES, NOT THREE, when the closing question offers options.
+   - A familiar saying or a bit of rhyme is welcome when it lands naturally. Never forced.
+   THE PHRASES ABOVE ARE EXAMPLES OF THE REGISTER, NOT A PHRASEBOOK. Never reuse one of them
+   verbatim — the first slate copied "cam asta ne rămâne și nouă" straight out of this list into a
+   post going out eleven days after the post it came from, which reads as a page repeating itself.
+   Write new sentences in that register.
+   NEVER USE AN EM-DASH OR AN EN-DASH. A plain hyphen, always, including inside date ranges.
 4. KEEP IT SHORT, AND ASK SOMETHING. A few sentences. For 'place' and 'proof', end on a real question
    someone could answer — not "who else loves autumn?" but something specific to what is in the
-   photos. Diacritics are fine (this is public brand copy). One or two tasteful emoji are OK.
+   photos. One or two tasteful emoji are OK.
+4b. PROPER ROMANIAN, ALL THE WAY THROUGH. Full diacritics in every word that takes them (și, rămâne,
+   dacă, liniște, grădină, pădure, căsuța, împreună) — not just in the first sentence. No English
+   words at all: not "trees", not "weekend getaway", not a brand-speak noun dropped in for flavour.
+   When you quote a guest who typed without diacritics, restore them in the quote. Checked in code.
 5. NEVER LINK TO AN OTA. Not Airbnb, not Booking.com, not VRBO. The only booking link a page post may
    carry is the property's own site, and only when postType is 'offer'. This is enforced in code.
 6. MATCH THE TYPE. 'place' shares a moment and sells nothing. 'proof' shows the place being used and
    invites a reply. 'offer' names real dates and a real price — the one type allowed to ask for the
    booking.
+7. AN OFFER'S NUMBERS ARE NOT YOURS TO CHOOSE. When the brief gives you a total and a set of dates,
+   write THOSE, once, as digits, and name no other figure — no per-night maths, no "from" price, no
+   discount percentage, no guest count in numerals. This is checked in code and a post that invents
+   a number is rejected. An offer still opens with a REASON, not with the price: why these nights,
+   for this person, this week.
 
 Return the post by calling emit_page_post. Nothing else.`;
+
+/**
+ * The owner's standing rule, across every channel: a plain hyphen, never an em- or en-dash. The
+ * model reaches for "—" by default and produced one in three of four drafts on the first real slate,
+ * including inside a date range ("4–7 septembrie"). Asking in the prompt makes it usually right;
+ * doing it here makes it always right, and it is pure typography — it cannot change what the
+ * sentence says.
+ */
+export function normalizeTypography(message: string): string {
+  return message.replace(new RegExp('[\u2013\u2014]', 'g'), '-');
+}
+
+/** A model-emitted path, resolved to a real storagePath when it is unambiguously one. */
+function resolveAssetPath(emitted: string, known: string[]): string {
+  if (!emitted || known.includes(emitted)) return emitted;
+  const base = emitted.split('/').pop();
+  if (!base) return emitted;
+  const matches = known.filter((k) => k.endsWith(`/${base}`));
+  return matches.length === 1 ? matches[0] : emitted;
+}
 
 export interface GeneratePagePostResult {
   ok: boolean;
@@ -264,6 +372,7 @@ export async function generatePagePost(
     framing?: AdFraming;
     postType?: PagePostType;
     recentlyUsedPaths?: string[];
+    offerFacts?: { priceRon: number; checkIn: string; checkOut: string };
   },
   opts?: { maxRepairs?: number }
 ): Promise<GeneratePagePostResult> {
@@ -277,17 +386,35 @@ export async function generatePagePost(
     // Tags feed the variety check — without them an album of five near-identical exteriors passes.
     tagsByPath: Object.fromEntries(input.assets.map((a) => [a.storagePath, a.tags ?? []])),
     recentlyUsedPaths: input.recentlyUsedPaths ?? [],
+    offerFacts: input.offerFacts,
   };
   const maxRepairs = opts?.maxRepairs ?? 1;
+
+  /**
+   * WHAT THE MODEL IS ALLOWED TO SEE.
+   *
+   * Rotation used to be a rule the model was asked to follow, with the validator catching it when it
+   * did not — and on a library this small it did not, repeatedly: the third real slate burned both
+   * attempts on an offer because the evocative autumn photos it kept reaching for were locked by the
+   * two posts before it. Showing it only the photos it may actually use turns a rule it can break
+   * into a choice it cannot, and costs nothing. The validator still holds the guarantee, against the
+   * FULL owned set, so a stray path is still named accurately rather than mislabelled "not ours".
+   *
+   * If rotation has eaten the library down past an album, the caller has already relaxed the window
+   * (a repeat beats no post); this filter then removes nothing.
+   */
+  const recentSet = new Set(input.recentlyUsedPaths ?? []);
+  const offered = input.assets.filter((a) => !recentSet.has(a.storagePath));
+  const visibleAssets = offered.length >= ALBUM_MIN ? offered : input.assets;
 
   const postPack = {
     prompt: input.prompt,
     postType: input.postType ?? 'place',
-    // Shown to the model so it can avoid them, and enforced in the validator so it cannot ignore it.
-    recentlyUsed: input.recentlyUsedPaths ?? [],
+    // Every photo here is already free to use — the recently-used ones are not in this list at all.
+    recentlyUsed: [] as string[],
     goal: input.framing?.goal ?? null,
     audience: input.framing?.audience ?? null,
-    assets: input.assets.map((a) => ({ storagePath: a.storagePath, alt: a.alt, tags: a.tags, aiDescription: a.aiDescription })),
+    assets: visibleAssets.map((a) => ({ storagePath: a.storagePath, alt: a.alt, tags: a.tags, aiDescription: a.aiDescription })),
   };
   const messages: Array<{ role: 'user' | 'assistant'; content: unknown }> = [
     { role: 'user', content: `Here is the post brief + the available gallery assets. Write ONE organic page post and call emit_page_post.\n\n${JSON.stringify(postPack)}` },
@@ -307,8 +434,13 @@ export async function generatePagePost(
     });
     const toolUse = resp.content.find((b: { type: string }) => b.type === 'tool_use') as { id?: string; input?: EmitPagePostInput } | undefined;
     const emitted = toolUse?.input;
+    // A BARE FILENAME IS A SLIP, NOT A HALLUCINATION. The model sometimes emits
+    // "ad-autumn-below.jpg" instead of the full storagePath, and burning a repair round-trip on a
+    // prefix it already had is waste. Resolved here ONLY when the basename matches exactly one
+    // asset — an ambiguous match still fails validation, which is the correct outcome.
+    if (emitted?.assetPaths) emitted.assetPaths = emitted.assetPaths.map((p) => resolveAssetPath(p, validationPack.assetPaths));
     post = emitted
-      ? { message: emitted.message, assetPaths: emitted.assetPaths ?? [], postType: emitted.postType, notes: emitted.notes }
+      ? { message: normalizeTypography(emitted.message ?? ''), assetPaths: emitted.assetPaths ?? [], postType: emitted.postType, notes: emitted.notes }
       : null;
 
     const v = post ? validatePagePost(post, validationPack) : { ok: false, errors: ['the model returned no post'], warnings: [] };

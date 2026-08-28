@@ -29,6 +29,8 @@ const RECENT_POSTS_FOR_ROTATION = 6;
  */
 const MIX_WINDOW = 20;
 import { publishPagePost, fetchPostEngagement } from '@/services/growth/pagePublisher';
+import { planFortnight, type PlannedSlot, type Slate } from '@/services/growth/fortnightPlanner';
+import { quoteStay } from '@/lib/landing/exampleStays';
 import type { PropertyImage } from '@/types';
 
 const logger = loggers.ads;
@@ -113,7 +115,7 @@ export async function generatePagePostAction(input: {
 
 /** List a property's page posts (drafts + posted), newest first. */
 export async function fetchPagePostsAction(propertyId: string): Promise<
-  Array<{ id: string; message: string; postType?: string; assetPaths?: string[]; assetUrls?: string[]; assetPath: string; assetUrl: string; status: string; publishedMessage?: string; scheduledFor?: string; postId?: string; reactions?: number; comments?: number; shares?: number; permalink?: string; prompt?: string; goal?: string | null; audience?: string | null; createdAt?: string }>
+  Array<{ id: string; message: string; postType?: string; assetPaths?: string[]; assetUrls?: string[]; assetPath: string; assetUrl: string; status: string; publishedMessage?: string; scheduledFor?: string; postId?: string; reactions?: number; comments?: number; shares?: number; permalink?: string; prompt?: string; goal?: string | null; audience?: string | null; createdAt?: string; plannedFor?: string; plannedWhy?: string }>
 > {
   try {
     await requireSuperAdmin();
@@ -207,6 +209,7 @@ export async function publishPagePostAction(
     if (!doc.exists) return { ok: false, error: 'post-not-found' };
     const data = doc.data() as {
       propertyId?: string; message?: string; assetUrls?: string[]; assetUrl?: string; status?: string;
+      postType?: string; offerFacts?: unknown;
     };
     // Scheduled counts too: Meta is already holding that copy, so publishing now would put the same
     // post out twice and orphan the queued one. The console hides the button, but a stale tab still
@@ -222,6 +225,15 @@ export async function publishPagePostAction(
 
     const urls = (data.assetUrls?.length ? data.assetUrls : [data.assetUrl]).filter(Boolean) as string[];
     if (!urls.length) return { ok: false, error: 'no-photo-urls' };
+
+    // A DRAFTED OFFER CAN GO STALE BETWEEN WRITING AND SENDING. Re-check the window and the price
+    // against live data at the last possible moment — the whole point of planning ahead is that days
+    // pass, and days are exactly when a booking lands on the nights we are about to advertise.
+    const of = data.offerFacts as { checkIn: string; checkOut: string; priceRon: number; guests?: number } | undefined;
+    if (data.postType === 'offer' && of) {
+      const still = await offerStillTrue(data.propertyId, of);
+      if (!still.ok) return { ok: false, error: still.error };
+    }
 
     const res = await publishPagePost(data.propertyId, { message, photoUrls: urls });
     if (!res.ok || !res.postId) return { ok: false, error: res.error ?? 'publish-failed' };
@@ -394,7 +406,7 @@ export async function schedulePagePostAction(
     if (!doc.exists) return { ok: false, error: 'post-not-found' };
     const data = doc.data() as {
       propertyId?: string; message?: string; postType?: string;
-      assetUrls?: string[]; assetUrl?: string; status?: string;
+      assetUrls?: string[]; assetUrl?: string; status?: string; offerFacts?: unknown;
     };
     if (data.status === 'posted' || data.status === 'scheduled') return { ok: false, error: `already-${data.status}` };
     if (!data.propertyId) return { ok: false, error: 'draft-incomplete' };
@@ -403,6 +415,15 @@ export async function schedulePagePostAction(
     if (!message) return { ok: false, error: 'draft-incomplete' };
     const urls = (data.assetUrls?.length ? data.assetUrls : [data.assetUrl]).filter(Boolean) as string[];
     if (!urls.length) return { ok: false, error: 'no-photo-urls' };
+
+    // A DRAFTED OFFER CAN GO STALE BETWEEN WRITING AND SENDING. Re-check the window and the price
+    // against live data at the last possible moment — the whole point of planning ahead is that days
+    // pass, and days are exactly when a booking lands on the nights we are about to advertise.
+    const of = data.offerFacts as { checkIn: string; checkOut: string; priceRon: number; guests?: number } | undefined;
+    if (data.postType === 'offer' && of) {
+      const still = await offerStillTrue(data.propertyId, of);
+      if (!still.ok) return { ok: false, error: still.error };
+    }
 
     // An OFFER names dates. Landing it the night before is worthless — nobody plans a weekend on
     // Friday evening. The owner's rule: a weekend offer goes out Tuesday or Wednesday.
@@ -431,6 +452,160 @@ export async function schedulePagePostAction(
     return { ok: true, postId: res.postId, scheduledFor: when.toISOString() };
   } catch (error) {
     logger.error('schedulePagePostAction failed', error as Error, { id });
+    return { ok: false, error: 'internal-error' };
+  }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The fortnight planner: plan → generate → schedule, with the operator between
+// every pair of arrows.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Plan the next fortnight. READ-ONLY: no LLM, no writes, nothing sent. Cheap enough to re-run as
+ * many times as the operator likes, and it reads live inventory, so re-planning tomorrow correctly
+ * gives a different answer.
+ */
+export async function planFortnightAction(
+  propertyId: string,
+  posts?: number
+): Promise<{ ok: true; slate: Slate } | { ok: false; error: string }> {
+  try {
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return { ok: false, error: handleAuthError(error).error };
+    throw error;
+  }
+  try {
+    const slate = await planFortnight(propertyId, { posts: Math.min(Math.max(posts ?? 4, 1), 6) });
+    return { ok: true, slate };
+  } catch (error) {
+    logger.error('planFortnightAction failed', error as Error, { propertyId });
+    return { ok: false, error: 'internal-error' };
+  }
+}
+
+/**
+ * An offer's window and price, re-checked against live data.
+ *
+ * A page-post offer is drafted days before it goes out; in between, a booking can land or the
+ * operator can edit the calendar. Every gate that could put an offer in front of a person runs this
+ * — generate, publish, schedule — because the failure is not cosmetic: it is a public price the
+ * booking engine will not honour, or an invitation to nights someone else has taken.
+ */
+async function offerStillTrue(
+  propertyId: string,
+  f: { checkIn: string; checkOut: string; priceRon: number; guests?: number }
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const nights = Math.round((Date.parse(`${f.checkOut}T00:00:00Z`) - Date.parse(`${f.checkIn}T00:00:00Z`)) / 86400000);
+  if (!(nights > 0)) return { ok: false, error: 'the offer has no valid window' };
+  const q = await quoteStay(propertyId, f.checkIn, nights, f.guests);
+  if (!q.available) {
+    return { ok: false, error: `${f.checkIn} → ${f.checkOut} is no longer free — re-plan the fortnight` };
+  }
+  if (q.priceRon == null) return { ok: false, error: 'no price calendar covers those nights any more' };
+  if (q.priceRon !== f.priceRon) {
+    return { ok: false, error: `the price moved: the caption says ${f.priceRon} lei, the booking page now quotes ${q.priceRon} — re-plan the fortnight` };
+  }
+  return { ok: true };
+}
+
+/** Photos the next post must not reuse. Counts committed posts AND planned drafts — a slate written
+ *  in one sitting would otherwise let post 2 repeat post 1's album. */
+async function rotationFor(propertyId: string, db: FirebaseFirestore.Firestore): Promise<string[]> {
+  const snap = await db.collection('pagePosts').where('propertyId', '==', propertyId).get();
+  return snap.docs
+    .map((d) => d.data() as { status?: string; assetPaths?: string[]; plannedFor?: string; createdAt?: { toMillis?: () => number } })
+    .filter((d) => d.status === 'posted' || d.status === 'scheduled' || (d.status === 'draft' && d.plannedFor))
+    .sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0))
+    .slice(0, RECENT_POSTS_FOR_ROTATION)
+    .flatMap((d) => d.assetPaths ?? []);
+}
+
+/**
+ * Write ONE slot of a planned slate as a draft.
+ *
+ * Deliberately one slot per call rather than a loop inside a single action: four LLM calls is the
+ * better part of a minute, and a client-driven sequence shows progress, survives one slot failing,
+ * and lets each call read the rotation the previous one just wrote.
+ */
+export async function generateSlotAction(
+  propertyId: string,
+  slot: PlannedSlot
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  try {
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return { ok: false, error: handleAuthError(error).error };
+    throw error;
+  }
+  try {
+    const db = await getAdminDb();
+    const propDoc = await db.collection('properties').doc(propertyId).get();
+    if (!propDoc.exists) return { ok: false, error: 'property-not-found' };
+    const images = (propDoc.data()?.images ?? []) as PropertyImage[];
+    const ownPrefix = `properties/${propertyId}/`;
+    const assets = images
+      .filter((i): i is PropertyImage & { storagePath: string } => Boolean(i.storagePath?.startsWith(ownPrefix)))
+      .map((i) => ({ storagePath: i.storagePath, alt: serverTranslateContent(i.alt, 'en'), tags: i.tags ?? [], aiDescription: i.aiDescription }));
+    if (!assets.length) return { ok: false, error: 'no gallery photos for this property' };
+
+    // THE PROSE IS THE OPERATOR'S, THE NUMBERS ARE OURS. He may rewrite any brief before generating;
+    // the offer's window and price come from `anchor`, which is re-verified here rather than trusted.
+    let offerFacts: { priceRon: number; checkIn: string; checkOut: string } | undefined;
+    if (slot.postType === 'offer' && slot.anchor?.kind === 'stay') {
+      const a = slot.anchor;
+      if (a.priceRon == null) return { ok: false, error: 'that window has no price — re-plan' };
+      const still = await offerStillTrue(propertyId, { checkIn: a.start, checkOut: a.end, priceRon: a.priceRon, guests: a.guests });
+      if (!still.ok) return { ok: false, error: still.error };
+      offerFacts = { priceRon: a.priceRon, checkIn: a.start, checkOut: a.end };
+    }
+
+    const recentlyUsedPaths = await rotationFor(propertyId, db);
+    const usable = assets.length - new Set(recentlyUsedPaths).size;
+    const rotation = usable >= 3 ? recentlyUsedPaths : [];
+
+    const res = await generatePagePost({
+      propertyId,
+      prompt: slot.brief,
+      assets,
+      framing: { goal: slot.goal, audience: slot.audience },
+      postType: slot.postType,
+      recentlyUsedPaths: rotation,
+      offerFacts,
+    // One more repair than the single-post path: a failed slot in a planned batch costs the operator
+    // a re-run of the whole slate, and an offer carries the extra number rules on top of everything
+    // else, so it has the most to get right in one go.
+    }, { maxRepairs: 2 });
+    if (!res.ok || !res.post) return { ok: false, error: res.errors.join('; ') || 'generation-failed' };
+
+    const urlByPath = new Map(images.filter((i) => i.storagePath).map((i) => [i.storagePath!, i.url]));
+    const ref = db.collection('pagePosts').doc();
+    await ref.set({
+      propertyId,
+      prompt: slot.brief,
+      goal: slot.goal ?? null,
+      audience: slot.audience ?? null,
+      message: res.post.message,
+      postType: res.post.postType,
+      assetPaths: res.post.assetPaths,
+      assetUrls: res.post.assetPaths.map((a) => urlByPath.get(a) ?? '').filter(Boolean),
+      assetPath: res.post.assetPaths[0],
+      assetUrl: urlByPath.get(res.post.assetPaths[0]) ?? '',
+      status: 'draft',
+      // What makes this a PLANNED draft rather than a one-off: the slate's intended time, and the
+      // real thing it was built from.
+      plannedFor: slot.publishAt,
+      plannedWhy: slot.why,
+      ...(offerFacts ? { offerFacts: { ...offerFacts, guests: (slot.anchor as { guests?: number }).guests ?? null } } : {}),
+      ...(slot.anchor?.kind === 'review' ? { reviewId: slot.anchor.review.id } : {}),
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    revalidatePath('/admin/page-posts');
+    return { ok: true, id: ref.id };
+  } catch (error) {
+    logger.error('generateSlotAction failed', error as Error, { propertyId, type: slot?.postType });
     return { ok: false, error: 'internal-error' };
   }
 }

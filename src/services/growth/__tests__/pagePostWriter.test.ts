@@ -1,6 +1,6 @@
 /** @jest-environment node */
 
-import { validatePagePost } from '../pagePostWriter';
+import { validatePagePost, normalizeTypography } from '../pagePostWriter';
 
 const PACK = {
   propertyId: 'prahova-mountain-chalet',
@@ -125,6 +125,52 @@ describe('validatePagePost', () => {
     }
   });
 
+  // ── an offer's numbers, which are the only ones that cost money to get wrong ──
+  describe('offer facts', () => {
+    const FACTS = { priceRon: 1711, checkIn: '2026-09-04', checkOut: '2026-09-07' };
+    const offer = (message: string) =>
+      validatePagePost({ message, assetPaths: album(4), postType: 'offer' }, { ...PACK, offerFacts: FACTS });
+    const good =
+      'Ultimul weekend înainte de școală, la munte. 4-7 septembrie, curtea numai a voastră, 1711 lei cu tot cu curățenie. Scrieți-ne și e al vostru.';
+
+    it('accepts a caption carrying the real price and the real dates', () => {
+      expect(offer(good).ok).toBe(true);
+    });
+
+    it('rejects a caption that never names the price', () => {
+      const res = offer('Ultimul weekend înainte de școală, 4-7 septembrie. Scrieți-ne pentru detalii și preț.');
+      expect(res.ok).toBe(false);
+      expect(res.errors.some((e) => e.includes('does not state the real total'))).toBe(true);
+    });
+
+    it('reads 1.711 and 1 711 as the same number a Romanian would type', () => {
+      expect(offer(good.replace('1711', '1.711')).ok).toBe(true);
+      expect(offer(good.replace('1711', '1 711')).ok).toBe(true);
+    });
+
+    // The expensive failure: a fluent sentence doing arithmetic nobody asked for.
+    it('rejects an invented second number — a per-night price, a discount, a made-up total', () => {
+      const res = offer(good.replace('1711 lei', '1711 lei, adică 570 lei pe noapte'));
+      expect(res.ok).toBe(false);
+      expect(res.errors.some((e) => e.includes('we did not give it those numbers'))).toBe(true);
+    });
+
+    it('rejects a caption with no real dates in it', () => {
+      const res = offer('Weekendul viitor e liber la cabană, 1711 lei cu tot cu curățenie. Scrieți-ne.');
+      expect(res.ok).toBe(false);
+      expect(res.errors.some((e) => e.includes('does not name the real dates'))).toBe(true);
+    });
+
+    it('lets a year through — 2026 is not an invented price', () => {
+      expect(offer(good.replace('septembrie', 'septembrie 2026')).ok).toBe(true);
+    });
+
+    it('is inert for the other two types, which name no numbers at all', () => {
+      const res = validatePagePost({ message: okMsg, assetPaths: album(4), postType: 'place' }, { ...PACK, offerFacts: FACTS });
+      expect(res.ok).toBe(true);
+    });
+  });
+
   it('still allows a link to the property’s own site', () => {
     const res = validatePagePost(
       post({ postType: 'offer', message: `${okMsg} https://prahova-chalet.ro/ro` }),
@@ -209,4 +255,48 @@ describe('album composition', () => {
     expect(res.warnings.some((w) => w.includes('where the camera stood'))).toBe(false);
   });
 
+});
+
+describe('normalizeTypography', () => {
+  // A standing owner directive across every channel. The model reached for an em-dash in three of
+  // four drafts on the first real slate, so this is enforced rather than requested.
+  it('turns em- and en-dashes into plain hyphens', () => {
+    expect(normalizeTypography('Ultimul weekend — 4–7 septembrie')).toBe('Ultimul weekend - 4-7 septembrie');
+  });
+
+  it('leaves an ordinary hyphen and the rest of the text alone', () => {
+    const s = 'bine-mi pare, în grădină am... culoare 🥰';
+    expect(normalizeTypography(s)).toBe(s);
+  });
+});
+
+describe('proper Romanian', () => {
+  // The second real slate emitted "Trees peste tot, liniște, si laptopul ramane inchis daca vrei" —
+  // clean diacritics for one sentence, then five misspellings and an English noun. Asked-for rules
+  // get this right most of the time, which is the worst possible rate for a public page.
+  const post = (message: string) => validatePagePost({ message, assetPaths: PACK.assetPaths.slice(0, 4), postType: 'place' }, PACK);
+
+  it('rejects a caption that drops its diacritics halfway', () => {
+    const res = post('E o seară liniștită la munte, si laptopul ramane inchis daca vrei asta.');
+    expect(res.ok).toBe(false);
+    expect(res.errors.some((e) => e.includes('written without diacritics'))).toBe(true);
+  });
+
+  it('names every offending word so one repair fixes them all', () => {
+    const res = post('Liniste totala in gradina, langa padure, daca vrei sa stai mai mult acolo.');
+    const err = res.errors.find((e) => e.includes('written without diacritics'))!;
+    for (const w of ['liniste', 'gradina', 'langa', 'padure', 'daca']) expect(err).toContain(w);
+  });
+
+  it('leaves proper Romanian alone', () => {
+    const res = post('E o seară liniștită la munte, iar grădina e numai a voastră. Ce beți lângă foc?');
+    expect(res.ok).toBe(true);
+  });
+
+  // "noua"/"nouă", "fata"/"față" and "sa"/"să" are real words either way — flagging them would
+  // reject correct Romanian, which is worse than missing one.
+  it('does not flag words that are valid without diacritics', () => {
+    const res = post('Casa noua a fost gata la timp, iar fata lor sa vină oricând vrea la noi.');
+    expect(res.ok).toBe(true);
+  });
 });
