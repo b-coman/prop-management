@@ -12,6 +12,20 @@
 
 The owner already has, in Meta Business Manager **"Comarnic Mountain Chalet"** (ID `284793355854966`, **business verification = UNVERIFIED**):
 - an app **"Conversions API Application"** — App ID `356355235972444`, type **"Access token only"**, Mode Live, calling Graph/Marketing API **v20.0** (old; current v25).
+- **an app "Rentalspot" — App ID `1020612017421319`, Business type, PUBLISHED** (confirmed from the
+  App Dashboard, 28 Aug 2026). It has a **Use cases** section and an **Add use cases** button, has
+  Facebook Login for Business, and its rate-limit dashboard already lists BOTH the Comarnic page
+  (`107610677616243`) and the ad account (`act_543311232953437`).
+
+> **CORRECTION (28 Aug 2026).** This section previously described the CAPI app as the operator's
+> only app, and §0 concluded a NEW Business app must be created to run ads or manage the page. That
+> is wrong — the Business app already exists. The conclusion to draw from the CAPI app's limits is
+> only that it is the wrong app to generate page/ads tokens FROM, not that no such app exists.
+> Verified the hard way: generating a system-user token against the CAPI app offers exactly 8
+> permissions (ads_management, ads_read, business_management, catalog_management, pages_manage_ads,
+> pages_read_engagement, pages_show_list, threads_business_basic) and CANNOT offer
+> `pages_manage_posts` or `pages_read_user_content`, because an "Access token only" app has no Use
+> cases, Products or App Review sections at all. Generate page tokens from **Rentalspot** instead.
 
 **Verdict — what's reusable vs must be new:**
 | Asset | Reuse? | Why (verified) |
@@ -431,7 +445,23 @@ v25 page-insight metrics are a **shrunken set** — valid: `page_post_engagement
 5. Paste the new token into the `META_ADS_TOKENS` secret (same JSON map, key `prahova-mountain-chalet`) — ads keep working (same identity), page/IG unlock.
 
 ### 11.3 Page state (the "keep-alive" opportunity, quantified)
-"Comarnic Mountain Chalet" (@ComarnicChalet, id `107610677616243`): **552 followers, `talking_about_count:0` (DORMANT), 0 ratings, published, not verified.** ⚠️ Page `website` field = `airbnb.com/rooms/43265214` — **leaks direct-booking margin; change to `prahova-chalet.ro`** (Page settings, no token change).
+**Re-measured 28 Aug 2026** (supersedes the July figures): **572 followers, `talking_about_count: 41`,
+published, not verified, category "Vacation Home Rental", username @ComarnicChalet.**
+
+✅ The Airbnb leak is CLOSED — the page `website` field now reads `https://prahova-chalet.ro/ro`.
+
+⚠️ **Still dormant, but the July signal no longer detects it.** `talking_about_count` is 41, not 0, so
+a check keyed on that returns "healthy". The real evidence is the 28-day page insights coming back
+`"data": []` — with a working derived page token, so this is genuine emptiness rather than a
+permissions or parse failure: zero `page_post_engagements`, `page_views_total`, `page_total_actions`
+and `page_follows` for four weeks. `brandHealth.ts` was fixed to use readable-but-empty insights as
+the dormancy signal (guarded by `canReadInsights`, so unreadable ≠ dormant).
+
+**Token reality for the page arm (measured, not assumed):** the system user `rentalspot`
+(`122096486619395064`) ALREADY holds page tasks `ANALYZE, ADVERTISE, CREATE_CONTENT`. The asset
+assignment is done. What is missing is token SCOPE: reading `/posts` fails `(#10) requires
+pages_read_user_content`, and POSTing to `/feed` fails `(#200)`. Both scopes must come from the
+**Rentalspot** app (§0), not the CAPI app.
 
 ### 11.4 Ad account state + history
 `act_543311232953437` "Bogdan-Comarnic": ACTIVE, RON, CET, VISA funding, `min_daily_budget` 463 bani. ✅ **`spend_cap = 30000` bani = 300 RON** - the owner set the account-level limit in Ads Manager before the first live flight (17 Aug 2026); 7469 bani = 74.69 RON already spent, so ~225 RON of headroom. This is the real emergency stop: the env switch is a deploy, and campaign-level caps cannot go below 500 RON. `web_custom_audience_tos` accepted; customer-file ToS NOT.
