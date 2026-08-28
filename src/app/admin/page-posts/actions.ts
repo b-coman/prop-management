@@ -261,19 +261,26 @@ export async function fetchMixAction(
   }
   try {
     const db = await getAdminDb();
+    // NO orderBy IN THE QUERY. `where + where + orderBy` needs a composite Firestore index, and
+    // without it this throws FAILED_PRECONDITION — which the catch below would swallow into an empty
+    // mix, leaving the meter silently blank rather than visibly broken. Verified against live
+    // Firestore before shipping. Two equality filters need no index, so the sort happens in memory;
+    // one property's page posts are counted in dozens, not thousands.
     const snap = await db
       .collection('pagePosts')
       .where('propertyId', '==', propertyId)
       .where('status', '==', 'posted')
-      .orderBy('createdAt', 'desc')
-      .limit(10)
       .get();
+    const recent = snap.docs
+      .map((d) => d.data() as { postType?: string; createdAt?: { toMillis?: () => number } })
+      .sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0))
+      .slice(0, 10);
     const counts: Record<string, number> = { place: 0, proof: 0, offer: 0 };
-    snap.docs.forEach((d) => {
-      const t = (d.data() as { postType?: string }).postType ?? 'place';
+    recent.forEach((d) => {
+      const t = d.postType ?? 'place';
       if (t in counts) counts[t] += 1;
     });
-    const total = snap.size;
+    const total = recent.length;
     // Furthest below target wins. With nothing posted yet every gap is equal, and `place` — the type
     // that earns reach — is the right way to restart a page nobody has seen in fourteen months.
     let suggestion: PagePostType = 'place';
