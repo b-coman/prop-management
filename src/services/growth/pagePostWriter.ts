@@ -63,7 +63,7 @@ export interface PagePostValidationResult {
 /** Pure validator: sane message, real owned photos, a known type, and never an OTA link. */
 export function validatePagePost(
   post: { message: string; assetPaths: string[]; postType?: string },
-  pack: { propertyId: string; assetPaths: string[] }
+  pack: { propertyId: string; assetPaths: string[]; tagsByPath?: Record<string, string[]> }
 ): PagePostValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -90,6 +90,26 @@ export function validatePagePost(
     }
     if (paths.length >= PHOTOS_MIN && paths.length < ALBUM_MIN) {
       warnings.push(`${paths.length} photo(s) — this page's albums out-perform single photos about 3:1, so ${ALBUM_MIN}-${PHOTOS_MAX} is usually better`);
+    }
+
+    // AN ALBUM OF NEAR-DUPLICATES IS NOT AN ALBUM.
+    // First real draft, 28 Aug 2026: five photos, four of them the chalet exterior from slightly
+    // different angles. Not the model's fault — only 7 of 59 gallery photos are tagged `autumn` and
+    // 5 of those 7 are `exterior`, so an autumn brief has almost nothing else to choose. But the
+    // result still reads as one photo posted five times, which wastes the format that this page's
+    // record says is its strongest. A warning, never an error: with a thin seasonal set a hard block
+    // could be impossible to satisfy, and a mediocre album still beats no post.
+    if (pack.tagsByPath && paths.length >= ALBUM_MIN) {
+      const counts = new Map<string, number>();
+      for (const path of paths) {
+        for (const tag of pack.tagsByPath[path] ?? []) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      }
+      for (const [tag, n] of counts) {
+        if (n > Math.ceil(paths.length * 0.6)) {
+          warnings.push(`${n} of ${paths.length} photos are "${tag}" — the album repeats one subject; vary it even if that means a photo slightly off-season`);
+          break;
+        }
+      }
     }
   }
 
@@ -129,8 +149,13 @@ RULES
    — you can only show what the property really has. Order them so they tell one small story: the
    wide shot that sets the scene, then the details that reward a second look. Each asset has a rich
    aiDescription (season, mood, people, features, fitsAngles) from a vision model — use it so the
-   photos genuinely fit the prompt, the season and the audience. Never claim an amenity not evident
-   in the assets, and never repeat a photo.
+   photos genuinely fit the prompt and the audience. Never claim an amenity not evident in the
+   assets, and never repeat a photo.
+3b. VARY THE SUBJECT — this matters more than matching the season. Do NOT pick four exteriors from
+   slightly different angles; that reads as one photo posted four times and wastes the album. Aim for
+   at most two photos sharing the same primary subject (exterior / interior / garden / fire / view),
+   and reach for an interior or a close detail even if it was shot in another season. A varied album
+   in mixed light beats five near-identical wide shots that all match the month.
 4. KEEP IT SHORT, AND ASK SOMETHING. A few sentences. For 'place' and 'proof', end on a real question
    someone could answer — not "who else loves autumn?" but something specific to what is in the
    photos. Diacritics are fine (this is public brand copy). One or two tasteful emoji are OK.
@@ -169,7 +194,12 @@ export async function generatePagePost(
   const client = getAnthropicClient();
   if (!client) throw new Error('ANTHROPIC_API_KEY not configured — the in-app page-post writer is unavailable');
 
-  const validationPack = { propertyId: input.propertyId, assetPaths: input.assets.map((a) => a.storagePath) };
+  const validationPack = {
+    propertyId: input.propertyId,
+    assetPaths: input.assets.map((a) => a.storagePath),
+    // Tags feed the variety check — without them an album of five near-identical exteriors passes.
+    tagsByPath: Object.fromEntries(input.assets.map((a) => [a.storagePath, a.tags ?? []])),
+  };
   const maxRepairs = opts?.maxRepairs ?? 1;
 
   const postPack = {

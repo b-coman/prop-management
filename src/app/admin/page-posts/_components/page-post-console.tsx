@@ -131,7 +131,7 @@ export function PagePostConsole({ propertyId, initialPosts, mix }: { propertyId:
           <CardTitle className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-muted-foreground" /> New page post
           </CardTitle>
-          <CardDescription>Say what the post is about; the engine writes a warm caption in your voice and picks a fitting real photo.</CardDescription>
+          <CardDescription>Say what the post is about; the engine writes a warm caption in your voice and picks an album of real photos.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {/* The 60/25/15 mix, visible instead of remembered. */}
@@ -192,12 +192,12 @@ export function PagePostConsole({ propertyId, initialPosts, mix }: { propertyId:
 
       {drafts.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-sm font-medium">Drafts — post these by hand</h3>
+          <h3 className="text-sm font-medium">Drafts — review, then publish</h3>
           {drafts.map((post) => {
             const busy = pending.has(post.id);
             const text = edited[post.id] ?? post.message;
             return (
-              <Card key={post.id}>
+              <Card key={post.id} className="max-w-4xl">
                 <CardContent className="grid gap-4 pt-6 sm:grid-cols-[160px_1fr]">
                   {/* Albums, shown as albums — this page's five best posts are all multi-photo. */}
                   {(post.assetUrls?.length ? post.assetUrls : [post.assetUrl]).filter(Boolean).length ? (
@@ -226,7 +226,7 @@ export function PagePostConsole({ propertyId, initialPosts, mix }: { propertyId:
                       {post.assetUrl && (
                         <a href={post.assetUrl} target="_blank" rel="noopener noreferrer">
                           <Button size="sm" variant="outline">
-                            <ExternalLink className="mr-1 h-3.5 w-3.5" /> Open photo
+                            <ExternalLink className="mr-1 h-3.5 w-3.5" /> Open photos
                           </Button>
                         </a>
                       )}

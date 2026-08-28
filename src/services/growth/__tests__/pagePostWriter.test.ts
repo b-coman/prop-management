@@ -140,3 +140,41 @@ describe('validatePagePost', () => {
     expect(res.ok).toBe(true);
   });
 });
+
+describe('album variety', () => {
+  // First real draft, 28 Aug 2026: 5 photos, 4 of them the chalet exterior. Only 7 of 59 gallery
+  // photos are tagged `autumn` and 5 of those are `exterior`, so the model had almost no choice —
+  // but the result still reads as one photo posted five times.
+  const TAGS: Record<string, string[]> = {
+    'properties/prahova-mountain-chalet/autumn.jpg': ['exterior', 'autumn'],
+    'properties/prahova-mountain-chalet/fire.jpg': ['exterior', 'autumn', 'bbq'],
+    'properties/prahova-mountain-chalet/terrace.jpg': ['exterior', 'terrace'],
+    'properties/prahova-mountain-chalet/kitchen.jpg': ['interior', 'kitchen'],
+    'properties/prahova-mountain-chalet/view.jpg': ['view', 'landscape'],
+    'properties/prahova-mountain-chalet/swing.jpg': ['garden', 'kids'],
+  };
+  const packWithTags = { ...PACK, tagsByPath: TAGS };
+
+  it('warns when most of the album shares one subject', () => {
+    const res = validatePagePost(post({ assetPaths: album(3) }), packWithTags); // all `exterior`
+    expect(res.ok).toBe(true);
+    expect(res.warnings.some((w) => w.includes('repeats one subject'))).toBe(true);
+  });
+
+  it('does not warn on a varied album', () => {
+    const varied = [
+      'properties/prahova-mountain-chalet/autumn.jpg',
+      'properties/prahova-mountain-chalet/kitchen.jpg',
+      'properties/prahova-mountain-chalet/view.jpg',
+      'properties/prahova-mountain-chalet/swing.jpg',
+    ];
+    const res = validatePagePost(post({ assetPaths: varied }), packWithTags);
+    expect(res.ok).toBe(true);
+    expect(res.warnings.some((w) => w.includes('repeats one subject'))).toBe(false);
+  });
+
+  it('stays silent when no tags are supplied', () => {
+    const res = validatePagePost(post({ assetPaths: album(3) }), PACK);
+    expect(res.warnings.some((w) => w.includes('repeats one subject'))).toBe(false);
+  });
+});
