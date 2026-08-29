@@ -14,7 +14,8 @@ import { LengthOfStayDiscounts } from './_components/length-of-stay-discounts';
 import { ChannelsCard, type ChannelRow } from './_components/channels-card';
 import { RateSheetEditor } from './_components/rate-sheet-editor';
 import { ParityPanel, type ParityWindow, type ParitySummaryShape } from './_components/parity-panel';
-import { fetchParityView } from './parity-actions';
+import { PositionView, type PositionRow, type PositionSummaryShape } from './_components/position-view';
+import { fetchParityView, fetchPricingPosition } from './parity-actions';
 import { getAnchorConfig } from '@/services/anchorConfigService';
 import { getPeriods } from '@/services/periodService';
 import { DEFAULT_TIER_MULTIPLIERS, datesInRange, type TierMultipliers } from '@/lib/pricing/periods';
@@ -54,6 +55,7 @@ export default async function PricingPage({
   let anchorConfig: import('@/lib/pricing/anchorPricing').AnchorConfig | null = null;
   let anchorSaved = false;
   let parity: { ok: boolean; error?: string; windows?: unknown[]; summary?: unknown; meta?: unknown } = { ok: false, error: 'not loaded' };
+  let position: { ok: boolean; error?: string; rows?: unknown[]; summary?: unknown; meta?: unknown } = { ok: false, error: 'not loaded' };
   let anchorPeriods: AnchoredPeriodInput[] = [];
   let tierMultipliers: TierMultipliers = DEFAULT_TIER_MULTIPLIERS;
   let netRetention: Record<string, number> = {};
@@ -97,12 +99,14 @@ export default async function PricingPage({
     // rendering a page never writes.
     // The parity read degrades on its own (it returns {ok:false, error} rather than throwing), so a
     // missing channel config cannot take the whole pricing page down with it.
-    const [anchor, periodDocs, parityRes] = await Promise.all([
+    const [anchor, periodDocs, parityRes, positionRes] = await Promise.all([
       getAnchorConfig(propertyId),
       getPeriods(propertyId),
       fetchParityView(propertyId),
+      fetchPricingPosition(propertyId),
     ]);
     parity = parityRes;
+    position = positionRes;
     anchorConfig = {
       anchorChannelId: anchor.anchorChannelId,
       weekdayPrice: anchor.weekdayPrice,
@@ -159,16 +163,129 @@ export default async function PricingPage({
 
       <PropertyUrlSync />
 
+      {/*
+        Four tabs, one per QUESTION, instead of six shaped like Firestore collections. Position
+        answers "where do I stand"; Prices and channels answers "what do I set, and where"; Rules
+        holds the machinery that produces those prices and is rarely opened; Testing stays a tool.
+      */}
       {propertyId ? (
-        <Tabs defaultValue="seasons">
+        <Tabs defaultValue="position">
           <TabsList>
-            <TabsTrigger value="seasons">Seasonal Pricing</TabsTrigger>
-            <TabsTrigger value="overrides">Date Overrides</TabsTrigger>
-            <TabsTrigger value="discounts">Discounts</TabsTrigger>
-            <TabsTrigger value="calendar">Price Calendar</TabsTrigger>
-            <TabsTrigger value="channels">Channels</TabsTrigger>
+            <TabsTrigger value="position">Position</TabsTrigger>
+            <TabsTrigger value="channels">Prices &amp; channels</TabsTrigger>
+            <TabsTrigger value="rules">Rules</TabsTrigger>
             <TabsTrigger value="testing">Testing</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="position" className="space-y-6">
+            {position.ok ? (
+              <PositionView
+                rows={position.rows as PositionRow[]}
+                summary={position.summary as PositionSummaryShape}
+                meta={position.meta as { generatedAt: string; parityAvailable: boolean; parityError: string | null; measuredWindows: number }}
+              />
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Your position</CardTitle>
+                  <CardDescription>Could not be built: {position.error}</CardDescription>
+                </CardHeader>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/*
+            The machinery that PRODUCES the prices on the other tabs — periods and seasons, hand-set
+            overrides, the length-of-stay ladder, the generated calendar. Nested under one tab because
+            "how is this price computed" is a far rarer question than "where do I stand".
+          */}
+          <TabsContent value="rules">
+            <Tabs defaultValue="seasons">
+              <TabsList>
+                <TabsTrigger value="seasons">Seasonal Pricing</TabsTrigger>
+                <TabsTrigger value="overrides">Date Overrides</TabsTrigger>
+                <TabsTrigger value="discounts">Discounts</TabsTrigger>
+                <TabsTrigger value="calendar">Price Calendar</TabsTrigger>
+              </TabsList>
+              <div className="mt-4">
+              <TabsContent value="seasons">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Seasonal Pricing</CardTitle>
+                    <CardDescription>
+                      Define seasons with different pricing rules that apply to specific date ranges
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <SeasonalPricingTable
+                      seasons={seasonalPricing}
+                      propertyId={propertyId}
+                    />
+                  </CardContent>
+                  <CardFooter className="flex justify-end">
+                    <Button asChild>
+                      <Link href={`/admin/pricing/seasons/new?propertyId=${propertyId}`}>
+                        Add New Season
+                      </Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </TabsContent>
+              <TabsContent value="overrides">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Date Overrides</CardTitle>
+                    <CardDescription>
+                      Set specific prices for individual dates (holidays, events, etc.)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <DateOverridesTable
+                      overrides={dateOverrides}
+                      propertyId={propertyId}
+                    />
+                  </CardContent>
+                  <CardFooter className="flex justify-end">
+                    <Button asChild>
+                      <Link href={`/admin/pricing/date-overrides/new?propertyId=${propertyId}`}>
+                        Add Date Override
+                      </Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </TabsContent>
+              <TabsContent value="discounts">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Length-of-Stay Discounts</CardTitle>
+                    <CardDescription>
+                      Offer percentage discounts for longer bookings
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <LengthOfStayDiscounts
+                      discounts={lengthOfStayDiscounts}
+                      propertyId={propertyId}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              <TabsContent value="calendar">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Price Calendar</CardTitle>
+                    <CardDescription>
+                      View and manage pre-calculated price calendars
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <PriceCalendarManager propertyId={propertyId} currency={currency} />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              </div>
+            </Tabs>
+          </TabsContent>
 
           <TabsContent value="channels" className="space-y-6">
             {parity.ok ? (
@@ -204,84 +321,9 @@ export default async function PricingPage({
             )}
           </TabsContent>
 
-          <TabsContent value="seasons">
-            <Card>
-              <CardHeader>
-                <CardTitle>Seasonal Pricing</CardTitle>
-                <CardDescription>
-                  Define seasons with different pricing rules that apply to specific date ranges
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <SeasonalPricingTable
-                  seasons={seasonalPricing}
-                  propertyId={propertyId}
-                />
-              </CardContent>
-              <CardFooter className="flex justify-end">
-                <Button asChild>
-                  <Link href={`/admin/pricing/seasons/new?propertyId=${propertyId}`}>
-                    Add New Season
-                  </Link>
-                </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
 
-          <TabsContent value="overrides">
-            <Card>
-              <CardHeader>
-                <CardTitle>Date Overrides</CardTitle>
-                <CardDescription>
-                  Set specific prices for individual dates (holidays, events, etc.)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <DateOverridesTable
-                  overrides={dateOverrides}
-                  propertyId={propertyId}
-                />
-              </CardContent>
-              <CardFooter className="flex justify-end">
-                <Button asChild>
-                  <Link href={`/admin/pricing/date-overrides/new?propertyId=${propertyId}`}>
-                    Add Date Override
-                  </Link>
-                </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
 
-          <TabsContent value="discounts">
-            <Card>
-              <CardHeader>
-                <CardTitle>Length-of-Stay Discounts</CardTitle>
-                <CardDescription>
-                  Offer percentage discounts for longer bookings
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <LengthOfStayDiscounts
-                  discounts={lengthOfStayDiscounts}
-                  propertyId={propertyId}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
 
-          <TabsContent value="calendar">
-            <Card>
-              <CardHeader>
-                <CardTitle>Price Calendar</CardTitle>
-                <CardDescription>
-                  View and manage pre-calculated price calendars
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <PriceCalendarManager propertyId={propertyId} currency={currency} />
-              </CardContent>
-            </Card>
-          </TabsContent>
           
           <TabsContent value="testing">
             <Card>

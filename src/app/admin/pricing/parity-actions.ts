@@ -14,6 +14,10 @@ import { requirePropertyAccess, AuthorizationError } from '@/lib/authorization';
 import { getParityConfig } from '@/services/channelService';
 import { latestByCell } from '@/services/growth/parityObservations';
 import { buildParityWindow, summarise } from '@/lib/parity/parityView';
+import { buildPeriodPositions, summarisePosition } from '@/lib/parity/pricingPosition';
+import type { DayFact, WindowFact, PeriodInput } from '@/lib/parity/pricingPosition';
+import { getPeriods } from '@/services/periodService';
+import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import type { ParityWindowInput, ParityObservationLite } from '@/lib/parity/parityView';
 
 const logger = loggers.parity;
@@ -89,6 +93,90 @@ export async function fetchParityView(propertyId: string, opts?: { includeVrbo?:
     };
   } catch (e) {
     logger.error('failed to build the parity view', e as Error, { propertyId });
+    return { ok: false, error: (e as Error).message };
+  }
+}
+
+
+/**
+ * The position roll-up: every forward period with how full it is, what it costs, where it stands
+ * against the channels, and how much money is exposed. One row per thing the owner can act on.
+ *
+ * Reads calendars and availability directly rather than through the public check-pricing API, which
+ * is rate limited to 60/min and would be swamped by a whole-horizon sweep.
+ */
+export async function fetchPricingPosition(propertyId: string): Promise<{
+  ok: boolean; error?: string; rows?: unknown[]; summary?: unknown; meta?: unknown;
+}> {
+  try {
+    await requirePropertyAccess(propertyId);
+  } catch (e) {
+    if (e instanceof AuthorizationError) return { ok: false, error: 'Not authorised for this property.' };
+    throw e;
+  }
+
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const [periodDocs, parity] = await Promise.all([
+      getPeriods(propertyId),
+      fetchParityView(propertyId),
+    ]);
+
+    const periods: PeriodInput[] = periodDocs
+      .filter((p) => p.status === 'active' && p.endDate > today)
+      .map((p) => ({ id: p.id, name: p.name, startDate: p.startDate, endDate: p.endDate,
+        tier: p.tier, minStay: p.minStay ?? null, fixedNightPrice: p.fixedNightPrice ?? null }));
+
+    // Months the periods actually span — no point reading a year of calendars for a 4-night period.
+    const months = new Set<string>();
+    for (const p of periods) {
+      const d = new Date(`${p.startDate}T00:00:00Z`);
+      const end = new Date(`${p.endDate}T00:00:00Z`);
+      while (d <= end) { months.add(d.toISOString().slice(0, 7)); d.setUTCMonth(d.getUTCMonth() + 1); }
+    }
+
+    const db = await getAdminDb();
+    const days: DayFact[] = [];
+    for (const ym of months) {
+      const [cal, avail] = await Promise.all([
+        db.collection('priceCalendars').doc(`${propertyId}_${ym}`).get(),
+        db.collection('availability').doc(`${propertyId}_${ym}`).get(),
+      ]);
+      const calDays = (cal.data() as { days?: Record<string, { adjustedPrice?: number; isWeekend?: boolean }> } | undefined)?.days ?? {};
+      // No availability doc means no booking has ever written one for that month, i.e. the month is
+      // entirely open — confirmed-empty inventory, not missing data.
+      const availMap = (avail.data() as { available?: Record<string, boolean> } | undefined)?.available ?? {};
+      for (const [dayNum, d] of Object.entries(calDays)) {
+        const date = `${ym}-${String(dayNum).padStart(2, '0')}`;
+        if (date < today) continue;
+        days.push({ date, available: availMap[dayNum] !== false,
+          price: d.adjustedPrice ?? null, isWeekend: Boolean(d.isWeekend) });
+      }
+    }
+
+    const windows: WindowFact[] = parity.ok
+      ? (parity.windows as Array<Record<string, unknown>>).map((w) => ({
+          checkIn: w.checkIn as string, checkOut: w.checkOut as string,
+          nights: w.nights as number, guests: w.guests as number,
+          verdict: w.verdict as string, gapPct: (w.gapPct as number | null) ?? null,
+          direct: (w.direct as number | null) ?? null,
+          bestChannel: (w.best as { channel: string } | null)?.channel ?? null,
+          bestPrice: (w.best as { effective: number } | null)?.effective ?? null,
+          floor: (w.floor as number | null) ?? null,
+          targetPrice: (w.targetPrice as number | null) ?? null,
+          oldestAgeDays: (w.oldestAgeDays as number) ?? Infinity,
+        }))
+      : [];
+
+    const rows = buildPeriodPositions(periods, days, windows);
+    return {
+      ok: true, rows, summary: summarisePosition(rows),
+      meta: { propertyId, generatedAt: new Date().toISOString(),
+        parityAvailable: parity.ok, parityError: parity.ok ? null : parity.error,
+        measuredWindows: windows.length },
+    };
+  } catch (e) {
+    logger.error('failed to build the pricing position', e as Error, { propertyId });
     return { ok: false, error: (e as Error).message };
   }
 }
