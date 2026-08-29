@@ -13,6 +13,8 @@ import { PricingTestPanel } from './_components/pricing-test-panel';
 import { LengthOfStayDiscounts } from './_components/length-of-stay-discounts';
 import { ChannelsCard, type ChannelRow } from './_components/channels-card';
 import { RateSheetEditor } from './_components/rate-sheet-editor';
+import { ParityPanel, type ParityWindow, type ParitySummaryShape } from './_components/parity-panel';
+import { fetchParityView } from './parity-actions';
 import { getAnchorConfig } from '@/services/anchorConfigService';
 import { getPeriods } from '@/services/periodService';
 import { DEFAULT_TIER_MULTIPLIERS, datesInRange, type TierMultipliers } from '@/lib/pricing/periods';
@@ -51,6 +53,7 @@ export default async function PricingPage({
   let channelLabels: Record<string, string> = {};
   let anchorConfig: import('@/lib/pricing/anchorPricing').AnchorConfig | null = null;
   let anchorSaved = false;
+  let parity: { ok: boolean; error?: string; windows?: unknown[]; summary?: unknown; meta?: unknown } = { ok: false, error: 'not loaded' };
   let anchorPeriods: AnchoredPeriodInput[] = [];
   let tierMultipliers: TierMultipliers = DEFAULT_TIER_MULTIPLIERS;
   let netRetention: Record<string, number> = {};
@@ -92,10 +95,14 @@ export default async function PricingPage({
 
     // Built from the anchor settings, the way the owner's own sheet is built. Read-only work here;
     // rendering a page never writes.
-    const [anchor, periodDocs] = await Promise.all([
+    // The parity read degrades on its own (it returns {ok:false, error} rather than throwing), so a
+    // missing channel config cannot take the whole pricing page down with it.
+    const [anchor, periodDocs, parityRes] = await Promise.all([
       getAnchorConfig(propertyId),
       getPeriods(propertyId),
+      fetchParityView(propertyId),
     ]);
+    parity = parityRes;
     anchorConfig = {
       anchorChannelId: anchor.anchorChannelId,
       weekdayPrice: anchor.weekdayPrice,
@@ -164,6 +171,23 @@ export default async function PricingPage({
           </TabsList>
 
           <TabsContent value="channels" className="space-y-6">
+            {parity.ok ? (
+              <ParityPanel
+                windows={parity.windows as ParityWindow[]}
+                summary={parity.summary as ParitySummaryShape}
+                meta={parity.meta as { generatedAt: string; excluded: string[]; targetDiscountPct: number }}
+              />
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Where you sit against the OTAs</CardTitle>
+                  <CardDescription>
+                    No parity reading available: {parity.error}. Nothing is assumed — a verdict computed
+                    against a guessed commission looks authoritative and is wrong in a direction you cannot see.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            )}
             <ChannelsCard rows={channelRows} propertyId={propertyId} />
             {anchorConfig && (
               <RateSheetEditor

@@ -22,6 +22,12 @@ const num = (n: string, d: number) => { const i = process.argv.indexOf(`--${n}`)
 /** `--target` overrides; otherwise the owner's configured direct discount, read below. */
 const TARGET_ARG = process.argv.includes('--target') ? num('target', 0.075) : null;
 const FRESH_DAYS = num('fresh-days', 42);
+// Injectable clock, so the past-window filter below is testable and a historical run is expressible.
+const AS_OF = (() => {
+  const i = process.argv.indexOf('--as-of');
+  const v = i > -1 ? process.argv[i + 1] : null;
+  return v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(`${v}T00:00:00Z`) : new Date();
+})();
 
 const pct = (x: number) => `${x >= 0 ? '+' : ''}${(x * 100).toFixed(1)}%`;
 const LABEL: Record<string, string> = { losing: 'LOSING', thin: 'thin', healthy: 'OK', overshoot: 'TOO LOW' };
@@ -50,18 +56,32 @@ const LABEL: Record<string, string> = { losing: 'LOSING', thin: 'thin', healthy:
 
   // The worklist is reconstructed from the observations' own windows, so the report covers exactly
   // what was asked for — including cells nobody ever captured.
+  //
+  // ...but ONLY for windows that can still be sold. Without this filter the denominator grew
+  // monotonically forever: every window ever probed came back on every run, and since a stay in the
+  // past can never be re-captured, its cells were permanently `stale`. `complete` requires nothing
+  // stale, so after the first six weeks of operation STATUS: COMPLETE became unreachable BY
+  // CONSTRUCTION — the honesty mechanism degraded into always-INCOMPLETE, which reads as noise and
+  // gets ignored. A past window is not outstanding work; it is history, and it lives in the store.
+  const todayIso = AS_OF.toISOString().slice(0, 10);
   const seen = new Map<string, ProbeInput>();
+  let pastWindows = 0;
   for (const o of observations) {
+    if (o.checkOut < todayIso) { pastWindows++; continue; }
     const key = `${o.checkIn}|${o.checkOut}|${o.guests}`;
     if (!seen.has(key)) {
       seen.set(key, { label: `${o.checkIn} → ${o.checkOut}`, checkIn: o.checkIn, checkOut: o.checkOut, nights: o.nights, guests: o.guests, priority: 'normal' });
     }
   }
   const probes = [...seen.values()].sort((a, b) => a.checkIn.localeCompare(b.checkIn) || a.guests - b.guests);
+  // Say what was left out. An excluded window is a deliberate scope decision, not a silent gap.
+  const pastNote = pastWindows
+    ? `(${pastWindows} observation(s) on windows that have already been stayed are excluded — they cannot be re-captured)`
+    : '';
   const channelNames = channels.map((c) => c.channel);
   const worklist = buildWorklist(SLUG, probes, channelNames);
-  const coverage = computeCoverage(worklist, observations, { freshnessDays: FRESH_DAYS });
-  const todo = outstandingCells(worklist, observations, { freshnessDays: FRESH_DAYS });
+  const coverage = computeCoverage(worklist, observations, { freshnessDays: FRESH_DAYS, now: AS_OF });
+  const todo = outstandingCells(worklist, observations, { freshnessDays: FRESH_DAYS, now: AS_OF });
   const byCell = new Map(observations.map((o) => [o.cellId, o]));
 
   const get = (p: ProbeInput, channel: string): ObservationRecord | undefined =>
@@ -147,6 +167,51 @@ const LABEL: Record<string, string> = { losing: 'LOSING', thin: 'thin', healthy:
   console.log(`\nCOVERAGE  ${coverage.captured} captured · ${coverage.refused} refused · ${coverage.unavailable} full · ` +
               `${coverage.errored} error · ${coverage.missing} MISSING  of ${coverage.total} cells  (${(coverage.resolvedPct * 100).toFixed(0)}% resolved)` +
               (coverage.oldestAgeDays !== null ? ` · oldest ${coverage.oldestAgeDays}d` : ''));
+  if (pastNote) console.log(`          ${pastNote}`);
+
+  // ---- Discount-pair health, and a MANDATORY audit sample -------------------------------------
+  //
+  // The expensive silent failure in this system is capturing a struck-through original as the price
+  // actually charged: it overstates the channel, so direct looks cheaper than it is and a losing
+  // window reports healthy. The parser guards against it structurally, but a guard can only refuse
+  // what it recognises — a redesign is exactly the case it will not recognise, and the fixture tests
+  // will keep passing throughout.
+  //
+  // So the report states the health of the pair itself, and NAMES cells to re-read by eye. This is
+  // printed rather than left to anyone's discipline, because the moment it is most tempting to skip
+  // an audit is a long boring run, which is also when a drifted parser does the most damage.
+  const browser = observations.filter((o) => o.status === 'captured' && o.source === 'browser');
+  const withList = browser.filter((o) => typeof o.listTotal === 'number' && o.listTotal! > 0);
+  const inverted = withList.filter((o) => o.listTotal! < (o.guestTotal ?? 0));
+  const equal = withList.filter((o) => o.listTotal === o.guestTotal && o.promoActive);
+  const promoNoList = browser.filter((o) => o.promoActive && o.listTotal == null);
+
+  console.log(`\nDISCOUNT PAIRS  ${withList.length}/${browser.length} browser captures carry both a list and a charged price`);
+  if (inverted.length) {
+    console.log(`  !! ${inverted.length} INVERTED (list below charged) — a struck original was banked as the price:`);
+    inverted.slice(0, 5).forEach((o) => console.log(`     ${o.channel} ${o.checkIn}→${o.checkOut} ${o.guests}g  list ${o.listTotal} < charged ${o.guestTotal}`));
+  }
+  if (equal.length) {
+    console.log(`  !! ${equal.length} with a promo flagged but list == charged — the pair was probably missed.`);
+  }
+  if (promoNoList.length) {
+    console.log(`  ?  ${promoNoList.length} flag a promo with no list price captured — depth is unmeasurable on those.`);
+  }
+  if (!inverted.length && !equal.length) console.log('  no inverted or collapsed pairs.');
+
+  // A deterministic, rotating sample: same run reads the same cells, successive runs read different
+  // ones, so the audit walks the corpus instead of re-checking one corner of it forever.
+  const auditable = browser.slice().sort((a, b) => a.cellId.localeCompare(b.cellId));
+  if (auditable.length) {
+    const seed = Number(todayIso.replace(/-/g, '')) % Math.max(1, auditable.length);
+    const pick = [0, 1, 2].map((i) => auditable[(seed + i * 7) % auditable.length]).filter((v, i, a) => a.indexOf(v) === i);
+    console.log(`\nAUDIT SAMPLE — open these ${pick.length} pages and confirm the parser read the CHARGED price, not the struck one:`);
+    for (const o of pick) {
+      console.log(`  ${o.channel.padEnd(12)} ${o.checkIn}→${o.checkOut} ${o.guests}g   charged ${o.guestTotal}   list ${o.listTotal ?? '—'}`);
+      if (o.rawExcerpt) console.log(`     "${String(o.rawExcerpt).slice(0, 150).replace(/\s+/g, ' ')}…"`);
+    }
+    console.log('  A parser that has drifted still passes every fixture test. This sample is the only thing that catches it.');
+  }
   console.log(coverage.complete
     ? 'STATUS: COMPLETE — every cell resolved and fresh.'
     : `STATUS: INCOMPLETE — do NOT treat this table as the whole picture. ${todo.length} cell(s) still owed.`);

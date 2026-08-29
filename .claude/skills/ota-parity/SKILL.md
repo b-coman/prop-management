@@ -155,23 +155,27 @@ when the run is finished — coverage does.
 # 1. Build the probe list; direct prices are quoted and RECORDED automatically.
 npx tsx scripts/parity-pack.ts <slug> --guests 3,6 --max 24
 
-#    It prints the worklist, the coverage, and every outstanding cell.
+# 2. Get the outstanding cells WITH their URLs already built (never hand-build one — §4.1).
+npx tsx scripts/parity-next.ts <slug> --json --limit 15
 
-# 2. For EACH outstanding cell, capture in Chrome and record it — one write path, always:
+# 3. Drive the browser per cell (§4.2-4.3), collecting rows. Then write the batch through the one
+#    write path — validate first, and a bad row never abandons the good ones:
+npx tsx scripts/parity-capture.ts --rows rows.json --dry-run
+npx tsx scripts/parity-capture.ts --rows rows.json
+
+#    A single cell can still be recorded by hand when that is all you need:
 npx tsx scripts/parity-capture.ts --property <slug> --channel airbnb \
   --in 2026-12-24 --out 2026-12-29 --guests 3 \
   --total 4298 --list 5603 --promo \
-  --url "<the exact url>" --session "logged out, RON"
+  --url "<the exact url>" --session "logged in, Genius, RON"
 
 #    A channel that will not quote is an OUTCOME, not a gap:
 npx tsx scripts/parity-capture.ts ... --status refused --reason "Airbnb min stay 4 nights"
-#    A failed capture is unfinished work — record it so it gets retried:
-npx tsx scripts/parity-capture.ts ... --status error --reason "bot check"
 
-# 3. Re-render the table FROM THE STORE. Never hand-assemble it.
+# 4. Re-render the table FROM THE STORE. Never hand-assemble it.
 npx tsx scripts/parity-report.ts <slug>
 
-# 4. Repeat 2–3 until STATUS: COMPLETE, or until the remaining cells genuinely cannot be captured —
+# 5. Repeat 2–4 until STATUS: COMPLETE, or until the remaining cells genuinely cannot be captured —
 #    in which case they must be recorded as `refused`/`error` with a reason, never left blank.
 ```
 
@@ -193,38 +197,147 @@ Scoping is fine (`--only crăciun`, `--max 12`) — the pack reports what it dro
 the peaks, here is the coverage, these cells remain" is honest. Presenting a subset as the picture is
 not.
 
-## 4. Capturing the OTA side (Chrome)
+## 4. Capturing the OTA side (Chrome) — the driven loop
 
-The pack deliberately does not touch the OTAs — that needs a real browser. Load the
-`claude-in-chrome` skill and note the one non-obvious mechanic:
+This used to be "open each page, read the number, retype it into a CLI", about a hundred times. That
+is why a full run costs an afternoon and has happened three times. The loop below is the same work
+with the hand-typing removed; the reading is still yours, because only `javascript_tool` reaches these
+pages and only the owner's own browser is logged in.
 
-> **`computer` screenshots, `get_page_text` and `find` all TIME OUT on Airbnb and Booking.com** —
-> those pages never reach `document_idle`. **Use `javascript_tool`**: navigate, `await` ~6–7s, then
-> read `document.body.innerText`.
+**Preconditions, checked once before you start:**
 
-**Airbnb** — `https://www.airbnb.com/rooms/<id>?check_in=YYYY-MM-DD&check_out=YYYY-MM-DD&adults=N`
-Read: the `"… RON total"` line, any struck-through original, the `"N nights in …"` and date lines
-(**always confirm these match the probe** — a silently ignored parameter is the easiest way to record
-a wrong number), and whether `"This host is offering a discount"` is present.
+- Load the browser tools in ONE `ToolSearch` call:
+  `select:mcp__claude-in-chrome__tabs_context_mcp,mcp__claude-in-chrome__navigate,mcp__claude-in-chrome__javascript_tool,mcp__claude-in-chrome__tabs_create_mcp`
+- Call `tabs_context_mcp` once to learn the tab id. Never reuse an id from an earlier session.
+- Confirm with the owner that Chrome is **logged in to Booking.com** (Genius) and Airbnb. A logged-out
+  capture is a number almost no real guest pays.
+- Work in ONE tab, reused across cells.
+
+### 4.1 Get the work-list, with URLs already built
+
+```bash
+npx tsx scripts/parity-next.ts <slug> --json --limit 15
+```
+
+Emits outstanding cells each with a **fully-qualified URL**. Do not hand-build a URL: a mistyped
+parameter does not fail, it returns a real price for the wrong window, and nothing downstream can
+detect it afterwards. VRBO is excluded by default (see §7); pass `--include-vrbo` to include it.
+
+### 4.2 Per cell: navigate, wait for a PREDICATE, extract
+
+`computer` screenshots, `get_page_text` and `find` all TIME OUT on Airbnb and Booking — those pages
+never reach `document_idle`. **`javascript_tool` is the only thing that works.**
+
+1. `navigate` to the cell's URL.
+2. `computer wait 7`, then poll a **readiness predicate, not a timer**: run a small script returning
+   `{ hasPrice, len }` and re-poll while `hasPrice === false`, up to ~4 times.
+3. Extract. **Return a compact JSON verdict, never the raw page text** — `javascript_tool` truncates
+   its return at ~1KB and these pages are far larger. Accumulate raw text into a page global and Blob-
+   download it once per batch if you want the archive.
+
+```js
+// in javascript_tool — returns well under 1KB
+const t = document.body.innerText;
+window.__parity = window.__parity || [];
+window.__parity.push({ cellId: '<cellId>', text: t.slice(0, 4000) });
+JSON.stringify({
+  hasPrice: /total|current price/i.test(t),
+  len: t.length,
+  head: t.slice(0, 700),          // enough for the extractor + the echo lines
+});
+```
+
+Feed `head` to the pure extractor rather than reading it yourself:
+
+```ts
+import { extract, verifyEcho } from '@/lib/parity/extract';
+```
+
+### 4.3 The echo check is a HARD ABORT, not a warning
+
+Airbnb is a client-side router. Across ~100 sequential parameter changes a stale re-render is close to
+certain, and a stale render shows a real price for the **previous** cell. `verifyEcho` compares the
+nights, guests and dates the PAGE states against what the probe asked for.
+
+**On mismatch: discard the reading, re-navigate once, and if it mismatches again record the cell as
+`error` with the reason.** Never bank a number whose echo did not match. This is the single
+highest-value check in the loop.
+
+### 4.4 Record the batch
+
+Collect rows and write once per batch of 10-15:
+
+```bash
+npx tsx scripts/parity-capture.ts --rows rows.json --dry-run   # validate first, writes nothing
+npx tsx scripts/parity-capture.ts --rows rows.json
+```
+
+Each row carries `guestTotal`, `listTotal`, `promoActive`, `ratePlan`, structured `session`,
+`rawExcerpt`, the `url`, and **`referenceTotal`** (the same window's direct quote, from the pack).
+`referenceTotal` triggers a magnitude guard: anything outside 0.5x-2x of direct is refused as a
+probable units error. That error has already happened here — four VRBO cells recorded USD figures
+labelled RON, and 3,300 was stored as 728 and read as the cheapest offer on the market.
+
+A refused row leaves its cell outstanding, so it is re-queued rather than lost. A bad row never
+abandons the batch.
+
+### 4.5 A min-stay refusal is NOT a finished cell — escalate it, on every channel
+
+If a channel refuses a window because its minimum stay is longer than ours, recording the refusal and
+moving on **silently loses the window**. The remaining channels then get compared at a length one of
+them will not sell, which is not a comparison at all.
+
+This is not hypothetical. On 2026-08-29 Airbnb refused 3 nights on the **autumn school break** — the
+owner's emptiest month — so it was measured on Booking alone and read as *"direct 22% cheaper, but
+below the floor"*. Re-probed at 4 nights across all three channels, the truth was the reverse:
+
+| window (4n, 3g) | direct | Airbnb | Airbnb −15% | Booking | verdict |
+|---|---|---|---|---|---|
+| 24-28 Oct | 2,281 | 2,369 | **2,014** | 2,965 | **LOSING, direct +13.3%** |
+| 25-29 Oct | 2,134 | 2,321 | **1,973** | 2,785 | **LOSING, direct +8.2%** |
+| 28 Oct-1 Nov | 2,428 | 3,167 | 2,692 | 3,131 | thin, −9.8% |
+
+A three-night measurement said one thing; the four-night measurement said the opposite, on the month
+that matters most.
+
+**The rule:** when a channel names a minimum longer than the probe, re-probe the window at that length
+**on every channel including direct**, as a new cell. Length must move on all channels at once or the
+totals are not comparable. `parity-next.ts` detects these and prints the escalation with the URLs
+already built — work them before declaring a run finished.
+
+### 4.6 Record refusals eagerly
+
+`refused` (a minimum stay we do not enforce), `unavailable` (the channel has no inventory) and `error`
+are **outcomes**. Write them with a reason. A cell you skip silently is a cell you re-walk forever.
+
+### 4.7 Pacing and stopping
+
+- Batches of **10-15 cells with a check-in**, and a randomised 3-8s dwell between cells on top of the
+  settle. Nothing bounds request volume on these sites; ~100 sequential parameterised loads from one
+  residential session is exactly the pattern that attracts attention. Sentinels are the real answer —
+  probe a handful often rather than everything rarely.
+- **On the first CAPTCHA or bot check: STOP and tell the owner.** Do not work around it. Leave the
+  remaining cells `missing`, not mass-`error`.
+- After 2-3 consecutive tool failures, stop and report rather than hammering.
+- Never trigger an `alert`/`confirm`/`prompt`. A modal blocks the extension for the rest of the
+  session. Blob download, never a dialog.
+
+### 4.8 What the two sites show
+
+**Airbnb** — `https://www.airbnb.com/rooms/<id>?check_in=…&check_out=…&adults=N`
+Read the `"… RON total"` line, any struck-through original, `"N nights in …"`, the date range and the
+guest count, and whether `"This host is offering a discount"` is present.
+
+> **The captured Airbnb number is NOT what a real guest pays.** This listing gives a standing **15%
+> top-rated guests discount** that the owner considers almost universally qualifying, and it is
+> invisible to any capture. `evaluateParity` applies it. **The extractor must not**, or it is deducted
+> twice. Treat a capture as the anonymous list price and let the maths correct it.
 
 **Booking.com** — `…?checkin=…&checkout=…&group_adults=N&no_rooms=1&selected_currency=RON`
-Read `"Original price X Current price Y"` and take the **lowest** rate plan. Note if
-`"Sign in to unlock the members-only price"` appears — the real floor is below what you can see.
+Read `"Original price X Current price Y"` and take the **lowest** rate plan, record which plan it is
+(these peak windows sell non-refundable, which is a different product from a flexible direct booking),
+and flag `"Sign in to unlock the members-only price"` — that capture is incomplete, not cheap.
 
-Rules while capturing:
-
-- **Capture LOGGED IN, not logged out.** This is the single most important capture rule and it is
-  counter-intuitive. Most Booking.com traffic is Genius and most Airbnb traffic carries a member
-  discount — the owner *prices upward* to absorb them. So the logged-out price is a number almost no
-  real guest pays, and capturing it **systematically overstates every OTA** (Booking by roughly the
-  10% Genius tier). Use the owner's existing browser session; never sign in yourself. If a page shows
-  *"Sign in to unlock the members-only price"*, that capture is **incomplete** — record it as such
-  rather than banking the higher number.
-- Always record `--session` honestly (`"logged in, Genius"` / `"logged out, RON"`). A mixed run is
-  not comparable, and the field exists so a later reader can tell.
-- **Read only.** Never sign in, never submit a reservation, never enter payment details.
-- If a CAPTCHA or bot check appears, **stop and tell the owner.** Do not attempt to work around it.
-- A probe you could not capture is **`unknown`**, never a pass. Say which rows are missing.
 
 ## 4b. Alignment is a band, not an equality
 
@@ -284,3 +397,14 @@ fill a gap with an estimate.
 - The commission rates live in `property.channelPricing` when configured; the pack falls back to
   documented defaults and **says which** — repeat that caveat in the report if they are not persisted.
 - You never change prices. Recommendations go to the owner.
+- **Correct every captured Airbnb price before judging it.** The listing gives a standing **15%
+  top-rated guests discount** (15% of the base room fee) that the owner treats as near-universal, like
+  Booking's Genius, and no capture can see it. An uncorrected Airbnb figure is 12-16% too high, which
+  is enough to turn a "losing" window into a "healthy" one. Applied across the 17 measured windows it
+  moves direct from cheapest on 9 to losing-or-level on 12-13.
+- **VRBO is out of scope** (owner, 2026-08-29). It was the cheapest channel in 1 of 20 measured
+  windows, and that once only because Airbnb refused the dates on a minimum stay; its typical premium
+  is +17% to +56%. Do not let its absence force every verdict to `partial`. **Reversal condition:** if
+  VRBO is cheapest in more than one window of a run, it binds again — say so.
+- **Genius off at Christmas and New Year is deliberate**, as is the whole-house flat rate on those
+  dates and their non-refundable plans. Report them as facts; never as defects.

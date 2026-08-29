@@ -119,9 +119,11 @@ async function quoteDirect(propertyId: string, checkIn: string, checkOut: string
   const today = parse(iso(new Date()));
   const horizon = addDays(today, MONTHS * 30);
   // Published school-break dates, when the owner has recorded them (they beat the approximations).
-  const schoolBreakOverrides: SpecialPeriodOptions | undefined = prop.channelPricing?.schoolBreaks
-    ? { schoolBreaks: prop.channelPricing.schoolBreaks }
-    : undefined;
+  // NOTE: this was annotated `SpecialPeriodOptions`, a type that exists nowhere in the repo, and the
+  // value was then never read. It compiled only because tsconfig excludes scripts/ from checking.
+  // Kept as a plain typed value and actually consumed below, so the override does what it claims.
+  const schoolBreakOverrides: { schoolBreaks: Record<string, { start: string; end: string }> } | undefined =
+    prop.channelPricing?.schoolBreaks ? { schoolBreaks: prop.channelPricing.schoolBreaks } : undefined;
 
   // ---- minimum stay per date, so a probe is never rejected by our own booking rules ----
   const calCache = new Map<string, any>();
@@ -220,10 +222,10 @@ async function quoteDirect(propertyId: string, checkIn: string, checkOut: string
 
   for (const h of holidays) {
     const rawStart = parse(h.startDate);
-    const ci0 = rawStart < soonest ? soonest : rawStart;
+    let ci0 = rawStart < soonest ? soonest : rawStart;
     // `endDate` is the last day OFF, so the sellable window runs one night past it.
-    const periodEnd = addDays(parse(h.endDate), 1);
-    const remaining = Math.round((periodEnd.getTime() - ci0.getTime()) / 86_400_000);
+    let periodEnd = addDays(parse(h.endDate), 1);
+    let remaining = Math.round((periodEnd.getTime() - ci0.getTime()) / 86_400_000);
     if (remaining < 2) continue;
 
     if (h.type === 'major') {
@@ -248,6 +250,17 @@ async function quoteDirect(propertyId: string, checkIn: string, checkOut: string
     } else if (h.type === 'school-break') {
       // Breaks earn two probes: families travel MIDWEEK (otherwise unsellable), and the break is long
       // enough that the length-of-stay tier becomes reachable.
+      //
+      // If the owner has published the ACTUAL dates for this break, they beat the seeded row. This
+      // matters for "Vacanta mobila", which is a three-week WINDOW inside which each county picks one
+      // week — probing the whole window would probe three weeks nobody is travelling in. Matched on
+      // the holiday's id first, then its name, so either key works.
+      const pub = schoolBreakOverrides?.schoolBreaks?.[h.id] ?? schoolBreakOverrides?.schoolBreaks?.[h.name];
+      if (pub?.start && pub?.end) {
+        ci0 = parse(pub.start);
+        periodEnd = parse(pub.end);
+        remaining = Math.max(0, Math.round((periodEnd.getTime() - ci0.getTime()) / 86_400_000));
+      }
       const firstMonday = (() => { let d = ci0; for (let i = 0; i < 7 && d.getUTCDay() !== 1; i++) d = addDays(d, 1); return d; })();
       const mid = await firstFreeWithin(firstMonday, periodEnd, 3);
       if (mid) {
@@ -469,6 +482,11 @@ async function quoteDirect(propertyId: string, checkIn: string, checkOut: string
       direct,
       channels: channels.map((c) => ({ ...c, headroomPct: Number(headroomPct(c, direct).toFixed(4)) })),
       source: 'channels collection (channelService.getParityConfig)',
+      // `getParityConfig` THROWS when a channel has no stated economics — it never falls back to a
+      // default. So reaching this line proves the rates are real. This flag was read by the banner
+      // below but never set, so the pack has always announced "DEFAULTS (not yet persisted)": the
+      // exact opposite of the truth, on every run since it was written.
+      configured: true,
       note: 'Owner-stated rates. There are no fallback defaults — if this pack exists, the rates are real.',
       unstated: parityConfig.unstated,
       inactive: parityConfig.inactive,

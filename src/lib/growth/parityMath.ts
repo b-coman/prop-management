@@ -21,7 +21,25 @@
 /** Per-channel take. `commissionPct` is what the platform keeps from the host. */
 export interface ChannelEconomics {
   channel: string;
-  /** Host commission, as a fraction: 0.185 = 18.5%. */
+  /**
+   * The END-TO-END TAKE RATE, as a fraction: everything that does not reach the owner, over what the
+   * guest actually pays.
+   *
+   *     commissionPct = 1 − (what the owner receives / what the guest pays)
+   *
+   * Both measured on the WHOLE booking: nightly rate x nights, plus cleaning and any other fee the
+   * owner has set, plus extra-guest fees. It is a MEASURED number, taken from a real payout — not a
+   * platform's headline rate.
+   *
+   * Do NOT decompose it and do NOT rebuild it from components. Booking.com's headline is ~15%, but
+   * this property runs an always-on Visibility Booster and pays VAT, and the measured rate is 23.02%
+   * (booking 6603646057: guest paid 2064.00, owner received 1588.87). Setting this field to a
+   * headline rate would understate the take by eight points and put `indifferencePrice` — the floor
+   * below which the owner is better off letting the OTA have the booking — badly in the wrong place.
+   *
+   * Because it folds in optional settings like a booster, it is a CURRENT CONFIGURATION, not a
+   * constant. Re-derive it from a fresh payout when the channel's settings change.
+   */
   commissionPct: number;
   /**
    * Fraction of the guest-facing total that never reaches the host at all — a separate guest service

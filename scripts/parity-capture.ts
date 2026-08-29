@@ -32,8 +32,82 @@ const arg = (name: string): string | null => {
 };
 const flag = (name: string) => process.argv.includes(`--${name}`);
 
+interface BatchRow {
+  channel: string;
+  checkIn: string;
+  checkOut: string;
+  guests: number;
+  status?: ObservationStatus;
+  guestTotal?: number | null;
+  listTotal?: number | null;
+  promoActive?: boolean;
+  reason?: string;
+  url?: string;
+  sessionState?: string;
+  session?: import('@/services/growth/parityObservations').CaptureSession;
+  ratePlan?: import('@/services/growth/parityObservations').RatePlan;
+  rawExcerpt?: string;
+  referenceTotal?: number;
+  rawCurrency?: string;
+  fxRateToRon?: number;
+  fxRateSource?: string;
+}
+
+/**
+ * Write a batch. Every row is attempted; failures are collected and reported at the end rather than
+ * throwing, so a run that captured 40 pages banks 39 of them when one row is malformed.
+ */
+async function runBatch(propertyId: string, file: string, capturedBy: string, dryRun: boolean): Promise<void> {
+  const raw = await import('fs').then((fs) => fs.promises.readFile(file, 'utf8'));
+  const rows: BatchRow[] = JSON.parse(raw);
+  if (!Array.isArray(rows)) throw new Error('--rows file must contain a JSON array');
+
+  // One stamp for the batch, so every row from one browser pass sorts together and staleness is
+  // measured from when the run happened rather than from when each write landed.
+  const capturedAt = new Date().toISOString();
+  let ok = 0;
+  const failures: string[] = [];
+
+  for (const r of rows) {
+    const nights = Math.round((Date.parse(r.checkOut) - Date.parse(r.checkIn)) / 86_400_000);
+    const id = cellId(propertyId, r.checkIn, r.checkOut, r.guests, r.channel);
+    try {
+      await recordObservation({
+        dryRun,
+        propertyId, cellId: id, checkIn: r.checkIn, checkOut: r.checkOut, nights, guests: r.guests,
+        channel: r.channel, status: r.status ?? 'captured',
+        guestTotal: r.guestTotal ?? null, listTotal: r.listTotal ?? null,
+        promoActive: r.promoActive, reason: r.reason, source: 'browser', url: r.url,
+        sessionState: r.sessionState, session: r.session, ratePlan: r.ratePlan,
+        rawExcerpt: r.rawExcerpt, referenceTotal: r.referenceTotal,
+        rawCurrency: r.rawCurrency, fxRateToRon: r.fxRateToRon, fxRateSource: r.fxRateSource,
+        capturedBy, capturedAt,
+      });
+      ok++;
+    } catch (e) {
+      failures.push(`${r.channel} ${r.checkIn}→${r.checkOut} ${r.guests}g: ${(e as Error).message}`);
+    }
+  }
+
+  console.log(`recorded ${ok}/${rows.length} row(s) at ${capturedAt}`);
+  if (failures.length) {
+    console.log(`\n${failures.length} row(s) REFUSED — these cells stay outstanding and will be re-queued:`);
+    for (const f of failures) console.log(`  ${f}`);
+    process.exitCode = 1;   // non-zero so a driving loop notices, but the good rows are already saved
+  }
+}
+
 (async () => {
   const propertyId = arg('property') ?? 'prahova-mountain-chalet';
+
+  const rowsFile = arg('rows');
+  if (rowsFile) {
+    const dryRun = flag('dry-run');
+    if (dryRun) console.log('DRY RUN — validating rows, writing nothing.\n');
+    await runBatch(propertyId, rowsFile, arg('by') ?? 'ota-parity capture loop', dryRun);
+    return;
+  }
+
   const channel = arg('channel');
   const checkIn = arg('in');
   const checkOut = arg('out');

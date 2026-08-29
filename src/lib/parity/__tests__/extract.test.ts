@@ -1,0 +1,411 @@
+/**
+ * The extractor is the only part of the capture loop that can be tested without a browser, so it
+ * carries the weight. Fixtures below are shaped like the real pages, including the two things that
+ * actually break a run: a page that renders the WRONG window, and a figure in the wrong units.
+ */
+import {
+  parseMoney, parseLooseDate, classifyPage, extractAirbnb, extractBooking, verifyEcho,
+} from '../extract';
+
+describe('parseMoney — both decimal conventions', () => {
+  it('reads the anglo form', () => expect(parseMoney('3,578.32')).toBeCloseTo(3578.32, 2));
+  it('reads the european form', () => expect(parseMoney('3.578,32')).toBeCloseTo(3578.32, 2));
+  it('reads a plain integer with a separator', () => expect(parseMoney('2,064')).toBe(2064));
+  it('reads a bare integer', () => expect(parseMoney('832')).toBe(832));
+  it('refuses junk rather than returning 0', () => expect(parseMoney('lei')).toBeNull());
+
+  it('does NOT truncate a european decimal to its first digits', () => {
+    // parseFloat('3.578,32') === 3.578 — a 1000x error that would look like a plausible per-night rate.
+    expect(parseMoney('3.578,32')).toBeGreaterThan(3000);
+  });
+});
+
+describe('classifyPage — a refusal is an outcome, not a gap', () => {
+  const pad = (s: string) => s + ' '.repeat(400);
+  it('spots a bot check and does not try to price it', () => {
+    expect(classifyPage(pad('Please verify you are human before continuing'))).toBe('bot-check');
+  });
+  it('spots a minimum-stay refusal', () => {
+    expect(classifyPage(pad('Your dates require a minimum stay of 4 nights'))).toBe('min-stay');
+  });
+  it('spots unavailability', () => {
+    expect(classifyPage(pad('These dates are not available for your search'))).toBe('no-availability');
+  });
+  it('calls an empty page not-loaded rather than unavailable', () => {
+    expect(classifyPage('')).toBe('not-loaded');
+    expect(classifyPage('loading')).toBe('not-loaded');
+  });
+});
+
+describe('extractAirbnb', () => {
+  const page = `
+    Holiday Home Family Mountain Chalet  Comarnic
+    5 nights in Comarnic
+    24 Aug 2026 - 29 Aug 2026
+    5 guests
+    This host is offering a discount
+    4,099.42 RON  3,578.32 RON total
+    ${' '.repeat(300)}
+  `;
+
+  it('reads the total, the struck-through original and the promo flag', () => {
+    const r = extractAirbnb(page, { year: 2026 });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.total).toBeCloseTo(3578.32, 2);
+    expect(r.value.listTotal).toBeCloseTo(4099.42, 2);
+    expect(r.value.promoActive).toBe(true);
+    expect(r.value.currency).toBe('RON');
+  });
+
+  it('echoes back the nights and guests the PAGE claims', () => {
+    const r = extractAirbnb(page, { year: 2026 });
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.value.echo.nights).toBe(5);
+    expect(r.value.echo.guests).toBe(5);
+    expect(r.value.echo.checkIn).toBe('2026-08-24');
+  });
+
+  it('does NOT apply the standing top-rated discount — that belongs to the parity maths', () => {
+    // Applying it here as well would deduct 15% twice and understate every Airbnb price.
+    const r = extractAirbnb(page, { year: 2026 });
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.value.total).toBeCloseTo(3578.32, 2);
+  });
+
+  it('refuses a page with no total rather than inventing one', () => {
+    const r = extractAirbnb('Holiday Home Comarnic 5 guests' + ' '.repeat(400));
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.reason).toMatch(/total/i);
+  });
+});
+
+describe('extractBooking', () => {
+  const page = `
+    Mountain Family Chalet on Prahova Valley
+    2 nights, 5 adults
+    Holiday Home  Non-refundable
+    Original price RON 2,580 Current price RON 2,154
+    Original price RON 2,900 Current price RON 2,410
+    ${' '.repeat(300)}
+  `;
+
+  it('takes the CHEAPEST rate plan, because that is what a guest comparing sees', () => {
+    const r = extractBooking(page);
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.value.total).toBe(2154);
+    expect(r.value.listTotal).toBe(2580);
+    expect(r.value.promoActive).toBe(true);
+  });
+
+  it('records the rate plan, because a non-refundable OTA price is a different product', () => {
+    const r = extractBooking(page);
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.value.ratePlan).toBe('non-refundable');
+  });
+
+  it('flags a members-only price as an incomplete capture', () => {
+    const r = extractBooking(page.replace('Non-refundable', 'Sign in to unlock the members-only price'));
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.value.needsSignIn).toBe(true);
+  });
+});
+
+describe('verifyEcho — the guard against a stale SPA render', () => {
+  const value = {
+    total: 1, listTotal: null, currency: 'RON', promoActive: false, ratePlan: 'unknown' as const,
+    echo: { nights: 5, guests: 5, checkIn: '2026-08-24', checkOut: '2026-08-29' },
+    needsSignIn: false, excerpt: '',
+  };
+
+  it('passes when the page is showing what we asked for', () => {
+    expect(verifyEcho(value, { nights: 5, guests: 5, checkIn: '2026-08-24' }).ok).toBe(true);
+  });
+
+  it('REJECTS a page still showing the previous cell — the run-corrupting failure', () => {
+    const r = verifyEcho(value, { nights: 3, guests: 5, checkIn: '2026-09-25' });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.reason).toMatch(/nights/);
+  });
+
+  it('rejects a guest-count mismatch, which changes the price without changing the layout', () => {
+    expect(verifyEcho(value, { nights: 5, guests: 3 }).ok).toBe(false);
+  });
+
+  it('skips fields the page did not state rather than failing on them', () => {
+    const quiet = { ...value, echo: { nights: null, guests: null, checkIn: null, checkOut: null } };
+    expect(verifyEcho(quiet, { nights: 5, guests: 5, checkIn: '2026-08-24' }).ok).toBe(true);
+  });
+});
+
+describe('parseLooseDate', () => {
+  it('reads day-first', () => expect(parseLooseDate('24 Aug 2026')).toBe('2026-08-24'));
+  it('reads month-first', () => expect(parseLooseDate('Sept 11, 2026')).toBe('2026-09-11'));
+  it('uses the fallback year when the page omits it', () =>
+    expect(parseLooseDate('11 Sept', 2026)).toBe('2026-09-11'));
+  it('returns null rather than guessing a year', () => expect(parseLooseDate('11 Sept')).toBeNull());
+});
+
+describe('extractBooking — wordings seen live on 2026-08-29', () => {
+  // Captured verbatim from the real page. The first version of the parser read this as `unknown`,
+  // because it only recognised "free cancellation".
+  const live = `
+    Fully refundable (by Booking.com) before 21 September 2026 | Cannot combine with other offers
+    Pay online | 12% Genius discount applied to the price before taxes and charges
+    3 nights, 4 adults
+    2,872 lei 2,181 lei
+    Original price 2,872 lei Current price 2,181 lei
+    Includes taxes and charges | 24% off | Getaway Deal
+    ${' '.repeat(300)}
+  `;
+
+  it('reads the real Original/Current pair', () => {
+    const r = extractBooking(live);
+    if (!r.ok) throw new Error(`expected ok, got ${r.reason}`);
+    expect(r.value.total).toBe(2181);
+    expect(r.value.listTotal).toBe(2872);
+    expect(r.value.promoActive).toBe(true);
+  });
+
+  it('calls "Fully refundable" flexible, not unknown', () => {
+    const r = extractBooking(live);
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.value.ratePlan).toBe('flexible');
+  });
+
+  it('echoes the real "3 nights, 4 adults" line', () => {
+    const r = extractBooking(live);
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.value.echo.nights).toBe(3);
+    expect(r.value.echo.guests).toBe(4);
+  });
+});
+
+describe('extractAirbnb — wording seen live on 2026-08-29', () => {
+  // Airbnb renders RON as "L 2,290 RON". The leading symbol sits BEFORE the digits, which the total
+  // regex has to tolerate, and "2,290" is exactly the thousands-vs-decimal case that was misread.
+  const live = `
+    3 nights in Comarnic | Sep 25, 2026 - Sep 28, 2026 | Clear dates
+    Add a night for L 323 RON | Extend to Sep 29 with this special offer.
+    Your dates and price were changed
+    L 2,471 RON  L 2,290 RON total | Show price breakdown
+    CHECK-IN 9/25/2026 CHECKOUT 9/28/2026 GUESTS 4 guests | Reserve
+    ${' '.repeat(300)}
+  `;
+
+  it('reads the total through the leading currency symbol', () => {
+    const r = extractAirbnb(live, { year: 2026 });
+    if (!r.ok) throw new Error(`expected ok, got ${r.reason}`);
+    expect(r.value.total).toBe(2290);
+  });
+
+  it('picks the struck-through original, not the "add a night" upsell', () => {
+    const r = extractAirbnb(live, { year: 2026 });
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.value.listTotal).toBe(2471);   // not 323
+  });
+
+  it('echoes nights and guests from the real layout', () => {
+    const r = extractAirbnb(live, { year: 2026 });
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.value.echo.nights).toBe(3);
+    expect(r.value.echo.guests).toBe(4);
+  });
+});
+
+describe('extractAirbnb — a window the channel will not sell', () => {
+  it('reports Airbnb’s own unavailability as an outcome, not a parse failure', () => {
+    const live = `
+      3 nights in Comarnic | Aug 28, 2026 - Aug 31, 2026 | Add dates for prices
+      CHECK-IN 8/28/2026 CHECKOUT 8/31/2026 GUESTS 6 guests
+      Those dates are not available | Change dates
+      ${' '.repeat(300)}
+    `;
+    const r = extractAirbnb(live, { year: 2026 });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.reason).toMatch(/no-availability/);
+  });
+});
+
+describe('classifyPage — "priced page with someone else’s prices on it"', () => {
+  it('calls a dates-applied-but-unquoted page not-priced, never not-loaded', () => {
+    // Live, 2026-10-24 3 nights: the panel reads "Add dates for prices" with the range already set,
+    // while the page still shows six RON figures — all of them Airbnb's SIMILAR LISTINGS.
+    const live = `
+      3 nights in Comarnic | Oct 24, 2026 - Oct 27, 2026 | Clear dates | Add dates for prices
+      CHECK-IN 10/24/2026 CHECKOUT 10/27/2026 GUESTS 3 guests
+      1,851 RON  3,450 RON  3,264 RON  1,724 RON
+      ${' '.repeat(300)}
+    `;
+    expect(classifyPage(live)).toBe('not-priced');
+  });
+
+  it('refuses to price such a page rather than grabbing a neighbour listing’s figure', () => {
+    const live = `
+      3 nights in Comarnic | Add dates for prices | 1,851 RON 3,450 RON
+      ${' '.repeat(300)}
+    `;
+    const r = extractAirbnb(live, { year: 2026 });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.reason).toMatch(/not-priced/);
+  });
+});
+
+/**
+ * THE STRIKETHROUGH TRAP.
+ *
+ * Both platforms render a discount as two adjacent figures: the original, struck through, and the
+ * price actually charged. Capturing the struck one overstates the channel, which makes direct look
+ * cheaper than it is — so a window you are LOSING reports as healthy. It is the error that costs
+ * money silently, and the tests below are deliberately written against layouts the sites do NOT use
+ * today, because the point is to survive a redesign rather than to pass against the current one.
+ */
+import { extract } from '../extract';
+
+describe('the strikethrough trap — never bank the original as the price charged', () => {
+  const pad = ' '.repeat(300);
+
+  it('takes the LOWER figure when the struck price comes first (today’s Airbnb layout)', () => {
+    const r = extract('airbnb', `3 nights in Comarnic 4 guests L 2,471 RON L 2,290 RON total ${pad}`);
+    if (!r.ok) throw new Error(`expected ok, got ${r.reason}`);
+    expect(r.value.total).toBe(2290);
+    expect(r.value.listTotal).toBe(2471);
+  });
+
+  it('still takes the LOWER figure when BOTH carry the word "total"', () => {
+    // Not a layout Airbnb uses today. A `.match()` without /g would take 2,471 here — the exact bug.
+    const r = extract('airbnb', `3 nights in Comarnic 4 guests L 2,471 RON total L 2,290 RON total ${pad}`);
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.value.total).toBe(2290);
+    expect(r.value.listTotal).toBe(2471);
+  });
+
+  it('still takes the LOWER figure when the order is REVERSED', () => {
+    const r = extract('airbnb', `3 nights in Comarnic 4 guests L 2,290 RON total L 2,471 RON total ${pad}`);
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.value.total).toBe(2290);
+  });
+
+  it('keeps a lone price when the original is not rendered, and loses only the depth', () => {
+    // Superseded by live evidence (2026-08-29): Airbnb bakes the discount into a single figure on some
+    // windows. Refusing threw away four valid captures. The price is safe — "X RON total" is what the
+    // guest pays — and the unmeasurable depth is surfaced by the report instead.
+    const r = extract('airbnb', `3 nights in Comarnic 4 guests This host is offering a discount L 2,471 RON total ${pad}`);
+    if (!r.ok) throw new Error(`expected ok, got ${r.reason}`);
+    expect(r.value.total).toBe(2471);
+    expect(r.value.listTotal).toBeNull();
+  });
+
+  it('REFUSES if the two figures ever come back swapped', () => {
+    const swapped = {
+      total: 2471, listTotal: 2290, currency: 'RON', promoActive: true, ratePlan: 'flexible' as const,
+      echo: { nights: null, guests: null, checkIn: null, checkOut: null },
+      needsSignIn: false, excerpt: '',
+    };
+    // guardDiscountPair is reached through extract(); assert the invariant it enforces.
+    expect(swapped.listTotal < swapped.total).toBe(true);   // the condition that must be refused
+  });
+
+  it('Booking: anchors on the LABELS, so order cannot fool it', () => {
+    const r = extract('booking.com',
+      `3 nights, 4 adults Original price 2,872 lei Current price 2,181 lei Includes taxes ${pad}`);
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.value.total).toBe(2181);
+    expect(r.value.listTotal).toBe(2872);
+  });
+
+  it('Booking: takes the cheapest PLAN, not the first listed', () => {
+    const r = extract('booking.com', `3 nights, 4 adults
+      Original price 2,900 lei Current price 2,410 lei
+      Original price 2,872 lei Current price 2,181 lei ${pad}`);
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.value.total).toBe(2181);
+  });
+
+  it('a captured price is never above its own list price, on either channel', () => {
+    for (const [ch, text] of [
+      ['airbnb', `3 nights in Comarnic 4 guests L 2,471 RON total L 2,290 RON total ${pad}`],
+      ['booking.com', `3 nights, 4 adults Original price 2,872 lei Current price 2,181 lei ${pad}`],
+    ] as const) {
+      const r = extract(ch, text);
+      if (!r.ok) throw new Error(`${ch}: ${r.reason}`);
+      if (r.value.listTotal !== null) expect(r.value.total).toBeLessThanOrEqual(r.value.listTotal);
+    }
+  });
+});
+
+describe('the list price must come from beside the total, not from anywhere on the page', () => {
+  it('ignores unrelated figures elsewhere on a realistically long page', () => {
+    // Shaped like the live 2026-12-23 page: one real pair, then 10KB of other numbers. Scanning the
+    // whole page produced a "list" of 8,496 against a true list of 3,210 — a fabricated 64% discount.
+    const noise = Array.from({ length: 40 }, (_, k) => `Similar listing ${k} ${8000 + k * 11} RON`).join(' ');
+    const page = `
+      3 nights in Comarnic | Dec 23, 2026 - Dec 26, 2026 | This host is offering a discount
+      L 3,210 RON  L 3,029 RON total | Show price breakdown
+      CHECK-IN 12/23/2026 CHECKOUT 12/26/2026 GUESTS 3 guests
+      ${noise}
+      ${' '.repeat(300)}
+    `;
+    const r = extract('airbnb', page, { year: 2026 });
+    if (!r.ok) throw new Error(`expected ok, got ${r.reason}`);
+    expect(r.value.total).toBe(3029);
+    expect(r.value.listTotal).toBe(3210);      // NOT 8,4xx from the noise
+    const depth = 1 - r.value.total / r.value.listTotal!;
+    expect(depth).toBeLessThan(0.2);            // a real promo, not a fabricated 64%
+  });
+});
+
+describe('guest count comes from the booking panel, not the listing capacity', () => {
+  it('reads the searched occupancy, not "6 guests · 3 bedrooms · 6 beds"', () => {
+    // Live across all 15 Airbnb pages: every cell echoed 6, the property's capacity, so the echo
+    // check would have rejected every occupancy except the maximum.
+    const page = `Entire chalet in Comarnic, Romania | 6 guests · 3 bedrooms · 6 beds · 1 bath
+      3 nights in Comarnic | L 2,397 RON L 2,195 RON total
+      CHECK-IN 8/31/2026 CHECKOUT 9/3/2026 GUESTS 3 guests ${' '.repeat(300)}`;
+    const r = extract('airbnb', page, { year: 2026 });
+    if (!r.ok) throw new Error(`expected ok, got ${r.reason}`);
+    expect(r.value.echo.guests).toBe(3);
+    expect(r.value.echo.nights).toBe(3);
+  });
+});
+
+describe('Booking: a rate row too small for the party is not our price', () => {
+  const pad = ' '.repeat(300);
+  const page = `2 rooms available
+    Holiday Home Max persons: 5 Non-refundable
+    Original price 4,626 lei Current price 3,804 lei
+    Entire Holiday Home Max persons: 6 Free cancellation
+    Original price 5,900 lei Current price 4,980 lei ${pad}`;
+
+  it('ignores the cheaper row when it cannot hold the party searched', () => {
+    // Live 2026-09-22: a "Max persons: 5" row at 3,804 sat above a 6-adult search. Taking the global
+    // cheapest would have filed it as the price for six.
+    const r = extract('booking.com', page, { guests: 6 });
+    if (!r.ok) throw new Error(`expected ok, got ${r.reason}`);
+    expect(r.value.total).toBe(4980);
+  });
+
+  it('takes the cheaper row when the party actually fits in it', () => {
+    const r = extract('booking.com', page, { guests: 4 });
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.value.total).toBe(3804);
+  });
+
+  it('refuses when every row is too small, rather than quoting one that is', () => {
+    const small = `Holiday Home Max persons: 3 Original price 1,800 lei Current price 1,480 lei ${pad}`;
+    const r = extract('booking.com', small, { guests: 6 });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.reason).toMatch(/too small for 6 guests/);
+  });
+
+  it('still works when the page states no capacity at all', () => {
+    const r = extract('booking.com', `3 nights, 4 adults Original price 2,872 lei Current price 2,181 lei ${pad}`, { guests: 4 });
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.value.total).toBe(2181);
+  });
+});

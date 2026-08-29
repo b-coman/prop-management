@@ -134,3 +134,38 @@ describe('outstandingCells', () => {
     expect(outstandingCells(cells, cells.map((c) => obs(c.cellId)), { now: NOW })).toEqual([]);
   });
 });
+
+describe('outstandingCells — resolves history the same way computeCoverage does', () => {
+  // Regression: outstandingCells built its own lookup with `new Map(observations.map(...))`, which
+  // takes whichever observation comes LAST in the array rather than the newest. Both callers happened
+  // to pre-dedupe via latestByCell, so it never bit — but a consumer reading raw append-only history
+  // (a model trainer, say) would have re-queued errored cells by coin flip.
+  const cells = buildWorklist('p', [{
+    label: 'w', checkIn: '2026-12-24', checkOut: '2026-12-29', nights: 5, guests: 3, priority: 'normal',
+  }], ['airbnb']);
+  const cid = cells.find((c) => c.channel === 'airbnb')!.cellId;
+  const directId = cells.find((c) => c.channel === 'direct')!.cellId;
+  const now = new Date('2026-08-20T00:00:00Z');
+  const fresh = { capturedAt: '2026-08-19T00:00:00Z', source: 'browser' as const, guestTotal: 4298 };
+  const older = { capturedAt: '2026-08-01T00:00:00Z', source: 'browser' as const, guestTotal: 4298 };
+
+  it('does not re-queue a cell whose NEWEST observation succeeded, even when an older error trails it', () => {
+    const history = [
+      { cellId: cid, status: 'captured' as const, ...fresh },
+      { cellId: cid, status: 'error' as const, guestTotal: null, ...older },
+      { cellId: directId, status: 'captured' as const, ...fresh },
+    ];
+    const todo = outstandingCells(cells, history, { now, freshnessDays: 42 });
+    expect(todo.map((c) => c.cellId)).not.toContain(cid);
+  });
+
+  it('does re-queue a cell whose NEWEST observation errored, even when an older success trails it', () => {
+    const history = [
+      { cellId: cid, status: 'error' as const, guestTotal: null, ...fresh },
+      { cellId: cid, status: 'captured' as const, ...older },
+      { cellId: directId, status: 'captured' as const, ...fresh },
+    ];
+    const todo = outstandingCells(cells, history, { now, freshnessDays: 42 });
+    expect(todo.map((c) => c.cellId)).toContain(cid);
+  });
+});

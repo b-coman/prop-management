@@ -76,7 +76,7 @@ gcloud logging read 'logName:"run.googleapis.com/stdout" AND jsonPayload.compone
 ```
 
 **Logger Namespaces:**
-`booking`, `bookingContext`, `bookingAPI`, `bookingStorage`, `bookingUI`, `pricing`, `availability`, `auth`, `authorization`, `stripe`, `email`, `admin`, `adminBookings`, `adminPricing`, `performance`, `error`, `languageSystem`, `whatsapp`, `housekeeping`, `icalSync`, `review`, `guest`, `tracking`, `campaign`, `segment`, `executionGateway`
+`booking`, `bookingContext`, `bookingAPI`, `bookingStorage`, `bookingUI`, `pricing`, `parity`, `availability`, `auth`, `stripe`, `email`, `performance`, `error`, `languageSystem`, `admin`, `adminBookings`, `adminPricing`, `authorization`, `icalSync`, `adminReviews`, `review`, `tracking`, `guest`, `whatsapp`, `housekeeping`, `contentData`, `contentGeneration`, `campaign`, `segment`, `executionGateway`, `ads`
 
 **Facebook / Instagram / Meta ads (MANDATORY):**
 Before working on ANY Facebook, Instagram, or Meta advertising task (ads, Marketing API, Conversions API/CAPI, Ads CLI, the `mcp.facebook.com/ads` MCP server, Custom/Lookalike audiences, Pixel, `meta-capi.ts`), **READ [`docs/meta-ads-infrastructure-2026.md`](docs/meta-ads-infrastructure-2026.md) first.** It is verified, cited knowledge that post-dates the model's training — do NOT answer Meta-ads questions from memory. It records: Meta's Apr-2026 "Ads AI Connectors" (official Ads CLI + hosted MCP), the operator's existing reusable assets (Business Manager + "Access token only" CAPI app), the reuse verdict (that CAPI app can't run ads; go app-less via MCP or create one new Business app), and PAUSED-by-default as the approve-before-publish gate. Re-verify against Meta's own docs before building (it's a beta).

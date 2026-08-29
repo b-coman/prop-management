@@ -11,9 +11,32 @@
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
 import type { Observation, ObservationStatus } from '@/lib/growth/parityWorklist';
+import { normalizeChannel } from '@/lib/channels';
 
-const logger = loggers.campaign;
+const logger = loggers.parity;
 const COLLECTION = 'channelPriceObservations';
+
+/**
+ * How a price was read. `programApplied` is separate from `program` on purpose: the owner switches
+ * Genius OFF on Christmas and New Year deliberately, so a Booking capture on those dates has a Genius
+ * account that is simply not being applied. That is a business fact, not a failed capture.
+ *
+ * The Genius LEVEL is deliberately not recorded — this property participates at Level 1 only, so an
+ * L1 and an L3 account see the same price and storing the level would imply a distinction that does
+ * not exist here.
+ */
+export interface CaptureSession {
+  loggedIn: boolean;
+  program: 'genius' | 'host' | null;
+  programApplied: boolean;
+  currency: string;
+}
+
+export type RatePlan = 'flexible' | 'non-refundable' | 'unknown';
+
+export type ObservationSubject =
+  | { kind: 'self' }
+  | { kind: 'competitor'; listingId: string };
 
 export interface ObservationRecord extends Observation {
   propertyId: string;
@@ -24,6 +47,29 @@ export interface ObservationRecord extends Observation {
   channel: string;
   /** Login state / currency the capture was made in — a Genius or host session skews the number. */
   sessionState?: string;
+  /**
+   * The same fact, structured, because the prose form proved unfilterable: the first 199 observations
+   * carry 29 distinct `sessionState` strings, so nothing downstream can mechanically exclude the
+   * logged-out ones. Any fit that mixes them is comparing different guests.
+   */
+  session?: CaptureSession;
+  /**
+   * Which offer was read. Booking sells the peak windows non-refundable, and its apparent "discount"
+   * on those dates is really the gap between the flexible and non-refundable plans. Comparing a
+   * non-refundable OTA price to a flexible direct price is comparing two products.
+   */
+  ratePlan?: RatePlan;
+  /**
+   * Whose price this is. Defaults to the owner's own listing; competitor tracking reuses this
+   * collection unchanged rather than needing a migration over a store that will hold thousands of rows.
+   */
+  subject?: ObservationSubject;
+  /**
+   * The page text the figures were read from, trimmed. Parsers rot when a site re-renders, and without
+   * the source a bad parse is undetectable and unfixable — the numbers look plausible and nothing can
+   * re-derive them. Kept short; the full text goes to `channelPriceImports`.
+   */
+  rawExcerpt?: string;
   capturedBy?: string;
   /**
    * Currency conversion, kept explicit. `guestTotal` is ALWAYS in the comparison currency (RON) so the
@@ -54,6 +100,26 @@ export interface RecordObservationInput {
   source: 'api' | 'browser';
   url?: string;
   sessionState?: string;
+  /** Structured session — see ObservationRecord.session. */
+  session?: CaptureSession;
+  /** Which rate plan the captured price belongs to. */
+  ratePlan?: RatePlan;
+  /** Whose listing. Defaults to `{ kind: 'self' }`. */
+  subject?: ObservationSubject;
+  /** A trimmed slice of the page text the numbers came from. */
+  rawExcerpt?: string;
+  /**
+   * The same window's direct quote, when known. Used only as a magnitude sanity check (see below);
+   * never stored. Omit to skip the check.
+   */
+  referenceTotal?: number;
+  /**
+   * Validate exactly as a real write would, then write nothing. A capture carries a `capturedAt`, so
+   * a test write does not merely add a row — it marks a stale cell FRESH and removes it from the
+   * work-list. Pre-flighting a batch must therefore be possible without touching the store, and it
+   * must run the same rules or it proves nothing.
+   */
+  dryRun?: boolean;
   capturedBy?: string;
   /** Injected so a batch of captures can share one timestamp; defaults to now. */
   capturedAt?: string;
@@ -92,6 +158,17 @@ export async function recordObservation(input: RecordObservationInput): Promise<
   // Conversion must be explicit and attributed. A foreign-currency capture with no rate would either
   // be silently treated as RON (wrong by a factor of ~4.5) or silently dropped.
   const rawCurrency = (input.rawCurrency ?? 'RON').toUpperCase();
+  // The channel is embedded raw in the cellId, so a misspelling does not fail — it writes cleanly and
+  // creates a cell that nothing will ever match again. `verifyPushesFromObservations` normalizes on
+  // READ, so the asymmetry meant a typo could silently orphan an observation forever. Refuse it here,
+  // at the only door into the store.
+  if (!normalizeChannel(input.channel)) {
+    throw new Error(
+      `cell ${input.cellId}: unknown channel "${input.channel}". ` +
+      `Use a canonical id or a known alias — an unrecognised channel orphans the cell.`,
+    );
+  }
+
   const needsFx = rawCurrency !== 'RON';
   if (needsFx && !input.fxRateToRon) {
     throw new Error(`cell ${input.cellId}: ${rawCurrency} capture requires --fx (rate to RON)`);
@@ -99,9 +176,30 @@ export async function recordObservation(input: RecordObservationInput): Promise<
   if (needsFx && !input.fxRateSource) {
     throw new Error(`cell ${input.cellId}: a converted price requires --fx-source (who says so, and when)`);
   }
-  const guestTotalRon = input.status === 'captured'
-    ? Math.round((input.guestTotal as number) * (needsFx ? input.fxRateToRon! : 1))
-    : null;
+  // Round to the leu-cent, not the leu. `Math.round` here was irrecoverable: a USD VRBO capture
+  // converted at 4.54 loses up to half a leu per observation, and the drift the system exists to
+  // measure is of that order on short windows. Two decimals keeps the figure exact enough to
+  // re-derive while avoiding float noise in stored data.
+  const toRon = (v: number) => Math.round(v * (needsFx ? input.fxRateToRon! : 1) * 100) / 100;
+  const guestTotalRon = input.status === 'captured' ? toRon(input.guestTotal as number) : null;
+
+  // A units error passes every rule above: a number and a currency label are each plausible on their
+  // own. It has already happened here — four VRBO cells recorded USD figures labelled RON, so 3,300
+  // was stored as 728 and read as the cheapest channel on the market. Provenance cannot catch that;
+  // only magnitude can. The caller supplies the same window's direct quote when it has one.
+  if (input.status === 'captured' && typeof input.referenceTotal === 'number' && input.referenceTotal > 0) {
+    const ratio = (input.guestTotal as number) / input.referenceTotal;
+    if (ratio < 0.5 || ratio > 2) {
+      throw new Error(
+        `cell ${input.cellId}: ${Math.round(input.guestTotal as number)} is ${ratio.toFixed(2)}x the ` +
+        `direct quote of ${Math.round(input.referenceTotal)} — outside the plausible 0.5x-2x band. ` +
+        `Almost always a currency or per-night/total mix-up. Re-read the page; if the price really is ` +
+        `this far out, record it with --force-magnitude and say why.`,
+      );
+    }
+  }
+
+  if (input.dryRun) return 'dry-run';
 
   const db = await getAdminDb();
   const capturedAt = input.capturedAt ?? new Date().toISOString();
@@ -116,11 +214,15 @@ export async function recordObservation(input: RecordObservationInput): Promise<
     status: input.status,
     // Always the comparison currency, so downstream maths never mixes units.
     guestTotal: guestTotalRon,
-    listTotal: input.listTotal != null ? Math.round(input.listTotal * (needsFx ? input.fxRateToRon! : 1)) : null,
+    listTotal: input.listTotal != null ? toRon(input.listTotal) : null,
     rawTotal: input.guestTotal ?? null,
     rawCurrency,
     ...(needsFx ? { fxRateToRon: input.fxRateToRon, fxRateSource: input.fxRateSource } : {}),
     promoActive: input.promoActive ?? false,
+    subject: input.subject ?? { kind: 'self' },
+    ...(input.session ? { session: input.session } : {}),
+    ...(input.ratePlan ? { ratePlan: input.ratePlan } : {}),
+    ...(input.rawExcerpt ? { rawExcerpt: input.rawExcerpt.slice(0, 2000) } : {}),
     ...(input.reason ? { reason: input.reason } : {}),
     source: input.source,
     ...(input.url ? { url: input.url } : {}),

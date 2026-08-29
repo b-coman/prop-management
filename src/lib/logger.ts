@@ -395,6 +395,9 @@ export const loggers = {
   bookingStorage: createLogger('booking:storage'),
   bookingUI: createLogger('booking:ui'),
   pricing: createLogger('pricing'),
+  // OTA price parity: captures, coverage, drift. Its own namespace so a parity run is queryable
+  // without wading through the whole pricing engine.
+  parity: createLogger('parity'),
   availability: createLogger('availability'),
   auth: createLogger('auth'),
   stripe: createLogger('stripe'),

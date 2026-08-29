@@ -121,7 +121,10 @@ export function computeCoverage(
   opts?: { now?: Date; freshnessDays?: number },
 ): Coverage {
   const now = opts?.now ?? new Date();
-  const freshnessDays = opts?.freshnessDays ?? 7;
+  // 42 days matches the 4-6 week re-measure cadence the skill prescribes and what every caller
+  // passes. The old default of 7 was reachable only by a caller that forgot the option, and would
+  // have silently reported six-week-old captures as stale under a different rule than the report's.
+  const freshnessDays = opts?.freshnessDays ?? 42;
   const byId = new Map<string, Observation>();
   for (const o of observations) {
     const prev = byId.get(o.cellId);
@@ -169,7 +172,15 @@ export function outstandingCells(
 ): WorklistCell[] {
   const cov = computeCoverage(cells, observations, opts);
   const owed = new Set([...cov.missingCellIds, ...cov.staleCellIds]);
-  const byId = new Map(observations.map((o) => [o.cellId, o]));
+  // Newest-wins, exactly as computeCoverage resolves it. Building this map with a plain
+  // `new Map(observations.map(...))` takes whichever observation happens to come LAST in the array,
+  // which is arbitrary. That was harmless only because both callers pre-deduped via `latestByCell`;
+  // anything reading raw append-only history would have re-queued cells by coin flip.
+  const byId = new Map<string, Observation>();
+  for (const o of observations) {
+    const prev = byId.get(o.cellId);
+    if (!prev || o.capturedAt > prev.capturedAt) byId.set(o.cellId, o);
+  }
   for (const c of cells) if (byId.get(c.cellId)?.status === 'error') owed.add(c.cellId);
   return cells
     .filter((c) => owed.has(c.cellId))

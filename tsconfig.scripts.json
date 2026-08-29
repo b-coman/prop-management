@@ -1,0 +1,27 @@
+{
+  // Type-checking for the scripts that the pricing / OTA-parity system depends on.
+  //
+  // The root tsconfig excludes `scripts/` entirely, which is why two real bugs lived in
+  // `parity-pack.ts` unnoticed: a type annotation (`SpecialPeriodOptions`) that referred to nothing,
+  // and a `pack.economics.configured` flag that was read but never set — so the pack announced
+  // "DEFAULTS (not yet persisted)" on every run when the opposite was true.
+  //
+  // Checking ALL of scripts/ today surfaces ~85 errors, almost all in old one-off diagnostics. That
+  // is a cleanup project, not a reason to leave the load-bearing scripts unchecked. This config is
+  // the narrow middle: the scripts that write to the store or drive a pricing decision are checked,
+  // and the list grows as scripts are cleaned up.
+  //
+  //   npm run typecheck:scripts
+  "extends": "./tsconfig.json",
+  "include": [
+    "scripts/parity-pack.ts",
+    "scripts/parity-capture.ts",
+    "scripts/parity-report.ts",
+    "scripts/parity-next.ts",
+    "scripts/parity-extract-batch.ts",
+    "scripts/rate-sheet.ts",
+    "scripts/periods.ts",
+    "scripts/verify-period-identity.ts"
+  ],
+  "exclude": ["node_modules"]
+}
