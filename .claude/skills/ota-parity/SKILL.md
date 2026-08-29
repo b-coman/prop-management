@@ -132,9 +132,18 @@ overrides carry `flatRate: true`, so extra guests are free on those nights while
 guest. The same NYE week measured **−8.7%** at 3 guests and **−20%** at 6. **A check that probes one
 occupancy will confidently report the wrong answer.**
 
-But the upper figure must be a headcount **every channel actually offers**, not our `maxGuests`. This
-property's doc says 7 while the Airbnb listing advertises **6 guests · 6 beds** — asking Airbnb for 7
-gets no quote, and the pair would be incomparable. Compare at **3 and 6** here. Set
+But the upper figure must be a headcount **every channel actually offers**, and it must be sent as the
+right SHAPE of party. This property takes **5 adults plus 2 children (7 people)** — the owner stated it
+and his Booking listing says so. `adults=6` is a party he cannot host.
+
+🔴 **Probes above 5 must be split into adults + children.** Sending `adults=6` had two effects, both
+bad: Booking refused (correctly) and those refusals were filed as "Booking has no offer for 6 adults",
+which reads like a gap in his listing and is nothing of the sort; and Airbnb answered for 6 adults, so
+a price for a product he does not sell went into the store as if it were his. **38 forward
+observations were priced this way, and they inflated Fall from +14.6% to +35.9% and Early September
+from +5.3% to +26.1%.** They were superseded on 2026-08-29. `buildCaptureUrl` now splits the party
+(`splitParty`), so 6 people is sent as 5 adults + 1 child — the same party the direct engine quotes
+for `guests: 6`, which is what makes the totals comparable. Set
 `property.channelPricing.compareOccupancies`, or pass `--guests 3,6`; the pack prints which source it
 used and warns when it fell back to `maxGuests`.
 

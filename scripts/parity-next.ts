@@ -53,25 +53,50 @@ const FRESH_DAYS = Number(arg('fresh-days', '42'));
  * The URL templates. These are the ONLY place a probe becomes a web address, which is the point:
  * one definition, tested by use, instead of a hundred hand-built strings.
  */
+/**
+ * The property's real limit is 5 ADULTS plus 2 children (7 people), not 7 adults — the owner stated
+ * it and his Booking listing says "5 adults, 4 children (max 7 guests)".
+ *
+ * This mattered more than it sounds. Every probe above 5 was being sent as `adults=N`, so the OTAs
+ * were quoted a party he cannot host: Booking refused (correctly, and I filed those refusals as
+ * "Booking has no offer for 6 adults", which read like a gap in his listing and was nothing of the
+ * sort), while Airbnb answered for 6 adults and the number went into the store as if it were his
+ * price. 38 forward observations were priced this way.
+ *
+ * So a headcount above the adult cap is split: the first 5 are adults, the rest are children. That is
+ * the same party the direct engine quotes for `guests: N`, which is what makes the totals comparable.
+ */
+const MAX_ADULTS = 5;
+const CHILD_AGE = 10;   // Booking requires an age per child; 10 is inside the "child" band everywhere
+
+export function splitParty(guests: number): { adults: number; children: number } {
+  const adults = Math.min(guests, MAX_ADULTS);
+  return { adults, children: Math.max(0, guests - adults) };
+}
+
 export function buildCaptureUrl(
   channel: string,
   listingUrl: string | undefined,
   p: { checkIn: string; checkOut: string; guests: number },
 ): string | null {
   if (!listingUrl) return null;
+  const { adults, children } = splitParty(p.guests);
   if (channel === 'airbnb') {
     const id = listingUrl.match(/\/rooms\/(\d+)/)?.[1];
     if (!id) return null;
-    return `https://www.airbnb.com/rooms/${id}?check_in=${p.checkIn}&check_out=${p.checkOut}&adults=${p.guests}`;
+    return `https://www.airbnb.com/rooms/${id}?check_in=${p.checkIn}&check_out=${p.checkOut}` +
+           `&adults=${adults}${children ? `&children=${children}` : ''}`;
   }
   if (channel === 'booking.com') {
     const base = listingUrl.split('?')[0];
-    return `${base}?checkin=${p.checkIn}&checkout=${p.checkOut}&group_adults=${p.guests}` +
-           `&no_rooms=1&group_children=0&selected_currency=RON`;
+    const ages = Array.from({ length: children }, () => `&age=${CHILD_AGE}`).join('');
+    return `${base}?checkin=${p.checkIn}&checkout=${p.checkOut}&group_adults=${adults}` +
+           `&group_children=${children}${ages}&no_rooms=1&selected_currency=RON`;
   }
   if (channel === 'vrbo') {
     const base = listingUrl.split('?')[0];
-    return `${base}?arrival=${p.checkIn}&departure=${p.checkOut}&adults=${p.guests}`;
+    return `${base}?arrival=${p.checkIn}&departure=${p.checkOut}&adults=${adults}` +
+           `${children ? `&children=${children}` : ''}`;
   }
   return null;
 }

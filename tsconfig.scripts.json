@@ -19,6 +19,7 @@
     "scripts/parity-report.ts",
     "scripts/parity-next.ts",
     "scripts/parity-extract-batch.ts",
+    "scripts/pricing-position.ts",
     "scripts/rate-sheet.ts",
     "scripts/periods.ts",
     "scripts/verify-period-identity.ts"
