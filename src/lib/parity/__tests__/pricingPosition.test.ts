@@ -25,7 +25,7 @@ describe("the owner's own 3% band is respected", () => {
   it('calls a sub-3% gap level, not losing — reporting +0.5% in red buries the +36% rows', () => {
     const [r] = buildPeriodPositions([period()], days([true, true, true, true]), [win({ gapPct: 0.005 })]);
     expect(r.verdict).toBe('level');
-    expect(r.action).toMatch(/no reason for a guest to prefer/i);
+    expect(r.action).toMatch(/no reason to book with you/i);
   });
   it('still calls anything at or beyond the band losing', () => {
     const [r] = buildPeriodPositions([period()], days([true, true, true, true]), [win({ gapPct: NOISE_BAND })]);
@@ -56,7 +56,7 @@ describe('never measured is not the same as fine', () => {
   it('marks an unmeasured period and says how much is exposed', () => {
     const [r] = buildPeriodPositions([period()], days([true, true, true, true]), []);
     expect(r.verdict).toBe('unmeasured');
-    expect(r.action).toMatch(/never measured/i);
+    expect(r.action).toMatch(/nobody has ever compared/i);
   });
   it('separates unmeasured money from losing money in the summary', () => {
     const rows = buildPeriodPositions(

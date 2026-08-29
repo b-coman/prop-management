@@ -106,13 +106,15 @@ function describeAction(p: Omit<PeriodPosition, 'action'>): string | null {
       `To sit under it, a ${w.nights}-night stay would be ${Math.round(w.targetPrice!)} instead of ${Math.round(w.direct!)}.`;
   }
   if (p.verdict === 'overshoot' && p.worstWindow?.floor) {
-    return `Priced below your floor of ${Math.round(p.worstWindow.floor)} — you would keep more by letting ` +
-      `${p.worstWindow.bestChannel} take the booking.`;
+    return `Below ${Math.round(p.worstWindow.floor)}, which is the point where a direct booking stops being ` +
+      `worth more to you than a ${p.worstWindow.bestChannel} one. You are discounting past the benefit.`;
   }
   if (p.verdict === 'unmeasured' && p.openNights > 0) {
-    return `${p.openNights} nights open and never measured against the channels.`;
+    return `${p.openNights} nights open here and nobody has ever compared this period against the platforms.`;
   }
-  if (p.verdict === 'level') return 'Level with the cheapest channel — no reason for a guest to prefer your site.';
+  if (p.verdict === 'level') {
+    return 'Your price and the cheapest platform are within 3% of each other, so a guest has no reason to book with you rather than them.';
+  }
   return null;
 }
 

@@ -41,13 +41,26 @@ export interface PositionSummaryShape {
 const lei = (n: number | null | undefined) =>
   n === null || n === undefined ? '—' : Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
-const V: Record<Verdict, { label: string; chip: string; rail: string }> = {
-  losing:     { label: 'losing',     chip: 'bg-red-100 text-red-900 border-red-200',        rail: 'bg-red-500' },
-  overshoot:  { label: 'too low',    chip: 'bg-amber-100 text-amber-900 border-amber-200',  rail: 'bg-amber-500' },
-  level:      { label: 'level',      chip: 'bg-orange-50 text-orange-900 border-orange-200', rail: 'bg-orange-300' },
-  thin:       { label: 'thin',       chip: 'bg-yellow-50 text-yellow-800 border-yellow-200', rail: 'bg-yellow-400' },
-  healthy:    { label: 'ahead',      chip: 'bg-emerald-100 text-emerald-900 border-emerald-200', rail: 'bg-emerald-500' },
-  unmeasured: { label: 'unmeasured', chip: 'bg-slate-100 text-slate-600 border-slate-200',  rail: 'bg-slate-300' },
+/**
+ * Labels in the owner's language, not the trade's.
+ *
+ * These read "losing", "thin", "overshoot", "dearer" in the first version — words from channel-pricing
+ * jargon that mean nothing to the person using the screen, and that nothing on the page defined. He
+ * asked, reasonably, "losing what?". A label that needs explaining is the wrong label.
+ */
+const V: Record<Verdict, { label: string; chip: string; rail: string; means: string }> = {
+  losing:     { label: 'You cost more',   chip: 'bg-red-100 text-red-900 border-red-200',           rail: 'bg-red-500',
+                means: 'A guest who compares finds your own site more expensive, books the platform, and you pay its commission.' },
+  overshoot:  { label: 'You are too low', chip: 'bg-amber-100 text-amber-900 border-amber-200',     rail: 'bg-amber-500',
+                means: 'Your price is so low that after card fees you keep less than the platform would have paid you.' },
+  level:      { label: 'Same price',      chip: 'bg-orange-50 text-orange-900 border-orange-200',   rail: 'bg-orange-300',
+                means: 'Within 3% of the cheapest platform — no reason for a guest to prefer booking with you directly.' },
+  thin:       { label: 'Barely cheaper',  chip: 'bg-yellow-50 text-yellow-800 border-yellow-200',   rail: 'bg-yellow-400',
+                means: 'Cheaper than the platforms, but by less than the 10% you aim for.' },
+  healthy:    { label: 'You are cheaper', chip: 'bg-emerald-100 text-emerald-900 border-emerald-200', rail: 'bg-emerald-500',
+                means: 'Cheaper than every platform by at least your target, and you still keep more than they would pay you.' },
+  unmeasured: { label: 'Not checked',     chip: 'bg-slate-100 text-slate-600 border-slate-200',     rail: 'bg-slate-300',
+                means: 'No one has compared this period against the platforms yet. Unknown, not safe.' },
 };
 
 const shortDate = (d: string) => {
@@ -69,24 +82,26 @@ export function PositionView({ rows, summary, meta }: {
         <CardHeader className="pb-3">
           <CardTitle>Your position</CardTitle>
           <CardDescription>
-            Every forward period: how full it is, what you charge, and whether a guest comparing you with
-            the channels would book you. Prices compared are guest-facing totals for real stays, with
-            Airbnb corrected for the standing top-rated discount no capture can see.
+            One row per pricing period for the rest of the year: how full it is, what you charge, and
+            whether someone comparing your site with Airbnb and Booking would book with you or with them.
+            Every comparison is the <strong>total a guest actually pays</strong> for a real stay — all
+            fees in, both platform discounts applied — not a nightly rate.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-3">
-            <Headline value={`${lei(summary.totalValueAtRisk)} lei`} label={`${summary.openNights} nights still open`} />
+            <Headline value={`${lei(summary.totalValueAtRisk)} lei`}
+                      label={`still unsold — ${summary.openNights} open nights at your current prices`} />
             <Headline value={`${lei(summary.valueAtRiskLosing)} lei`} tone="text-red-700"
-                      label={`in ${summary.losing} period${summary.losing === 1 ? '' : 's'} where a channel is cheaper`} />
+                      label={`of it where you cost a guest MORE than Airbnb or Booking do`} />
             <Headline value={`${lei(summary.valueAtRiskUnmeasured)} lei`} tone="text-slate-600"
-                      label={`in ${summary.unmeasured} period${summary.unmeasured === 1 ? '' : 's'} never measured`} />
+                      label={`of it never checked against the platforms`} />
           </div>
 
           {worst.length > 0 && (
             <div className="rounded-lg border border-red-200 bg-red-50 p-3">
               <p className="mb-2 flex items-center gap-2 text-sm font-medium text-red-900">
-                <TrendingDown className="h-4 w-4" /> Biggest exposures
+                <TrendingDown className="h-4 w-4" /> Where the most money sits while you are the expensive option
               </p>
               <ul className="space-y-1 text-sm text-red-900">
                 {worst.map((r) => (
@@ -94,7 +109,7 @@ export function PositionView({ rows, summary, meta }: {
                     <strong>{r.name}</strong>
                     <span className="tabular-nums">{lei(r.valueAtRisk)} lei</span>
                     <span className="opacity-70">across {r.openNights} open nights,</span>
-                    <span className="font-medium tabular-nums">{(r.worstGapPct! * 100).toFixed(0)}% dearer</span>
+                    <span className="font-medium tabular-nums">{(r.worstGapPct! * 100).toFixed(0)}% more expensive</span>
                     <span className="opacity-70">than {r.worstWindow?.bestChannel}</span>
                   </li>
                 ))}
@@ -122,8 +137,8 @@ export function PositionView({ rows, summary, meta }: {
                 <th className="py-2">Occupancy</th>
                 <th className="py-2 text-right">Weekday</th>
                 <th className="py-2 text-right">Weekend</th>
-                <th className="py-2 pl-4">vs channels</th>
-                <th className="py-2 pr-4 text-right">At risk</th>
+                <th className="py-2 pl-4">If a guest compares</th>
+                <th className="py-2 pr-4 text-right">Still unsold</th>
               </tr>
             </thead>
             <tbody>
@@ -132,6 +147,21 @@ export function PositionView({ rows, summary, meta }: {
               ))}
             </tbody>
           </table>
+          <div className="border-t bg-slate-50/60 px-4 py-3">
+            <p className="mb-2 text-xs font-medium text-slate-700">What the words mean</p>
+            <div className="grid gap-x-6 gap-y-1.5 text-[11px] text-slate-600 sm:grid-cols-2">
+              {(Object.keys(V) as Verdict[]).map((k) => (
+                <div key={k} className="flex items-start gap-2">
+                  <Badge variant="outline" className={`shrink-0 text-[10px] ${V[k].chip}`}>{V[k].label}</Badge>
+                  <span>{V[k].means}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-[11px] text-slate-600">
+              <strong>Still unsold</strong> is the open nights in that period multiplied by what you currently
+              ask for them. It is money not yet earned, not money at risk of being lost.
+            </p>
+          </div>
           <p className="border-t px-4 py-2 text-xs text-muted-foreground">
             {summary.periods} forward periods · {meta.measuredWindows} measured stay windows ·
             read {new Date(meta.generatedAt).toLocaleString('en-GB')}. Weekday and weekend are the
