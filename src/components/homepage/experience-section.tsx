@@ -39,22 +39,33 @@ export function ExperienceSection({ content, language = 'en' }: ExperienceSectio
     highlights = []
   } = content;
 
-  // Don't render if required content is missing
-  if (!title || !description || !highlights || highlights.length === 0) {
+  // The highlight cards are the block. Title and description are each optional,
+  // so a property can lead with just the description — or omit both — without
+  // leaving an empty heading behind.
+  if (!highlights || highlights.length === 0) {
     return null;
   }
+
+  const titleText = tc(title);
+  const descriptionText = tc(description);
 
   return (
     <section className="py-10 md:py-16 bg-secondary/50" id="experience"> {/* Added ID */}
       <div className="container mx-auto px-4">
-        <div className="max-w-3xl mx-auto text-center mb-8">
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
-            {tc(title)}
-          </h2>
-          <p className="text-lg text-muted-foreground">
-            {tc(description)}
-          </p>
-        </div>
+        {(titleText || descriptionText) && (
+          <div className="max-w-3xl mx-auto text-center mb-8">
+            {titleText && (
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
+                {titleText}
+              </h2>
+            )}
+            {descriptionText && (
+              <p className="text-lg text-muted-foreground">
+                {descriptionText}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Use a fluid grid layout */}
         <div className="grid gap-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))' }}>
