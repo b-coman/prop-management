@@ -86,8 +86,8 @@ describe('extractBooking', () => {
     Mountain Family Chalet on Prahova Valley
     2 nights, 5 adults
     Holiday Home  Non-refundable
-    Original price RON 2,580 Current price RON 2,154
-    Original price RON 2,900 Current price RON 2,410
+    Max persons: 5 Original price RON 2,580 Current price RON 2,154
+    Max persons: 5 Original price RON 2,900 Current price RON 2,410
     ${' '.repeat(300)}
   `;
 
@@ -320,8 +320,8 @@ describe('the strikethrough trap — never bank the original as the price charge
 
   it('Booking: takes the cheapest PLAN, not the first listed', () => {
     const r = extract('booking.com', `3 nights, 4 adults
-      Original price 2,900 lei Current price 2,410 lei
-      Original price 2,872 lei Current price 2,181 lei ${pad}`);
+      Max persons: 4 Original price 2,900 lei Current price 2,410 lei
+      Max persons: 4 Original price 2,872 lei Current price 2,181 lei ${pad}`);
     if (!r.ok) throw new Error('expected ok');
     expect(r.value.total).toBe(2181);
   });
@@ -408,4 +408,73 @@ describe('Booking: a rate row too small for the party is not our price', () => {
     if (!r.ok) throw new Error('expected ok');
     expect(r.value.total).toBe(2181);
   });
+});
+
+/**
+ * Transcribed from the live Booking page for 2026-09-04 -> 2026-09-07, captured 2026-08-30. The
+ * property offers one rate row per occupancy, and the CHEAPEST row on the page seats three adults.
+ * Whichever way Booking words the capacity, the answer for a family of six must be 2,216.
+ */
+describe('booking.com per-occupancy rate rows', () => {
+  const withChildren =
+    '4 adults · 2 children · 1 room ' +
+    'Non-refundable Pay online 11% Genius discount applied to the price before taxes and charges ' +
+    '3 nights, 4 adults, 2 children Original price 3,197 lei Current price 2,216 lei ' +
+    'Coffee machine Free WiFi + Max adults: 4 <br> Max children: 2 Original price 3,197 lei Current price 2,216 lei ' +
+    '+ x 1 Max adults: 5 <br> Max children: 1 Original price 3,332 lei Current price 2,303 lei ' +
+    'x 5 Max adults: 5 Original price 3,182 lei Current price 2,207 lei ' +
+    'Select rooms 0 1 Max adults: 4 Original price 2,897 lei Current price 2,023 lei ' +
+    'Select rooms 0 1 Max adults: 3 Original price 2,612 lei Current price 1,840 lei ' +
+    '0 1 + Max adults: 3 <br> Max children: 2 Original price 2,912 lei Current price 2,033 lei' +
+    ' '.repeat(300);
+
+  const adultsOnly =
+    '4 adults · 0 children · 1 room ' +
+    '3 nights, 4 adults Original price 3,036 lei Current price 2,332 lei ' +
+    'Max persons: 4 Original price 2,897 lei Current price 2,023 lei ' +
+    'Max persons: 4 Original price 3,036 lei Current price 2,332 lei ' +
+    'Max persons: 3 Original price 2,612 lei Current price 1,840 lei ' +
+    'Max persons: 3 Original price 2,735 lei Current price 2,112 lei' + ' '.repeat(300);
+
+  it('does not sell a 3-adult rate as the price for a family of six', () => {
+    const r = extract('booking.com', withChildren, { year: 2026, guests: 6 });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.total).toBe(2216);
+    expect(r.value.total).not.toBe(1840);
+  });
+
+  it('reads the same answer when the caller supplies no headcount', () => {
+    const r = extract('booking.com', withChildren, { year: 2026 });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value.total).toBe(2216);
+  });
+
+  it('still honours the "Max persons" wording on an adults-only page', () => {
+    const r = extract('booking.com', adultsOnly, { year: 2026, guests: 4 });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value.total).toBe(2023);
+  });
+
+  it('refuses rather than guessing when rows carry no capacity at all', () => {
+    const noCaps = '4 adults · 2 children · 1 room ' +
+      'Original price 3,197 lei Current price 2,216 lei ' +
+      'Original price 2,612 lei Current price 1,840 lei' + ' '.repeat(300);
+    const r = extract('booking.com', noCaps, { year: 2026, guests: 6 });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toMatch(/capacity marker/i);
+  });
+});
+
+/**
+ * Booking refuses a too-short stay in prose, then shows priced ALTERNATIVE dates on the same page.
+ * Read as "priced", those alternatives are banked as the price for the window that was refused.
+ */
+it('reads Booking\'s "you need to stay 3+ nights" as a refusal, not a price', () => {
+  const t = '2 adults · 1 child · 1 room You need to stay 3+ nights to book your selected dates. ' +
+    'Add an extra night to your search or select an option in "Alternative dates" below. ' +
+    'If you are flexible, these dates are available: 2 nights 530 lei' + ' '.repeat(300);
+  const r = extract('booking.com', t, { year: 2027, guests: 3 });
+  expect(r.ok).toBe(false);
+  if (!r.ok) expect(r.reason).toMatch(/min-stay/i);
 });

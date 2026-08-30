@@ -62,6 +62,10 @@ export async function fetchParityView(propertyId: string, opts?: { includeVrbo?:
         channel: o.channel, status: o.status, guestTotal: o.guestTotal ?? null,
         listTotal: o.listTotal ?? null, promoActive: o.promoActive, ratePlan: (o as { ratePlan?: string }).ratePlan,
         reason: o.reason, capturedAt: o.capturedAt, sessionState: o.sessionState,
+        // Without this the screen sees every row as shape-unknown and reports the whole board as
+        // unmeasured — the CLI had it and the screen did not, which is exactly the drift that makes
+        // two views of one dataset disagree.
+        party: (o as { party?: { adults: number; children: number } }).party,
       };
       byWindow.get(key)!.observations.push(lite);
     }

@@ -44,7 +44,7 @@ function __classify(t){
   var l=t.toLowerCase();
   if(!l.trim()||t.length<200) return 'not-loaded';
   if(/(are you a robot|unusual traffic|verify you are human|captcha|security check)/.test(l)) return 'bot-check';
-  if(/(minimum stay|minimum-night stay|min\.? stay|stay of \d+ nights? or more|sejur minim)/.test(l)) return 'min-stay';
+  if(/(minimum stay|minimum-night stay|min\.? stay|stay of \d+ nights? or more|sejur minim|you need to stay \d+\+? nights?|add an extra night to your search)/.test(l)) return 'min-stay';
   if(/(no availability|not available for|sold out|dates are not available|nu este disponibil|unavailable for your dates)/.test(l)) return 'no-availability';
   if(/add dates for prices/.test(l)) return 'not-priced';
   return 'priced';
@@ -69,11 +69,36 @@ function __airbnb(t){
   return {state:'ok',total:total,list:list,currency:cur,promo:promo,plan:'flexible',
           nights:__count(t,'nights?\\s+in'),guests:__panelGuests(t)};
 }
+// How many people the page itself says were searched for. Booking prints "4 adults · 2 children ·
+// 1 room", so the party never has to be threaded in from outside — and reading it here means the
+// capacity filter and the echo check agree by construction.
+function __bookingWanted(t){
+  var m=t.match(/(\d{1,2})\s*adults?\s*[·,]\s*(\d{1,2})\s*(?:children|child)/i);
+  if(m) return Number(m[1])+Number(m[2]);
+  m=t.match(/(\d{1,2})\s*adults?/i);
+  return m?Number(m[1]):null;
+}
 function __booking(t){
   var cands=[], m;
+  // Each rate row carries its own capacity, written EITHER as "Max persons: 4" (adults-only search)
+  // OR as "Max adults: 4 <br> Max children: 2" (search including children). The in-page parser used
+  // to have no capacity filter whatsoever, so it always returned the cheapest pair on the page — on
+  // 2026-09-04 that was the "Max adults: 3" row at 1,840, banked as the price for a family of six
+  // against a true 2,216, and it manufactured the whole +26/+31/+36% September panic.
+  var caps=[], cr=/max\s*(?:persons?|adults?)\s*:?\s*(\d{1,2})(?:[^\d]{0,20}?max\s*children\s*:?\s*(\d{1,2}))?/gi;
+  while((m=cr.exec(t))!==null){ caps.push({at:m.index, max:Number(m[1])+(m[2]===undefined?0:Number(m[2]))}); }
+  var want=__bookingWanted(t);
+  function capAt(i){ var b=null; for(var j=0;j<caps.length;j++) if(caps[j].at<=i) b=caps[j].max; return b; }
+  var tooSmall=0;
   var pr=/original price[^\d]{0,20}([\d.,]+)[^\d]{0,40}?current price[^\d]{0,20}([\d.,]+)/gi;
   while((m=pr.exec(t))!==null){ var o=__money(m[1]), c=__money(m[2]);
-    if(c!==null&&c>0) cands.push({cur:c,orig:o}); }
+    if(c===null||c<=0) continue;
+    var cp=capAt(m.index);
+    if(want&&cp!==null&&cp<want){ tooSmall++; continue; }
+    cands.push({cur:c,orig:o}); }
+  if(!cands.length&&tooSmall>0) return {state:'party-too-large'};
+  // Priced rows but nothing saying who they seat: taking the minimum here is precisely the bug.
+  if(want&&cands.length>1&&!caps.length) return {state:'ambiguous-capacity'};
   if(!cands.length){ var br=/(RON|lei)\s*([\d.,]+)/gi;
     while((m=br.exec(t))!==null){ var v=__money(m[2]); if(v!==null&&v>0) cands.push({cur:v,orig:null}); } }
   if(!cands.length) return {state:'no-total'};

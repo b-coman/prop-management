@@ -45,6 +45,7 @@ interface BatchRow {
   url?: string;
   sessionState?: string;
   session?: import('@/services/growth/parityObservations').CaptureSession;
+  party?: { adults: number; children: number };
   ratePlan?: import('@/services/growth/parityObservations').RatePlan;
   rawExcerpt?: string;
   referenceTotal?: number;
@@ -78,7 +79,7 @@ async function runBatch(propertyId: string, file: string, capturedBy: string, dr
         channel: r.channel, status: r.status ?? 'captured',
         guestTotal: r.guestTotal ?? null, listTotal: r.listTotal ?? null,
         promoActive: r.promoActive, reason: r.reason, source: 'browser', url: r.url,
-        sessionState: r.sessionState, session: r.session, ratePlan: r.ratePlan,
+        sessionState: r.sessionState, session: r.session, ratePlan: r.ratePlan, party: r.party,
         rawExcerpt: r.rawExcerpt, referenceTotal: r.referenceTotal,
         rawCurrency: r.rawCurrency, fxRateToRon: r.fxRateToRon, fxRateSource: r.fxRateSource,
         capturedBy, capturedAt,

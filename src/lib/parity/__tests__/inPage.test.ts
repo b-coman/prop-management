@@ -42,7 +42,8 @@ const FIXTURES: Array<{ name: string; channel: Channel; text: string }> = [
   { name: 'booking live 24-27 Oct', channel: 'booking.com', text:
     `Free cancellation before 24 September 2026 | 11% Genius discount applied | 3 nights, 3 adults | Original price 2,870 lei Current price 2,443 lei | 15% off ${pad}` },
   { name: 'booking two plans, cheapest wins', channel: 'booking.com', text:
-    `3 nights, 4 adults Non-refundable Original price 2,900 lei Current price 2,410 lei Original price 2,872 lei Current price 2,181 lei ${pad}` },
+    `3 nights, 4 adults Non-refundable Max persons: 4 Original price 2,900 lei Current price 2,410 lei " +
+    "Max persons: 4 Original price 2,872 lei Current price 2,181 lei ${pad}` },
   { name: 'booking bot check', channel: 'booking.com', text:
     `Please verify you are human before continuing ${pad}` },
 ];

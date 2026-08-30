@@ -104,7 +104,7 @@ export function classifyPage(text: string): PageState {
   // whitespace would look empty and be misreported as never having loaded.
   if (!t.trim() || text.length < 200) return 'not-loaded';
   if (/(are you a robot|unusual traffic|verify you are human|captcha|security check)/.test(t)) return 'bot-check';
-  if (/(minimum stay|minimum-night stay|min\.? stay|stay of \d+ nights? or more|sejur minim)/.test(t)) return 'min-stay';
+  if (/(minimum stay|minimum-night stay|min\.? stay|stay of \d+ nights? or more|sejur minim|you need to stay \d+\+? nights?|add an extra night to your search)/.test(t)) return 'min-stay';
   if (/(no availability|not available for|sold out|dates are not available|nu este disponibil|unavailable for your dates)/.test(t)) {
     return 'no-availability';
   }
@@ -260,12 +260,35 @@ export function extractBooking(text: string, opts?: { year?: number; guests?: nu
   // earlier hand-capture hit the same trap ("lowest plan seating 4; a 1,480 plan exists but is Max
   // persons 3"). So each price pair is attributed to the nearest PRECEDING capacity marker, and rows
   // too small for the party are discarded.
+  //
+  // Booking writes that marker TWO different ways, and the difference is not cosmetic:
+  //   * adults-only search  -> "Max persons: 4"
+  //   * search WITH children -> "Max adults: 4 <br> Max children: 2"
+  // Matching only the first form meant that every capture including a child found no markers at
+  // all, skipped the filter entirely, and fell through to "cheapest pair on the page". On the live
+  // 2026-09-04 page that cheapest pair was the "Max adults: 3" row at 1,840 — recorded as the price
+  // for a family of six, against a true 2,216. It made direct look 26% dearer than Booking when it
+  // is in fact 4.6% dearer, and the same fault produced the +31% and +36% September readings. A
+  // filter that silently matches nothing is worse than no filter, so an all-or-nothing capacity
+  // read is treated as a parse failure below rather than as permission to take the minimum.
   const capAt: Array<{ at: number; max: number }> = [];
-  const capRe = /max\s*persons?:?\s*(\d{1,2})/gi;
+  const capRe = /max\s*(?:persons?|adults?)\s*:?\s*(\d{1,2})(?:[^\d]{0,20}?max\s*children\s*:?\s*(\d{1,2}))?/gi;
   for (let m = capRe.exec(t); m !== null; m = capRe.exec(t)) {
-    const v = Number(m[1]);
-    if (Number.isFinite(v)) capAt.push({ at: m.index, max: v });
+    const adults = Number(m[1]);
+    const children = m[2] === undefined ? 0 : Number(m[2]);
+    if (Number.isFinite(adults)) capAt.push({ at: m.index, max: adults + (Number.isFinite(children) ? children : 0) });
   }
+  // When the caller supplies no headcount, read the one the PAGE says was searched — Booking prints
+  // "4 adults · 2 children · 1 room". Without this the in-page copy, which has no caller to supply
+  // it, would filter while this one did not, and the two would silently disagree.
+  const statedParty = ((): number | null => {
+    const pc = t.match(/(\d{1,2})\s*adults?\s*[·,]\s*(\d{1,2})\s*(?:children|child)/i);
+    if (pc) return Number(pc[1]) + Number(pc[2]);
+    const pa = t.match(/(\d{1,2})\s*adults?/i);
+    return pa ? Number(pa[1]) : null;
+  })();
+  const wantedGuests = opts?.guests ?? statedParty;
+
   const capacityAt = (idx: number): number | null => {
     let best: number | null = null;
     for (const c of capAt) if (c.at <= idx) best = c.max;
@@ -279,14 +302,21 @@ export function extractBooking(text: string, opts?: { year?: number; guests?: nu
     const orig = parseMoney(m[1]); const cur = parseMoney(m[2]);
     if (cur === null || cur <= 0) continue;
     const cap = capacityAt(m.index);
-    if (opts?.guests && cap !== null && cap < opts.guests) { droppedTooSmall++; continue; }
+    if (wantedGuests && cap !== null && cap < wantedGuests) { droppedTooSmall++; continue; }
     candidates.push({ current: cur, original: orig, currency: 'RON' });
   }
   if (!candidates.length && droppedTooSmall > 0) {
     return {
       ok: false, excerpt,
-      reason: `every priced row is too small for ${opts!.guests} guests ` +
+      reason: `every priced row is too small for ${wantedGuests} guests ` +
               `(${droppedTooSmall} row(s) capped below it) — the channel has no offer for this party size`,
+    };
+  }
+  if (wantedGuests && candidates.length > 1 && !capAt.length) {
+    return {
+      ok: false, excerpt,
+      reason: `${candidates.length} priced rows but no capacity marker on the page — cannot tell ` +
+              `which row is for ${wantedGuests} guests, and the cheapest is usually a smaller party`,
     };
   }
   if (!candidates.length) {
