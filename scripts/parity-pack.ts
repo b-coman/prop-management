@@ -19,6 +19,7 @@ import { getParityConfig } from '@/services/channelService';
 import { buildWorklist, computeCoverage, outstandingCells } from '@/lib/growth/parityWorklist';
 import { latestByCell, recordObservation } from '@/services/growth/parityObservations';
 import { cellId } from '@/lib/growth/parityWorklist';
+import { partiesFor, partySize, partyLabel } from '@/lib/parity/party';
 
 const SLUG = process.argv[2]?.startsWith('--') ? 'prahova-mountain-chalet' : (process.argv[2] ?? 'prahova-mountain-chalet');
 const AS_JSON = process.argv.includes('--json');
@@ -188,21 +189,26 @@ async function quoteDirect(propertyId: string, checkIn: string, checkOut: string
     }
   };
   /**
-   * Occupancies to compare at. NOT simply [base, maxGuests]: a comparison is only meaningful at a
-   * headcount every channel actually offers. This property's doc says maxGuests 7 while the Airbnb
-   * listing advertises 6 — probing 7 asks for a quote Airbnb will never give, so the pair would be
-   * incomparable. Configure `channelPricing.compareOccupancies`, or pass --guests 3,6.
+   * The parties to compare at — a SHAPE, not a headcount.
+   *
+   * A comparison is only meaningful for a party every channel will actually quote, and the three
+   * sides price children differently: the direct engine counts heads and charges `extraGuestFee` per
+   * head above `baseOccupancy`, Airbnb takes a separate `children` parameter, Booking prices by child
+   * AGE. Deriving "6 guests" into 6 adults asked the platforms for a party this property cannot host
+   * (its cap is 5 adults + 2 children) and put 38 wrong prices in the store before it was caught.
+   *
+   * The owner's mix, stated 2026-08-30: 2 adults + 1 child · 4 adults · 4 adults + 2 children.
    */
-  const compareOccupancies: number[] = (GUESTS_ARG ?? configured?.compareOccupancies ?? [baseOccupancy, maxGuests])
+  const mix = partiesFor(configured);
+  const compareOccupancies: number[] = (GUESTS_ARG ?? mix.parties.map(partySize))
     .filter((n: number) => n >= 1)
     .sort((a: number, b: number) => a - b);
   const occupancyNote = GUESTS_ARG
-    ? 'from --guests'
-    : configured?.compareOccupancies
-      ? 'from property.channelPricing.compareOccupancies'
-      : `DERIVED [baseOccupancy, maxGuests] — check this matches what the OTA listings actually offer`;
-  /** Peaks and flat-rate windows get BOTH ends — the gap can differ by 12+ points. */
-  const occupancies = (both: boolean) => (both ? compareOccupancies : [compareOccupancies[0]]);
+    ? 'from --guests (headcounts only — the adult/child split is guessed)'
+    : `${mix.parties.map(partyLabel).join(' · ')} (${mix.source})`;
+  if (mix.warning) console.error(`!! ${mix.warning}`);
+  /** Peaks and flat-rate windows get EVERY shape — the gap can differ by 12+ points across them. */
+  const occupancies = (all: boolean) => (all ? compareOccupancies : [compareOccupancies[0]]);
 
   // ---- 1. Special periods, read from the `holidays` collection. ----
   // NOT computed. Romania uses Orthodox (Julian) Easter and the school calendar is set by ministerial

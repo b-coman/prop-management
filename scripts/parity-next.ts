@@ -33,6 +33,8 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 import { getParityConfig } from '@/services/channelService';
+import { getAdminDb } from '@/lib/firebaseAdminSafe';
+import { partiesFor, partySize, partyLabel, partyForGuests, buildCaptureUrl, type Party } from '@/lib/parity/party';
 import { latestByCell } from '@/services/growth/parityObservations';
 import { buildWorklist, computeCoverage, outstandingCells, type ProbeInput } from '@/lib/growth/parityWorklist';
 
@@ -53,56 +55,12 @@ const FRESH_DAYS = Number(arg('fresh-days', '42'));
  * The URL templates. These are the ONLY place a probe becomes a web address, which is the point:
  * one definition, tested by use, instead of a hundred hand-built strings.
  */
-/**
- * The property's real limit is 5 ADULTS plus 2 children (7 people), not 7 adults — the owner stated
- * it and his Booking listing says "5 adults, 4 children (max 7 guests)".
- *
- * This mattered more than it sounds. Every probe above 5 was being sent as `adults=N`, so the OTAs
- * were quoted a party he cannot host: Booking refused (correctly, and I filed those refusals as
- * "Booking has no offer for 6 adults", which read like a gap in his listing and was nothing of the
- * sort), while Airbnb answered for 6 adults and the number went into the store as if it were his
- * price. 38 forward observations were priced this way.
- *
- * So a headcount above the adult cap is split: the first 5 are adults, the rest are children. That is
- * the same party the direct engine quotes for `guests: N`, which is what makes the totals comparable.
- */
-const MAX_ADULTS = 5;
-const CHILD_AGE = 10;   // Booking requires an age per child; 10 is inside the "child" band everywhere
-
-export function splitParty(guests: number): { adults: number; children: number } {
-  const adults = Math.min(guests, MAX_ADULTS);
-  return { adults, children: Math.max(0, guests - adults) };
-}
-
-export function buildCaptureUrl(
-  channel: string,
-  listingUrl: string | undefined,
-  p: { checkIn: string; checkOut: string; guests: number },
-): string | null {
-  if (!listingUrl) return null;
-  const { adults, children } = splitParty(p.guests);
-  if (channel === 'airbnb') {
-    const id = listingUrl.match(/\/rooms\/(\d+)/)?.[1];
-    if (!id) return null;
-    return `https://www.airbnb.com/rooms/${id}?check_in=${p.checkIn}&check_out=${p.checkOut}` +
-           `&adults=${adults}${children ? `&children=${children}` : ''}`;
-  }
-  if (channel === 'booking.com') {
-    const base = listingUrl.split('?')[0];
-    const ages = Array.from({ length: children }, () => `&age=${CHILD_AGE}`).join('');
-    return `${base}?checkin=${p.checkIn}&checkout=${p.checkOut}&group_adults=${adults}` +
-           `&group_children=${children}${ages}&no_rooms=1&selected_currency=RON`;
-  }
-  if (channel === 'vrbo') {
-    const base = listingUrl.split('?')[0];
-    return `${base}?arrival=${p.checkIn}&departure=${p.checkOut}&adults=${adults}` +
-           `${children ? `&children=${children}` : ''}`;
-  }
-  return null;
-}
-
 (async () => {
   const { channels, listingUrls } = await getParityConfig(SLUG);
+  const db = await getAdminDb();
+  const prop = (await db.collection('properties').doc(SLUG).get()).data() as
+    { channelPricing?: { compareParties?: Party[]; compareOccupancies?: number[] } } | undefined;
+  const mix = partiesFor(prop?.channelPricing);
   const observed = [...(await latestByCell(SLUG)).values()];
   if (!observed.length) {
     console.error(`No observations for ${SLUG}. Run parity-pack.ts first — it seeds the direct cells.`);
@@ -159,7 +117,10 @@ export function buildCaptureUrl(
     return {
       cellId: c.cellId, channel: c.channel, checkIn: c.checkIn, checkOut: c.checkOut,
       nights: probe.nights, guests: c.guests, priority: c.priority,
-      url: buildCaptureUrl(c.channel, listingUrls[c.channel], c),
+      // The stored cell knows only a headcount, so recover the shape from the configured mix.
+      url: buildCaptureUrl(c.channel, listingUrls[c.channel], {
+        checkIn: c.checkIn, checkOut: c.checkOut, party: partyForGuests(mix.parties, c.guests),
+      }),
     };
   }).filter((r) => {
     if (!r.url && !AS_JSON) console.error(`! no listing URL configured for ${r.channel} — skipping ${r.cellId}`);
@@ -179,6 +140,8 @@ export function buildCaptureUrl(
   }
 
   console.log(`\nOUTSTANDING CAPTURES — ${SLUG}`);
+  console.log(`party mix: ${mix.parties.map(partyLabel).join(' · ')}   (${mix.source})`);
+  if (mix.warning) console.log(`  !! ${mix.warning}`);
   console.log(`${rows.length} cell(s) owed${LIMIT ? `, showing ${limited.length}` : ''}` +
               `${INCLUDE_VRBO ? '' : '   (vrbo excluded — pass --include-vrbo)'}`);
   console.log(`coverage: ${coverage.captured} captured · ${coverage.missing} missing · ` +
@@ -195,7 +158,9 @@ export function buildCaptureUrl(
       const out = new Date(Date.parse(e.checkIn) + e.nights * 86_400_000).toISOString().slice(0, 10);
       console.log(`   ${e.from}  ->  ${e.checkIn}→${out} (${e.nights}n, ${e.guests}g)   [${e.why}]`);
       for (const ch of names.filter((c) => c !== 'direct')) {
-        console.log(`      ${ch.padEnd(12)} ${buildCaptureUrl(ch, listingUrls[ch], { checkIn: e.checkIn, checkOut: out, guests: e.guests })}`);
+        console.log(`      ${ch.padEnd(12)} ${buildCaptureUrl(ch, listingUrls[ch], {
+          checkIn: e.checkIn, checkOut: out, party: partyForGuests(mix.parties, e.guests),
+        })}`);
       }
     }
   }
