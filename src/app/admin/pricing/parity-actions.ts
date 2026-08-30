@@ -13,6 +13,7 @@ import { loggers } from '@/lib/logger';
 import { requirePropertyAccess, AuthorizationError } from '@/lib/authorization';
 import { getParityConfig } from '@/services/channelService';
 import { latestByCell } from '@/services/growth/parityObservations';
+import { partiesFor, partyForGuests } from '@/lib/parity/party';
 import { buildParityWindow, summarise } from '@/lib/parity/parityView';
 import { buildPeriodPositions, summarisePosition } from '@/lib/parity/pricingPosition';
 import type { DayFact, WindowFact, PeriodInput } from '@/lib/parity/pricingPosition';
@@ -41,6 +42,10 @@ export async function fetchParityView(propertyId: string, opts?: { includeVrbo?:
     // because a parity verdict computed against a guessed rate looks authoritative and is wrong in a
     // direction the reader cannot see.
     const cfg = await getParityConfig(propertyId);
+    // The mix decides what a headcount MEANS. A stored row measured under a different mix is a
+    // different product, and parityView sets it aside rather than averaging it in.
+    const propDoc = await (await getAdminDb()).collection('properties').doc(propertyId).get();
+    const mix = partiesFor((propDoc.data() as { channelPricing?: unknown } | undefined)?.channelPricing);
     const observed = [...(await latestByCell(propertyId)).values()];
 
     const today = new Date().toISOString().slice(0, 10);
@@ -50,7 +55,8 @@ export async function fetchParityView(propertyId: string, opts?: { includeVrbo?:
       if (o.checkOut < today) continue;
       const key = `${o.checkIn}|${o.checkOut}|${o.guests}`;
       if (!byWindow.has(key)) {
-        byWindow.set(key, { checkIn: o.checkIn, checkOut: o.checkOut, nights: o.nights, guests: o.guests, observations: [] });
+        byWindow.set(key, { checkIn: o.checkIn, checkOut: o.checkOut, nights: o.nights, guests: o.guests,
+          expectedParty: partyForGuests(mix.parties, o.guests), observations: [] });
       }
       const lite: ParityObservationLite = {
         channel: o.channel, status: o.status, guestTotal: o.guestTotal ?? null,

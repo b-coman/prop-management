@@ -34,6 +34,8 @@ export const STANDING_DISCOUNT_BAND: Record<string, [number, number]> = { airbnb
 
 export interface ParityObservationLite {
   channel: string;
+  /** The party shape this price was quoted for. Absent on rows captured before the field existed. */
+  party?: { adults: number; children: number };
   status: 'captured' | 'refused' | 'unavailable' | 'error';
   guestTotal: number | null;
   listTotal?: number | null;
@@ -49,6 +51,8 @@ export interface ParityWindowInput {
   checkOut: string;
   nights: number;
   guests: number;
+  /** The shape the CURRENT mix says this headcount means. Readings of another shape are not this price. */
+  expectedParty?: { adults: number; children: number };
   observations: ParityObservationLite[];
 }
 
@@ -123,6 +127,22 @@ export function buildParityWindow(w: ParityWindowInput, opts: ParityViewOptions)
     }
     const ageDays = daysBetween(now, new Date(o.capturedAt));
     const stale = ageDays > freshnessDays;
+
+    // A price for a DIFFERENT party is not a stale price, it is a different product. "3 guests" meant
+    // 3 adults until 2026-08-30 and means 2 adults + 1 child after it; comparing them would mix two
+    // products under one heading. A row whose shape is unknown or does not match is set aside with a
+    // reason rather than quietly averaged in.
+    const want = w.expectedParty;
+    const got = o.party;
+    const shapeMismatch = Boolean(want && (!got || got.adults !== want.adults || got.children !== want.children));
+    if (shapeMismatch) {
+      const label = got ? `${got.adults}a+${got.children}c` : 'shape not recorded';
+      cells.push({ channel: ch, status: 'error', captured: null, effective: null, listTotal: null,
+        promoActive: false, ratePlan: o.ratePlan ?? 'unknown',
+        reason: `priced for ${label}, but this headcount now means ${want!.adults}a+${want!.children}c — a different product`,
+        ageDays, stale: true, corrected: false });
+      continue;
+    }
     const discount = STANDING_GUEST_DISCOUNT[ch] ?? 0;
     const captured = o.status === 'captured' ? o.guestTotal : null;
     const effective = captured !== null ? Math.round(captured * (1 - discount)) : null;

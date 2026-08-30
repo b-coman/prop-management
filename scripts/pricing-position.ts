@@ -15,6 +15,7 @@ import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { getPeriods } from '@/services/periodService';
 import { getParityConfig } from '@/services/channelService';
 import { latestByCell } from '@/services/growth/parityObservations';
+import { partiesFor, partyForGuests } from '@/lib/parity/party';
 import { buildParityWindow } from '@/lib/parity/parityView';
 import { buildPeriodPositions, summarisePosition } from '@/lib/parity/pricingPosition';
 import type { DayFact, WindowFact } from '@/lib/parity/pricingPosition';
@@ -25,16 +26,23 @@ const n = (v: number) => Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/
 (async () => {
   const today = new Date().toISOString().slice(0, 10);
   const cfg = await getParityConfig(SLUG);
+    // The mix decides what a headcount MEANS. A stored row measured under a different mix is a
+    // different product, and parityView sets it aside rather than averaging it in.
+    const propDoc = await (await getAdminDb()).collection('properties').doc(SLUG).get();
+    const mix = partiesFor((propDoc.data() as { channelPricing?: unknown } | undefined)?.channelPricing);
   const obs = [...(await latestByCell(SLUG)).values()];
 
-  const byWindow = new Map<string, { checkIn: string; checkOut: string; nights: number; guests: number; observations: unknown[] }>();
+  const byWindow = new Map<string, { checkIn: string; checkOut: string; nights: number; guests: number;
+    expectedParty: { adults: number; children: number }; observations: unknown[] }>();
   for (const o of obs) {
     if (o.checkOut < today) continue;
     const k = `${o.checkIn}|${o.checkOut}|${o.guests}`;
-    if (!byWindow.has(k)) byWindow.set(k, { checkIn: o.checkIn, checkOut: o.checkOut, nights: o.nights, guests: o.guests, observations: [] });
+    if (!byWindow.has(k)) byWindow.set(k, { checkIn: o.checkIn, checkOut: o.checkOut, nights: o.nights,
+      guests: o.guests, expectedParty: partyForGuests(mix.parties, o.guests), observations: [] });
     byWindow.get(k)!.observations.push({
       channel: o.channel, status: o.status, guestTotal: o.guestTotal ?? null, listTotal: o.listTotal ?? null,
       promoActive: o.promoActive, ratePlan: (o as { ratePlan?: string }).ratePlan, reason: o.reason, capturedAt: o.capturedAt,
+      party: (o as { party?: { adults: number; children: number } }).party,
     });
   }
   const inScope = ['direct', ...cfg.channels.map((c) => c.channel)].filter((c) => c !== 'vrbo');

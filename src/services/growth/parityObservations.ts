@@ -65,6 +65,16 @@ export interface ObservationRecord extends Observation {
    */
   subject?: ObservationSubject;
   /**
+   * The SHAPE of the party this price was quoted for, not just its size.
+   *
+   * `guests` alone is ambiguous and the ambiguity has already cost real accuracy: 3 guests meant
+   * 3 adults until 2026-08-30 and means 2 adults + 1 child after it, which is a different product at
+   * a different price. Without this field the two are indistinguishable in the store and a comparison
+   * silently mixes them. Absent on rows captured before the field existed — those are shape-unknown,
+   * which is why `parityView` excludes them once a mix states an explicit shape.
+   */
+  party?: { adults: number; children: number };
+  /**
    * The page text the figures were read from, trimmed. Parsers rot when a site re-renders, and without
    * the source a bad parse is undetectable and unfixable — the numbers look plausible and nothing can
    * re-derive them. Kept short; the full text goes to `channelPriceImports`.
@@ -106,6 +116,8 @@ export interface RecordObservationInput {
   ratePlan?: RatePlan;
   /** Whose listing. Defaults to `{ kind: 'self' }`. */
   subject?: ObservationSubject;
+  /** The party shape quoted for — see ObservationRecord.party. */
+  party?: { adults: number; children: number };
   /** A trimmed slice of the page text the numbers came from. */
   rawExcerpt?: string;
   /**
@@ -222,6 +234,7 @@ export async function recordObservation(input: RecordObservationInput): Promise<
     subject: input.subject ?? { kind: 'self' },
     ...(input.session ? { session: input.session } : {}),
     ...(input.ratePlan ? { ratePlan: input.ratePlan } : {}),
+    ...(input.party ? { party: input.party } : {}),
     ...(input.rawExcerpt ? { rawExcerpt: input.rawExcerpt.slice(0, 2000) } : {}),
     ...(input.reason ? { reason: input.reason } : {}),
     source: input.source,
