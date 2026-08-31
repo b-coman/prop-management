@@ -27,7 +27,8 @@
  */
 import type { PeriodPosition, PeriodVerdict } from '@/lib/parity/pricingPosition';
 import {
-  solveWeekdayNightlyForStayTotal, suggestLever, stayTotal, nightlyChargeProjected, lengthOfStayDiscountPct,
+  solveWeekdayNightlyForStayTotal, solveFlatPriceForWorstGap, spreadAt, suggestLever,
+  stayTotal, nightlyChargeProjected, lengthOfStayDiscountPct,
   type NightFact, type StayEconomics, type PeriodProposal,
 } from './priceProjection';
 import type { Tier, TierMultipliers } from './periods';
@@ -56,6 +57,14 @@ export interface Recommendation {
   floorWeekday?: number | null;
   /** The one stay that sets that limit. Naming it beats asserting a reason for it. */
   bindingStay?: BindingStay | null;
+  /** A hand-set price is flat, so the weekend moves too - and by more. Never leave that implicit. */
+  currentWeekend?: number | null;
+  projectedWeekend?: number | null;
+  /** Where the measured stays land at the proposed price. One rate cannot put them all in one place. */
+  staysMeasured?: number;
+  worstGapAfter?: number | null;
+  deepestGapAfter?: number | null;
+  belowFloorAfter?: number;
   /** The weekday nightly price that would put this period where it should be. */
   wantedWeekday: number;
   currentWeekday: number | null;
@@ -135,12 +144,16 @@ export function findCoverageGaps(
  */
 export function buildRecommendation(
   p: PeriodPosition & { flatRate: boolean },
-  periodWindows: Array<{ checkIn: string; checkOut: string; guests: number; floor: number | null }>,
+  periodWindows: Array<{ checkIn: string; checkOut: string; guests: number;
+                        floor: number | null; bestPrice: number | null }>,
   nightsByWindow: Map<string, NightFact[]>,
   opts: {
     basePrice: number; weekendAdjustment: number; tierMultipliers: TierMultipliers; econ: StayEconomics;
+    /** How far under the cheapest platform every stay should sit. 0.10 = 10%. */
+    targetDiscountPct: number;
   },
 ): Recommendation | null {
+  const targetDiscountPct = opts.targetDiscountPct;
   const w = p.worstWindow;
 
   if (p.verdict === 'unmeasured') {
@@ -149,6 +162,8 @@ export function buildRecommendation(
       valueAtRisk: p.valueAtRisk, verdict: p.verdict,
       headline: `${p.openNights} nights open and never compared against Airbnb or Booking. You do not know if you are the cheapest place to book these dates.`,
       conflictsWithFloor: false, floorWeekday: null, bindingStay: null,
+      currentWeekend: p.weekendPrice, projectedWeekend: p.weekendPrice,
+      staysMeasured: 0, worstGapAfter: null, deepestGapAfter: null, belowFloorAfter: 0,
       wantedWeekday: p.weekdayPrice ?? 0, currentWeekday: p.weekdayPrice,
       lever: { kind: 'fixed', weekday: Math.round(p.weekdayPrice ?? 0) },
       evidence: null,
@@ -158,44 +173,49 @@ export function buildRecommendation(
   if ((p.verdict !== 'losing' && p.verdict !== 'level' && p.verdict !== 'overshoot') || !w) return null;
   if (!w.targetPrice || !w.direct || !w.bestChannel || !w.bestPrice) return null;
 
-  const nightsForWorst = nightsByWindow.get(`${w.checkIn}|${w.checkOut}|${w.guests}`) ?? [];
-
   /**
-   * Solve the price the SAME WAY the lever will apply it, or the two disagree and the answer is wrong.
+   * Solve against the WHOLE SET of stays this period controls, not the single worst one today.
    *
-   * The first version solved assuming the weekend uplift survives (a tier multiplies weekday and
-   * weekend alike) and then, when no tier could express the result, handed back a hand-set price —
-   * which compiles to a date override and is FLAT. So the solve assumed Fridays at 1.3x while the
-   * lever charged them the weekday rate, and four measured stays landed below their floor while the
-   * screen claimed to respect it. `weekendAdjustment: 1` models flat nights, which is what a hand-set
-   * price actually does, so each candidate lever is solved under its own semantics.
+   * The ranking moves as the price moves: every stay carries a different length-of-stay discount, a
+   * different extra-guest fee and a different OTA price, so the gaps close at different speeds. Fixing
+   * only the stay that is worst right now recommended 413 for Fall, which put that one stay at -10%
+   * and left the new worst stay at -0.7% - it did not achieve the thing it was recommending. "At
+   * least 10% under on every measured stay" is a property of the set and needs 349.
+   *
+   * Solved under the semantics of the lever that will apply it: a tier keeps the weekend uplift, a
+   * hand-set price is flat.
    */
+  const stays = periodWindows
+    .map((pw) => ({
+      nights: nightsByWindow.get(`${pw.checkIn}|${pw.checkOut}|${pw.guests}`) ?? [],
+      guests: pw.guests,
+      bestPrice: pw.bestPrice ?? 0,
+      floor: pw.floor,
+      checkIn: pw.checkIn, checkOut: pw.checkOut,
+    }))
+    .filter((x) => x.nights.length > 0 && x.bestPrice > 0);
+  if (!stays.length) return null;
+
   const solveUnder = (weekendAdjustment: number) => {
-    const atTarget = solveWeekdayNightlyForStayTotal(
-      w.targetPrice!, nightsForWorst, w.guests, { flatRate: p.flatRate },
-      { weekendAdjustment, econ: opts.econ },
+    const atTarget = solveFlatPriceForWorstGap(
+      -targetDiscountPct, stays, { flatRate: p.flatRate }, { weekendAdjustment, econ: opts.econ },
     );
-    // The highest floor across EVERY measured window in the period. Fixing only the worst stay
-    // over-corrects the rest, so the floor is checked against all of them.
+    // The highest floor across every stay: below this at least one earns less than the OTA booking.
     let floorNightly = 0;
     let floorsChecked = 0;
     let binding: BindingStay | null = null;
-    for (const pw of periodWindows) {
-      if (pw.floor === null) continue;
-      const nights = nightsByWindow.get(`${pw.checkIn}|${pw.checkOut}|${pw.guests}`) ?? [];
-      if (!nights.length) continue;
+    for (const st of stays) {
+      if (st.floor === null) continue;
       const atFloor = solveWeekdayNightlyForStayTotal(
-        pw.floor, nights, pw.guests, { flatRate: p.flatRate },
-        { weekendAdjustment, econ: opts.econ },
+        st.floor, st.nights, st.guests, { flatRate: p.flatRate }, { weekendAdjustment, econ: opts.econ },
       );
       if (atFloor === null) continue;
       floorsChecked++;
       if (atFloor > floorNightly) {
         floorNightly = atFloor;
-        // Which stay actually sets the limit, so the screen can name it instead of asserting a cause.
         binding = {
-          checkIn: pw.checkIn, checkOut: pw.checkOut, nights: nights.length, guests: pw.guests,
-          discountPct: lengthOfStayDiscountPct(nights.length, opts.econ.lengthOfStayDiscounts),
+          checkIn: st.checkIn, checkOut: st.checkOut, nights: st.nights.length, guests: st.guests,
+          discountPct: lengthOfStayDiscountPct(st.nights.length, opts.econ.lengthOfStayDiscounts),
         };
       }
     }
@@ -214,22 +234,21 @@ export function buildRecommendation(
   const wanted = solved.atTarget;
   const floorWeekday = solved.floorNightly;
   const bindingStay = solved.binding;
+  const weekendAdj = tierLever.kind === 'tier' ? opts.weekendAdjustment : 1;
 
-  /**
-   * The two rules can genuinely conflict, and when they do the screen must NOT quietly pick one.
-   *
-   * An earlier version clamped the recommendation up to the floor. On Fall that turned a real answer
-   * (473 -> 375, his stated 10% rule) into a 5-lei cut that left him still dearer than Airbnb on most
-   * stays: the clamp silently chose "protect the margin" over "win the booking" and then presented the
-   * result as the recommendation. Where the target sits BELOW the floor, the platforms in that period
-   * are priced low enough that he cannot be 10% cheaper and still be better off taking the booking
-   * himself. That is a business decision with two defensible answers, so both prices are carried and
-   * the conflict is stated.
-   */
+  // Where every measured stay actually lands at the proposed price. The spread IS the answer: one
+  // nightly rate cannot put every stay shape at the same discount, and pretending otherwise is how
+  // the last version shipped a number that missed its own target.
+  const spread = spreadAt(wanted, stays, { flatRate: p.flatRate },
+    { weekendAdjustment: weekendAdj, econ: opts.econ });
+
   const conflictsWithFloor = floorWeekday !== null && floorWeekday > wanted + 0.005;
   const lever: Recommendation['lever'] = tierLever.kind === 'tier'
     ? tierLever
     : { kind: 'fixed', weekday: Math.round(wanted) };
+  const projectedWeekend = tierLever.kind === 'tier'
+    ? Math.round(wanted * opts.weekendAdjustment)
+    : Math.round(wanted);
 
   const headline =
     p.verdict === 'overshoot'
@@ -245,6 +264,12 @@ export function buildRecommendation(
     conflictsWithFloor,
     floorWeekday,
     bindingStay,
+    currentWeekend: p.weekendPrice,
+    projectedWeekend,
+    staysMeasured: spread.gaps.length,
+    worstGapAfter: spread.worst,
+    deepestGapAfter: spread.deepest,
+    belowFloorAfter: spread.belowFloor,
     wantedWeekday: wanted,
     currentWeekday: p.weekdayPrice,
     lever,

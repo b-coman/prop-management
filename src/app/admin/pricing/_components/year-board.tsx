@@ -42,6 +42,8 @@ export interface BoardRecommendation {
   valueAtRisk: number; verdict: string; headline: string;
   conflictsWithFloor?: boolean; floorWeekday?: number | null;
   bindingStay?: { checkIn: string; checkOut: string; nights: number; guests: number; discountPct: number } | null;
+  currentWeekend?: number | null; projectedWeekend?: number | null;
+  staysMeasured?: number; worstGapAfter?: number | null; deepestGapAfter?: number | null; belowFloorAfter?: number;
   wantedWeekday: number; currentWeekday: number | null;
   lever: { kind: 'tier'; tier: string; weekday: number } | { kind: 'fixed'; weekday: number };
   evidence: { checkIn: string; checkOut: string; nights: number; guests: number;
@@ -235,6 +237,22 @@ function Money({ data }: { data: YearBoardData }) {
   );
 }
 
+/** A negative gap means cheaper than the platform, which is the direction that wins bookings. */
+const fmtPct = (n: number | null | undefined) =>
+  n === null || n === undefined ? '-' : `${n > 0 ? '+' : ''}${(n * 100).toFixed(0)}%`;
+
+function PriceMove({ label, from, to }: { label: string; from: number | null; to: number }) {
+  const moved = from !== null && Math.abs(from - to) >= 0.5;
+  return (
+    <div className="flex items-baseline gap-2 tabular-nums">
+      {moved && <span className="text-muted-foreground line-through">{lei(from)}</span>}
+      {moved && <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+      <span className="font-semibold">{lei(to)}</span>
+      <span className="text-xs font-normal text-muted-foreground">per {label} night</span>
+    </div>
+  );
+}
+
 function RecommendationCard({ rank, p, currency, onFix }: {
   rank: number; p: BoardPeriodRow; currency: string; onFix: () => void;
 }) {
@@ -262,32 +280,55 @@ function RecommendationCard({ rank, p, currency, onFix }: {
 
         {canPrice && (
           <div className="rounded-md border bg-slate-50 p-2.5 text-sm">
-            <div className="flex items-center gap-2 tabular-nums">
-              <span className="text-muted-foreground line-through">{lei(r.currentWeekday)}</span>
-              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="font-semibold">{lei(r.lever.weekday)}</span>
-              <span className="text-xs text-muted-foreground">per weekday night</span>
+            {/*
+              BOTH nights, always. The first version printed only the weekday number, so a hand-set
+              price that also took the weekend from 614 to 413 looked like a 60-lei change. The
+              weekend is the bigger move and it was invisible until you opened the editor.
+            */}
+            <div className="space-y-1">
+              <PriceMove label="weekday" from={r.currentWeekday} to={r.lever.weekday} />
+              {r.projectedWeekend != null && (
+                <PriceMove label="weekend" from={r.currentWeekend ?? null} to={r.projectedWeekend} />
+              )}
             </div>
-            <div className="mt-1 text-xs text-muted-foreground">
+            <div className="mt-1.5 text-xs text-muted-foreground">
               {r.lever.kind === 'tier'
                 ? `by moving this period to the "${r.lever.tier}" tier`
-                : 'no tier reaches this, so it would be one price you set for every night'}
+                : 'no tier reaches this, so it would be one price you set for every night, weekends included'}
             </div>
+
+            {/*
+              One nightly rate cannot put every stay at the same discount: each stay carries its own
+              length-of-stay discount, extra-guest fee and platform price. Showing the spread is the
+              honest answer, and it is what makes the floor count meaningful.
+            */}
+            {r.staysMeasured ? (
+              <div className="mt-2 border-t pt-2 text-xs text-slate-600">
+                Across the {r.staysMeasured} stays measured here, this would put you between{' '}
+                <strong>{fmtPct(r.worstGapAfter)}</strong> and <strong>{fmtPct(r.deepestGapAfter)}</strong>{' '}
+                against the cheapest platform.
+                {r.belowFloorAfter ? (
+                  <span className="text-amber-800">
+                    {' '}On {r.belowFloorAfter} of them you would keep less than if the platform had
+                    taken the booking.
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+
             {r.conflictsWithFloor && r.floorWeekday != null && (
               <div className="mt-2 border-t pt-2 text-xs text-amber-800">
-                Undercutting the platforms by your usual margin means{' '}
-                <strong>{lei(r.lever.weekday)}</strong> a night. But at anything under{' '}
-                <strong>{lei(r.floorWeekday)}</strong> at least one stay earns you less than letting
-                the platform take it
+                Being under the platforms everywhere needs <strong>{lei(r.lever.weekday)}</strong> a
+                night. Never earning less than the platform would pay you needs at least{' '}
+                <strong>{lei(r.floorWeekday)}</strong>
                 {r.bindingStay && (
                   <>
-                    {' '}&mdash; the one that decides it is{' '}
-                    <strong>{shortDate(r.bindingStay.checkIn)} to {shortDate(r.bindingStay.checkOut)}</strong>,{' '}
+                    , because of {shortDate(r.bindingStay.checkIn)} to {shortDate(r.bindingStay.checkOut)},{' '}
                     {r.bindingStay.nights} nights for {r.bindingStay.guests}
                     {r.bindingStay.discountPct > 0 &&
                       `, where your ${Math.round(r.bindingStay.discountPct * 100)}% long-stay discount comes off on top`}
                   </>
-                )}. Which matters more is your call.
+                )}. Both cannot be true. Which matters more is your call.
               </div>
             )}
           </div>

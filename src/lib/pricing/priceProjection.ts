@@ -296,6 +296,84 @@ export function solveWeekdayNightlyForStayTotal(
 }
 
 /**
+ * The nightly price at which the WORST measured stay in a period reaches a wanted discount.
+ *
+ * THE BUG THIS REPLACES. The first version solved one stay in isolation: it took the window with
+ * today's biggest gap and found the price that put THAT stay 10% under its cheapest platform. But the
+ * ranking is not fixed - it moves as the price moves. Every stay has its own length-of-stay discount,
+ * its own extra-guest fee and its own OTA price, so lowering the nightly rate closes the gaps at
+ * different speeds and a different stay ends up worst. On Fall it recommended 413, which put the stay
+ * it was solving for at -10% and left the new worst stay at -0.7%: a recommendation that did not
+ * achieve the thing it was recommended for. Reaching "at least 10% under on every stay" needs 349.
+ *
+ * So the target is a property of the SET, not of one member. `worstGap` is monotonic in price (every
+ * stay total rises with the nightly rate), so one bisection over the whole set finds it exactly.
+ *
+ * Returns null when no price in range achieves it, which is a real answer and must not be faked.
+ */
+export function solveFlatPriceForWorstGap(
+  targetGapPct: number,
+  stays: Array<{ nights: NightFact[]; guests: number; bestPrice: number }>,
+  proposal: { flatRate: boolean },
+  opts: { weekendAdjustment: number; econ: StayEconomics },
+  bounds: { lo?: number; hi?: number } = {},
+): number | null {
+  const usable = stays.filter((s) => s.nights.length > 0 && s.bestPrice > 0);
+  if (!usable.length) return null;
+
+  const UNIT: TierMultipliers = { min: 1, low: 1, base: 1, medium: 1, high: 1, max: 1 };
+  const worstGapAt = (weekday: number) => Math.max(...usable.map((s) => {
+    const total = stayTotal(
+      s.nights.map((n) => nightlyChargeProjected(n, s.guests,
+        { tier: 'base', fixedNightPrice: null, minStay: null, flatRate: proposal.flatRate },
+        { basePrice: weekday, weekendAdjustment: opts.weekendAdjustment, tierMultipliers: UNIT, econ: opts.econ })),
+      opts.econ,
+    );
+    return (total - s.bestPrice) / s.bestPrice;
+  }));
+
+  let lo = bounds.lo ?? 1;
+  let hi = bounds.hi ?? 100000;
+  if (worstGapAt(lo) > targetGapPct || worstGapAt(hi) < targetGapPct) return null;
+  for (let i = 0; i < 60 && hi - lo > 0.005; i++) {
+    const mid = (lo + hi) / 2;
+    if (worstGapAt(mid) < targetGapPct) lo = mid; else hi = mid;
+  }
+  return round2((lo + hi) / 2);
+}
+
+/** Where every measured stay lands at a given nightly price. The spread is the answer, not one number. */
+export function spreadAt(
+  weekday: number,
+  stays: Array<{ nights: NightFact[]; guests: number; bestPrice: number; floor: number | null }>,
+  proposal: { flatRate: boolean },
+  opts: { weekendAdjustment: number; econ: StayEconomics },
+): { gaps: number[]; worst: number | null; deepest: number | null; dearer: number; belowFloor: number } {
+  const UNIT: TierMultipliers = { min: 1, low: 1, base: 1, medium: 1, high: 1, max: 1 };
+  const gaps: number[] = [];
+  let belowFloor = 0;
+  for (const s of stays) {
+    if (!s.nights.length || !s.bestPrice) continue;
+    const total = stayTotal(
+      s.nights.map((n) => nightlyChargeProjected(n, s.guests,
+        { tier: 'base', fixedNightPrice: null, minStay: null, flatRate: proposal.flatRate },
+        { basePrice: weekday, weekendAdjustment: opts.weekendAdjustment, tierMultipliers: UNIT, econ: opts.econ })),
+      opts.econ,
+    );
+    gaps.push((total - s.bestPrice) / s.bestPrice);
+    if (s.floor !== null && total < s.floor) belowFloor++;
+  }
+  gaps.sort((a, b) => b - a);
+  return {
+    gaps,
+    worst: gaps.length ? gaps[0] : null,
+    deepest: gaps.length ? gaps[gaps.length - 1] : null,
+    dearer: gaps.filter((g) => g > 0).length,
+    belowFloor,
+  };
+}
+
+/**
  * The cheapest lever that reaches a wanted nightly price.
  *
  * The tier ladder is coarse (0.8 to 1.3 of base), so it often cannot express the price parity asks

@@ -8,7 +8,8 @@
  */
 import {
   stayTotal, lengthOfStayDiscountPct, isFlatRate, projectNightlyPrice,
-  nightlyChargeToday, solveWeekdayNightlyForStayTotal, suggestLever,
+  nightlyChargeToday, solveWeekdayNightlyForStayTotal, solveFlatPriceForWorstGap, spreadAt,
+  suggestLever,
   type StayEconomics, type NightFact,
 } from '../priceProjection';
 import { DEFAULT_TIER_MULTIPLIERS } from '../periods';
@@ -132,5 +133,55 @@ describe('suggestLever', () => {
     // suggestLever about the TIER-semantics price and not the flat one it eventually proposes:
     // the two are different questions and 413 would wrongly look reachable.
     expect(suggestLever(413, opts)).toEqual({ kind: 'tier', tier: 'min', weekday: 420 });
+  });
+});
+
+describe('solveFlatPriceForWorstGap', () => {
+  /**
+   * The regression this exists for. Two stays with different length-of-stay discounts close their
+   * gaps at different speeds, so the one that is worst today is not the one that is worst after the
+   * change. Solving the first in isolation is what produced a "10% under" price that left the real
+   * worst stay at -0.7%.
+   */
+  // Both real, both inside Fall, both 3 guests. The 2-night stay gets no length-of-stay discount and
+  // still carries the whole 200 cleaning fee, so its gap closes SLOWLY; the 6-night stay has 15% off
+  // on top, so its gap closes fast. That difference is what makes the ranking flip.
+  //   22-24 Sep, 2n: direct 1145, airbnb 1060  -> +8.0% today
+  //   22-28 Sep, 6n: direct 2821, airbnb 2528  -> +11.6% today  (worst today)
+  const short = { nights: fallStay.slice(0, 2), guests: 3, bestPrice: 1060, floor: 886 };
+  const long = { nights: fallStay, guests: 3, bestPrice: 2528, floor: 2116 };
+
+  it('puts the WORST stay of the set at the target, not merely one of them', () => {
+    const p = solveFlatPriceForWorstGap(-0.10, [short, long], { flatRate: false },
+      { weekendAdjustment: 1, econ })!;
+    const s = spreadAt(p, [short, long], { flatRate: false }, { weekendAdjustment: 1, econ });
+    expect(s.worst).toBeCloseTo(-0.10, 3);
+    // Every stay is at least as cheap as the target: none is left dearer.
+    expect(s.gaps.every((g) => g <= -0.10 + 1e-6)).toBe(true);
+  });
+
+  it('is stricter than solving the single worst stay alone', () => {
+    const alone = solveWeekdayNightlyForStayTotal(2528 * 0.9, long.nights, 3, { flatRate: false },
+      { weekendAdjustment: 1, econ })!;
+    const set = solveFlatPriceForWorstGap(-0.10, [short, long], { flatRate: false },
+      { weekendAdjustment: 1, econ })!;
+    expect(set).toBeLessThan(alone);
+    // At the naive price the set target is NOT met - this is the shipped bug, pinned.
+    const naive = spreadAt(alone, [short, long], { flatRate: false }, { weekendAdjustment: 1, econ });
+    expect(naive.worst!).toBeGreaterThan(-0.10);
+  });
+
+  it('returns null when no price in range reaches the target', () => {
+    expect(solveFlatPriceForWorstGap(-0.99, [short], { flatRate: false },
+      { weekendAdjustment: 1, econ }, { lo: 400, hi: 500 })).toBeNull();
+  });
+});
+
+describe('spreadAt', () => {
+  it('counts stays that fall under their floor', () => {
+    const s = spreadAt(200, [{ nights: fallStay, guests: 3, bestPrice: 2528, floor: 2116 }],
+      { flatRate: false }, { weekendAdjustment: 1, econ });
+    expect(s.belowFloor).toBe(1);
+    expect(s.dearer).toBe(0);
   });
 });

@@ -51,6 +51,8 @@ interface BoardContext {
   windows: WindowFact[];
   parityOk: boolean;
   parityError: string | null;
+  /** How far under the cheapest platform direct should sit, from the channels config. Never guessed. */
+  targetDiscountPct: number;
   today: string;
 }
 
@@ -112,6 +114,9 @@ async function loadContext(propertyId: string): Promise<BoardContext> {
     windows: parity.ok ? (parity.windows as Array<Record<string, unknown>>).map(toWindowFact) : [],
     parityOk: parity.ok,
     parityError: parity.ok ? null : (parity.error ?? 'unknown'),
+    targetDiscountPct: parity.ok
+      ? ((parity.meta as { targetDiscountPct?: number } | undefined)?.targetDiscountPct ?? 0.10)
+      : 0.10,
     today,
   };
 }
@@ -208,7 +213,8 @@ export async function fetchYearBoard(propertyId: string): Promise<{
           periodWindows,
           nightsByWindow,
           { basePrice: ctx.basePrice, weekendAdjustment: ctx.weekendAdjustment,
-            tierMultipliers: ctx.tierMultipliers, econ: ctx.econ },
+            tierMultipliers: ctx.tierMultipliers, econ: ctx.econ,
+            targetDiscountPct: ctx.targetDiscountPct },
         ),
       };
     });
