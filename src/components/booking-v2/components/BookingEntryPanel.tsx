@@ -139,10 +139,18 @@ export function BookingEntryPanel({ stays = [] }: { stays?: EntryStay[] }) {
                   if the Storage URL ever fails. This library has history with image delivery on App
                   Hosting, and a warm-up strip is the last thing that should show a broken icon. */}
               <SafeImage
-                src={season.photo.displayUrl || season.photo.url}
+                // thumbnailUrl (400px) FIRST, and it matters more than it looks. App Hosting runs
+                // next/image unoptimized, so `sizes` is inert and the browser downloads whatever URL
+                // it is given at full size - measured on production: a 1000x667 file rendered into a
+                // 72px box. 44 of this property's 48 season-taggable photos carry a thumbnail, and
+                // the chain falls through for the four that do not.
+                src={season.photo.thumbnailUrl || season.photo.displayUrl || season.photo.url}
                 alt={alt}
                 fill
                 sizes="72px"
+                // Not lazy: this is the first content on the entry screen, and lazily fetching the
+                // one warm thing on the page is exactly backwards.
+                priority
                 className="object-cover"
               />
             </div>
