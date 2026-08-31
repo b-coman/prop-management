@@ -36,6 +36,7 @@ import { getParityConfig } from '@/services/channelService';
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { partiesFor, partySize, partyLabel, partyForGuests, buildCaptureUrl, type Party } from '@/lib/parity/party';
 import { latestByCell } from '@/services/growth/parityObservations';
+import { MIN_STAY_RE } from '@/lib/parity/minStay';
 import { buildWorklist, computeCoverage, outstandingCells, type ProbeInput } from '@/lib/growth/parityWorklist';
 
 const arg = (n: string, d?: string) => {
@@ -95,10 +96,8 @@ const FRESH_DAYS = Number(arg('fresh-days', '42'));
   // ---- min-stay escalation ------------------------------------------------------------------
   // A refusal naming a minimum longer than the probe is not a finished cell: it is a request to
   // re-probe the window at a length that channel will sell, on every channel at once.
-  // Each channel words the refusal differently and a phrasing this misses is a window silently
-  // dropped from the run: Airbnb says "Minimum stay is 4 nights", Booking says "You need to stay 3+
-  // nights to book your selected dates". Neither matched the original two alternatives.
-  const MIN_RE = /(\d+)\s*-?\s*night\s*minimum|min(?:imum)?\.?\s*(?:stay\s+)?(?:is\s+|of\s+)?(\d+)\s*nights?|need to stay\s+(\d+)\+?\s*nights?/i;
+  // Phrasings live in one place, shared with the alignment report — see src/lib/parity/minStay.ts.
+  const MIN_RE = MIN_STAY_RE;
   const escalations: Array<{ from: string; nights: number; checkIn: string; guests: number; why: string }> = [];
   for (const o of observed) {
     if (o.status !== 'refused' || !o.reason) continue;

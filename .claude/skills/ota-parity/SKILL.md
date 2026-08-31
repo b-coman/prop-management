@@ -346,6 +346,48 @@ that matters most.
 totals are not comparable. `parity-next.ts` detects these and prints the escalation with the URLs
 already built — work them before declaring a run finished.
 
+
+**Probe SHORT first, then escalate.** The owner's rule is 2 nights, raised by hand on a few special
+windows — the autumn school break, sometimes Christmas, always NYE — and he sets each raise
+**separately on Airbnb, on Booking and on the direct site**. The short probe is the only thing that
+reveals where those minimums actually sit: go straight to 5 nights on NYE and every channel answers,
+teaching you nothing. So probe at the DIRECT minimum for the window (usually 2), let the channel
+refuse, and escalate to the number it names.
+
+`MIN_STAY_RE` in `src/lib/parity/minStay.ts` holds every phrasing, shared by the escalation here and
+by the alignment report below so the two cannot drift. Airbnb says *"Minimum stay is 4 nights"*;
+Booking says *"You need to stay 3+ nights to book your selected dates"*. Neither matched the original
+regex, which is why the escalation went its whole life without once firing.
+
+### 4.5b Report where the minimums DISAGREE — the owner asked for this by name
+
+A mismatched minimum is invisible in every price comparison. It does not make anything look expensive;
+it just refuses the booking. It is also not a pricing fault, so it never belongs in a rate
+recommendation.
+
+```bash
+npx tsx scripts/min-stay-alignment.ts <slug>
+```
+
+It reports what each channel **did** — a refusal naming N is a stated requirement, a stay it sold is an
+upper bound — never what it claims, and flags two kinds of clash:
+
+- **channel stricter than direct** — the platform turns away a stay we would happily sell
+- **the two platforms disagreeing with each other** — the one the owner most wants to know about
+
+Live on 2026-08-31, both found by this report:
+
+| window | direct | Airbnb | Booking |
+|---|---|---|---|
+| Vacanta Toamna (24 Oct - 1 Nov) | 2 | **refuses under 4** | sold 3 |
+| Post-New Year (1 - 3 Jan) | 2 | **refuses under 3** | **refuses under 3** |
+
+The first is a three-way split on his emptiest school-break week. The second means the direct site
+sells a two-night New Year stay that neither platform will sell at all.
+
+**The fix is on the channel, never on the direct price.** A minimum is a rule he set, so a mismatch is
+a setting to correct. Report it and let him decide.
+
 ### 4.6 Record refusals eagerly
 
 `refused` (a minimum stay we do not enforce), `unavailable` (the channel has no inventory) and `error`
@@ -442,9 +484,12 @@ Around it, worst first:
 3. **Overshoot windows** — priced below indifference. These cost real money and are easy to miss
    because the headline gap looks flattering.
 4. **Cross-channel spread**, where two or more channels were captured.
-5. **What could not be measured and why** — refusals with their reason, errors, channels with no
+5. **Minimum-stay alignment** — run `min-stay-alignment.ts` and report every clash, both
+   channel-vs-direct and channel-vs-channel. Keep it SEPARATE from the price findings: a mismatched
+   minimum is a setting to correct on the channel, not an argument for changing a rate.
+6. **What could not be measured and why** — refusals with their reason, errors, channels with no
    listing URL. Never let an absence pass as a finding.
-6. **Recommendations** — separating "change the promotion on channel X" from "change the direct price
+7. **Recommendations** — separating "change the promotion on channel X" from "change the direct price
    for window Y". Prefer the former: cutting direct rates to chase a promo burns the best-margin
    channel to fix a problem created on a worse one.
 
