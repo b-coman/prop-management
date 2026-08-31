@@ -49,15 +49,11 @@
     "washer-dryer",
     "elevator"
   ],
-  "pricePerNight": 95,
   "baseCurrency": "RON",
   "advertisedRate": 450,
   "advertisedRateType": "special",
   "cleaningFee": 25,
-  "maxGuests": 3,
-  "baseOccupancy": 2,
   "defaultMinimumStay": 2,
-  "extraGuestFee": 20,
   "bedrooms": 1,
   "beds": 2,
   "bathrooms": 1,
@@ -111,5 +107,6 @@
       "shortDescription.ro"
     ],
     "lastMigrated": "2025-05-16T12:28:04.082Z"
-  }
+  },
+  "_note": "Structure reference only. Pricing, occupancy and capacity are live owner-managed state in Firestore (admin UI) and are deliberately absent here: this file froze in 2025 and its numbers were wrong by 3x. Not loaded by load-pricing-data.ts."
 }

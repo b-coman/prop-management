@@ -50,46 +50,11 @@
     "garden",
     "mountain-view"
   ],
-  "pricePerNight": 180,
   "baseCurrency": "EUR",
   "advertisedRate": 160,
   "advertisedRateType": "starting",
   "cleaningFee": 40,
-  "maxGuests": 7,
-  "baseOccupancy": 4,
   "defaultMinimumStay": 2,
-  "extraGuestFee": 25,
-  "pricing": {
-    "pricingTemplateId": "default",
-    "useDynamicPricing": true,
-    "occupancyPricing": {
-      "enabled": true,
-      "baseOccupancy": 4,
-      "extraGuestFeePerNight": 25
-    },
-    "lengthOfStayDiscounts": [
-      {
-        "nights": 7,
-        "discountPercentage": 5
-      },
-      {
-        "nights": 14,
-        "discountPercentage": 10
-      },
-      {
-        "nights": 28,
-        "discountPercentage": 15
-      }
-    ],
-    "weekendPricing": {
-      "enabled": true,
-      "weekendDays": [
-        "friday",
-        "saturday"
-      ],
-      "priceMultiplier": 1.2
-    }
-  },
   "bedrooms": 3,
   "beds": 4,
   "bathrooms": 2,
@@ -143,5 +108,6 @@
       "shortDescription.ro"
     ],
     "lastMigrated": "2025-05-16T12:28:04.083Z"
-  }
+  },
+  "_note": "Structure reference only. Pricing, occupancy and capacity are live owner-managed state in Firestore (admin UI) and are deliberately absent here: this file froze in 2025 and its numbers were wrong by 3x. Not loaded by load-pricing-data.ts."
 }

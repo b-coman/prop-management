@@ -87,12 +87,16 @@ Create date-specific overrides in `/firestore/dateOverrides/`:
 After creating or updating pricing rules, run these commands:
 
 ```bash
-# Load pricing data to Firestore
+# Load pricing rules (templates, seasons, date overrides) to Firestore
 npm run load-pricing-data
 
-# Generate price calendars
-npm run generate-price-calendars
+# Rebuild price calendars with the canonical engine
+npx tsx scripts/regenerate-calendars-new-engine.ts
 ```
+
+> `load-pricing-data` no longer writes the `properties` or `priceCalendars` collections. Nightly
+> rates, occupancy and capacity are live state edited in the admin UI; the JSON seeds under
+> `firestore/` are a structure reference and had drifted to 2025 values.
 
 This will:
 1. Load all JSON files from the `/firestore` directory to Firestore

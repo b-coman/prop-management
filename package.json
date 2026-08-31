@@ -21,7 +21,6 @@
     "migrate:validate": "tsx scripts/migrate-property-data.ts --mode=validate",
     "migrate:dry-run": "tsx scripts/migrate-property-data.ts --mode=dry-run",
     "migrate:execute": "tsx scripts/migrate-property-data.ts --mode=execute",
-    "generate-price-calendars": "tsx scripts/generate-price-calendars.ts",
     "typecheck:scripts": "tsc --noEmit --skipLibCheck --project tsconfig.scripts.json",
     "test": "jest",
     "test:watch": "jest --watch",

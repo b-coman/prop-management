@@ -108,17 +108,19 @@ if (calendarDoc.exists) {
 
 ### Generating Missing Calendars
 
-If calendars are missing, you can generate them using the script:
+Use the canonical generator, which prices through `calculateDayPrice()` — the same engine the site
+and the admin calendar use, so seasons, date overrides, weekend adjustment and length-of-stay
+discounts are all applied:
 
 ```bash
-npm run generate-price-calendars
+npx tsx scripts/regenerate-calendars-new-engine.ts
 ```
 
-Or for a specific property and date range:
-
-```bash
-npm run generate-price-calendars -- --property=prahova-mountain-chalet --start=2025-01 --end=2025-12
-```
+> **Removed (2026-08-31):** `npm run generate-price-calendars` and
+> `scripts/generate-missing-price-calendars.ts`. Both pre-dated the February 2026 pricing
+> consolidation. The first wrote a `prices` map with `.set()` while live calendars use `days`, so it
+> replaced the document and left the month with no prices at all. The second hardcoded a flat 20%
+> weekend bump and ignored seasons and overrides entirely.
 
 ### Fixing Calendar Structure
 
@@ -133,15 +135,6 @@ This will scan all calendars and fix structural issues:
 - Ensuring the expected data structure
 - Standardizing the price format
 
-### Generating Sample Calendars
-
-For testing, you can generate sample calendars with:
-
-```bash
-npx tsx scripts/generate-missing-price-calendars.ts
-```
-
-This generates calendar documents with reasonable defaults for a specified property.
 
 ## Monitoring
 

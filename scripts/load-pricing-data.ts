@@ -97,12 +97,18 @@ async function main() {
     const rootDir = path.resolve(__dirname, '../firestore');
 
     // Load collections related to pricing
+    // `properties` and `priceCalendars` are DELIBERATELY not loaded from JSON.
+    //
+    // Both are live, owner-managed state now: prices are edited in the admin UI, and calendars are
+    // built by the canonical engine (`calculateDayPrice`). The JSON seeds under firestore/ froze in
+    // 2025 and drifted badly — firestore/properties/prahova-mountain-chalet.json still said 180/night
+    // with a base occupancy of 4, against a live 525 and 3, and Coltei's said maxGuests 3 against a
+    // live 5. Because this loader writes with `{ merge: true }`, one run of `npm run load-pricing-data`
+    // would have quietly reset both properties' nightly rate and Coltei's capacity.
     const collections = [
       'pricingTemplates',
       'seasonalPricing',
       'dateOverrides',
-      'priceCalendars',
-      'properties' // Load properties last to ensure references exist
     ];
     
     // Process each collection
