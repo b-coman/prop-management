@@ -319,7 +319,7 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
       options.push(
         <SelectItem key={i} value={i.toString()}>
           {i} {i === 1 ? t('booking.guest', 'Guest') : t('booking.guests', 'Guests')}
-          {i === property.baseOccupancy && ` (${t('booking.standard', 'Standard')})`}
+          {i === property.baseOccupancy && ` (${t('booking.standard', 'included')})`}
         </SelectItem>
       );
     }
@@ -380,7 +380,7 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
                     <HelpTooltip 
                       content={t('booking.checkInOutTime', 'Check-in after 3 PM, check-out by 11 AM')}
                     >
-                      <label className="text-sm font-medium">{t('booking.checkInDate', 'Check-in Date')}</label>
+                      <label className="text-sm font-medium">{t('booking.checkInDate', 'Check-in')}</label>
                     </HelpTooltip>
                   </div>
                   <Popover open={checkInOpen} onOpenChange={setCheckInOpen}>
@@ -471,7 +471,7 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
                 {/* Check-out Date Picker */}
                 <div className="space-y-1.5 sm:space-y-2">
                   <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium">{t('booking.checkOutDate', 'Check-out Date')}</label>
+                    <label className="text-sm font-medium">{t('booking.checkOutDate', 'Check-out')}</label>
                   </div>
                   <Popover open={checkOutOpen} onOpenChange={setCheckOutOpen}>
                     <PopoverTrigger asChild>

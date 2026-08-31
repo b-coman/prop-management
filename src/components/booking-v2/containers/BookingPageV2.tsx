@@ -880,7 +880,7 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { cla
                       needed them, which is the opposite of the point. */}
                   <div className="mt-6 border-t border-border pt-5">
                     <p className="mb-3 text-sm text-muted-foreground">
-                      {t('booking.askWhatIsFree', "Or ask me — I'll tell you what's free.")}
+                      {t('booking.askWhatIsFree', "Or ask us, we'll tell you what's free.")}
                     </p>
                     <TalkActions position="unavailable_dates" variant="unavailable" />
                   </div>
@@ -975,7 +975,7 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { cla
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] backdrop-blur lg:hidden">
           <div className="container px-4 py-3">
             <p className="mb-2 text-center text-xs text-muted-foreground">
-              {t('booking.askWhatIsFree', "Or ask me — I'll tell you what's free.")}
+              {t('booking.askWhatIsFree', "Or ask us, we'll tell you what's free.")}
             </p>
             <TalkActions position="unavailable_dates" variant="unavailable" />
           </div>
