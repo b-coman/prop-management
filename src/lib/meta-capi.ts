@@ -5,6 +5,7 @@
 
 import { createHash } from 'crypto';
 import { loggers } from '@/lib/logger';
+import { NO_TRACK_COOKIE } from '@/lib/no-track';
 import { getPixelIdForProperty } from '@/lib/meta-pixels';
 
 const logger = loggers.tracking;
@@ -94,6 +95,25 @@ function buildUserData(userData?: UserData) {
  */
 export async function sendMetaEvent(params: MetaEventParams): Promise<void> {
   const { propertyId, eventName, eventId, eventSourceUrl, userData, customData } = params;
+
+  // TEST MODE STOPS HERE TOO. `?rs_test=1` has always suppressed the browser tags (GTM, the Pixel),
+  // but CAPI runs server-side and never saw the flag - so testing the booking form still pushed
+  // InitiateCheckout into the real Meta dataset. Found the hard way on 31 Aug 2026: three events
+  // from a checkout the owner had asked me to test, all carrying a hashed test@example.com. A
+  // kill-switch that only covers half the tracking is worse than none, because it is trusted.
+  //
+  // Reads the same cookie the middleware sets, so the browser and the server agree on one answer.
+  // Wrapped because `cookies()` throws outside a request scope (a cron, a script): no request means
+  // no test cookie, which means send - the correct default.
+  try {
+    const { cookies } = await import('next/headers');
+    if ((await cookies()).get(NO_TRACK_COOKIE)?.value === '1') {
+      logger.debug('Meta CAPI: skipping, test mode', { propertyId, eventName });
+      return;
+    }
+  } catch {
+    // No request context. Not a test session; carry on.
+  }
 
   // Resolve the pixel + token FOR THIS PROPERTY. If either is missing, this
   // property isn't configured for Meta tracking — skip (never fire to another
