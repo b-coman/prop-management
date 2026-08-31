@@ -14,3 +14,5 @@ export { MobilePriceDrawer } from './MobilePriceDrawer';
 export { MobileDateSelectorWrapper } from './MobileDateSelectorWrapper';
 export { TalkActions, OtaAlternatives, CallIconButton, useTalkLinks, reportTalkClick } from './GuestContactActions';
 export type { OtaLink, TalkPosition } from './GuestContactActions';
+export { BookingEntryPanel } from './BookingEntryPanel';
+export type { EntryStay } from './BookingEntryPanel';

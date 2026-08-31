@@ -285,7 +285,15 @@
     "bookAlsoOn": "Poți rezerva și pe",
     "askUs": "Întreabă-ne",
     "allIncluded": "tot inclus",
-    "holdNudge": "Nu te decizi acum? Blochează datele {{hours}} h pentru {{fee}} - se restituie integral când finalizezi rezervarea."
+    "holdNudge": "Nu te decizi acum? Blochează datele {{hours}} h pentru {{fee}} - se restituie integral când finalizezi rezervarea.",
+    "entryFreeDates": "Câteva date libere acum",
+    "entryNoDatesQuestion": "Nu știi ce date? Scrie-mi și îți spun ce e liber.",
+    "writeToMe": "Scrie-mi pe WhatsApp",
+    "waNoDates": "Bună ziua! Mă interesează {{property}}. Ce perioade aveți libere?",
+    "seasonAutumn": "Toamna e liniștită aici. Zile calde, seri de foc, și grătarul care merge până târziu.",
+    "seasonWinter": "Iarna casa se încălzește repede, iar zăpada ține până în martie.",
+    "seasonSpring": "Primăvara dealul se umple de verde. E cel mai liniștit moment din an.",
+    "seasonSummer": "Vara copiii nu mai intră în casă. Leagăn, grătar, și umbră până seara."
   },
   "property": {
     "amenities": "Facilități",

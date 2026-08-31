@@ -285,7 +285,15 @@
     "bookAlsoOn": "You can also book on",
     "askUs": "Ask us",
     "allIncluded": "all-in",
-    "holdNudge": "Not ready to decide? Hold the dates for {{hours}} h for {{fee}} - fully refunded when you complete the booking."
+    "holdNudge": "Not ready to decide? Hold the dates for {{hours}} h for {{fee}} - fully refunded when you complete the booking.",
+    "entryFreeDates": "A few dates free right now",
+    "entryNoDatesQuestion": "Not sure which dates? Message me and I'll tell you what's free.",
+    "writeToMe": "Message me on WhatsApp",
+    "waNoDates": "Hello! I am interested in {{property}}. Which dates do you have free?",
+    "seasonAutumn": "Autumn is quiet up here. Warm days, fires in the evening, and the grill going late.",
+    "seasonWinter": "In winter the house warms up fast, and the snow stays until March.",
+    "seasonSpring": "In spring the hill turns green. It is the quietest time of the year.",
+    "seasonSummer": "In summer the children never come indoors. Swing, grill, and shade until evening."
   },
   "property": {
     "amenities": "Amenities",

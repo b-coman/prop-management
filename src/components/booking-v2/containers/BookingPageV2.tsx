@@ -20,8 +20,8 @@
 
 import React, { useEffect, useState, useRef, memo } from 'react';
 import { BookingProvider } from '../contexts';
-import { DateAndGuestSelector, PricingSummary, MobilePriceDrawer, MobileDateSelectorWrapper, TalkActions, OtaAlternatives, CallIconButton } from '../components';
-import type { OtaLink } from '../components';
+import { DateAndGuestSelector, PricingSummary, MobilePriceDrawer, MobileDateSelectorWrapper, TalkActions, OtaAlternatives, CallIconButton, BookingEntryPanel } from '../components';
+import type { OtaLink, EntryStay } from '../components';
 import { ContactFormV2, HoldFormV2, BookingFormV2 } from '../forms';
 import type { Property, CurrencyCode } from '@/types';
 import { loggers } from '@/lib/logger';
@@ -96,10 +96,16 @@ interface BookingPageV2Props {
   className?: string;
   /** The property's own OTA listings, resolved server-side from the `channels` collection. */
   otaLinks?: OtaLink[];
+  /**
+   * Real, calendar-valid, priced openings for the no-dates entry state. Resolved server-side
+   * (`buildExampleStays`) because it reads availability + price calendars with the Admin SDK, and
+   * empty whenever the visitor already arrived with dates or there is nothing honest to offer.
+   */
+  entryStays?: EntryStay[];
 }
 
 // Internal component that uses the booking context
-function BookingPageContent({ className, otaLinks = [] }: { className?: string; otaLinks?: OtaLink[] }) {
+function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { className?: string; otaLinks?: OtaLink[]; entryStays?: EntryStay[] }) {
   const {
     property,
     checkInDate,
@@ -244,17 +250,23 @@ function BookingPageContent({ className, otaLinks = [] }: { className?: string; 
           <div className="flex items-center justify-between">
             {/* Left: Arrow + Property Name */}
             <div className="flex items-center gap-2 min-w-0 flex-1">
-              <Link 
+              {/* `min-w-0` + `overflow-hidden` on the LINK, not just on its parent. A flex item
+                  defaults to `min-width:auto`, which sizes it to its content and lets it refuse to
+                  shrink — so this link measured 190px inside a 132px slot and the property name ran
+                  straight underneath the phone icon (44px of overlap, every width, measured on
+                  production 31 Aug). `truncate` on the span could never fire because the span was
+                  never constrained. Constrain the chain and the ellipsis does its job. */}
+              <Link
                 href={`/properties/${property.slug}`}
-                className="group flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
+                className="group flex min-w-0 items-center gap-2 overflow-hidden text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
               >
                 <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1 flex-shrink-0" />
-                <span className="text-sm font-medium truncate text-foreground">{propertyName}</span>
+                <span className="min-w-0 truncate text-sm font-medium text-foreground">{propertyName}</span>
               </Link>
             </div>
-            
+
             {/* Right: Call + Currency + Language */}
-            <div className="flex items-center gap-1 ml-2">
+            <div className="flex flex-shrink-0 items-center gap-1 ml-2">
               <CallIconButton />
               <CurrencySwitcherSimple variant="booking" />
               <LanguageSelector variant="booking" />
@@ -854,20 +866,17 @@ function BookingPageContent({ className, otaLinks = [] }: { className?: string; 
             </div>
           )}
 
-          {/* No dates selected state */}
+          {/* No dates selected — the busiest entry to this funnel, see BookingEntryPanel for the
+              numbers and for what this used to be. The grey calendar glyph and "choose your dates in
+              the control panel" are gone: on a phone there is no control panel, and the fields are
+              already 200px above, so it asked the same question twice and spent the whole first
+              screen doing it. Desktop keeps the same slot and gets the same content, which is a
+              better use of that column than an icon was. */}
           {!canShowBookingOptions && !hasValidDates && (
             <div className="flex items-start justify-center lg:min-h-96 lg:items-center">
               <Card className="w-full max-w-md">
-                <CardContent className="py-12 text-center">
-                  <div className="mb-4">
-                    <Calendar className="h-16 w-16 mx-auto text-muted-foreground/30" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-2">
-                    {t('booking.selectDates', 'Select Your Dates')}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {t('booking.selectDatesMessage', 'Choose your check-in and check-out dates in the control panel to view pricing and booking options')}
-                  </p>
+                <CardContent className="px-5 py-5">
+                  <BookingEntryPanel stays={entryStays} />
                 </CardContent>
               </Card>
             </div>
@@ -919,6 +928,23 @@ function BookingPageContent({ className, otaLinks = [] }: { className?: string; 
         </div>
       </div>
       </div>
+
+      {/* NO DATES YET — the one remaining state with nothing pinned, and the busiest entry of all.
+          Everything above it scrolls: the picker is 319px tall on a 393px phone, and the openings
+          sit under it, so on a 667px screen the second opening is already below the fold. Pinning
+          the escape hatch is what makes that acceptable — the visitor can always ask, whatever they
+          have scrolled past. Filled, not outlined: with nothing bookable yet there is no primary
+          action for this to be secondary to, so asking IS the primary action here. */}
+      {!hasValidDates && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] backdrop-blur lg:hidden">
+          <div className="container px-4 py-3">
+            <p className="mb-2 text-center text-xs text-muted-foreground">
+              {t('booking.entryNoDatesQuestion', "Not sure which dates? Message me and I'll tell you what's free.")}
+            </p>
+            <TalkActions position="entry_bar" variant="no-dates" solo />
+          </div>
+        </div>
+      )}
 
       {/* No price means no sticky bar at all, which left the phone with nothing pinned and the only
           way forward buried mid-scroll. If we cannot offer a price we can still offer a person. */}
@@ -998,7 +1024,8 @@ export function BookingPageV2({
   initialLanguage,
   themeId,
   className,
-  otaLinks
+  otaLinks,
+  entryStays
 }: BookingPageV2Props) {
   const { setTheme } = useTheme();
   const [isMounted, setIsMounted] = useState(false);
@@ -1021,7 +1048,7 @@ export function BookingPageV2({
       property={property}
       initialCurrency={initialCurrency}
     >
-      <BookingPageContent className={className} otaLinks={otaLinks} />
+      <BookingPageContent className={className} otaLinks={otaLinks} entryStays={entryStays} />
     </BookingProvider>
   );
 }

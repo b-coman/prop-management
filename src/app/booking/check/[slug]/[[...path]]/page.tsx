@@ -54,6 +54,8 @@ import BookingClientLayout from './booking-client-layout';
 import { AvailabilityErrorHandler } from '../../error-handler';
 import { serverTranslateContent } from '@/lib/server-language-utils';
 import { BookingPageV2 } from '@/components/booking-v2';
+import type { EntryStay } from '@/components/booking-v2/components';
+import { buildExampleStays } from '@/lib/landing/exampleStays';
 import { getChannels } from '@/services/channelService';
 import type { OtaLink } from '@/components/booking-v2/components';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
@@ -182,6 +184,36 @@ export default async function BookingCheckPage({ params, searchParams }: Booking
     logger.warn('Could not read channels for OTA links', { slug, error: (err as Error)?.message });
   }
 
+  // Real openings for the NO-DATES entry state — the busiest way into this funnel (roughly 40% of
+  // booking-page entries in Aug 2026). Computed here, server-side, because `buildExampleStays` reads
+  // the availability and price calendars through the Admin SDK; it is the same reasoner the campaign
+  // landing pages use, so a window it proposes is genuinely free, meets the per-date minimum stay,
+  // and carries the REAL quoted total rather than a "from" price the booking page would then contradict.
+  //
+  // Skipped entirely when the visitor already arrived with dates — that costs a calendar read on every
+  // ad click, and the panel it feeds does not render in that state anyway.
+  let entryStays: EntryStay[] = [];
+  if (!checkIn || !checkOut) {
+    try {
+      // 60-day horizon, not the reasoner's 150-day default. That default is built for a campaign,
+      // which has a period and is right to reach for the biggest occasion inside it; run unbounded
+      // from "today" it proposed 28 Nov and 1 Jan to someone browsing on 31 August, because the
+      // occasion score beats proximity. A visitor checking availability now is asking about soon.
+      const stays = await buildExampleStays(slug, { kind: 'season' }, { maxStays: 2, minNights: 2, seasonHorizonDays: 60 });
+      entryStays = stays.map((st) => ({
+        start: st.start,
+        end: st.end,
+        nights: st.nights,
+        label: serverTranslateContent(st.label, detectedLanguage) || '',
+        priceHint: st.priceHint ?? null,
+        guests: st.guests ?? null,
+      }));
+    } catch (err) {
+      // Never fatal: no openings costs a panel, not the page.
+      logger.warn('Could not build entry stays', { slug, error: (err as Error)?.message });
+    }
+  }
+
   // Basic validation for search params (only dates now)
   if (!checkIn || !checkOut) {
     logger.warn('Missing date parameters in URL', {
@@ -268,6 +300,7 @@ export default async function BookingCheckPage({ params, searchParams }: Booking
               initialLanguage={detectedLanguage}
               themeId={propertyThemeId}
               otaLinks={otaLinks}
+              entryStays={entryStays}
             />
           </BookingClientLayout>
         </LanguageProvider>

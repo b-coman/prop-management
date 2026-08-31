@@ -37,7 +37,7 @@ import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
 
 /** Where on the page the control was pressed. Reported so the dead-end rescue can be counted apart. */
-export type TalkPosition = 'summary_panel' | 'mobile_bar' | 'mobile_header' | 'unavailable_dates';
+export type TalkPosition = 'summary_panel' | 'mobile_bar' | 'mobile_header' | 'unavailable_dates' | 'entry_bar';
 
 export interface OtaLink {
   /** Channel id — 'airbnb', 'booking.com', 'vrbo'. */
@@ -83,7 +83,7 @@ function waDigits(phone: string): string {
  * the owner has to ask for the dates, the party size and which property — slower for him than the
  * form this replaces. With it, the first message already carries the answer.
  */
-export function useTalkLinks(variant: 'general' | 'unavailable' = 'general') {
+export function useTalkLinks(variant: 'general' | 'unavailable' | 'no-dates' = 'general') {
   const { property, checkInDate, checkOutDate, guestCount, pricing } = useBooking();
   const { t, currentLang } = useLanguage();
 
@@ -99,7 +99,16 @@ export function useTalkLinks(variant: 'general' | 'unavailable' = 'general') {
     : null;
 
   const lines: string[] = [];
-  if (variant === 'unavailable' && stay) {
+  if (variant === 'no-dates') {
+    // The entry state has no dates and no price to quote, so the prefill has to ASK rather than
+    // state. Someone arriving without dates is usually not being coy about the calendar - they do
+    // not have one yet, which is exactly the question the owner can answer in a sentence.
+    lines.push(t(
+      'booking.waNoDates',
+      `Hello! I am interested in ${propertyName}. Which dates do you have free?`,
+      { property: propertyName }
+    ));
+  } else if (variant === 'unavailable' && stay) {
     lines.push(t(
       'booking.waUnavailable',
       `Hello! I tried ${stay} at ${propertyName} but those dates show as taken. What else is free?`,
@@ -180,11 +189,18 @@ export function TalkActions({
   position,
   variant = 'general',
   compact = false,
+  solo = false,
   className = '',
 }: {
   position: TalkPosition;
-  variant?: 'general' | 'unavailable';
+  variant?: 'general' | 'unavailable' | 'no-dates';
   compact?: boolean;
+  /**
+   * One full-width, primary-filled WhatsApp button. For the no-dates entry state, where there is
+   * nothing to book yet and so nothing for a talk button to be secondary TO - asking is the primary
+   * action on that screen, and it should look like it. Calling still lives in the header icon.
+   */
+  solo?: boolean;
   className?: string;
 }) {
   const links = useTalkLinks(variant);
@@ -193,6 +209,21 @@ export function TalkActions({
 
   const waLabel = t('booking.writeOnWhatsApp', 'Write on WhatsApp');
   const callLabel = t('booking.callUs', 'Call');
+
+  if (solo) {
+    return (
+      <a
+        href={links.whatsapp}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => reportTalkClick('whatsapp', position)}
+        className={`inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 ${className}`}
+      >
+        <WhatsAppGlyph className="h-5 w-5 flex-shrink-0" />
+        <span className="truncate">{t('booking.writeToMe', 'Message me on WhatsApp')}</span>
+      </a>
+    );
+  }
 
   if (compact) {
     return (
