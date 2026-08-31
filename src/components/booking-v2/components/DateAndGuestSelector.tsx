@@ -46,6 +46,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { HelpTooltip } from '@/components/ui/help-tooltip';
 import { CalendarDays, Users, Loader2, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatShortDate } from '@/lib/date-short';
 import { loggers } from '@/lib/logger';
 // Removed import - we'll implement locally for translation support
 
@@ -90,12 +91,7 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
     return format(date, "MMM d, yyyy", { locale });
   }, [currentLang]);
 
-  const formatDateShort = useCallback((date: Date) => {
-    const locale = currentLang === 'ro' ? ro : undefined;
-    // Romanian puts the day first: "5 sep", never "sep 5". This is the format the phone actually
-    // shows, so the wrong order was the one most people saw.
-    return format(date, currentLang === 'ro' ? 'd MMM' : 'MMM d', { locale });
-  }, [currentLang]);
+  const formatDateShort = useCallback((date: Date) => formatShortDate(date, currentLang), [currentLang]);
 
   // Utility functions for date calculations
   const getDaysBetween = useCallback((startDate: Date, endDate: Date): number => {

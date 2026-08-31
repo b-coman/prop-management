@@ -37,12 +37,11 @@
 import React, { useMemo } from 'react';
 import { SafeImage } from '@/components/ui/safe-image';
 import { CalendarDays } from 'lucide-react';
-import { format } from 'date-fns';
-import { ro } from 'date-fns/locale';
 import { useBooking } from '../contexts';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { trackUiEvent } from '@/lib/tracking';
+import { formatShortDate } from '@/lib/date-short';
 import type { PropertyImage } from '@/types';
 
 /** One proposed opening, resolved server-side. Mirrors `ExampleStay` minus the multilingual label. */
@@ -84,8 +83,6 @@ export function BookingEntryPanel({ stays = [] }: { stays?: EntryStay[] }) {
   const { t, currentLang } = useLanguage();
   const { formatPrice, convertToSelectedCurrency } = useCurrency();
 
-  const locale = currentLang === 'ro' ? ro : undefined;
-  const dateFmt = currentLang === 'ro' ? 'd MMM' : 'MMM d';
 
   const season = useMemo(() => {
     const month = new Date().getMonth();
@@ -180,7 +177,7 @@ export function BookingEntryPanel({ stays = [] }: { stays?: EntryStay[] }) {
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
                     <CalendarDays className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                    {format(atNoonUtc(s.start), dateFmt, { locale })} – {format(atNoonUtc(s.end), dateFmt, { locale })}
+                    {formatShortDate(atNoonUtc(s.start), currentLang)} – {formatShortDate(atNoonUtc(s.end), currentLang)}
                   </span>
                   <span className="truncate text-xs text-muted-foreground">
                     {s.nights} {s.nights === 1 ? t('common.night', 'night') : t('common.nights', 'nights')}

@@ -239,7 +239,7 @@ export function TalkActions({
         className={`inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg border border-primary px-3 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary/10 ${className}`}
       >
         <WhatsAppGlyph className="h-5 w-5 flex-shrink-0" />
-        <span className="truncate">{t('booking.askUs', 'Ask us')}</span>
+        <span className="truncate">{t('booking.writeToMe', 'Message us on WhatsApp')}</span>
       </a>
     );
   }

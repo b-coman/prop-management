@@ -320,10 +320,10 @@ export function BookingFormV2({
                 <summary className="flex items-center gap-2 cursor-pointer p-3 rounded-lg border border-dashed border-muted-foreground/30 hover:border-muted-foreground/50 transition-colors">
                   <TicketPercent className="h-4 w-4 text-muted-foreground" />
                   <span className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-                    {t('booking.discountCoupon', 'Discount Coupon (Optional)')}
+                    {t('booking.discountCoupon', 'Have a coupon?')}
                   </span>
                   <div className="ml-auto text-xs text-muted-foreground">
-                    {appliedCoupon ? t('booking.couponAppliedStatus', '✓ Applied') : t('booking.clickToExpand', 'Click to expand')}
+                    {appliedCoupon ? t('booking.couponAppliedStatus', '✓ Applied') : t('booking.clickToExpand', 'Add')}
                   </div>
                 </summary>
                 <div className="mt-4 p-4 bg-muted/10 rounded-lg border border-muted/30">

@@ -25,7 +25,7 @@ import type { OtaLink, EntryStay } from '../components';
 import { ContactFormV2, HoldFormV2, BookingFormV2 } from '../forms';
 import type { Property, CurrencyCode } from '@/types';
 import { loggers } from '@/lib/logger';
-import { ArrowLeft, Calendar, CalendarX2, ChevronDown, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar, CalendarX2, ChevronDown, ChevronRight, Clock, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { CurrencySwitcherSimple } from '@/components/currency-switcher-simple';
 import { LanguageSelector } from '@/components/language-selector';
@@ -930,37 +930,35 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { cla
               the duration and the refund, so the offer does the persuading — a bare "Hold Dates"
               chip did none of that and got taken zero times in 301 bookings. Hidden once the hold
               form is already open, and on desktop, where the panel still carries its own button. */}
+          {/* IT LOOKS LIKE A CONTROL NOW, because it is one. As centred grey text it read as a
+              disclaimer - the same failure the entry-screen lead-in had - and a disclaimer is the one
+              thing nobody taps. A bordered row with a clock and a chevron says "this is an offer you
+              can take" before a word is read, while the neutral border keeps it well below the filled
+              CTA above it. The terms stay in the sentence: a bare "Hold Dates" chip carried none of
+              them and was taken zero times in 301 bookings. */}
           {selectedAction !== 'hold' && property?.enableHoldOption && pricing && (
-            <div className="mt-8 text-center lg:hidden">
+            <div className="mt-8 lg:hidden">
               <button
                 type="button"
                 onClick={() => handleTabClick('hold')}
-                className="mx-auto block max-w-[46ch] px-2 py-2 text-sm leading-relaxed text-muted-foreground transition-colors hover:text-foreground"
+                className="flex w-full items-center gap-3 rounded-lg border border-border bg-background px-4 py-3 text-left transition-colors hover:border-primary hover:bg-primary/5"
               >
-                {t('booking.holdNudge', 'Not ready to decide? Hold the dates for {{hours}} h for {{fee}} - fully refunded when you complete the booking.', {
-                  hours: property.holdDurationHours || 24,
-                  fee: formatPrice(convertToSelectedCurrency(property.holdFeeAmount || 50, property.baseCurrency || 'EUR')),
-                })}
+                <Clock className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 text-sm leading-relaxed text-muted-foreground">
+                  {t('booking.holdNudge', 'Not ready to decide? Hold the dates for {{hours}} h for {{fee}} - fully refunded when you complete the booking.', {
+                    hours: property.holdDurationHours || 24,
+                    fee: formatPrice(convertToSelectedCurrency(property.holdFeeAmount || 50, property.baseCurrency || 'EUR')),
+                  })}
+                </span>
+                <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
               </button>
             </div>
           )}
 
-          {/* Mobile only. The desktop summary panel carries this link, but that panel is `lg:` — and
-              replacing the "Contact" tab with a WhatsApp icon in the sticky bar left the written
-              form with no route at all on a phone. Audited across four states at 390px: msgLink
-              false everywhere. WhatsApp and calling cover most people; this is for the ones who
-              would rather type than talk. */}
-          {selectedAction !== 'contact' && pricing && (
-            <div className="mt-4 text-center lg:hidden">
-              <button
-                type="button"
-                onClick={() => handleTabClick('contact')}
-                className="inline-flex min-h-[44px] items-center px-2 text-sm text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
-              >
-                {t('booking.orSendAMessage', 'or send a message')}
-              </button>
-            </div>
-          )}
+          {/* The "or send a message" link used to sit here. Removed on the owner's call: directly
+              under a sentence offering to hold the dates, and above a pinned "Scrie-ne pe WhatsApp",
+              a third quiet route to a four-field written form was one option too many. WhatsApp IS
+              typing, so nothing is lost that the bar does not already cover. */}
 
           {/* Last thing on the page, by design. Placed beside the price it would invite a comparison
               we don't control; placed here it reads as reassurance to someone who was leaving
@@ -1006,19 +1004,25 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { cla
         <div className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border/50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] lg:hidden">
           <div className="container px-4 py-3">
             {/* Compact Price Header with Details Link */}
-            <div className="flex items-center justify-between mb-3">
+            {/* `items-baseline`, not `items-center`. The row's height is set by the 2xl price, so
+                centring put "Detalii preț" level with the MIDDLE of that number while the text it
+                actually reads alongside ("3 nopți · toate taxele incluse") sits on the baseline
+                below. Baseline-aligning the row puts all three on one optical line. */}
+            <div className="flex items-baseline justify-between mb-3 gap-2">
               <div className="flex items-baseline gap-2 min-w-0">
                 <span className="text-2xl font-bold text-foreground whitespace-nowrap">
                   {formatPrice(convertToSelectedCurrency(pricing.totalPrice || pricing.total, pricing.currency))}
                 </span>
-                {/* "tot inclus" earns its place: the bar shows one number with no context, and a
-                    total with no qualifier reads as a subtotal, so people brace for the cleaning fee
-                    that is in fact already in it. The desktop panel has said this all along
-                    ("Total (include toate taxele)"); the phone, which is 83% of the traffic, never did. */}
+                {/* The qualifier earns its place: a total with nothing beside it reads as a subtotal,
+                    so people brace for a cleaning fee that is already inside the number. The desktop
+                    panel has always said so ("Total (include toate taxele)"); the phone never did.
+                    THE NIGHT COUNT DOES NOT earn its place, though - the strip pinned at the top of
+                    this same screen already reads "7 sept-10 sept • 3 nopți". Dropping it here is
+                    what makes room for the qualifier to be a real phrase instead of "tot inclus",
+                    which said nothing about WHAT was included. Measured at 360px: with the nights,
+                    the phrase needed 183px into 125px and truncated. */}
                 <span className="min-w-0 truncate text-sm text-muted-foreground">
-                  {numberOfNights} {numberOfNights === 1 ? t('common.night', 'night') : t('common.nights', 'nights')}
-                  {' · '}
-                  {t('booking.allIncluded', 'all-in')}
+                  {t('booking.allIncluded', 'all taxes included')}
                 </span>
               </div>
               <MobilePriceDrawer

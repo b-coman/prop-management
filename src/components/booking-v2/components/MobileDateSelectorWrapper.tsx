@@ -20,6 +20,7 @@ import { ro } from 'date-fns/locale';
 import { useBooking } from '../contexts';
 import { useLanguage } from '@/lib/language-system';
 import { DateAndGuestSelector } from './DateAndGuestSelector';
+import { formatShortDate } from '@/lib/date-short';
 import { cn } from '@/lib/utils';
 
 interface MobileDateSelectorWrapperProps {
@@ -53,11 +54,9 @@ export function MobileDateSelectorWrapper({ className }: MobileDateSelectorWrapp
   const formatDateRange = () => {
     if (!hasValidDates) return '';
     
-    const locale = currentLang === 'ro' ? ro : undefined;
-    const startDate = format(checkInDate, 'MMM d', { locale });
-    const endDate = format(checkOutDate, 'MMM d', { locale });
-    
-    return `${startDate}-${endDate}`;
+    // `formatShortDate`, not `format(_, 'MMM d')`: this strip is the most-read element on the phone
+    // and it was rendering "sep 7-sep 10" - month before day, which is English order.
+    return `${formatShortDate(checkInDate, currentLang)}-${formatShortDate(checkOutDate, currentLang)}`;
   };
 
   // Return both mobile and desktop versions
