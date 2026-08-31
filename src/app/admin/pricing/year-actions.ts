@@ -32,6 +32,8 @@ import {
   type NightFact, type StayEconomics, type PeriodProposal,
 } from '@/lib/pricing/priceProjection';
 import { findCoverageGaps, buildRecommendation, eachDate, type BoardPeriod } from '@/lib/pricing/yearBoard';
+import { compareLadders, ladderAdvice, type LadderRung } from '@/lib/pricing/ladderCompare';
+import { getChannels } from '@/services/channelService';
 import { fetchParityView } from './parity-actions';
 import { regenerateCalendarsAfterChange } from './server-actions-hybrid';
 
@@ -53,6 +55,7 @@ interface BoardContext {
   parityError: string | null;
   /** How far under the cheapest platform direct should sit, from the channels config. Never guessed. */
   targetDiscountPct: number;
+  channelLadders: Array<{ channelId: string; displayName: string; ladder: LadderRung[] }>;
   today: string;
 }
 
@@ -60,10 +63,11 @@ async function loadContext(propertyId: string): Promise<BoardContext> {
   const db = await getAdminDb();
   const today = new Date().toISOString().slice(0, 10);
 
-  const [propSnap, periodDocs, parity] = await Promise.all([
+  const [propSnap, periodDocs, parity, channelSet] = await Promise.all([
     db.collection('properties').doc(propertyId).get(),
     getPeriods(propertyId),
     fetchParityView(propertyId),
+    getChannels(propertyId).catch(() => null),
   ]);
   const prop = (propSnap.data() ?? {}) as Record<string, unknown>;
   const pricingConfig = (prop.pricingConfig ?? {}) as Record<string, unknown>;
@@ -117,6 +121,14 @@ async function loadContext(propertyId: string): Promise<BoardContext> {
     targetDiscountPct: parity.ok
       ? ((parity.meta as { targetDiscountPct?: number } | undefined)?.targetDiscountPct ?? 0.10)
       : 0.10,
+    // Recorded from the platforms' own settings screens. Absent until someone runs the seed script,
+    // and absent is shown as absent rather than filled in with a guess.
+    channelLadders: channelSet
+      ? [...channelSet.byId.values()]
+          .filter((c) => c.channelId !== 'direct' && c.active && c.lengthOfStayDiscounts?.length)
+          .map((c) => ({ channelId: c.channelId, displayName: c.displayName,
+                         ladder: (c.lengthOfStayDiscounts ?? []) as LadderRung[] }))
+      : [],
     today,
   };
 }
@@ -257,6 +269,20 @@ export async function fetchYearBoard(propertyId: string): Promise<{
       board: {
         currency: ctx.currency,
         basePrice: ctx.basePrice,
+        // Direct's own ladder next to each platform's, so the shape mismatch is visible rather than
+        // something only a script can see.
+        ladder: (() => {
+          const direct = (ctx.econ.lengthOfStayDiscounts ?? [])
+            .filter((d) => d.enabled !== false)
+            .map((d) => ({ nightsThreshold: d.nightsThreshold, discountPercentage: d.discountPercentage }));
+          if (!ctx.channelLadders.length) return null;
+          const rows = compareLadders(direct, ctx.channelLadders);
+          return {
+            rows,
+            advice: ladderAdvice(rows),
+            channels: ctx.channelLadders.map((c) => ({ channelId: c.channelId, displayName: c.displayName })),
+          };
+        })(),
         tierMultipliers: ctx.tierMultipliers,
         tiers: TIERS,
         days,

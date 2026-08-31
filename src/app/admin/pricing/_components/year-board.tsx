@@ -63,9 +63,20 @@ export interface BoardPeriodRow {
 export interface BoardGap {
   startDate: string; endDate: string; nights: number; openNights: number; value: number; atBaseRate: boolean;
 }
+export interface LadderRowUi {
+  nights: number;
+  byChannel: Record<string, { pct: number; label?: string; nonRefundable?: boolean }>;
+  bestPlatformPct: number; bestPlatformId: string | null; directPct: number; edgePp: number;
+}
+export interface LadderUi {
+  rows: LadderRowUi[];
+  advice: Array<{ nights: number; edgePp: number; text: string }>;
+  channels: Array<{ channelId: string; displayName: string }>;
+}
+
 export interface YearBoardData {
   currency: string; basePrice: number; tierMultipliers: Record<string, number>; tiers: string[];
-  days: BoardDay[]; periods: BoardPeriodRow[]; gaps: BoardGap[];
+  days: BoardDay[]; periods: BoardPeriodRow[]; gaps: BoardGap[]; ladder: LadderUi | null;
   summary: {
     periods: number; openNights: number; totalValueAtRisk: number;
     valueAtRiskLosing: number; valueAtRiskUnmeasured: number;
@@ -161,6 +172,8 @@ export function YearBoard({ data, propertyId }: { data: YearBoardData; propertyI
         periodById={periodById}
         onPickPeriod={(id) => { const p = periodById.get(id); if (p) openEditor(p, p.recommendation); }}
       />
+
+      {data.ladder && <LadderCard ladder={data.ladder} />}
 
       {data.gaps.length > 0 && <Gaps gaps={data.gaps} horizonEnd={data.meta.horizonEnd} />}
 
@@ -478,6 +491,87 @@ function MonthRow({ ym, days, periodById, onPickPeriod }: {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Your long-stay discounts against the platforms' own.
+ *
+ * This sits beside the calendar because it is the one thing on the page that a per-period price
+ * cannot fix. The rate sets the LEVEL; this ladder sets the SHAPE. Where the shapes disagree, the
+ * gap against a platform moves with stay length on its own and no rate can hold every length inside
+ * the band.
+ */
+function LadderCard({ ladder }: { ladder: LadderUi }) {
+  const pct = (n: number) => (n ? `${n}%` : '-');
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">Your long-stay discounts, against theirs</CardTitle>
+        <CardDescription>
+          Read from your own settings on each platform. Your nightly rate sets how far under them you
+          sit; this sets whether that distance holds as stays get longer. Where a row disagrees, no
+          single rate can keep both short and long stays in the right place.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="py-2 font-medium">Nights</th>
+                {ladder.channels.map((c) => (
+                  <th key={c.channelId} className="py-2 text-right font-medium">{c.displayName}</th>
+                ))}
+                <th className="py-2 text-right font-medium">You, direct</th>
+                <th className="py-2 pl-4 font-medium">Difference</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ladder.rows.map((r) => (
+                <tr key={r.nights} className="border-b last:border-0">
+                  <td className="py-1.5 font-medium tabular-nums">{r.nights}+</td>
+                  {ladder.channels.map((c) => {
+                    const v = r.byChannel[c.channelId];
+                    return (
+                      <td key={c.channelId} className="py-1.5 text-right tabular-nums">
+                        {pct(v?.pct ?? 0)}
+                        {v?.nonRefundable && (
+                          <span className="ml-1 text-[10px] text-muted-foreground">non-refundable</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                  <td className="py-1.5 text-right font-medium tabular-nums">{pct(r.directPct)}</td>
+                  <td className={[
+                    'py-1.5 pl-4 text-xs tabular-nums',
+                    Math.abs(r.edgePp) < 5 ? 'text-muted-foreground'
+                      : r.edgePp > 0 ? 'text-amber-800' : 'text-red-700',
+                  ].join(' ')}>
+                    {Math.abs(r.edgePp) < 5 ? 'in step'
+                      : r.edgePp > 0 ? `${r.edgePp} points deeper than any of them`
+                      : `${Math.abs(r.edgePp)} points shallower, they undercut you`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {ladder.advice.length > 0 && (
+          <div className="rounded-md border bg-slate-50 p-3">
+            <p className="mb-1.5 text-xs font-medium text-slate-700">Worth changing</p>
+            <ul className="space-y-1 text-sm text-slate-700">
+              {ladder.advice.map((a) => <li key={a.nights}>{a.text}</li>)}
+            </ul>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              These are settings on your own site, not on the platforms. Changing one shifts every
+              stay of that length at once, so the rates above would be re-solved afterwards.
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

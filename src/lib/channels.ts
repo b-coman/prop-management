@@ -146,6 +146,32 @@ export interface ChannelConfig {
    */
   fx?: { rate: number; asOf: string; source: string } | null;
   cleaningFee?: number;
+  /**
+   * What this channel discounts a longer stay by, as the owner has it configured ON that channel.
+   *
+   * A FETCHED FACT, read off the platform's own settings screen and recorded here, never inferred
+   * from captured prices. It decides whether a single direct nightly rate can track the channel at
+   * all: if the two ladders differ, the direct-versus-platform gap moves with stay length on its own
+   * and no rate can hold every length inside the band. Inferring it from captures was tried and was
+   * wrong - it mixed channels, party sizes and promotions together.
+   *
+   * Rate plans that are a DIFFERENT PRODUCT are not comparable and are flagged rather than matched:
+   * Booking's monthly rate is non-refundable, which a flexible direct booking is not.
+   */
+  lengthOfStayDiscounts?: Array<{
+    nightsThreshold: number;
+    discountPercentage: number;
+    /** The plan's name on the platform, so a reader can find it. */
+    label?: string;
+    /** True when this rate is a different product from a flexible direct booking. */
+    nonRefundable?: boolean;
+  }>;
+  /**
+   * Standing campaigns that stack ON TOP of the rate plans (Booking's Getaway/Early Booker/Last
+   * Minute, Airbnb's last-minute and early-bird). Recorded for explanation only: the captured price
+   * already includes whatever was live at capture time, so nothing here feeds a verdict.
+   */
+  standingDeals?: Array<{ label: string; discountPercentage: number; condition?: string }>;
   rounding?: ChannelRounding;
   listingUrl?: string;
   /** Links this channel to the iCal feed that syncs its bookings, when one exists. */
