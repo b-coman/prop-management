@@ -95,13 +95,16 @@ const FRESH_DAYS = Number(arg('fresh-days', '42'));
   // ---- min-stay escalation ------------------------------------------------------------------
   // A refusal naming a minimum longer than the probe is not a finished cell: it is a request to
   // re-probe the window at a length that channel will sell, on every channel at once.
-  const MIN_RE = /(\d+)\s*-?\s*night\s*minimum|minimum\s+(?:of\s+)?(\d+)\s*nights?/i;
+  // Each channel words the refusal differently and a phrasing this misses is a window silently
+  // dropped from the run: Airbnb says "Minimum stay is 4 nights", Booking says "You need to stay 3+
+  // nights to book your selected dates". Neither matched the original two alternatives.
+  const MIN_RE = /(\d+)\s*-?\s*night\s*minimum|min(?:imum)?\.?\s*(?:stay\s+)?(?:is\s+|of\s+)?(\d+)\s*nights?|need to stay\s+(\d+)\+?\s*nights?/i;
   const escalations: Array<{ from: string; nights: number; checkIn: string; guests: number; why: string }> = [];
   for (const o of observed) {
     if (o.status !== 'refused' || !o.reason) continue;
     const m = o.reason.match(MIN_RE);
     if (!m) continue;
-    const needed = Number(m[1] ?? m[2]);
+    const needed = Number(m[1] ?? m[2] ?? m[3]);
     const current = o.nights;
     if (!needed || needed <= current) continue;
     const newOut = new Date(Date.parse(o.checkIn) + needed * 86_400_000).toISOString().slice(0, 10);
