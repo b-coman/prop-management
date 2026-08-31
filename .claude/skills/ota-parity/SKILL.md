@@ -116,7 +116,7 @@ Three dimensions, sampled rather than exhausted:
 
 | Type | Why it is probed | Probe shape |
 |---|---|---|
-| **Peaks** (Christmas, New Year, Easter, Rusalii) | Highest rate, longest min-stay, most likely to drift. Christmas was found +22% *dearer* than Airbnb. | Natural length, **both occupancies** |
+| **Peaks** (Christmas, New Year, Easter, Rusalii) | Highest rate, longest min-stay, most likely to drift. Christmas was found +22% *dearer* than Airbnb. | Natural length, **the full party mix** |
 | **Bridged holidays** (`punte`) | Exist only in some years; high demand, short window | Natural bridge length |
 | **School breaks** | Families travel, and **midweek becomes sellable** — the only time it is | One **midweek** + one **full week** |
 | **Ordinary weekends** | The baseline volume; one per otherwise-uncovered month | 2 nights, rotated |
@@ -127,28 +127,41 @@ least one of each, because **the length-of-stay discount flips the comparison**:
 **+24% dearer** at 2 nights and at parity across 7. It also probes deliberately on both sides of the
 tier, which is how the "7 nights costs 669 lei *less* than 6" cliff became visible.
 
-**Occupancy** — two headcounts, on every peak and every flat-rate window. Not optional: holiday
-overrides carry `flatRate: true`, so extra guests are free on those nights while the OTAs charge per
-guest. The same NYE week measured **−8.7%** at 3 guests and **−20%** at 6. **A check that probes one
-occupancy will confidently report the wrong answer.**
+**Party shape — not a headcount.** A probe is a *party*, `{ adults, children }`, because the three
+channels price children differently: our engine counts heads, Airbnb takes `children` separately, and
+Booking prices by each child's **age**. "3 guests" is not one product.
 
-But the upper figure must be a headcount **every channel actually offers**, and it must be sent as the
-right SHAPE of party. This property takes **5 adults plus 2 children (7 people)** — the owner stated it
-and his Booking listing says so. `adults=6` is a party he cannot host.
+The owner set the mix on 2026-08-30, and it is the standard for every run:
 
-🔴 **Probes above 5 must be split into adults + children.** Sending `adults=6` had two effects, both
-bad: Booking refused (correctly) and those refusals were filed as "Booking has no offer for 6 adults",
-which reads like a gap in his listing and is nothing of the sort; and Airbnb answered for 6 adults, so
-a price for a product he does not sell went into the store as if it were his. **38 forward
-observations were priced this way, and they inflated Fall from +14.6% to +35.9% and Early September
-from +5.3% to +26.1%.** They were superseded on 2026-08-29. `buildCaptureUrl` now splits the party
-(`splitParty`), so 6 people is sent as 5 adults + 1 child — the same party the direct engine quotes
-for `guests: 6`, which is what makes the totals comparable. Set
-`property.channelPricing.compareOccupancies`, or pass `--guests 3,6`; the pack prints which source it
-used and warns when it fell back to `maxGuests`.
+| party | sent as | headcount |
+|---|---|---|
+| **2 adults + 1 child** | `adults=2 children=1 age=10` | 3 |
+| **4 adults** | `adults=4 children=0` | 4 |
+| **4 adults + 2 children** | `adults=4 children=2 age=10 age=4` | 6 |
 
-*(The 7-vs-6 mismatch between our property record and the Airbnb listing is itself worth reporting —
-a guest searching for 7 never sees the listing, while our own site would happily quote them.)*
+Defined once in `src/lib/parity/party.ts` (`DEFAULT_PARTIES`, `CHILD_AGES = [10, 4]`, taken from a real
+booking on this property). Configured per-property at **`property.channelPricing.compareParties`**;
+`partiesFor()` reports which source it used and warns if it finds the retired `compareOccupancies`.
+**Never hand-build a capture URL** — `buildCaptureUrl()` is the only place a party becomes a web
+address, and it is what puts the child ages on Booking.
+
+Probe the full mix on every peak and every flat-rate window. Not optional: holiday overrides carry
+`flatRate: true`, so extra guests are free on those nights while the OTAs charge per guest. The same
+NYE week measured **−19.3%** at 4 adults and **−24.6%** at 4+2. **A check that probes one party will
+confidently report the wrong answer.**
+
+🔴 **Capacity is 5 adults + 2 children (7 people). Never probe 6 adults.** `adults=6` is a party the
+owner cannot host, and sending it did two kinds of damage: Booking refused correctly, and the refusals
+were filed as "Booking has no offer for 6 adults" — which reads as a gap in his listing and is nothing
+of the sort; while Airbnb happily answered, so a price for a product he does not sell entered the store
+as if it were his. **38 forward observations were priced that way; they inflated Fall from +14.6% to
++35.9%.** Superseded 2026-08-29.
+
+`--guests 3,4,6` still works but passes headcounts only, so the adult/child split is *guessed* — the
+pack says so when you do it. Prefer the configured mix.
+
+*(A guest searching for 7 never sees the Airbnb listing, which advertises 6, while our own site would
+quote them. Worth reporting, but it is a listing issue, not a parity one.)*
 
 **Midweek** — probe it explicitly, not only inside school breaks. Midweek is the hardest inventory to
 sell and the place an OTA promotion does the most damage, because there is no weekend demand to fall
@@ -162,7 +175,7 @@ when the run is finished — coverage does.
 
 ```bash
 # 1. Build the probe list; direct prices are quoted and RECORDED automatically.
-npx tsx scripts/parity-pack.ts <slug> --guests 3,6 --max 24
+npx tsx scripts/parity-pack.ts <slug> --max 24        # party mix comes from compareParties
 
 # 2. Get the outstanding cells WITH their URLs already built (never hand-build one — §4.1).
 npx tsx scripts/parity-next.ts <slug> --json --limit 15
@@ -240,21 +253,40 @@ never reach `document_idle`. **`javascript_tool` is the only thing that works.**
 1. `navigate` to the cell's URL.
 2. `computer wait 7`, then poll a **readiness predicate, not a timer**: run a small script returning
    `{ hasPrice, len }` and re-poll while `hasPrice === false`, up to ~4 times.
-3. Extract. **Return a compact JSON verdict, never the raw page text** — `javascript_tool` truncates
-   its return at ~1KB and these pages are far larger. Accumulate raw text into a page global and Blob-
-   download it once per batch if you want the archive.
+3. Extract. **Return a compact status, never the raw page text.** `javascript_tool` truncates its
+   return at ~1KB and these pages run 15-16KB, so the text has to be parsed **inside the page**.
+
+**All bulk egress is blocked**, and each path fails differently: Blob downloads are site-blocked, the
+clipboard needs a user gesture, base64 comes back as `[BLOCKED: Base64 encoded data]`, and returning
+`location.href` trips `[BLOCKED: Cookie/query string data]`. Do not design around shipping text to Node.
+
+**Never slice the page.** A 700-char `head` looks sufficient and is not: Booking's rate rows sit far
+below the fold, so a slice captures the summary price and silently misses every capacity marker. Store
+the whole `innerText`.
 
 ```js
-// in javascript_tool — returns well under 1KB
+// per cell — stash the FULL text, return only a status line
+await new Promise(r => setTimeout(r, 6000));
 const t = document.body.innerText;
-window.__parity = window.__parity || [];
-window.__parity.push({ cellId: '<cellId>', text: t.slice(0, 4000) });
-JSON.stringify({
-  hasPrice: /total|current price/i.test(t),
-  len: t.length,
-  head: t.slice(0, 700),          // enough for the extractor + the echo lines
-});
+sessionStorage.setItem('p<N>', t);              // sessionStorage SURVIVES same-origin navigation
+JSON.stringify({ i: <N>, len: t.length, echo: (t.match(/\d+ adults . \d+ child(?:ren)?/) || [''])[0] });
 ```
+
+`sessionStorage` is the accumulator because **`window` is wiped by every navigation** — a global set on
+page 1 is gone by page 2, and so is any extractor you installed. So: capture all pages first, then
+install the extractor **once, after the last navigation**, and parse the whole batch from storage:
+
+```js
+// after the final navigate — paste IN_PAGE_EXTRACTOR, then:
+Object.keys(sessionStorage).filter(k => /^p\d+$/.test(k))
+  .sort((a, b) => +a.slice(1) - +b.slice(1))
+  .map(k => { const r = window.__X(sessionStorage.getItem(k));
+    return [k.slice(1), r.state, r.total || '', r.list || '', r.guests || '', r.plan || ''].join('~'); })
+  .join('\n');
+```
+
+Keep `browser_batch` to **~3 pages per call** (one navigate + one script each). Six pages at a 6-7s
+settle overruns the tool timeout, and the batch dies after the navigations have already fired.
 
 Feed `head` to the pure extractor rather than reading it yourself:
 
@@ -329,7 +361,7 @@ are **outcomes**. Write them with a reason. A cell you skip silently is a cell y
   remaining cells `missing`, not mass-`error`.
 - After 2-3 consecutive tool failures, stop and report rather than hammering.
 - Never trigger an `alert`/`confirm`/`prompt`. A modal blocks the extension for the rest of the
-  session. Blob download, never a dialog.
+  session. Never a dialog — and never a Blob download either, they are site-blocked (§4.2).
 
 ### 4.8 What the two sites show
 
