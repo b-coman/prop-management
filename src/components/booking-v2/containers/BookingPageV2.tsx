@@ -300,6 +300,24 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { cla
       <div className="grid lg:grid-cols-5 gap-6 lg:gap-8">
         {/* Left Column: 40% - Control Panel (Date/Guest + Price + Actions) */}
         <div className="lg:col-span-2">
+          {/* MOBILE, NO DATES: the openings come FIRST, above the picker.
+              Someone who arrived without dates is better served by two real priced windows than by
+              three empty fields, and the old order made them scroll past a form to reach the offer.
+              The picker follows as the "or choose your own" fallback, which is what the lead-in
+              underneath says. Card-less here on purpose: at the top of the page this is the content,
+              not a panel, and dropping the card frame buys back ~40px on a viewport that has none to
+              spare. Desktop keeps the boxed version in its workspace column. */}
+          {!canShowBookingOptions && !hasValidDates && (
+            <div className="mb-4 lg:hidden">
+              <BookingEntryPanel stays={entryStays} />
+              {entryStays.length > 0 && (
+                <p className="mt-4 text-center text-sm text-muted-foreground">
+                  {t('booking.entryPickOwn', 'Not a fit? Pick your own dates.')}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Date & Guest Selection */}
           <MobileDateSelectorWrapper />
 
@@ -873,7 +891,7 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { cla
               screen doing it. Desktop keeps the same slot and gets the same content, which is a
               better use of that column than an icon was. */}
           {!canShowBookingOptions && !hasValidDates && (
-            <div className="flex items-start justify-center lg:min-h-96 lg:items-center">
+            <div className="hidden lg:flex lg:min-h-96 lg:items-center lg:justify-center">
               <Card className="w-full max-w-md">
                 <CardContent className="px-5 py-5">
                   <BookingEntryPanel stays={entryStays} />
@@ -937,10 +955,10 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { cla
           action for this to be secondary to, so asking IS the primary action here. */}
       {!hasValidDates && (
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] backdrop-blur lg:hidden">
+          {/* The explanatory line above the button is gone, deliberately. It cost 24px on a viewport
+              that could not seat the date picker without scrolling, and the button already says
+              "Scrie-mi pe WhatsApp" - the sentence was restating the control beneath it. */}
           <div className="container px-4 py-3">
-            <p className="mb-2 text-center text-xs text-muted-foreground">
-              {t('booking.entryNoDatesQuestion', "Not sure which dates? Message me and I'll tell you what's free.")}
-            </p>
             <TalkActions position="entry_bar" variant="no-dates" solo />
           </div>
         </div>

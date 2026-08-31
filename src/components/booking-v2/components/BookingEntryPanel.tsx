@@ -18,7 +18,13 @@
  *      not have any — asking them to invent some is the friction. These come from
  *      `buildExampleStays`, the same reasoner the campaign landing pages use, so every window is
  *      genuinely free, satisfies the per-date minimum stay, and carries the REAL quoted total. A
- *      tap fills the picker above and the page prices it immediately.
+ *      tap fills the picker BELOW and the page prices it immediately.
+ *
+ * ORDER MATTERS AND IT IS DELIBERATE. On a phone this sits ABOVE the date picker, not under it. The
+ * first version put it below, and on a real device (Safari's chrome takes ~18% of the screen, which
+ * an iframe does not model) the first opening was sliced in half by the sticky bar. Offering two
+ * priced windows before three empty fields is also simply the better order for someone who does not
+ * have dates yet. Desktop keeps the boxed version in its workspace column.
  *
  * Talking lives in the sticky bar the container renders beneath this, not here — see `entry_bar`.
  *
@@ -117,16 +123,16 @@ export function BookingEntryPanel({ stays = [] }: { stays?: EntryStay[] }) {
   if (!season.line && stays.length === 0) return null;
 
   return (
-    <div className="space-y-4">
-      {/* The warm half. A 56px thumbnail rather than a hero: this screen's first job is still the
-          date picker above it, which costs 319px on its own. The shortest phone in this site's real
-          traffic is 360x780 (GA4, Aug 2026), and there a full-width image would push the openings —
-          the part that actually converts — behind the sticky bar. At 56px both survive. Uses
-          `displayUrl`, the 1000px WebP tier, so the whole strip costs a few KB. */}
+    <div className="space-y-3">
+      {/* The warm half. A 48px thumbnail rather than a hero: everything here has to share a screen
+          with the date picker below it, and the real budget is the ~640px Safari leaves on a
+          360x780 phone, not the 780. At 48px the strip, both openings, the lead-in and both date
+          fields all clear the sticky bar. Uses `displayUrl`, the 1000px WebP tier, so it costs a
+          few KB. */}
       {season.line && (
         <div className="flex items-center gap-3">
           {season.photo && (
-            <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-muted">
+            <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-muted">
               {/* SafeImage, not a bare next/image: it is what the gallery and the campaign landing
                   pages use here, and it degrades to a labelled placeholder instead of a broken frame
                   if the Storage URL ever fails. This library has history with image delivery on App
@@ -135,7 +141,7 @@ export function BookingEntryPanel({ stays = [] }: { stays?: EntryStay[] }) {
                 src={season.photo.displayUrl || season.photo.url}
                 alt={alt}
                 fill
-                sizes="56px"
+                sizes="48px"
                 className="object-cover"
               />
             </div>

@@ -106,7 +106,7 @@
     "maxGuests": "Max {{guests}} guests",
     "guest": "Guest",
     "guests": "Guests",
-    "standard": "Standard",
+    "standard": "included",
     "bookingSummary": "You're booking a {{nights}}-night stay for {{guests}} {{guestLabel}}",
     "arrivingLeaving": "Arriving {{arrivalDate}} and leaving {{departureDate}}",
     "calculatingPrice": "Calculating your price...",
@@ -293,7 +293,9 @@
     "seasonAutumn": "Autumn is quiet up here. Warm days, fires in the evening, and the grill going late.",
     "seasonWinter": "In winter the house warms up fast, and the snow stays until March.",
     "seasonSpring": "In spring the hill turns green. It is the quietest time of the year.",
-    "seasonSummer": "In summer the children never come indoors. Swing, grill, and shade until evening."
+    "seasonSummer": "In summer the children never come indoors. Swing, grill, and shade until evening.",
+    "pickDate": "Pick a date",
+    "entryPickOwn": "Not a fit? Pick your own dates."
   },
   "property": {
     "amenities": "Amenities",

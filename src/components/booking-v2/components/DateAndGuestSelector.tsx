@@ -92,7 +92,9 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
 
   const formatDateShort = useCallback((date: Date) => {
     const locale = currentLang === 'ro' ? ro : undefined;
-    return format(date, "MMM d", { locale });
+    // Romanian puts the day first: "5 sep", never "sep 5". This is the format the phone actually
+    // shows, so the wrong order was the one most people saw.
+    return format(date, currentLang === 'ro' ? 'd MMM' : 'MMM d', { locale });
   }, [currentLang]);
 
   // Utility functions for date calculations
@@ -357,7 +359,12 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
           ) : (
             <div className="space-y-4">
               {/* Date Selection Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Side by side on the phone too, not just from `sm:`. Stacked, these two fields cost
+                  156px of a ~640-700px real Safari viewport (the screen height minus its chrome),
+                  and on the no-dates entry screen that pushed the priced openings below the fold and
+                  sliced one in half. Side by side they cost 68px. The value already renders through
+                  `formatDateShort` on mobile, so only the PLACEHOLDER had to shrink to fit. */}
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 {/* Check-in Date Picker */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
@@ -372,7 +379,7 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-full justify-start text-left font-normal h-11 px-4 md:min-w-[200px] lg:min-w-[180px]",
+                          "w-full justify-start text-left font-normal h-11 px-3 sm:px-4 md:min-w-[200px] lg:min-w-[180px]",
                           !checkInDate && "text-muted-foreground"
                         )}
                       >
@@ -383,7 +390,12 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
                             <span className="hidden sm:block xl:hidden">{formatDateMedium(checkInDate)}</span>
                             <span className="hidden xl:block">{formatDateFull(checkInDate)}</span>
                           </>
-                        ) : t('booking.selectYourDates', 'Select your dates')}
+                        ) : (
+                          <>
+                            <span className="block sm:hidden">{t('booking.pickDate', 'Pick a date')}</span>
+                            <span className="hidden sm:block">{t('booking.selectYourDates', 'Select your dates')}</span>
+                          </>
+                        )}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -457,7 +469,7 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-full justify-start text-left font-normal h-11 px-4 md:min-w-[200px] lg:min-w-[180px]",
+                          "w-full justify-start text-left font-normal h-11 px-3 sm:px-4 md:min-w-[200px] lg:min-w-[180px]",
                           !checkOutDate && "text-muted-foreground"
                         )}
                         disabled={!checkInDate}
@@ -469,7 +481,12 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
                             <span className="hidden sm:block xl:hidden">{formatDateMedium(checkOutDate)}</span>
                             <span className="hidden xl:block">{formatDateFull(checkOutDate)}</span>
                           </>
-                        ) : t('booking.selectDate', 'Select date')}
+                        ) : (
+                          <>
+                            <span className="block sm:hidden">{t('booking.pickDate', 'Pick a date')}</span>
+                            <span className="hidden sm:block">{t('booking.selectDate', 'Select date')}</span>
+                          </>
+                        )}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">

@@ -106,7 +106,7 @@
     "maxGuests": "Maxim {{guests}} oaspeți",
     "guest": "Oaspete",
     "guests": "Oaspeți",
-    "standard": "Standard",
+    "standard": "inclus",
     "bookingSummary": "Rezervi un sejur de {{nights}} nopți pentru {{guests}} {{guestLabel}}",
     "arrivingLeaving": "Sosiți {{arrivalDate}} și plecați {{departureDate}}",
     "calculatingPrice": "Se calculează prețul...",
@@ -293,7 +293,9 @@
     "seasonAutumn": "Toamna e liniștită aici. Zile calde, seri de foc, și grătarul care merge până târziu.",
     "seasonWinter": "Iarna casa se încălzește repede, iar zăpada ține până în martie.",
     "seasonSpring": "Primăvara dealul se umple de verde. E cel mai liniștit moment din an.",
-    "seasonSummer": "Vara copiii nu mai intră în casă. Leagăn, grătar, și umbră până seara."
+    "seasonSummer": "Vara copiii nu mai intră în casă. Leagăn, grătar, și umbră până seara.",
+    "pickDate": "Alege data",
+    "entryPickOwn": "Nu se potrivesc? Alege-ți datele."
   },
   "property": {
     "amenities": "Facilități",
