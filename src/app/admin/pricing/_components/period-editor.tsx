@@ -32,7 +32,7 @@ import { V, lei, type BoardVerdict, type BoardRecommendation } from './year-boar
 
 export interface EditorPeriod {
   id: string; name: string; startDate: string; endDate: string; tier: string;
-  fixedNightPrice: number | null; flatRate: boolean; minStay: number | null;
+  fixedNightPrice: number | null; weekdayRate: number | null; flatRate: boolean; minStay: number | null;
   weekdayPrice: number | null; weekendPrice: number | null; openNights: number;
   valueAtRisk: number; verdict: BoardVerdict; worstGapPct: number | null;
 }
@@ -70,11 +70,14 @@ export function PeriodEditor({
   // Prefilled with the recommendation when there is one, so the common case is "look, then apply"
   // rather than "work out the number yourself".
   const suggested = prefill?.lever ?? null;
-  const [mode, setMode] = useState<'tier' | 'fixed'>(
-    suggested?.kind === 'fixed' || period.fixedNightPrice !== null ? 'fixed' : 'tier');
+  const [mode, setMode] = useState<'tier' | 'rate' | 'fixed'>(
+    suggested?.kind ?? (period.fixedNightPrice !== null ? 'fixed'
+      : period.weekdayRate !== null ? 'rate' : 'tier'));
   const [tier, setTier] = useState(suggested?.kind === 'tier' ? suggested.tier : period.tier);
   const [fixed, setFixed] = useState<string>(
     String(suggested?.kind === 'fixed' ? suggested.weekday : (period.fixedNightPrice ?? period.weekdayPrice ?? basePrice)));
+  const [rate, setRate] = useState<string>(
+    String(suggested?.kind === 'rate' ? suggested.weekday : (period.weekdayRate ?? period.weekdayPrice ?? basePrice)));
   const [flatRate, setFlatRate] = useState(period.flatRate);
   const [minStay, setMinStay] = useState<string>(String(period.minStay ?? ''));
 
@@ -88,9 +91,10 @@ export function PeriodEditor({
   const proposal = useCallback(() => ({
     tier,
     fixedNightPrice: mode === 'fixed' ? Number(fixed) || null : null,
+    weekdayRate: mode === 'rate' ? Number(rate) || null : null,
     minStay: minStay.trim() === '' ? null : Number(minStay),
     flatRate: mode === 'fixed' ? flatRate : false,
-  }), [mode, tier, fixed, flatRate, minStay]);
+  }), [mode, tier, fixed, rate, flatRate, minStay]);
 
   useEffect(() => {
     const id = ++seq.current;
@@ -165,16 +169,33 @@ export function PeriodEditor({
           <div>
             <div className="mb-2 flex items-center gap-2 text-sm font-medium">How this period is priced</div>
             <div className="flex gap-2">
+              <Button type="button" size="sm" variant={mode === 'rate' ? 'default' : 'outline'} onClick={() => setMode('rate')}>
+                A weekday rate
+              </Button>
               <Button type="button" size="sm" variant={mode === 'tier' ? 'default' : 'outline'} onClick={() => setMode('tier')}>
                 A demand tier
               </Button>
               <Button type="button" size="sm" variant={mode === 'fixed' ? 'default' : 'outline'} onClick={() => setMode('fixed')}>
-                One price I set myself
+                One flat price
               </Button>
             </div>
           </div>
 
-          {mode === 'tier' ? (
+          {mode === 'rate' ? (
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <Label htmlFor="rt">Weekday price per night</Label>
+                <Input id="rt" type="number" className="w-36" value={rate}
+                       onChange={(e) => setRate(e.target.value)} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Your weekend uplift still applies on top, so Fridays and Saturdays stay dearer. This is
+                usually the right lever: measured against real captures, Airbnb and Booking price
+                weekends about the same way you do, so keeping the uplift tracks them far better than
+                one flat price does.
+              </p>
+            </div>
+          ) : mode === 'tier' ? (
             <div>
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
                 {tiers.map((t) => {

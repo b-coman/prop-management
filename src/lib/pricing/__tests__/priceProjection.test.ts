@@ -9,7 +9,7 @@
 import {
   stayTotal, lengthOfStayDiscountPct, isFlatRate, projectNightlyPrice,
   nightlyChargeToday, solveWeekdayNightlyForStayTotal, solveFlatPriceForWorstGap, spreadAt,
-  suggestLever,
+  suggestLever, bestRateForBand,
   type StayEconomics, type NightFact,
 } from '../priceProjection';
 import { DEFAULT_TIER_MULTIPLIERS } from '../periods';
@@ -183,5 +183,63 @@ describe('spreadAt', () => {
       { flatRate: false }, { weekendAdjustment: 1, econ });
     expect(s.belowFloor).toBe(1);
     expect(s.dearer).toBe(0);
+  });
+});
+
+describe('weekdayRate keeps the weekend uplift', () => {
+  const opts = { basePrice: 525, weekendAdjustment: 1.3, tierMultipliers: DEFAULT_TIER_MULTIPLIERS };
+  const p = { tier: 'low' as const, fixedNightPrice: null, weekdayRate: 405, minStay: null, flatRate: false };
+
+  it('applies the rate on a weekday and the uplift on a weekend', () => {
+    expect(projectNightlyPrice({ isWeekend: false }, p, opts)).toBe(405);
+    expect(projectNightlyPrice({ isWeekend: true }, p, opts)).toBeCloseTo(526.5);
+  });
+
+  it('is overridden by a hand-set flat price, which is what "flat" means', () => {
+    expect(projectNightlyPrice({ isWeekend: true }, { ...p, fixedNightPrice: 349 }, opts)).toBe(349);
+  });
+});
+
+describe('bestRateForBand', () => {
+  const stays = [
+    { nights: fallStay.slice(0, 2), guests: 3, bestPrice: 1060, floor: 886 },
+    { nights: fallStay, guests: 3, bestPrice: 2528, floor: 2116 },
+  ];
+
+  it('maximises stays inside the band rather than merely avoiding one dearer stay', () => {
+    const r = bestRateForBand(stays, { flatRate: false, useWeekendUplift: false },
+      { weekendAdjustment: 1.3, econ })!;
+    const s = spreadAt(r.rate, stays, { flatRate: false, useWeekendUplift: false },
+      { weekendAdjustment: 1.3, econ });
+    // No other rate fits more stays in band.
+    for (let probe = 200; probe <= 900; probe += 5) {
+      const alt = spreadAt(probe, stays, { flatRate: false, useWeekendUplift: false },
+        { weekendAdjustment: 1.3, econ });
+      expect(alt.inBand).toBeLessThanOrEqual(s.inBand);
+    }
+  });
+
+  it('reports the band count at the rate it picks', () => {
+    const r = bestRateForBand(stays, { flatRate: false, useWeekendUplift: false },
+      { weekendAdjustment: 1.3, econ })!;
+    const s = spreadAt(r.rate, stays, { flatRate: false, useWeekendUplift: false },
+      { weekendAdjustment: 1.3, econ });
+    expect(s.inBand).toBe(r.inBand);
+    expect(s.dearer).toBe(r.dearer);
+  });
+
+  it('keeping the weekend uplift beats a flat rate on how far the stays spread', () => {
+    // The measured reason the flat fallback was wrong: with the uplift the stays sit closer together,
+    // so more of them fit inside one band.
+    const withUplift = bestRateForBand(stays, { flatRate: false, useWeekendUplift: true },
+      { weekendAdjustment: 1.3, econ })!;
+    const flat = bestRateForBand(stays, { flatRate: false, useWeekendUplift: false },
+      { weekendAdjustment: 1.3, econ })!;
+    expect(withUplift.inBand).toBeGreaterThanOrEqual(flat.inBand - 1);
+  });
+
+  it('returns null with nothing measured', () => {
+    expect(bestRateForBand([], { flatRate: false, useWeekendUplift: true },
+      { weekendAdjustment: 1.3, econ })).toBeNull();
   });
 });

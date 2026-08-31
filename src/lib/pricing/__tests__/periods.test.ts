@@ -204,3 +204,57 @@ describe('bad input is reported, not swallowed', () => {
     expect(r.warnings[0].kind).toBe('unknown-tier');
   });
 });
+
+describe('an explicit weekday rate compiles to a season, not a flat override', () => {
+  /**
+   * The distinction that matters: a `fixedNightPrice` becomes a dateOverride, which REPLACES the
+   * night's price and so flattens the weekend. A `weekdayRate` has to become a season multiplier so
+   * the engine still compounds the weekend adjustment on top - that uplift is what tracks the
+   * platforms, and losing it was the defect this lever exists to fix.
+   */
+  const base = {
+    propertyId: 'p', year: 2026, priority: 0, status: 'active' as const,
+    fixedNightPrice: null, minStay: 2,
+  };
+
+  it('emits a season whose multiplier is the rate over the base price', () => {
+    const res = compilePeriods(
+      [{ ...base, id: 'x', slug: 'fall', name: 'Fall', startDate: '2026-09-09', endDate: '2026-09-11',
+         tier: 'low', weekdayRate: 405 }],
+      { basePrice: 525, compiledAt: 'T' },
+    );
+    expect(res.overrides).toHaveLength(0);
+    expect(res.seasons).toHaveLength(1);
+    expect(res.seasons[0].priceMultiplier).toBeCloseTo(405 / 525);
+  });
+
+  it('still prefers a hand-set flat price when both are set', () => {
+    const res = compilePeriods(
+      [{ ...base, id: 'x', slug: 'nye', name: 'NYE', startDate: '2026-12-30', endDate: '2026-12-31',
+         tier: 'base', weekdayRate: 405, fixedNightPrice: 2351 }],
+      { basePrice: 525, compiledAt: 'T' },
+    );
+    expect(res.seasons).toHaveLength(0);
+    expect(res.overrides).toHaveLength(2);
+    expect(res.overrides[0].customPrice).toBe(2351);
+  });
+
+  it('refuses rather than repricing when there is no base price to divide by', () => {
+    const res = compilePeriods(
+      [{ ...base, id: 'x', slug: 'fall', name: 'Fall', startDate: '2026-09-09', endDate: '2026-09-11',
+         tier: 'low', weekdayRate: 405 }],
+      { basePrice: 0, compiledAt: 'T' },
+    );
+    expect(res.seasons).toHaveLength(0);
+    expect(res.warnings.map((w) => w.kind)).toContain('unknown-tier');
+  });
+
+  it('falls back to the tier when no rate is set', () => {
+    const res = compilePeriods(
+      [{ ...base, id: 'x', slug: 'fall', name: 'Fall', startDate: '2026-09-09', endDate: '2026-09-11',
+         tier: 'low' }],
+      { basePrice: 525, compiledAt: 'T' },
+    );
+    expect(res.seasons[0].priceMultiplier).toBeCloseTo(0.9);
+  });
+});

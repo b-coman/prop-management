@@ -43,15 +43,18 @@ export interface BoardRecommendation {
   conflictsWithFloor?: boolean; floorWeekday?: number | null;
   bindingStay?: { checkIn: string; checkOut: string; nights: number; guests: number; discountPct: number } | null;
   currentWeekend?: number | null; projectedWeekend?: number | null;
-  staysMeasured?: number; worstGapAfter?: number | null; deepestGapAfter?: number | null; belowFloorAfter?: number;
+  staysMeasured?: number; worstGapAfter?: number | null; deepestGapAfter?: number | null;
+  belowFloorAfter?: number; inBandAfter?: number; dearerAfter?: number;
   wantedWeekday: number; currentWeekday: number | null;
-  lever: { kind: 'tier'; tier: string; weekday: number } | { kind: 'fixed'; weekday: number };
+  lever: { kind: 'tier'; tier: string; weekday: number }
+       | { kind: 'rate'; weekday: number }
+       | { kind: 'fixed'; weekday: number };
   evidence: { checkIn: string; checkOut: string; nights: number; guests: number;
               direct: number; bestChannel: string; bestPrice: number; ageDays: number } | null;
 }
 export interface BoardPeriodRow {
   id: string; name: string; startDate: string; endDate: string; tier: string;
-  fixedNightPrice: number | null; flatRate: boolean; minStay: number | null;
+  fixedNightPrice: number | null; weekdayRate: number | null; flatRate: boolean; minStay: number | null;
   nights: number; booked: number; openNights: number; occupancyPct: number;
   weekdayPrice: number | null; weekendPrice: number | null; valueAtRisk: number;
   verdict: BoardVerdict; worstGapPct: number | null; measuredWindows: number; freshestAgeDays: number | null;
@@ -124,7 +127,8 @@ export function YearBoard({ data, propertyId }: { data: YearBoardData; propertyI
     setEditing({
       period: {
         id: p.id, name: p.name, startDate: p.startDate, endDate: p.endDate, tier: p.tier,
-        fixedNightPrice: p.fixedNightPrice, flatRate: p.flatRate, minStay: p.minStay,
+        fixedNightPrice: p.fixedNightPrice, weekdayRate: p.weekdayRate,
+        flatRate: p.flatRate, minStay: p.minStay,
         weekdayPrice: p.weekdayPrice, weekendPrice: p.weekendPrice, openNights: p.openNights,
         valueAtRisk: p.valueAtRisk, verdict: p.verdict, worstGapPct: p.worstGapPct,
       },
@@ -294,7 +298,9 @@ function RecommendationCard({ rank, p, currency, onFix }: {
             <div className="mt-1.5 text-xs text-muted-foreground">
               {r.lever.kind === 'tier'
                 ? `by moving this period to the "${r.lever.tier}" tier`
-                : 'no tier reaches this, so it would be one price you set for every night, weekends included'}
+                : r.lever.kind === 'rate'
+                  ? 'a weekday rate you set, with your usual weekend uplift still applied on top'
+                  : 'one flat price for every night, which is how whole-house holiday nights are sold'}
             </div>
 
             {/*
@@ -304,13 +310,14 @@ function RecommendationCard({ rank, p, currency, onFix }: {
             */}
             {r.staysMeasured ? (
               <div className="mt-2 border-t pt-2 text-xs text-slate-600">
-                Across the {r.staysMeasured} stays measured here, this would put you between{' '}
-                <strong>{fmtPct(r.worstGapAfter)}</strong> and <strong>{fmtPct(r.deepestGapAfter)}</strong>{' '}
-                against the cheapest platform.
+                Of the {r.staysMeasured} stays measured here, this puts{' '}
+                <strong>{r.inBandAfter}</strong> inside your 1 to 10% window and leaves{' '}
+                <strong className={r.dearerAfter ? 'text-red-700' : ''}>{r.dearerAfter}</strong>{' '}
+                where a platform is still cheaper. Range {fmtPct(r.worstGapAfter)} to{' '}
+                {fmtPct(r.deepestGapAfter)}.
                 {r.belowFloorAfter ? (
                   <span className="text-amber-800">
-                    {' '}On {r.belowFloorAfter} of them you would keep less than if the platform had
-                    taken the booking.
+                    {' '}On {r.belowFloorAfter} you would keep less than if the platform had taken it.
                   </span>
                 ) : null}
               </div>
@@ -545,7 +552,10 @@ function PeriodTable({ periods, onEdit }: { periods: BoardPeriodRow[]; onEdit: (
                         <div className="font-medium">{p.name}</div>
                         <div className="text-xs text-muted-foreground">
                           {shortDate(p.startDate)} to {shortDate(p.endDate)} · {p.nights}n ·{' '}
-                          {p.fixedNightPrice !== null ? `set by hand${p.flatRate ? ', whole house' : ''}` : `tier ${p.tier}`}
+                          {p.fixedNightPrice !== null
+                            ? `flat ${lei(p.fixedNightPrice)}${p.flatRate ? ', whole house' : ''}`
+                            : p.weekdayRate !== null ? `rate ${lei(p.weekdayRate)} + weekend`
+                            : `tier ${p.tier}`}
                         </div>
                       </div>
                     </div>

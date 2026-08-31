@@ -56,8 +56,26 @@ export interface PricingPeriod {
   tier: Tier;
   /** Higher wins where periods overlap. Explicit, because the engine's implicit rule is a bug. */
   priority: number;
-  /** Hand-set nightly price. Wins over the tier, and compiles to dateOverrides. */
+  /** Hand-set nightly price. Wins over the tier, and compiles to dateOverrides (so it is FLAT). */
   fixedNightPrice: number | null;
+  /**
+   * An explicit weekday nightly rate that KEEPS the weekend uplift.
+   *
+   * The model had exactly two levers and neither could express what parity asks for. The tier ladder
+   * is six rungs (0.8 to 1.3 of base), too coarse: Fall needs about 405 a night and the nearest rung
+   * is 420. The other lever, `fixedNightPrice`, compiles to a date override, which REPLACES the
+   * night's price and so flattens Friday and Saturday to the weekday rate.
+   *
+   * That mattered more than it sounds. Measured against 53 captured stays, the platforms behave as if
+   * their own weekend multiplier is ~1.30 - the same as the owner's. Keeping it roughly halves how far
+   * apart a period's stays sit (Fall: 76 lei a night, against 174 with a flat price). So the flat
+   * fallback was throwing away tracking the owner already had right.
+   *
+   * This compiles to a SEASON with `priceMultiplier = weekdayRate / basePrice`, so the engine applies
+   * the weekend adjustment on top exactly as it does for a tier. Wins over `tier`; loses to
+   * `fixedNightPrice`, which stays the right lever for whole-house holiday nights.
+   */
+  weekdayRate?: number | null;
   minStay: number | null;
   status: 'draft' | 'active' | 'archived';
   /** Flat rate ignores the occupancy ladder — what a hand-set peak price means. */
@@ -236,10 +254,13 @@ export interface CompileOptions {
   compiledAt?: string;
   /** Floor applied when a period states no minimum stay. */
   defaultMinimumStay?: number;
+  /** The property's base nightly price, needed to turn an explicit `weekdayRate` into a multiplier. */
+  basePrice?: number;
 }
 
 export function compilePeriods(periods: PricingPeriod[], opts: CompileOptions = {}): CompileResult {
   const tiers = opts.tierMultipliers ?? DEFAULT_TIER_MULTIPLIERS;
+  const basePrice = opts.basePrice ?? 0;
   const compiledAt = opts.compiledAt;
   const defaultMinStay = opts.defaultMinimumStay ?? 1;
   const warnings: CompileWarning[] = [];
@@ -281,7 +302,19 @@ export function compilePeriods(periods: PricingPeriod[], opts: CompileOptions = 
       continue;
     }
 
-    const multiplier = tiers[p.tier];
+    // An explicit weekday rate becomes a multiplier, so the engine still compounds the weekend.
+    const multiplier = p.weekdayRate != null && basePrice > 0
+      ? p.weekdayRate / basePrice
+      : tiers[p.tier];
+    if (p.weekdayRate != null && basePrice <= 0) {
+      warnings.push({
+        kind: 'unknown-tier',
+        message: `Period "${p.slug}" sets an explicit weekday rate but the property has no base price, ` +
+          'so it cannot be expressed as a multiplier — skipped rather than silently repriced.',
+        periodIds: [p.id],
+      });
+      continue;
+    }
     if (multiplier == null) {
       warnings.push({
         kind: 'unknown-tier',

@@ -206,6 +206,7 @@ export async function fetchYearBoard(propertyId: string): Promise<{
         ...p,
         tier: doc.tier,
         fixedNightPrice: doc.fixedNightPrice ?? null,
+        weekdayRate: doc.weekdayRate ?? null,
         flatRate,
         minStay: doc.minStay ?? null,
         recommendation: buildRecommendation(
@@ -290,6 +291,8 @@ const proposalSchema = z.object({
   tier: z.enum(['min', 'low', 'base', 'medium', 'high', 'max']),
   // Bounded so a stray keystroke cannot publish a wild nightly rate to a live booking site.
   fixedNightPrice: z.coerce.number().min(1).max(100000).nullable(),
+  /** A weekday rate that keeps the weekend uplift. The usual lever; wins over the tier. */
+  weekdayRate: z.coerce.number().min(1).max(100000).nullable().optional(),
   minStay: z.coerce.number().int().min(1).max(30).nullable(),
   flatRate: z.boolean(),
 });
@@ -395,6 +398,7 @@ export async function applyPeriodProposal(
       ...period,
       tier: parsed.data.tier,
       fixedNightPrice: parsed.data.fixedNightPrice,
+      weekdayRate: parsed.data.weekdayRate ?? null,
       minStay: parsed.data.minStay,
       flatRate: parsed.data.flatRate,
     };
@@ -402,6 +406,9 @@ export async function applyPeriodProposal(
     await upsertPeriods([updated], 'admin/year-board');
     const compiled = await compileAndWrite(propertyId, {
       tierMultipliers: ctx.tierMultipliers,
+      // A weekday rate is stored on the period but the engine reads a multiplier, so the compiler
+      // needs the base it multiplies.
+      basePrice: ctx.basePrice,
       dryRun: false,
     });
     await regenerateCalendarsAfterChange(propertyId);
@@ -409,6 +416,7 @@ export async function applyPeriodProposal(
     logger.info('Period repriced from the year board', {
       propertyId, periodId,
       tier: parsed.data.tier, fixedNightPrice: parsed.data.fixedNightPrice,
+      weekdayRate: parsed.data.weekdayRate ?? null,
       nightsChanged: before.changedNights.length,
       seasonsWritten: compiled.seasonsWritten, overridesWritten: compiled.overridesWritten,
       seasonsDeleted: compiled.seasonsDeleted.length, overridesDeleted: compiled.overridesDeleted.length,

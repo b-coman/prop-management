@@ -52,8 +52,10 @@ export interface NightFact {
 /** What the owner is proposing for a period. One lever each, mirroring `PricingPeriod`. */
 export interface PeriodProposal {
   tier: Tier;
-  /** Hand-set nightly price. Wins over the tier, and compiles to a dateOverride. */
+  /** Hand-set nightly price. Wins over everything, and compiles to a dateOverride, so it is FLAT. */
   fixedNightPrice: number | null;
+  /** An explicit weekday rate that KEEPS the weekend uplift. Wins over the tier. */
+  weekdayRate?: number | null;
   minStay: number | null;
   /** Whole-house pricing: every party size pays the nightly price. */
   flatRate: boolean;
@@ -80,6 +82,9 @@ export function projectNightlyPrice(
 ): number {
   if (proposal.fixedNightPrice !== null) return proposal.fixedNightPrice;
   const weekend = night.isWeekend ? opts.weekendAdjustment : 1;
+  // An explicit weekday rate replaces the tier but still compounds the weekend, because it compiles
+  // to a season multiplier rather than to a flat date override.
+  if (proposal.weekdayRate != null) return round2(proposal.weekdayRate * weekend);
   const tier = opts.tierMultipliers[proposal.tier] ?? 1;
   return round2(opts.basePrice * weekend * tier);
 }
@@ -342,22 +347,92 @@ export function solveFlatPriceForWorstGap(
   return round2((lo + hi) / 2);
 }
 
+/**
+ * The band the owner actually asked for: "a bit under the OTAs, could vary between 10% and 1% less,
+ * but being generally less."
+ *
+ * That is not a point target, and treating it as one is what made the earlier versions unusable. One
+ * nightly rate can never put every stay shape on the same number, because each stay carries its own
+ * length-of-stay discount, its own extra-guest charge and a fixed cleaning fee, while the platforms
+ * discount those things differently. A BAND is satisfiable where a point is not.
+ */
+export const BAND = { lo: -0.10, hi: -0.01 } as const;
+
+/**
+ * The weekday rate that holds the most measured stays inside the band.
+ *
+ * Ranked by: most stays IN BAND, then fewest where a platform is still cheaper, then fewest priced
+ * under their floor.
+ *
+ * Ranking on "dearer" first was too timid and it showed immediately on real data: to avoid a single
+ * stay where Booking undercut him, Late Fall was cut from 420 to 357 a night, which put four of five
+ * stays far below the band. The two errors cost about the same. A stay where the platform is cheaper
+ * loses roughly its commission, 18-23%; a stay priced 20% under instead of 5% under gives away 15% on
+ * a booking he still wins. So neither deserves to dominate, and in-band - which penalises both
+ * directions - is the honest objective, with "dearer" breaking ties.
+ *
+ * Swept rather than solved: the objective counts stays, so it is a step function with flat regions
+ * and no derivative to follow. The range is bounded by the stays themselves, so the sweep is small.
+ */
+export function bestRateForBand(
+  stays: Array<{ nights: NightFact[]; guests: number; bestPrice: number; floor: number | null }>,
+  proposal: { flatRate: boolean; useWeekendUplift: boolean },
+  opts: { weekendAdjustment: number; econ: StayEconomics },
+  step = 1,
+): { rate: number; inBand: number; dearer: number; belowFloor: number; gaps: number[] } | null {
+  const usable = stays.filter((s) => s.nights.length > 0 && s.bestPrice > 0);
+  if (!usable.length) return null;
+  const m = proposal.useWeekendUplift ? opts.weekendAdjustment : 1;
+
+  // Bound the sweep by what any stay could plausibly want, rather than a hardcoded range.
+  const perNight = usable.map((s) => s.bestPrice / s.nights.length);
+  const lo = Math.max(1, Math.floor(Math.min(...perNight) * 0.3));
+  const hi = Math.ceil(Math.max(...perNight) * 1.3);
+
+  let best: ReturnType<typeof bestRateForBand> = null;
+  for (let rate = lo; rate <= hi; rate += step) {
+    const gaps = usable.map((s) => {
+      const total = stayTotal(
+        s.nights.map((n) => nightlyChargeProjected(n, s.guests,
+          { tier: 'base', fixedNightPrice: null, weekdayRate: rate, minStay: null, flatRate: proposal.flatRate },
+          { basePrice: rate, weekendAdjustment: m, tierMultipliers: UNIT_TIERS, econ: opts.econ })),
+        opts.econ,
+      );
+      return { gap: (total - s.bestPrice) / s.bestPrice, total, floor: s.floor };
+    });
+    const inBand = gaps.filter((g) => g.gap >= BAND.lo && g.gap <= BAND.hi).length;
+    const dearer = gaps.filter((g) => g.gap > 0).length;
+    const belowFloor = gaps.filter((g) => g.floor !== null && g.total < g.floor).length;
+    const cand = { rate, inBand, dearer, belowFloor, gaps: gaps.map((g) => g.gap) };
+    if (!best
+      || cand.inBand > best.inBand
+      || (cand.inBand === best.inBand && cand.dearer < best.dearer)
+      || (cand.inBand === best.inBand && cand.dearer === best.dearer && cand.belowFloor < best.belowFloor)) {
+      best = cand;
+    }
+  }
+  return best;
+}
+
+const UNIT_TIERS: TierMultipliers = { min: 1, low: 1, base: 1, medium: 1, high: 1, max: 1 };
+
 /** Where every measured stay lands at a given nightly price. The spread is the answer, not one number. */
 export function spreadAt(
   weekday: number,
   stays: Array<{ nights: NightFact[]; guests: number; bestPrice: number; floor: number | null }>,
-  proposal: { flatRate: boolean },
+  proposal: { flatRate: boolean; useWeekendUplift?: boolean },
   opts: { weekendAdjustment: number; econ: StayEconomics },
-): { gaps: number[]; worst: number | null; deepest: number | null; dearer: number; belowFloor: number } {
-  const UNIT: TierMultipliers = { min: 1, low: 1, base: 1, medium: 1, high: 1, max: 1 };
+): { gaps: number[]; worst: number | null; deepest: number | null; inBand: number;
+     dearer: number; belowFloor: number } {
+  const m = proposal.useWeekendUplift === false ? 1 : opts.weekendAdjustment;
   const gaps: number[] = [];
   let belowFloor = 0;
   for (const s of stays) {
     if (!s.nights.length || !s.bestPrice) continue;
     const total = stayTotal(
       s.nights.map((n) => nightlyChargeProjected(n, s.guests,
-        { tier: 'base', fixedNightPrice: null, minStay: null, flatRate: proposal.flatRate },
-        { basePrice: weekday, weekendAdjustment: opts.weekendAdjustment, tierMultipliers: UNIT, econ: opts.econ })),
+        { tier: 'base', fixedNightPrice: null, weekdayRate: weekday, minStay: null, flatRate: proposal.flatRate },
+        { basePrice: weekday, weekendAdjustment: m, tierMultipliers: UNIT_TIERS, econ: opts.econ })),
       opts.econ,
     );
     gaps.push((total - s.bestPrice) / s.bestPrice);
@@ -368,6 +443,7 @@ export function spreadAt(
     gaps,
     worst: gaps.length ? gaps[0] : null,
     deepest: gaps.length ? gaps[gaps.length - 1] : null,
+    inBand: gaps.filter((g) => g >= BAND.lo && g <= BAND.hi).length,
     dearer: gaps.filter((g) => g > 0).length,
     belowFloor,
   };

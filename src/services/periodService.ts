@@ -67,6 +67,8 @@ export async function compileAndWrite(
   opts: {
     tierMultipliers?: TierMultipliers;
     defaultMinimumStay?: number;
+    /** The property's base nightly price. Needed by periods that set an explicit weekday rate. */
+    basePrice?: number;
     dryRun?: boolean;
     compiledAt?: string;
   } = {},
@@ -78,6 +80,9 @@ export async function compileAndWrite(
   const result = compilePeriods(periods, {
     tierMultipliers: opts.tierMultipliers ?? DEFAULT_TIER_MULTIPLIERS,
     defaultMinimumStay: opts.defaultMinimumStay,
+    // Required for a period that states an explicit weekday rate: the engine stores a multiplier,
+    // so the rate has to be divided by the base it multiplies.
+    basePrice: opts.basePrice,
     compiledAt: opts.compiledAt ?? new Date().toISOString(),
   });
 
