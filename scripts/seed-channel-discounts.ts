@@ -24,7 +24,7 @@ const DATA: Record<string, {
     lengthOfStayDiscounts: [
       { nightsThreshold: 4, discountPercentage: 10, label: 'Trip length, 4 nights' },
       { nightsThreshold: 5, discountPercentage: 15, label: 'Trip length, 5 nights' },
-      { nightsThreshold: 7, discountPercentage: 20, label: 'Weekly' },
+      { nightsThreshold: 7, discountPercentage: 25, label: 'Weekly' },
       { nightsThreshold: 28, discountPercentage: 35, label: 'Monthly' },
     ],
     standingDeals: [
@@ -36,7 +36,7 @@ const DATA: Record<string, {
   'booking.com': {
     lengthOfStayDiscounts: [
       { nightsThreshold: 4, discountPercentage: 5, label: '4 day stay rate (flexible)' },
-      { nightsThreshold: 7, discountPercentage: 30, label: 'Weekly rate (flexible)' },
+      { nightsThreshold: 7, discountPercentage: 25, label: 'Weekly rate (flexible)' },
       { nightsThreshold: 28, discountPercentage: 45, label: 'Monthly rate (NON-refundable)', nonRefundable: true },
     ],
     standingDeals: [
@@ -60,6 +60,10 @@ const DATA: Record<string, {
       await db.collection('channels').doc(id).set({
         ...payload,
         discountsRecordedAt: '2026-09-01',
+        // Weekly moved to 25% on BOTH platforms on 2026-09-01 (was Airbnb 20%, Booking 30%).
+        // Any capture of a 7-night-or-longer stay taken before this is stale in a known direction:
+        // Airbnb got ~6% cheaper, Booking ~7% dearer.
+        weeklyChangedAt: '2026-09-01',
         discountsSource: "owner's own Airbnb and Booking.com settings screens",
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: 'scripts/seed-channel-discounts.ts',

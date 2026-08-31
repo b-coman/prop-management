@@ -4,7 +4,17 @@
  * a stay where a platform is cheaper loses the booking; a stay far under the band gives away margin.
  */
 import { loadStays, type Stay } from './parity-structure';
+import { getChannels } from '@/services/channelService';
+import { discountAt } from '@/lib/pricing/ladderCompare';
 import type { StayEconomics } from '@/lib/pricing/priceProjection';
+
+/**
+ * Captures of 7-night-or-longer stays predate the 2026-09-01 weekly change (Airbnb -20% -> -25%,
+ * Booking -30% -> -25%). The rate plan is a known multiplier on the standard rate, so those prices
+ * are rescaled by the ratio rather than dropped. Estimates, flagged as such; only a fresh capture
+ * settles which platform is now cheapest on a week-long stay.
+ */
+const WEEKLY_RESCALE: Record<string, number> = { airbnb: 0.75 / 0.80, 'booking.com': 0.75 / 0.70 };
 
 const LO = -0.10, HI = -0.01;
 type Ladder = Array<{ nightsThreshold: number; discountPercentage: number }>;
@@ -29,8 +39,28 @@ function scorePeriod(ss: Stay[], m: number, e: StayEconomics, l: Ladder) {
 }
 
 (async () => {
-  const { stays, econ, prop } = await loadStays();
+  const { stays: raw, econ, prop } = await loadStays();
   const m = prop.pricingConfig?.weekendAdjustment ?? 1.3;
+
+  const stays = raw.map((s) => s.n >= 7
+    ? { ...s, bestPrice: s.bestPrice * (WEEKLY_RESCALE[s.bestChannel] ?? 1) }
+    : s);
+  const restated = raw.filter((s) => s.n >= 7).length;
+
+  // The platforms' own ladders, read from the channels collection rather than hardcoded here.
+  const channels = await getChannels('prahova-mountain-chalet');
+  const platform = [...channels.byId.values()]
+    .filter((c) => c.channelId !== 'direct' && c.active && c.lengthOfStayDiscounts?.length);
+  console.log('platform ladders, as recorded:');
+  for (const c of platform) {
+    console.log(`  ${c.displayName.padEnd(13)}`, (c.lengthOfStayDiscounts ?? [])
+      .map((d) => `${d.nightsThreshold}n -${d.discountPercentage}%${d.nonRefundable ? '(NR)' : ''}`).join('  '));
+  }
+  const cheapestAt = (n: number) => Math.max(0, ...platform
+    .map((c) => { const r = discountAt(n, c.lengthOfStayDiscounts); return r && !r.nonRefundable ? r.discountPercentage : 0; }));
+  console.log('\ncheapest comparable platform discount by length:');
+  console.log('  ' + [2,3,4,5,6,7,10,14,28].map((n) => `${n}n:${cheapestAt(n)}%`).join('  '));
+  console.log(`\n${restated} stay(s) of 7+ nights restated for the new weekly rates (estimates).\n`);
   const byPeriod = new Map<string, Stay[]>();
   for (const s of stays) {
     if (s.period.startsWith('(no period')) continue;
