@@ -326,17 +326,17 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { cla
           {/* Date & Guest Selection */}
           <MobileDateSelectorWrapper />
 
-          {/* Mobile: the price lives in the sticky bar, but the SENTENCE did not exist here at all.
-              A phone went straight from "sep 5-sep 7 • 2 nopți 5" — machine shorthand — into a
-              four-field checkout headed "Finalizează rezervarea", which presumes a decision the
-              visitor has not made 40 seconds after clicking an ad. Desktop has always shown these
-              two lines; this is the same two components, nothing new invented. */}
+          {/* Mobile: the ARRIVAL LINE only. This block used to carry the "Rezervi un sejur de N nopți
+              pentru N Oaspeți" heading too, which I added for warmth without noticing that the
+              collapsed strip immediately above already says "sep 7-sep 10 • 3 nopți · 3". Between
+              the two of them the same three facts were stated three times, over about 200px of a
+              ~699px screen. The strip keeps the numbers; this keeps the one thing the strip omits,
+              which is the DAY NAMES - "sosiți luni ... plecați joi" is how people actually picture a
+              stay, and no amount of "7-10" conveys it. Desktop keeps its own summary card: there the
+              full picker is on show rather than a collapsed strip, so nothing is being repeated. */}
           {hasValidPricing && pricing && (
             <div className="mt-4 text-center lg:hidden">
-              <BookingSummaryText nights={numberOfNights} guests={guestCount} t={t} />
-              <div className="mt-1">
-                <DateRangeDisplay checkInDate={checkInDate} checkOutDate={checkOutDate} t={t} currentLang={currentLang} />
-              </div>
+              <DateRangeDisplay checkInDate={checkInDate} checkOutDate={checkOutDate} t={t} currentLang={currentLang} />
             </div>
           )}
 
@@ -1012,25 +1012,16 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { cla
               />
             </div>
             
-            {/* Two controls, not three. "Hold Dates" used to sit here at equal width to "Book Now",
-                and in 301 bookings it has produced exactly zero holds — because as a bare label it
-                is a button that appears to cost money without saying what you get. Its actual terms
-                are good (24h, 50 lei, fully refunded on completion) but they only appear AFTER the
-                tap. It now lives below the form as a sentence that carries those terms; see
-                `holdNudge`. Freeing this slot is what lets WhatsApp be a labelled button instead of
-                a silent glyph. flex-[1.4] keeps the primary visually dominant. */}
+            {/* NO "Rezervă acum" HERE, and this is a bug fix rather than a layout preference.
+                Pricing auto-selects the `book` tab, so the form is already open by the time this bar
+                appears - and the button called `handleTabClick('book')`, setting the tab to the tab
+                it was already on. Clicked on the running page and diffed before/after: scroll
+                unchanged, DOM unchanged, text length identical, 797 both times. The largest, greenest
+                control on the phone did nothing except fire a tracking event, while the real submit
+                ("Continuă către Plată") sat two screens below, unreachable without scrolling past it.
+                That also means `select_booking_action` has been counting taps on a dead control.
+                The form owns its own CTA now; this bar carries the price and a way to ask. */}
             <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => handleTabClick('book')}
-                className={`flex-[1.4] py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 ${
-                  selectedAction === 'book' || (!selectedAction && activeTab === 'book')
-                    ? 'bg-primary text-primary-foreground shadow-md'
-                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                }`}
-              >
-                {t('booking.bookNow', 'Book Now')}
-              </button>
               <TalkActions position="mobile_bar" compact />
             </div>
           </div>
