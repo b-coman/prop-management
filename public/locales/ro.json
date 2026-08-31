@@ -181,7 +181,7 @@
     "holdExpires": "Blocarea expiră în {{hours}} ore",
     "fullyRefundable": "Complet rambursabil",
     "nonRefundable": "Nerambursabil",
-    "showPriceDetails": "Arată detaliile prețului",
+    "showPriceDetails": "Detalii preț",
     "priceDetails": "Detalii Preț",
     "accommodation": "Cazare",
     "additionalFees": "Taxe Suplimentare",
@@ -282,7 +282,10 @@
     "waDates": "Perioada: {{stay}}, {{guests}} persoane.",
     "waQuoted": "Total afișat: {{total}} {{currency}}.",
     "waUnavailable": "Bună ziua! Am încercat {{stay}} la {{property}}, dar datele apar ocupate. Ce alte perioade aveți libere?",
-    "bookAlsoOn": "Poți rezerva și pe"
+    "bookAlsoOn": "Poți rezerva și pe",
+    "askUs": "Întreabă-ne",
+    "allIncluded": "tot inclus",
+    "holdNudge": "Nu te decizi acum? Blochează datele {{hours}} h pentru {{fee}} - se restituie integral când finalizezi rezervarea."
   },
   "property": {
     "amenities": "Facilități",

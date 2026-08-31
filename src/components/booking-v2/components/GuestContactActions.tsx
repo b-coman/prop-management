@@ -165,9 +165,16 @@ export function CallIconButton({ position = 'mobile_header' }: { position?: Talk
 }
 
 /**
- * The outlined pair. `compact` drops the labels to glyphs — for the mobile sticky bar, where the
- * primary CTA has to stay dominant and a 44px icon is the most that can sit beside it without
- * competing.
+ * The outlined pair. `compact` renders WhatsApp alone, labelled, as a flexible secondary — for the
+ * mobile sticky bar.
+ *
+ * IT USED TO BE A BARE 44px GLYPH, and the reasoning was that the primary CTA must stay dominant.
+ * That held, but it bought dominance by making the alternative unreadable: measured over August,
+ * 38 people reached this page from ads, 30 picked dates, 1 started a booking, and the pixel logged
+ * 6 Contact events in fourteen days. A silent icon in the corner is not an offer. The label costs
+ * the primary nothing here because the slot beside it was freed by moving "Hold dates" out of the
+ * bar and into a sentence that can explain its own terms — see `holdNudge` in BookingPageV2.
+ * Verified at 320/360/390px on the live page: no truncation, no bar overflow.
  */
 export function TalkActions({
   position,
@@ -195,9 +202,13 @@ export function TalkActions({
         rel="noopener noreferrer"
         aria-label={waLabel}
         onClick={() => reportTalkClick('whatsapp', position)}
-        className={`inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-md border border-primary text-primary transition-colors hover:bg-primary/10 ${className}`}
+        // flex-1 rather than a fixed width: the primary CTA beside this one carries flex-[1.4], so
+        // the pair scales together and the label still fits at 320px (measured: 78px of text in a
+        // 137px button).
+        className={`inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg border border-primary px-3 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary/10 ${className}`}
       >
-        <WhatsAppGlyph className="h-5 w-5" />
+        <WhatsAppGlyph className="h-5 w-5 flex-shrink-0" />
+        <span className="truncate">{t('booking.askUs', 'Ask us')}</span>
       </a>
     );
   }

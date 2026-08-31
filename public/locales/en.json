@@ -181,7 +181,7 @@
     "holdExpires": "Hold expires in {{hours}} hours",
     "fullyRefundable": "Fully refundable",
     "nonRefundable": "Non-refundable",
-    "showPriceDetails": "Show price details",
+    "showPriceDetails": "Price details",
     "priceDetails": "Price Details",
     "accommodation": "Accommodation",
     "additionalFees": "Additional Fees",
@@ -282,7 +282,10 @@
     "waDates": "Dates: {{stay}}, {{guests}} guests.",
     "waQuoted": "Quoted total: {{total}} {{currency}}.",
     "waUnavailable": "Hello! I tried {{stay}} at {{property}} but those dates show as taken. What else is free?",
-    "bookAlsoOn": "You can also book on"
+    "bookAlsoOn": "You can also book on",
+    "askUs": "Ask us",
+    "allIncluded": "all-in",
+    "holdNudge": "Not ready to decide? Hold the dates for {{hours}} h for {{fee}} - fully refunded when you complete the booking."
   },
   "property": {
     "amenities": "Amenities",

@@ -46,9 +46,12 @@ export function MobilePriceDrawer({
       <SheetTrigger asChild>
         <button
           type="button"
-          className="text-sm text-primary hover:text-primary/80 transition-colors flex items-center gap-1 py-1 px-2 -mr-2"
+          // nowrap + no-shrink: this shares a row with the total, and when the label was allowed to
+          // wrap it silently added 17px to the height of the sticky bar on every phone. The label
+          // itself was shortened for the same reason — at 320px the old one took two lines on its own.
+          className="text-sm text-primary hover:text-primary/80 transition-colors flex flex-shrink-0 items-center gap-1 whitespace-nowrap py-1 px-2 -mr-2"
         >
-{t('booking.showPriceDetails', 'Show price details')} <ChevronDown className="h-3 w-3" />
+{t('booking.showPriceDetails', 'Price details')} <ChevronDown className="h-3 w-3" />
         </button>
       </SheetTrigger>
       <SheetContent side="bottom" className="h-[70vh] overflow-y-auto">

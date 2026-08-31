@@ -290,8 +290,20 @@ function BookingPageContent({ className, otaLinks = [] }: { className?: string; 
         <div className="lg:col-span-2">
           {/* Date & Guest Selection */}
           <MobileDateSelectorWrapper />
-          
-          {/* Mobile: Pricing will be shown in sticky bottom bar */}
+
+          {/* Mobile: the price lives in the sticky bar, but the SENTENCE did not exist here at all.
+              A phone went straight from "sep 5-sep 7 • 2 nopți 5" — machine shorthand — into a
+              four-field checkout headed "Finalizează rezervarea", which presumes a decision the
+              visitor has not made 40 seconds after clicking an ad. Desktop has always shown these
+              two lines; this is the same two components, nothing new invented. */}
+          {hasValidPricing && pricing && (
+            <div className="mt-4 text-center lg:hidden">
+              <BookingSummaryText nights={numberOfNights} guests={guestCount} t={t} />
+              <div className="mt-1">
+                <DateRangeDisplay checkInDate={checkInDate} checkOutDate={checkOutDate} t={t} currentLang={currentLang} />
+              </div>
+            </div>
+          )}
 
           {/* Desktop: Control Panel - Sticky */}
           <div className="hidden lg:block lg:sticky lg:top-4 mt-6">
@@ -398,7 +410,10 @@ function BookingPageContent({ className, otaLinks = [] }: { className?: string; 
                         equal choices. The form is still here, one text link down. */}
                     <div className="flex items-center gap-2 pt-1">
                       <span className="h-px flex-1 bg-border" />
-                      <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                      {/* Not uppercase. In Romanian this string is "Ai o întrebare?", and
+                          text-transform turns the "Ai" into "AI" — the divider above the only help
+                          we offer read as a product name rather than a question. */}
+                      <span className="text-xs tracking-wide text-muted-foreground">
                         {t('booking.haveAQuestion', 'Have a question?')}
                       </span>
                       <span className="h-px flex-1 bg-border" />
@@ -858,13 +873,34 @@ function BookingPageContent({ className, otaLinks = [] }: { className?: string; 
             </div>
           )}
 
+          {/* Hold, re-offered as its own terms. This is where the button used to send people from
+              the sticky bar, except now it arrives at the moment it makes sense: someone has read
+              the total, scrolled the whole form, and not filled it in. The sentence says the price,
+              the duration and the refund, so the offer does the persuading — a bare "Hold Dates"
+              chip did none of that and got taken zero times in 301 bookings. Hidden once the hold
+              form is already open, and on desktop, where the panel still carries its own button. */}
+          {selectedAction !== 'hold' && property?.enableHoldOption && pricing && (
+            <div className="mt-8 text-center lg:hidden">
+              <button
+                type="button"
+                onClick={() => handleTabClick('hold')}
+                className="mx-auto block max-w-[46ch] px-2 py-2 text-sm leading-relaxed text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {t('booking.holdNudge', 'Not ready to decide? Hold the dates for {{hours}} h for {{fee}} - fully refunded when you complete the booking.', {
+                  hours: property.holdDurationHours || 24,
+                  fee: formatPrice(convertToSelectedCurrency(property.holdFeeAmount || 50, property.baseCurrency || 'EUR')),
+                })}
+              </button>
+            </div>
+          )}
+
           {/* Mobile only. The desktop summary panel carries this link, but that panel is `lg:` — and
               replacing the "Contact" tab with a WhatsApp icon in the sticky bar left the written
               form with no route at all on a phone. Audited across four states at 390px: msgLink
               false everywhere. WhatsApp and calling cover most people; this is for the ones who
               would rather type than talk. */}
           {selectedAction !== 'contact' && pricing && (
-            <div className="mt-8 text-center lg:hidden">
+            <div className="mt-4 text-center lg:hidden">
               <button
                 type="button"
                 onClick={() => handleTabClick('contact')}
@@ -907,8 +943,14 @@ function BookingPageContent({ className, otaLinks = [] }: { className?: string; 
                 <span className="text-2xl font-bold text-foreground whitespace-nowrap">
                   {formatPrice(convertToSelectedCurrency(pricing.totalPrice || pricing.total, pricing.currency))}
                 </span>
-                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                {/* "tot inclus" earns its place: the bar shows one number with no context, and a
+                    total with no qualifier reads as a subtotal, so people brace for the cleaning fee
+                    that is in fact already in it. The desktop panel has said this all along
+                    ("Total (include toate taxele)"); the phone, which is 83% of the traffic, never did. */}
+                <span className="min-w-0 truncate text-sm text-muted-foreground">
                   {numberOfNights} {numberOfNights === 1 ? t('common.night', 'night') : t('common.nights', 'nights')}
+                  {' · '}
+                  {t('booking.allIncluded', 'all-in')}
                 </span>
               </div>
               <MobilePriceDrawer
@@ -921,34 +963,25 @@ function BookingPageContent({ className, otaLinks = [] }: { className?: string; 
               />
             </div>
             
-            {/* Action Buttons - Clean Segmented Design */}
+            {/* Two controls, not three. "Hold Dates" used to sit here at equal width to "Book Now",
+                and in 301 bookings it has produced exactly zero holds — because as a bare label it
+                is a button that appears to cost money without saying what you get. Its actual terms
+                are good (24h, 50 lei, fully refunded on completion) but they only appear AFTER the
+                tap. It now lives below the form as a sentence that carries those terms; see
+                `holdNudge`. Freeing this slot is what lets WhatsApp be a labelled button instead of
+                a silent glyph. flex-[1.4] keeps the primary visually dominant. */}
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => handleTabClick('book')}
-                className={`flex-1 py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 ${
+                className={`flex-[1.4] py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 ${
                   selectedAction === 'book' || (!selectedAction && activeTab === 'book')
-                    ? 'bg-primary text-primary-foreground shadow-md' 
+                    ? 'bg-primary text-primary-foreground shadow-md'
                     : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
                 }`}
               >
                 {t('booking.bookNow', 'Book Now')}
               </button>
-              <button
-                type="button"
-                onClick={() => handleTabClick('hold')}
-                className={`flex-1 py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 ${
-                  selectedAction === 'hold'
-                    ? 'bg-primary text-primary-foreground shadow-md' 
-                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                }`}
-              >
-                {t('booking.holdDates', 'Hold Dates')}
-              </button>
-              {/* 87% of this page's traffic is mobile and this bar is thumb territory, so the
-                  primary CTA has to stay dominant: WhatsApp goes in as a 44px icon beside it, not a
-                  third equal-width button. The contact FORM is reachable from the link under the
-                  form area — it does not need a permanent slot in the sticky bar. */}
               <TalkActions position="mobile_bar" compact />
             </div>
           </div>
