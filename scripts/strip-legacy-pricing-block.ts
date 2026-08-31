@@ -61,7 +61,9 @@ const SLUGS = ['prahova-mountain-chalet', 'coltei-apartment-bucharest'];
     console.log(`  keeping  pricingConfig.weekendAdjustment ${cfg.weekendAdjustment}`);
 
     if (APPLY) {
-      const backup = path.resolve(process.cwd(), `backup-${slug}-pricing-${Date.now()}.json`);
+      // Not process.cwd(): a loose backup-*.json in the repo root gets swept into the next commit.
+      const dir = process.env.TMPDIR || '/tmp';
+      const backup = path.resolve(dir, `backup-${slug}-pricing-${Date.now()}.json`);
       fs.writeFileSync(backup, JSON.stringify({ pricing: d.pricing }, null, 2));
       await ref.update({ pricing: FieldValue.delete() });
       console.log(`  REMOVED. Backup of the deleted map: ${backup}`);
