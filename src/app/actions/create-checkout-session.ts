@@ -37,7 +37,15 @@ let stripe: Stripe | null = null;
 function getStripe(): Stripe {
   if (stripe) return stripe;
   
-  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  // `.trim()` IS LORE-BEARING, DO NOT REMOVE. The Secret Manager value ends with a newline (108
+  // bytes, not 107 - written with `echo` rather than `printf`), and Cloud Run mounts it verbatim.
+  // Node's http client refuses header values containing a newline, and the Stripe SDK catches that
+  // and reports it as `StripeConnectionError: An error occurred with our connection to Stripe` -
+  // which reads like a network fault and is not one. Reproduced exactly on a laptop: the same key
+  // trimmed succeeds, untrimmed throws that error. `fetch` tolerates the newline, which is why every
+  // other outbound integration here (iCal, Meta CAPI, Resend, Anthropic) was unaffected and only
+  // payments broke. Found 31 Aug 2026, after zero charges had ever reached this live account.
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
   if (!stripeSecretKey) {
     throw new Error('STRIPE_SECRET_KEY is not set in environment variables.');
   }

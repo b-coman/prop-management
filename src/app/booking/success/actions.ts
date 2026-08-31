@@ -156,7 +156,7 @@ export async function verifyAndUpdateBooking(
     }
 
     // If not, check with Stripe directly
-    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
     if (!stripeSecretKey) {
       logger.error('STRIPE_SECRET_KEY not configured');
       return {

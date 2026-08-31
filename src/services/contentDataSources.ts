@@ -140,7 +140,7 @@ export async function fetchGooglePlacesData(
 ): Promise<Record<string, unknown> | null> {
   if (!config.enabled) return null;
 
-  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY?.trim();
   if (!apiKey) {
     log.warn('GOOGLE_PLACES_API_KEY not configured');
     return null;

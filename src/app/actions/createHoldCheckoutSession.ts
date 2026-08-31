@@ -15,7 +15,7 @@ let stripe: Stripe | null = null;
 function getStripe(): Stripe {
   if (stripe) return stripe;
   
-  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
   if (!stripeSecretKey) {
     throw new Error('STRIPE_SECRET_KEY is not set in environment variables.');
   }

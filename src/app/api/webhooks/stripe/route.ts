@@ -16,7 +16,7 @@ let stripe: Stripe | null = null;
 function getStripe(): Stripe | null {
   if (stripe) return stripe;
 
-  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
   if (!stripeSecretKey) {
     logger.warn('STRIPE_SECRET_KEY is not set - Stripe functionality will be limited');
     return null;
@@ -29,8 +29,13 @@ function getStripe(): Stripe | null {
 export async function POST(req: NextRequest) {
   logger.info('Webhook received');
 
-  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-  const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
+  // `.trim()` here is the SECOND half of the same defect, and it fails differently: the webhook
+  // secret is an HMAC input, so a trailing newline does not error - it silently produces a different
+  // signature and every event is rejected with "No signatures found matching the expected signature".
+  // A booking would have been paid for and never confirmed. Verified against a generated test header:
+  // clean secret verifies, secret + "\n" does not. See create-checkout-session.ts for the origin.
+  const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
 
   if (!stripeSecretKey) {
     logger.error('STRIPE_SECRET_KEY missing');

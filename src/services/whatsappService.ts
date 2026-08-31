@@ -86,7 +86,7 @@ export async function sendWhatsAppMessage(
   to: string,
   body: string
 ): Promise<{ success: boolean; sid?: string; error?: string }> {
-  const whatsappNumber = process.env.TWILIO_WHATSAPP_NUMBER;
+  const whatsappNumber = process.env.TWILIO_WHATSAPP_NUMBER?.trim();
 
   if (!whatsappNumber) {
     logger.warn('WhatsApp not configured: TWILIO_WHATSAPP_NUMBER missing');
@@ -144,7 +144,7 @@ export async function sendWhatsAppTemplateBySid(
   contentSid: string,
   variables: Record<string, string>
 ): Promise<{ success: boolean; sid?: string; error?: string; messageBody?: string }> {
-  const whatsappNumber = process.env.TWILIO_WHATSAPP_NUMBER;
+  const whatsappNumber = process.env.TWILIO_WHATSAPP_NUMBER?.trim();
 
   if (!whatsappNumber) {
     logger.warn('WhatsApp not configured: TWILIO_WHATSAPP_NUMBER missing');

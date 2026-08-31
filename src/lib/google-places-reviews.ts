@@ -25,7 +25,7 @@ export interface FetchGoogleReviewsResult {
  * Returns up to 5 reviews (Google API limit).
  */
 export async function fetchGoogleReviews(placeId: string): Promise<FetchGoogleReviewsResult> {
-  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY?.trim();
   if (!apiKey) {
     return { success: false, reviews: [], error: 'Google Places API key is not configured.' };
   }
