@@ -41,6 +41,7 @@ export interface BoardDay {
 export interface BoardRecommendation {
   valueAtRisk: number; verdict: string; headline: string;
   conflictsWithFloor?: boolean; floorWeekday?: number | null;
+  bindingStay?: { checkIn: string; checkOut: string; nights: number; guests: number; discountPct: number } | null;
   wantedWeekday: number; currentWeekday: number | null;
   lever: { kind: 'tier'; tier: string; weekday: number } | { kind: 'fixed'; weekday: number };
   evidence: { checkIn: string; checkOut: string; nights: number; guests: number;
@@ -161,8 +162,11 @@ export function YearBoard({ data, propertyId }: { data: YearBoardData; propertyI
 
       <p className="text-xs text-muted-foreground">
         {data.meta.measuredWindows} measured stay windows
-        {data.meta.freshestReadingDays !== null && `, newest reading ${data.meta.freshestReadingDays} day(s) old`}
-        {' '}. Read {new Date(data.meta.generatedAt).toLocaleString('en-GB')}.
+        {data.meta.freshestReadingDays !== null && (
+          data.meta.freshestReadingDays === 0
+            ? ', read today'
+            : `, newest reading ${data.meta.freshestReadingDays} day${data.meta.freshestReadingDays === 1 ? '' : 's'} old`
+        )}. Checked {new Date(data.meta.generatedAt).toLocaleString('en-GB')}.
         {!data.meta.parityAvailable && ` No platform comparison available: ${data.meta.parityError}.`}
       </p>
 
@@ -271,11 +275,19 @@ function RecommendationCard({ rank, p, currency, onFix }: {
             </div>
             {r.conflictsWithFloor && r.floorWeekday != null && (
               <div className="mt-2 border-t pt-2 text-xs text-amber-800">
-                Two things you want cannot both be true here. Undercutting the platforms by your usual
-                margin means charging <strong>{lei(r.lever.weekday)}</strong> a night; keeping every
-                measured stay worth more to you than the platform&rsquo;s own booking needs at least{' '}
-                <strong>{lei(r.floorWeekday)}</strong>. The platforms are priced low enough in this
-                period that you have to choose which matters more.
+                Undercutting the platforms by your usual margin means{' '}
+                <strong>{lei(r.lever.weekday)}</strong> a night. But at anything under{' '}
+                <strong>{lei(r.floorWeekday)}</strong> at least one stay earns you less than letting
+                the platform take it
+                {r.bindingStay && (
+                  <>
+                    {' '}&mdash; the one that decides it is{' '}
+                    <strong>{shortDate(r.bindingStay.checkIn)} to {shortDate(r.bindingStay.checkOut)}</strong>,{' '}
+                    {r.bindingStay.nights} nights for {r.bindingStay.guests}
+                    {r.bindingStay.discountPct > 0 &&
+                      `, where your ${Math.round(r.bindingStay.discountPct * 100)}% long-stay discount comes off on top`}
+                  </>
+                )}. Which matters more is your call.
               </div>
             )}
           </div>
@@ -285,11 +297,18 @@ function RecommendationCard({ rank, p, currency, onFix }: {
           <p className="text-xs text-muted-foreground">
             Measured on {shortDate(r.evidence.checkIn)} to {shortDate(r.evidence.checkOut)},{' '}
             {r.evidence.nights} nights for {r.evidence.guests}: you {lei(r.evidence.direct)},{' '}
-            {r.evidence.bestChannel} {lei(r.evidence.bestPrice)}. Read {r.evidence.ageDays} day(s) ago.
+            {r.evidence.bestChannel} {lei(r.evidence.bestPrice)}.{' '}
+            {r.evidence.ageDays === 0 ? 'Read today.' : `Read ${r.evidence.ageDays} day${r.evidence.ageDays === 1 ? '' : 's'} ago.`}
           </p>
         )}
 
-        <Button className="mt-auto w-full" onClick={onFix}>
+        {/*
+          Deliberately NOT the brand red. On this screen red already means "you are losing money" —
+          in the verdict chips, in the calendar cells and in the money bar. Three red CTAs alongside
+          them made the page read as an alarm and made the one meaning ambiguous. One colour, one
+          meaning: red is the problem, slate is the action.
+        */}
+        <Button className="mt-auto w-full bg-slate-900 text-white hover:bg-slate-800" onClick={onFix}>
           {canPrice ? 'Change this price' : 'Open this period'}
         </Button>
       </CardContent>
@@ -320,7 +339,8 @@ function YearStrip({ byMonth, periodById, onPickPeriod }: {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-2.5">
-        {byMonth.map(([ym, days]) => (
+        {/* A month whose only remaining night is today renders 30 empty boxes and reads as broken. */}
+        {byMonth.filter(([, days]) => days.length > 1).map(([ym, days]) => (
           <MonthRow key={ym} ym={ym} days={days} periodById={periodById} onPickPeriod={onPickPeriod} />
         ))}
         <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 border-t pt-3 text-[11px]">

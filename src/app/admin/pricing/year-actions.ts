@@ -130,6 +130,25 @@ function toWindowFact(w: Record<string, unknown>): WindowFact {
   };
 }
 
+/**
+ * Does this period actually CONTROL every night of this stay?
+ *
+ * Windows are matched to periods by check-in date elsewhere, which is fine for reporting but wrong
+ * for arithmetic. A 5-night stay checking in on the last day of Late Fall spends four of its nights
+ * in 1 Decembrie and Early Winter: repricing Late Fall moves exactly one of them. Solving a target or
+ * a floor against such a stay produces a number that cannot be reached by the lever being offered —
+ * it was pinning Late Fall's floor at 542 off a stay it barely touches.
+ *
+ * So anything that computes a PRICE uses full containment. Reporting still shows the straddlers.
+ */
+function periodControlsStay(
+  w: { checkIn: string; checkOut: string },
+  p: { startDate: string; endDate: string },
+): boolean {
+  const lastNight = eachDate(w.checkIn, w.checkOut).slice(0, -1).pop() ?? w.checkIn;
+  return w.checkIn >= p.startDate && lastNight <= p.endDate;
+}
+
 /** The nights of one stay, check-in inclusive and check-out exclusive, as the booking engine reads them. */
 function stayNights(ctx: BoardContext, checkIn: string, checkOut: string): NightFact[] {
   const out: NightFact[] = [];
@@ -169,9 +188,10 @@ export async function fetchYearBoard(propertyId: string): Promise<{
       const doc = byId.get(p.id)!;
       const flatRate = Boolean(doc.flatRate);
 
-      // Every measured window in the period, not only the worst: the recommendation has to respect
-      // the floor of ALL of them, or fixing the worst stay prices the rest below what they are worth.
-      const periodWindows = ctx.windows.filter((w) => w.checkIn >= p.startDate && w.checkIn <= p.endDate);
+      // Every measured window this period actually controls, not only the worst: the recommendation
+      // has to respect the floor of ALL of them, or fixing the worst stay prices the rest below what
+      // they are worth. Straddling stays are excluded because this lever cannot move most of them.
+      const periodWindows = ctx.windows.filter((w) => periodControlsStay(w, p));
       const nightsByWindow = new Map<string, NightFact[]>();
       for (const w of periodWindows) {
         nightsByWindow.set(`${w.checkIn}|${w.checkOut}|${w.guests}`, stayNights(ctx, w.checkIn, w.checkOut));
@@ -273,7 +293,9 @@ async function buildPreview(ctx: BoardContext, period: PricingPeriod, proposal: 
     .map((d) => ctx.nights.get(d))
     .filter((n): n is NightFact => !!n);
 
-  const windows = ctx.windows.filter((w) => w.checkIn >= period.startDate && w.checkIn <= period.endDate);
+  // Same containment rule: projecting a straddling stay would apply this period's new price to nights
+  // governed by a different period and overstate the change.
+  const windows = ctx.windows.filter((w) => periodControlsStay(w, period));
   const nightsByWindow = new Map<string, NightFact[]>();
   for (const w of windows) {
     nightsByWindow.set(`${w.checkIn}|${w.checkOut}|${w.guests}`, stayNights(ctx, w.checkIn, w.checkOut));

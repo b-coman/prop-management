@@ -143,10 +143,10 @@ export function PeriodEditor({
             <p className="text-slate-700">{prefill.headline}</p>
             {prefill.conflictsWithFloor && prefill.floorWeekday != null && (
               <p className="mt-1.5 text-xs text-amber-800">
-                These two goals conflict here. Undercutting the platforms by your usual margin means{' '}
-                {lei(prefill.lever.weekday)} a night; keeping every measured stay worth more to you than
-                the platform booking needs at least {lei(prefill.floorWeekday)}. The table below shows
-                what each stay does, so you can see which stays you would be giving away.
+                Undercutting the platforms by your usual margin means {lei(prefill.lever.weekday)} a
+                night, but under {lei(prefill.floorWeekday)} at least one stay earns you less than
+                letting the platform take it. The table below shows which ones, so you can see exactly
+                what you would be giving away.
               </p>
             )}
             {prefill.evidence && (

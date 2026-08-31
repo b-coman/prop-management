@@ -27,7 +27,7 @@
  */
 import type { PeriodPosition, PeriodVerdict } from '@/lib/parity/pricingPosition';
 import {
-  solveWeekdayNightlyForStayTotal, suggestLever, stayTotal, nightlyChargeProjected,
+  solveWeekdayNightlyForStayTotal, suggestLever, stayTotal, nightlyChargeProjected, lengthOfStayDiscountPct,
   type NightFact, type StayEconomics, type PeriodProposal,
 } from './priceProjection';
 import type { Tier, TierMultipliers } from './periods';
@@ -54,6 +54,8 @@ export interface Recommendation {
   conflictsWithFloor?: boolean;
   /** The lowest weekday price that keeps every measured stay in this period above its floor. */
   floorWeekday?: number | null;
+  /** The one stay that sets that limit. Naming it beats asserting a reason for it. */
+  bindingStay?: BindingStay | null;
   /** The weekday nightly price that would put this period where it should be. */
   wantedWeekday: number;
   currentWeekday: number | null;
@@ -62,6 +64,13 @@ export interface Recommendation {
   /** Which measured stay drove this, so the owner can check the evidence rather than trust it. */
   evidence: { checkIn: string; checkOut: string; nights: number; guests: number;
               direct: number; bestChannel: string; bestPrice: number; ageDays: number } | null;
+}
+
+/** The measured stay whose floor is the binding constraint on a period's price. */
+export interface BindingStay {
+  checkIn: string; checkOut: string; nights: number; guests: number;
+  /** The length-of-stay discount that applies to it, which is often what makes it the binding one. */
+  discountPct: number;
 }
 
 /** A run of forward nights that belongs to no active period. Priced and sellable, but ungoverned. */
@@ -139,7 +148,7 @@ export function buildRecommendation(
     return {
       valueAtRisk: p.valueAtRisk, verdict: p.verdict,
       headline: `${p.openNights} nights open and never compared against Airbnb or Booking. You do not know if you are the cheapest place to book these dates.`,
-      conflictsWithFloor: false, floorWeekday: null,
+      conflictsWithFloor: false, floorWeekday: null, bindingStay: null,
       wantedWeekday: p.weekdayPrice ?? 0, currentWeekday: p.weekdayPrice,
       lever: { kind: 'fixed', weekday: Math.round(p.weekdayPrice ?? 0) },
       evidence: null,
@@ -170,6 +179,7 @@ export function buildRecommendation(
     // over-corrects the rest, so the floor is checked against all of them.
     let floorNightly = 0;
     let floorsChecked = 0;
+    let binding: BindingStay | null = null;
     for (const pw of periodWindows) {
       if (pw.floor === null) continue;
       const nights = nightsByWindow.get(`${pw.checkIn}|${pw.checkOut}|${pw.guests}`) ?? [];
@@ -178,9 +188,18 @@ export function buildRecommendation(
         pw.floor, nights, pw.guests, { flatRate: p.flatRate },
         { weekendAdjustment, econ: opts.econ },
       );
-      if (atFloor !== null) { floorNightly = Math.max(floorNightly, atFloor); floorsChecked++; }
+      if (atFloor === null) continue;
+      floorsChecked++;
+      if (atFloor > floorNightly) {
+        floorNightly = atFloor;
+        // Which stay actually sets the limit, so the screen can name it instead of asserting a cause.
+        binding = {
+          checkIn: pw.checkIn, checkOut: pw.checkOut, nights: nights.length, guests: pw.guests,
+          discountPct: lengthOfStayDiscountPct(nights.length, opts.econ.lengthOfStayDiscounts),
+        };
+      }
     }
-    return { atTarget, floorNightly: floorsChecked ? floorNightly : null };
+    return { atTarget, floorNightly: floorsChecked ? floorNightly : null, binding };
   };
 
   // A tier keeps the weekend uplift, so it is solved with it, and preferred when the ladder can reach.
@@ -194,6 +213,7 @@ export function buildRecommendation(
 
   const wanted = solved.atTarget;
   const floorWeekday = solved.floorNightly;
+  const bindingStay = solved.binding;
 
   /**
    * The two rules can genuinely conflict, and when they do the screen must NOT quietly pick one.
@@ -224,6 +244,7 @@ export function buildRecommendation(
     headline,
     conflictsWithFloor,
     floorWeekday,
+    bindingStay,
     wantedWeekday: wanted,
     currentWeekday: p.weekdayPrice,
     lever,
