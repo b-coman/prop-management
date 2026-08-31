@@ -14,8 +14,9 @@ import { LengthOfStayDiscounts } from './_components/length-of-stay-discounts';
 import { ChannelsCard, type ChannelRow } from './_components/channels-card';
 import { RateSheetEditor } from './_components/rate-sheet-editor';
 import { ParityPanel, type ParityWindow, type ParitySummaryShape } from './_components/parity-panel';
-import { PositionView, type PositionRow, type PositionSummaryShape } from './_components/position-view';
-import { fetchParityView, fetchPricingPosition } from './parity-actions';
+import { YearBoard, type YearBoardData } from './_components/year-board';
+import { fetchYearBoard } from './year-actions';
+import { fetchParityView } from './parity-actions';
 import { getAnchorConfig } from '@/services/anchorConfigService';
 import { getPeriods } from '@/services/periodService';
 import { DEFAULT_TIER_MULTIPLIERS, datesInRange, type TierMultipliers } from '@/lib/pricing/periods';
@@ -55,7 +56,7 @@ export default async function PricingPage({
   let anchorConfig: import('@/lib/pricing/anchorPricing').AnchorConfig | null = null;
   let anchorSaved = false;
   let parity: { ok: boolean; error?: string; windows?: unknown[]; summary?: unknown; meta?: unknown } = { ok: false, error: 'not loaded' };
-  let position: { ok: boolean; error?: string; rows?: unknown[]; summary?: unknown; meta?: unknown } = { ok: false, error: 'not loaded' };
+  let board: { ok: boolean; error?: string; board?: unknown } = { ok: false, error: 'not loaded' };
   let anchorPeriods: AnchoredPeriodInput[] = [];
   let tierMultipliers: TierMultipliers = DEFAULT_TIER_MULTIPLIERS;
   let netRetention: Record<string, number> = {};
@@ -99,14 +100,14 @@ export default async function PricingPage({
     // rendering a page never writes.
     // The parity read degrades on its own (it returns {ok:false, error} rather than throwing), so a
     // missing channel config cannot take the whole pricing page down with it.
-    const [anchor, periodDocs, parityRes, positionRes] = await Promise.all([
+    const [anchor, periodDocs, parityRes, boardRes] = await Promise.all([
       getAnchorConfig(propertyId),
       getPeriods(propertyId),
       fetchParityView(propertyId),
-      fetchPricingPosition(propertyId),
+      fetchYearBoard(propertyId),
     ]);
     parity = parityRes;
-    position = positionRes;
+    board = boardRes;
     anchorConfig = {
       anchorChannelId: anchor.anchorChannelId,
       weekdayPrice: anchor.weekdayPrice,
@@ -169,26 +170,28 @@ export default async function PricingPage({
         holds the machinery that produces those prices and is rarely opened; Testing stays a tool.
       */}
       {propertyId ? (
-        <Tabs defaultValue="position">
+        <Tabs defaultValue="year">
           <TabsList>
-            <TabsTrigger value="position">Position</TabsTrigger>
+            <TabsTrigger value="year">The year</TabsTrigger>
             <TabsTrigger value="channels">Prices &amp; channels</TabsTrigger>
             <TabsTrigger value="rules">Rules</TabsTrigger>
             <TabsTrigger value="testing">Testing</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="position" className="space-y-6">
-            {position.ok ? (
-              <PositionView
-                rows={position.rows as PositionRow[]}
-                summary={position.summary as PositionSummaryShape}
-                meta={position.meta as { generatedAt: string; parityAvailable: boolean; parityError: string | null; measuredWindows: number }}
-              />
+          {/*
+            One screen that answers "where am I wrong, and what do I click", replacing the old Position
+            tab rather than sitting beside it. Two screens rolling the same data to the same unit is
+            what made the page read as a collection of patches, and the board is a strict superset:
+            the same period table, plus the calendar, the coverage gaps and the controls to change them.
+          */}
+          <TabsContent value="year" className="space-y-6">
+            {board.ok ? (
+              <YearBoard data={board.board as YearBoardData} propertyId={propertyId} />
             ) : (
               <Card>
                 <CardHeader>
-                  <CardTitle>Your position</CardTitle>
-                  <CardDescription>Could not be built: {position.error}</CardDescription>
+                  <CardTitle>The year</CardTitle>
+                  <CardDescription>Could not be built: {board.error}</CardDescription>
                 </CardHeader>
               </Card>
             )}

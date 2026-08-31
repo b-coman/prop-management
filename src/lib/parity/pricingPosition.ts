@@ -79,7 +79,15 @@ export interface PeriodPosition {
   action: string | null;
 }
 
-const inPeriod = (d: string, p: { startDate: string; endDate: string }) => d >= p.startDate && d < p.endDate;
+/**
+ * A period's `endDate` is INCLUSIVE, because that is what the engine does: `isDateInRange` ends the
+ * range at 23:59:59 of `endDate`, and the compiler's `datesInRange` iterates `start <= s <= end`.
+ *
+ * This read `d < p.endDate` and so dropped the final night of every period out of the night count,
+ * the occupancy and the money — and those nights landed in no gap either, because coverage is
+ * computed inclusively, so they vanished from the screen entirely.
+ */
+const inPeriod = (d: string, p: { startDate: string; endDate: string }) => d >= p.startDate && d <= p.endDate;
 
 /** A verdict for a whole period is its WORST measured window — the one a guest will find. */
 function rollUpVerdict(windows: WindowFact[]): { verdict: PeriodVerdict; worst: WindowFact | null; gap: number | null } {
