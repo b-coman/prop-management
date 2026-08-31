@@ -329,11 +329,15 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
   return (
     <div className={`space-y-4 ${className}`}>
       {/* THE FOCUS POINT, on mobile. The suggestions above are a shortcut; the decision is made
-          here, so this is the one block on the entry screen wearing the accent border. Everything
-          else on that screen (the opening cards) uses the neutral border, which is what lets a
-          single tinted edge read as "this is the control" without shouting. Desktop is unchanged:
-          there the card sits alone in its column and needs no help standing out. */}
-      <Card className="border-primary/40 shadow-sm md:border-border md:shadow-none">
+          here, so this block carries the accent.
+          IT NEEDED A SURFACE, NOT JUST AN EDGE. Measured on the entry screen: page background white,
+          opening cards white, picker white - the only thing distinguishing the one that matters was
+          a translucent border, and two identical white cards stacked above it won the eye by sheer
+          repetition. A 4%-tint plane separates it as a surface, which does the work a thicker border
+          would have done without shouting. `!bg-` because plain `bg-` loses to the component's own
+          `bg-card` token at equal specificity, the same trap as `p-card` below; the token is restored
+          at `md:`, where the card sits alone in its column and needs no help. */}
+      <Card className="!bg-primary/[0.04] border-primary/40 shadow-sm md:!bg-card md:border-border md:shadow-none">
           <CardHeader className="hidden md:block">
             <CardTitle className="flex items-center gap-2">
               <CalendarDays className="h-5 w-5" />

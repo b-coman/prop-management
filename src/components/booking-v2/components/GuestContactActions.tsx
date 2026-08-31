@@ -307,11 +307,16 @@ export function OtaAlternatives({
   if (!links.length) return null;
 
   return (
-    <div className={`border-t border-border pt-6 ${className}`}>
-      <p className="text-center text-sm font-medium text-foreground">
+    <div className={`border-t border-border pt-4 lg:pt-6 ${className}`}>
+      {/* Same heading as "Câteva date libere acum" and "Cauți altceva?": 14px/600, left. It used to
+          be 500 and centred, which was not a decision so much as a leftover - and styling something
+          inconsistently is a poor way to de-emphasise it, because it reads as an oversight rather
+          than as a choice. The block stays subordinate through the rule above it and the quiet
+          chips below, not through a title that looks accidental. */}
+      <p className="text-sm font-semibold text-foreground">
         {t('booking.bookAlsoOn', 'You can also book on')}
       </p>
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+      <div className="mt-3 flex flex-wrap items-center justify-start gap-2">
         {links.map((l) => (
           <a
             key={l.id}
@@ -326,7 +331,12 @@ export function OtaAlternatives({
                 currency: pricing?.currency ?? undefined,
               })
             }
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-border bg-background px-3.5 py-2 text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+            // `foreground/70`, not `muted-foreground`. The old zinc-500 measured 4.8:1 on white, so it
+            // passed AA and was perfectly readable - it just looked DISABLED rather than quiet, which
+            // is a different failure. One step darker reads as a deliberate link. It goes no further
+            // than that on purpose: a booking that leaves through these costs ~8% against direct, so
+            // the target is legible, never prominent.
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-border bg-background px-3.5 py-2 text-sm text-foreground/70 transition-colors hover:border-foreground/30 hover:text-foreground"
           >
             {l.label}
             {/* A drawn arrow, not "↗". U+2197 is in an emoji block, so iOS renders it as a blue

@@ -947,7 +947,7 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { cla
               we don't control; placed here it reads as reassurance to someone who was leaving
               anyway. Neutral chips, no accent — see OtaAlternatives for why the economics make this
               worth offering at all. */}
-          <OtaAlternatives links={otaLinks} className="mt-8 lg:mt-10" />
+          <OtaAlternatives links={otaLinks} className="mt-5 lg:mt-10" />
         </div>
       </div>
       </div>
