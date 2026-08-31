@@ -342,10 +342,32 @@ guest count, and whether `"This host is offering a discount"` is present.
 > invisible to any capture. `evaluateParity` applies it. **The extractor must not**, or it is deducted
 > twice. Treat a capture as the anonymous list price and let the maths correct it.
 
-**Booking.com** — `…?checkin=…&checkout=…&group_adults=N&no_rooms=1&selected_currency=RON`
-Read `"Original price X Current price Y"` and take the **lowest** rate plan, record which plan it is
-(these peak windows sell non-refundable, which is a different product from a flexible direct booking),
-and flag `"Sign in to unlock the members-only price"` — that capture is incomplete, not cheap.
+**Booking.com** — `…?checkin=…&checkout=…&group_adults=N&group_children=M&age=10&age=4&no_rooms=1&selected_currency=RON`
+Read `"Original price X Current price Y"`, record which rate plan it is (peak windows sell
+non-refundable, a different product from a flexible direct booking), and flag `"Sign in to unlock the
+members-only price"` — that capture is incomplete, not cheap.
+
+> **NEVER take the lowest price on the page.** Booking renders **one rate row per occupancy** for the
+> same stay, and the cheapest is for a SMALLER party. The 2026-09-04 page carried seven pairs: the
+> requested 4 adults + 2 children at **2,216**, and below it rows for 5+1, 5, 4, **3 adults at 1,840**,
+> and 3+2. "Cheapest on the page" banked the three-adult rate as the price for a family of six, made
+> direct look 26% dearer than it was, and manufactured a September crisis that did not exist
+> (2026-08-30). Each pair must be attributed to its **nearest preceding capacity marker** and rows too
+> small for the party discarded — `extract.ts` does this; do not hand-read around it.
+>
+> The capacity marker is worded **two ways**, and matching only the first is what broke it:
+> `Max persons: 4` on an adults-only search, `Max adults: 4 <br> Max children: 2` once the search
+> includes a child. **If a page shows priced rows but no capacity marker at all, refuse the cell** —
+> a filter that silently matches nothing is worse than no filter.
+>
+> **Min-stay refusals are prose, and the page still shows prices.** Booking says `"You need to stay 3+
+> nights to book your selected dates"` and then lists priced **alternative dates** underneath. Those
+> belong to other windows. Record the cell as `refused` and escalate per §4.5; never bank a number off
+> that page.
+
+**A price that FALLS when you add guests is a bug, not a finding.** Direct and Airbnb both charge more
+for two extra children; if a channel charges less, the capture grabbed the wrong row. Check it before
+reporting it — this is the cheapest available sanity test on the whole dataset.
 
 
 ## 4b. Alignment is a band, not an equality
