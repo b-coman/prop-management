@@ -67,17 +67,36 @@ const DateRangeDisplay = memo(function DateRangeDisplay({
   checkInDate, 
   checkOutDate,
   t,
-  currentLang 
+  currentLang,
+  short = false
 }: { 
   checkInDate: Date | null; 
   checkOutDate: Date | null; 
   t: (key: string, fallback: string, options?: any) => string;
   currentLang: string;
+  /**
+   * Day names only, for the phone. The collapsed strip above it already says "sep 7-sep 10", so
+   * repeating the dates here spent a second line restating them. What the strip cannot tell you is
+   * that those dates are a Monday and a Thursday, and weekdays are how people work out whether a
+   * stay fits their week. So the short form drops what is already on screen and keeps what is not.
+   */
+  short?: boolean;
 }) {
   if (!checkInDate || !checkOutDate) return null;
   
   const locale = currentLang === 'ro' ? ro : undefined;
-  
+
+  if (short) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        {t('booking.arrivingLeavingShort', 'Arriving {{arrivalDay}}, leaving {{departureDay}}', {
+          arrivalDay: format(checkInDate, 'EEEE', { locale }),
+          departureDay: format(checkOutDate, 'EEEE', { locale })
+        })}
+      </p>
+    );
+  }
+
   return (
     <p className="text-sm text-muted-foreground">
       {t('booking.arrivingLeaving', 'Arriving {{arrivalDate}} and leaving {{departureDate}}', {
@@ -336,7 +355,7 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { cla
               full picker is on show rather than a collapsed strip, so nothing is being repeated. */}
           {hasValidPricing && pricing && (
             <div className="mt-4 text-center lg:hidden">
-              <DateRangeDisplay checkInDate={checkInDate} checkOutDate={checkOutDate} t={t} currentLang={currentLang} />
+              <DateRangeDisplay checkInDate={checkInDate} checkOutDate={checkOutDate} t={t} currentLang={currentLang} short />
             </div>
           )}
 

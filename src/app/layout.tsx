@@ -101,11 +101,17 @@ export default async function RootLayout({
                 <UTMCapture />
                 {/* A kill-switch you cannot see is one you forget you left on, and then spend an
                     afternoon wondering why your own visit never reached GA4. Deliberately plain and
-                    out of the way; `?rs_test=0` turns it off. */}
+                    out of the way; `?rs_test=0` turns it off.
+
+                    LIFTED CLEAR OF THE STICKY BAR on phones. At `bottom-2` it sat squarely on top of
+                    the booking page's primary CTA, so every review of that button was done with a
+                    corner of it covered - including the review that found the button was dead. A
+                    debug affordance must never be the thing hiding the bug. 128px clears the tallest
+                    of the three bars (114px, priced); desktop has no bar and keeps the corner. */}
                 {noTrack && (
                   <div
                     aria-live="polite"
-                    className="fixed bottom-2 left-2 z-[9999] rounded-md border border-amber-500/60 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-900 shadow-sm dark:bg-amber-950 dark:text-amber-100"
+                    className="fixed bottom-[128px] left-2 z-[9999] lg:bottom-2 rounded-md border border-amber-500/60 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-900 shadow-sm dark:bg-amber-950 dark:text-amber-100"
                   >
                     Test mode &middot; not tracked
                   </div>

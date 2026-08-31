@@ -295,7 +295,8 @@
     "seasonSpring": "Primăvara dealul se umple de verde. E cel mai liniștit moment din an.",
     "seasonSummer": "Vara copiii nu mai intră în casă. Leagăn, grătar, și umbră până seara.",
     "pickDate": "Alege data",
-    "entryPickOwn": "Cauți altceva? Alege datele"
+    "entryPickOwn": "Cauți altceva? Alege datele",
+    "arrivingLeavingShort": "Sosiți {{arrivalDay}} și plecați {{departureDay}}"
   },
   "property": {
     "amenities": "Facilități",

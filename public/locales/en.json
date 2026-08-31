@@ -295,7 +295,8 @@
     "seasonSpring": "In spring the hill turns green. It is the quietest time of the year.",
     "seasonSummer": "In summer the children never come indoors. Swing, grill, and shade until evening.",
     "pickDate": "Pick a date",
-    "entryPickOwn": "Looking for something else? Pick your dates"
+    "entryPickOwn": "Looking for something else? Pick your dates",
+    "arrivingLeavingShort": "Arriving {{arrivalDay}}, leaving {{departureDay}}"
   },
   "property": {
     "amenities": "Amenities",
