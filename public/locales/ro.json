@@ -93,8 +93,8 @@
     "calculating": "Se calculează...",
     "minimumNightsRequired": "Minim {{nights}} nopți necesare",
     "loadingAvailability": "Se încarcă disponibilitatea...",
-    "checkInDate": "Data Check-in",
-    "checkOutDate": "Data Check-out",
+    "checkInDate": "Check-in",
+    "checkOutDate": "Check-out",
     "checkInOutTime": "Check-in după ora 15:00, check-out până la ora 11:00",
     "selectYourDates": "Selectează datele",
     "selectDate": "Selectează data",
@@ -288,14 +288,14 @@
     "holdNudge": "Nu te decizi acum? Blochează datele {{hours}} h pentru {{fee}} - se restituie integral când finalizezi rezervarea.",
     "entryFreeDates": "Câteva date libere acum",
     "entryNoDatesQuestion": "Nu știi ce date? Scrie-mi și îți spun ce e liber.",
-    "writeToMe": "Scrie-mi pe WhatsApp",
+    "writeToMe": "Scrie-ne pe WhatsApp",
     "waNoDates": "Bună ziua! Mă interesează {{property}}. Ce perioade aveți libere?",
     "seasonAutumn": "Toamna e liniștită aici. Zile calde, seri de foc, și grătarul care merge până târziu.",
     "seasonWinter": "Iarna casa se încălzește repede, iar zăpada ține până în martie.",
     "seasonSpring": "Primăvara dealul se umple de verde. E cel mai liniștit moment din an.",
     "seasonSummer": "Vara copiii nu mai intră în casă. Leagăn, grătar, și umbră până seara.",
     "pickDate": "Alege data",
-    "entryPickOwn": "Nu se potrivesc? Alege-ți datele."
+    "entryPickOwn": "Cauți altceva? Alege datele"
   },
   "property": {
     "amenities": "Facilități",

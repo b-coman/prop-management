@@ -124,15 +124,16 @@ export function BookingEntryPanel({ stays = [] }: { stays?: EntryStay[] }) {
 
   return (
     <div className="space-y-3">
-      {/* The warm half. A 48px thumbnail rather than a hero: everything here has to share a screen
-          with the date picker below it, and the real budget is the ~640px Safari leaves on a
-          360x780 phone, not the 780. At 48px the strip, both openings, the lead-in and both date
-          fields all clear the sticky bar. Uses `displayUrl`, the 1000px WebP tier, so it costs a
+      {/* The warm half. LANDSCAPE, not square: a photograph of a garden is a landscape, and cropping
+          it to a square to match an icon grid was making it read as an icon. 4:3 at 72x54 is large
+          enough to be a picture and still leaves the sentence beside it two lines, which is the
+          shape this strip is designed around - a third line would push the guest row under the
+          sticky bar on a 360x640 viewport. Uses `displayUrl`, the 1000px WebP tier, so it costs a
           few KB. */}
       {season.line && (
         <div className="flex items-center gap-3">
           {season.photo && (
-            <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-muted">
+            <div className="relative h-[54px] w-[72px] flex-shrink-0 overflow-hidden rounded-lg bg-muted">
               {/* SafeImage, not a bare next/image: it is what the gallery and the campaign landing
                   pages use here, and it degrades to a labelled placeholder instead of a broken frame
                   if the Storage URL ever fails. This library has history with image delivery on App
@@ -141,7 +142,7 @@ export function BookingEntryPanel({ stays = [] }: { stays?: EntryStay[] }) {
                 src={season.photo.displayUrl || season.photo.url}
                 alt={alt}
                 fill
-                sizes="48px"
+                sizes="72px"
                 className="object-cover"
               />
             </div>

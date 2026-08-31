@@ -328,8 +328,12 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
 
   return (
     <div className={`space-y-4 ${className}`}>
-      {/* Combined Date and Guest Selection - Compact */}
-      <Card>
+      {/* THE FOCUS POINT, on mobile. The suggestions above are a shortcut; the decision is made
+          here, so this is the one block on the entry screen wearing the accent border. Everything
+          else on that screen (the opening cards) uses the neutral border, which is what lets a
+          single tinted edge read as "this is the control" without shouting. Desktop is unchanged:
+          there the card sits alone in its column and needs no help standing out. */}
+      <Card className="border-primary/40 shadow-sm md:border-border md:shadow-none">
           <CardHeader className="hidden md:block">
             <CardTitle className="flex items-center gap-2">
               <CalendarDays className="h-5 w-5" />
@@ -343,7 +347,12 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
               )}
             </div>
           </CardHeader>
-        <CardContent className="pt-6 md:pt-6">
+        {/* `!p-4` because plain `p-4` LOSES to the component's own `p-card`: equal specificity, and the
+              theme token's utility is emitted later in the stylesheet. Verified on the running page -
+              the class was present and the computed padding was still 24px. The token is theme-aware
+              (`var(--card-padding)`) and shared by every card on the site, so it is restored at `md:`
+              rather than replaced with a hardcoded 24px. */}
+          <CardContent className="!p-4 md:!p-card md:!pt-card">
           {isLoadingUnavailable ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin" />
@@ -357,7 +366,7 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {/* Date Selection Row */}
               {/* Side by side on the phone too, not just from `sm:`. Stacked, these two fields cost
                   156px of a ~640-700px real Safari viewport (the screen height minus its chrome),
@@ -366,7 +375,7 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
                   `formatDateShort` on mobile, so only the PLACEHOLDER had to shrink to fit. */}
               <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 {/* Check-in Date Picker */}
-                <div className="space-y-2">
+                <div className="space-y-1.5 sm:space-y-2">
                   <div className="flex items-center gap-2">
                     <HelpTooltip 
                       content={t('booking.checkInOutTime', 'Check-in after 3 PM, check-out by 11 AM')}
@@ -460,7 +469,7 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
                 </div>
 
                 {/* Check-out Date Picker */}
-                <div className="space-y-2">
+                <div className="space-y-1.5 sm:space-y-2">
                   <div className="flex items-center gap-2">
                     <label className="text-sm font-medium">{t('booking.checkOutDate', 'Check-out Date')}</label>
                   </div>
@@ -561,10 +570,10 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
           )}
 
           {/* Visual Separator */}
-          <div className="border-t border-border my-4" />
+          <div className="border-t border-border my-3 sm:my-4" />
           
           {/* Guest Selection Row - Below dates with visual separation */}
-          <div className="space-y-3">
+          <div className="space-y-1.5 sm:space-y-3">
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               <HelpTooltip 

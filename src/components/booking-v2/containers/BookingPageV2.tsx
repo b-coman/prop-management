@@ -308,12 +308,17 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { cla
               not a panel, and dropping the card frame buys back ~40px on a viewport that has none to
               spare. Desktop keeps the boxed version in its workspace column. */}
           {!canShowBookingOptions && !hasValidDates && (
-            <div className="mb-4 lg:hidden">
+            <div className={`lg:hidden ${entryStays.length > 0 ? '' : 'mb-4'}`}>
               <BookingEntryPanel stays={entryStays} />
+              {/* A heading, not a floating caption. Centred and grey between two blocks it belonged
+                  to neither and read as a stray line; matched to "Câteva date libere acum" above it,
+                  it titles the picker underneath and the page gains a second labelled section. The
+                  suggestions are the shortcut, but the DECISION is made in the picker, so the picker
+                  gets a name. */}
               {entryStays.length > 0 && (
-                <p className="mt-4 text-center text-sm text-muted-foreground">
-                  {t('booking.entryPickOwn', 'Not a fit? Pick your own dates.')}
-                </p>
+                <h3 className="mb-2 mt-6 text-sm font-semibold text-foreground">
+                  {t('booking.entryPickOwn', 'Looking for something else? Pick your dates')}
+                </h3>
               )}
             </div>
           )}
