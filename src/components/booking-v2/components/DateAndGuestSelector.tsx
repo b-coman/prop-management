@@ -762,8 +762,6 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
     // Alternatives come from the shared, unit-tested engine (src/lib/booking/date-suggestions).
     // It searches BOTH directions, can propose keeping the guest's own dates with a shorter stay, and
     // for a minimum-stay shortfall offers extending the checkout OR arriving earlier.
-    const suggestionLocale = currentLang === 'ro' ? ro : undefined;
-    const suggestionDateFormat = currentLang === 'ro' ? 'd MMM' : 'MMM d';
     const minimumStay = property?.defaultMinimumStay || 1;
 
     const suggestions = checkInDate && checkOutDate
@@ -848,7 +846,7 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
                     <span className="flex min-w-0 flex-col gap-0.5">
                       <span className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
                         <CalendarDays className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                        {format(suggestion.checkIn, suggestionDateFormat, { locale: suggestionLocale })} – {format(suggestion.checkOut, suggestionDateFormat, { locale: suggestionLocale })}
+                        {formatShortDate(suggestion.checkIn, currentLang)} – {formatShortDate(suggestion.checkOut, currentLang)}
                       </span>
                       {/* Say WHY this option is being offered — "Just before" reads very differently
                           from "Your dates, shorter stay", and the guest can pick on meaning rather
