@@ -14,16 +14,24 @@
  * Quotes come from the engine's own /api/check-pricing, so this cannot disagree with the booking flow
  * about what a stay costs. Paced for the 60/min public rate limit.
  *
- * Read-only.
+ * With --write it also CORRECTS the stored hints to what the engine quotes today. The check and the
+ * fix share one quote on purpose: a separate repair script would be free to disagree with the report
+ * that triggered it.
  *
- *   npx tsx scripts/landing-price-check.ts [slug]
+ * The owner declined an automatic refresh on 2026-09-01 - "the landing pages are short lived pages,
+ * so I don't see too many changes on them" - so this stays a deliberate act, run when he asks.
+ *
+ * Dry-run unless --write.
+ *
+ *   npx tsx scripts/landing-price-check.ts [slug] [--write]
  */
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 
-const ONLY = process.argv[2];
+const ONLY = process.argv[2]?.startsWith('--') ? undefined : process.argv[2];
+const WRITE = process.argv.includes('--write');
 const BASE = process.env.PARITY_BASE_URL ?? 'http://localhost:9002';
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -35,12 +43,15 @@ interface Stay { start: string; end: string; nights: number; guests?: number | n
     .filter((d) => !ONLY || d.id === ONLY);
 
   const today = new Date().toISOString().slice(0, 10);
-  let drifted = 0, checked = 0, expired = 0;
+  let drifted = 0, checked = 0, expired = 0, fixed = 0, unsellable = 0;
   for (const doc of docs) {
     const d = doc.data() as { status?: string; propertyId: string; exampleStays?: Stay[] };
     const stays = d.exampleStays ?? [];
     console.log(`\n${doc.id}  (${d.status ?? 'no status'})  ${stays.length} card(s)`);
     if (!stays.length) continue;
+    // A copy the corrections land in, so one unsellable card never stops the others being fixed.
+    const next: Stay[] = stays.map((x) => ({ ...x }));
+    let touched = false;
 
     for (const s of stays) {
       const guests = s.guests ?? 2;
@@ -57,8 +68,10 @@ interface Stay { start: string; end: string; nights: number; guests?: number | n
       if (!res.ok) { console.log(`${label}  quote failed: HTTP ${res.status}`); continue; }
       const body = await res.json() as { available?: boolean; pricing?: { totalPrice?: number } };
       if (!body.available || body.pricing?.totalPrice == null) {
-        console.log(`${label}  the site will not sell this stay any more`);
-        drifted++; continue;
+        // No price exists to copy in. Inventing one, or blanking the card silently, would both be
+        // worse than saying so: the card itself is the thing that needs a decision.
+        console.log(`${label}  the site will not sell this stay any more — needs a new date, left alone`);
+        drifted++; unsellable++; continue;
       }
       checked++;
       const real = body.pricing.totalPrice;
@@ -69,10 +82,25 @@ interface Stay { start: string; end: string; nights: number; guests?: number | n
       if (Math.abs(diff) < 1) { console.log(`${label}  ${Math.round(shown)} — matches`); continue; }
       drifted++;
       console.log(`${label}  page says ${Math.round(shown)} · site charges ${Math.round(real)} · ` +
-        `${diff > 0 ? 'OVERSTATED' : 'UNDERSTATED'} by ${Math.abs(Math.round(diff))} (${pct.toFixed(1)}%)`);
+        `${diff > 0 ? 'OVERSTATED' : 'UNDERSTATED'} by ${Math.abs(Math.round(diff))} (${pct.toFixed(1)}%)` +
+        `${WRITE ? `  ->  ${Math.round(real)}` : ''}`);
+      const at = next.findIndex((x) => x.start === s.start && x.end === s.end && x.guests === s.guests);
+      if (at > -1) { next[at].priceHint = real; touched = true; }
+    }
+
+    if (touched && WRITE) {
+      await doc.ref.update({ exampleStays: next, updatedAt: new Date().toISOString(),
+        updatedBy: 'scripts/landing-price-check.ts' });
+      fixed += next.filter((x, i) => x.priceHint !== stays[i].priceHint).length;
+      console.log(`  written.`);
     }
   }
+
   console.log(`\n${drifted} of ${checked + drifted} live card(s) no longer match the site` +
-              `${expired ? `; ${expired} more have already passed` : ''}.\n`);
+              `${expired ? `; ${expired} more have already passed` : ''}.`);
+  if (WRITE) console.log(`${fixed} card price(s) corrected.`);
+  else if (drifted) console.log('Dry run. Re-run with --write to correct them.');
+  if (unsellable) console.log(`${unsellable} card(s) cannot be priced at all and need new dates.`);
+  console.log('');
   process.exit(0);
 })();
