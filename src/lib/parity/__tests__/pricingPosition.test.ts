@@ -126,3 +126,59 @@ describe('a period is judged on the balance of its stays, not only the worst', (
     expect(r.action).toMatch(/2 cost more than a platform and 4 are more than 10% under/i);
   });
 });
+
+/**
+ * Attribution, using the case that exposed it.
+ *
+ * On 2026-09-01 the board reported "1 Decembrie: nobody has ever compared this period against the
+ * platforms" while the store held a fully measured 27 Nov -> 2 Dec window: three channels, four
+ * party sizes. The stay checks in on Late Fall's last day and sleeps four of its five nights in
+ * 1 Decembrie, and the board assigned it on check-in alone.
+ */
+describe('a stay belongs to the period that prices most of its nights', () => {
+  const lateFall = { id: 'lf', name: 'Late Fall', startDate: '2026-11-02', endDate: '2026-11-27',
+    tier: 'low', minStay: 2, fixedNightPrice: null };
+  const dec1 = { id: 'd1', name: '1 Decembrie', startDate: '2026-11-28', endDate: '2026-12-01',
+    tier: 'high', minStay: 2, fixedNightPrice: null };
+  const nights = (from: string, n: number, price = 620) =>
+    Array.from({ length: n }, (_, i) => {
+      const d = new Date(`${from}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + i);
+      return { date: d.toISOString().slice(0, 10), available: true, price, isWeekend: false };
+    });
+  // 27 Nov -> 2 Dec: one night in Late Fall, four in 1 Decembrie.
+  const straddler = win({ checkIn: '2026-11-27', checkOut: '2026-12-02', nights: 5,
+    gapPct: -0.14, verdict: 'overshoot' });
+
+  it('gives the stay to the period holding four of its five nights', () => {
+    const rows = buildPeriodPositions([lateFall, dec1], nights('2026-11-02', 30), [straddler]);
+    expect(rows.find((r) => r.name === '1 Decembrie')!.measuredWindows).toBe(1);
+    expect(rows.find((r) => r.name === '1 Decembrie')!.verdict).not.toBe('unmeasured');
+  });
+
+  it('stops crediting it to the period that prices one night of it', () => {
+    const rows = buildPeriodPositions([lateFall, dec1], nights('2026-11-02', 30), [straddler]);
+    const lf = rows.find((r) => r.name === 'Late Fall')!;
+    expect(lf.measuredWindows).toBe(0);
+    expect(lf.verdict).toBe('unmeasured');
+  });
+
+  it('never puts one stay in two periods', () => {
+    const rows = buildPeriodPositions([lateFall, dec1], nights('2026-11-02', 30), [straddler]);
+    expect(rows.reduce((s, r) => s + r.measuredWindows, 0)).toBe(1);
+  });
+
+  it('falls back to the check-in when the split is even, rather than losing the stay', () => {
+    // 26 Nov -> 30 Nov, 2 nights each side. Neither holds a majority.
+    const even = win({ checkIn: '2026-11-26', checkOut: '2026-11-30', nights: 4, gapPct: 0.05 });
+    const rows = buildPeriodPositions([lateFall, dec1], nights('2026-11-02', 30), [even]);
+    expect(rows.find((r) => r.name === 'Late Fall')!.measuredWindows).toBe(1);
+    expect(rows.reduce((s, r) => s + r.measuredWindows, 0)).toBe(1);
+  });
+
+  it('leaves a stay that sits wholly inside one period exactly where it was', () => {
+    const inside = win({ checkIn: '2026-11-10', checkOut: '2026-11-13', nights: 3, gapPct: 0.05 });
+    const rows = buildPeriodPositions([lateFall, dec1], nights('2026-11-02', 30), [inside]);
+    expect(rows.find((r) => r.name === 'Late Fall')!.measuredWindows).toBe(1);
+    expect(rows.find((r) => r.name === '1 Decembrie')!.measuredWindows).toBe(0);
+  });
+});

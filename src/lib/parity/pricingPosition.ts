@@ -104,6 +104,52 @@ export interface PeriodPosition {
  */
 const inPeriod = (d: string, p: { startDate: string; endDate: string }) => d >= p.startDate && d <= p.endDate;
 
+/**
+ * Which period a measured stay belongs to.
+ *
+ * This used to be "the period containing its check-in", which is wrong for any stay that straddles a
+ * boundary — and the stays that matter most are exactly those, because a holiday window is short and
+ * people arrive the evening before it.
+ *
+ * It showed up on 1 Decembrie 2026. The pack probed 27 Nov → 2 Dec on all three channels at four
+ * party sizes, so the window was as well measured as anything on the board. But check-in is 27 Nov,
+ * the last day of Late Fall, so the whole stay was credited to Late Fall — which prices one of its
+ * five nights — and 1 Decembrie, which prices the other four, reported that nobody had ever compared
+ * it. Both halves of that are wrong: one period looked unmeasured while it was not, and the other's
+ * verdict was partly set by a price it does not control.
+ *
+ * So a stay belongs to the period that prices MOST of its nights. A majority can only be held by one
+ * period, so this cannot put one stay in two rows. When nothing holds a majority — a 2-night stay
+ * split across a boundary — it falls back to the check-in, because landing somewhere imperfectly
+ * beats vanishing from the board entirely.
+ *
+ * Note this is deliberately looser than `periodControlsStay` in year-actions, which demands FULL
+ * containment. The two answer different questions: this one asks "does this period have evidence",
+ * where a stay it mostly prices is real evidence; that one asks "can I solve a rate from this stay",
+ * where a night priced by a different period would corrupt the solve.
+ */
+function periodOwnsStay(
+  w: { checkIn: string; checkOut: string; nights: number },
+  p: { startDate: string; endDate: string },
+): boolean {
+  let inside = 0;
+  for (const d of eachNight(w.checkIn, w.checkOut)) if (inPeriod(d, p)) inside++;
+  if (w.nights > 0 && inside * 2 > w.nights) return true;
+  // Nobody holds a majority: fall back to the check-in so the stay still counts somewhere.
+  const contested = inside > 0 && inside * 2 === w.nights;
+  return contested && inPeriod(w.checkIn, p);
+}
+
+/** The nights of a stay: check-in inclusive, check-out exclusive, as the booking engine reads them. */
+function* eachNight(checkIn: string, checkOut: string): Generator<string> {
+  const d = new Date(`${checkIn}T00:00:00Z`);
+  const end = new Date(`${checkOut}T00:00:00Z`);
+  while (d < end) {
+    yield d.toISOString().slice(0, 10);
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+}
+
 /** A verdict for a whole period is its WORST measured window — the one a guest will find. */
 /**
  * A period's verdict, from the BALANCE of its stays rather than only its worst one.
@@ -201,7 +247,7 @@ export function buildPeriodPositions(
     const open = pd.filter((d) => d.available);
     const wk = pd.filter((d) => !d.isWeekend && d.price !== null).map((d) => d.price!);
     const we = pd.filter((d) => d.isWeekend && d.price !== null).map((d) => d.price!);
-    const pw = windows.filter((w) => inPeriod(w.checkIn, p));
+    const pw = windows.filter((w) => periodOwnsStay(w, p));
     const { verdict, worst, gap, dearerCount, inBandCount, tooCheapCount } = rollUpVerdict(pw);
     const ages = pw.map((w) => w.oldestAgeDays).filter((n) => Number.isFinite(n));
 

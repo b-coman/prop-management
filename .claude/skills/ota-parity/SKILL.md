@@ -374,6 +374,39 @@ that matters most.
 totals are not comparable. `parity-next.ts` detects these and prints the escalation with the URLs
 already built — work them before declaring a run finished.
 
+### 4.6 A short holiday period needs a probe that fits INSIDE it
+
+The pack widens a `major` holiday back to the adjacent Friday, because that is the stay people
+actually buy. That is right about travel and can be wrong about pricing: the widened window may
+straddle a period boundary, and then no single period governs it.
+
+1 Decembrie 2026 is the case. The holiday is 30 Nov–1 Dec, the pricing period is 28 Nov–1 Dec, and
+the pack probed **Fri 27 Nov → 2 Dec**. Three channels, four party sizes, fully measured — and the
+period still reported that nobody had ever compared it, because the stay checks in on Late Fall's
+last day. Fixing the attribution (below) made the period visible, but the solver still could not
+propose a rate for it: `periodControlsStay` demands full containment, so a stay with one night
+outside is not something a rate change can move.
+
+**So when a period is short and its natural probe straddles the boundary, probe the contained window
+too** — here 28 Nov → 2 Dec, four nights, entirely inside. Then the period has both a verdict and a
+rate. Keep the widened one as well; it is the stay that actually sells.
+
+Worth reporting when you see it: if the window people really book starts a day before the period,
+the period boundary and the demand disagree, and that is the owner's call to make, not yours.
+
+### 4.7 A stay belongs to the period that prices most of its nights
+
+The position board used to assign a measured stay to whichever period contained its **check-in**.
+That silently did two things: it credited a stay to a period pricing one of its five nights, and it
+**discarded entirely** any stay checking in on a day no period covers. Two Christmas probes checking
+in on 23 Dec — an uncovered day — never appeared on the board at all, and Christmas read −10.8% when
+its real position was −27.2%.
+
+`periodOwnsStay` in `pricingPosition.ts` now uses the majority of nights, falling back to the
+check-in when nothing holds a majority. It is deliberately looser than `periodControlsStay`, which
+still demands full containment, because the two answer different questions: *does this period have
+evidence* versus *can I solve a rate from this stay*.
+
 
 **Probe SHORT first, then escalate.** The owner's rule is 2 nights, raised by hand on a few special
 windows — the autumn school break, sometimes Christmas, always NYE — and he sets each raise
