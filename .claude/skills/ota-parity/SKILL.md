@@ -176,6 +176,10 @@ when the run is finished — coverage does.
 ```bash
 # 1. Build the probe list; direct prices are quoted and RECORDED automatically.
 npx tsx scripts/parity-pack.ts <slug> --max 24        # party mix comes from compareParties
+#    Scope BOTH ends when the owner names a stretch. `--months` only moves the far edge, so asking
+#    for the autumn also probed the following spring — page loads spent against a bot-detection
+#    budget on windows no decision was waiting on.
+npx tsx scripts/parity-pack.ts <slug> --from 2026-09-03 --to 2027-01-10
 
 # 2. Get the outstanding cells WITH their URLs already built (never hand-build one — §4.1).
 npx tsx scripts/parity-next.ts <slug> --json --limit 15
@@ -212,6 +216,11 @@ npx tsx scripts/parity-report.ts <slug>
 - **Never infer a missing cell** from a neighbouring window, a previous run, or a per-guest fee you
   worked out. If it wasn't captured, it is `?`.
 - **Report coverage in your summary**, always: `captured/total`, and the oldest observation age.
+- **Coverage is not validity.** `outstandingCells` counts a cell as covered if it was captured inside
+  the freshness window, which says nothing about whether the SETTINGS behind it still hold. After any
+  change to a discount, a rate plan or a minimum stay, run `scripts/parity-audit.ts` — it reports which
+  stored observations a recorded change has superseded, and those need re-capturing even though
+  coverage calls them fine.
 - Observations are append-only, so re-running a cell adds a data point rather than erasing one — that
   is how the 4–6 week cadence turns into drift over time.
 
@@ -256,6 +265,18 @@ never reach `document_idle`. **`javascript_tool` is the only thing that works.**
 3. Extract. **Return a compact status, never the raw page text.** `javascript_tool` truncates its
    return at ~1KB and these pages run 15-16KB, so the text has to be parsed **inside the page**.
 
+🔴 **The extractor already exists. Do not write page-reading regex by hand.**
+`src/lib/parity/inPage.ts` exports `IN_PAGE_EXTRACTOR` (the parser as an in-page string) and
+`inPageRunner(channel, from, to)` (parses everything stashed in `sessionStorage` and returns one
+compact line per page). `__tests__/inPage.test.ts` asserts it agrees with the Node `extract()` on
+every fixture, so the pair cannot drift.
+
+On 2026-09-01 an agent grepped `extract.ts`, concluded no in-page extractor existed, and hand-rolled
+one inline in each batch call. It hit two bugs in ten minutes that `inPage.ts` had already solved:
+a poll that returned the text captured BEFORE the price rendered, and a total that failed to match
+because Airbnb prefixes it with `L `. It also nearly became a third implementation to keep in step.
+**Read `inPage.ts` first.**
+
 **All bulk egress is blocked**, and each path fails differently: Blob downloads are site-blocked, the
 clipboard needs a user gesture, base64 comes back as `[BLOCKED: Base64 encoded data]`, and returning
 `location.href` trips `[BLOCKED: Cookie/query string data]`. Do not design around shipping text to Node.
@@ -285,8 +306,15 @@ Object.keys(sessionStorage).filter(k => /^p\d+$/.test(k))
   .join('\n');
 ```
 
-Keep `browser_batch` to **~3 pages per call** (one navigate + one script each). Six pages at a 6-7s
-settle overruns the tool timeout, and the batch dies after the navigations have already fired.
+Keep `browser_batch` to **2-3 pages per call** (one navigate + one stash each), and keep the PARSING
+out of those calls — stash only, then run `inPageRunner` once afterwards. Six pages at a 6-7s settle
+overruns the tool timeout, and the batch dies after the navigations have already fired. Polling *and*
+parsing inside the same batch times out at three pages; measured on 2026-09-01, two of four such calls
+died. A dead batch is not free: its navigations already happened.
+
+**A poll must RE-READ after it waits.** `for(...){t=innerText; if(ok) break; await sleep}` leaves `t`
+holding the LAST failed read when the loop exhausts, so a page that renders a second later is filed
+as having no price. Read the text again after the final wait, before parsing.
 
 Feed `head` to the pure extractor rather than reading it yourself:
 
