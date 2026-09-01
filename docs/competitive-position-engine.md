@@ -1398,3 +1398,76 @@ Every count reproduces §13.4 and §12.2 exactly, from the store rather than fro
    a placeholder today), `distanceKm`, and Booking capacity read from a priced probe rather than the
    identity pass (§13.3). That is `comp-verify.ts`, and it belongs with Phase 3's capture work since
    it drives the same browser loop.
+
+---
+
+## 18. `comp-verify`, as built (2026-09-01)
+
+Verification is what turns a populated set into a curated one. It confirms what a comparable IS —
+capacity, units, rating, photo — and stamps `verifiedAt`.
+
+| piece | what it is |
+|---|---|
+| `src/lib/competitive/verify.ts` | **Pure.** `parseIdentity` (Node), `IN_PAGE_VERIFIER` (the same parser as an in-page string), `reconcile`, `countBeds`. |
+| `scripts/comp-verify-next.ts` | The work-list: which listings are owed verification, with **both** probe URLs and the runnable in-page script. |
+| `scripts/comp-verify-record.ts` | The one write path. Reconciles each pair and refuses anything that does not survive. |
+| `__tests__/verify.test.ts` | 28 tests, including the two-implementation agreement on 8 fixtures taken from live pages. |
+
+### 18.1 Two reads per listing, and why one would be worthless
+
+Every listing is read at **two different occupancies**, and only fields that did not move are kept.
+That is the echo check from `extract.ts` run in reverse: there, a value that fails to move signals a
+stale render; here, a value that **moves** signals a field that is not a fact.
+
+Proven on a live page during the build, not just in fixtures:
+
+| probe | `echo.sleeps` | capacity read |
+|---|---|---|
+| `group_adults=1` | **"1 adult"** | `Max persons: 11` |
+| `group_adults=2` | **"2 adults"** | `Max persons: 11` |
+
+The echo moved; the capacity did not. The first fact is what makes the check meaningful, the second is
+what makes the capacity trustworthy — and `bedsTotal` independently counted **11** from the bed
+configuration on both reads, so two unrelated sources agree.
+
+`--occ` defaults to **1 and 2** deliberately: both must be within the smallest largest-unit in the set
+(2, Casutele de la Poienita), or the page returns "no availability" and the check silently skips the
+listings that most need it.
+
+### 18.2 A pair that fails to reconcile is REFUSED, never stored with a caveat
+
+The error being caught — capacity read from a field that echoes the search — produces a number that
+looks perfectly reasonable and makes `hostsParty` report competition that does not exist. There is no
+safe way to half-trust it. All four refusal paths were exercised against the live store:
+
+```
+the-cliff-village    only 1 read. Two occupancies are required, or the echo check cannot run
+ava-chalet-bk        both reads used occupancy 2 — an unrun check must not pass silently
+villa-the-frame-bk   capacity DIFFERED between the two reads — a search echo, not a fact
+not-in-the-set       not in the curated set — curate it before verifying
+```
+
+Zero of four stored. A refusal is an outcome; the fix is to re-probe, never to lower the bar.
+
+### 18.3 Verification does not overwrite curation
+
+Confirmed on the live record after verifying Vila Luna: `units`, `rating`, `reviewCount`, `city`,
+`heroPhotoUrl`, `photoProvenance`, `verifiedAt` and `qualityAsOf` were written, while
+**`substitutionBasis` and `curatedBy` were untouched**. That separation is what lets `verifiedAt` mean
+"a human confirmed this against the live listing" rather than "someone touched the row" — and it is
+why the owner's reasoning cannot be silently replaced by a scraper.
+
+### 18.4 Photo provenance is recorded, not claimed
+
+`heroPhotoUrl` comes from `og:image` and never goes through `reconcile` — it is DOM-only, so the text
+parser cannot produce it. Vila Luna's returned a bare bstatic path with no listing id, so it is stored
+as **`capture-context`**: trusted only because it came from that page load. A newer Airbnb listing
+whose path carries `Hosting-<id>` stores as `id-matched`. The recorder prefers an `id-matched` read
+when the two probes disagree.
+
+### 18.5 State after the first run
+
+```
+16 listings · 1 verified (vila-luna, age 0d) · 15 still unverified
+comp-verify-next now reports 14 owed of 15 active
+```

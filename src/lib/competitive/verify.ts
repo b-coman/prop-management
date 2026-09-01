@@ -1,0 +1,377 @@
+/**
+ * Reading a listing's IDENTITY off its page — what the property is, not what it costs.
+ *
+ * This is a different job from `parity/extract.ts` and must not share its approach. Price capture is
+ * mechanical, runs hundreds of times against a known layout, and has an echo check and a magnitude
+ * guard behind it. Identity capture runs rarely, on a handful of listings, and being wrong is
+ * SILENT: a bad capacity record makes `hostsParty` report a moat that does not exist, and nothing
+ * downstream can tell.
+ *
+ * That failure is not hypothetical. Regexing these pages for "bedrooms" returned plausible, wrong
+ * answers on three of nine Booking listings — a village of villas read as one villa, a four-bedroom
+ * house read as eleven bedrooms. So this module reads the fields the page actually states, and
+ * refuses the ones that only look like facts:
+ *
+ * 🔴 **`Sleeps:` and `Recommended for` ECHO THE SEARCH.** The same Vila Luna unit reads
+ * "Sleeps: 4 adults, 2 children" or "Sleeps: 8 adults" depending only on the URL you asked with. Its
+ * real capacity is 11. They are parsed here ONLY so `reconcile()` can prove they moved and throw them
+ * away; nothing may ever read them as capacity.
+ *
+ * Capacity comes from, in strict order:
+ *   1. `Max persons: N` / `Max adults: N (+ Max children: M)` — but NOT on every page: Booking renders
+ *      it only where several rows must be told apart, so a single-unit listing has none at all.
+ *   2. The bed configuration, counted. Always present, and invariant across searches.
+ *
+ * PURE. Text in, a structured identity out. No I/O, no DOM — the DOM-only parts (the hero photo) are
+ * supplied by the caller, because they cannot be derived from text.
+ */
+
+export type VerifyChannel = 'airbnb' | 'booking.com';
+
+export interface VerifiedUnit {
+  label: string;
+  maxPersons: number;
+  /** How many units of this type were bookable on the probed dates — a LOWER BOUND on inventory. */
+  count: number;
+  sqm: number | null;
+}
+
+export type IdentityState =
+  | 'ok'
+  /** The channel has no offer for these dates. Not a parse failure, and itself a real datum. */
+  | 'no-availability'
+  | 'bot-check'
+  | 'not-loaded'
+  /** The page rendered but states no capacity in any readable form. Refuse rather than guess. */
+  | 'no-capacity';
+
+export interface Identity {
+  state: IdentityState;
+  units: VerifiedUnit[];
+  /** Beds counted across the whole availability section — the fallback, and the cross-check. */
+  bedsTotal: number | null;
+  rating: number | null;
+  reviewCount: number | null;
+  city: string | null;
+  /**
+   * The fields that move with the search. Recorded ONLY as evidence for `reconcile()`. Reading either
+   * as capacity is the single worst mistake this module can make.
+   */
+  echo: { sleeps: string | null; recommendedFor: string | null };
+}
+
+/**
+ * Sleeping capacity per bed, calibrated against two independent confirmations rather than assumed:
+ * Vila Luna's configuration counts to 11, matching both its `Max persons: 11` and the owner's own
+ * figure; Villa The Frame's counts to 8, matching its Airbnb listing's stated "8 guests". `sofa = 1`
+ * was the genuinely uncertain value and both checks land on it.
+ */
+export const BED_VALUES: Record<string, number> = {
+  single: 1, twin: 1, sofa: 1, futon: 1,
+  double: 2, 'large double': 2, 'extra-large double': 2, bunk: 2,
+};
+
+/** Booking writes a non-breaking space before the currency and inside some labels. Normalise FIRST. */
+export const norm = (s: string): string => s.replace(/ /g, ' ');
+
+const BED_RE = /(\d+)\s+((?:extra-large |large )?(?:single|twin|double|sofa|bunk|futon))\s*bed/gi;
+
+export function countBeds(text: string): number {
+  let n = 0;
+  for (let m = BED_RE.exec(text); m !== null; m = BED_RE.exec(text)) {
+    n += Number(m[1]) * (BED_VALUES[m[2].toLowerCase()] ?? 0);
+  }
+  BED_RE.lastIndex = 0;
+  return n;
+}
+
+/** Lines that are layout, price or amenity chrome — never a unit name. */
+const NOISE = new RegExp(
+  '^(Price|Includes|Free|Non|Select|Only|We have|Genius|Original|Current|Bathrooms|Cot|Entire|' +
+  'Private|Balcony|Garden|Mountain|City|Inner|Air|Dish|Flat|Sound|Barbecue|Terrace|Coffee|Sauna|' +
+  'Compare|Pay|No |I\'ll|It only|You won|Recommended|Sleeps|Bedroom|Living|Lower|Breakfast|Parking|' +
+  'Kitchen|Patio|Ensuite|Landmark|Accommodation|Room type|Number|Your choices|Getting|Hosted|' +
+  'Something|Show|Reserve|This|Prices|Max|Availability|Guests)',
+);
+
+export function classifyIdentity(text: string): IdentityState {
+  const l = text.toLowerCase();
+  if (!l.trim() || text.length < 200) return 'not-loaded';
+  if (/(are you a robot|unusual traffic|verify you are human|captcha|security check)/.test(l)) return 'bot-check';
+  if (/we have no availability here|no rooms available|not available for your dates/.test(l)) return 'no-availability';
+  return 'ok';
+}
+
+function parseRatingBooking(t: string): { rating: number | null; reviewCount: number | null } {
+  // "Scored 9.9 | 9.9 | Rated exceptional | Exceptional | 15 reviews". Anchored to the whole block:
+  // the FIRST "rated N/10" on the page is the LOCATION sub-score, and reading it as the property
+  // score is a mistake the page invites.
+  const m = t.match(/Scored\s+([\d.,]+)[\s\S]{0,80}?Rated\s+\w+[\s\S]{0,80}?([\d,]+)\s+reviews?/i);
+  if (m) return { rating: Number(m[1].replace(',', '.')), reviewCount: Number(m[2].replace(/,/g, '')) };
+  return { rating: null, reviewCount: null };
+}
+
+function parseAirbnb(t: string): Identity {
+  // The header line is a PROPERTY ATTRIBUTE — verified unchanged across ?adults=2 and ?adults=5 on
+  // the same listing, unlike anything equivalent on Booking.
+  const cap = t.match(/(\d{1,2})\s+guests?\s*·\s*(\d{1,2})\s+bedrooms?/i);
+  const guests = cap ? Number(cap[1]) : null;
+  const rating = t.match(/\b([45]\.\d{1,2})\b/);
+  const reviews = t.match(/(\d[\d,]*)\s+reviews?/i);
+  const city = t.match(/Entire\s+[a-z]+\s+in\s+([^,\n]+)/i);
+  return {
+    state: guests ? 'ok' : 'no-capacity',
+    units: guests ? [{ label: 'Entire listing', maxPersons: guests, count: 1, sqm: null }] : [],
+    bedsTotal: countBeds(t) || null,
+    rating: rating ? Number(rating[1]) : null,
+    reviewCount: reviews ? Number(reviews[1].replace(/,/g, '')) : null,
+    city: city ? city[1].trim() : null,
+    echo: { sleeps: null, recommendedFor: null },
+  };
+}
+
+function parseBooking(t: string): Identity {
+  const { rating, reviewCount } = parseRatingBooking(t);
+  const cityM = t.match(/,\s*\d{5,6}\s+([A-ZȘȚĂÎÂ][\w șțăîâ.-]+),\s*Romania/)
+    ?? t.match(/([A-ZȘȚĂÎÂ][\w șțăîâ.-]+),\s*Romania/);
+  const city = cityM ? cityM[1].trim() : null;
+
+  const echo = {
+    sleeps: (t.match(/Sleeps:\s*([^\n]{1,40})/i) || [, null])[1] as string | null,
+    recommendedFor: (t.match(/Recommended for\s*([^\n]{1,40})/i) || [, null])[1] as string | null,
+  };
+
+  const start = t.search(/Select an accommodation type|Select a room type|All available/i);
+  if (start < 0) {
+    return { state: classifyIdentity(t) === 'ok' ? 'no-capacity' : classifyIdentity(t),
+             units: [], bedsTotal: null, rating, reviewCount, city, echo };
+  }
+  const seg = t.slice(start);
+
+  // Rows are (unit x occupancy x rate plan), not units — the same trap `extract.ts` documents for
+  // prices. Group by the unit NAME and take the maximum capacity seen under it.
+  const capRe = /Max\s*(?:persons?|adults?)\s*:?\s*(\d{1,2})(?:[^\d]{0,20}?Max\s*children\s*:?\s*(\d{1,2}))?/gi;
+  const byName = new Map<string, VerifiedUnit>();
+  const order: string[] = [];
+  let last = 0;
+  let current: string | null = null;
+  for (let m = capRe.exec(seg); m !== null; m = capRe.exec(seg)) {
+    const before = seg.slice(last, m.index);
+    const names = (before.match(/^[A-Z][^\n]{2,58}$/gm) ?? []).filter((n) => !NOISE.test(n));
+    if (names.length) current = names[names.length - 1].trim();
+    const key = current ?? 'Unnamed unit';
+    const sqmM = (before.match(/(\d+)\s*m²/g) ?? []).pop();
+    const seats = Number(m[1]) + (m[2] === undefined ? 0 : Number(m[2]));
+    const existing = byName.get(key);
+    if (!existing) {
+      byName.set(key, { label: key, maxPersons: seats, count: 1, sqm: sqmM ? Number(sqmM.replace(/\D/g, '')) : null });
+      order.push(key);
+    } else {
+      // A second row under the same NAME with the same capacity is another unit of that type; a
+      // different capacity is the same unit priced for a smaller party, so only the max is capacity.
+      if (seats === existing.maxPersons) existing.count += 1;
+      existing.maxPersons = Math.max(existing.maxPersons, seats);
+      if (sqmM && existing.sqm === null) existing.sqm = Number(sqmM.replace(/\D/g, ''));
+    }
+    last = m.index + m[0].length;
+  }
+
+  const bedsTotal = countBeds(seg) || null;
+  if (!order.length) {
+    // No capacity marker at all — the normal shape of a SINGLE-unit Booking page (Villa The Frame has
+    // none). Fall back to the bed configuration, which is always present and never echoes.
+    if (!bedsTotal) return { state: 'no-capacity', units: [], bedsTotal: null, rating, reviewCount, city, echo };
+    const nameM = (seg.slice(0, 1200).match(/^[A-Z][^\n]{2,58}$/gm) ?? []).filter((n) => !NOISE.test(n));
+    const sqmM = (seg.slice(0, 1600).match(/(\d+)\s*m²/g) ?? []).pop();
+    return {
+      state: 'ok',
+      units: [{
+        label: nameM[0]?.trim() ?? 'Entire place',
+        maxPersons: bedsTotal, count: 1,
+        sqm: sqmM ? Number(sqmM.replace(/\D/g, '')) : null,
+      }],
+      bedsTotal, rating, reviewCount, city, echo,
+    };
+  }
+  return { state: 'ok', units: order.map((k) => byName.get(k)!), bedsTotal, rating, reviewCount, city, echo };
+}
+
+export function parseIdentity(channel: VerifyChannel, rawText: string): Identity {
+  const t = norm(rawText);
+  const state = classifyIdentity(t);
+  if (state !== 'ok') {
+    const partial = channel === 'booking.com' ? parseRatingBooking(t) : { rating: null, reviewCount: null };
+    return {
+      state, units: [], bedsTotal: null,
+      rating: partial.rating, reviewCount: partial.reviewCount, city: null,
+      echo: { sleeps: null, recommendedFor: null },
+    };
+  }
+  return channel === 'airbnb' ? parseAirbnb(t) : parseBooking(t);
+}
+
+// ---------------------------------------------------------------------------------------------
+// The two-occupancy self-check
+// ---------------------------------------------------------------------------------------------
+
+export interface ReconcileInput {
+  /** The two reads, taken at DIFFERENT search occupancies. */
+  a: { occupancy: number; identity: Identity };
+  b: { occupancy: number; identity: Identity };
+}
+
+export interface Reconciled {
+  ok: boolean;
+  /** Only the fields that were IDENTICAL across both reads. Anything else is not a fact. */
+  stable: Pick<Identity, 'units' | 'bedsTotal' | 'rating' | 'reviewCount' | 'city'>;
+  /** Fields that changed between the two reads — proven to be search echoes, discarded. */
+  moved: string[];
+  /** Why the check could not be run, when it could not. */
+  problem?: string;
+}
+
+const unitKey = (u: VerifiedUnit[]): string =>
+  JSON.stringify([...u].map((x) => [x.label, x.maxPersons, x.count]).sort());
+
+/**
+ * Keep only what did not move between two reads of the same listing at two different occupancies.
+ *
+ * This is the echo check from `extract.ts`, run in reverse. There, a value that fails to move signals
+ * a stale render; here, a value that DOES move signals a field that is not a fact. Two page loads per
+ * listing, once, at curation time — and it makes the whole class of error impossible rather than
+ * merely documented.
+ */
+export function reconcile({ a, b }: ReconcileInput): Reconciled {
+  const empty = { units: [], bedsTotal: null, rating: null, reviewCount: null, city: null };
+  if (a.occupancy === b.occupancy) {
+    return {
+      ok: false, stable: empty, moved: [],
+      problem: `both reads used occupancy ${a.occupancy} — the check only means something when the ` +
+               `two searches differ, and an unrun check must never pass silently`,
+    };
+  }
+  if (a.identity.state !== 'ok' || b.identity.state !== 'ok') {
+    return {
+      ok: false, stable: empty, moved: [],
+      problem: `reads are ${a.identity.state} / ${b.identity.state} — nothing to reconcile`,
+    };
+  }
+
+  const moved: string[] = [];
+  const same = <T>(x: T, y: T, name: string, eq = (p: T, q: T) => p === q): T | null => {
+    if (eq(x, y)) return x;
+    moved.push(name);
+    return null;
+  };
+
+  const units = same(a.identity.units, b.identity.units, 'units', (p, q) => unitKey(p) === unitKey(q));
+  const bedsTotal = same(a.identity.bedsTotal, b.identity.bedsTotal, 'bedsTotal');
+  const rating = same(a.identity.rating, b.identity.rating, 'rating');
+  const reviewCount = same(a.identity.reviewCount, b.identity.reviewCount, 'reviewCount');
+  const city = same(a.identity.city, b.identity.city, 'city');
+
+  // The echo fields SHOULD move. If they did not, either the page states nothing (fine) or the two
+  // probes were not really different (already caught above) — worth reporting, never worth trusting.
+  const echoMoved =
+    a.identity.echo.sleeps !== b.identity.echo.sleeps ||
+    a.identity.echo.recommendedFor !== b.identity.echo.recommendedFor;
+
+  return {
+    ok: units !== null && units.length > 0,
+    stable: { units: units ?? [], bedsTotal, rating, reviewCount, city },
+    moved,
+    ...(units === null
+      ? { problem: 'capacity DIFFERED between the two reads — the value read is a search echo, not a fact' }
+      : !echoMoved && (a.identity.echo.sleeps || a.identity.echo.recommendedFor)
+        ? { problem: 'the echo fields did not move, so this check proves less than it appears to' }
+        : {}),
+  };
+}
+
+/**
+ * The identity parser as a string of JavaScript, to run INSIDE the page.
+ *
+ * There must be two implementations — the extension refuses to let a page's text out in bulk — and a
+ * drifted pair is worse than either alone, because the tested one passes while the running one is
+ * wrong. `__tests__/verify.test.ts` evaluates this string and asserts it agrees with `parseIdentity`
+ * on every fixture. Change one and that test fails until you change the other.
+ */
+export const IN_PAGE_VERIFIER = String.raw`
+var __BEDV={single:1,twin:1,sofa:1,futon:1,double:2,'large double':2,'extra-large double':2,bunk:2};
+function __norm(s){return s.replace(/ /g,' ');}
+function __beds(s){var re=/(\d+)\s+((?:extra-large |large )?(?:single|twin|double|sofa|bunk|futon))\s*bed/gi,m,n=0;
+  while((m=re.exec(s))!==null){n+=(+m[1])*(__BEDV[m[2].toLowerCase()]||0);} return n;}
+var __NOISE=/^(Price|Includes|Free|Non|Select|Only|We have|Genius|Original|Current|Bathrooms|Cot|Entire|Private|Balcony|Garden|Mountain|City|Inner|Air|Dish|Flat|Sound|Barbecue|Terrace|Coffee|Sauna|Compare|Pay|No |I'll|It only|You won|Recommended|Sleeps|Bedroom|Living|Lower|Breakfast|Parking|Kitchen|Patio|Ensuite|Landmark|Accommodation|Room type|Number|Your choices|Getting|Hosted|Something|Show|Reserve|This|Prices|Max|Availability|Guests)/;
+function __classify(t){var l=t.toLowerCase();
+  if(!l.trim()||t.length<200) return 'not-loaded';
+  if(/(are you a robot|unusual traffic|verify you are human|captcha|security check)/.test(l)) return 'bot-check';
+  if(/we have no availability here|no rooms available|not available for your dates/.test(l)) return 'no-availability';
+  return 'ok';}
+function __bkRating(t){var m=t.match(/Scored\s+([\d.,]+)[\s\S]{0,80}?Rated\s+\w+[\s\S]{0,80}?([\d,]+)\s+reviews?/i);
+  return m?{rating:Number(m[1].replace(',','.')),reviewCount:Number(m[2].replace(/,/g,''))}:{rating:null,reviewCount:null};}
+function __airbnb(t){
+  var cap=t.match(/(\d{1,2})\s+guests?\s*·\s*(\d{1,2})\s+bedrooms?/i);
+  var g=cap?Number(cap[1]):null;
+  var r=t.match(/\b([45]\.\d{1,2})\b/), rv=t.match(/(\d[\d,]*)\s+reviews?/i), c=t.match(/Entire\s+[a-z]+\s+in\s+([^,\n]+)/i);
+  return {state:g?'ok':'no-capacity',
+    units:g?[{label:'Entire listing',maxPersons:g,count:1,sqm:null}]:[],
+    bedsTotal:__beds(t)||null, rating:r?Number(r[1]):null,
+    reviewCount:rv?Number(rv[1].replace(/,/g,'')):null, city:c?c[1].trim():null,
+    echo:{sleeps:null,recommendedFor:null}};}
+function __booking(t){
+  var rr=__bkRating(t);
+  var cm=t.match(/,\s*\d{5,6}\s+([A-ZȘȚĂÎÂ][\w șțăîâ.-]+),\s*Romania/)||t.match(/([A-ZȘȚĂÎÂ][\w șțăîâ.-]+),\s*Romania/);
+  var city=cm?cm[1].trim():null;
+  var sl=t.match(/Sleeps:\s*([^\n]{1,40})/i), rf=t.match(/Recommended for\s*([^\n]{1,40})/i);
+  var echo={sleeps:sl?sl[1]:null,recommendedFor:rf?rf[1]:null};
+  var start=t.search(/Select an accommodation type|Select a room type|All available/i);
+  if(start<0) return {state:__classify(t)==='ok'?'no-capacity':__classify(t),units:[],bedsTotal:null,rating:rr.rating,reviewCount:rr.reviewCount,city:city,echo:echo};
+  var seg=t.slice(start);
+  var re=/Max\s*(?:persons?|adults?)\s*:?\s*(\d{1,2})(?:[^\d]{0,20}?Max\s*children\s*:?\s*(\d{1,2}))?/gi;
+  var m,last=0,cur=null,map={},order=[];
+  while((m=re.exec(seg))!==null){
+    var before=seg.slice(last,m.index);
+    var names=(before.match(/^[A-Z][^\n]{2,58}$/gm)||[]).filter(function(n){return !__NOISE.test(n);});
+    if(names.length) cur=names[names.length-1].trim();
+    var key=cur||'Unnamed unit';
+    var sq=(before.match(/(\d+)\s*m²/g)||[]).pop();
+    var seats=Number(m[1])+(m[2]===undefined?0:Number(m[2]));
+    if(!map[key]){map[key]={label:key,maxPersons:seats,count:1,sqm:sq?Number(sq.replace(/\D/g,'')):null};order.push(key);}
+    else{ if(seats===map[key].maxPersons) map[key].count+=1;
+          map[key].maxPersons=Math.max(map[key].maxPersons,seats);
+          if(sq&&map[key].sqm===null) map[key].sqm=Number(sq.replace(/\D/g,'')); }
+    last=m.index+m[0].length;
+  }
+  var bt=__beds(seg)||null;
+  if(!order.length){
+    if(!bt) return {state:'no-capacity',units:[],bedsTotal:null,rating:rr.rating,reviewCount:rr.reviewCount,city:city,echo:echo};
+    var nm=(seg.slice(0,1200).match(/^[A-Z][^\n]{2,58}$/gm)||[]).filter(function(n){return !__NOISE.test(n);});
+    var sq2=(seg.slice(0,1600).match(/(\d+)\s*m²/g)||[]).pop();
+    return {state:'ok',units:[{label:(nm[0]||'Entire place').trim(),maxPersons:bt,count:1,sqm:sq2?Number(sq2.replace(/\D/g,'')):null}],
+            bedsTotal:bt,rating:rr.rating,reviewCount:rr.reviewCount,city:city,echo:echo};
+  }
+  return {state:'ok',units:order.map(function(k){return map[k];}),bedsTotal:bt,rating:rr.rating,reviewCount:rr.reviewCount,city:city,echo:echo};}
+function __identity(channel,raw){
+  var t=__norm(raw); var st=__classify(t);
+  if(st!=='ok'){ var p = channel==='booking.com'?__bkRating(t):{rating:null,reviewCount:null};
+    return {state:st,units:[],bedsTotal:null,rating:p.rating,reviewCount:p.reviewCount,city:null,echo:{sleeps:null,recommendedFor:null}};}
+  return channel==='airbnb'?__airbnb(t):__booking(t);}
+`;
+
+/** The snippet to run in the page after navigating: parses the live document and adds the hero photo. */
+export function inPageVerifyRunner(channel: VerifyChannel, listingId: string, occupancy: number): string {
+  return `${IN_PAGE_VERIFIER}
+(function(){
+  var id = __identity('${channel}', document.body.innerText);
+  var og = (document.querySelector('meta[property="og:image"]')||{}).content || null;
+  // The path embeds the listing id on newer Airbnb listings and on nothing else, so provenance is
+  // recorded rather than claimed — an older listing returns a bare uuid and is trusted only because
+  // it came from this page load.
+  var prov = og ? (/Hosting-\\d+/.test(og) ? 'id-matched' : 'capture-context') : null;
+  return JSON.stringify({
+    listingId: '${listingId}', occupancy: ${occupancy}, identity: id,
+    heroPhotoUrl: og ? og.split('?')[0] : null, photoProvenance: prov,
+    len: document.body.innerText.length,
+  });
+})()`;
+}
