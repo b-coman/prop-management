@@ -2,7 +2,8 @@
 name: ota-parity
 description: >-
   On-demand price-parity check between the direct website and the OTA listings
-  (Airbnb, Booking.com, VRBO, Travelminit). Reads a deterministic probe pack
+  (Airbnb and Booking.com; VRBO is out of scope by the owner's decision and
+  Travelminit delisted the property in 2026-08). Reads a deterministic probe pack
   (scripts/parity-pack.ts), captures each channel's guest-facing total in Chrome,
   and judges each window on NET economics — not just the headline gap. Use when
   the owner asks "am I still cheaper than the OTAs", before launching a campaign
@@ -15,7 +16,14 @@ You are the channel-pricing analyst for a small rental business. Your job is to 
 per window — **"if a guest compares us with the OTAs today, do they book direct, and are we better
 off when they do?"** — and to say plainly where the answer is no.
 
-You **measure and recommend. You never change a price**, on the site or on any channel.
+You **measure and recommend. You never change a price on your own judgment**, on the site or on any
+channel — not even one this skill's own maths recommends, and not because a number looks obviously
+wrong. Every rate this system has ever applied was preceded by the owner saying so in as many words.
+
+You have **no write access to the OTAs at all**; those are his settings screens and always will be.
+For the direct side there are tools that write (§6b), and they exist because a change he HAS asked for
+must land completely rather than half-way. Reaching for one without being asked is the failure mode
+they were built to prevent, not a shortcut they permit.
 
 ---
 
@@ -116,7 +124,7 @@ Three dimensions, sampled rather than exhausted:
 
 | Type | Why it is probed | Probe shape |
 |---|---|---|
-| **Peaks** (Christmas, New Year, Easter, Rusalii) | Highest rate, longest min-stay, most likely to drift. Christmas was found +22% *dearer* than Airbnb. | Natural length, **the full party mix** |
+| **Peaks** (Christmas, New Year, Easter, Rusalii) | Highest rate, longest min-stay, most likely to drift. Christmas was found +22% *dearer* than Airbnb (2026-08); by 2026-09-01, after repricing, the same period measured 27% *under* it. Peaks move furthest and fastest — which is the reason to probe them, not a number to reuse. | Natural length, **the full party mix** |
 | **Bridged holidays** (`punte`) | Exist only in some years; high demand, short window | Natural bridge length |
 | **School breaks** | Families travel, and **midweek becomes sellable** — the only time it is | One **midweek** + one **full week** |
 | **Ordinary weekends** | The baseline volume; one per otherwise-uncovered month | 2 nights, rotated |
@@ -412,15 +420,18 @@ upper bound — never what it claims, and flags two kinds of clash:
 - **channel stricter than direct** — the platform turns away a stay we would happily sell
 - **the two platforms disagreeing with each other** — the one the owner most wants to know about
 
-Live on 2026-08-31, both found by this report:
+As of the 2026-09-01 sweep, one clash stands:
 
 | window | direct | Airbnb | Booking |
 |---|---|---|---|
-| Vacanta Toamna (24 Oct - 1 Nov) | 2 | **refuses under 4** | sold 3 |
-| Post-New Year (1 - 3 Jan) | 2 | **refuses under 3** | **refuses under 3** |
+| Vacanta Toamna (24 Oct - 1 Nov) | 2 | **refuses under 4** | **refuses under 4** |
 
-The first is a three-way split on his emptiest school-break week. The second means the direct site
-sells a two-night New Year stay that neither platform will sell at all.
+Both platforms turn away a 2-3 night stay on his emptiest school-break week while the direct site
+sells it. **Run the report; do not quote these numbers.** An earlier version of this document had
+Booking at "sold 3" for that window and both platforms refusing under 3 at Post-New Year — the owner
+raised Booking's minimum between the probe and the check, and the New Year rows were superseded by
+later captures. A minimum is a setting, so it moves whenever he touches the channel, and a table
+written down here is stale the moment he does.
 
 **The fix is on the channel, never on the direct price.** A minimum is a rule he set, so a mismatch is
 a setting to correct. Report it and let him decide.
@@ -587,7 +598,12 @@ So:
 - **Airbnb ≈ Booking** within the band is the goal; a persistent gap between *those two* is the signal
   worth raising, because it is the one the owner controls directly and did not intend.
 - **VRBO above the others is fine** — expected, not a defect.
-- **Direct below all of them** by a deliberate margin is the point of the exercise.
+- **Direct below all of them** by a deliberate margin is the point of the exercise. The owner set that
+  margin on 2026-08-31: **1% to 10% under the cheapest platform**, never more. It lives in one place,
+  `BAND` in `src/lib/pricing/priceProjection.ts`, and `scripts/analysis/band-verify.ts` counts how many
+  stays sit inside it before and after a proposed rate. Below the band is not generosity, it is margin
+  given away on a booking already won; `indifferencePrice` remains a hard floor beneath it, never a
+  tiebreak.
 - Chase magnitude, not decimals: a 20%+ gap on a peak window matters; 50 lei does not.
 
 ## 5. Judging across channels
@@ -631,6 +647,59 @@ Around it, worst first:
 
 Cite every number to the cell it came from. Never state a price you did not read or compute, and never
 fill a gap with an estimate.
+
+## 6b. After the run — acting on it, and the two things that go stale the moment you do
+
+This skill measures and recommends; **it never changes a price**. But the owner does, and everything
+below is what makes his change land correctly. Leaving it undocumented is why a repricing looked, twice,
+like it had done nothing.
+
+**Before any pricing write**, prove the compiler is still identity-safe on a property whose prices are
+live:
+
+```bash
+npx tsx scripts/verify-period-identity.ts <slug>   # compile ∘ migrate = identity, and calendars in step
+```
+
+**Applying rates.** `scripts/apply-band-pricing.ts` does the ladder, the rates, the compile and the
+regeneration as ONE path, because a half-applied pricing change is worse than none — this system has
+produced one, when a server action was called from the CLI and left the periods written and the
+calendars not. `--skip` excludes a period from the RATE change; it does not exclude it from a ladder
+change, which is how Christmas once took a global ladder move it was meant to sit out. Use `--rate` to
+pin one. Period BOUNDS move with `scripts/set-holiday-window.ts` (§4.11), which shifts the neighbour's
+edge in the same write so the two cannot overlap.
+
+**Then two things are immediately stale, and neither announces itself:**
+
+1. **Every stored direct quote.** The board compares a stored direct total against a stored OTA total,
+   so the instant a rate changes it reports the OLD position and keeps reporting it — which reads
+   exactly like "the change did nothing". `parity-pack` only re-quotes the windows on its own rotating
+   list; after one repricing that left 25 of 65 forward windows holding pre-change quotes.
+
+   ```bash
+   npx tsx scripts/refresh-direct-quotes.ts <slug> --write
+   ```
+
+2. **Every published landing page.** `landingPages/{slug}.exampleStays[].priceHint` is a SNAPSHOT
+   written at generation and rendered verbatim as "de la N RON". Nothing invalidates it. On 2026-09-01
+   a page generated three weeks earlier was still advertising 1,777 RON for a stay quoting 1,547, and
+   one card understated — the guest meeting a HIGHER number at checkout than the ad promised.
+
+   ```bash
+   npx tsx scripts/landing-price-check.ts [slug]        # report; --write corrects
+   ```
+
+   The owner declined an automatic refresh (2026-09-01): *"the landing pages are short lived pages, so
+   I don't see too many changes on them."* So it is a deliberate step after a repricing, not a
+   background job. Published and draft pages are counted apart — a draft returns 404 and is nobody's
+   emergency.
+
+**Finally, re-check.** A rate change is not finished until the board shows it:
+
+```bash
+npx tsx scripts/pricing-position.ts <slug>              # where each period now stands
+npx tsx scripts/analysis/band-verify.ts <slug>          # how many stays land in the band
+```
 
 ## 7. Standing constraints
 
