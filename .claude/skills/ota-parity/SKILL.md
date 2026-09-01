@@ -224,6 +224,28 @@ npx tsx scripts/parity-report.ts <slug>
 - Observations are append-only, so re-running a cell adds a data point rather than erasing one — that
   is how the 4–6 week cadence turns into drift over time.
 
+**A reading can be one day old and still be fiction.** A capture is a photograph of a price under the
+settings that were live at that moment; change a discount, a rate plan or a minimum stay and some of
+those photographs stop describing anything, while still looking like evidence and still being recent.
+
+```bash
+npx tsx scripts/parity-audit.ts <slug>                       # which stored rows a change has invalidated
+npx tsx scripts/parity-recheck.ts <slug> --min-nights 4 --json   # those cells, with URLs already built
+```
+
+Record the change on the channel (`discountsChangedAt: { date, fromNights, note }`) and every tool
+picks it up. They did not always: on 2026-09-01 `parity-audit` had the rule right, the **board the
+owner reads had it not at all** — judging freshness purely by age, so six readings taken the previous
+afternoon scored as current at zero days old — and `parity-recheck` had half of it, matching on stay
+length while never looking at the capture date, so it re-queued cells that had already been re-read.
+Three views of one store, disagreeing about which rows were true. The rule now lives in
+`src/lib/parity/supersession.ts` and all three ask it. Same-day captures count as current: the change
+is recorded by day, and discarding them would throw away the very run made to measure it.
+
+Refreshing beats deleting. The store is append-only on purpose — 509 of its 728 rows are superseded
+history the board never reads, and they are what makes drift visible over time. The bad rows are
+always the NEWEST for their cell, so purging old data does not touch them.
+
 Scoping is fine (`--only crăciun`, `--max 12`) — the pack reports what it dropped. Saying "I checked
 the peaks, here is the coverage, these cells remain" is honest. Presenting a subset as the picture is
 not.
@@ -374,76 +396,7 @@ that matters most.
 totals are not comparable. `parity-next.ts` detects these and prints the escalation with the URLs
 already built — work them before declaring a run finished.
 
-### 4.6 A short holiday period needs a probe that fits INSIDE it
-
-The pack widens a `major` holiday back to the adjacent Friday, because that is the stay people
-actually buy. That is right about travel and can be wrong about pricing: the widened window may
-straddle a period boundary, and then no single period governs it.
-
-1 Decembrie 2026 is the case. The holiday is 30 Nov–1 Dec, the pricing period is 28 Nov–1 Dec, and
-the pack probed **Fri 27 Nov → 2 Dec**. Three channels, four party sizes, fully measured — and the
-period still reported that nobody had ever compared it, because the stay checks in on Late Fall's
-last day. Fixing the attribution (below) made the period visible, but the solver still could not
-propose a rate for it: `periodControlsStay` demands full containment, so a stay with one night
-outside is not something a rate change can move.
-
-**So when a period is short and its natural probe straddles the boundary, probe the contained window
-too** — here 28 Nov → 2 Dec, four nights, entirely inside. Then the period has both a verdict and a
-rate. Keep the widened one as well; it is the stay that actually sells.
-
-Worth reporting when you see it: if the window people really book starts a day before the period,
-the period boundary and the demand disagree, and that is the owner's call to make, not yours.
-
-### 4.6b A holiday is a date; the stay it sells is a window
-
-The owner's rule, 2026-09-01: *"people can leave the city on friday 27, then have few days a small
-vacation and checkout and return home on Dec 1st"*, and *"even if in-between is an working day, like
-for example thursday a holiday, then friday working day, then saturday and sunday, people usually
-take friday as a day off"*.
-
-Two effects, both in `src/lib/pricing/travelWindow.ts`, both tested:
-
-- **The bridge (`punte`)** — one working day sandwiched between days off is taken off. Only one:
-  nobody burns two days of leave to reach a weekend. `bridge-day` was a declared holiday type with
-  zero rows ever seeded, so this had never actually been computed anywhere.
-- **The departure evening** — the night before the run is sold, because people finish work and drive
-  up. This is the night no run can explain, and it is the one that gets mispriced.
-
-`npx tsx scripts/holiday-windows.ts <slug>` reports, per holiday, the stay it really sells and
-whether the pricing periods cover it **as a holiday**. Coverage alone is not the test: on 1 Decembrie
-2026 every night was covered, and the Friday was covered by *Late Fall*, so one stay was billed at
-two rates. A period several times longer than the window it prices is a season, not an occasion.
-
-Being split across two occasion periods is fine and often deliberate — New Year's Eve is dearer than
-the two nights after it, on purpose.
-
-### 4.7 A stay belongs to the period that prices most of its nights
-
-The position board used to assign a measured stay to whichever period contained its **check-in**.
-That silently did two things: it credited a stay to a period pricing one of its five nights, and it
-**discarded entirely** any stay checking in on a day no period covers. Two Christmas probes checking
-in on 23 Dec — an uncovered day — never appeared on the board at all, and Christmas read −10.8% when
-its real position was −27.2%.
-
-`periodOwnsStay` in `pricingPosition.ts` now uses the majority of nights, falling back to the
-check-in when nothing holds a majority. It is deliberately looser than `periodControlsStay`, which
-still demands full containment, because the two answer different questions: *does this period have
-evidence* versus *can I solve a rate from this stay*.
-
-
-**Probe SHORT first, then escalate.** The owner's rule is 2 nights, raised by hand on a few special
-windows — the autumn school break, sometimes Christmas, always NYE — and he sets each raise
-**separately on Airbnb, on Booking and on the direct site**. The short probe is the only thing that
-reveals where those minimums actually sit: go straight to 5 nights on NYE and every channel answers,
-teaching you nothing. So probe at the DIRECT minimum for the window (usually 2), let the channel
-refuse, and escalate to the number it names.
-
-`MIN_STAY_RE` in `src/lib/parity/minStay.ts` holds every phrasing, shared by the escalation here and
-by the alignment report below so the two cannot drift. Airbnb says *"Minimum stay is 4 nights"*;
-Booking says *"You need to stay 3+ nights to book your selected dates"*. Neither matched the original
-regex, which is why the escalation went its whole life without once firing.
-
-### 4.5b Report where the minimums DISAGREE — the owner asked for this by name
+### 4.6 Report where the minimums DISAGREE — the owner asked for this by name
 
 A mismatched minimum is invisible in every price comparison. It does not make anything look expensive;
 it just refuses the booking. It is also not a pricing fault, so it never belongs in a rate
@@ -472,12 +425,12 @@ sells a two-night New Year stay that neither platform will sell at all.
 **The fix is on the channel, never on the direct price.** A minimum is a rule he set, so a mismatch is
 a setting to correct. Report it and let him decide.
 
-### 4.6 Record refusals eagerly
+### 4.7 Record refusals eagerly
 
 `refused` (a minimum stay we do not enforce), `unavailable` (the channel has no inventory) and `error`
 are **outcomes**. Write them with a reason. A cell you skip silently is a cell you re-walk forever.
 
-### 4.7 Pacing and stopping
+### 4.8 Pacing and stopping
 
 - Batches of **10-15 cells with a check-in**, and a randomised 3-8s dwell between cells on top of the
   settle. Nothing bounds request volume on these sites; ~100 sequential parameterised loads from one
@@ -489,16 +442,24 @@ are **outcomes**. Write them with a reason. A cell you skip silently is a cell y
 - Never trigger an `alert`/`confirm`/`prompt`. A modal blocks the extension for the rest of the
   session. Never a dialog — and never a Blob download either, they are site-blocked (§4.2).
 
-### 4.8 What the two sites show
+### 4.9 What the two sites show
 
 **Airbnb** — `https://www.airbnb.com/rooms/<id>?check_in=…&check_out=…&adults=N`
 Read the `"… RON total"` line, any struck-through original, `"N nights in …"`, the date range and the
 guest count, and whether `"This host is offering a discount"` is present.
 
-> **The captured Airbnb number is NOT what a real guest pays.** This listing gives a standing **15%
-> top-rated guests discount** that the owner considers almost universally qualifying, and it is
-> invisible to any capture. `evaluateParity` applies it. **The extractor must not**, or it is deducted
-> twice. Treat a capture as the anonymous list price and let the maths correct it.
+> **A standing guest discount is a SETTING. Read it; never assume it.** This listing used to give a
+> **15% top-rated guests discount** that no capture can see, and the correction was written into the
+> code as a constant. The owner turned it off on **2026-09-01**, and for a while two of the four
+> callers went on deducting it — proposing prices computed against a discount that no longer existed,
+> and they would have been written to the live site.
+>
+> So it comes from `getStandingDiscounts(propertyId)` (channel config) and from nowhere else. **It is
+> 0 today.** A value of 0 is not the same as absent: absent means nobody recorded one, 0 means the
+> owner turned it off. The extractor must never apply it either way — treat a capture as the anonymous
+> list price and let `parityView` correct it, or it is deducted twice.
+>
+> **Do not hardcode this number, and do not carry it in your head between runs.** Check the config.
 
 **Booking.com** — `…?checkin=…&checkout=…&group_adults=N&group_children=M&age=10&age=4&no_rooms=1&selected_currency=RON`
 Read `"Original price X Current price Y"`, record which rate plan it is (peak windows sell
@@ -523,10 +484,94 @@ members-only price"` — that capture is incomplete, not cheap.
 > belong to other windows. Record the cell as `refused` and escalate per §4.5; never bank a number off
 > that page.
 
+> **At exactly seven nights Booking stops counting nights and writes "1 week".** The page reads
+> `1 week, 2 adults, 1 child` and `Price for 1 week`, and the word "night" appears nowhere on it. So
+> the night count came back empty and the echo check — the one guard against a stale render serving
+> the previous cell's price — had nothing to compare and could only wave the cell through. Only exact
+> multiples are worded that way: the same page at ten nights says `10 nights`. Both parsers read it
+> now, anchored to those two phrasings.
+>
+> **The week form is Booking-only, deliberately.** Airbnb pages carry `2 weeks ago` and `3 weeks ago`
+> in the review timestamps, so an unanchored version returns 14 nights on a seven-night stay and
+> throws away a good capture. Airbnb states `7 nights in Comarnic` and needs none of it.
+>
+> The agreement test could never have caught this on its own: when both parsers read nothing, they
+> agree perfectly and the suite stays green. Night counts are pinned to a NUMBER in the tests, not
+> just to each other.
+
 **A price that FALLS when you add guests is a bug, not a finding.** Direct and Airbnb both charge more
 for two extra children; if a channel charges less, the capture grabbed the wrong row. Check it before
 reporting it — this is the cheapest available sanity test on the whole dataset.
 
+
+### 4.10 A short holiday period needs a probe that fits INSIDE it
+
+The pack widens a `major` holiday back to the adjacent Friday, because that is the stay people
+actually buy. That is right about travel and can be wrong about pricing: the widened window may
+straddle a period boundary, and then no single period governs it.
+
+1 Decembrie 2026 is the case. The holiday is 30 Nov–1 Dec, the pricing period is 28 Nov–1 Dec, and
+the pack probed **Fri 27 Nov → 2 Dec**. Three channels, four party sizes, fully measured — and the
+period still reported that nobody had ever compared it, because the stay checks in on Late Fall's
+last day. Fixing the attribution (below) made the period visible, but the solver still could not
+propose a rate for it: `periodControlsStay` demands full containment, so a stay with one night
+outside is not something a rate change can move.
+
+**So when a period is short and its natural probe straddles the boundary, probe the contained window
+too** — here 28 Nov → 2 Dec, four nights, entirely inside. Then the period has both a verdict and a
+rate. Keep the widened one as well; it is the stay that actually sells.
+
+Worth reporting when you see it: if the window people really book starts a day before the period,
+the period boundary and the demand disagree, and that is the owner's call to make, not yours.
+
+### 4.11 A holiday is a date; the stay it sells is a window
+
+The owner's rule, 2026-09-01: *"people can leave the city on friday 27, then have few days a small
+vacation and checkout and return home on Dec 1st"*, and *"even if in-between is an working day, like
+for example thursday a holiday, then friday working day, then saturday and sunday, people usually
+take friday as a day off"*.
+
+Two effects, both in `src/lib/pricing/travelWindow.ts`, both tested:
+
+- **The bridge (`punte`)** — one working day sandwiched between days off is taken off. Only one:
+  nobody burns two days of leave to reach a weekend. `bridge-day` was a declared holiday type with
+  zero rows ever seeded, so this had never actually been computed anywhere.
+- **The departure evening** — the night before the run is sold, because people finish work and drive
+  up. This is the night no run can explain, and it is the one that gets mispriced.
+
+`npx tsx scripts/holiday-windows.ts <slug>` reports, per holiday, the stay it really sells and
+whether the pricing periods cover it **as a holiday**. Coverage alone is not the test: on 1 Decembrie
+2026 every night was covered, and the Friday was covered by *Late Fall*, so one stay was billed at
+two rates. A period several times longer than the window it prices is a season, not an occasion.
+
+Being split across two occasion periods is fine and often deliberate — New Year's Eve is dearer than
+the two nights after it, on purpose.
+
+### 4.12 A stay belongs to the period that prices most of its nights
+
+The position board used to assign a measured stay to whichever period contained its **check-in**.
+That silently did two things: it credited a stay to a period pricing one of its five nights, and it
+**discarded entirely** any stay checking in on a day no period covers. Two Christmas probes checking
+in on 23 Dec — an uncovered day — never appeared on the board at all, and Christmas read −10.8% when
+its real position was −27.2%.
+
+`periodOwnsStay` in `pricingPosition.ts` now uses the majority of nights, falling back to the
+check-in when nothing holds a majority. It is deliberately looser than `periodControlsStay`, which
+still demands full containment, because the two answer different questions: *does this period have
+evidence* versus *can I solve a rate from this stay*.
+
+
+**Probe SHORT first, then escalate.** The owner's rule is 2 nights, raised by hand on a few special
+windows — the autumn school break, sometimes Christmas, always NYE — and he sets each raise
+**separately on Airbnb, on Booking and on the direct site**. The short probe is the only thing that
+reveals where those minimums actually sit: go straight to 5 nights on NYE and every channel answers,
+teaching you nothing. So probe at the DIRECT minimum for the window (usually 2), let the channel
+refuse, and escalate to the number it names.
+
+`MIN_STAY_RE` in `src/lib/parity/minStay.ts` holds every phrasing, shared by the escalation here and
+by the alignment report below so the two cannot drift. Airbnb says *"Minimum stay is 4 nights"*;
+Booking says *"You need to stay 3+ nights to book your selected dates"*. Neither matched the original
+regex, which is why the escalation went its whole life without once firing.
 
 ## 4b. Alignment is a band, not an equality
 
@@ -553,6 +598,13 @@ So:
   (one real case: Airbnb 1,476 vs Booking 1,907, a **29%** gap) is its own problem: it drags down the
   floor direct must beat and looks incoherent to a guest who checks twice. The fix is on the channel,
   and it is entirely in the owner's control.
+- **Compare the same window at two party sizes before blaming the nightly rate.** Some gaps cannot be
+  closed by any rate, because they are a per-guest fee, and a solver asked to fix one will just move
+  the whole period and fail. On 4-7 Sep 2026 the owner was 10% UNDER Booking at 4 guests and 9.3%
+  OVER at 6 — the two extra heads cost **450 lei on his site and 24 on Booking**, because he charges
+  `extraGuestFee` per head for children while Booking prices children by age and gives them away.
+  When a period keeps one dearer stay at every candidate rate, this is the first thing to check.
+  **The fix is the fee, on whichever channel is wrong — and raising theirs costs him nothing.**
 
 ## 6. What to produce
 
@@ -589,11 +641,10 @@ fill a gap with an estimate.
 - The commission rates live in `property.channelPricing` when configured; the pack falls back to
   documented defaults and **says which** — repeat that caveat in the report if they are not persisted.
 - You never change prices. Recommendations go to the owner.
-- **Correct every captured Airbnb price before judging it.** The listing gives a standing **15%
-  top-rated guests discount** (15% of the base room fee) that the owner treats as near-universal, like
-  Booking's Genius, and no capture can see it. An uncorrected Airbnb figure is 12-16% too high, which
-  is enough to turn a "losing" window into a "healthy" one. Applied across the 17 measured windows it
-  moves direct from cheapest on 9 to losing-or-level on 12-13.
+- **Standing guest discounts come from the channel config, never from this document.** Airbnb's 15%
+  top-rated discount was removed by the owner on 2026-09-01 and is **0** today. Ask
+  `getStandingDiscounts(propertyId)` every run. Assuming the old value would make every Airbnb price
+  look 15% cheaper than it is and push the direct rate down to chase a discount nobody receives.
 - **VRBO is out of scope** (owner, 2026-08-29). It was the cheapest channel in 1 of 20 measured
   windows, and that once only because Airbnb refused the dates on a minimum stay; its typical premium
   is +17% to +56%. Do not let its absence force every verdict to `partial`. **Reversal condition:** if
