@@ -1783,3 +1783,115 @@ figure on the page is 3,200, which would place him behind Cozy A-Frame Ayda at 2
 - **OPEN: his logged-out Booking price.** It cannot be captured from a signed-in browser, and 3,200 is
   the page's pre-discount figure rather than a measured anonymous quote. Until it is measured, the
   Booking rank carries the caveat.
+
+---
+
+## 22. The search-results page is a better instrument (owner, 2026-09-02)
+
+Two corrections from the owner, one of which changes how capture should work.
+
+### 22.1 A programme discount is part of the OFFER, not a measurement flaw
+
+> *"the price should be compared apples to apples. Logged in same places. Genius 3 on Booking for my
+> property, and also for all competitors. Logged with my account also on Airbnb."*
+
+He is right and §21.3's flag was wrong-headed. Captured from **one signed-in session**, these are the
+prices that guest actually sees: ours discounted because our property offers Genius, Vila Luna's not
+because theirs does not. Whether a property participates is part of what it is selling. Calling that
+"NOT LIKE-FOR-LIKE ... flattered by an unknown amount" understated a real advantage and implied the
+data was faulty when the data was correct.
+
+What survives is narrower and true: **the ORDER can differ for a guest who is not signed in.** So it
+is now a NOTE saying who the ranking is for — never a flag, and it still adjusts nothing:
+
+> *This ranking is as a signed-in member sees it. Our booking.com price includes a loyalty discount
+> and 5 of 6 comparables' prices do not — their properties do not all offer one. That is a real
+> difference in what is on sale. A guest who is NOT signed in may see a different order.*
+
+**The rule the session field enforces is unchanged, and it is the one that matters: capture the whole
+field from ONE session.** Mixing a signed-in reading of ours with signed-out readings of theirs is the
+error; reading them all the same way is not.
+
+### 22.2 The search-results page beats per-listing probes
+
+The owner's suggestion, and it is better than the design's own instrument:
+
+> *"you can double check the prices by looking on what you get from the search listing for a certain
+> period and a certain party"*
+
+One Booking search for Comarnic, 13-15 Oct, 2 adults + 2 children (ages 3 and 7) returned **25
+properties in a single page load**, each card carrying:
+
+```
+Mountain Family Chalet on Prahova Valley - 1000 sqm private yard
+Comarnic · 1.4 km from centre
+Scored 9.4 · Superb · 27 reviews
+Entire holiday home • 3 bedrooms • 1 living room • 2 bathrooms • 1 kitchen • 145 m²
+5 beds (1 single, 1 double, 2 bunk beds, 1 large double)
+Free cancellation
+2 nights, 2 adults, 2 children          <-- the echo, INSIDE the price block
+1,640 lei  1,491 lei
+Original price 1,640 lei. Current price 1,491 lei.
+Includes taxes and charges
+```
+
+Why this is a better primary instrument than N per-listing probes:
+
+| | per-listing probe | search results |
+|---|---|---|
+| page loads for the field | **15** | **1** |
+| session / party / dates identical across the field | by discipline | **by construction** |
+| echo | page header (which lied — §21.2) | **inside each card, per property** |
+| distance from centre | not available | **stated** (fills `distanceKm`) |
+| bed configuration | needs the availability section | **stated** |
+| shows properties OUTSIDE the curated set | never | **yes — see §22.4** |
+
+Every one of the 25 cards echoed `2 nights, 2 adults, 2 children`. That per-card echo is exactly the
+price-block anchor §21.2 had to add to the detail page, and here it comes for free.
+
+### 22.3 Two mechanics that must be in the implementation
+
+- **The list is VIRTUALISED.** Off-screen cards are removed from the DOM: an initial snapshot held 25
+  names, and after scrolling to the bottom the same page held **6**. A single `innerText` grab is not
+  the page. Capture at the top, or scroll-and-merge — never scroll-then-grab.
+- **Prices come in both forms**, exactly as on the detail page: 11 of the 25 render
+  `Original price X. Current price Y.` and the rest a bare `Price X lei`. The row-anchored fallback
+  added in §20.2 covers both, and a parser that only reads the pair would have missed 14 of 25.
+- **Split on the NAME anchor**, not on `See availability`: splitting on the trailing text put names and
+  prices in different chunks and parsed 6 of 25.
+
+### 22.4 The finding: the curated set may be too narrow
+
+The 25 results include **19 properties not in the curated set**, and several are cheaper than his:
+
+| | price (2n) | reviews | size |
+|---|---|---|---|
+| Casa Drumetului | 700 | 9.0 / 62 | — |
+| Moon Valley Comarnic | 1,083 | 9.3 / **336** | 45 m² |
+| Memory Lane Cottage – Posada | 1,178 | 5.0 / 2 | 97 m² |
+| Moon Village Comarnic | 1,308 | 9.3 / **874** | 50 m² |
+| SAMI's HOUSE | 1,326 | 10 / 4 | 160 m² |
+| Pensiunea PIRI LAND *(retired)* | 1,400 | 9.7 / 35 | — |
+| **Mountain Family Chalet** | **1,491** | 9.4 / 27 | 145 m² |
+
+**He is 9th of 25 on this window**, not first. That is a different question from §20's — different
+dates, a different party, and above all a different SET: the curated eight are houses like his, while
+Booking's search is everything in Comarnic that can host 2+2.
+
+But two of those unlisted properties carry **336 and 874 reviews** — far more than anything in the
+curated set, whose maximum is 157. Whatever they are at 45-50 m², a lot of guests are choosing them.
+**Whether they are substitutes is the owner's call (C1)** and no auto-discovery should decide it. What
+the search page proves is that the curation was made without seeing them.
+
+### 22.5 What this changes in the plan
+
+- **Phase 3's capture becomes search-first.** One load per (channel × window × party) covers the whole
+  town; per-listing probes remain for comparables outside the searched location — Villa The Frame
+  (Ghioșești), MSC Forest Retreat (Poiana) and Ceas cu Cuc (Gura Beliei) will not appear in a Comarnic
+  search.
+- **The budget maths in §5 is obsolete and far too pessimistic.** A field of 25 for one page load makes
+  the sentinel run cheap enough that breadth stops competing with depth; §5's "1 party × 4 windows =
+  28 loads" becomes roughly 4 loads.
+- **Curation gains a candidate feed**: the search page lists who a guest actually sees, so the set can
+  be reviewed against the market rather than from memory. Owner-curated still (C1) — the page proposes,
+  he disposes.

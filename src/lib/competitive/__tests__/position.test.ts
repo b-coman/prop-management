@@ -151,30 +151,33 @@ describe('staleness is part of the reading', () => {
   });
 });
 
-describe('a member price against anonymous prices is not a comparison', () => {
-  // 2026-09-02: his Booking price carried a 12% Genius discount while five of six comparables'
-  // prices did not — two of those properties do not offer Genius at all. The engine does not guess
-  // what his anonymous price would be; it says the comparison is not like-for-like.
+describe('a programme discount is part of the offer, not a measurement flaw', () => {
+  // Owner, 2026-09-02: signed in with one account throughout, these ARE the prices that guest sees —
+  // ours discounted because our property offers Genius, others not because theirs do not. Calling it
+  // "not like-for-like" understated a real advantage. What survives is a note about WHO the ranking
+  // is for, which adjusts nothing.
   const q3 = [q('a', 3000), q('b', 4000), q('c', 5000)];
 
-  it('flags when ours carries a programme discount and theirs mostly do not', () => {
+  it('says who the ranking is for, as a NOTE and never as a defect', () => {
     const p = buildPosition({ ...base, channel: 'booking.com', ourProgramApplied: true, quotes: q3 });
-    expect(p.flags.join(' ')).toMatch(/NOT LIKE-FOR-LIKE/);
-    expect(p.flags.join(' ')).toMatch(/only 0 of 3/);
+    expect(p.notes.join(' ')).toMatch(/as a signed-in member sees it/);
+    expect(p.notes.join(' ')).toMatch(/3 of 3 comparables' prices do not/);
+    // and it is NOT a flag — it is not a fault
+    expect(p.flags.join(' ')).not.toMatch(/signed-in|loyalty/);
   });
 
   it('stays silent when the whole field carries it too', () => {
     const p = buildPosition({ ...base, channel: 'booking.com', ourProgramApplied: true,
       quotes: q3.map((x) => ({ ...x, programApplied: true })) });
-    expect(p.flags.join(' ')).not.toMatch(/LIKE-FOR-LIKE/);
+    expect(p.notes.join(' ')).not.toMatch(/signed-in member/);
   });
 
   it('stays silent when ours carries no programme discount', () => {
     const p = buildPosition({ ...base, channel: 'airbnb', ourProgramApplied: false, quotes: q3 });
-    expect(p.flags.join(' ')).not.toMatch(/LIKE-FOR-LIKE/);
+    expect(p.notes.join(' ')).not.toMatch(/signed-in member/);
   });
 
-  it('does NOT adjust the band or the rank — it only says so', () => {
+  it('does NOT adjust the band or the rank — it only says who it is for', () => {
     const flagged = buildPosition({ ...base, ourProgramApplied: true, quotes: q3 });
     const plain = buildPosition({ ...base, ourProgramApplied: false, quotes: q3 });
     expect(flagged.band).toEqual(plain.band);

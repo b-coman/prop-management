@@ -157,16 +157,24 @@ export function buildPosition(input: PositionInput): Position {
     }
   }
 
-  // A member price against anonymous prices is not a comparison. This does not adjust anything —
-  // guessing what the anonymous price would be is exactly the kind of invention the engine refuses —
-  // it says the comparison is not like-for-like, and in which direction.
+  // A programme discount is part of the OFFER, not a flaw in the measurement.
+  //
+  // An earlier version called this "NOT LIKE-FOR-LIKE" and said the position was "flattered". The
+  // owner corrected it (2026-09-02) and he is right: captured from one signed-in session, these are
+  // the prices that guest actually sees — ours discounted because our property offers Genius, Vila
+  // Luna's not because theirs does not. That is a real difference in what is on sale, and hiding it
+  // would understate an advantage rather than protect against one.
+  //
+  // What remains true and worth stating: the ORDER can differ for a guest who is not signed in. So
+  // this is a note about who the ranking is for, never a correction to it — and it adjusts nothing.
   if (input.ourProgramApplied && priced.length) {
     const withProg = priced.filter((q) => q.programApplied === true).length;
     if (withProg < priced.length) {
-      flags.push(
-        `NOT LIKE-FOR-LIKE: our ${channel} price carries a loyalty discount, and only ${withProg} of ` +
-        `${priced.length} comparables' prices do. Ours is a member rate; theirs are mostly anonymous, ` +
-        `so our position here is flattered by an unknown amount.`);
+      notes.push(
+        `This ranking is as a signed-in member sees it. Our ${channel} price includes a loyalty ` +
+        `discount and ${priced.length - withProg} of ${priced.length} comparables' prices do not — ` +
+        `their properties do not all offer one. That is a real difference in what is on sale. A guest ` +
+        `who is NOT signed in may see a different order.`);
     }
   }
 
