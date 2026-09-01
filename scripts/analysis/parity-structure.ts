@@ -61,7 +61,7 @@ export async function loadStays(pid = 'prahova-mountain-chalet') {
   const inScope = ['direct', ...cfg.channels.map((c) => c.channel)].filter((c) => c !== 'vrbo');
   const economics = Object.fromEntries(cfg.channels.map((c) => [c.channel, c]));
   const standingDiscounts = await getStandingDiscounts(pid);
-  const settingsChanges = await getSettingsChanges(SLUG);
+  const settingsChanges = await getSettingsChanges(pid);
   const wins = [...byW.values()].map((w) => buildParityWindow(w, { freshnessDays: 42, settingsChanges,
     targetDiscountPct: cfg.targetDiscountPct, direct: cfg.direct, economics, channelsInScope: inScope,
     standingDiscounts }));
