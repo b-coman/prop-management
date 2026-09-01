@@ -95,12 +95,15 @@ export async function getCompetitorListing(
  * than to work out six months later why a 19 m² guesthouse is dragging a band down.
  */
 export async function upsertCompetitorListing(
-  input: Omit<CompetitorListing, 'verifiedAt' | 'curatedBy'> & {
-    curatedBy: string;
-    /** Set only when a human has actually confirmed the record against the live page. */
-    verifiedAt?: string | null;
-  },
+  input: Omit<CompetitorListing, 'verifiedAt' | 'curatedBy'> & { curatedBy: string },
 ): Promise<void> {
+  // `verifiedAt` is deliberately NOT accepted here. Curation and verification are separate writes
+  // (§17.3), and the earlier signature took it as an optional field — which meant re-running the seed
+  // with `verifiedAt: null` would have silently un-verified all fourteen verified listings, because
+  // null is not undefined and survived the undefined-strip below. A new document simply lacks the
+  // field, and `toListing` reads a missing one as null, so an uncurated entry still reads unverified.
+  // Only `recordVerification` sets it, which is what makes the field mean anything.
+
   const problems = validateListing(input);
   if (problems.length) {
     throw new Error(

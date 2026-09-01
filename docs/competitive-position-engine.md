@@ -1895,3 +1895,89 @@ the search page proves is that the curation was made without seeing them.
 - **Curation gains a candidate feed**: the search page lists who a guest actually sees, so the set can
   be reviewed against the market rather than from memory. Owner-curated still (C1) — the page proposes,
   he disposes.
+
+---
+
+## 23. Search-page cross-validation, and the set widened (2026-09-02)
+
+### 23.1 The search page independently confirms the per-listing captures
+
+The same window and party as the §20 slice — 24-28 Oct, 2 adults + 1 child — run through the search
+page instead of fifteen detail pages:
+
+| listing | search page | §20 per-listing probe | |
+|---|---|---|---|
+| our own | **2,719** | 2,719 | same |
+| Cozy A-Frame Ayda | **2,803** | 2,803 | same |
+| Casutele din Poienita | **3,600** | 3,600 | same |
+| Vila Luna | **4,180** | 4,180 | same |
+| The Cliff Village | **5,320** | 5,320 | same |
+
+**Five for five, to the leu, from two independent instruments.** Together with §21's 11-of-12
+reproducibility that is the strongest evidence so far that the pipeline reports what the pages say.
+
+### 23.2 Three differences, all of them informative
+
+**Villa The Frame and AVA Chalet are ABSENT from the search.** Villa The Frame is in Ghioșești, not
+Comarnic — exactly the case §22.5 predicted, and the reason per-listing probes stay in the design for
+comparables outside the searched town. AVA Chalet *is* in Comarnic; it may be beyond the first page of
+results. **The search returns a PAGE, not the market** — that is a limit to encode, not to forget.
+
+**Casutele de la Poienita prices at 3,497 in the search, where the per-listing probe REFUSED it.**
+Both are right, and the difference is the interesting part:
+
+- The **search** offers the cheapest way Booking will house the party — here two rooms at
+  1,647 + 1,850 = 3,497. It is what the channel sells.
+- The **per-listing rule** requires ONE unit for a party with children (§13.2b, the owner's rule), and
+  no single room takes three. It is what the family will accept.
+
+So the search answers *"what does the channel offer?"* and `hostsParty` answers *"will this guest take
+it?"*. Neither replaces the other, and a reading that quietly used the search price for a family would
+be quoting them a stay in two separate cabins.
+
+### 23.3 The set widened to 17 active
+
+Owner, 2026-09-02, on the two properties the search surfaced:
+
+> *"Moon Village and Moon Valley should be included. They are not the same like me, they are units
+> park, with small tiny houses. But still they matter."*
+
+Added with that reasoning recorded verbatim, capacity deliberately UNREAD (they show `?` against every
+party until a probe fills them, which is the honest state and marks them as probeworthy):
+
+| | reviews | why it is in |
+|---|---|---|
+| Moon Village Comarnic | **874** | more than five times any other entry; a great many guests searching Comarnic choose it over a house |
+| Moon Valley Comarnic | **336** | sister property, same kind of thing, and it undercut us on 13-15 Oct (1,083 against 1,491) |
+
+### 23.4 A bug the widening exposed: re-seeding would have un-verified everything
+
+`upsertCompetitorListing` accepted an optional `verifiedAt`, and the seed passed `verifiedAt: null`.
+`null` is not `undefined`, so it survived the undefined-strip and **would have written null over all
+fourteen verified listings** the moment the seed was re-run to add a comparable.
+
+The field is now refused by that function entirely. Curation and verification are separate writes
+(§17.3); only `recordVerification` sets it, a new document simply lacks it, and `toListing` reads a
+missing one as null. Confirmed after re-seeding: **18 listings, 14 still verified.**
+
+### 23.5 Candidates the search surfaced, for the owner to accept or reject
+
+Three searches (13-15 Oct 2a+2c · 24-28 Oct 2a+1c · 27-30 Dec 4a+2c) returned **50 distinct
+properties**, of which 7 were curated and **43 were not**. The strongest by review volume — the only
+proxy available for how many guests actually choose them:
+
+| reviews | score | size | seen in | property |
+|---|---|---|---|---|
+| 182 | 8.9 | 19 m² | 1/3 | Pensiunea Atra Doftana |
+| 78 | 9.8 | 250 m² | 2/3 | Utopia Lake View |
+| 62 | 9.0 | — | 2/3 | Casa Drumetului |
+| 56 | 10 | — | 1/3 | TETRA Plus 569 |
+| 53 | 9.8 | 58 m² | 1/3 | Chalet Husky - Pet Friendly & Private |
+| 53 | 9.6 | 130 m² | 1/3 | Doftana Lake House |
+| 51 | 9.9 | 70 m² | 1/3 | Zaivan Retreat |
+| 45 | 9.3 | 140 m² | 1/3 | Vila ZIA |
+| 33 | 9.6 | 240 m² | 1/3 | Casa Darul Bunicii |
+| 29 | 9.3 | 250 m² | 2/3 | Casa Polen Comarnic |
+
+The three with 240-250 m² (Utopia Lake View, Casa Darul Bunicii, Casa Polen) are the closest in size to
+his 145 m² house among these. **The list proposes; he disposes (C1).**

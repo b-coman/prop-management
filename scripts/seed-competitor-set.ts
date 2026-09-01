@@ -199,6 +199,28 @@ const BOOKING_SET: Seed[] = [
       '11% of our bookings are 1-2 people. Owner kept it in the set deliberately.',
   },
   {
+    listingId: 'moon-village', displayName: 'Moon Village Comarnic',
+    channel: 'booking.com', url: BK('moon-village-comarnic'), city: 'Comarnic', heroPhotoUrl: null,
+    units: [], propertyType: 'cabin', distanceKm: null,
+    rating: 9.3, reviewCount: 874, qualityAsOf: '2026-09-02', amenities: [],
+    substitutionBasis:
+      'A unit park of small tiny houses — NOT the same product as ours (owner, 2026-09-02: "they are ' +
+      'not the same like me, they are units park, with small tiny houses. But still they matter"). It ' +
+      'is in the set because of volume: 874 reviews, more than five times anything else we track, so a ' +
+      'great many guests searching Comarnic choose it over a house. Capacity unread — it appears in ' +
+      'the guest-facing search and was invisible to the first curation.',
+  },
+  {
+    listingId: 'moon-valley', displayName: 'Moon Valley Comarnic',
+    channel: 'booking.com', url: BK('moon-valley-comarnic'), city: 'Comarnic', heroPhotoUrl: null,
+    units: [], propertyType: 'cabin', distanceKm: null,
+    rating: 9.3, reviewCount: 336, qualityAsOf: '2026-09-02', amenities: [],
+    substitutionBasis:
+      'Sister property to Moon Village and the same kind of thing: a park of small units, not a house. ' +
+      'In the set for the same reason — 336 reviews, and it undercut us on the 13-15 Oct search ' +
+      '(1,083 against our 1,491). Capacity unread.',
+  },
+  {
     listingId: 'casutele-de-la-poienita', displayName: 'Casutele de la Poienita',
     channel: 'booking.com', url: BK('casutele-de-la-poienita'), city: 'Comarnic', heroPhotoUrl: null,
     units: [{ label: 'Double Room', maxPersons: 2, count: 3, sqm: 17 }],
@@ -278,11 +300,11 @@ const RETIRED: Array<{ listingId: string; seed: Seed; reason: string }> = [
   }
 
   for (const s of all) {
-    await upsertCompetitorListing({ ...s, propertyId: PROPERTY, active: true, curatedBy: CURATED_BY, verifiedAt: null });
+    await upsertCompetitorListing({ ...s, propertyId: PROPERTY, active: true, curatedBy: CURATED_BY });
     console.log(`  wrote ${s.listingId}`);
   }
   for (const r of RETIRED) {
-    await upsertCompetitorListing({ ...r.seed, propertyId: PROPERTY, active: true, curatedBy: CURATED_BY, verifiedAt: null });
+    await upsertCompetitorListing({ ...r.seed, propertyId: PROPERTY, active: true, curatedBy: CURATED_BY });
     await retireCompetitorListing(PROPERTY, r.listingId, r.reason, 'owner (2026-09-01)');
     console.log(`  wrote ${r.listingId} (retired)`);
   }
