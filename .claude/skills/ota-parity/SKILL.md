@@ -394,6 +394,29 @@ rate. Keep the widened one as well; it is the stay that actually sells.
 Worth reporting when you see it: if the window people really book starts a day before the period,
 the period boundary and the demand disagree, and that is the owner's call to make, not yours.
 
+### 4.6b A holiday is a date; the stay it sells is a window
+
+The owner's rule, 2026-09-01: *"people can leave the city on friday 27, then have few days a small
+vacation and checkout and return home on Dec 1st"*, and *"even if in-between is an working day, like
+for example thursday a holiday, then friday working day, then saturday and sunday, people usually
+take friday as a day off"*.
+
+Two effects, both in `src/lib/pricing/travelWindow.ts`, both tested:
+
+- **The bridge (`punte`)** — one working day sandwiched between days off is taken off. Only one:
+  nobody burns two days of leave to reach a weekend. `bridge-day` was a declared holiday type with
+  zero rows ever seeded, so this had never actually been computed anywhere.
+- **The departure evening** — the night before the run is sold, because people finish work and drive
+  up. This is the night no run can explain, and it is the one that gets mispriced.
+
+`npx tsx scripts/holiday-windows.ts <slug>` reports, per holiday, the stay it really sells and
+whether the pricing periods cover it **as a holiday**. Coverage alone is not the test: on 1 Decembrie
+2026 every night was covered, and the Friday was covered by *Late Fall*, so one stay was billed at
+two rates. A period several times longer than the window it prices is a season, not an occasion.
+
+Being split across two occasion periods is fine and often deliberate — New Year's Eve is dearer than
+the two nights after it, on purpose.
+
 ### 4.7 A stay belongs to the period that prices most of its nights
 
 The position board used to assign a measured stay to whichever period contained its **check-in**.
