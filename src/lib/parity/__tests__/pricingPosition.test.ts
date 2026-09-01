@@ -95,3 +95,34 @@ describe('never measured is not the same as fine', () => {
     expect(s.totalValueAtRisk).toBe(3200);
   });
 });
+
+describe('a period is judged on the balance of its stays, not only the worst', () => {
+  /**
+   * The live case that forced this. On 2026-09-01 Fall had 8 of 12 measured stays more than 10% too
+   * CHEAP, 3 in band and 1 dearer - and the badge read "You cost more" off that one, next to a
+   * recommendation to RAISE the price. The owner asked, reasonably, what was going on.
+   */
+  const many = (gaps: number[]) => gaps.map((g) => win({ gapPct: g, verdict: g > 0 ? 'losing' : 'healthy' }));
+
+  it('calls a mostly-too-cheap period too low, even with one dearer stay', () => {
+    const [r] = buildPeriodPositions([period()], days([true, true, true, true]),
+      many([0.09, -0.15, -0.17, -0.19, -0.25, -0.14, -0.13]));
+    expect(r.verdict).toBe('overshoot');
+    expect(r.dearerCount).toBe(1);
+    expect(r.tooCheapCount).toBe(6);
+    expect(r.action).toMatch(/giving away more than you need/i);
+  });
+
+  it('still calls it losing when a third or more of the stays are dearer', () => {
+    const [r] = buildPeriodPositions([period()], days([true, true, true, true]),
+      many([0.09, 0.12, -0.15, -0.17, -0.19, -0.20]));
+    expect(r.verdict).toBe('losing');
+    expect(r.dearerCount).toBe(2);
+  });
+
+  it('reports the mix in the action, so one stay cannot speak for the period', () => {
+    const [r] = buildPeriodPositions([period()], days([true, true, true, true]),
+      many([0.09, 0.12, -0.15, -0.17, -0.19, -0.20]));
+    expect(r.action).toMatch(/2 cost more than a platform and 4 are more than 10% under/i);
+  });
+});

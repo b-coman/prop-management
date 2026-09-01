@@ -75,6 +75,10 @@ export interface PeriodPosition {
   /** The worst measured gap in the period. Positive = direct is DEARER than the cheapest channel. */
   worstGapPct: number | null;
   worstWindow: WindowFact | null;
+  /** How the period's measured stays actually divide. The verdict is a summary of these, not of one. */
+  dearerCount: number;
+  inBandCount: number;
+  tooCheapCount: number;
   measuredWindows: number;
   freshestAgeDays: number | null;
   /**
@@ -101,32 +105,80 @@ export interface PeriodPosition {
 const inPeriod = (d: string, p: { startDate: string; endDate: string }) => d >= p.startDate && d <= p.endDate;
 
 /** A verdict for a whole period is its WORST measured window — the one a guest will find. */
-function rollUpVerdict(windows: WindowFact[]): { verdict: PeriodVerdict; worst: WindowFact | null; gap: number | null } {
+/**
+ * A period's verdict, from the BALANCE of its stays rather than only its worst one.
+ *
+ * This took the single worst window, on the reasoning that it is the one a guest finds. That was
+ * right while the problem was being dearer nearly everywhere. It became actively misleading the
+ * moment it was not: on 2026-09-01 Fall had 8 of 12 stays more than 10% too CHEAP, 3 in band and 1
+ * dearer - and the badge read "You cost more", because of that one. The owner read the screen, saw
+ * a period marked too expensive and a recommendation to RAISE the price, and reasonably asked what
+ * was going on.
+ *
+ * So the verdict follows where the stays actually sit, and the count of stays a platform undercuts
+ * is carried alongside it rather than being allowed to speak for the whole period. Being dearer is
+ * still the loudest single fact, so it wins whenever it is a third or more of the measured stays -
+ * a real risk of losing bookings should not be averaged away by a pile of cheap ones.
+ */
+function rollUpVerdict(windows: WindowFact[]): {
+  verdict: PeriodVerdict; worst: WindowFact | null; gap: number | null;
+  dearerCount: number; inBandCount: number; tooCheapCount: number;
+} {
   const measured = windows.filter((w) => w.gapPct !== null);
-  if (!measured.length) return { verdict: 'unmeasured', worst: null, gap: null };
+  if (!measured.length) {
+    return { verdict: 'unmeasured', worst: null, gap: null, dearerCount: 0, inBandCount: 0, tooCheapCount: 0 };
+  }
 
-  // Overshoot is judged separately: it is not "worse" on the guest axis, it is money left on the
-  // table, and it must not be hidden by a losing window in the same period.
-  const overshoots = measured.filter((w) => w.verdict === 'overshoot');
   const worst = measured.reduce((a, b) => ((b.gapPct ?? -1) > (a.gapPct ?? -1) ? b : a));
   const gap = worst.gapPct!;
 
-  if (gap >= NOISE_BAND) return { verdict: 'losing', worst, gap };
-  if (gap > -NOISE_BAND) return { verdict: 'level', worst, gap };
-  if (overshoots.length) return { verdict: 'overshoot', worst: overshoots[0], gap: overshoots[0].gapPct };
-  if (gap > -0.10) return { verdict: 'thin', worst, gap };
-  return { verdict: 'healthy', worst, gap };
+  // At the band edge exactly, it counts as dearer: the band is what is FORGIVEN, so its boundary is
+  // not inside it. `>` here silently reclassified a 3.0% gap as level.
+  const dearer = measured.filter((w) => w.gapPct! >= NOISE_BAND);
+  const level = measured.filter((w) => w.gapPct! < NOISE_BAND && w.gapPct! > -NOISE_BAND);
+  const inBand = measured.filter((w) => w.gapPct! <= -NOISE_BAND && w.gapPct! >= -0.10);
+  const tooCheap = measured.filter((w) => w.gapPct! < -0.10);
+
+  const counts = { dearerCount: dearer.length, inBandCount: inBand.length, tooCheapCount: tooCheap.length };
+
+  // Losing bookings outweighs losing margin, so a meaningful share of dearer stays still wins.
+  if (dearer.length && dearer.length >= measured.length / 3) {
+    return { verdict: 'losing', worst, gap, ...counts };
+  }
+  // Below the floor is money given away on a booking you DO win, so it outranks merely cheap.
+  const overshoots = measured.filter((w) => w.verdict === 'overshoot');
+  if (overshoots.length && overshoots.length >= tooCheap.length / 2) {
+    return { verdict: 'overshoot', worst: overshoots[0], gap: overshoots[0].gapPct, ...counts };
+  }
+  if (tooCheap.length > inBand.length + level.length) {
+    return { verdict: 'overshoot', worst: tooCheap[0], gap: tooCheap[0].gapPct, ...counts };
+  }
+  if (dearer.length) return { verdict: 'losing', worst, gap, ...counts };
+  if (level.length > inBand.length) return { verdict: 'level', worst, gap, ...counts };
+  return { verdict: 'healthy', worst, gap, ...counts };
 }
 
 function describeAction(p: Omit<PeriodPosition, 'action'>): string | null {
+  // Where a period is mixed, say so. "You cost more" on the strength of one stay, while eight others
+  // are more than 10% too cheap, is how a screen tells the truth and misleads at the same time.
+  const mix = p.measuredWindows > 1 && p.tooCheapCount > 0 && p.dearerCount > 0
+    ? ` Of the ${p.measuredWindows} stays measured here, ${p.dearerCount} cost more than a platform ` +
+      `and ${p.tooCheapCount} are more than 10% under one.`
+    : '';
   if (p.verdict === 'losing' && p.worstWindow?.targetPrice) {
     const w = p.worstWindow;
     return `A guest pays ${Math.round(w.gapPct! * 100)}% more on your site than on ${w.bestChannel}. ` +
-      `To sit under it, a ${w.nights}-night stay would be ${Math.round(w.targetPrice!)} instead of ${Math.round(w.direct!)}.`;
+      `To sit under it, a ${w.nights}-night stay would be ${Math.round(w.targetPrice!)} instead of ${Math.round(w.direct!)}.` + mix;
   }
-  if (p.verdict === 'overshoot' && p.worstWindow?.floor) {
-    return `Below ${Math.round(p.worstWindow.floor)}, which is the point where a direct booking stops being ` +
-      `worth more to you than a ${p.worstWindow.bestChannel} one. You are discounting past the benefit.`;
+  if (p.verdict === 'overshoot') {
+    if (p.tooCheapCount > 0 && p.worstWindow) {
+      return `${p.tooCheapCount} of the ${p.measuredWindows} stays measured here sit more than 10% below ` +
+        `the cheapest platform. You are winning these bookings by giving away more than you need to.` + mix;
+    }
+    if (p.worstWindow?.floor) {
+      return `Below ${Math.round(p.worstWindow.floor)}, which is the point where a direct booking stops being ` +
+        `worth more to you than a ${p.worstWindow.bestChannel} one. You are discounting past the benefit.`;
+    }
   }
   if (p.verdict === 'unmeasured' && p.openNights > 0) {
     return `${p.openNights} nights open here and nobody has ever compared this period against the platforms.`;
@@ -150,7 +202,7 @@ export function buildPeriodPositions(
     const wk = pd.filter((d) => !d.isWeekend && d.price !== null).map((d) => d.price!);
     const we = pd.filter((d) => d.isWeekend && d.price !== null).map((d) => d.price!);
     const pw = windows.filter((w) => inPeriod(w.checkIn, p));
-    const { verdict, worst, gap } = rollUpVerdict(pw);
+    const { verdict, worst, gap, dearerCount, inBandCount, tooCheapCount } = rollUpVerdict(pw);
     const ages = pw.map((w) => w.oldestAgeDays).filter((n) => Number.isFinite(n));
 
     const base: Omit<PeriodPosition, 'action'> = {
@@ -161,6 +213,7 @@ export function buildPeriodPositions(
       weekendPrice: we.length ? Math.round(we.reduce((a, b) => a + b, 0) / we.length) : null,
       valueAtRisk: Math.round(open.reduce((sum, d) => sum + (d.price ?? 0), 0)),
       verdict, worstGapPct: gap, worstWindow: worst,
+      dearerCount, inBandCount, tooCheapCount,
       measuredWindows: pw.length,
       freshestAgeDays: ages.length ? Math.min(...ages) : null,
       widestChannelSpreadPct: (() => {
