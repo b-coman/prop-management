@@ -29,8 +29,14 @@ const DATA: Record<string, {
       { nightsThreshold: 7, discountPercentage: 25, label: 'Weekly' },
       { nightsThreshold: 28, discountPercentage: 35, label: 'Monthly' },
     ],
+    /**
+     * REMOVED by the owner on 2026-09-01. It was costing 15% of the room fee on top of Airbnb's
+     * 18.5% commission, and it undercut his own site for exactly the guests he most wants back.
+     * Removing it also ends the guessing: what a capture shows is now what a guest pays.
+     */
+    standingGuestDiscountPct: 0,
     standingDeals: [
-      { label: 'Top-rated guests', discountPercentage: 15, condition: 'guests rated 4.8+ with 3+ reviews — invisible to any capture' },
+      { label: 'Top-rated guests (REMOVED 2026-09-01)', discountPercentage: 0, condition: 'was 15% for guests rated 4.8+ with 3+ reviews; owner removed it' },
       { label: 'Last minute', discountPercentage: 5, condition: 'booked 0-7 days before arrival' },
       { label: 'Early bird', discountPercentage: 5, condition: 'booked 2+ months before arrival' },
     ],

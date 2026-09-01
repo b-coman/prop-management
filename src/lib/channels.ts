@@ -181,6 +181,12 @@ export interface ChannelConfig {
    * change lets the board say so instead of quietly pricing against it.
    */
   discountsChangedAt?: { date: string; fromNights: number; note?: string };
+  /**
+   * A standing discount a qualifying guest receives that no capture can see - Airbnb's top-rated
+   * guests discount was the only one. 0 means none, and 0 is meaningfully different from absent:
+   * absent falls back to the built-in estimate, 0 says the owner turned it off.
+   */
+  standingGuestDiscountPct?: number;
   rounding?: ChannelRounding;
   listingUrl?: string;
   /** Links this channel to the iCal feed that syncs its bookings, when one exists. */

@@ -29,6 +29,15 @@ import { evaluateParity, type ChannelEconomics, type DirectEconomics, type Parit
  * Booking: nothing. Genius is already inside the captured price when it applies, and the page states
  * whether it did.
  */
+/**
+ * Fallback only. The real figure lives on the channel config, because it is a SETTING the owner
+ * changes, not a constant - he removed Airbnb's top-rated-guests discount entirely on 2026-09-01,
+ * and a hardcoded 0.14 would have gone on quietly deducting it forever.
+ *
+ * Note what did NOT need to change when he removed it: the captures. The discount was never visible
+ * on the page - it is what a qualifying GUEST sees, not what the listing displays - so every stored
+ * Airbnb price was always the undiscounted one. Only the correction had to go.
+ */
 export const STANDING_GUEST_DISCOUNT: Record<string, number> = { airbnb: 0.14 };
 export const STANDING_DISCOUNT_BAND: Record<string, [number, number]> = { airbnb: [0.127, 0.162] };
 
@@ -105,6 +114,11 @@ export interface ParityViewOptions {
   economics: Record<string, ChannelEconomics>;
   /** Channels that must be present for a verdict to count as complete. */
   channelsInScope: string[];
+  /**
+   * Per channel, the standing discount a qualifying guest gets that no capture can see.
+   * Comes from the channel config so it tracks reality: set to 0 when the owner turns one off.
+   */
+  standingDiscounts?: Record<string, number>;
 }
 
 const daysBetween = (a: Date, b: Date) => Math.max(0, Math.floor((a.getTime() - b.getTime()) / 86_400_000));
@@ -145,7 +159,7 @@ export function buildParityWindow(w: ParityWindowInput, opts: ParityViewOptions)
         ageDays, stale: true, corrected: false });
       continue;
     }
-    const discount = STANDING_GUEST_DISCOUNT[ch] ?? 0;
+    const discount = opts.standingDiscounts?.[ch] ?? STANDING_GUEST_DISCOUNT[ch] ?? 0;
     const captured = o.status === 'captured' ? o.guestTotal : null;
     const effective = captured !== null ? Math.round(captured * (1 - discount)) : null;
     cells.push({
