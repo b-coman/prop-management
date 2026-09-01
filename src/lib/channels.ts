@@ -172,6 +172,15 @@ export interface ChannelConfig {
    * already includes whatever was live at capture time, so nothing here feeds a verdict.
    */
   standingDeals?: Array<{ label: string; discountPercentage: number; condition?: string }>;
+  /**
+   * When this channel's discounts last changed, and from which stay length.
+   *
+   * A price captured before that date, for a stay long enough to hit the changed rung, was measured
+   * against a product that no longer exists. That is the same failure as the parser that banked a
+   * three-adult rate for a family of six: a number that looks like evidence and is not. Recording the
+   * change lets the board say so instead of quietly pricing against it.
+   */
+  discountsChangedAt?: { date: string; fromNights: number; note?: string };
   rounding?: ChannelRounding;
   listingUrl?: string;
   /** Links this channel to the iCal feed that syncs its bookings, when one exists. */

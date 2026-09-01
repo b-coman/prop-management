@@ -19,6 +19,7 @@ const WRITE = process.argv.includes('--write');
 const DATA: Record<string, {
   lengthOfStayDiscounts: Array<{ nightsThreshold: number; discountPercentage: number; label?: string; nonRefundable?: boolean }>;
   standingDeals: Array<{ label: string; discountPercentage: number; condition?: string }>;
+  discountsChangedAt?: { date: string; fromNights: number; note?: string };
 }> = {
   airbnb: {
     lengthOfStayDiscounts: [
@@ -32,6 +33,7 @@ const DATA: Record<string, {
       { label: 'Last minute', discountPercentage: 5, condition: 'booked 0-7 days before arrival' },
       { label: 'Early bird', discountPercentage: 5, condition: 'booked 2+ months before arrival' },
     ],
+    discountsChangedAt: { date: '2026-09-01', fromNights: 7, note: 'Weekly moved from 20% to 25%' },
   },
   'booking.com': {
     lengthOfStayDiscounts: [
@@ -44,6 +46,7 @@ const DATA: Record<string, {
       { label: 'Early Booker Deal', discountPercentage: 5, condition: '90+ days before check-in — no bookings yet' },
       { label: 'Last Minute Deal', discountPercentage: 10, condition: '0-3 days before check-in — no bookings yet' },
     ],
+    discountsChangedAt: { date: '2026-09-01', fromNights: 7, note: 'Weekly moved from 30% to 25%' },
   },
 };
 
@@ -60,10 +63,7 @@ const DATA: Record<string, {
       await db.collection('channels').doc(id).set({
         ...payload,
         discountsRecordedAt: '2026-09-01',
-        // Weekly moved to 25% on BOTH platforms on 2026-09-01 (was Airbnb 20%, Booking 30%).
-        // Any capture of a 7-night-or-longer stay taken before this is stale in a known direction:
-        // Airbnb got ~6% cheaper, Booking ~7% dearer.
-        weeklyChangedAt: '2026-09-01',
+
         discountsSource: "owner's own Airbnb and Booking.com settings screens",
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: 'scripts/seed-channel-discounts.ts',

@@ -56,6 +56,8 @@ interface BoardContext {
   /** How far under the cheapest platform direct should sit, from the channels config. Never guessed. */
   targetDiscountPct: number;
   channelLadders: Array<{ channelId: string; displayName: string; ladder: LadderRung[] }>;
+  /** Per channel, when its discounts last changed and from which stay length. */
+  discountChanges: Array<{ channelId: string; displayName: string; date: string; fromNights: number; note?: string }>;
   today: string;
 }
 
@@ -129,8 +131,44 @@ async function loadContext(propertyId: string): Promise<BoardContext> {
           .map((c) => ({ channelId: c.channelId, displayName: c.displayName,
                          ladder: (c.lengthOfStayDiscounts ?? []) as LadderRung[] }))
       : [],
+    discountChanges: channelSet
+      ? [...channelSet.byId.values()]
+          .filter((c) => c.discountsChangedAt)
+          .map((c) => ({ channelId: c.channelId, displayName: c.displayName, ...c.discountsChangedAt! }))
+      : [],
     today,
   };
+}
+
+/**
+ * Readings taken before a platform changed the discounts that apply to them.
+ *
+ * A price captured under a rate plan the channel no longer offers is not evidence, however recent it
+ * looks. `oldestAgeDays` dates the earliest observation in the window, so if that predates the change
+ * and the stay is long enough to hit the changed rung, at least one number behind the verdict is
+ * measuring a product that no longer exists.
+ */
+function staleFromDiscountChange(
+  windows: WindowFact[],
+  changes: BoardContext['discountChanges'],
+  today: string,
+): Array<{ checkIn: string; checkOut: string; nights: number; guests: number; channel: string; note?: string }> {
+  if (!changes.length) return [];
+  const out: Array<{ checkIn: string; checkOut: string; nights: number; guests: number; channel: string; note?: string }> = [];
+  for (const w of windows) {
+    if (!Number.isFinite(w.oldestAgeDays)) continue;
+    const captured = new Date(`${today}T00:00:00Z`);
+    captured.setUTCDate(captured.getUTCDate() - w.oldestAgeDays);
+    const capturedYmd = captured.toISOString().slice(0, 10);
+    for (const c of changes) {
+      if (w.nights < c.fromNights) continue;
+      if (capturedYmd >= c.date) continue;
+      out.push({ checkIn: w.checkIn, checkOut: w.checkOut, nights: w.nights, guests: w.guests,
+                 channel: c.displayName, note: c.note });
+      break;
+    }
+  }
+  return out;
 }
 
 function toWindowFact(w: Record<string, unknown>): WindowFact {
@@ -300,6 +338,8 @@ export async function fetchYearBoard(propertyId: string): Promise<{
           parityAvailable: ctx.parityOk,
           parityError: ctx.parityError,
           measuredWindows: ctx.windows.length,
+          // Never let a reading taken under different platform settings pass as current evidence.
+          staleFromDiscountChange: staleFromDiscountChange(ctx.windows, ctx.discountChanges, ctx.today),
           horizonEnd: allNights.length ? allNights[allNights.length - 1].date : null,
           freshestReadingDays: ctx.windows.length
             ? Math.min(...ctx.windows.map((w) => w.oldestAgeDays).filter((n) => Number.isFinite(n)))

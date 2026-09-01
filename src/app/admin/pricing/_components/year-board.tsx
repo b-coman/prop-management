@@ -85,6 +85,8 @@ export interface YearBoardData {
   meta: {
     generatedAt: string; parityAvailable: boolean; parityError: string | null;
     measuredWindows: number; horizonEnd: string | null; freshestReadingDays: number | null;
+    staleFromDiscountChange?: Array<{ checkIn: string; checkOut: string; nights: number;
+                                      guests: number; channel: string; note?: string }>;
   };
 }
 
@@ -172,6 +174,33 @@ export function YearBoard({ data, propertyId }: { data: YearBoardData; propertyI
         periodById={periodById}
         onPickPeriod={(id) => { const p = periodById.get(id); if (p) openEditor(p, p.recommendation); }}
       />
+
+      {!!data.meta.staleFromDiscountChange?.length && (
+        <Card className="border-amber-300">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <AlertTriangle className="h-4 w-4" />
+              {data.meta.staleFromDiscountChange.length} reading{data.meta.staleFromDiscountChange.length === 1 ? '' : 's'} measured before you changed a platform discount
+            </CardTitle>
+            <CardDescription>
+              These prices were captured under a rate plan the platform no longer offers, so the
+              verdicts and rates that use them are working from a product that no longer exists.
+              Re-check these stays before trusting anything that depends on them.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-1 text-sm">
+              {data.meta.staleFromDiscountChange.map((w) => (
+                <li key={`${w.checkIn}-${w.guests}`} className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-medium">{shortDate(w.checkIn)} to {shortDate(w.checkOut)}</span>
+                  <span className="text-muted-foreground">{w.nights} nights for {w.guests}</span>
+                  <span className="text-muted-foreground">· {w.channel}{w.note ? `: ${w.note}` : ''}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {data.ladder && <LadderCard ladder={data.ladder} />}
 
