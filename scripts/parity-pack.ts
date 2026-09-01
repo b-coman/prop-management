@@ -25,6 +25,15 @@ const SLUG = process.argv[2]?.startsWith('--') ? 'prahova-mountain-chalet' : (pr
 const AS_JSON = process.argv.includes('--json');
 const ONLY = (() => { const i = process.argv.indexOf('--only'); return i > -1 ? process.argv[i + 1] : null; })();
 const MONTHS = (() => { const i = process.argv.indexOf('--months'); return i > -1 ? Number(process.argv[i + 1]) : 8; })();
+/**
+ * Explicit window, for when the owner cares about a stretch rather than "the next N months".
+ *
+ * `--months` only ever moves the far edge, so asking for the autumn meant also probing the following
+ * spring - 2027 weekends nobody had a decision waiting on, at the cost of real page loads against a
+ * bot-detection budget. `--from`/`--to` scope both ends.
+ */
+const FROM = (() => { const i = process.argv.indexOf('--from'); return i > -1 ? process.argv[i + 1] : null; })();
+const TO = (() => { const i = process.argv.indexOf('--to'); return i > -1 ? process.argv[i + 1] : null; })();
 const MAX_PROBES = (() => { const i = process.argv.indexOf('--max'); return i > -1 ? Number(process.argv[i + 1]) : 24; })();
 const GUESTS_ARG = (() => {
   const i = process.argv.indexOf('--guests');
@@ -435,7 +444,11 @@ async function quoteDirect(propertyId: string, checkIn: string, checkOut: string
     push({ ...biggest, label: `${biggest.label} @ ${upper} guests`, reason: 'occupancy-variant', guests: upper });
   }
 
-  const scoped = ONLY ? probes.filter((p) => p.label.toLowerCase().includes(ONLY.toLowerCase())) : probes;
+  const byLabel = ONLY ? probes.filter((p) => p.label.toLowerCase().includes(ONLY.toLowerCase())) : probes;
+  const scoped = byLabel.filter((p) => (!FROM || p.checkIn >= FROM) && (!TO || p.checkIn <= TO));
+  if (FROM || TO) {
+    console.log(`SCOPE: check-in ${FROM ?? 'any'} to ${TO ?? 'any'} — ${scoped.length} of ${byLabel.length} probes\n`);
+  }
   // Each probe costs a human a couple of page loads in the browser, so cap the run — high
   // priority (peaks, bridged holidays, advertised windows) survives the cut first.
   const ordered = [...scoped].sort((a, b) =>
@@ -445,10 +458,16 @@ async function quoteDirect(propertyId: string, checkIn: string, checkOut: string
 
   // ---- attach live direct quotes ----
   const rows = [];
-  for (const p of selected) {
+  // `/api/check-pricing` is rate limited to 60 requests a minute. Fired back to back, a 41-window
+  // pack burns the budget in seconds and the rest come back "Too many requests" - which then get
+  // RECORDED as engine errors, so the run manufactures its own missing data. One request per 1.1s
+  // keeps a full pack inside the limit.
+  for (let i = 0; i < selected.length; i++) {
+    const p = selected[i];
     const q = await quoteDirect(SLUG, p.checkIn, p.checkOut, p.guests);
     const free = await windowFree(parse(p.checkIn), p.nights);
     rows.push({ ...p, bookableDirect: free, direct: q });
+    if (i < selected.length - 1) await new Promise((r) => setTimeout(r, 1100));
   }
 
   // ---- the worklist: one cell per window × occupancy × channel, each owed an outcome ----
