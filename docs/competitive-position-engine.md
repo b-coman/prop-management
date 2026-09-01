@@ -591,7 +591,7 @@ Phases 0-2 must land in order. Phase 5 waits for data, on the same discipline as
 | Phase | | Gate |
 |---|---|---|
 | **0** | ~~**The seam.**~~ **DONE 2026-09-01** — see §16. | ~~Before a single competitor row exists.~~ |
-| **1** | **The set.** `competitorListings` + `competitorSetService` + `set.ts` + the admin management surface. Owner enters the curated list with `substitutionBasis` per entry. | A verified set, or there is nothing to probe. |
+| **1** | **The set.** ~~`competitorListings` + `competitorSetService` + `set.ts` + the admin management surface.~~ **BUILT 2026-09-01 — see §17.** Outstanding: the owner corrects each `substitutionBasis`, and a verification pass sets `verifiedAt`. | A verified set, or there is nothing to probe. |
 | **2** | **Derivation and budget.** `comp-pack.ts` from the parity worklist (C5) + `budget.ts` run shapes. Emits work and pacing; captures nothing. | Reviewed against a real parity worklist before any browser runs. |
 | **3** | **Capture.** `docs/ota-capture-protocol.md` extracted; `ota-parity` updated to point at it; `parity-capture.ts --subject`; the `competitive-position` skill. First **sentinel** run only (~30 loads), on windows with a live decision. | First run reviewed end to end before a sweep. |
 | **4** | **Reading.** `position.ts` + `absorption.ts` + `comp-report.ts`, with the confidence thresholds of §4.3. | Two sentinel runs apart, or absorption has nothing to compare. |
@@ -1329,3 +1329,72 @@ firebase deploy --only firestore:rules     # adds the competitorListings block
 
 Neither is needed until Phase 1 writes the first `competitorListings` document. The index matters
 before Phase 3 starts writing observations at volume.
+
+---
+
+## 17. Phase 1, as built (2026-09-01)
+
+### 17.1 What exists now
+
+| piece | file | what it is |
+|---|---|---|
+| The set logic | `src/lib/competitive/set.ts` | **Pure.** `CompetitorListing`, the unit table, `hostsParty`, `fieldMembership`, verification aging, id and record validation. No I/O, no clock, no prices. |
+| The store | `src/services/competitorSetService.ts` | Admin-SDK CRUD on `competitorListings/{propertyId}_{listingId}`. Curation and verification are **separate writes** (§17.3). Retire never deletes. |
+| The seed | `scripts/seed-competitor-set.ts` | The 15 measured comparables + 1 retired, every field read from a live page. Dry-run by default. |
+| The screen | `_components/competitor-set-card.tsx` + `competitor-actions.ts` | Name, city, picture, link — the owner's four — plus per-party membership and verification age. Two panels, one per channel. |
+| Tests | `src/lib/competitive/__tests__/set.test.ts` | 33, written against the **real measured comparables** rather than invented shapes. |
+
+### 17.2 `count` means inventory, not availability
+
+The first draft of `CompetitorUnit.count` meant "stock at the time of capture". That is wrong, and
+keeping it would have made curation and absorption fight over one field. Inventory changes when the
+owner of a park builds another cabin; remaining availability changes hourly and **is** the absorption
+signal, so it belongs to an observation with a date and a URL.
+
+It is read as a **lower bound**: a probe shows the rows bookable on those dates, so a property with
+four cabins and one sold reads as three. A lower bound never invents capacity, but it means `count`
+may rise at a later verification and must never be treated as exact.
+
+### 17.3 Curation and verification are different writes
+
+`upsertCompetitorListing` records the owner's **judgement**; `recordVerification` records what the
+**page said** and stamps `verifiedAt`. Keeping them apart is what lets `verifiedAt` mean "a human
+confirmed this against the live listing recently" rather than "someone touched the row" — which is the
+only reading that makes C1's aging worth anything.
+
+### 17.4 The seeded set, verified against the live store
+
+```
+stored 16 (15 active, 1 retired)
+party mix: 2a+1c · 4a · 4a+2c   (property.channelPricing.compareParties — the SAME mix parity uses)
+
+airbnb        7 competing     2a+1c 7/7   4a 6/7   4a+2c 5/7
+booking.com   8 competing     2a+1c 7/8   4a 7/8   4a+2c 4/8
+
+sameAs resolves both ways: ava-chalet-ab <-> ava-chalet-bk, villa-the-frame-ab <-> villa-the-frame-bk
+multi-unit detected: casutele-de-la (3 units, largest 2) · casutele-din (3, largest 4) · cliff-village (3, largest 10)
+unverified: 16/16 — correct, nothing has been verified yet
+retired: pensiunea-piri-land, reason retained
+```
+
+Every count reproduces §13.4 and §12.2 exactly, from the store rather than from the document.
+
+### 17.5 What Phase 1 deliberately does NOT do
+
+- **It reads no prices.** `competitor-actions.ts` does not touch `channelPriceObservations` at all.
+  Position arrives in Phase 4, and keeping the surfaces apart is what stops "market context" quietly
+  becoming a pricing input (C2).
+- **The screen is read-only.** Curation is a deliberate judgement, not something to fat-finger from a
+  pricing tab. Editing arrives with the verification pass, which has somewhere to show consequences.
+- **Nothing is verified.** All 16 rows read `never verified` on the screen, and every
+  `substitutionBasis` is badged **draft** — because C1 asks for the owner's reasoning and these are
+  mine, written from page reads. The set is populated, not yet curated.
+
+### 17.6 Still outstanding for Phase 1's gate
+
+1. **The owner corrects the fifteen `substitutionBasis` lines** (drafts in §15). `curatedBy` then
+   changes from `claude (draft)` and the screen drops the amber badge.
+2. **A verification pass fills what curation could not**: `heroPhotoUrl` for all 16 (the screen shows
+   a placeholder today), `distanceKm`, and Booking capacity read from a priced probe rather than the
+   identity pass (§13.3). That is `comp-verify.ts`, and it belongs with Phase 3's capture work since
+   it drives the same browser loop.
