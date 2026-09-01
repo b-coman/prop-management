@@ -37,6 +37,27 @@ const WRITE = process.argv.includes('--write');
  * window (25-28 Dec) probed at three party sizes, which is thin evidence for a 22% cut on the year's
  * most valuable week. Three readings of the same dates are not three independent measurements.
  */
+/**
+ * Explicit per-period rates, bypassing the solver: `--rate "Christmas=1051"`.
+ *
+ * Needed because SKIP is not neutral. Excluding a period from the RATE change does not exclude it
+ * from the LADDER change, which is global - so skipping Christmas still took the 11% rise that
+ * dropping the 3-night rung causes, with nothing to offset it, and moved it from 10% to 22% dearer
+ * than Airbnb on the only stay shape ever measured there. An explicit rate is how a period gets held
+ * where it was without pretending the solver chose it.
+ */
+const RATES = (() => {
+  const out: Record<string, number> = {};
+  const i = process.argv.indexOf('--rate');
+  if (i > -1 && process.argv[i + 1] && !process.argv[i + 1].startsWith('--')) {
+    for (const pair of process.argv[i + 1].split(',')) {
+      const [k, v] = pair.split('=');
+      if (k && v) out[k.trim().toLowerCase()] = Number(v);
+    }
+  }
+  return out;
+})();
+
 const SKIP = (() => {
   const i = process.argv.indexOf('--skip');
   return i > -1 && process.argv[i + 1] && !process.argv[i + 1].startsWith('--')
@@ -102,6 +123,11 @@ const DROP_THRESHOLD = 3;
 
   for (const p of periods) {
     if (SKIP.includes(p.name.toLowerCase()) || SKIP.includes(p.slug)) { skipped.push(p.name); continue; }
+    const forced = RATES[p.name.toLowerCase()] ?? RATES[p.slug];
+    if (forced !== undefined) {
+      changes.push({ p, rate: forced, inBand: -1, dearer: -1, stays: 0 });
+      continue;
+    }
     // Only stays this period fully controls: the lever cannot move nights governed elsewhere.
     const arr = wins.filter((w) => {
       if (!w.best || w.direct == null) return false;
@@ -127,7 +153,8 @@ const DROP_THRESHOLD = 3;
   for (const c of changes) {
     const cur = c.p.weekdayRate ?? c.p.fixedNightPrice ?? Math.round((prop.pricePerNight ?? 0) * (tierMultipliers[c.p.tier] ?? 1));
     const lever = c.p.flatRate ? 'flat' : 'rate';
-    console.log(`   ${c.p.name.padEnd(18)} ${String(cur).padStart(5)} -> ${String(c.rate).padStart(5)} (${lever})   ${c.inBand}/${c.stays} in band, ${c.dearer} dearer`);
+    const verdict = c.inBand < 0 ? 'set by hand, solver not used' : `${c.inBand}/${c.stays} in band, ${c.dearer} dearer`;
+    console.log(`   ${c.p.name.padEnd(18)} ${String(cur).padStart(5)} -> ${String(c.rate).padStart(5)} (${lever})   ${verdict}`);
   }
 
   if (skipped.length) console.log(`\n   left unchanged: ${skipped.join(', ')}`);
