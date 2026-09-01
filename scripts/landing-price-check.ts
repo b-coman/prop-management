@@ -43,11 +43,17 @@ interface Stay { start: string; end: string; nights: number; guests?: number | n
     .filter((d) => !ONLY || d.id === ONLY);
 
   const today = new Date().toISOString().slice(0, 10);
-  let drifted = 0, checked = 0, expired = 0, fixed = 0, unsellable = 0;
+  // Counted apart, because they are different facts. A wrong price on a PUBLISHED page is being
+  // shown to people right now; the same on a draft is a note for whoever finishes it. Rolling them
+  // together made the summary read "1 of 6 live cards no longer match" on a day when every published
+  // card was correct and the only wrong one sat on a page that 404s.
+  let drifted = 0, checked = 0, expired = 0, fixed = 0, unsellable = 0, draftDrift = 0;
   for (const doc of docs) {
     const d = doc.data() as { status?: string; propertyId: string; exampleStays?: Stay[] };
     const stays = d.exampleStays ?? [];
-    console.log(`\n${doc.id}  (${d.status ?? 'no status'})  ${stays.length} card(s)`);
+    // Only a published page is served; /lp returns 404 for a draft.
+    const live = d.status === 'published';
+    console.log(`\n${doc.id}  (${d.status ?? 'no status'}${live ? '' : ' — not served'})  ${stays.length} card(s)`);
     if (!stays.length) continue;
     // A copy the corrections land in, so one unsellable card never stops the others being fixed.
     const next: Stay[] = stays.map((x) => ({ ...x }));
@@ -71,7 +77,8 @@ interface Stay { start: string; end: string; nights: number; guests?: number | n
         // No price exists to copy in. Inventing one, or blanking the card silently, would both be
         // worse than saying so: the card itself is the thing that needs a decision.
         console.log(`${label}  the site will not sell this stay any more — needs a new date, left alone`);
-        drifted++; unsellable++; continue;
+        if (live) { drifted++; unsellable++; } else draftDrift++;
+        continue;
       }
       checked++;
       const real = body.pricing.totalPrice;
@@ -80,7 +87,7 @@ interface Stay { start: string; end: string; nights: number; guests?: number | n
       const diff = shown - real;
       const pct = (diff / real) * 100;
       if (Math.abs(diff) < 1) { console.log(`${label}  ${Math.round(shown)} — matches`); continue; }
-      drifted++;
+      if (live) drifted++; else draftDrift++;
       console.log(`${label}  page says ${Math.round(shown)} · site charges ${Math.round(real)} · ` +
         `${diff > 0 ? 'OVERSTATED' : 'UNDERSTATED'} by ${Math.abs(Math.round(diff))} (${pct.toFixed(1)}%)` +
         `${WRITE ? `  ->  ${Math.round(real)}` : ''}`);
@@ -96,8 +103,9 @@ interface Stay { start: string; end: string; nights: number; guests?: number | n
     }
   }
 
-  console.log(`\n${drifted} of ${checked + drifted} live card(s) no longer match the site` +
-              `${expired ? `; ${expired} more have already passed` : ''}.`);
+  console.log(`\n${drifted} of ${checked + drifted} card(s) on PUBLISHED pages no longer match the site` +
+              `${draftDrift ? `; ${draftDrift} more on drafts nobody can reach` : ''}` +
+              `${expired ? `; ${expired} already in the past` : ''}.`);
   if (WRITE) console.log(`${fixed} card price(s) corrected.`);
   else if (drifted) console.log('Dry run. Re-run with --write to correct them.');
   if (unsellable) console.log(`${unsellable} card(s) cannot be priced at all and need new dates.`);
