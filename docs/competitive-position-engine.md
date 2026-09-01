@@ -1547,3 +1547,43 @@ booking.com   Vila Luna 11 · The Cliff Village 10 (12 units) · Villa The Frame
 ```
 
 Fifteen of fifteen carry a hero photo except MoodySun, which was never readable.
+
+### 19.6 Deployed (2026-09-01)
+
+Both Firestore changes are live.
+
+**Indexes.** Re-diffed immediately before deploying — create 1, delete 0 — then verified after, because
+the whole hazard was a deploy that silently removes what the file does not mention:
+
+| index | state |
+|---|---|
+| `channelPriceObservations (propertyId, capturedAt)` | **created**, built, serving 790 rows |
+| `bookings (status, holdUntil)` | still live — the hold-release cron |
+| `housekeepingMessages (bookingId, changeType, createdAt)` | still live |
+| `reviews (propertyId, isPublished)` | still live |
+
+All four queries were then run for real, not merely listed. The new index reported "currently
+building" on the first attempt, which is normal; it was polled until ready rather than assumed.
+
+**Rules.** `competitorListings` is live and admin-only. Verified by effect rather than by reading the
+deploy message back — an unauthenticated REST read of each protected collection is refused:
+
+```
+competitorListings         HTTP 403  PERMISSION_DENIED
+channelPriceObservations   HTTP 403  PERMISSION_DENIED
+channels                   HTTP 403  PERMISSION_DENIED
+```
+
+### 19.7 What Phase 1 still owes
+
+1. **The owner's fifteen `substitutionBasis` corrections.** Every entry is still badged **draft** on
+   the admin card, and `curatedBy` still reads `claude (draft)`. Verification confirmed what these
+   listings ARE; it cannot confirm why they compete.
+2. **MoodySun Studio.** Unverified, no photo, `no availability` in two windows a month apart. Worth a
+   third window before concluding anything — a listing that never quotes is either closed for the
+   season or gone, and those are different facts.
+3. **`--occ` should be per listing, not global.** Booking draws its capacity column only where rows
+   must be told apart, so occupancy 1-2 reads nothing on a park. The work-list already knows each
+   listing's recorded units and could pick a pair that will render markers.
+4. **`distanceKm`** is still null everywhere. Not derivable from a listing page; it needs geocoding or
+   the owner's own judgement of what is "near".
