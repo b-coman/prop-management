@@ -89,6 +89,8 @@ export interface ParityWindowView {
   /** Where to price: a target-sized saving for the guest, never below the floor. */
   targetPrice: number | null;
   netAdvantage: number | null;
+  /** How far apart the platforms are on the same nights. Null when fewer than two answered. */
+  channelSpreadPct: number | null;
   /** What the owner gains per booking by moving direct to `targetPrice`, vs today's price. */
   upliftAtTarget: number | null;
   oldestAgeDays: number;
@@ -204,6 +206,21 @@ export function buildParityWindow(w: ParityWindowInput, opts: ParityViewOptions)
     checkIn: w.checkIn, checkOut: w.checkOut, nights: w.nights, guests: w.guests,
     label: `${w.checkIn} → ${w.checkOut}`,
     direct, cells, best: best ? { channel: best.channel, effective: best.effective! } : null,
+    /**
+     * How far apart the PLATFORMS are on the same nights.
+     *
+     * A wide spread is its own problem and it is entirely the owner's to fix: it drags the floor that
+     * direct must clear up to whichever platform is dearest, while the price direct must undercut is
+     * set by whichever is cheapest. On Vacanta Toamna his own Booking price sits 25% above his own
+     * Airbnb price for the identical 4-night stay, and that gap alone is what makes the period
+     * unsolvable with a single rate. Reported so the board can say WHY a period will not close, not
+     * merely that it will not.
+     */
+    channelSpreadPct: (() => {
+      const t = cells.filter((c) => c.effective !== null && !c.stale && c.channel !== 'direct')
+        .map((c) => c.effective!);
+      return t.length >= 2 && Math.min(...t) > 0 ? Math.max(...t) / Math.min(...t) - 1 : null;
+    })(),
     verdict, gapPct, floor, targetPrice, netAdvantage, upliftAtTarget,
     oldestAgeDays: ages.length ? Math.max(...ages) : Infinity,
     warnings,

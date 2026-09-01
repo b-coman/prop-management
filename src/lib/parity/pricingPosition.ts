@@ -52,6 +52,8 @@ export interface WindowFact {
   floor: number | null;
   targetPrice: number | null;
   oldestAgeDays: number;
+  /** How far apart the platforms are on these nights. The owner's own settings, not the market. */
+  channelSpreadPct?: number | null;
 }
 
 export interface PeriodPosition {
@@ -75,6 +77,15 @@ export interface PeriodPosition {
   worstWindow: WindowFact | null;
   measuredWindows: number;
   freshestAgeDays: number | null;
+  /**
+   * The widest gap between the platforms on any window in this period.
+   *
+   * When it is large, no single direct rate can close the period: the price to undercut is set by the
+   * CHEAPEST platform while the floor is set by the DEAREST, and a wide spread pulls those apart until
+   * they cross. It is also the owner's own doing, so it is the actionable half of "this period cannot
+   * be solved".
+   */
+  widestChannelSpreadPct: number | null;
   /** What to do, in one line, or null when nothing is called for. */
   action: string | null;
 }
@@ -152,6 +163,10 @@ export function buildPeriodPositions(
       verdict, worstGapPct: gap, worstWindow: worst,
       measuredWindows: pw.length,
       freshestAgeDays: ages.length ? Math.min(...ages) : null,
+      widestChannelSpreadPct: (() => {
+        const sp = pw.map((w) => w.channelSpreadPct).filter((v): v is number => v != null);
+        return sp.length ? Math.max(...sp) : null;
+      })(),
     };
     out.push({ ...base, action: describeAction(base) });
   }

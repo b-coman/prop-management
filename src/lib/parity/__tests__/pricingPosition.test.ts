@@ -37,6 +37,25 @@ describe("the owner's own 3% band is respected", () => {
   });
 });
 
+describe('a period owns its endDate', () => {
+  /**
+   * The engine ends a range at 23:59:59 on `endDate` (isDateInRange) and the compiler iterates
+   * start <= d <= end (datesInRange). The roll-up used `d < endDate`, so it dropped the LAST night of
+   * every period out of the night count, the occupancy and the money - and those nights fell into no
+   * coverage gap either, because coverage is computed inclusively, so they vanished from the screen.
+   * On the live book that was 10 nights and 8,739 lei.
+   */
+  it('counts the final night of the range', () => {
+    const [r] = buildPeriodPositions(
+      [period({ startDate: '2026-10-01', endDate: '2026-10-04' })],
+      days([true, true, true, true], 500),
+      [win()],
+    );
+    expect(r.nights).toBe(4);
+    expect(r.valueAtRisk).toBe(2000);
+  });
+});
+
 describe('occupancy and money exposed', () => {
   it('counts open nights and prices them', () => {
     const [r] = buildPeriodPositions([period()], days([false, false, true, true], 500), [win()]);
@@ -60,7 +79,12 @@ describe('never measured is not the same as fine', () => {
   });
   it('separates unmeasured money from losing money in the summary', () => {
     const rows = buildPeriodPositions(
-      [period({ id: 'a' }), period({ id: 'b', startDate: '2026-10-05', endDate: '2026-10-09' })],
+      // Adjacent, NOT overlapping. `endDate` is inclusive - the same rule the engine's isDateInRange
+      // and the compiler's datesInRange use - so a period ending 10-05 owns 10-05, and a neighbour
+      // starting on that date would double-count it. Real periods never share a boundary day
+      // (Fall ends 23 Oct, Vacanta Toamna starts 24 Oct), and the fixture now matches that.
+      [period({ id: 'a', endDate: '2026-10-04' }),
+       period({ id: 'b', startDate: '2026-10-05', endDate: '2026-10-08' })],
       [...days([true, true, true, true], 500),
        ...[0, 1, 2, 3].map((i) => ({ date: `2026-10-0${i + 5}`, available: true, price: 300, isWeekend: false }))],
       [win()],

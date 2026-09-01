@@ -182,6 +182,7 @@ function toWindowFact(w: Record<string, unknown>): WindowFact {
     floor: (w.floor as number | null) ?? null,
     targetPrice: (w.targetPrice as number | null) ?? null,
     oldestAgeDays: (w.oldestAgeDays as number) ?? Infinity,
+    channelSpreadPct: (w.channelSpreadPct as number | null) ?? null,
   };
 }
 

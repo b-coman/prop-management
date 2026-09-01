@@ -58,6 +58,7 @@ export interface BoardPeriodRow {
   nights: number; booked: number; openNights: number; occupancyPct: number;
   weekdayPrice: number | null; weekendPrice: number | null; valueAtRisk: number;
   verdict: BoardVerdict; worstGapPct: number | null; measuredWindows: number; freshestAgeDays: number | null;
+  widestChannelSpreadPct?: number | null;
   recommendation: BoardRecommendation | null;
 }
 export interface BoardGap {
@@ -364,6 +365,22 @@ function RecommendationCard({ rank, p, currency, onFix }: {
                 ) : null}
               </div>
             ) : null}
+
+            {/*
+              When the platforms disagree with each other, say so HERE rather than leaving the owner
+              to conclude the period is simply unfixable. The price to undercut is set by the cheapest
+              platform, the floor by the dearest; a wide spread pulls those apart until no single rate
+              sits between them. It is his own pricing on his own listings, so it is the half of the
+              problem he can actually act on.
+            */}
+            {p.widestChannelSpreadPct != null && p.widestChannelSpreadPct >= 0.12 && (
+              <div className="mt-2 border-t pt-2 text-xs text-slate-700">
+                Your own two platforms are <strong>{Math.round(p.widestChannelSpreadPct * 100)}% apart</strong>{' '}
+                on the same nights here. No single price of yours can sit under the cheaper one and
+                still stay above what the dearer one would pay you. Closing that gap on the platforms
+                does more than any change to this rate.
+              </div>
+            )}
 
             {r.conflictsWithFloor && r.floorWeekday != null && (
               <div className="mt-2 border-t pt-2 text-xs text-amber-800">
