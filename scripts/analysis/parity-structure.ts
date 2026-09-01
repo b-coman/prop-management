@@ -48,7 +48,7 @@ export async function loadStays(pid = 'prahova-mountain-chalet') {
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  const obs = [...(await latestByCell(pid)).values()].filter((o) => o.checkOut >= today);
+  const obs = [...(await latestByCell(pid, { kind: 'self' })).values()].filter((o) => o.checkOut >= today);
   const byW = new Map<string, any>();
   for (const o of obs) {
     const k = `${o.checkIn}|${o.checkOut}|${o.guests}`;

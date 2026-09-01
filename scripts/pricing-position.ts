@@ -30,7 +30,7 @@ const n = (v: number) => Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/
     // different product, and parityView sets it aside rather than averaging it in.
     const propDoc = await (await getAdminDb()).collection('properties').doc(SLUG).get();
     const mix = partiesFor((propDoc.data() as { channelPricing?: unknown } | undefined)?.channelPricing);
-  const obs = [...(await latestByCell(SLUG)).values()];
+  const obs = [...(await latestByCell(SLUG, { kind: 'self' })).values()];
 
   const byWindow = new Map<string, { checkIn: string; checkOut: string; nights: number; guests: number;
     expectedParty: { adults: number; children: number }; observations: unknown[] }>();

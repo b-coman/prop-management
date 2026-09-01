@@ -46,7 +46,7 @@ export async function fetchParityView(propertyId: string, opts?: { includeVrbo?:
     // different product, and parityView sets it aside rather than averaging it in.
     const propDoc = await (await getAdminDb()).collection('properties').doc(propertyId).get();
     const mix = partiesFor((propDoc.data() as { channelPricing?: unknown } | undefined)?.channelPricing);
-    const observed = [...(await latestByCell(propertyId)).values()];
+    const observed = [...(await latestByCell(propertyId, { kind: 'self' })).values()];
 
     const today = new Date().toISOString().slice(0, 10);
     const byWindow = new Map<string, ParityWindowInput>();

@@ -57,13 +57,108 @@ export interface Observation {
 }
 
 /**
+ * WHOSE price a cell holds.
+ *
+ * Lives here rather than beside the store because `cellId` consumes it, and the cell id is the one
+ * thing that must never collide between the owner's own listing and someone else's. Re-exported from
+ * `services/growth/parityObservations` so the store keeps a single import for its record shape.
+ */
+export type ObservationSubject =
+  | { kind: 'self' }
+  | { kind: 'competitor'; listingId: string };
+
+/** A row written before `subject` existed is the owner's own — competitor capture never ran. */
+export const DEFAULT_SUBJECT: ObservationSubject = { kind: 'self' };
+
+/**
  * Stable, human-readable, and identical across runs for the same logical cell — so a February run can
  * be diffed against a December one.
+ *
+ * **A SELF cell id is byte-identical to what it has always been.** The subject segment is appended
+ * only for a competitor, which is what makes competitor tracking a zero-migration change over a store
+ * that already holds 790 rows:
+ *
+ *     self        prahova-mountain-chalet|2026-10-24|2026-10-28|3|airbnb
+ *     competitor  prahova-mountain-chalet|2026-10-24|2026-10-28|3|airbnb|comp:vila-luna
+ *
+ * Without the segment the two collide exactly, and `latestByCell` — which keys on nothing but this
+ * string, newest wins — would let a competitor's price silently become the owner's on a board that
+ * feeds `apply-band-pricing.ts`, a live price-writing path.
+ *
+ * The id is built, compared and sorted, never parsed (verified across every call site), so appending
+ * a segment is safe.
  */
 export function cellId(
   propertyId: string, checkIn: string, checkOut: string, guests: number, channel: string,
+  subject: ObservationSubject = DEFAULT_SUBJECT,
 ): string {
-  return `${propertyId}|${checkIn}|${checkOut}|${guests}|${channel}`;
+  const base = `${propertyId}|${checkIn}|${checkOut}|${guests}|${channel}`;
+  if (subject.kind === 'self') return base;
+  // `|` is the field separator. A listing id containing one would produce an id that reads as a
+  // different shape and could, with enough bad luck, collide with a real cell. Refuse it at the only
+  // place ids are made rather than discovering it in the store.
+  if (!subject.listingId || subject.listingId.includes('|')) {
+    throw new Error(
+      `competitor listingId must be non-empty and free of "|" — got ${JSON.stringify(subject.listingId)}`,
+    );
+  }
+  return `${base}|comp:${subject.listingId}`;
+}
+
+/**
+ * WHICH subjects a read is asking for. **Required on every read**, with no default, because the
+ * failure it prevents is silent and lands on a live price-writing path.
+ *
+ * `loadObservations` filters on `propertyId` alone. Once competitor rows share this collection, every
+ * unscoped reader — `parityView`, `pricing-position`, the report, and `apply-band-pricing.ts`, which
+ * WRITES LIVE PRICES — would ingest someone else's price as the owner's without a single error.
+ *
+ * `'all'` exists but must be asked for by name. There is no honest reason to mix the two subjects in
+ * one calculation; the only legitimate uses are auditing and migration.
+ */
+export type ObservationScope =
+  | { kind: 'self' }
+  | { kind: 'competitor'; listingId?: string }   // omit listingId for the whole comparable set
+  | { kind: 'all' };
+
+/**
+ * The subject a stored row represents.
+ *
+ * **199 of the first 790 rows carry no `subject` field at all** — they predate it, and competitor
+ * capture had never run, so every one of them is the owner's own. They must read as `self` rather
+ * than as unknown: a Firestore `where('subject.kind','==','self')` would have dropped a quarter of
+ * the history silently, which is why scope filtering happens in memory and not in the query.
+ */
+export function subjectOf(record: { subject?: ObservationSubject }): ObservationSubject {
+  return record.subject ?? DEFAULT_SUBJECT;
+}
+
+export function matchesScope(record: { subject?: ObservationSubject }, scope: ObservationScope): boolean {
+  if (scope.kind === 'all') return true;
+  const s = subjectOf(record);
+  if (scope.kind === 'self') return s.kind === 'self';
+  return s.kind === 'competitor' && (!scope.listingId || s.listingId === scope.listingId);
+}
+
+/**
+ * Reject a missing or malformed scope AT RUNTIME, not just in the type system.
+ *
+ * `tsconfig.json` excludes `scripts/`, and twelve of the thirteen callers of these functions live
+ * there. A required parameter therefore breaks nothing at compile time for the callers most likely to
+ * be missed — this repo has already shipped one annotation that "compiled" only because of that
+ * exclusion. So the type is the documentation and this is the guard.
+ */
+export function requireScope(scope: unknown, fn: string): ObservationScope {
+  const k = (scope as { kind?: unknown } | null | undefined)?.kind;
+  if (k !== 'self' && k !== 'competitor' && k !== 'all') {
+    throw new Error(
+      `${fn}() requires an explicit ObservationScope — got ${JSON.stringify(scope)}.\n` +
+      `  Pass { kind: 'self' } for the owner's own listings (what every existing caller wants),\n` +
+      `  { kind: 'competitor', listingId? } for the comparable set, or { kind: 'all' } to audit both.\n` +
+      `  There is no default: an unscoped read would let a competitor's price be read as the owner's.`,
+    );
+  }
+  return scope as ObservationScope;
 }
 
 export interface ProbeInput {

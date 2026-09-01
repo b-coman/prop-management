@@ -27,7 +27,7 @@ const SLUG = process.argv[2] ?? 'prahova-mountain-chalet';
 (async () => {
   const today = new Date().toISOString().slice(0, 10);
   const channels = await getChannels(SLUG);
-  const obs = [...(await latestByCell(SLUG)).values()].filter((o) => o.checkOut >= today);
+  const obs = [...(await latestByCell(SLUG, { kind: 'self' })).values()].filter((o) => o.checkOut >= today);
 
   const rows: Array<{ ch: string; why: string; cell: string; when: string }> = [];
   let fresh = 0;

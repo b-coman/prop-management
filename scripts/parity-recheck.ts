@@ -42,7 +42,7 @@ const AS_JSON = process.argv.includes('--json');
   const channels = await getChannels(SLUG);
   const today = new Date().toISOString().slice(0, 10);
 
-  const obs = [...(await latestByCell(SLUG)).values()]
+  const obs = [...(await latestByCell(SLUG, { kind: 'self' })).values()]
     .filter((o) => o.checkOut >= today && o.channel !== 'direct' && o.nights >= MIN_NIGHTS)
     .filter((o) => !ONLY || `${o.checkIn}:${o.checkOut}` === ONLY)
     .filter((o) => (!FROM || o.checkIn >= FROM) && (!TO || o.checkIn <= TO))

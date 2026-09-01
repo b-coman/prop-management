@@ -10,7 +10,8 @@
  */
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
-import type { Observation, ObservationStatus } from '@/lib/growth/parityWorklist';
+import type { Observation, ObservationStatus, ObservationSubject, ObservationScope } from '@/lib/growth/parityWorklist';
+import { DEFAULT_SUBJECT, subjectOf, matchesScope, requireScope } from '@/lib/growth/parityWorklist';
 import { normalizeChannel } from '@/lib/channels';
 
 const logger = loggers.parity;
@@ -34,9 +35,12 @@ export interface CaptureSession {
 
 export type RatePlan = 'flexible' | 'non-refundable' | 'unknown';
 
-export type ObservationSubject =
-  | { kind: 'self' }
-  | { kind: 'competitor'; listingId: string };
+/**
+ * Subject and scope are defined next to `cellId` in `lib/growth/parityWorklist` — they are pure, and
+ * `cellId` consumes the subject. Re-exported here so the store stays a single import for callers.
+ */
+export type { ObservationSubject, ObservationScope };
+export { subjectOf, matchesScope };
 
 export interface ObservationRecord extends Observation {
   propertyId: string;
@@ -167,6 +171,27 @@ export async function recordObservation(input: RecordObservationInput): Promise<
     );
   }
 
+  // `cellId` and `subject` reach this function as SEPARATE inputs, built by the caller. If they
+  // disagree — a competitor price filed under a self cell id — the store gets exactly the collision
+  // the subject segment exists to prevent, and it gets it through the one door that is supposed to
+  // stop it. Checked narrowly (the suffix, not the whole id) so it cannot false-positive on channel
+  // spelling, which `normalizeChannel` below owns.
+  const subject = input.subject ?? DEFAULT_SUBJECT;
+  const hasCompSuffix = /\|comp:[^|]+$/.test(input.cellId);
+  if (subject.kind === 'competitor') {
+    if (!input.cellId.endsWith(`|comp:${subject.listingId}`)) {
+      throw new Error(
+        `cell ${input.cellId}: subject is competitor "${subject.listingId}" but the cellId does not ` +
+        `end with |comp:${subject.listingId}. Build it with cellId(..., subject) — never by hand.`,
+      );
+    }
+  } else if (hasCompSuffix) {
+    throw new Error(
+      `cell ${input.cellId}: cellId carries a |comp: segment but subject is self. One of them is ` +
+      `wrong, and guessing which would file someone else's price as the owner's.`,
+    );
+  }
+
   // Conversion must be explicit and attributed. A foreign-currency capture with no rate would either
   // be silently treated as RON (wrong by a factor of ~4.5) or silently dropped.
   const rawCurrency = (input.rawCurrency ?? 'RON').toUpperCase();
@@ -231,7 +256,7 @@ export async function recordObservation(input: RecordObservationInput): Promise<
     rawCurrency,
     ...(needsFx ? { fxRateToRon: input.fxRateToRon, fxRateSource: input.fxRateSource } : {}),
     promoActive: input.promoActive ?? false,
-    subject: input.subject ?? { kind: 'self' },
+    subject,
     ...(input.session ? { session: input.session } : {}),
     ...(input.ratePlan ? { ratePlan: input.ratePlan } : {}),
     ...(input.party ? { party: input.party } : {}),
@@ -253,20 +278,41 @@ export async function recordObservation(input: RecordObservationInput): Promise<
   return ref.id;
 }
 
-/** Every observation for a property, newest first. The report reads this and nothing else. */
-export async function loadObservations(propertyId: string, sinceIso?: string): Promise<ObservationRecord[]> {
+/**
+ * Every observation for a property AND scope, newest first. The report reads this and nothing else.
+ *
+ * Scope is filtered in memory rather than in the query, deliberately — see `subjectOf`: a fifth of
+ * the store predates the `subject` field and a Firestore equality filter would drop those rows
+ * without saying so.
+ */
+export async function loadObservations(
+  propertyId: string,
+  scope: ObservationScope,
+  sinceIso?: string,
+): Promise<ObservationRecord[]> {
+  const s = requireScope(scope, 'loadObservations');
   const db = await getAdminDb();
   let q = db.collection(COLLECTION).where('propertyId', '==', propertyId);
   if (sinceIso) q = q.where('capturedAt', '>=', sinceIso);
   const snap = await q.get();
   return snap.docs
     .map((d) => d.data() as ObservationRecord)
+    .filter((r) => matchesScope(r, s))
     .sort((a, b) => b.capturedAt.localeCompare(a.capturedAt));
 }
 
-/** Newest observation per cell — what coverage and the report table are built from. */
-export async function latestByCell(propertyId: string, sinceIso?: string): Promise<Map<string, ObservationRecord>> {
-  const all = await loadObservations(propertyId, sinceIso);
+/**
+ * Newest observation per cell — what coverage and the report table are built from.
+ *
+ * Keys on `cellId` alone, which is exactly why the id carries the subject (see `cellId`): without it
+ * a competitor row and a self row for the same window and channel are the same key, and newest wins.
+ */
+export async function latestByCell(
+  propertyId: string,
+  scope: ObservationScope,
+  sinceIso?: string,
+): Promise<Map<string, ObservationRecord>> {
+  const all = await loadObservations(propertyId, requireScope(scope, 'latestByCell'), sinceIso);
   const map = new Map<string, ObservationRecord>();
   for (const o of all) if (!map.has(o.cellId)) map.set(o.cellId, o); // already newest-first
   return map;

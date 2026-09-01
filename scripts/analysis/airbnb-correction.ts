@@ -19,7 +19,7 @@ const airbnbLos = (n: number) => (n >= 28 ? 0.35 : n >= 7 ? 0.25 : n >= 5 ? 0.15
 
 (async () => {
   const flat = STANDING_GUEST_DISCOUNT.airbnb ?? 0;
-  const obs = [...(await latestByCell('prahova-mountain-chalet')).values()]
+  const obs = [...(await latestByCell('prahova-mountain-chalet', { kind: 'self' })).values()]
     .filter((o) => o.channel === 'airbnb' && o.status === 'captured' && o.guestTotal && o.listTotal
                 && o.listTotal > o.guestTotal)
     .sort((a, b) => a.checkIn.localeCompare(b.checkIn));

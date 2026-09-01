@@ -62,7 +62,7 @@ const FRESH_DAYS = Number(arg('fresh-days', '42'));
   const prop = (await db.collection('properties').doc(SLUG).get()).data() as
     { channelPricing?: { compareParties?: Party[]; compareOccupancies?: number[] } } | undefined;
   const mix = partiesFor(prop?.channelPricing);
-  const observed = [...(await latestByCell(SLUG)).values()];
+  const observed = [...(await latestByCell(SLUG, { kind: 'self' })).values()];
   if (!observed.length) {
     console.error(`No observations for ${SLUG}. Run parity-pack.ts first — it seeds the direct cells.`);
     process.exit(1);

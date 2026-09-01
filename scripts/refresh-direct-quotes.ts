@@ -31,7 +31,7 @@ const BASE = process.env.PARITY_BASE_URL ?? 'http://localhost:9002';
 
 (async () => {
   const today = new Date().toISOString().slice(0, 10);
-  const all = [...(await latestByCell(SLUG)).values()].filter((o) => o.checkOut >= today);
+  const all = [...(await latestByCell(SLUG, { kind: 'self' })).values()].filter((o) => o.checkOut >= today);
 
   // Only windows with a real OTA reading: a direct quote alone tells the board nothing.
   const windows = new Map<string, { checkIn: string; checkOut: string; nights: number; guests: number }>();

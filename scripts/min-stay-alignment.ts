@@ -53,7 +53,7 @@ interface Period { name: string; start: string; end: string; directMin: number |
   }
   periods.sort((a, b) => a.start.localeCompare(b.start));
 
-  const obs = [...(await latestByCell(SLUG)).values()].filter((o) => o.checkOut >= today);
+  const obs = [...(await latestByCell(SLUG, { kind: 'self' })).values()].filter((o) => o.checkOut >= today);
   const channels = ['airbnb', 'booking.com'];
 
   console.log(`\nMINIMUM STAY BY CHANNEL — ${SLUG}`);

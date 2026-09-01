@@ -499,7 +499,7 @@ async function quoteDirect(propertyId: string, checkIn: string, checkOut: string
     }
   }
 
-  const observed = [...(await latestByCell(SLUG)).values()];
+  const observed = [...(await latestByCell(SLUG, { kind: 'self' })).values()];
   const coverage = computeCoverage(worklist, observed, { freshnessDays: 42 });
   const todo = outstandingCells(worklist, observed, { freshnessDays: 42 });
 

@@ -39,7 +39,7 @@ const LABEL: Record<string, string> = { losing: 'LOSING', thin: 'thin', healthy:
   const { channels, direct } = parityConfig;
   const TARGET = TARGET_ARG ?? parityConfig.targetDiscountPct;
 
-  const observations = [...(await latestByCell(SLUG)).values()];
+  const observations = [...(await latestByCell(SLUG, { kind: 'self' })).values()];
 
   // How the numbers were read decides what they mean. A run that mixes logged-in and logged-out
   // captures is not comparable to itself, and silently averaging the two is how a 20% Genius discount

@@ -96,7 +96,7 @@ const DROP_THRESHOLD = 3;
   }
 
   // Measured windows, through the same builder the admin uses.
-  const obs = [...(await latestByCell(SLUG)).values()].filter((o) => o.checkOut >= today);
+  const obs = [...(await latestByCell(SLUG, { kind: 'self' })).values()].filter((o) => o.checkOut >= today);
   const byW = new Map<string, any>();
   for (const o of obs) {
     const k = `${o.checkIn}|${o.checkOut}|${o.guests}`;
