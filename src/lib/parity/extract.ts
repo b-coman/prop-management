@@ -335,7 +335,7 @@ export function extractBooking(text: string, opts?: { year?: number; guests?: nu
   const nonRef = /(non-?refundable|nerambursabil|no refund)/i.test(t);
   const flex = /(free cancellation|fully refundable|anulare gratuit|rambursabil)/i.test(t);
 
-  const nights = readCount(t, 'nights?') ?? readCount(t, 'nopt\\w*');
+  const nights = readBookingNights(t);
   const guests = readCount(t, 'adults?|guests?');
 
   return {
@@ -366,6 +366,33 @@ export function extractBooking(text: string, opts?: { year?: number; guests?: nu
  * mistakes were made in turn while writing this, and both produced a confident wrong count rather
  * than a failure — which the echo check would then have reported as a layout change on every cell.
  */
+/**
+ * How many nights Booking says it is quoting.
+ *
+ * At exactly seven nights Booking stops counting them and writes a week instead — the page reads
+ * "1 week, 2 adults, 1 child" and "Price for 1 week", and the word "night" does not appear on it
+ * anywhere. So the plain count returned null and the echo check, the one guard that catches a stale
+ * render, had nothing to compare and could only pass the cell through unverified. Every seven-night
+ * Booking cell in the 2026-08-31 sweep had to be confirmed by hand instead.
+ *
+ * Only exact multiples are worded that way: the same page at ten nights says "10 nights". Verified
+ * live on 2026-09-01 against both lengths.
+ *
+ * The week form is read ANCHORED to the two phrasings the page actually uses, and it is deliberately
+ * not shared with Airbnb, whose pages carry "2 weeks ago" and "3 weeks ago" in the review timestamps.
+ * An unanchored reading there would have returned 14 nights on a seven-night stay and thrown away a
+ * good capture. Airbnb states "7 nights in Comarnic" and needs none of this.
+ */
+function readBookingNights(t: string): number | null {
+  const nights = readCount(t, 'nights?') ?? readCount(t, 'nopt\\w*');
+  if (nights !== null) return nights;
+  const WEEK = String.raw`(?:weeks?|s[\u0103a]pt[\u0103a]m[\u00e2a]n[\u0103i]\w*)`;
+  const m =
+    t.match(new RegExp(String.raw`\b(\d{1,2})\s+${WEEK}\s*[,\u00b7]\s*\d{1,2}\s*(?:adults?|adul[\u021bt]\w*)`, 'i')) ??
+    t.match(new RegExp(String.raw`(?:price for|pre[\u021bt]\w*\s+pentru)\s+(\d{1,2})\s+${WEEK}\b`, 'i'));
+  return m ? Number(m[1]) * 7 : null;
+}
+
 function readCount(text: string, words: string): number | null {
   const re = new RegExp(String.raw`(?:^|[^\d/.,])(\d{1,2})\s+(?:${words})\b`, 'i');
   const m = text.match(re);

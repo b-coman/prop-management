@@ -22,6 +22,7 @@ import { getChannels } from '@/services/channelService';
 import { latestByCell } from '@/services/growth/parityObservations';
 import { partiesFor, partyForGuests, partyLabel, buildCaptureUrl } from '@/lib/parity/party';
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
+import { isSuperseded } from '@/lib/parity/supersession';
 
 const arg = (n: string, d?: string) => {
   const i = process.argv.indexOf(`--${n}`);
@@ -53,6 +54,10 @@ const AS_JSON = process.argv.includes('--json');
   for (const o of obs) {
     const ch = channels.byId.get(o.channel);
     const changed = ch?.discountsChangedAt;
+    // This used to emit every long-enough cell regardless of WHEN it was read, so a cell captured
+    // after the change - the re-read that had already been done - came back on the list as still
+    // owed. Length alone is half the rule; the other half is the capture date.
+    if (!isSuperseded(o.capturedAt, o.nights, changed)) continue;
     const key = `${o.checkIn}|${o.checkOut}|${o.guests}|${o.channel}`;
     if (seen.has(key)) continue;
     seen.add(key);

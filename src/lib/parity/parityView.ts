@@ -77,6 +77,12 @@ export interface ChannelCell {
   reason?: string;
   ageDays: number;
   stale: boolean;
+  /**
+   * Stale because the owner changed this channel's settings after it was read, rather than because
+   * time passed. A cell can be zero days old and still be superseded, and the two want different
+   * words on the screen: one says wait, the other says re-probe.
+   */
+  superseded: boolean;
   /** True when `effective` differs from `captured` — the screen must say so, not hide it. */
   corrected: boolean;
 }
@@ -119,7 +125,24 @@ export interface ParityViewOptions {
    * Comes from the channel config so it tracks reality: set to 0 when the owner turns one off.
    */
   standingDiscounts?: Record<string, number>;
+  /**
+   * Per channel, the last recorded change to that channel's own settings, and the stay length from
+   * which it bites.
+   *
+   * Freshness by age alone is not enough, and the gap was real: on 2026-09-01 the owner changed
+   * Booking's weekly discount, reactivated and raised its 4-day rate, and set a 4-night minimum. Six
+   * stored readings taken the day before were two days old — comfortably inside the 42-day budget —
+   * and described prices that no longer existed. `parity-audit` could see it and the board could not,
+   * so the two views of one dataset disagreed, which is the exact failure this module was built to
+   * avoid.
+   *
+   * A superseded reading is treated as NOT MEASURED rather than as a price. That is the conservative
+   * direction: it makes a cell go quiet and ask to be re-probed, instead of quietly steering a rate.
+   */
+  settingsChanges?: Record<string, SettingsChange>;
 }
+
+import { isSuperseded, supersessionReason, type SettingsChange } from './supersession';
 
 const daysBetween = (a: Date, b: Date) => Math.max(0, Math.floor((a.getTime() - b.getTime()) / 86_400_000));
 
@@ -138,11 +161,15 @@ export function buildParityWindow(w: ParityWindowInput, opts: ParityViewOptions)
     if (!o) {
       cells.push({ channel: ch, status: 'error', captured: null, effective: null, listTotal: null,
         promoActive: false, ratePlan: 'unknown', reason: 'never captured', ageDays: Infinity,
-        stale: true, corrected: false });
+        stale: true, superseded: false, corrected: false });
       continue;
     }
     const ageDays = daysBetween(now, new Date(o.capturedAt));
-    const stale = ageDays > freshnessDays;
+    // A reading is out of date either because time passed, or because the owner changed the very
+    // settings it was measuring. The second kind can be one day old and still be fiction.
+    const change = opts.settingsChanges?.[ch];
+    const superseded = isSuperseded(o.capturedAt, w.nights, change);
+    const stale = ageDays > freshnessDays || superseded;
 
     // A price for a DIFFERENT party is not a stale price, it is a different product. "3 guests" meant
     // 3 adults until 2026-08-30 and means 2 adults + 1 child after it; comparing them would mix two
@@ -156,7 +183,7 @@ export function buildParityWindow(w: ParityWindowInput, opts: ParityViewOptions)
       cells.push({ channel: ch, status: 'error', captured: null, effective: null, listTotal: null,
         promoActive: false, ratePlan: o.ratePlan ?? 'unknown',
         reason: `priced for ${label}, but this headcount now means ${want!.adults}a+${want!.children}c — a different product`,
-        ageDays, stale: true, corrected: false });
+        ageDays, stale: true, superseded: false, corrected: false });
       continue;
     }
     const discount = opts.standingDiscounts?.[ch] ?? STANDING_GUEST_DISCOUNT[ch] ?? 0;
@@ -165,7 +192,7 @@ export function buildParityWindow(w: ParityWindowInput, opts: ParityViewOptions)
     cells.push({
       channel: ch, status: o.status, captured, effective,
       listTotal: o.listTotal ?? null, promoActive: Boolean(o.promoActive),
-      ratePlan: o.ratePlan ?? 'unknown', reason: o.reason, ageDays, stale,
+      ratePlan: o.ratePlan ?? 'unknown', reason: o.reason, ageDays, stale, superseded,
       corrected: discount > 0 && captured !== null,
     });
   }
@@ -175,7 +202,12 @@ export function buildParityWindow(w: ParityWindowInput, opts: ParityViewOptions)
 
   for (const c of cells) {
     if (c.status === 'refused') warnings.push(`${c.channel} will not sell this window: ${c.reason ?? 'refused'}`);
-    if (c.status === 'captured' && c.stale) warnings.push(`${c.channel} reading is ${c.ageDays}d old`);
+    if (c.status === 'captured' && c.stale) {
+      const ch = opts.settingsChanges?.[c.channel];
+      warnings.push(c.superseded && ch
+        ? `${c.channel} reading ${supersessionReason(ch)} — re-probe before trusting it`
+        : `${c.channel} reading is ${c.ageDays}d old`);
+    }
     if (c.corrected) {
       const [lo, hi] = STANDING_DISCOUNT_BAND[c.channel] ?? [0, 0];
       warnings.push(`${c.channel} corrected by ${Math.round((STANDING_GUEST_DISCOUNT[c.channel] ?? 0) * 100)}% ` +

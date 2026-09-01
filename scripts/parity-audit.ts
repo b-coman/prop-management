@@ -18,16 +18,11 @@ import * as path from 'path';
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 import { latestByCell } from '@/services/growth/parityObservations';
 import { getChannels } from '@/services/channelService';
+import { isSuperseded, captureDay } from '@/lib/parity/supersession';
 
 const SLUG = process.argv[2] ?? 'prahova-mountain-chalet';
 
-const ymd = (v: unknown): string => {
-  if (typeof v === 'string') return v.slice(0, 10);
-  const o = v as { _seconds?: number; toDate?: () => Date };
-  if (o?._seconds) return new Date(o._seconds * 1000).toISOString().slice(0, 10);
-  if (o?.toDate) return o.toDate().toISOString().slice(0, 10);
-  return '';
-};
+
 
 (async () => {
   const today = new Date().toISOString().slice(0, 10);
@@ -39,11 +34,11 @@ const ymd = (v: unknown): string => {
 
   for (const o of obs) {
     const c = channels.byId.get(o.channel);
-    const when = ymd(o.capturedAt);
+    const when = captureDay(o.capturedAt);
     const chg = c?.discountsChangedAt;
     const reasons: string[] = [];
-    if (chg && o.nights >= chg.fromNights && when < chg.date) {
-      reasons.push(`${chg.note ?? 'discounts changed'} (${chg.date})`);
+    if (isSuperseded(o.capturedAt, o.nights, chg)) {
+      reasons.push(`${chg!.note ?? 'discounts changed'} (${chg!.date})`);
     }
     if (!reasons.length) { fresh++; continue; }
     rows.push({ ch: o.channel, why: reasons.join('; '),
@@ -66,7 +61,7 @@ const ymd = (v: unknown): string => {
   }
 
   // Oldest reading, whatever the reason - the ordinary staleness the skill's 4-6 week cadence covers.
-  const ages = obs.map((o) => ymd(o.capturedAt)).filter(Boolean).sort();
+  const ages = obs.map((o) => captureDay(o.capturedAt)).filter(Boolean).sort();
   if (ages.length) console.log(`  oldest reading of any kind: ${ages[0]}`);
   if (!rows.length) console.log('  Nothing is known to be superseded. A refresh would be cadence, not repair.');
   process.exit(0);

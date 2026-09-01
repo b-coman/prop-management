@@ -141,3 +141,63 @@ describe('summarise', () => {
     expect(s.totalUpliftAtTarget).toBe(0);
   });
 });
+
+/**
+ * A reading can be a day old and still be fiction. The board judged freshness purely by age, so on
+ * 2026-09-01 - the day the owner moved Booking's weekly discount, reactivated and raised its 4-day
+ * rate and set a 4-night minimum - six readings taken the previous afternoon counted as current.
+ * `parity-audit` could already see they were superseded; the screen could not, and the two views of
+ * the same store disagreed.
+ */
+describe('a reading that predates the owner\'s own settings change', () => {
+  const CHANGED: ParityViewOptions = {
+    ...OPTS,
+    settingsChanges: {
+      'booking.com': { date: '2026-08-29', fromNights: 4, note: 'Weekly 30%->25%; 4-day rate raised' },
+    },
+  };
+  const w = (obs: any[], nights = 4) => buildParityWindow(
+    { checkIn: '2026-10-24', checkOut: '2026-10-28', nights, guests: 3, observations: obs }, CHANGED);
+
+  const yesterday = '2026-08-28T16:00:00Z';
+
+  it('is set aside even though it reads as zero days old', () => {
+    const v = w([
+      { channel: 'direct', status: 'captured', guestTotal: 2281, capturedAt: fresh },
+      { channel: 'booking.com', status: 'captured', guestTotal: 2965, capturedAt: yesterday },
+    ]);
+    const bk = v.cells.find((c) => c.channel === 'booking.com')!;
+    expect(bk.ageDays).toBe(0);   // 20 hours ago: as fresh as the age test can measure
+    expect(bk.stale).toBe(true);
+    // It must not become the price the board steers by.
+    expect(v.best?.channel).not.toBe('booking.com');
+  });
+
+  it('says WHY, so the reader knows to re-probe rather than to wait for it to age out', () => {
+    const v = w([
+      { channel: 'direct', status: 'captured', guestTotal: 2281, capturedAt: fresh },
+      { channel: 'booking.com', status: 'captured', guestTotal: 2965, capturedAt: yesterday },
+    ]);
+    expect(v.warnings.some((x) => /predates your own change of 2026-08-29/.test(x))).toBe(true);
+  });
+
+  it('leaves shorter stays alone, because the change did not reach them', () => {
+    // The 4-day rate and the weekly bite from 4 nights up. A 2-night reading is untouched by it.
+    const v = buildParityWindow(
+      { checkIn: '2026-10-24', checkOut: '2026-10-26', nights: 2, guests: 3, observations: [
+        { channel: 'direct', status: 'captured', guestTotal: 1100, capturedAt: fresh },
+        { channel: 'booking.com', status: 'captured', guestTotal: 1400, capturedAt: yesterday },
+      ] }, CHANGED);
+    const bk = v.cells.find((c) => c.channel === 'booking.com')!;
+    expect(bk.stale).toBe(false);
+    expect(bk.effective).toBe(1400);
+  });
+
+  it('does not touch a channel with no recorded change', () => {
+    const v = w([
+      { channel: 'direct', status: 'captured', guestTotal: 2281, capturedAt: fresh },
+      { channel: 'airbnb', status: 'captured', guestTotal: 2369, capturedAt: yesterday },
+    ]);
+    expect(v.cells.find((c) => c.channel === 'airbnb')!.stale).toBe(false);
+  });
+});

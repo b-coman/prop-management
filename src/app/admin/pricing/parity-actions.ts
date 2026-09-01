@@ -11,7 +11,7 @@
  */
 import { loggers } from '@/lib/logger';
 import { requirePropertyAccess, AuthorizationError } from '@/lib/authorization';
-import { getParityConfig, getStandingDiscounts } from '@/services/channelService';
+import { getParityConfig, getStandingDiscounts, getSettingsChanges } from '@/services/channelService';
 import { latestByCell } from '@/services/growth/parityObservations';
 import { partiesFor, partyForGuests } from '@/lib/parity/party';
 import { buildParityWindow, summarise } from '@/lib/parity/parityView';
@@ -77,6 +77,9 @@ export async function fetchParityView(propertyId: string, opts?: { includeVrbo?:
     // assumed. The owner removed Airbnb's on 2026-09-01; a hardcoded constant would have kept
     // deducting it forever and gone on making Airbnb look cheaper than it is.
     const standingDiscounts = await getStandingDiscounts(propertyId);
+    // A reading taken before the owner changed that channel's own settings is not evidence, however
+    // recent it is. Without this the board scored six two-day-old Booking cells as current.
+    const settingsChanges = await getSettingsChanges(propertyId);
     const economics = Object.fromEntries(cfg.channels.map((c) => [c.channel, c]));
 
     const windows = [...byWindow.values()]
@@ -87,6 +90,7 @@ export async function fetchParityView(propertyId: string, opts?: { includeVrbo?:
         economics,
         channelsInScope: inScope,
         standingDiscounts,
+        settingsChanges,
       }))
       .sort((a, b) => {
         // Worst first, and within a verdict, soonest first — the thing you can still act on.

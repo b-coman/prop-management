@@ -9,7 +9,7 @@
  * Read-only. Touches no price.
  */
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
-import { getParityConfig, getStandingDiscounts } from '@/services/channelService';
+import { getParityConfig, getStandingDiscounts, getSettingsChanges } from '@/services/channelService';
 import { latestByCell } from '@/services/growth/parityObservations';
 import { partiesFor, partyForGuests } from '@/lib/parity/party';
 import { buildParityWindow } from '@/lib/parity/parityView';
@@ -61,7 +61,8 @@ export async function loadStays(pid = 'prahova-mountain-chalet') {
   const inScope = ['direct', ...cfg.channels.map((c) => c.channel)].filter((c) => c !== 'vrbo');
   const economics = Object.fromEntries(cfg.channels.map((c) => [c.channel, c]));
   const standingDiscounts = await getStandingDiscounts(pid);
-  const wins = [...byW.values()].map((w) => buildParityWindow(w, { freshnessDays: 42,
+  const settingsChanges = await getSettingsChanges(SLUG);
+  const wins = [...byW.values()].map((w) => buildParityWindow(w, { freshnessDays: 42, settingsChanges,
     targetDiscountPct: cfg.targetDiscountPct, direct: cfg.direct, economics, channelsInScope: inScope,
     standingDiscounts }));
 

@@ -23,7 +23,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
 import { getPeriods, upsertPeriods, compileAndWrite } from '@/services/periodService';
-import { getParityConfig, getStandingDiscounts } from '@/services/channelService';
+import { getParityConfig, getStandingDiscounts, getSettingsChanges } from '@/services/channelService';
 import { latestByCell } from '@/services/growth/parityObservations';
 import { partiesFor, partyForGuests } from '@/lib/parity/party';
 import { buildParityWindow } from '@/lib/parity/parityView';
@@ -108,7 +108,8 @@ const DROP_THRESHOLD = 3;
   }
   const inScope = ['direct', ...cfg.channels.map((c) => c.channel)].filter((c) => c !== 'vrbo');
   const standingDiscounts = await getStandingDiscounts(SLUG);
-  const wins = [...byW.values()].map((w) => buildParityWindow(w, { freshnessDays: 42,
+  const settingsChanges = await getSettingsChanges(SLUG);
+  const wins = [...byW.values()].map((w) => buildParityWindow(w, { freshnessDays: 42, settingsChanges,
     targetDiscountPct: cfg.targetDiscountPct, direct: cfg.direct,
     economics: Object.fromEntries(cfg.channels.map((c) => [c.channel, c])), channelsInScope: inScope,
     standingDiscounts }));

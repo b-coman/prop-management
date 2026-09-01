@@ -72,6 +72,16 @@ function __airbnb(t){
 // How many people the page itself says were searched for. Booking prints "4 adults · 2 children ·
 // 1 room", so the party never has to be threaded in from outside — and reading it here means the
 // capacity filter and the echo check agree by construction.
+function __bkNights(t){
+  // Booking writes "1 week, 2 adults, 1 child" at exactly seven nights and never the word "night";
+  // ten nights reads "10 nights". Anchored, and Booking-only: Airbnb pages say "2 weeks ago" in the
+  // reviews. See readBookingNights() in extract.ts for the full story.
+  var n=__count(t,'nights?')||__count(t,'nopt\\w*'); if(n) return n;
+  var W='(?:weeks?|s[\u0103a]pt[\u0103a]m[\u00e2a]n[\u0103i]\\w*)';
+  var m=t.match(new RegExp('\\b(\\d{1,2})\\s+'+W+'\\s*[,\u00b7]\\s*\\d{1,2}\\s*(?:adults?|adul[\u021bt]\\w*)','i'))
+     || t.match(new RegExp('(?:price for|pre[\u021bt]\\w*\\s+pentru)\\s+(\\d{1,2})\\s+'+W+'\\b','i'));
+  return m?Number(m[1])*7:null;
+}
 function __bookingWanted(t){
   var m=t.match(/(\d{1,2})\s*adults?\s*[·,]\s*(\d{1,2})\s*(?:children|child)/i);
   if(m) return Number(m[1])+Number(m[2]);
@@ -108,7 +118,7 @@ function __booking(t){
   return {state:'ok',total:best.cur,list:best.orig,currency:'RON',
           promo:best.orig!==null&&best.orig>best.cur,
           plan: nonRef&&!flex ? 'non-refundable' : (flex?'flexible':'unknown'),
-          nights:__count(t,'nights?'),guests:__count(t,'adults?|guests?'),
+          nights:__bkNights(t),guests:__count(t,'adults?|guests?'),
           needsSignIn:/(sign in to unlock|members?-only price)/i.test(t)};
 }
 function __extract(channel,t){

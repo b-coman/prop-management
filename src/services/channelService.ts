@@ -280,3 +280,23 @@ export async function getStandingDiscounts(propertyId: string): Promise<Record<s
       .map((c) => [c.channelId, c.standingGuestDiscountPct as number]),
   );
 }
+
+
+/**
+ * Per channel, the last recorded change to that channel's own settings.
+ *
+ * The companion to `getStandingDiscounts`, and here for the same reason: five call sites build parity
+ * windows, and a fact that has to be passed to each of them separately will eventually reach some and
+ * not others. This one decides whether a stored price still describes anything real, so the call site
+ * it fails to reach is the one that quietly prices off fiction.
+ */
+export async function getSettingsChanges(
+  propertyId: string,
+): Promise<Record<string, { date: string; fromNights: number; note?: string }>> {
+  const set = await getChannels(propertyId);
+  return Object.fromEntries(
+    [...set.byId.values()]
+      .filter((c) => c.discountsChangedAt)
+      .map((c) => [c.channelId, c.discountsChangedAt!]),
+  );
+}

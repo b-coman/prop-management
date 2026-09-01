@@ -46,6 +46,20 @@ const FIXTURES: Array<{ name: string; channel: Channel; text: string }> = [
     "Max persons: 4 Original price 2,872 lei Current price 2,181 lei ${pad}` },
   { name: 'booking bot check', channel: 'booking.com', text:
     `Please verify you are human before continuing ${pad}` },
+  // Live 13-20 Nov, 2 adults + 1 child. At exactly seven nights Booking stops counting nights and
+  // writes a week; the word "night" is nowhere on the page.
+  { name: 'booking seven nights is written "1 week"', channel: 'booking.com', text:
+    `Fully refundable (by Booking.com) before 6 November 2026 | 1 week, 2 adults, 1 child | ` +
+    `Max adults: 3 | Original price 4,565 lei Current price 3,144 lei | Price for 1 week ${pad}` },
+  // Same page at ten nights, which words it the ordinary way. The week reading must not win here.
+  { name: 'booking ten nights is still written "10 nights"', channel: 'booking.com', text:
+    `Free cancellation before 6 November 2026 | 10 nights, 2 adults, 1 child | Max adults: 3 | ` +
+    `Original price 6,120 lei Current price 4,480 lei | Price for 10 nights ${pad}` },
+  // Airbnb's review timestamps say "2 weeks ago". Reading a week form here would return 14 on a
+  // seven-night stay and throw the capture away on a correct echo check.
+  { name: 'airbnb "weeks ago" in reviews is not a stay length', channel: 'airbnb', text:
+    `7 nights in Comarnic | Nov 13, 2026 - Nov 20, 2026 | L 4,120 RON L 3,172 RON total | ` +
+    `CHECK-IN 11/13/2026 CHECKOUT 11/20/2026 GUESTS 3 guests | Superb 2 weeks ago 3 weeks ago ${pad}` },
 ];
 
 describe('in-page parser agrees with the TypeScript parser', () => {
@@ -81,6 +95,28 @@ describe('in-page parser agrees with the TypeScript parser', () => {
       expect(js.nights ?? null).toBe(ts.value.echo.nights);
       expect(js.guests ?? null).toBe(ts.value.echo.guests);
       expect(js.plan).toBe(ts.value.ratePlan);
+    });
+  }
+
+  /**
+   * The agreement test above cannot catch this class of bug on its own: when both parsers read no
+   * night count, they agree perfectly and the suite stays green, while every echo check downstream
+   * silently loses its only guard. So the night count is pinned to a number here.
+   */
+  const NIGHTS: Array<[string, number | null]> = [
+    ['booking seven nights is written "1 week"', 7],
+    ['booking ten nights is still written "10 nights"', 10],
+    ['airbnb "weeks ago" in reviews is not a stay length', 7],
+    ['booking live 25-28 Sep', 3],
+  ];
+  for (const [name, expected] of NIGHTS) {
+    it(`reads the stay length: ${name}`, () => {
+      const f = FIXTURES.find((x) => x.name === name)!;
+      const ts = extract(f.channel, f.text, { year: 2026 });
+      expect(ts.ok).toBe(true);
+      if (!ts.ok) return;
+      expect(ts.value.echo.nights).toBe(expected);
+      expect(inPageExtract(f.channel, f.text).nights ?? null).toBe(expected);
     });
   }
 
