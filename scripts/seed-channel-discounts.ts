@@ -51,7 +51,7 @@ const DATA: Record<string, {
     lengthOfStayDiscounts: [
       // Reactivated for Vacanta Toamna on 2026-09-01 - it had been switched off for that period
       // while Airbnb's equivalent stayed live, which is why Booking sat 25% above Airbnb there.
-      { nightsThreshold: 4, discountPercentage: 5, label: '4 day stay rate (flexible)' },
+      { nightsThreshold: 4, discountPercentage: 10, label: '4 day stay rate (flexible)' },
       { nightsThreshold: 7, discountPercentage: 25, label: 'Weekly rate (flexible)' },
       { nightsThreshold: 28, discountPercentage: 45, label: 'Monthly rate (NON-refundable)', nonRefundable: true },
     ],
@@ -61,7 +61,8 @@ const DATA: Record<string, {
       { label: 'Last Minute Deal', discountPercentage: 10, condition: '0-3 days before check-in — no bookings yet' },
     ],
     discountsChangedAt: { date: '2026-09-01', fromNights: 4,
-      note: 'Weekly 30%->25%, and the 4-day-stay rate reactivated for Vacanta Toamna' },
+      note: 'Weekly 30%->25%; 4-day-stay rate reactivated for Vacanta Toamna and raised 5%->10%; ' +
+            'minimum stay set to 4 nights in Vacanta Toamna (confirmed on the page 2026-09-01)' },
     cancellation: { flexibleUntilDaysBeforeCheckIn: 30, thenNonRefundable: true,
       note: 'Rate plans are "Flexible - 30 days"; inside 30 days every host row shows Non-refundable. ' +
             'Booking separately sells its OWN refundability ("Fully refundable (by Booking.com)") at a ' +
