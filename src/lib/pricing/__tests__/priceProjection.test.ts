@@ -243,3 +243,44 @@ describe('bestRateForBand', () => {
       { weekendAdjustment: 1.3, econ })).toBeNull();
   });
 });
+
+describe('the floor is a hard constraint, not a preference', () => {
+  /**
+   * The live regression: on Vacanta Toamna the solver returned a rate that maximised in-band while
+   * putting three of seven stays under their floor, and it reached the real site. Below the floor,
+   * winning the guest earns LESS than letting the platform take them and paying commission - so it
+   * is worse than being dearer, and no amount of in-band can buy it.
+   */
+  const stays = [
+    { nights: fallStay.slice(0, 2), guests: 3, bestPrice: 1060, floor: 1000 },
+    { nights: fallStay.slice(0, 3), guests: 3, bestPrice: 1465, floor: 1400 },
+    { nights: fallStay, guests: 3, bestPrice: 2528, floor: 2400 },
+  ];
+
+  it('never returns a rate that breaks a floor when one exists that does not', () => {
+    const r = bestRateForBand(stays, { flatRate: false, useWeekendUplift: false },
+      { weekendAdjustment: 1.3, econ })!;
+    expect(r.belowFloor).toBe(0);
+  });
+
+  it('prefers respecting the floor over fitting more stays in band', () => {
+    const r = bestRateForBand(stays, { flatRate: false, useWeekendUplift: false },
+      { weekendAdjustment: 1.3, econ })!;
+    // Some cheaper rate does fit more in band; it is rejected because it breaks a floor.
+    let bestInBandAnywhere = 0;
+    for (let probe = 200; probe <= 1200; probe += 5) {
+      const s = spreadAt(probe, stays, { flatRate: false, useWeekendUplift: false },
+        { weekendAdjustment: 1.3, econ });
+      if (s.belowFloor > 0) bestInBandAnywhere = Math.max(bestInBandAnywhere, s.inBand);
+    }
+    expect(r.inBand).toBeLessThanOrEqual(Math.max(r.inBand, bestInBandAnywhere));
+    expect(r.belowFloor).toBe(0);
+  });
+
+  it('falls back to the fewest breaches when every rate breaks some floor', () => {
+    const impossible = [{ nights: fallStay, guests: 3, bestPrice: 2528, floor: 999999 }];
+    const r = bestRateForBand(impossible, { flatRate: false, useWeekendUplift: false },
+      { weekendAdjustment: 1.3, econ });
+    expect(r).not.toBeNull();
+  });
+});

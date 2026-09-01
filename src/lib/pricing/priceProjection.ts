@@ -361,8 +361,19 @@ export const BAND = { lo: -0.10, hi: -0.01 } as const;
 /**
  * The weekday rate that holds the most measured stays inside the band.
  *
- * Ranked by: most stays IN BAND, then fewest where a platform is still cheaper, then fewest priced
- * under their floor.
+ * The FLOOR IS A HARD CONSTRAINT, not a preference. Below `indifferencePrice` the owner keeps less
+ * than if the platform had taken the booking and charged its commission - so winning that guest
+ * actively loses money, which is worse than being dearer and losing them. The ota-parity skill states
+ * it outright: "Never recommend pricing below indifferencePrice."
+ *
+ * Ranking it as a third-tier tiebreak was not enough. On Vacanta Toamna the solver returned 479,
+ * which maximised in-band while putting three of seven measured stays under their floor, and that
+ * rate was applied to the live site before the board surfaced it. Rates that break any floor are now
+ * excluded outright; only if NO rate clears every floor does it fall back to minimising breaches,
+ * because returning nothing would be worse than returning the least-bad answer.
+ *
+ * Among the rates that clear the floor, ranked by: most stays IN BAND, then fewest where a platform
+ * is still cheaper.
  *
  * Ranking on "dearer" first was too timid and it showed immediately on real data: to avoid a single
  * stay where Booking undercut him, Late Fall was cut from 420 to 357 a night, which put four of five
@@ -404,12 +415,14 @@ export function bestRateForBand(
     const dearer = gaps.filter((g) => g.gap > 0).length;
     const belowFloor = gaps.filter((g) => g.floor !== null && g.total < g.floor).length;
     const cand = { rate, inBand, dearer, belowFloor, gaps: gaps.map((g) => g.gap) };
-    if (!best
-      || cand.inBand > best.inBand
-      || (cand.inBand === best.inBand && cand.dearer < best.dearer)
-      || (cand.inBand === best.inBand && cand.dearer === best.dearer && cand.belowFloor < best.belowFloor)) {
-      best = cand;
-    }
+    // A rate that breaks a floor is not a candidate while any rate exists that does not.
+    const better = !best
+      || (best.belowFloor > 0 && cand.belowFloor === 0)
+      || (best.belowFloor > 0 && cand.belowFloor < best.belowFloor)
+      || ((cand.belowFloor === 0) === (best.belowFloor === 0)
+          && (cand.inBand > best.inBand
+              || (cand.inBand === best.inBand && cand.dearer < best.dearer)));
+    if (better) best = cand;
   }
   return best;
 }
