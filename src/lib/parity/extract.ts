@@ -61,7 +61,25 @@ export type PageState =
    * "similar listings" recommendations. A parser that fell back to "any RON figure on the page" would
    * capture a COMPETITOR's price and file it as this property's.
    */
-  | 'not-priced';
+  | 'not-priced'
+  /**
+   * The property will not take THIS PARTY — it is adults-only, or it bars children under an age we
+   * asked with. A REFUSAL, and the most dangerous state in this list, because the page still prints
+   * a full price beside the notice:
+   *
+   *   "Ooops! This is an adult-only property, so your children will have nowhere to sleep!"
+   *   "Ooops! Only children 12 years and older can stay here"
+   *
+   * Found live on 2026-09-02. Villa The Frame and AVA Chalet were both absent from the Booking
+   * SEARCH for 2 adults + 1 child, while their detail pages quoted 7,025 and 5,040 — and those two
+   * figures had been captured and stored as this party's price. The search was right and the detail
+   * page was misleading: Villa The Frame takes no children at all, and AVA Chalet none under 12
+   * against a probe that asked with a 10-year-old.
+   *
+   * Neither `no-availability` nor `min-stay` matches the wording, so without this the page reads as
+   * `priced` and a number nobody could ever book enters the store.
+   */
+  | 'party-not-accepted';
 
 const norm = (s: string) => s.replace(/ /g, ' ').replace(/[ \t]+/g, ' ');
 const excerptOf = (t: string, n = 600) => norm(t).slice(0, n);
@@ -107,6 +125,11 @@ export function classifyPage(text: string): PageState {
   if (/(minimum stay|minimum-night stay|min\.? stay|stay of \d+ nights? or more|sejur minim|you need to stay \d+\+? nights?|add an extra night to your search)/.test(t)) return 'min-stay';
   if (/(no availability|not available for|sold out|dates are not available|nu este disponibil|unavailable for your dates)/.test(t)) {
     return 'no-availability';
+  }
+  // The property will not take this party. Checked BEFORE `priced`, because the page prints a price
+  // beside the notice and would otherwise classify as a normal quote — see `party-not-accepted`.
+  if (/(adult-only property|adults[- ]only property|nowhere to sleep|only children \d{1,2} years? (?:and )?older|children (?:are )?not allowed|no children allowed)/.test(t)) {
+    return 'party-not-accepted';
   }
   // Dates applied but no quote returned. Checked AFTER unavailability, because a page can say both.
   if (/add dates for prices/.test(t)) return 'not-priced';

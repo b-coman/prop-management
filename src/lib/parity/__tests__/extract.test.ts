@@ -359,6 +359,47 @@ describe('the list price must come from beside the total, not from anywhere on t
   });
 });
 
+describe('a property that will not take the party is a REFUSAL, not a price', () => {
+  // 2026-09-02, live: Villa The Frame and AVA Chalet were both absent from the Booking SEARCH for
+  // 2 adults + 1 child, while their detail pages quoted 7,025 and 5,040 — and both figures had been
+  // captured and stored as this party's price. The search was right. The detail page prints a full
+  // price beside an "Ooops!" banner, so without this check the page reads as a normal quote and a
+  // number nobody could ever book enters the store.
+  const pad4 = ' '.repeat(300);
+
+  it('classifies an adults-only property as party-not-accepted, despite the price', () => {
+    const t = `Villa The Frame | Sat 24 Oct — Wed 28 Oct | 2 adults · 1 child · 1 room | ` +
+      `Ooops! This is an adult-only property, so your children will have nowhere to sleep! | ` +
+      `Price for 4 nights | Max adults: 8 | Original price 8,767 lei Current price 7,025 lei ${pad4}`;
+    expect(classifyPage(t)).toBe('party-not-accepted');
+    expect(extract('booking.com', t).ok).toBe(false);
+  });
+
+  it('classifies a child-age bar the same way', () => {
+    const t = `AVA Chalet | 2 adults · 1 child · 1 room | ` +
+      `Ooops! Only children 12 years and older can stay here | ` +
+      `Price for 4 nights | Max persons: 6 | Price 5,040 lei ${pad4}`;
+    expect(classifyPage(t)).toBe('party-not-accepted');
+    expect(extract('booking.com', t).ok).toBe(false);
+  });
+
+  it('does not fire on an ordinary page that merely mentions children', () => {
+    const t = `Vila Luna | 2 adults · 1 child · 1 room | Cot available on request | ` +
+      `Children of all ages are welcome | Price for 4 nights | Max persons: 11 | Price 4,180 lei ${pad4}`;
+    expect(classifyPage(t)).toBe('priced');
+    const r = extract('booking.com', t);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value.total).toBe(4180);
+  });
+
+  it('is checked before `priced`, so the price never wins', () => {
+    // The ordering is the whole point: both signals are on the page at once.
+    const t = `X | Ooops! This is an adult-only property, so your children will have nowhere to sleep! ` +
+      `| Price for 3 nights | Max persons: 4 | Price 1,000 lei ${pad4}`;
+    expect(classifyPage(t)).not.toBe('priced');
+  });
+});
+
 describe('the night count comes from the RATE TABLE, not the search header', () => {
   // 2026-09-02: a competitor's page echoed the requested 4 nights in its header while serving a
   // price block for a shorter stay. The echo check passed on the header and banked a wrong number;

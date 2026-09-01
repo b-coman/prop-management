@@ -46,6 +46,9 @@ function __classify(t){
   if(/(are you a robot|unusual traffic|verify you are human|captcha|security check)/.test(l)) return 'bot-check';
   if(/(minimum stay|minimum-night stay|min\.? stay|stay of \d+ nights? or more|sejur minim|you need to stay \d+\+? nights?|add an extra night to your search)/.test(l)) return 'min-stay';
   if(/(no availability|not available for|sold out|dates are not available|nu este disponibil|unavailable for your dates)/.test(l)) return 'no-availability';
+  // The property refuses THIS PARTY (adults-only, or a child-age bar) while still printing a price.
+  // Checked before 'priced'. See PageState.party-not-accepted in extract.ts for the live case.
+  if(/(adult-only property|adults[- ]only property|nowhere to sleep|only children \d{1,2} years? (?:and )?older|children (?:are )?not allowed|no children allowed)/.test(l)) return 'party-not-accepted';
   if(/add dates for prices/.test(l)) return 'not-priced';
   return 'priced';
 }

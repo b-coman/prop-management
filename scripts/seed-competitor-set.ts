@@ -198,6 +198,54 @@ const BOOKING_SET: Seed[] = [
       'Competes for the couple or 2+1 who choose setting and price over space — a real slice, since ' +
       '11% of our bookings are 1-2 people. Owner kept it in the set deliberately.',
   },
+  // Surfaced by the guest-facing search and added at the owner's request, 2026-09-02. Capacity is
+  // deliberately UNREAD on all five — they read '?' against every party until a probe fills them,
+  // which marks them probeworthy rather than pretending to know.
+  {
+    listingId: 'utopia-lake-view', displayName: 'Utopia Lake View',
+    channel: 'booking.com', url: BK('utopia-lake-view'), city: 'Comarnic', heroPhotoUrl: null,
+    units: [], propertyType: 'whole-house', distanceKm: null,
+    rating: 9.8, reviewCount: 78, qualityAsOf: '2026-09-02', amenities: [],
+    substitutionBasis:
+      'The closest of the search-surfaced candidates to our own product: 250 m², 6 beds, 9.8 on 78 ' +
+      'reviews, and it appeared in two of the three searches run. A whole place of our size or larger.',
+  },
+  {
+    listingId: 'maramures-nook', displayName: 'Maramureș Nook',
+    channel: 'booking.com', url: BK('maramures-nook'), city: 'Comarnic', heroPhotoUrl: null,
+    units: [], propertyType: 'whole-house', distanceKm: 1,
+    rating: null, reviewCount: null, qualityAsOf: '2026-09-02', amenities: [],
+    substitutionBasis:
+      '200 m², 5 beds, 1 km from the centre — the same shape of stay as ours and very close by. No ' +
+      'review score shown yet, so it is either new or low-volume; watch whether that changes.',
+  },
+  {
+    listingId: 'tetra-plus-569', displayName: 'TETRA Plus 569',
+    channel: 'booking.com', url: BK('tetra-plus-569'), city: 'Comarnic', heroPhotoUrl: null,
+    units: [], propertyType: 'other', distanceKm: null,
+    rating: 10, reviewCount: 56, qualityAsOf: '2026-09-02', amenities: [],
+    substitutionBasis:
+      'A perfect 10 on 56 reviews, 4 beds. Appears in the searches a guest actually runs for our ' +
+      'dates and party.',
+  },
+  {
+    listingId: 'zaivan-retreat', displayName: 'Zaivan Retreat',
+    channel: 'booking.com', url: BK('zaivan'), city: 'Comarnic', heroPhotoUrl: null,
+    units: [], propertyType: 'cabin', distanceKm: null,
+    rating: 9.9, reviewCount: 51, qualityAsOf: '2026-09-02', amenities: [],
+    substitutionBasis:
+      '9.9 on 51 reviews, 70 m², 4 beds. Smaller than us, but well reviewed and in the same results ' +
+      'a family sees.',
+  },
+  {
+    listingId: 'chalet-husky', displayName: 'Chalet Husky - Pet Friendly & Private',
+    channel: 'booking.com', url: BK('chalet-husky'), city: 'Comarnic', heroPhotoUrl: null,
+    units: [], propertyType: 'cabin', distanceKm: null,
+    rating: 9.8, reviewCount: 53, qualityAsOf: '2026-09-02', amenities: [],
+    substitutionBasis:
+      '9.8 on 53 reviews, 58 m². Leads on pet-friendly and privacy, which is a different hook from ' +
+      'ours — worth watching for the guest who is choosing on that rather than on space.',
+  },
   {
     listingId: 'moon-village', displayName: 'Moon Village Comarnic',
     channel: 'booking.com', url: BK('moon-village-comarnic'), city: 'Comarnic', heroPhotoUrl: null,

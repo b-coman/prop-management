@@ -1981,3 +1981,77 @@ proxy available for how many guests actually choose them:
 
 The three with 240-250 m² (Utopia Lake View, Casa Darul Bunicii, Casa Polen) are the closest in size to
 his 145 m² house among these. **The list proposes; he disposes (C1).**
+
+---
+
+## 24. Two absences, wrongly explained — and the third capture trap (2026-09-02)
+
+### 24.1 The reasoning error
+
+§22.5 predicted that comparables outside the searched town would not appear in a Comarnic search, and
+§23.2 assigned Villa The Frame's absence to exactly that. **Both were wrong**, and the owner corrected
+them:
+
+> *"Ghiosesti is in Comarnic. Even it wasn't [...] the search is returning a radius of around 10km. So
+> Villa The Frame is maybe absent because it didn't have availability for that period. You should be
+> thinking on that by yourself."*
+
+He is right on all three counts. Measured: Booking reports **"Comarnic: 15 properties found"** while
+rendering **25 cards** — the extra ten are the surrounding radius, and there is no pagination or "load
+more", so that page IS the whole result set.
+
+**The disconfirming evidence was already in hand and was explained away.** AVA Chalet is
+unambiguously in Comarnic and was *also* absent; §23.2 recorded that and waved it off as "may be
+beyond the first page" rather than treating it as a refutation. A hypothesis written into the design
+was allowed to survive a case it could not account for. The rule is the one already in the parity
+skill: **verify the premise; do not fit the observation to the expectation.**
+
+### 24.2 What was actually happening, and it is worse
+
+Searching for the property by name, for the same dates:
+
+> **Villa The Frame — "This property is unavailable on our site for your dates."**
+
+And on its own detail page, for those same dates, beside a full price:
+
+> **"Ooops! This is an adult-only property, so your children will have nowhere to sleep!"**
+
+AVA Chalet, same shape:
+
+> **"Ooops! Only children 12 years and older can stay here"** — probed with a 10-year-old.
+
+Neither is about location or pagination. **Both properties refuse the party**, the search correctly
+omits them, and **the detail page prints a full price anyway**. So two stored observations — 7,025 and
+5,040 — were prices for stays these properties will not sell to a family of three.
+
+### 24.3 The third capture trap, now closed
+
+`classifyPage` looked for `no availability`, `sold out`, `not available for`, `minimum stay`. The
+banner matches none of them, so the page read as `priced` and a number nobody could ever book entered
+the store.
+
+New `PageState`: **`party-not-accepted`**, checked BEFORE `priced` because both signals are on the page
+at once. Patterns cover the adults-only wording and the child-age bar. Both parsers changed together;
+four tests, including one asserting an ordinary page mentioning children and cots is unaffected.
+
+The two observations are corrected in the store to `refused`, with the banner quoted as the reason.
+
+**And a rule that generalises beyond this bug:** on Booking, *the search page is the authority on
+whether a property will take the party; the detail page is not.* The detail page answers "what does
+this unit cost", which is a different question and is silently wrong when the party is barred.
+
+### 24.4 The set is now 22 active
+
+Five added at the owner's request from the search-surfaced candidates, all with capacity deliberately
+UNREAD so they read `?` against every party until probed:
+
+| | reviews | note |
+|---|---|---|
+| Utopia Lake View | 78 | 250 m², 6 beds — closest of the candidates to our own product |
+| TETRA Plus 569 | 56 | perfect 10 |
+| Chalet Husky - Pet Friendly & Private | 53 | 58 m², leads on pet-friendly and privacy |
+| Zaivan Retreat | 51 | 70 m² |
+| Maramureș Nook | — | 200 m², 5 beds, 1 km from centre; no score yet |
+
+**Booking field: 15. Airbnb field: 7.** Nine of the fifteen Booking entries still have unread capacity,
+which is the honest state and the next thing a probe should fill.
