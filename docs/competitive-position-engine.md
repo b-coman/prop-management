@@ -2055,3 +2055,78 @@ UNREAD so they read `?` against every party until probed:
 
 **Booking field: 15. Airbnb field: 7.** Nine of the fifteen Booking entries still have unread capacity,
 which is the honest state and the next thing a probe should fill.
+
+---
+
+## 25. Capacities filled — and §14.2 had the source order backwards (2026-09-02)
+
+Seven listings carried unread capacity. Filling them overturned the rule §14.2 stated.
+
+### 25.1 `Max persons` is a LOWER BOUND that grows with the search
+
+Measured on ONE page, Chalet Husky, same dates:
+
+| searched | `Max persons` rows | bed configuration |
+|---|---|---|
+| 2 adults | 2 and 1 | unchanged |
+| 4 adults | **4 and 3** | unchanged |
+
+Booking renders rate rows around the party you asked for, so a small search only ever sees
+small-occupancy rows. §14.2 called the marker authoritative and put the bed count second; that was
+backwards. Vila Luna's `Max persons: 11` was right only because that probe happened to be large
+enough to surface the whole-house row.
+
+**All seven listings produced byte-identical per-unit bed counts at 2 adults and at 4.** The bed
+configuration is the invariant, so capacity per unit is now:
+
+```
+capacity = max(beds in this unit block, any Max marker in this block)
+```
+
+The marker can only ever RAISE a bed count, never lower it — a `Max persons: 1` row on a three-bed
+unit is a rate, not a capacity. That also stops `reconcile` rejecting good pairs over a field that
+moves by design: on the first attempt it correctly refused Chalet Husky and Maramureș Nook because the
+markers disagreed between reads.
+
+### 25.2 Beds must be counted PER BLOCK
+
+Summing the section is the §19.1 error wearing new clothes: it turned Moon Village's six tiny houses
+into one 22-person unit, Utopia into one of 31 and Zaivan into one of 58. Per-block counting reads them
+as what they are.
+
+A bed count is an **upper bound** on real capacity — our own listing counts to 9 beds against a stated
+max of 7, because bunks seat more than they sleep. That errs safely: it can over-include a comparable
+but can never invent a moat, and an over-included one is corrected by the probe that returns `refused`.
+
+### 25.3 What was actually there
+
+| listing | units | largest | note |
+|---|---|---|---|
+| Zaivan Retreat | 6 | **21** | Holiday Home 21 (350 m²), Four-Bedroom House 18 (250 m²) — a group venue |
+| Utopia Lake View | 4 | **15** | Superior Villa 15 (350 m²), Deluxe Villa 11 (250 m²) |
+| Moon Valley | 4 | 6 | Ostuni 4, Three-Bedroom Villa 6, Siena 2, Chianti 2 |
+| Moon Village | 6 | 5 | Calisto 5, Hyperion 5, Olympus 5, Loft 3, Jupiter 2, Juliet 2 |
+| Maramureș Nook | 1 | 5 | one 200 m² chalet |
+| Chalet Husky | 1 | 3 | one 58 m² chalet |
+| TETRA Plus 569 | 1 | 3 | one 45 m² house |
+
+The search cards had understated three of them badly — Utopia showed "6 beds", Zaivan "4 beds" — because
+a card shows the unit Booking surfaced for THAT party, not the property's largest. Another reason the
+search page is a candidate feed and the detail page is the capacity source.
+
+Moon Village's unit names (Calisto, Hyperion, Olympus, Jupiter, Juliet, Loft) confirm the owner's
+description exactly: a park of individually-named tiny houses, not a house.
+
+### 25.4 The set is complete
+
+```
+23 listings · 22 active · 21 verified · capacity UNREAD 0
+
+2a+1c   21/22 compete
+4a      18/22 compete
+4a+2c   12/22 compete
+```
+
+Only Pensiunea PIRI LAND (retired) remains unverified. Two things are still outstanding and both are
+the owner's: the fifteen-plus `substitutionBasis` corrections, and `heroPhotoUrl`, which the capacity
+pass did not collect.

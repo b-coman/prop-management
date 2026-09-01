@@ -219,15 +219,16 @@ describe('a page with no capacity marker falls back to beds', () => {
     expect(parseIdentity('booking.com', bare).state).toBe('no-capacity');
   });
 
-  // The live regression: three rooms of two, no capacity column, and the fallback happily summed
-  // beds across all of them into one 9-person unit. Inflating capacity invents competition for large
-  // parties that does not exist — the flattering direction, and the one nobody catches.
-  it('REFUSES the bed fallback on a multi-unit page rather than summing across units', () => {
+  // The live regression this fixture was written for: three rooms of two, no capacity column, and a
+  // section-wide bed sum reported one 9-person unit. Per-BLOCK counting reads it correctly as three
+  // rooms of two — better than the earlier refusal, and it never sums across units.
+  it('reads a multi-unit page with no capacity column as its actual units', () => {
     const id = parseIdentity('booking.com', MULTI_UNIT_NO_MARKER);
-    expect(id.state).toBe('no-capacity');
-    expect(id.units).toEqual([]);
-    // The bed total is still reported — it is evidence for a human, never a capacity.
+    expect(id.state).toBe('ok');
+    expect(id.units).toEqual([{ label: 'Double Room', maxPersons: 2, count: 3, sqm: 17 }]);
     expect(id.bedsTotal).toBe(6);
+    // and above all: never one imaginary unit the size of the whole property
+    expect(Math.max(...id.units.map((u) => u.maxPersons))).toBe(2);
   });
 
   it('still keeps rating and reviews from a page it refused capacity on', () => {
@@ -303,7 +304,11 @@ describe('reconcile — the two-occupancy self-check', () => {
   });
 
   it('discards capacity that MOVED between reads, and says why', () => {
-    const drifted = VILA_LUNA_8A.replace('Max persons: 11', 'Max persons: 6');
+    // Move the BED configuration, which is the field capacity is derived from — changing only the
+    // Max marker no longer moves capacity, because the marker can raise a bed count but not lower it.
+    const drifted = VILA_LUNA_8A
+      .replace('Bedroom 4: 1 large double bed', 'Bedroom 4: 1 single bed')
+      .replace('Max persons: 11', 'Max persons: 6');
     const r = reconcile({ a: at(8, VILA_LUNA_8A), b: at(6, drifted) });
     expect(r.ok).toBe(false);
     expect(r.moved).toContain('units');
@@ -360,5 +365,62 @@ describe('the in-page copy agrees with the Node parser on every fixture', () => 
     expect(inPageIdentity('booking.com', CLIFF).units).toHaveLength(3);
     expect(inPageIdentity('booking.com', FRAME).units[0].maxPersons).toBe(8);
     expect(inPageIdentity('airbnb', AIRBNB_AVA).units[0].maxPersons).toBe(6);
+  });
+});
+
+describe('Max persons is a LOWER bound that grows with the search; beds are invariant', () => {
+  // Measured live 2026-09-02 on ONE page: Chalet Husky read "Max persons: 2" searched with 2 adults
+  // and "Max persons: 4" searched with 4, while its bed configuration was byte-identical in both.
+  // §14.2 called the marker authoritative; it is not. Capacity is max(beds, marker), so the marker
+  // can only ever RAISE a bed count, never lower it — and reconcile therefore stops rejecting good
+  // pairs over a field that moves by design.
+  const page = (maxMarker: number) => `
+Chalet Husky, Şotrile, Romania
+Scored 9.8
+9.8
+Rated exceptional
+Exceptional
+53 reviews
+Select an accommodation type and how many you want to reserve.
+Chalet
+Bedroom 1: 1 large double bed
+Living room: 1 sofa bed
+58 m²
+Max persons: ${maxMarker}
+Price 1,200 lei
+${' '.repeat(300)}`;
+
+  it('reads the same capacity whichever occupancy was searched', () => {
+    const at2 = parseIdentity('booking.com', page(2));
+    const at4 = parseIdentity('booking.com', page(4));
+    expect(at2.units[0].maxPersons).toBe(3);   // 1 large double + 1 sofa
+    expect(at4.units[0].maxPersons).toBe(4);   // marker raises it; beds alone would say 3
+    // and the pair still reconciles on the stable part rather than being thrown away
+    expect(at2.bedsTotal).toBe(at4.bedsTotal);
+  });
+
+  it('never lets a small marker LOWER a bed count', () => {
+    // A 1-person marker on a 3-bed unit is a rate row, not the unit's capacity.
+    expect(parseIdentity('booking.com', page(1)).units[0].maxPersons).toBe(3);
+  });
+
+  it('counts beds per BLOCK, so a park is never one giant unit', () => {
+    const park = `
+Moon Village Comarnic, Comarnic, Romania
+Select an accommodation type and how many you want to reserve.
+Calisto
+Bedroom 1: 1 large double bed
+Living room: 1 sofa bed
+60 m²
+Price 900 lei
+Jupiter
+Bedroom 1: 1 large double bed
+24 m²
+Price 500 lei
+${' '.repeat(300)}`;
+    const id = parseIdentity('booking.com', park);
+    expect(id.units.map((u) => [u.label, u.maxPersons])).toEqual([['Calisto', 3], ['Jupiter', 2]]);
+    expect(id.bedsTotal).toBe(5);              // the section total is still reported...
+    expect(Math.max(...id.units.map((u) => u.maxPersons))).toBe(3);  // ...but is never a unit
   });
 });

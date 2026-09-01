@@ -150,6 +150,49 @@ function parseAirbnb(t: string): Identity {
   };
 }
 
+/**
+ * The unit table, built from PER-UNIT BLOCKS.
+ *
+ * 🔴 **`Max persons` is a LOWER BOUND that grows with the search.** Measured 2026-09-02 on the same
+ * page: Chalet Husky read `Max persons: 2` and `1` when searched with 2 adults, and `4` and `3` when
+ * searched with 4. Booking renders rate rows around the party you asked for, so a small search sees
+ * only small-occupancy rows. §14.2 called it authoritative and it is not — Vila Luna's `11` was
+ * correct only because that search happened to be large enough.
+ *
+ * The **bed configuration is invariant**: all seven listings probed at 2 and at 4 adults produced
+ * byte-identical per-unit bed counts. So capacity per unit is `max(beds in this block, any Max marker
+ * in this block)` — the bed count carries it, and the marker can only raise it.
+ *
+ * Counting beds must be PER BLOCK, never per section: summing the section turned Moon Village's six
+ * tiny houses into one 22-person unit, which is the §19.1 error in a new place.
+ *
+ * A bed count is an UPPER bound on real capacity (our own listing counts to 9 beds against a stated
+ * max of 7, because bunks sleep fewer than they seat). That errs in the safe direction: it can only
+ * over-include a comparable, never invent a moat, and an over-included one is corrected by the probe
+ * that comes back `refused`.
+ */
+function bookingUnits(seg: string): VerifiedUnit[] {
+  const titles: Array<{ at: number; name: string }> = [];
+  const re = /^([A-Z][^\n]{2,58})$/gm;
+  for (let m = re.exec(seg); m !== null; m = re.exec(seg)) {
+    if (!NOISE.test(m[1])) titles.push({ at: m.index, name: m[1].trim() });
+  }
+  const out: VerifiedUnit[] = [];
+  titles.forEach((p, k) => {
+    const body = seg.slice(p.at, k + 1 < titles.length ? titles[k + 1].at : seg.length);
+    const beds = countBeds(body);
+    if (!beds) return;   // a heading with no bed configuration is not a unit
+    const marker = [...body.matchAll(/Max\s*(?:persons?|adults?)\s*:?\s*(\d{1,2})(?:[^\d]{0,20}?Max\s*children\s*:?\s*(\d{1,2}))?/gi)]
+      .map((m) => Number(m[1]) + (m[2] === undefined ? 0 : Number(m[2])));
+    const cap = Math.max(beds, ...(marker.length ? marker : [0]));
+    const sqm = (body.match(/(\d+)\s*m²/) || [])[1];
+    const same = out.find((u) => u.label === p.name && u.maxPersons === cap);
+    if (same) same.count += 1;
+    else out.push({ label: p.name.slice(0, 60), maxPersons: cap, count: 1, sqm: sqm ? Number(sqm) : null });
+  });
+  return out;
+}
+
 function parseBooking(t: string): Identity {
   const { rating, reviewCount } = parseRatingBooking(t);
   const cityM = t.match(/,\s*\d{5,6}\s+([A-ZȘȚĂÎÂ][\w șțăîâ.-]+),\s*Romania/)
@@ -167,67 +210,12 @@ function parseBooking(t: string): Identity {
              units: [], bedsTotal: null, rating, reviewCount, city, echo };
   }
   const seg = t.slice(start);
-
-  // Rows are (unit x occupancy x rate plan), not units — the same trap `extract.ts` documents for
-  // prices. Group by the unit NAME and take the maximum capacity seen under it.
-  const capRe = /Max\s*(?:persons?|adults?)\s*:?\s*(\d{1,2})(?:[^\d]{0,20}?Max\s*children\s*:?\s*(\d{1,2}))?/gi;
-  const byName = new Map<string, VerifiedUnit>();
-  const order: string[] = [];
-  let last = 0;
-  let current: string | null = null;
-  for (let m = capRe.exec(seg); m !== null; m = capRe.exec(seg)) {
-    const before = seg.slice(last, m.index);
-    const names = (before.match(/^[A-Z][^\n]{2,58}$/gm) ?? []).filter((n) => !NOISE.test(n));
-    if (names.length) current = names[names.length - 1].trim();
-    const key = current ?? 'Unnamed unit';
-    const sqmM = (before.match(/(\d+)\s*m²/g) ?? []).pop();
-    const seats = Number(m[1]) + (m[2] === undefined ? 0 : Number(m[2]));
-    const existing = byName.get(key);
-    if (!existing) {
-      byName.set(key, { label: key, maxPersons: seats, count: 1, sqm: sqmM ? Number(sqmM.replace(/\D/g, '')) : null });
-      order.push(key);
-    } else {
-      // A second row under the same NAME with the same capacity is another unit of that type; a
-      // different capacity is the same unit priced for a smaller party, so only the max is capacity.
-      if (seats === existing.maxPersons) existing.count += 1;
-      existing.maxPersons = Math.max(existing.maxPersons, seats);
-      if (sqmM && existing.sqm === null) existing.sqm = Number(sqmM.replace(/\D/g, ''));
-    }
-    last = m.index + m[0].length;
-  }
-
+  const units = bookingUnits(seg);
   const bedsTotal = countBeds(seg) || null;
-  if (!order.length) {
-    // No capacity marker at all. Booking renders that column only where several rows must be told
-    // apart, so its absence is the NORMAL shape of a single-unit page (Villa The Frame has none) —
-    // but it is ALSO what a multi-unit page looks like at a small search occupancy.
-    //
-    // 🔴 The bed fallback counts beds across the WHOLE section, so firing it on a multi-unit page
-    // sums separate units into one imaginary large one. Measured live on 2026-09-01 at occupancy 1:
-    // Casutele de la Poienita (three rooms of two) came back as a single 9-person unit, and Casutele
-    // din Poienita as a single 12. That is the "village of villas read as one villa" error appearing
-    // inside the very module written to prevent it — and it inflates capacity, which invents
-    // competition for large parties that does not exist.
-    //
-    // So the fallback is allowed only when the section describes exactly ONE unit. More than one and
-    // we refuse: an unread capacity is recoverable, an invented one is not.
-    const headings = unitHeadings(seg);
-    if (headings.length > 1) {
-      return { state: 'no-capacity', units: [], bedsTotal, rating, reviewCount, city, echo };
-    }
-    if (!bedsTotal) return { state: 'no-capacity', units: [], bedsTotal: null, rating, reviewCount, city, echo };
-    const sqmM = (seg.slice(0, 1600).match(/(\d+)\s*m²/g) ?? []).pop();
-    return {
-      state: 'ok',
-      units: [{
-        label: headings[0] ?? 'Entire place',
-        maxPersons: bedsTotal, count: 1,
-        sqm: sqmM ? Number(sqmM.replace(/\D/g, '')) : null,
-      }],
-      bedsTotal, rating, reviewCount, city, echo,
-    };
+  if (!units.length) {
+    return { state: 'no-capacity', units: [], bedsTotal, rating, reviewCount, city, echo };
   }
-  return { state: 'ok', units: order.map((k) => byName.get(k)!), bedsTotal, rating, reviewCount, city, echo };
+  return { state: 'ok', units, bedsTotal, rating, reviewCount, city, echo };
 }
 
 export function parseIdentity(channel: VerifyChannel, rawText: string): Identity {
@@ -381,6 +369,23 @@ function __airbnb(t){
     bedsTotal:__beds(t)||null, rating:r?Number(r[1]):null,
     reviewCount:rv?Number(rv[1].replace(/,/g,'')):null, city:c?c[1].trim():null,
     echo:{sleeps:null,recommendedFor:null}};}
+function __bkUnits(seg){
+  var titles=[], re=/^([A-Z][^\n]{2,58})$/gm, m;
+  while((m=re.exec(seg))!==null){ if(!__NOISE.test(m[1])) titles.push({at:m.index,name:m[1].trim()}); }
+  var out=[];
+  titles.forEach(function(p,k){
+    var body=seg.slice(p.at, k+1<titles.length?titles[k+1].at:seg.length);
+    var b=__beds(body); if(!b) return;
+    var mk=/Max\s*(?:persons?|adults?)\s*:?\s*(\d{1,2})(?:[^\d]{0,20}?Max\s*children\s*:?\s*(\d{1,2}))?/gi, mm, best=0;
+    while((mm=mk.exec(body))!==null){ best=Math.max(best, Number(mm[1])+(mm[2]===undefined?0:Number(mm[2]))); }
+    var cap=Math.max(b,best);
+    var sq=(body.match(/(\d+)\s*m²/)||[])[1];
+    var same=out.filter(function(u){return u.label===p.name.slice(0,60)&&u.maxPersons===cap;})[0];
+    if(same) same.count+=1;
+    else out.push({label:p.name.slice(0,60),maxPersons:cap,count:1,sqm:sq?Number(sq):null});
+  });
+  return out;
+}
 function __booking(t){
   var rr=__bkRating(t);
   var cm=t.match(/,\s*\d{5,6}\s+([A-ZȘȚĂÎÂ][\w șțăîâ.-]+),\s*Romania/)||t.match(/([A-ZȘȚĂÎÂ][\w șțăîâ.-]+),\s*Romania/);
@@ -390,33 +395,10 @@ function __booking(t){
   var start=t.search(/Select an accommodation type|Select a room type|All available/i);
   if(start<0) return {state:__classify(t)==='ok'?'no-capacity':__classify(t),units:[],bedsTotal:null,rating:rr.rating,reviewCount:rr.reviewCount,city:city,echo:echo};
   var seg=t.slice(start);
-  var re=/Max\s*(?:persons?|adults?)\s*:?\s*(\d{1,2})(?:[^\d]{0,20}?Max\s*children\s*:?\s*(\d{1,2}))?/gi;
-  var m,last=0,cur=null,map={},order=[];
-  while((m=re.exec(seg))!==null){
-    var before=seg.slice(last,m.index);
-    var names=(before.match(/^[A-Z][^\n]{2,58}$/gm)||[]).filter(function(n){return !__NOISE.test(n);});
-    if(names.length) cur=names[names.length-1].trim();
-    var key=cur||'Unnamed unit';
-    var sq=(before.match(/(\d+)\s*m²/g)||[]).pop();
-    var seats=Number(m[1])+(m[2]===undefined?0:Number(m[2]));
-    if(!map[key]){map[key]={label:key,maxPersons:seats,count:1,sqm:sq?Number(sq.replace(/\D/g,'')):null};order.push(key);}
-    else{ if(seats===map[key].maxPersons) map[key].count+=1;
-          map[key].maxPersons=Math.max(map[key].maxPersons,seats);
-          if(sq&&map[key].sqm===null) map[key].sqm=Number(sq.replace(/\D/g,'')); }
-    last=m.index+m[0].length;
-  }
-  var bt=__beds(seg)||null;
-  if(!order.length){
-    // The bed fallback sums the WHOLE section, so on a multi-unit page it invents one giant unit.
-    // Allowed only when exactly one unit heading is present — see parseBooking for the live evidence.
-    var hd=__headings(seg);
-    if(hd.length>1) return {state:'no-capacity',units:[],bedsTotal:bt,rating:rr.rating,reviewCount:rr.reviewCount,city:city,echo:echo};
-    if(!bt) return {state:'no-capacity',units:[],bedsTotal:null,rating:rr.rating,reviewCount:rr.reviewCount,city:city,echo:echo};
-    var sq2=(seg.slice(0,1600).match(/(\d+)\s*m²/g)||[]).pop();
-    return {state:'ok',units:[{label:hd[0]||'Entire place',maxPersons:bt,count:1,sqm:sq2?Number(sq2.replace(/\D/g,'')):null}],
-            bedsTotal:bt,rating:rr.rating,reviewCount:rr.reviewCount,city:city,echo:echo};
-  }
-  return {state:'ok',units:order.map(function(k){return map[k];}),bedsTotal:bt,rating:rr.rating,reviewCount:rr.reviewCount,city:city,echo:echo};}
+  var u=__bkUnits(seg); var bt=__beds(seg)||null;
+  if(!u.length) return {state:'no-capacity',units:[],bedsTotal:bt,rating:rr.rating,reviewCount:rr.reviewCount,city:city,echo:echo};
+  return {state:'ok',units:u,bedsTotal:bt,rating:rr.rating,reviewCount:rr.reviewCount,city:city,echo:echo};
+}
 function __identity(channel,raw){
   var t=__norm(raw); var st=__classify(t);
   if(st!=='ok'){ var p = channel==='booking.com'?__bkRating(t):{rating:null,reviewCount:null};
