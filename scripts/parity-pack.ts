@@ -115,7 +115,7 @@ async function quoteDirect(propertyId: string, checkIn: string, checkOut: string
     console.log(`\nNOTE: active but no commission stated, so excluded from parity: ${parityConfig.unstated.join(', ')}`);
   }
   if (parityConfig.inactive.length) {
-    console.log(`NOTE: not selling on: ${parityConfig.inactive.map((c) => `${c.channelId} — ${c.reason ?? 'no reason recorded'}`).join('; ')}`);
+    if (!AS_JSON) console.log(`NOTE: not selling on: ${parityConfig.inactive.map((c) => `${c.channelId} — ${c.reason ?? 'no reason recorded'}`).join('; ')}`);
   }
 
   // Airbnb's listing id is recoverable from the iCal feed even when nothing else is configured.
@@ -446,7 +446,9 @@ async function quoteDirect(propertyId: string, checkIn: string, checkOut: string
 
   const byLabel = ONLY ? probes.filter((p) => p.label.toLowerCase().includes(ONLY.toLowerCase())) : probes;
   const scoped = byLabel.filter((p) => (!FROM || p.checkIn >= FROM) && (!TO || p.checkIn <= TO));
-  if (FROM || TO) {
+  // Never to stdout in JSON mode: a human-readable line here makes the output unparseable, which is
+  // exactly what it did the first time.
+  if ((FROM || TO) && !AS_JSON) {
     console.log(`SCOPE: check-in ${FROM ?? 'any'} to ${TO ?? 'any'} — ${scoped.length} of ${byLabel.length} probes\n`);
   }
   // Each probe costs a human a couple of page loads in the browser, so cap the run — high
