@@ -30,6 +30,8 @@ const arg = (n: string, d?: string) => {
 const SLUG = process.argv[2]?.startsWith('--') ? 'prahova-mountain-chalet' : (process.argv[2] ?? 'prahova-mountain-chalet');
 const MIN_NIGHTS = Number(arg('min-nights', '7'));
 const ONLY = arg('window');
+/** A whole date range, for when a CHANNEL SETTING changed for a period rather than a single stay. */
+const FROM = arg('from'); const TO = arg('to');
 const AS_JSON = process.argv.includes('--json');
 
 (async () => {
@@ -41,7 +43,9 @@ const AS_JSON = process.argv.includes('--json');
 
   const obs = [...(await latestByCell(SLUG)).values()]
     .filter((o) => o.checkOut >= today && o.channel !== 'direct' && o.nights >= MIN_NIGHTS)
-    .filter((o) => !ONLY || `${o.checkIn}:${o.checkOut}` === ONLY);
+    .filter((o) => !ONLY || `${o.checkIn}:${o.checkOut}` === ONLY)
+    .filter((o) => (!FROM || o.checkIn >= FROM) && (!TO || o.checkIn <= TO))
+    .filter((o) => o.channel !== 'vrbo');
 
   // One row per (window, party, channel) that a recorded discount change has invalidated.
   const rows: Array<Record<string, unknown>> = [];
