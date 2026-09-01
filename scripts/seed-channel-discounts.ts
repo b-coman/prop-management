@@ -20,6 +20,7 @@ const DATA: Record<string, {
   lengthOfStayDiscounts: Array<{ nightsThreshold: number; discountPercentage: number; label?: string; nonRefundable?: boolean }>;
   standingDeals: Array<{ label: string; discountPercentage: number; condition?: string }>;
   discountsChangedAt?: { date: string; fromNights: number; note?: string };
+  cancellation?: { flexibleUntilDaysBeforeCheckIn: number; thenNonRefundable: boolean; note?: string };
 }> = {
   airbnb: {
     lengthOfStayDiscounts: [
@@ -34,6 +35,8 @@ const DATA: Record<string, {
       { label: 'Early bird', discountPercentage: 5, condition: 'booked 2+ months before arrival' },
     ],
     discountsChangedAt: { date: '2026-09-01', fromNights: 7, note: 'Weekly moved from 20% to 25%' },
+    cancellation: { flexibleUntilDaysBeforeCheckIn: 30, thenNonRefundable: true,
+      note: 'Confirmed to the day: 13 Nov check-in showed "Free cancellation before October 14".' },
   },
   'booking.com': {
     lengthOfStayDiscounts: [
@@ -47,6 +50,10 @@ const DATA: Record<string, {
       { label: 'Last Minute Deal', discountPercentage: 10, condition: '0-3 days before check-in — no bookings yet' },
     ],
     discountsChangedAt: { date: '2026-09-01', fromNights: 7, note: 'Weekly moved from 30% to 25%' },
+    cancellation: { flexibleUntilDaysBeforeCheckIn: 30, thenNonRefundable: true,
+      note: 'Rate plans are "Flexible - 30 days"; inside 30 days every host row shows Non-refundable. ' +
+            'Booking separately sells its OWN refundability ("Fully refundable (by Booking.com)") at a ' +
+            'premium: 3,894 against 3,248 on 22-29 Sep, so its guests pay ~20% for flexibility.' },
   },
 };
 
