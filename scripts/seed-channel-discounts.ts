@@ -38,6 +38,15 @@ const DATA: Record<string, {
     cancellation: { flexibleUntilDaysBeforeCheckIn: 30, thenNonRefundable: true,
       note: 'Confirmed to the day: 13 Nov check-in showed "Free cancellation before October 14".' },
   },
+  direct: {
+    // The owner aligned the direct site to the platforms on 2026-09-01 (was: full refund up to 1 day
+    // before arrival). Recorded so the parity engine can tell a like-for-like comparison from one
+    // where direct is quietly selling a better product.
+    lengthOfStayDiscounts: [],
+    standingDeals: [],
+    cancellation: { flexibleUntilDaysBeforeCheckIn: 30, thenNonRefundable: true,
+      note: 'Aligned with Airbnb and Booking on 2026-09-01 by owner decision.' },
+  },
   'booking.com': {
     lengthOfStayDiscounts: [
       { nightsThreshold: 4, discountPercentage: 5, label: '4 day stay rate (flexible)' },

@@ -274,10 +274,22 @@
             "ro": "Dormitor la etaj cu pat dublu king-size, pereți îmbrăcați în lemn, dulapuri și un balcon privat cu scaune și măsuță de cafea."
           },
           "features": [
-            { "en": "King Bed", "ro": "Pat King-Size" },
-            { "en": "Private Balcony", "ro": "Balcon Privat" },
-            { "en": "Wood-Clad Walls", "ro": "Pereți din Lemn" },
-            { "en": "Mountain View", "ro": "Vedere la Munte" }
+            {
+              "en": "King Bed",
+              "ro": "Pat King-Size"
+            },
+            {
+              "en": "Private Balcony",
+              "ro": "Balcon Privat"
+            },
+            {
+              "en": "Wood-Clad Walls",
+              "ro": "Pereți din Lemn"
+            },
+            {
+              "en": "Mountain View",
+              "ro": "Vedere la Munte"
+            }
           ],
           "image": "/images/properties/prahova-mountain-chalet/IMG_3864.jpg"
         },
@@ -291,9 +303,18 @@
             "ro": "Dormitor la parter, cu un pat dublu și un pat supraetajat, ideal pentru 3-4 persoane. Gândit pentru vizite cu prietenii, cu o atmosferă caldă și primitoare."
           },
           "features": [
-            { "en": "Double Bed", "ro": "Pat Dublu" },
-            { "en": "Bunk Bed", "ro": "Pat Supraetajat" },
-            { "en": "Sleeps 3-4", "ro": "3-4 Persoane" }
+            {
+              "en": "Double Bed",
+              "ro": "Pat Dublu"
+            },
+            {
+              "en": "Bunk Bed",
+              "ro": "Pat Supraetajat"
+            },
+            {
+              "en": "Sleeps 3-4",
+              "ro": "3-4 Persoane"
+            }
           ],
           "image": "/images/properties/prahova-mountain-chalet/IMG_3868.jpg"
         },
@@ -307,10 +328,22 @@
             "ro": "Cameră la etaj cu pat supraetajat, birou, leagăn, jucării și perne — ideală pentru copii și confortabilă pentru un adult. Vă rugăm să nu folosiți patul de sus dacă aveți peste 50 kg."
           },
           "features": [
-            { "en": "Bunk Bed", "ro": "Pat Supraetajat" },
-            { "en": "Desk", "ro": "Birou" },
-            { "en": "Toys & Games", "ro": "Jucării" },
-            { "en": "Indoor Swing", "ro": "Leagăn" }
+            {
+              "en": "Bunk Bed",
+              "ro": "Pat Supraetajat"
+            },
+            {
+              "en": "Desk",
+              "ro": "Birou"
+            },
+            {
+              "en": "Toys & Games",
+              "ro": "Jucării"
+            },
+            {
+              "en": "Indoor Swing",
+              "ro": "Leagăn"
+            }
           ],
           "image": "/images/properties/prahova-mountain-chalet/IMG_3868.jpg"
         },
@@ -324,11 +357,26 @@
             "ro": "Sufragerie spațioasă cu șemineu, TV, sistem audio, jocuri de societate și o colecție de cărți. Bucătăria modernă și zona de dining acomodează confortabil familii, cu loc la masă pentru cinci persoane și scaune suplimentare pe terasă."
           },
           "features": [
-            { "en": "Fireplace", "ro": "Șemineu" },
-            { "en": "Smart TV & Apple TV", "ro": "Smart TV și Apple TV" },
-            { "en": "Apple HomePods", "ro": "Apple HomePods" },
-            { "en": "Full Kitchen", "ro": "Bucătărie Completă" },
-            { "en": "Dining for 5+", "ro": "Loc de Masă 5+" }
+            {
+              "en": "Fireplace",
+              "ro": "Șemineu"
+            },
+            {
+              "en": "Smart TV & Apple TV",
+              "ro": "Smart TV și Apple TV"
+            },
+            {
+              "en": "Apple HomePods",
+              "ro": "Apple HomePods"
+            },
+            {
+              "en": "Full Kitchen",
+              "ro": "Bucătărie Completă"
+            },
+            {
+              "en": "Dining for 5+",
+              "ro": "Loc de Masă 5+"
+            }
           ],
           "image": "/images/properties/prahova-mountain-chalet/IMG_3889.jpg"
         }
@@ -341,28 +389,55 @@
       },
       "specifications": [
         {
-          "name": { "en": "Bedrooms", "ro": "Dormitoare" },
+          "name": {
+            "en": "Bedrooms",
+            "ro": "Dormitoare"
+          },
           "value": "3"
         },
         {
-          "name": { "en": "Bathrooms", "ro": "Băi" },
+          "name": {
+            "en": "Bathrooms",
+            "ro": "Băi"
+          },
           "value": "2"
         },
         {
-          "name": { "en": "Max Guests", "ro": "Capacitate Maximă" },
+          "name": {
+            "en": "Max Guests",
+            "ro": "Capacitate Maximă"
+          },
           "value": "6"
         },
         {
-          "name": { "en": "Internet", "ro": "Internet" },
-          "value": { "en": "High-speed fibre, Wi-Fi 6", "ro": "Fibră optică, Wi-Fi 6" }
+          "name": {
+            "en": "Internet",
+            "ro": "Internet"
+          },
+          "value": {
+            "en": "High-speed fibre, Wi-Fi 6",
+            "ro": "Fibră optică, Wi-Fi 6"
+          }
         },
         {
-          "name": { "en": "Heating", "ro": "Încălzire" },
-          "value": { "en": "Automated gas boiler, smart thermostats", "ro": "Centrală pe gaz automată, termostate inteligente" }
+          "name": {
+            "en": "Heating",
+            "ro": "Încălzire"
+          },
+          "value": {
+            "en": "Automated gas boiler, smart thermostats",
+            "ro": "Centrală pe gaz automată, termostate inteligente"
+          }
         },
         {
-          "name": { "en": "Parking", "ro": "Parcare" },
-          "value": { "en": "Free, on the street in front of the property", "ro": "Gratuită, pe stradă în fața proprietății" }
+          "name": {
+            "en": "Parking",
+            "ro": "Parcare"
+          },
+          "value": {
+            "en": "Free, on the street in front of the property",
+            "ro": "Gratuită, pe stradă în fața proprietății"
+          }
         }
       ]
     }
@@ -480,27 +555,54 @@
         {
           "place": "Sinaia",
           "distance": "25 km",
-          "time": { "en": "30 min by car", "ro": "30 min cu mașina" }
+          "time": {
+            "en": "30 min by car",
+            "ro": "30 min cu mașina"
+          }
         },
         {
-          "place": { "en": "Brasov", "ro": "Brașov" },
+          "place": {
+            "en": "Brasov",
+            "ro": "Brașov"
+          },
           "distance": "90 km",
-          "time": { "en": "1.5 hours by car", "ro": "1,5 ore cu mașina" }
+          "time": {
+            "en": "1.5 hours by car",
+            "ro": "1,5 ore cu mașina"
+          }
         },
         {
-          "place": { "en": "Bucharest", "ro": "București" },
+          "place": {
+            "en": "Bucharest",
+            "ro": "București"
+          },
           "distance": "120 km",
-          "time": { "en": "2 hours by car", "ro": "2 ore cu mașina" }
+          "time": {
+            "en": "2 hours by car",
+            "ro": "2 ore cu mașina"
+          }
         },
         {
-          "place": { "en": "Bran Castle", "ro": "Castelul Bran" },
+          "place": {
+            "en": "Bran Castle",
+            "ro": "Castelul Bran"
+          },
           "distance": "120 km",
-          "time": { "en": "2.5 hours by car", "ro": "2,5 ore cu mașina" }
+          "time": {
+            "en": "2.5 hours by car",
+            "ro": "2,5 ore cu mașina"
+          }
         },
         {
-          "place": { "en": "Paltinul Lake", "ro": "Lacul Paltinu" },
+          "place": {
+            "en": "Paltinul Lake",
+            "ro": "Lacul Paltinu"
+          },
           "distance": "15 km",
-          "time": { "en": "30 min by car", "ro": "30 min cu mașina" }
+          "time": {
+            "en": "30 min by car",
+            "ro": "30 min cu mașina"
+          }
         }
       ]
     }
@@ -588,8 +690,8 @@
             "ro": "Politica de Anulare"
           },
           "description": {
-            "en": "Free cancellation up to 7 days before check-in. Cancellations made within 7 days of check-in receive a 30% refund.",
-            "ro": "Anulare gratuită cu până la 7 zile înainte de check-in. Anulările făcute în ultimele 7 zile primesc o rambursare de 30%."
+            "en": "Free cancellation up to 30 days before check-in. Within 30 days of check-in the booking is non-refundable.",
+            "ro": "Anulare gratuită cu până la 30 de zile înainte de check-in. În ultimele 30 de zile înainte de check-in, rezervarea nu se mai rambursează."
           }
         },
         {
