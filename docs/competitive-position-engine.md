@@ -2201,16 +2201,20 @@ for whatever it does not surface.
 §13.7's `Hosting-<id>` check treated Villa The Frame's Airbnb photo as merely `capture-context`. Its
 path actually reads `Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTA0Ni…`, which decodes to
 `StaySupplyListing:1046394696894549540` — the id is there, base64-encoded. The check now decodes that
-form, so a self-verifying photo is no longer recorded as unverified. Seven of the twenty-three are now
-provably of the listing they are filed under; the rest are trusted by capture context, which is the
-honest label for a bare uuid.
+form, so a self-verifying photo is no longer recorded as unverified.
+
+**Six** of the twenty-three are provably of the listing they are filed under — the six Airbnb listings
+whose paths carry the id, plainly or encoded. The other seventeen are `capture-context`: all sixteen
+Booking thumbnails (bstatic paths carry a photo id, never a property id) and Ceas cu Cuc, whose older
+Airbnb listing uses a bare uuid. That is the honest split, and it is a property of how each platform
+names files rather than anything about the photos.
 
 ### 26.4 The set is complete
 
 ```
 23 listings · 22 active · 1 retired
 verified   23/23
-photos     23/23   (7 id-matched, 16 capture-context)
+photos     23/23   (6 id-matched, 17 capture-context)
 capacity    0 unread
 substitutionBasis  0 still drafted
 ```
