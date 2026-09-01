@@ -73,6 +73,9 @@ function __airbnb(t){
 // 1 room", so the party never has to be threaded in from outside — and reading it here means the
 // capacity filter and the echo check agree by construction.
 function __bkNights(t){
+  // Prefer the RATE TABLE's own heading over the search header: the two can disagree, and when they
+  // do it is the header that lies. See readBookingNights() in extract.ts for the live case.
+  var rt=t.match(/price\s+for\s+(\d{1,2})\s+nights?/i); if(rt) return Number(rt[1]);
   // Booking writes "1 week, 2 adults, 1 child" at exactly seven nights and never the word "night";
   // ten nights reads "10 nights". Anchored, and Booking-only: Airbnb pages say "2 weeks ago" in the
   // reviews. See readBookingNights() in extract.ts for the full story.

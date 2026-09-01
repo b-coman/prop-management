@@ -359,6 +359,40 @@ describe('the list price must come from beside the total, not from anywhere on t
   });
 });
 
+describe('the night count comes from the RATE TABLE, not the search header', () => {
+  // 2026-09-02: a competitor's page echoed the requested 4 nights in its header while serving a
+  // price block for a shorter stay. The echo check passed on the header and banked a wrong number;
+  // it only surfaced because the identical total had been captured for a 3-night window, which is
+  // impossible across two stay lengths. The rate table carries its own heading, so a stale table
+  // now carries a stale heading and the mismatch is caught.
+  const pad3 = ' '.repeat(300);
+
+  it('prefers "Price for N nights" over a bare "N nights" elsewhere on the page', () => {
+    const r = extract('booking.com', `7 nights in Comarnic | 2 adults · 1 child | ` +
+      `Price for 3 nights | Max persons: 6 | Price 5,395 lei ${pad3}`);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value.echo.nights).toBe(3);
+  });
+
+  it('lets the caller catch a header/table disagreement instead of banking it', () => {
+    const r = extract('booking.com', `4 nights in Comarnic | 2 adults · 1 child | ` +
+      `Price for 3 nights | Max persons: 6 | Price 5,395 lei ${pad3}`);
+    expect(r.ok).toBe(true);
+    // The probe asked for 4; the table says it is quoting 3. verifyEcho must reject it.
+    if (r.ok) {
+      expect(r.value.echo.nights).toBe(3);
+      expect(verifyEcho(r.value, { nights: 4, guests: 3 }).ok).toBe(false);
+    }
+  });
+
+  it('still reads a plain page where header and table agree', () => {
+    const r = extract('booking.com', `2 adults · 1 child | Price for 4 nights | ` +
+      `Max persons: 6 | Price 7,025 lei ${pad3}`);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value.echo.nights).toBe(4);
+  });
+});
+
 describe('an UNDISCOUNTED Booking page still yields a price', () => {
   // Found live on 2026-09-01: four comparables at once came back "no price rows found". Booking
   // prints "Price 4,180 lei" when there is no promo, and the only fallback expected the currency

@@ -74,6 +74,7 @@ const money = (n: number) => Math.round(n).toLocaleString('en-US');
         listingId: l.listingId, displayName: l.displayName, status: o.status,
         guestTotal: o.guestTotal, listTotal: o.listTotal, promoActive: o.promoActive,
         reason: o.reason, capturedAt: o.capturedAt,
+        programApplied: o.session?.programApplied,
         rating: l.rating, reviewCount: l.reviewCount, largestUnit: largestUnit(l) || null,
       });
     }
@@ -84,6 +85,10 @@ const money = (n: number) => Math.round(n).toLocaleString('en-US');
       ourChannelPrice: mine?.status === 'captured' ? mine.guestTotal : null,
       ourDirectPrice: ourDirect,
       ourRating: prop?.rating ?? null, ourReviewCount: prop?.reviewCount ?? null,
+      ourProgramApplied: mine?.session?.programApplied
+        // Older self-captures predate the structured session; fall back to the prose, which for this
+        // property states Genius explicitly when it applied.
+        ?? /genius[^.]{0,30}applied|Genius \d+% applied/i.test(mine?.sessionState ?? ''),
       quotes, outOfSet, now,
     });
 

@@ -150,3 +150,34 @@ describe('staleness is part of the reading', () => {
     expect(p.sample.oldestAgeDays).toBe(12);
   });
 });
+
+describe('a member price against anonymous prices is not a comparison', () => {
+  // 2026-09-02: his Booking price carried a 12% Genius discount while five of six comparables'
+  // prices did not — two of those properties do not offer Genius at all. The engine does not guess
+  // what his anonymous price would be; it says the comparison is not like-for-like.
+  const q3 = [q('a', 3000), q('b', 4000), q('c', 5000)];
+
+  it('flags when ours carries a programme discount and theirs mostly do not', () => {
+    const p = buildPosition({ ...base, channel: 'booking.com', ourProgramApplied: true, quotes: q3 });
+    expect(p.flags.join(' ')).toMatch(/NOT LIKE-FOR-LIKE/);
+    expect(p.flags.join(' ')).toMatch(/only 0 of 3/);
+  });
+
+  it('stays silent when the whole field carries it too', () => {
+    const p = buildPosition({ ...base, channel: 'booking.com', ourProgramApplied: true,
+      quotes: q3.map((x) => ({ ...x, programApplied: true })) });
+    expect(p.flags.join(' ')).not.toMatch(/LIKE-FOR-LIKE/);
+  });
+
+  it('stays silent when ours carries no programme discount', () => {
+    const p = buildPosition({ ...base, channel: 'airbnb', ourProgramApplied: false, quotes: q3 });
+    expect(p.flags.join(' ')).not.toMatch(/LIKE-FOR-LIKE/);
+  });
+
+  it('does NOT adjust the band or the rank — it only says so', () => {
+    const flagged = buildPosition({ ...base, ourProgramApplied: true, quotes: q3 });
+    const plain = buildPosition({ ...base, ourProgramApplied: false, quotes: q3 });
+    expect(flagged.band).toEqual(plain.band);
+    expect(flagged.rank).toEqual(plain.rank);
+  });
+});

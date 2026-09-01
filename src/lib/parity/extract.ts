@@ -412,7 +412,21 @@ export function extractBooking(text: string, opts?: { year?: number; guests?: nu
  * An unanchored reading there would have returned 14 nights on a seven-night stay and thrown away a
  * good capture. Airbnb states "7 nights in Comarnic" and needs none of this.
  */
+/**
+ * How many nights the RATE TABLE is quoting — not how many the page header says.
+ *
+ * The distinction is the whole point. Booking's search header and its rate table can disagree: on
+ * 2026-09-02 a competitor's page echoed the requested 4 nights in the header while serving a price
+ * block belonging to a different, shorter stay. The echo check passed on the header and a wrong
+ * number was banked — it only surfaced because the same figure had been captured for a 3-night
+ * window and an identical total across two stay lengths is impossible.
+ *
+ * `Price for N nights` is the rate table's OWN heading, so a stale table carries a stale heading and
+ * the mismatch is caught. It is preferred over any bare "N nights" on the page for that reason.
+ */
 function readBookingNights(t: string): number | null {
+  const fromRateTable = t.match(/price\s+for\s+(\d{1,2})\s+nights?/i);
+  if (fromRateTable) return Number(fromRateTable[1]);
   const nights = readCount(t, 'nights?') ?? readCount(t, 'nopt\\w*');
   if (nights !== null) return nights;
   const WEEK = String.raw`(?:weeks?|s[\u0103a]pt[\u0103a]m[\u00e2a]n[\u0103i]\w*)`;

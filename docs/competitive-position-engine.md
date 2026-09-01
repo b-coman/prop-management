@@ -1683,3 +1683,103 @@ Two caveats, both real:
 **And a question this raises rather than answers, which is the owner's alone (C2):** being at 60% of
 the median while the set sells is a different situation from being at 60% while nobody sells. The
 second reading tells them apart. Nothing here recommends a price, and no solver reads this data.
+
+---
+
+## 21. Reliability audit (2026-09-02)
+
+The owner: *"I really want reliable data. If the data is wrong, I'll act on a wrong foundation."*
+
+A second reading one day after the first says nothing useful about absorption — but it is exactly the
+right instrument for reliability, because a price that does not reproduce overnight is a price that
+was never read correctly. Every comparable was re-probed on the same window.
+
+### 21.1 Reproducibility: 11 of 12
+
+| field | reproduced exactly |
+|---|---|
+| Airbnb | **6 of 6** — 2,438 · 2,702 · 3,520 · 4,684 · 4,594 · 5,705, all unchanged |
+| Booking | **5 of 6** — 5,040 · 2,803 · 3,600 · 4,180 · 5,320 unchanged |
+| our own Booking price | 2,719, unchanged |
+
+**The failure: Villa The Frame (Booking).** Recorded 5,887 → 4,752 on 2026-09-01; reads
+8,767 → 7,025 today, a 48% difference. It is not a repricing:
+
+> The 2026-09-01 capture recorded **the identical pair, 5,887 → 4,752, for the 19-22 Oct window AND
+> for 24-28 Oct** — a 3-night and a 4-night stay at the same total. That is impossible. Today the two
+> windows read differently from each other (5,395 and 7,025), which is what a real price does.
+
+So the page served a price block belonging to a different stay while its header echoed the requested
+dates. Corrected in the store; the append-only history keeps both, and the newest wins.
+
+### 21.2 Why the echo check did not catch it
+
+`verifyEcho` compared the nights and guests **the page header states** against the probe. The header
+had updated; only the rate table was stale. The check passed on a page that was lying below the fold.
+
+**Fixed:** `readBookingNights` now prefers **`Price for N nights`** — the rate table's OWN heading —
+over any bare "N nights" elsewhere on the page. A stale table now carries a stale heading, and the
+mismatch is caught. Both parsers changed together; three regression tests, one of which asserts
+`verifyEcho` rejects a header/table disagreement.
+
+*A near-miss worth recording: the first patch landed in `extract.ts` and silently failed to apply to
+`inPage.ts`. The agreement test stayed green because no fixture exercised the new branch — two
+parsers that both ignore a rule agree perfectly. The fixture was added at the same time as the fix.*
+
+### 21.3 The larger problem: I fabricated a field
+
+Recording the first batch, I set `session.programApplied: false` on **every** competitor row and
+`loggedIn: false` on every Airbnb row. **I measured neither.** I filled in a structured field with a
+plausible default, which is precisely the failure the session field exists to prevent — the
+observation then *looks* like evidence about how the price was read.
+
+What the measurement actually shows:
+
+| listing | Booking Genius |
+|---|---|
+| **our own listing** | **12% Genius applied** ("applied to the price before taxes and charges", Genius L3) |
+| Villa The Frame | Genius applied |
+| Vila Luna · The Cliff Village | property offers **no** Genius rewards at all |
+| AVA Chalet · Cozy A-Frame Ayda · Casutele din | Genius not applied (Ayda's 5% is a property promo) |
+
+And Airbnb was **logged in as host**, not logged out.
+
+So **our Booking price is a member rate and five of six comparables' are anonymous.** That is not a
+like-for-like comparison, and it flatters us by an unknown amount. The engine does not guess what the
+anonymous price would be — inventing that number is the same class of error — it says so:
+
+```
+! NOT LIKE-FOR-LIKE: our booking.com price carries a loyalty discount, and only 1 of 6
+  comparables' prices do. Ours is a member rate; theirs are mostly anonymous, so our
+  position here is flattered by an unknown amount.
+```
+
+Four tests, including one asserting the flag **does not adjust** the band or the rank.
+
+### 21.4 The corrected reading
+
+```
+AIRBNB       6 of 7 · solid              BOOKING.COM   6 of 8 · solid
+  the set    2,438 - 5,705  median 4,057   the set     2,803 - 7,025  median 4,610
+  you        2,369  ->  1 of 7             you         2,719  ->  1 of 7   [NOT LIKE-FOR-LIKE]
+```
+
+**Airbnb is unchanged and trustworthy**: 6 of 6 reproduced, no loyalty programme in play, and the
+owner's standing guest discount is 0. He is the cheapest listing in that field.
+
+**Booking now reads differently in one respect and the same in another.** Correcting Villa The Frame
+moved the top of the band from 5,320 to 7,025 and the median from 4,466 to 4,610 — the field is
+*dearer* than first reported, not cheaper. But the Genius finding means his rank of 1 is **not
+established**: his 2,719 is a member price against mostly anonymous ones, and his own pre-discount
+figure on the page is 3,200, which would place him behind Cozy A-Frame Ayda at 2,803.
+
+### 21.5 What still stands, and what does not
+
+- **STANDS: the Airbnb position.** Cheapest of seven, reproduced exactly, no comparability caveat.
+- **STANDS: "if 24-28 October is empty, price is not the reason."** It survives the correction on both
+  channels — even at his pre-discount 3,200 he is second of seven on Booking, and correcting Villa The
+  Frame made the field dearer.
+- **DOES NOT STAND: "cheapest on Booking."** Not until his anonymous price is measured.
+- **OPEN: his logged-out Booking price.** It cannot be captured from a signed-in browser, and 3,200 is
+  the page's pre-discount figure rather than a measured anonymous quote. Until it is measured, the
+  Booking rank carries the caveat.

@@ -32,6 +32,12 @@ export type Confidence = 'none' | 'indicative' | 'solid';
 export interface CompetitorQuote {
   listingId: string;
   displayName: string;
+  /**
+   * Did a loyalty-programme discount apply to THIS price? Booking's Genius is per-property: some
+   * comparables offer it, some do not, and the owner's own listing does. Comparing a member price
+   * against anonymous ones is not like-for-like, and it flatters whichever side has the discount.
+   */
+  programApplied?: boolean;
   /** `captured` carries a total; anything else carries a reason and no number. */
   status: 'captured' | 'refused' | 'unavailable' | 'error';
   guestTotal: number | null;
@@ -57,6 +63,8 @@ export interface PositionInput {
   ourDirectPrice: number | null;
   ourRating?: number | null;
   ourReviewCount?: number | null;
+  /** Whether OUR captured channel price carries a programme discount (Booking Genius). */
+  ourProgramApplied?: boolean;
   quotes: CompetitorQuote[];
   /** Comparables that cannot host this party at all. A finding, not a gap (C4). */
   outOfSet: Array<{ listingId: string; displayName: string; fit: PartyFit }>;
@@ -146,6 +154,19 @@ export function buildPosition(input: PositionInput): Position {
         flags.push(`priced above ${q.displayName} (${Math.round(q.guestTotal as number)} · ` +
                    `${q.rating} · ${q.reviewCount} reviews), which outranks you on both`);
       }
+    }
+  }
+
+  // A member price against anonymous prices is not a comparison. This does not adjust anything —
+  // guessing what the anonymous price would be is exactly the kind of invention the engine refuses —
+  // it says the comparison is not like-for-like, and in which direction.
+  if (input.ourProgramApplied && priced.length) {
+    const withProg = priced.filter((q) => q.programApplied === true).length;
+    if (withProg < priced.length) {
+      flags.push(
+        `NOT LIKE-FOR-LIKE: our ${channel} price carries a loyalty discount, and only ${withProg} of ` +
+        `${priced.length} comparables' prices do. Ours is a member rate; theirs are mostly anonymous, ` +
+        `so our position here is flattered by an unknown amount.`);
     }
   }
 
