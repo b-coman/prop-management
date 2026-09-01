@@ -2169,3 +2169,56 @@ that destroyed seven capacities and the run that preserved them.
 `substitutionBasis` now reads **2 owner-written, 21 still drafted**. Utopia Lake View and Zaivan
 Retreat carry `curatedBy: 'owner (2026-09-02)'` and lose the amber `draft` badge on the admin card —
 the first entries where the recorded reason is actually his.
+
+---
+
+## 26. Photos, and the clobbering was worse than reported (2026-09-02)
+
+### 26.1 Every photo had been lost, not just the capacities
+
+§25.5 reported that re-seeding reset seven capacities. **It had also wiped `heroPhotoUrl` on all
+twenty-three listings**, including the thirteen collected during verification — and that went unnoticed
+because the damage report checked capacity and stopped there. The ownership fix now covers the whole
+verification-owned set, so nothing was lost again; but the earlier loss had to be re-collected.
+
+The lesson is the same one and it is worth stating twice: **a write that reports success tells you
+nothing.** `stored: 23` was identical in the run that destroyed the photos and the run that preserved
+them. Only reading the data back distinguishes them — and reading back only the field you were
+thinking about finds only the damage you expected.
+
+### 26.2 Collected in 12 page loads rather than 23
+
+One Booking search at 4 adults yielded **11 photos in a single load** — the cards carry a `square600`
+thumbnail, which is the right shape for the admin row. The remaining five Booking listings sit outside
+the Comarnic radius (Şotrile, Breaza, Teşila) and the seven Airbnb ones have no equivalent search, so
+those twelve came from `og:image` on their own pages.
+
+That reinforces §22.2: the search page is the cheap bulk instrument, the detail page is the fallback
+for whatever it does not surface.
+
+### 26.3 The base64 provenance case, closed
+
+§13.7's `Hosting-<id>` check treated Villa The Frame's Airbnb photo as merely `capture-context`. Its
+path actually reads `Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTA0Ni…`, which decodes to
+`StaySupplyListing:1046394696894549540` — the id is there, base64-encoded. The check now decodes that
+form, so a self-verifying photo is no longer recorded as unverified. Seven of the twenty-three are now
+provably of the listing they are filed under; the rest are trusted by capture context, which is the
+honest label for a bare uuid.
+
+### 26.4 The set is complete
+
+```
+23 listings · 22 active · 1 retired
+verified   23/23
+photos     23/23   (7 id-matched, 16 capture-context)
+capacity    0 unread
+substitutionBasis  0 still drafted
+```
+
+The owner accepted the drafted reasons on 2026-09-02 ("the substitutionBasis is good"), so they are his
+— recorded as `owner (approved 2026-09-02; drafted by claude)`, which keeps the provenance honest about
+how they got there. Utopia Lake View and Zaivan Retreat keep their own `curatedBy`, because he wrote
+those two himself.
+
+**Phase 1's gate is met.** The comparable set is curated, verified, photographed and complete, and the
+admin card has every field it was specified with: name, city, picture, link.

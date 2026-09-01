@@ -415,7 +415,17 @@ export function inPageVerifyRunner(channel: VerifyChannel, listingId: string, oc
   // The path embeds the listing id on newer Airbnb listings and on nothing else, so provenance is
   // recorded rather than claimed — an older listing returns a bare uuid and is trusted only because
   // it came from this page load.
-  var prov = og ? (/Hosting-\\d+/.test(og) ? 'id-matched' : 'capture-context') : null;
+  // The listing id may be embedded plainly (Hosting-1404937633401111364) or base64-encoded
+  // (Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTA0Ni... decodes to "StaySupplyListing:1046..."). Reading only
+  // the plain form filed Villa The Frame's perfectly self-verifying photo as capture-context, which
+  // understates provenance. Older listings carry a bare uuid and genuinely have neither.
+  var __num = ('${listingId}'.match(/\\d{6,}/) || [''])[0];
+  var __hs = og ? (og.match(/Hosting-([A-Za-z0-9+\/=]+)/) || [])[1] : '';
+  var __dec = '';
+  try { if (__hs && !/^\\d+$/.test(__hs)) __dec = atob(__hs); } catch (e) { __dec = ''; }
+  var prov = !og ? null
+    : ((__hs && (__hs === __num || (__num && __dec.indexOf(__num) > -1))) || /Hosting-\\d+/.test(og))
+      ? 'id-matched' : 'capture-context';
   return JSON.stringify({
     listingId: '${listingId}', occupancy: ${occupancy}, identity: id,
     heroPhotoUrl: og ? og.split('?')[0] : null, photoProvenance: prov,

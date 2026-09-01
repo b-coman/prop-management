@@ -28,7 +28,13 @@ import { DEFAULT_PARTIES, partyLabel } from '@/lib/parity/party';
 const PROPERTY = process.argv[2]?.startsWith('--') ? 'prahova-mountain-chalet'
   : (process.argv[2] ?? 'prahova-mountain-chalet');
 const WRITE = process.argv.includes('--write');
-const CURATED_BY = 'claude (draft)';
+/**
+ * The owner read the drafted reasons and accepted them on 2026-09-02 ("the substitutionBasis is
+ * good"), so they are his now — but the provenance stays honest about how they got there: drafted
+ * from page reads, then approved. Utopia and Zaivan carry their own `curatedBy` because he wrote
+ * those two himself.
+ */
+const CURATED_BY = 'owner (approved 2026-09-02; drafted by claude)';
 
 type Seed = Omit<CompetitorListing, 'propertyId' | 'curatedBy' | 'verifiedAt' | 'active'> & {
   /** Set when the OWNER has stated why this competes. Absent means the basis is still my draft. */
@@ -351,8 +357,7 @@ const RETIRED: Array<{ listingId: string; seed: Seed; reason: string }> = [
   if (!WRITE) {
     console.log(`Would write ${all.length} active + ${RETIRED.length} retired.`);
     console.log('Re-run with --write to apply.\n');
-    console.log('NOTE: every substitutionBasis is a DRAFT (curatedBy "claude (draft)", verifiedAt null).');
-    console.log('      The owner edits them; until then the set is not curated, only populated.');
+    console.log(`NOTE: substitutionBasis provenance is "${CURATED_BY}".`);
     return;
   }
 
