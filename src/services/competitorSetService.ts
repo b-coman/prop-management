@@ -19,6 +19,16 @@ import { assertListingId, validateListing, type CompetitorListing } from '@/lib/
 const logger = loggers.pricing;
 const COLLECTION = 'competitorListings';
 
+/**
+ * Fields that a VERIFICATION pass owns. Curation may seed them on a brand-new document and may never
+ * overwrite them afterwards — see `upsertCompetitorListing`. `verifiedAt` is here too, and is not on
+ * the upsert input type at all.
+ */
+export const VERIFICATION_OWNED_FIELDS = [
+  'units', 'rating', 'reviewCount', 'qualityAsOf',
+  'heroPhotoUrl', 'photoProvenance', 'distanceKm', 'verifiedAt', 'verifiedBy',
+] as const;
+
 export function competitorDocId(propertyId: string, listingId: string): string {
   assertListingId(listingId);
   return `${propertyId}_${listingId}`;
@@ -97,13 +107,6 @@ export async function getCompetitorListing(
 export async function upsertCompetitorListing(
   input: Omit<CompetitorListing, 'verifiedAt' | 'curatedBy'> & { curatedBy: string },
 ): Promise<void> {
-  // `verifiedAt` is deliberately NOT accepted here. Curation and verification are separate writes
-  // (§17.3), and the earlier signature took it as an optional field — which meant re-running the seed
-  // with `verifiedAt: null` would have silently un-verified all fourteen verified listings, because
-  // null is not undefined and survived the undefined-strip below. A new document simply lacks the
-  // field, and `toListing` reads a missing one as null, so an uncurated entry still reads unverified.
-  // Only `recordVerification` sets it, which is what makes the field mean anything.
-
   const problems = validateListing(input);
   if (problems.length) {
     throw new Error(
@@ -112,11 +115,25 @@ export async function upsertCompetitorListing(
     );
   }
   const db = await getAdminDb();
-  const clean = Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined));
-  await db.collection(COLLECTION).doc(competitorDocId(input.propertyId, input.listingId)).set(
-    { ...clean, updatedAt: FieldValue.serverTimestamp() },
-    { merge: true },
-  );
+  const ref = db.collection(COLLECTION).doc(competitorDocId(input.propertyId, input.listingId));
+  const existing = await ref.get();
+
+  let clean = Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined));
+
+  // CURATION MUST NOT CLOBBER VERIFICATION. The two are separate writes (§17.3) and they share
+  // fields: a seed carries `units: []` and `rating: null` as placeholders for an entry nobody has
+  // read yet, and merging those over an EXISTING document silently threw away real measurements —
+  // re-seeding to add one comparable reset all seven verified capacities to unread, and an earlier
+  // form of the same bug would have wiped `verifiedAt` on fourteen listings.
+  //
+  // So the fields verification owns are written only on CREATE. Seeding a new entry may carry
+  // initial values; re-seeding an existing one may not touch them. `recordVerification` is the only
+  // path that updates them afterwards, which is what makes them mean anything.
+  if (existing.exists) {
+    for (const k of VERIFICATION_OWNED_FIELDS) delete clean[k];
+  }
+
+  await ref.set({ ...clean, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   logger.info('Competitor listing curated', {
     propertyId: input.propertyId, listingId: input.listingId,
     channel: input.channel, curatedBy: input.curatedBy,

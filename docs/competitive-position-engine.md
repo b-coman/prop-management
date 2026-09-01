@@ -2130,3 +2130,42 @@ description exactly: a park of individually-named tiny houses, not a house.
 Only Pensiunea PIRI LAND (retired) remains unverified. Two things are still outstanding and both are
 the owner's: the fifteen-plus `substitutionBasis` corrections, and `heroPhotoUrl`, which the capacity
 pass did not collect.
+
+### 25.5 Curation was still clobbering verification, and the fix had to generalise
+
+Both group venues were kept at the owner's instruction:
+
+> *"keep them both, they still compete for smaller parties"*
+
+That is correct and the engine already honours it: `hostsParty` takes the **smallest unit that fits**,
+so a 2+1 family reads Zaivan's 3-person One-Bedroom Family Apartment and Utopia's 3-person Apartment
+with Lake View — never their 21- and 15-person headline products. Verified:
+
+```
+Zaivan Retreat    2a+1c -> One-Bedroom Family Apartment (3)
+                  4a    -> Family Suite with Balcony (4)
+                  4a+2c -> Two-Bedroom Suite (6)
+```
+
+**Recording that reasoning re-ran the seed, and the seed reset all seven verified capacities to
+unread.** §23.4 had fixed exactly this for `verifiedAt` and fixed only that field — the general problem
+was left standing, and it fired within the hour on `units`.
+
+The rule now covers the whole class. Fields a verification pass owns —
+`units · rating · reviewCount · qualityAsOf · heroPhotoUrl · photoProvenance · distanceKm ·
+verifiedAt · verifiedBy` — are written by `upsertCompetitorListing` **only when the document does not
+yet exist**. Seeding a new entry may carry initial values; re-seeding an existing one may not touch
+them. Proven by re-running the seed afterwards: **capacity UNREAD 0, still 21 verified.**
+
+Tests pin both directions: every field `recordVerification` writes is on the list, and no
+curation-owned field is (or a re-seed could never correct a name or a URL).
+
+**The lesson is about method, not about these fields.** Both bugs were found by reading the data back
+after writing it, never by the write reporting a problem — `stored: 23` looked identical in the run
+that destroyed seven capacities and the run that preserved them.
+
+### 25.6 The first two owner-written bases
+
+`substitutionBasis` now reads **2 owner-written, 21 still drafted**. Utopia Lake View and Zaivan
+Retreat carry `curatedBy: 'owner (2026-09-02)'` and lose the amber `draft` badge on the admin card —
+the first entries where the recorded reason is actually his.

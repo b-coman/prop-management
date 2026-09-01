@@ -30,7 +30,10 @@ const PROPERTY = process.argv[2]?.startsWith('--') ? 'prahova-mountain-chalet'
 const WRITE = process.argv.includes('--write');
 const CURATED_BY = 'claude (draft)';
 
-type Seed = Omit<CompetitorListing, 'propertyId' | 'curatedBy' | 'verifiedAt' | 'active'>;
+type Seed = Omit<CompetitorListing, 'propertyId' | 'curatedBy' | 'verifiedAt' | 'active'> & {
+  /** Set when the OWNER has stated why this competes. Absent means the basis is still my draft. */
+  curatedBy?: string;
+};
 
 const AIRBNB = (id: string) => `https://www.airbnb.com/rooms/${id}`;
 const BK = (slug: string) => `https://www.booking.com/hotel/ro/${slug}.en-gb.html`;
@@ -206,9 +209,12 @@ const BOOKING_SET: Seed[] = [
     channel: 'booking.com', url: BK('utopia-lake-view'), city: 'Comarnic', heroPhotoUrl: null,
     units: [], propertyType: 'whole-house', distanceKm: null,
     rating: 9.8, reviewCount: 78, qualityAsOf: '2026-09-02', amenities: [],
+    curatedBy: 'owner (2026-09-02)',
     substitutionBasis:
-      'The closest of the search-surfaced candidates to our own product: 250 m², 6 beds, 9.8 on 78 ' +
-      'reviews, and it appeared in two of the three searches run. A whole place of our size or larger.',
+      'Kept deliberately even though its headline product is a group venue, not a family house: four ' +
+      'units from a 2-person Double Room up to a 15-person Superior Villa, so "they still compete for ' +
+      'smaller parties" (owner, 2026-09-02). For a 2+1 the engine reads its 3-person Apartment with ' +
+      'Lake View, which is a real alternative to us; the 15-person villa is not what that family sees.',
   },
   {
     listingId: 'maramures-nook', displayName: 'Maramureș Nook',
@@ -233,9 +239,12 @@ const BOOKING_SET: Seed[] = [
     channel: 'booking.com', url: BK('zaivan'), city: 'Comarnic', heroPhotoUrl: null,
     units: [], propertyType: 'cabin', distanceKm: null,
     rating: 9.9, reviewCount: 51, qualityAsOf: '2026-09-02', amenities: [],
+    curatedBy: 'owner (2026-09-02)',
     substitutionBasis:
-      '9.9 on 51 reviews, 70 m², 4 beds. Smaller than us, but well reviewed and in the same results ' +
-      'a family sees.',
+      'A six-unit retreat whose largest is a 21-person Holiday Home — bigger than anything we sell — ' +
+      'but kept because "they still compete for smaller parties" (owner, 2026-09-02). Its ladder runs ' +
+      'from a 3-person One-Bedroom Family Apartment upward, and that is the unit a 2+1 family is ' +
+      'actually choosing between us and them on.',
   },
   {
     listingId: 'chalet-husky', displayName: 'Chalet Husky - Pet Friendly & Private',
@@ -348,7 +357,7 @@ const RETIRED: Array<{ listingId: string; seed: Seed; reason: string }> = [
   }
 
   for (const s of all) {
-    await upsertCompetitorListing({ ...s, propertyId: PROPERTY, active: true, curatedBy: CURATED_BY });
+    await upsertCompetitorListing({ ...s, propertyId: PROPERTY, active: true, curatedBy: s.curatedBy ?? CURATED_BY });
     console.log(`  wrote ${s.listingId}`);
   }
   for (const r of RETIRED) {
