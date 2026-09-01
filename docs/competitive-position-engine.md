@@ -1587,3 +1587,99 @@ channels                   HTTP 403  PERMISSION_DENIED
    listing's recorded units and could pick a pair that will render markers.
 4. **`distanceKm`** is still null everywhere. Not derivable from a listing page; it needs geocoding or
    the owner's own judgement of what is "near".
+
+---
+
+## 20. The vertical slice: 24-28 Oct, 2a+1c (2026-09-01)
+
+One window, both fields, cut through Phases 2, 3 and 4 rather than building each in full. 15 probes.
+
+### 20.1 What was built
+
+| piece | what it is |
+|---|---|
+| `parity-capture.ts --competitor <id>` | The write path, extended. A competitor row's `cellId` carries the listing, and the store re-checks that the id and the subject agree. |
+| `scripts/comp-next.ts` | Probe list for one window. **Refuses a window we have not quoted ourselves (C5)**, and drops comparables that cannot host the party before a page loads (C4). |
+| `src/lib/competitive/position.ts` | PURE. Band, rank, sample, confidence, flags. Per channel, never pooled. |
+| `scripts/comp-report.ts` | Renders it from the store. |
+| 16 new tests | Most of them pin a REFUSAL — see §20.3. |
+
+### 20.2 A production bug in the parity extractor, found by pointing it at someone else
+
+Four comparables came back `no price rows found` on pages that plainly showed prices. Booking prints
+**`Price 4,180 lei`** when there is no promotion — and the extractor's only fallback was
+`(RON|lei)\s*([\d.,]+)`, which expects the currency **first**. It never matched Booking's own format,
+so **every undiscounted Booking page read as a parse failure.**
+
+This is not a competitor-only bug. It has been in `extract.ts` and `inPage.ts` all along; it stayed
+hidden because this property's own Booking listing nearly always carries a Genius discount, so the
+price-PAIR path covers it. A window where Genius does not apply would have read as an error — and the
+parity board currently shows **6 error cells**.
+
+Fixed in both parsers, row-anchored (`price <n> lei`, which is a real rate row) and **capacity
+filtered like the pair path**, because taking the cheapest unfiltered number on a multi-unit page is
+precisely the bug the filter exists to prevent. Four regression tests.
+
+### 20.3 What the reading refuses to say
+
+- **No band and no rank below three quotes.** The individual readings are still reported; nothing is
+  inferred from them.
+- **The direct price is never ranked.** No guest browsing Airbnb sees it. It is a reference line.
+- **A comparable that did not quote is never dropped** — it appears with its reason.
+- **"Not sellable", never "sold"**, on a single reading.
+- **Quality never enters the price.** One flag, on a specific pair, and only above a 20-review floor.
+  Proven by test: adding ratings to the inputs changes neither the band nor the rank.
+
+### 20.4 The reading
+
+```
+MARKET POSITION — 2026-10-24 → 2026-10-28  (4n, 2a+1c)
+
+AIRBNB      sample 6 of 7 · oldest 0d · solid          BOOKING.COM  sample 6 of 8 · solid
+  the set   2,438 - 5,705   median 4,057                 the set    2,803 - 5,320   median 4,466
+  you       2,369  ->  1 of 7                            you        2,719  ->  1 of 7
+  direct    2,283 (reference)                            direct     2,283 (reference)
+
+  >> 2,369  US                                           >> 2,719  US
+     2,438  MSC Forest Retreat        (sleeps 3)            2,803  Cozy A-Frame Ayda   promo (no reviews)
+     2,702  Adorable 2 Bedroom Tiny Home  promo             3,600  Casutele din Poienita     9.6/157
+     3,520  Panoramic View Cabin      promo                 4,180  Vila Luna                 10/57
+     4,594  Peaceful Forest Haven     promo                 4,752  Villa The Frame     promo 9.7/21
+     4,684  AVA Chalet with Jacuzzi                         5,040  AVA Chalet                9.5/11
+     5,705  Villa The Frame           promo                 5,320  The Cliff Village         10/68
+         —  Ceas cu Cuc  NOT SELLABLE                           —  Casutele de la  refused (units too small)
+                                                               —  MoodySun Studio  NOT SELLABLE
+```
+
+**He is the cheapest listing in both fields, and it is not close.** The set medians are 4,057 and
+4,466 against his 2,369 and 2,719 — he is at roughly **60% of the median on Airbnb and 61% on
+Booking**. Among comparables of his own SIZE (6+ guests) the cheapest on Airbnb is Peaceful Forest
+Haven at 4,594; he is at 2,369, a little over half.
+
+The two listings priced beneath the rest of the field are not like-for-like: MSC Forest Retreat sleeps
+**3** (a small A-frame, not a house), and Cozy A-Frame Ayda is **brand new with no reviews**, buying
+its first bookings on price.
+
+### 20.5 What it means, and the one thing it settles
+
+This is the question the engine was built for, answered on a real window:
+
+> **If 24-28 October is empty, price is not the reason.**
+
+The parity board frames this window as a problem because it compares him against *his own* OTA
+listings. Against the actual market he is the cheapest house available on both channels, by a wide
+margin. No rate change addresses that, and cutting further would only widen a gap that is already the
+largest in the field.
+
+Two caveats, both real:
+
+- **One reading.** Absorption needs a second, and the whole point of "not sellable" is that it means
+  nothing until something that WAS priced stops being priced.
+- **The incumbent is off the market for these dates.** Ceas cu Cuc — the 98-review establishment — is
+  not sellable for 24-28 Oct, and so is MoodySun. Two withdrawals do not make a trend, but the
+  strongest listing in the set being unavailable on his emptiest week is the first thing to re-check
+  next run.
+
+**And a question this raises rather than answers, which is the owner's alone (C2):** being at 60% of
+the median while the set sells is a different situation from being at 60% while nobody sells. The
+second reading tells them apart. Nothing here recommends a price, and no solver reads this data.

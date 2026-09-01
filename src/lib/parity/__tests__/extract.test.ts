@@ -359,6 +359,46 @@ describe('the list price must come from beside the total, not from anywhere on t
   });
 });
 
+describe('an UNDISCOUNTED Booking page still yields a price', () => {
+  // Found live on 2026-09-01: four comparables at once came back "no price rows found". Booking
+  // prints "Price 4,180 lei" when there is no promo, and the only fallback expected the currency
+  // FIRST ("lei 4,180"), so every undiscounted page read as a parse failure. This property's own
+  // listing usually carries a Genius discount, which is why the pair path masked it for so long.
+  const pad2 = ' '.repeat(300);
+
+  it('reads a single undiscounted rate row', () => {
+    const r = extract('booking.com', `Vila Luna | 4 nights, 2 adults, 1 child | Four-Bedroom House ` +
+      `Max persons: 11 | 4,180 lei | Price 4,180 lei | Includes taxes and charges | ` +
+      `Free cancellation before 24 September 2026 ${pad2}`);
+    expect(r.ok).toBe(true);
+    if (r.ok) { expect(r.value.total).toBe(4180); expect(r.value.listTotal).toBeNull(); }
+  });
+
+  it('still applies the capacity filter to undiscounted rows', () => {
+    // A park with a small cheap unit and a big one: the cheap row must not be banked for a party
+    // that cannot fit in it, exactly as for the discounted path.
+    const r = extract('booking.com', `Cliff Village | 4 nights, 2 adults, 1 child | ` +
+      `One-Bedroom Villa Max persons: 2 | Price 1,000 lei | ` +
+      `Two-Bedroom Villa Max persons: 6 | Price 7,600 lei ${pad2}`);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value.total).toBe(7600);
+  });
+
+  it('refuses when every undiscounted row is too small for the party', () => {
+    const r = extract('booking.com', `Rooms | 4 nights, 2 adults, 1 child | ` +
+      `Double Room Max persons: 2 | Price 1,647 lei | Double Room Max persons: 2 | Price 1,850 lei ${pad2}`);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toMatch(/too small|no offer for this party/i);
+  });
+
+  it('prefers the discounted PAIR when one exists, rather than the row price', () => {
+    const r = extract('booking.com', `X | 4 nights, 2 adults, 1 child | Max persons: 6 | ` +
+      `Original price 5,887 lei Current price 4,752 lei | Price 4,752 lei ${pad2}`);
+    expect(r.ok).toBe(true);
+    if (r.ok) { expect(r.value.total).toBe(4752); expect(r.value.listTotal).toBe(5887); }
+  });
+});
+
 describe('guest count comes from the booking panel, not the listing capacity', () => {
   it('reads the searched occupancy, not "6 guests · 3 bedrooms · 6 beds"', () => {
     // Live across all 15 Airbnb pages: every cell echoed 6, the property's capacity, so the echo

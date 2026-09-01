@@ -320,6 +320,35 @@ export function extractBooking(text: string, opts?: { year?: number; guests?: nu
     };
   }
   if (!candidates.length) {
+    // An UNDISCOUNTED Booking page has no "Original price / Current price" pair at all — it just
+    // prints "Price 4,180 lei" per rate row. The only fallback here used to be `(RON|lei) <number>`,
+    // which expects the currency FIRST and therefore never matched Booking's own format: every
+    // undiscounted page came back `no price rows found`. It went unnoticed because this property's
+    // own Booking listing nearly always carries a Genius discount, so the pair path covers it — but
+    // a competitor without a promo, or our own listing on a window where Genius does not apply,
+    // reads as a parse failure. Found live on 2026-09-01 against four comparables at once.
+    //
+    // The row-anchored form is tried first because it is precise: "Price " prefixes a real rate row,
+    // where a bare number beside "lei" also matches the map, the similar-properties rail and the
+    // review counts. And it is capacity-filtered like the pair path — taking the cheapest unfiltered
+    // number on a multi-unit page is exactly the bug the filter above exists to prevent.
+    const rowRe = /price\s+([\d.,]+)\s*(RON|lei)/gi;
+    for (let m = rowRe.exec(t); m !== null; m = rowRe.exec(t)) {
+      const v = parseMoney(m[1]);
+      if (v === null || v <= 0) continue;
+      const cap = capacityAt(m.index);
+      if (wantedGuests && cap !== null && cap < wantedGuests) { droppedTooSmall++; continue; }
+      candidates.push({ current: v, original: null, currency: normCurrency(m[2]) });
+    }
+  }
+  if (!candidates.length && droppedTooSmall > 0) {
+    return {
+      ok: false, excerpt,
+      reason: `every priced row is too small for ${wantedGuests} guests ` +
+              `(${droppedTooSmall} row(s) capped below it) — the channel has no offer for this party size`,
+    };
+  }
+  if (!candidates.length) {
     const bareRe = /(RON|lei)\s*([\d.,]+)/gi;
     for (let m = bareRe.exec(t); m !== null; m = bareRe.exec(t)) {
       const v = parseMoney(m[2]);

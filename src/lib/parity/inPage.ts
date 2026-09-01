@@ -109,6 +109,16 @@ function __booking(t){
   if(!cands.length&&tooSmall>0) return {state:'party-too-large'};
   // Priced rows but nothing saying who they seat: taking the minimum here is precisely the bug.
   if(want&&cands.length>1&&!caps.length) return {state:'ambiguous-capacity'};
+  // Undiscounted Booking pages have no price PAIR — just "Price 4,180 lei" per row. Row-anchored and
+  // capacity-filtered, because the bare form below also matches the map and the similar-properties
+  // rail. See extract.ts for the live case this was found on.
+  if(!cands.length){ var rr=/price\s+([\d.,]+)\s*(?:RON|lei)/gi;
+    while((m=rr.exec(t))!==null){ var rv=__money(m[1]);
+      if(rv===null||rv<=0) continue;
+      var rc=capAt(m.index);
+      if(want&&rc!==null&&rc<want){ tooSmall++; continue; }
+      cands.push({cur:rv,orig:null}); } }
+  if(!cands.length&&tooSmall>0) return {state:'party-too-large'};
   if(!cands.length){ var br=/(RON|lei)\s*([\d.,]+)/gi;
     while((m=br.exec(t))!==null){ var v=__money(m[2]); if(v!==null&&v>0) cands.push({cur:v,orig:null}); } }
   if(!cands.length) return {state:'no-total'};

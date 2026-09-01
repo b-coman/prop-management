@@ -1,0 +1,122 @@
+#!/usr/bin/env npx tsx
+/**
+ * comp-report — where we sit on one window, rendered FROM THE STORE.
+ *
+ * Never hand-assembled. Every figure traces to a `channelPriceObservations` row with a URL, a
+ * timestamp and a session; a comparable that did not quote appears with its reason rather than being
+ * quietly dropped, and one that cannot host the party appears as a finding rather than as a gap.
+ *
+ *   npx tsx scripts/comp-report.ts --in 2026-10-24 --out 2026-10-28 --guests 3
+ */
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+import { latestByCell } from '@/services/growth/parityObservations';
+import { getCompetitorSet } from '@/services/competitorSetService';
+import { hostsParty, largestUnit } from '@/lib/competitive/set';
+import { buildPosition, type CompetitorQuote } from '@/lib/competitive/position';
+import { partiesFor, partyForGuests, partyLabel } from '@/lib/parity/party';
+import { getAdminDb } from '@/lib/firebaseAdminSafe';
+
+const arg = (n: string, d?: string) => {
+  const i = process.argv.indexOf(`--${n}`);
+  return i > -1 && process.argv[i + 1] && !process.argv[i + 1].startsWith('--') ? process.argv[i + 1] : d;
+};
+const SLUG = arg('property', 'prahova-mountain-chalet')!;
+const IN = arg('in')!, OUT = arg('out')!;
+const GUESTS = Number(arg('guests', '3'));
+const money = (n: number) => Math.round(n).toLocaleString('en-US');
+
+(async () => {
+  if (!IN || !OUT) { console.error('--in and --out are required'); process.exit(1); }
+  const nights = Math.round((Date.parse(OUT) - Date.parse(IN)) / 86_400_000);
+  const now = new Date();
+
+  // Sequential, not Promise.all: three concurrent first calls to getAdminDb() race the Admin SDK's
+  // initializeApp and each loser logs a scary "default Firebase app already exists" at ERROR level.
+  // The SDK recovers, so it is noise rather than a fault — but noise at ERROR is how a real error
+  // gets missed. Warm the connection once, then fan out.
+  const db = await getAdminDb();
+  const selfAll = await latestByCell(SLUG, { kind: 'self' });
+  const compAll = await latestByCell(SLUG, { kind: 'competitor' });
+  const set = await getCompetitorSet(SLUG);
+  const propDoc = await db.collection('properties').doc(SLUG).get();
+  const prop = propDoc.data() as { channelPricing?: unknown; rating?: number; reviewCount?: number } | undefined;
+  const party = partyForGuests(partiesFor(prop?.channelPricing).parties, GUESTS);
+
+  const match = (o: { checkIn: string; checkOut: string; guests: number }) =>
+    o.checkIn === IN && o.checkOut === OUT && o.guests === GUESTS;
+  const ours = [...selfAll.values()].filter(match);
+  const theirs = [...compAll.values()].filter(match);
+  const byId = new Map(set.all.map((l) => [l.listingId, l]));
+
+  const direct = ours.find((o) => o.channel === 'direct');
+  const ourDirect = direct?.status === 'captured' ? direct.guestTotal : null;
+
+  console.log(`\nMARKET POSITION — ${IN} → ${OUT}  (${nights}n, ${partyLabel(party)})`);
+  console.log('='.repeat(78));
+
+  for (const channel of ['airbnb', 'booking.com']) {
+    const field = set.active.filter((l) => l.channel === channel);
+    if (!field.length) continue;
+
+    const quotes: CompetitorQuote[] = [];
+    const outOfSet: Array<{ listingId: string; displayName: string; fit: ReturnType<typeof hostsParty> }> = [];
+    for (const l of field) {
+      const fit = hostsParty(l, party);
+      if (fit.kind === 'out-of-set') { outOfSet.push({ listingId: l.listingId, displayName: l.displayName, fit }); continue; }
+      // A cell we never captured is neither a quote nor a refusal — it is simply absent, and the
+      // sample line says so by counting what was asked.
+      const o = theirs.find((x) => x.channel === channel && x.subject?.kind === 'competitor'
+        && x.subject.listingId === l.listingId);
+      if (!o) continue;
+      quotes.push({
+        listingId: l.listingId, displayName: l.displayName, status: o.status,
+        guestTotal: o.guestTotal, listTotal: o.listTotal, promoActive: o.promoActive,
+        reason: o.reason, capturedAt: o.capturedAt,
+        rating: l.rating, reviewCount: l.reviewCount, largestUnit: largestUnit(l) || null,
+      });
+    }
+
+    const mine = ours.find((o) => o.channel === channel);
+    const pos = buildPosition({
+      checkIn: IN, checkOut: OUT, nights, guests: GUESTS, partyLabel: partyLabel(party), channel,
+      ourChannelPrice: mine?.status === 'captured' ? mine.guestTotal : null,
+      ourDirectPrice: ourDirect,
+      ourRating: prop?.rating ?? null, ourReviewCount: prop?.reviewCount ?? null,
+      quotes, outOfSet, now,
+    });
+
+    console.log(`\n${channel.toUpperCase()}`);
+    console.log(`  sample   ${pos.sample.quoted} of ${pos.sample.asked} quoted` +
+      (pos.sample.oldestAgeDays !== null ? ` · oldest ${pos.sample.oldestAgeDays}d` : '') +
+      ` · confidence ${pos.confidence}`);
+    if (pos.band) {
+      console.log(`  the set  ${money(pos.band.min)} - ${money(pos.band.max)}   median ${money(pos.band.median)}`);
+    }
+    if (pos.rank) {
+      console.log(`  you      ${money(pos.ourChannelPrice!)}  ->  ${pos.rank.position} of ${pos.rank.of} on ${channel}`);
+    } else if (pos.ourChannelPrice !== null) {
+      console.log(`  you      ${money(pos.ourChannelPrice)}  (no rank — too few comparables quoted)`);
+    }
+    if (pos.ourDirectPrice !== null) {
+      console.log(`  direct   ${money(pos.ourDirectPrice)}  (reference — no guest browsing ${channel} sees this)`);
+    }
+
+    console.log('\n  cheapest first:');
+    for (const r of pos.ladder) {
+      const q = r.rating != null ? `${r.rating}${r.reviewCount != null ? `/${r.reviewCount}` : ''}` : '';
+      console.log(`    ${r.isUs ? '>>' : '  '} ${money(r.total).padStart(6)}  ${r.name.slice(0, 34).padEnd(36)}` +
+                  `${r.promo ? 'promo ' : '      '}${q}`);
+    }
+    for (const s of pos.silent) console.log(`       ${'—'.padStart(6)}  ${s.name.slice(0, 34).padEnd(36)}${s.status}: ${s.reason.slice(0, 40)}`);
+    for (const o of pos.outOfSet) console.log(`       ${'·'.padStart(6)}  ${o.name.slice(0, 34).padEnd(36)}out of set`);
+
+    for (const f of pos.flags) console.log(`\n  ! ${f}`);
+    for (const n of pos.notes) console.log(`\n  · ${n}`);
+  }
+
+  console.log(`\n${'='.repeat(78)}`);
+  console.log('Competitor prices are CONTEXT for a decision, never an input to one (C2). Nothing here');
+  console.log('feeds a rate; no solver reads this collection.\n');
+})().catch((e) => { console.error(e); process.exit(1); });

@@ -19,11 +19,15 @@
  *
  *   # a channel that will not quote:
  *   ... --status refused --reason "min stay 4 nights"
+ *
+ *   # a COMPETITOR's price on the same window — the cell id carries the listing so it can never be
+ *   # read as ours (C2: it is context for a decision, never an input to one):
+ *   ... --competitor vila-luna
  */
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
-import { cellId, type ObservationStatus } from '@/lib/growth/parityWorklist';
+import { cellId, type ObservationStatus, type ObservationSubject } from '@/lib/growth/parityWorklist';
 import { recordObservation } from '@/services/growth/parityObservations';
 
 const arg = (name: string): string | null => {
@@ -34,6 +38,12 @@ const flag = (name: string) => process.argv.includes(`--${name}`);
 
 interface BatchRow {
   channel: string;
+  /**
+   * WHOSE price this row is. Omit for the owner's own listings. A competitor row carries its
+   * `listingId`, which goes into the cell id so it can never occupy a self cell's key — see
+   * `cellId`. The store re-checks the two agree, so a mismatch here is refused rather than filed.
+   */
+  competitorListingId?: string;
   checkIn: string;
   checkOut: string;
   guests: number;
@@ -71,10 +81,13 @@ async function runBatch(propertyId: string, file: string, capturedBy: string, dr
 
   for (const r of rows) {
     const nights = Math.round((Date.parse(r.checkOut) - Date.parse(r.checkIn)) / 86_400_000);
-    const id = cellId(propertyId, r.checkIn, r.checkOut, r.guests, r.channel);
+    const subject: ObservationSubject = r.competitorListingId
+      ? { kind: 'competitor', listingId: r.competitorListingId }
+      : { kind: 'self' };
+    const id = cellId(propertyId, r.checkIn, r.checkOut, r.guests, r.channel, subject);
     try {
       await recordObservation({
-        dryRun,
+        dryRun, subject,
         propertyId, cellId: id, checkIn: r.checkIn, checkOut: r.checkOut, nights, guests: r.guests,
         channel: r.channel, status: r.status ?? 'captured',
         guestTotal: r.guestTotal ?? null, listTotal: r.listTotal ?? null,
@@ -124,7 +137,11 @@ async function runBatch(propertyId: string, file: string, capturedBy: string, dr
   }
 
   const nights = Math.round((Date.parse(checkOut) - Date.parse(checkIn)) / 86_400_000);
-  const id = cellId(propertyId, checkIn, checkOut, guests, channel);
+  const competitorListingId = arg('competitor');
+  const subject: ObservationSubject = competitorListingId
+    ? { kind: 'competitor', listingId: competitorListingId }
+    : { kind: 'self' };
+  const id = cellId(propertyId, checkIn, checkOut, guests, channel, subject);
 
   try {
     await recordObservation({
