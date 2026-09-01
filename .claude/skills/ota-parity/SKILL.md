@@ -27,6 +27,29 @@ they were built to prevent, not a shortcut they permit.
 
 ---
 
+## 0. The whole run, in order
+
+Every step below has a section of its own; this is the map, because the commands are otherwise spread
+across seven of them. Steps 1-6 are the check and are always safe. **Steps 7-10 change live prices and
+need the owner to have asked, in as many words.**
+
+| # | | why it is here |
+|---|---|---|
+| 1 | `parity-pack.ts <slug> --max 24` | Builds the probe list from the holiday + override calendars and **records the direct quotes itself**. §3.1-3.4 |
+| 2 | `parity-audit.ts <slug>` | Which stored rows a settings change has already invalidated. A reading can be one day old and still be fiction. §3.4 |
+| 3 | `parity-recheck.ts <slug> --min-nights 4 --json` | Those cells again, URLs pre-built. §3.4 |
+| 4 | `parity-next.ts <slug> --json --limit 15` | The outstanding cells, URLs pre-built. **Never hand-build one.** §4.1 |
+| 5 | *Chrome: navigate → stash → parse once → echo-check* | The only step that is not a command. §4.2-4.3 |
+| 6 | `parity-capture.ts --rows rows.json` | The one write path. Validate with `--dry-run` first. §4.4 |
+| 7 | `parity-report.ts <slug>` · `min-stay-alignment.ts` · `holiday-windows.ts` | The three reports. Render them; do not rebuild them. §4.6, §4.11, §6 |
+| 8 | `verify-period-identity.ts <slug>` | **Before any pricing write**, on a property whose prices are live. §6b |
+| 9 | `apply-band-pricing.ts` / `set-holiday-window.ts` | Rates, or period bounds. One write path each. §6b |
+| 10 | `refresh-direct-quotes.ts <slug> --write` · `landing-price-check.ts --write` | The two things that go stale the instant a rate moves, neither of which announces itself. §6b |
+| 11 | `pricing-position.ts` · `analysis/band-verify.ts` | Re-check. A change is not finished until the board shows it. §6b |
+
+Steps 2-6 loop until coverage is complete or the remaining cells are recorded as `refused`/`error`
+with a reason. **You do not decide when the run is finished — coverage does** (§3.4).
+
 ## 1. The economics, which are the whole point
 
 The guest-facing gap is not the decision. What matters is what the owner **keeps**.
