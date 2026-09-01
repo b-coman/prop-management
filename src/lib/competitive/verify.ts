@@ -94,6 +94,26 @@ const NOISE = new RegExp(
   'Something|Show|Reserve|This|Prices|Max|Availability|Guests)',
 );
 
+/**
+ * One entry per unit BLOCK in an availability section: a title line followed shortly by a bed
+ * configuration. Amenity and price chrome never is, which is what separates a unit from a label.
+ *
+ * **Deliberately NOT de-duplicated.** Casutele de la Poienita lists three rooms all named "Double
+ * Room"; de-duplicating collapsed them to one, the bed fallback fired anyway, and the property came
+ * back as a single 9-person unit. Three identical names are three units.
+ *
+ * Used to decide whether the bed fallback may fire at all — see `parseBooking`.
+ */
+export function unitHeadings(seg: string): string[] {
+  const titles = (seg.match(/^[A-Z][^\n]{2,58}$/gm) ?? []).filter((n) => !NOISE.test(n));
+  return titles
+    .filter((n) => {
+      const at = seg.indexOf(`\n${n}\n`);
+      return at > -1 && /\d+ [a-z- ]*bed\b/i.test(seg.slice(at, at + 400));
+    })
+    .map((n) => n.trim());
+}
+
 export function classifyIdentity(text: string): IdentityState {
   const l = text.toLowerCase();
   if (!l.trim() || text.length < 200) return 'not-loaded';
@@ -178,15 +198,29 @@ function parseBooking(t: string): Identity {
 
   const bedsTotal = countBeds(seg) || null;
   if (!order.length) {
-    // No capacity marker at all — the normal shape of a SINGLE-unit Booking page (Villa The Frame has
-    // none). Fall back to the bed configuration, which is always present and never echoes.
+    // No capacity marker at all. Booking renders that column only where several rows must be told
+    // apart, so its absence is the NORMAL shape of a single-unit page (Villa The Frame has none) —
+    // but it is ALSO what a multi-unit page looks like at a small search occupancy.
+    //
+    // 🔴 The bed fallback counts beds across the WHOLE section, so firing it on a multi-unit page
+    // sums separate units into one imaginary large one. Measured live on 2026-09-01 at occupancy 1:
+    // Casutele de la Poienita (three rooms of two) came back as a single 9-person unit, and Casutele
+    // din Poienita as a single 12. That is the "village of villas read as one villa" error appearing
+    // inside the very module written to prevent it — and it inflates capacity, which invents
+    // competition for large parties that does not exist.
+    //
+    // So the fallback is allowed only when the section describes exactly ONE unit. More than one and
+    // we refuse: an unread capacity is recoverable, an invented one is not.
+    const headings = unitHeadings(seg);
+    if (headings.length > 1) {
+      return { state: 'no-capacity', units: [], bedsTotal, rating, reviewCount, city, echo };
+    }
     if (!bedsTotal) return { state: 'no-capacity', units: [], bedsTotal: null, rating, reviewCount, city, echo };
-    const nameM = (seg.slice(0, 1200).match(/^[A-Z][^\n]{2,58}$/gm) ?? []).filter((n) => !NOISE.test(n));
     const sqmM = (seg.slice(0, 1600).match(/(\d+)\s*m²/g) ?? []).pop();
     return {
       state: 'ok',
       units: [{
-        label: nameM[0]?.trim() ?? 'Entire place',
+        label: headings[0] ?? 'Entire place',
         maxPersons: bedsTotal, count: 1,
         sqm: sqmM ? Number(sqmM.replace(/\D/g, '')) : null,
       }],
@@ -230,8 +264,29 @@ export interface Reconciled {
   problem?: string;
 }
 
+/**
+ * What must match for two reads to describe the same property: the unit LABELS and their CAPACITY.
+ *
+ * `count` is deliberately excluded. It is a lower bound read from however many rate rows the page
+ * chose to render, and it moves with the search occupancy — The Cliff Village showed 6 One-Bedroom
+ * Villas at 4 adults and 5 at 2 adults, on the same day. Requiring it to match would reject a
+ * perfectly good pair over a field that is closer to an echo than a fact, and `sqm` is omitted for
+ * the same reason (it is read from whichever row rendered last).
+ */
 const unitKey = (u: VerifiedUnit[]): string =>
-  JSON.stringify([...u].map((x) => [x.label, x.maxPersons, x.count]).sort());
+  JSON.stringify([...u].map((x) => [x.label, x.maxPersons]).sort());
+
+/** Inventory is a lower bound, so two reads disagreeing means the larger one saw more of it. */
+function mergeCounts(a: VerifiedUnit[], b: VerifiedUnit[]): VerifiedUnit[] {
+  return a.map((u) => {
+    const other = b.find((x) => x.label === u.label && x.maxPersons === u.maxPersons);
+    return {
+      ...u,
+      count: Math.max(u.count, other?.count ?? 0),
+      sqm: u.sqm ?? other?.sqm ?? null,
+    };
+  });
+}
 
 /**
  * Keep only what did not move between two reads of the same listing at two different occupancies.
@@ -264,7 +319,9 @@ export function reconcile({ a, b }: ReconcileInput): Reconciled {
     return null;
   };
 
-  const units = same(a.identity.units, b.identity.units, 'units', (p, q) => unitKey(p) === unitKey(q));
+  const unitsAgree = unitKey(a.identity.units) === unitKey(b.identity.units);
+  if (!unitsAgree) moved.push('units');
+  const units = unitsAgree ? mergeCounts(a.identity.units, b.identity.units) : null;
   const bedsTotal = same(a.identity.bedsTotal, b.identity.bedsTotal, 'bedsTotal');
   const rating = same(a.identity.rating, b.identity.rating, 'rating');
   const reviewCount = same(a.identity.reviewCount, b.identity.reviewCount, 'reviewCount');
@@ -302,6 +359,12 @@ function __norm(s){return s.replace(/ /g,' ');}
 function __beds(s){var re=/(\d+)\s+((?:extra-large |large )?(?:single|twin|double|sofa|bunk|futon))\s*bed/gi,m,n=0;
   while((m=re.exec(s))!==null){n+=(+m[1])*(__BEDV[m[2].toLowerCase()]||0);} return n;}
 var __NOISE=/^(Price|Includes|Free|Non|Select|Only|We have|Genius|Original|Current|Bathrooms|Cot|Entire|Private|Balcony|Garden|Mountain|City|Inner|Air|Dish|Flat|Sound|Barbecue|Terrace|Coffee|Sauna|Compare|Pay|No |I'll|It only|You won|Recommended|Sleeps|Bedroom|Living|Lower|Breakfast|Parking|Kitchen|Patio|Ensuite|Landmark|Accommodation|Room type|Number|Your choices|Getting|Hosted|Something|Show|Reserve|This|Prices|Max|Availability|Guests)/;
+function __headings(seg){
+  var titles=(seg.match(/^[A-Z][^\n]{2,58}$/gm)||[]).filter(function(n){return !__NOISE.test(n);});
+  var out=[];
+  for(var i=0;i<titles.length;i++){var n=titles[i],at=seg.indexOf('\n'+n+'\n');
+    if(at>-1&&/\d+ [a-z- ]*bed\b/i.test(seg.slice(at,at+400))) out.push(n.trim());}
+  return out;}
 function __classify(t){var l=t.toLowerCase();
   if(!l.trim()||t.length<200) return 'not-loaded';
   if(/(are you a robot|unusual traffic|verify you are human|captcha|security check)/.test(l)) return 'bot-check';
@@ -344,10 +407,13 @@ function __booking(t){
   }
   var bt=__beds(seg)||null;
   if(!order.length){
+    // The bed fallback sums the WHOLE section, so on a multi-unit page it invents one giant unit.
+    // Allowed only when exactly one unit heading is present — see parseBooking for the live evidence.
+    var hd=__headings(seg);
+    if(hd.length>1) return {state:'no-capacity',units:[],bedsTotal:bt,rating:rr.rating,reviewCount:rr.reviewCount,city:city,echo:echo};
     if(!bt) return {state:'no-capacity',units:[],bedsTotal:null,rating:rr.rating,reviewCount:rr.reviewCount,city:city,echo:echo};
-    var nm=(seg.slice(0,1200).match(/^[A-Z][^\n]{2,58}$/gm)||[]).filter(function(n){return !__NOISE.test(n);});
     var sq2=(seg.slice(0,1600).match(/(\d+)\s*m²/g)||[]).pop();
-    return {state:'ok',units:[{label:(nm[0]||'Entire place').trim(),maxPersons:bt,count:1,sqm:sq2?Number(sq2.replace(/\D/g,'')):null}],
+    return {state:'ok',units:[{label:hd[0]||'Entire place',maxPersons:bt,count:1,sqm:sq2?Number(sq2.replace(/\D/g,'')):null}],
             bedsTotal:bt,rating:rr.rating,reviewCount:rr.reviewCount,city:city,echo:echo};
   }
   return {state:'ok',units:order.map(function(k){return map[k];}),bedsTotal:bt,rating:rr.rating,reviewCount:rr.reviewCount,city:city,echo:echo};}

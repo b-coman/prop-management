@@ -8,7 +8,7 @@
  * bedrooms, and the `Sleeps:` line that says whatever you asked it.
  */
 import {
-  parseIdentity, reconcile, countBeds, norm, IN_PAGE_VERIFIER,
+  parseIdentity, reconcile, countBeds, norm, unitHeadings, IN_PAGE_VERIFIER,
   type VerifyChannel, type Identity,
 } from '../verify';
 
@@ -109,6 +109,41 @@ Entire villa
 Original price 5,887${NBSP}lei Current price 4,752${NBSP}lei
 ${pad}`;
 
+/**
+ * Casutele de la Poienita at occupancy 1 — THREE rooms, and Booking renders no capacity column at
+ * all. Read live on 2026-09-01, and the shape that broke the first version of the bed fallback:
+ * summing beds across the whole section reported one imaginary 9-person unit for a property whose
+ * largest room takes two.
+ */
+const MULTI_UNIT_NO_MARKER = `
+Casutele de la Poienita, Strada Ghioșești 367, 105700 Comarnic, Romania
+Scored 9.9
+9.9
+Rated exceptional
+Exceptional
+15 reviews
+All available options
+Select a room type and the number of rooms you want to reserve.
+Double Room
+1 large double bed
+17 m²
+Private kitchen
+Free WiFi
+Price 1,647${NBSP}lei
+Double Room
+1 double bed
+17 m²
+Private kitchen
+Free WiFi
+Price 1,850${NBSP}lei
+Double Room
+1 double bed
+17 m²
+Private kitchen
+Free WiFi
+Price 1,850${NBSP}lei
+${pad}`;
+
 const MOODYSUN_SOLD_OUT = `
 MoodySun Studio, remote tiny home, Comarnic, Romania
 Availability
@@ -131,6 +166,7 @@ const FIXTURES: Array<{ name: string; channel: VerifyChannel; text: string }> = 
   { name: 'cliff village, three villas', channel: 'booking.com', text: CLIFF },
   { name: 'villa the frame, no capacity marker', channel: 'booking.com', text: FRAME },
   { name: 'moodysun, sold out', channel: 'booking.com', text: MOODYSUN_SOLD_OUT },
+  { name: 'multi-unit with NO capacity marker', channel: 'booking.com', text: MULTI_UNIT_NO_MARKER },
   { name: 'airbnb ava chalet', channel: 'airbnb', text: AIRBNB_AVA },
   { name: 'empty page', channel: 'booking.com', text: '' },
   { name: 'bot check', channel: 'booking.com', text: `Are you a robot? Please verify you are human. ${pad}` },
@@ -181,6 +217,29 @@ describe('a page with no capacity marker falls back to beds', () => {
   it('refuses rather than guessing when there is neither a marker nor a bed', () => {
     const bare = `Somewhere, Romania\nSelect a room type\nNice place\nEntire villa\n${pad}`;
     expect(parseIdentity('booking.com', bare).state).toBe('no-capacity');
+  });
+
+  // The live regression: three rooms of two, no capacity column, and the fallback happily summed
+  // beds across all of them into one 9-person unit. Inflating capacity invents competition for large
+  // parties that does not exist — the flattering direction, and the one nobody catches.
+  it('REFUSES the bed fallback on a multi-unit page rather than summing across units', () => {
+    const id = parseIdentity('booking.com', MULTI_UNIT_NO_MARKER);
+    expect(id.state).toBe('no-capacity');
+    expect(id.units).toEqual([]);
+    // The bed total is still reported — it is evidence for a human, never a capacity.
+    expect(id.bedsTotal).toBe(6);
+  });
+
+  it('still keeps rating and reviews from a page it refused capacity on', () => {
+    const id = parseIdentity('booking.com', MULTI_UNIT_NO_MARKER);
+    expect(id.rating).toBe(9.9);
+    expect(id.reviewCount).toBe(15);
+  });
+
+  it('counts unit BLOCKS, so three rooms of the same name are three units', () => {
+    const sec = (s: string) => s.slice(s.search(/Select an accommodation type|Select a room type|All available/i));
+    expect(unitHeadings(sec(MULTI_UNIT_NO_MARKER))).toEqual(['Double Room', 'Double Room', 'Double Room']);
+    expect(unitHeadings(sec(FRAME))).toEqual(['Superior Villa']);
   });
 });
 
@@ -249,6 +308,31 @@ describe('reconcile — the two-occupancy self-check', () => {
     expect(r.ok).toBe(false);
     expect(r.moved).toContain('units');
     expect(r.problem).toMatch(/search echo, not a fact/);
+  });
+
+  it('accepts a pair whose unit COUNTS differ, taking the larger lower bound', () => {
+    // The Cliff Village rendered 6 One-Bedroom Villas at 4 adults and 5 at 2 adults on the same day.
+    // Inventory is a lower bound read from rendered rows; capacity is the fact that must hold.
+    const mk = (n: number): Identity => ({
+      state: 'ok', bedsTotal: 37, rating: 10, reviewCount: 68, city: 'Comarnic',
+      echo: { sleeps: null, recommendedFor: null },
+      units: [{ label: 'One-Bedroom Villa', maxPersons: 4, count: n, sqm: 80 }],
+    });
+    const r = reconcile({ a: { occupancy: 2, identity: mk(5) }, b: { occupancy: 4, identity: mk(6) } });
+    expect(r.ok).toBe(true);
+    expect(r.moved).toEqual([]);
+    expect(r.stable.units[0].count).toBe(6);
+  });
+
+  it('still rejects a pair whose CAPACITY differs, counts notwithstanding', () => {
+    const mk = (max: number): Identity => ({
+      state: 'ok', bedsTotal: 10, rating: null, reviewCount: null, city: 'Comarnic',
+      echo: { sleeps: null, recommendedFor: null },
+      units: [{ label: 'Villa', maxPersons: max, count: 1, sqm: null }],
+    });
+    const r = reconcile({ a: { occupancy: 2, identity: mk(4) }, b: { occupancy: 4, identity: mk(6) } });
+    expect(r.ok).toBe(false);
+    expect(r.moved).toContain('units');
   });
 
   it('will not reconcile a read that did not load', () => {

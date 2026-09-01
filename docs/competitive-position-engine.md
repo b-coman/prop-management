@@ -1471,3 +1471,79 @@ when the two probes disagree.
 16 listings · 1 verified (vila-luna, age 0d) · 15 still unverified
 comp-verify-next now reports 14 owed of 15 active
 ```
+
+---
+
+## 19. The first full verification run (2026-09-01)
+
+36 page loads across both channels. **14 of 16 listings verified.** Three defects surfaced, all of
+them only because the thing was run for real.
+
+### 19.1 The bed fallback summed across units — the module's own founding error, inside itself
+
+At occupancy 1-2 Booking renders no capacity column, so the bed fallback fired on **multi-unit** pages
+and counted beds across the whole section:
+
+| listing | what it really is | what the fallback said |
+|---|---|---|
+| Casutele de la Poienita | rooms taking 2, plus a villa | **one 9-person unit** |
+| Casutele din Poienita | chalets taking 4 and 2 | **one 12-person unit** |
+
+That is "a village of villas read as one villa" — §13.6's founding example — reproduced inside the
+module written to prevent it. And it fails in the **flattering** direction: inflated capacity invents
+competition for large parties that does not exist.
+
+**Fix:** the bed fallback may fire only when the section describes exactly ONE unit block; more than
+one and the read is refused. Refusing costs a re-probe; inventing a capacity costs a wrong decision
+nobody can trace.
+
+A second bug hid behind the first: `unitHeadings` de-duplicated by name, and Casutele de la Poienita's
+three rooms are all called "Double Room", so three units collapsed to one and the fallback fired
+anyway. **Three identical names are three units** — the count is of blocks, not of distinct strings.
+
+### 19.2 `count` moves with the search, so reconcile must not require it to match
+
+The Cliff Village rendered **6** One-Bedroom Villas at 4 adults and **5** at 2 adults, on the same day.
+`count` is a lower bound read from however many rate rows the page chose to draw; `maxPersons` is the
+fact. Requiring both to match rejected a perfectly good pair.
+
+**Fix:** reconcile compares unit **labels and capacities** only, and takes the **larger** count of the
+two reads — the better lower bound. `sqm` is merged the same way and for the same reason.
+
+### 19.3 Verification corrected the curated set, which is the point of having it
+
+**Casutele de la Poienita has a Villa taking 4** that the curation pass never saw — it only ever showed
+its double rooms. `CAPACITY 2 -> 4`, and the listing moves from "out of set for a family of three" to
+"competes". Casutele din Poienita's small chalets are max **2**, not 3, and there are **3** of them,
+not 2.
+
+Nothing else moved: the other twelve confirmed the seeded values exactly.
+
+### 19.4 Two listings could not be verified, and that is an outcome
+
+- **MoodySun Studio** returned `no availability` for 19-22 Oct **and** 16-19 Nov. Two windows a month
+  apart, both refused. It stays `UNVERIFIED` with no photo, and the reason is recorded rather than
+  guessed at.
+- **The Cliff Village at occupancy 1** correctly refused (multi-unit, no marker) and was re-probed at
+  2 and 4, which both rendered markers.
+
+Occupancy 1-2 is a poor default for multi-unit properties: Booking only draws the capacity column when
+several rows must be told apart. **`--occ 4,5` is the right probe for a park**, and the work-list
+should learn to pick per listing from its recorded units rather than using one global pair.
+
+### 19.5 The set, as verified
+
+```
+VERIFIED 14/16   (15 active, 1 retired)
+
+airbnb        Ceas cu Cuc 10 · Villa The Frame 8 · Adorable 6 · AVA 6 · Peaceful Forest Haven 6
+              Panoramic View Cabin 4 · MSC Forest Retreat 3
+booking.com   Vila Luna 11 · The Cliff Village 10 (12 units) · Villa The Frame 8 · AVA 6
+              Cozy A-Frame Ayda 5 · Casutele de la 4 (4u) · Casutele din 4 (4u) · MoodySun 3 (unverified)
+
+2a+1c   15/15 compete
+4a      13/15 compete
+4a+2c    9/15 compete
+```
+
+Fifteen of fifteen carry a hero photo except MoodySun, which was never readable.
