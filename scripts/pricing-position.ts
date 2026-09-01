@@ -13,7 +13,7 @@ import * as path from 'path';
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { getPeriods } from '@/services/periodService';
-import { getParityConfig } from '@/services/channelService';
+import { getParityConfig , getStandingDiscounts } from '@/services/channelService';
 import { latestByCell } from '@/services/growth/parityObservations';
 import { partiesFor, partyForGuests } from '@/lib/parity/party';
 import { buildParityWindow } from '@/lib/parity/parityView';
@@ -46,9 +46,11 @@ const n = (v: number) => Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/
     });
   }
   const inScope = ['direct', ...cfg.channels.map((c) => c.channel)].filter((c) => c !== 'vrbo');
+  const standingDiscounts = await getStandingDiscounts(SLUG);
   const economics = Object.fromEntries(cfg.channels.map((c) => [c.channel, c]));
   const views = [...byWindow.values()].map((w) =>
-    buildParityWindow(w as never, { freshnessDays: 42, targetDiscountPct: cfg.targetDiscountPct, direct: cfg.direct, economics, channelsInScope: inScope }));
+    buildParityWindow(w as never, { freshnessDays: 42, targetDiscountPct: cfg.targetDiscountPct,
+      direct: cfg.direct, economics, channelsInScope: inScope, standingDiscounts }));
 
   const periods = (await getPeriods(SLUG)).filter((p) => p.status === 'active' && p.endDate > today)
     .map((p) => ({ id: p.id, name: p.name, startDate: p.startDate, endDate: p.endDate, tier: p.tier, minStay: p.minStay ?? null, fixedNightPrice: p.fixedNightPrice ?? null }));

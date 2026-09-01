@@ -11,7 +11,7 @@
  */
 import { loggers } from '@/lib/logger';
 import { requirePropertyAccess, AuthorizationError } from '@/lib/authorization';
-import { getParityConfig, getChannels } from '@/services/channelService';
+import { getParityConfig, getStandingDiscounts } from '@/services/channelService';
 import { latestByCell } from '@/services/growth/parityObservations';
 import { partiesFor, partyForGuests } from '@/lib/parity/party';
 import { buildParityWindow, summarise } from '@/lib/parity/parityView';
@@ -76,12 +76,7 @@ export async function fetchParityView(propertyId: string, opts?: { includeVrbo?:
     // The standing guest discount is a SETTING, so it is read from the channel config rather than
     // assumed. The owner removed Airbnb's on 2026-09-01; a hardcoded constant would have kept
     // deducting it forever and gone on making Airbnb look cheaper than it is.
-    const channelSet = await getChannels(propertyId);
-    const standingDiscounts = Object.fromEntries(
-      [...channelSet.byId.values()]
-        .filter((c) => c.standingGuestDiscountPct !== undefined)
-        .map((c) => [c.channelId, c.standingGuestDiscountPct as number]),
-    );
+    const standingDiscounts = await getStandingDiscounts(propertyId);
     const economics = Object.fromEntries(cfg.channels.map((c) => [c.channel, c]));
 
     const windows = [...byWindow.values()]

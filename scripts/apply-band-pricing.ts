@@ -23,7 +23,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
 import { getPeriods, upsertPeriods, compileAndWrite } from '@/services/periodService';
-import { getParityConfig } from '@/services/channelService';
+import { getParityConfig, getStandingDiscounts } from '@/services/channelService';
 import { latestByCell } from '@/services/growth/parityObservations';
 import { partiesFor, partyForGuests } from '@/lib/parity/party';
 import { buildParityWindow } from '@/lib/parity/parityView';
@@ -107,9 +107,11 @@ const DROP_THRESHOLD = 3;
       capturedAt: o.capturedAt, sessionState: o.sessionState, party: (o as any).party });
   }
   const inScope = ['direct', ...cfg.channels.map((c) => c.channel)].filter((c) => c !== 'vrbo');
+  const standingDiscounts = await getStandingDiscounts(SLUG);
   const wins = [...byW.values()].map((w) => buildParityWindow(w, { freshnessDays: 42,
     targetDiscountPct: cfg.targetDiscountPct, direct: cfg.direct,
-    economics: Object.fromEntries(cfg.channels.map((c) => [c.channel, c])), channelsInScope: inScope }));
+    economics: Object.fromEntries(cfg.channels.map((c) => [c.channel, c])), channelsInScope: inScope,
+    standingDiscounts }));
 
   const stayNights = (ci: string, co: string) => {
     const out: NightFact[] = []; const d = new Date(ci + 'T00:00:00Z'), e = new Date(co + 'T00:00:00Z');

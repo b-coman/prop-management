@@ -258,3 +258,25 @@ export async function migrateChannelPricing(
   }
   return result;
 }
+
+
+/**
+ * Per channel, the standing discount a qualifying guest gets that no capture can see.
+ *
+ * Exists as ONE function because four different callers build parity windows - the admin board, the
+ * position roll-up, the apply script and the analysis scripts - and each had to be told about the
+ * correction separately. When the owner removed Airbnb's on 2026-09-01, two of the four were updated
+ * and two were not, and the apply script went on proposing prices computed with a 14% deduction that
+ * no longer existed. It would have written them to the live site.
+ *
+ * A value of 0 is meaningfully different from absent: absent means nobody has recorded one, and the
+ * caller falls back to the built-in estimate; 0 means the owner turned it off.
+ */
+export async function getStandingDiscounts(propertyId: string): Promise<Record<string, number>> {
+  const set = await getChannels(propertyId);
+  return Object.fromEntries(
+    [...set.byId.values()]
+      .filter((c) => c.standingGuestDiscountPct !== undefined)
+      .map((c) => [c.channelId, c.standingGuestDiscountPct as number]),
+  );
+}
