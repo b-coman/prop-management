@@ -205,3 +205,9 @@ The first time this ran, length matched and the hash did not: Booking writes **7
 inside its prices, and the transcription had rendered them as plain spaces. Per-slice hashes localise
 the damage; a character-code inventory names it; the index list repairs it. Without the check, a
 "clean" file would have gone straight into the write path.
+
+**Accumulate, then read out ONCE.** `sessionStorage` survives same-origin navigation, so a batch of
+windows should parse into one keyed object and come out in a single pass at the end — not window by
+window. Parsing in the page first (`parserSnippet()`) cuts the payload by two thirds and removes every
+non-breaking space before it can be lost, which is what turns this step from the run's bottleneck into
+a few slices. `scripts/comp-run.ts --plan` emits exactly this.

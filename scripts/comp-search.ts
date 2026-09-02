@@ -24,6 +24,7 @@ import {
   parseSearchCard, verifySearchBatch, matchToSet, IN_PAGE_SEARCH_COLLECTOR, parserSnippet,
   type SearchCard,
 } from '@/lib/competitive/searchResults';
+import { bookingRows } from '@/lib/competitive/captureRows';
 import { partiesFor, CHILD_AGES, partyLabel, type Party } from '@/lib/parity/party';
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 
@@ -134,33 +135,9 @@ JSON.stringify(__raw.cards.map(function(c){ return parseSearchCard(c.slug, c.nam
         `${String(c.price).padStart(6)}  ${c.name.slice(0, 38)}`));
   }
 
-  // Rows for the ONE write path. Absences are recorded too: a curated listing the search omitted is
-  // an outcome with a reason, never a silent blank.
-  const rows = [
-    ...curated.map(({ card, listing }) => ({
-      competitorListingId: listing.listingId, channel: 'booking.com',
-      checkIn: IN, checkOut: OUT, guests: party.adults + party.children,
-      status: 'captured', guestTotal: card.price, listTotal: card.listPrice,
-      promoActive: card.listPrice !== null, ratePlan: 'flexible',
-      party, url,
-      sessionState: `Booking SEARCH results, signed in, RON. One page load for the whole field, so ` +
-                    `every price here was read under identical conditions. Card echo: ${nights}n, ` +
-                    `${party.adults}a+${party.children}c.`,
-      // `programApplied` is deliberately ABSENT: a search card shows a struck-through price for a
-      // Genius discount and for an ordinary promotion alike, and never says which. Unmeasured, not
-      // false — `promoActive` records that SOMETHING was discounted, which is what we can see.
-      session: { loggedIn: true, program: 'genius', currency: 'RON' },
-    })),
-    ...absent.map((l) => ({
-      competitorListingId: l.listingId, channel: 'booking.com',
-      checkIn: IN, checkOut: OUT, guests: party.adults + party.children,
-      status: 'unavailable', party, url,
-      reason: `not returned by the Booking search for this party — either no availability or the ` +
-              `property does not accept this party. The search is the authority on that; its detail ` +
-              `page may still print a price (see docs §24.2).`,
-      sessionState: 'Booking SEARCH results, signed in, RON — absence from the result set.',
-    })),
-  ];
+  // Rows for the ONE write path, built by the SHARED builder so this script and `comp-run` cannot
+  // drift apart in what provenance they stamp.
+  const rows = bookingRows({ curated, absent, checkIn: IN, checkOut: OUT, nights, party, url });
   const out = CARDS.replace(/\.json$/, '') + '.rows.json';
   fs.writeFileSync(out, JSON.stringify(rows, null, 1));
   console.log(`\n${rows.length} rows written to ${out}`);

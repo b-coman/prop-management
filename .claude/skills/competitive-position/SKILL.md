@@ -25,22 +25,35 @@ storing a wrong number.
 
 ## 0. The run, in order
 
+**For a batch — the normal case — use `comp-run`. Two commands and one browser pass.**
+
 | # | | |
 |---|---|---|
-| 1 | `comp-next.ts --in --out --guests` | Who competes for this party, with URLs. Refuses a window we have not quoted ourselves. |
-| 2 | `comp-search.ts --in --out --party` | Booking: the search URL + collector. **Prefer this** — one load, whole field. |
-| 2b | `comp-search-airbnb.ts --in --out --party` | Airbnb: same idea, 18 per page. Absentees come back as a probe list, never as `unavailable` (its search is 15 pages deep, so "missing" and "ranked low" look identical). |
-| 3 | *Chrome: load → collect → save cards.json* | The only step that is not a command. Protocol doc. |
-| 4 | `comp-search.ts ... --cards cards.json` | Verifies every card's echo, matches by slug, writes rows. |
-| 5 | `parity-capture.ts --rows … --dry-run` then for real | The one write path. |
-| 6 | `comp-report.ts --in --out --guests` | The reading. Render it; do not rebuild it. |
+| 1 | `comp-run.ts --plan --windows a:b,c:d --parties 2a1c,4a2c` | Every URL, plus ONE snippet that is the same on every page. Writes nothing. |
+| 2 | *Chrome: load → paste → next* | The only manual step. Batch 2-3 navigations per `browser_batch`; more times out. |
+| 3 | *read `sessionStorage.getItem('__run')` ONCE, hash-check it* | Protocol §10. The snippet accumulates, so a navigation never loses what came before. |
+| 4 | `comp-run.ts --blob blob.json` | Verifies every echo, matches the set, writes through the one path, and **reads every row back**. |
+| 5 | `comp-report.ts --in --out --guests` | The reading, or open **The market** tab. Render it; do not rebuild it. |
 
-Per-listing probes (`comp-next`) are the fallback for Airbnb absentees, for listings outside the
-searched radius, and for capacity verification (`comp-verify-next` / `comp-verify-record`).
+Step 4 is not optional and is not hand-written any more: a write that reports success proves nothing,
+and both data-loss bugs in this system were found only by reading fields back. It lives in the command
+so a hurried run cannot skip it.
 
-The Airbnb run parses IN THE PAGE, using the compiled source of `parseAirbnbCard` shipped there by
-`parserSnippet()` — one implementation, not two. It also cuts the payload by 70% and removes every
-non-breaking space, which is what makes the hand-transcription back out survivable.
+**Single window, or Airbnb:**
+
+| | |
+|---|---|
+| `comp-search.ts --in --out --party` | Booking, one window. Same in-page parse, `--cards` to finish. |
+| `comp-search-airbnb.ts --in --out --party` | Airbnb, 18 per page. Absentees come back as a **probe list**, never as `unavailable` — its search is 15 pages deep, so "missing" and "ranked low" look identical. |
+| `comp-next.ts --in --out --guests` | Per-listing probes: Airbnb absentees, listings outside the radius, capacity checks. |
+
+**Everything parses IN THE PAGE**, using the compiled source of the tested parser (`parserSnippet()`),
+not a copy of it. One implementation, and it cuts the payload by two thirds while removing every
+non-breaking space — which is what makes reading it back out survivable at all.
+
+**A four-window run was about forty steps before this existed. It should now be a handful.** If you
+find yourself hand-writing a read-back check, or reassembling row files, stop: that work belongs in
+the script, and leaving it in the transcript is how it gets skipped next time.
 
 ---
 
@@ -88,6 +101,14 @@ competes for a family through its small apartment rather than its 21-person hous
   on that window, measured without a page load. Never counted against coverage.
 - **Unread capacity is `unknown`, never a moat.** Claiming "no competition here" on missing data is
   wrong in the flattering direction.
+- **A search proves capacity, but not in how many PIECES.** A property the search returns for party
+  *P* can house *P* — so a search is a free capacity floor for the whole field, and may only ever
+  RAISE a recorded number (an absence can mean sold out). But check the card for a `2×` room marker
+  first: reading a two-unit offer as one large unit turned TETRA Plus 569, two houses of three, into
+  one house of six. Beds and m² give it away too — the composed card reports the beds of the whole
+  offer and no single m².
+- **`no_rooms=1` does not hide multi-room offers.** Tested at `no_rooms=3`: identical results.
+  Booking composes combinations either way, so a park's absence is as real as a house's.
 
 ---
 
@@ -135,18 +156,27 @@ a window already read beats a new window.**
 
 ## 6. What to produce
 
-1. **Coverage first** — how many quoted, of how many, and the oldest age. If the sample is thin, say
-   so in the first sentence.
-2. **The ladder**, cheapest first, his own row marked, with rating and review count beside each price.
-3. **Who did not quote and why** — refusals, absences, out-of-set.
-4. **Absorption**, when a second reading exists. When it does not, say the clock has not started.
+The screen is **The market** tab, and it is built on two axes, not one (`lib/competitive/board.ts`).
+Report in that shape, because a rank alone points the wrong way:
+
+|            | most of the field GONE | field still OPEN |
+|------------|------------------------|------------------|
+| you dear   | *cleared above you* — the leftovers, not the market | **exposed** — real choice, and you are dear |
+| you cheap  | **left money** — a picked-over window priced as if quiet | *cheap and quiet* — demand, not price |
+
+1. **The verdict first**, and only the two states that need action get emphasis. A report where
+   everything is urgent has nothing urgent in it.
+2. **Coverage beside every rank** — quoted, of how many asked, plus what was never read. "Dearest of
+   4" with ten sold out is not the same fact as "dearest of 4" in an open market.
+3. **Who did not quote and why** — nothing left, refused the party, out of set, never read. Four
+   different things; never one blank.
+4. **Absorption**, when a second reading exists. When it does not, say the clock has not started —
+   and remember one transition is a booking, not a trend.
 5. **Candidates**, if a search surfaced properties outside the set — ranked by review volume, for him.
 6. **What it means**, in one paragraph, distinguishing a price problem from a demand one.
 
 Cite every number to the cell it came from. Never state a price you did not read, and never fill a gap
-with an estimate.
-
----
+with an estimate. **Never suggest a price** — name the state, the decision is his (C2).
 
 ## 7. Standing constraints
 
