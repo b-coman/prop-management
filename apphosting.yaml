@@ -194,6 +194,37 @@ env:
     availability:
         - RUNTIME
 
+# WhatsApp Cloud API (Meta) — the property's own number, +40 753 980 097.
+# Replaces Twilio for WhatsApp. The provider is chosen by WHATSAPP_PROVIDER;
+# until that is set to "cloud" these are provisioned but unused by the send path.
+# META_APP_SECRET signs the inbound webhook — /api/whatsapp/cloud refuses to
+# process anything without it, deliberately (an unsigned inbound endpoint that
+# writes to the thread vault is a forgery vector).
+  - variable: WHATSAPP_CLOUD_TOKEN
+    secret: projects/1061532538391/secrets/WHATSAPP_CLOUD_TOKEN/versions/latest
+    availability:
+        - RUNTIME
+
+  - variable: WHATSAPP_PHONE_NUMBER_ID
+    secret: projects/1061532538391/secrets/WHATSAPP_PHONE_NUMBER_ID/versions/latest
+    availability:
+        - RUNTIME
+
+  - variable: WHATSAPP_WABA_ID
+    secret: projects/1061532538391/secrets/WHATSAPP_WABA_ID/versions/latest
+    availability:
+        - RUNTIME
+
+  - variable: META_APP_SECRET
+    secret: projects/1061532538391/secrets/META_APP_SECRET/versions/latest
+    availability:
+        - RUNTIME
+
+  - variable: WHATSAPP_WEBHOOK_VERIFY_TOKEN
+    secret: projects/1061532538391/secrets/WHATSAPP_WEBHOOK_VERIFY_TOKEN/versions/latest
+    availability:
+        - RUNTIME
+
 # Automation endpoint token (auth for /api/automation — used by iOS Shortcuts)
   - variable: AUTOMATION_TOKEN
     secret: projects/1061532538391/secrets/AUTOMATION_TOKEN/versions/latest
