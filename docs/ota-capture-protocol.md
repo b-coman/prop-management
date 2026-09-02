@@ -211,3 +211,36 @@ windows should parse into one keyed object and come out in a single pass at the 
 window. Parsing in the page first (`parserSnippet()`) cuts the payload by two thirds and removes every
 non-breaking space before it can be lost, which is what turns this step from the run's bottleneck into
 a few slices. `scripts/comp-run.ts --plan` emits exactly this.
+
+
+---
+
+## 11. Leave evidence, not assurances
+
+Everything above is a check performed once, in flight. That is not enough on its own, and the gap
+showed the day the owner asked a fair question mid-run:
+
+> *"Are you sure that this problem you encounter now didn't affect the probes already collected? Are
+> we sure about that? I want to trust the data, not wonder all the time if there is a mistake."*
+
+Nothing stored could settle it. Every capture had been verified and had left behind only a sentence
+of prose, so the only available answer was to reason about what the code used to do — which is
+exactly the sort of answer nobody should accept.
+
+**So record what the PAGE said, as data.** `Observation.echo` holds the stay the page itself claimed
+to be quoting — nights, dates, party — plus whether it matched at capture time. It is written from the
+page, never from the probe, so `scripts/comp-audit.ts` can re-derive the comparison years later.
+
+Two rules follow:
+
+- **Run `comp-audit` before acting on a reading**, the way `--dry-run` runs before a write. It
+  separates `wrong` (a contradiction in the stored data) from `unverifiable` (something you are taking
+  on trust), and exits non-zero only on the former.
+- **An `unavailable` needs an echo as much as a price does.** A detail page showing "not available"
+  for the wrong dates is exactly as wrong as a price read off the wrong dates, and it looks just as
+  convincing. Ten probes were recorded before this was noticed; they were re-read and every page did
+  echo the right stay, but that was luck confirmed after the fact, not a check.
+
+And the field itself needed reading back: adding `echo` to the store reported ten successful writes
+and persisted none, because the document is built as an explicit literal and the field was not in it.
+The write path says nothing about whether the write happened.

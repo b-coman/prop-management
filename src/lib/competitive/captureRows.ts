@@ -28,6 +28,8 @@ export interface CaptureRow {
   url: string;
   sessionState: string;
   session?: { loggedIn: boolean; program: 'genius' | null; currency: string };
+  /** What the CARD said it was quoting. Stored so an audit can re-check it later — see Observation. */
+  echo?: { nights?: number | null; adults?: number | null; children?: number | null; verified?: boolean };
 }
 
 export interface RowsInput {
@@ -55,6 +57,11 @@ export function bookingRows(input: RowsInput): CaptureRow[] {
       party, url,
       sessionState: `Booking SEARCH results, signed in, RON. One page load for the whole field, so ` +
                     `every price here was read under identical conditions. Card echo: ${echo}.`,
+      echo: {
+        nights: card.echo.nights, adults: card.echo.adults, children: card.echo.children,
+        verified: card.echo.nights === nights && card.echo.adults === party.adults
+                  && card.echo.children === party.children,
+      },
       // `programApplied` is deliberately ABSENT: a search card shows a struck-through price for a
       // Genius discount and for an ordinary promotion alike, and never says which. Unmeasured, not
       // false — `promoActive` records that SOMETHING was discounted, which is what we can see.

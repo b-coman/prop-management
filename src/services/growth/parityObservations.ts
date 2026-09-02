@@ -56,6 +56,7 @@ export interface ObservationRecord extends Observation {
   channel: string;
   /** Login state / currency the capture was made in — a Genius or host session skews the number. */
   sessionState?: string;
+  echo?: Observation['echo'];
   /**
    * The same fact, structured, because the prose form proved unfilterable: the first 199 observations
    * carry 29 distinct `sessionState` strings, so nothing downstream can mechanically exclude the
@@ -119,6 +120,8 @@ export interface RecordObservationInput {
   source: 'api' | 'browser';
   url?: string;
   sessionState?: string;
+  /** The page's own statement of the stay, kept as data so an audit can re-check it later. */
+  echo?: Observation['echo'];
   /** Structured session — see ObservationRecord.session. */
   session?: CaptureSession;
   /** Which rate plan the captured price belongs to. */
@@ -270,6 +273,9 @@ export async function recordObservation(input: RecordObservationInput): Promise<
     source: input.source,
     ...(input.url ? { url: input.url } : {}),
     ...(input.sessionState ? { sessionState: input.sessionState } : {}),
+    // The page's own statement of what it was quoting, kept as DATA so an audit can re-derive the
+    // comparison after the fact. Prose in `sessionState` cannot be re-checked; this can.
+    ...(input.echo ? { echo: input.echo } : {}),
     ...(input.capturedBy ? { capturedBy: input.capturedBy } : {}),
     capturedAt,
     createdAt: FieldValue.serverTimestamp(),
@@ -342,6 +348,7 @@ export async function recordCaptureRow(
     sessionState?: string; session?: unknown; ratePlan?: string; party?: unknown;
     rawExcerpt?: string; referenceTotal?: number | null;
     rawCurrency?: string; fxRateToRon?: number; fxRateSource?: string;
+    echo?: Observation['echo'];
   },
   opts: { dryRun?: boolean; capturedBy: string; capturedAt?: string },
 ): Promise<void> {
@@ -359,6 +366,7 @@ export async function recordCaptureRow(
     sessionState: r.sessionState, session: r.session as never, ratePlan: r.ratePlan as never,
     party: r.party as never, rawExcerpt: r.rawExcerpt, referenceTotal: r.referenceTotal,
     rawCurrency: r.rawCurrency, fxRateToRon: r.fxRateToRon, fxRateSource: r.fxRateSource,
+    echo: r.echo,
     capturedBy: opts.capturedBy, capturedAt: opts.capturedAt,
   } as never);
 }

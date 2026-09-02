@@ -186,6 +186,18 @@ with an estimate. **Never suggest a price** — name the state, the decision is 
 - **On the first CAPTCHA: stop and tell the owner.**
 - **Read the data back after every write.** A write that reports success tells you nothing — both
   data-loss bugs in this system were found this way, and the second only because the first report
-  checked one field and stopped.
+  checked one field and stopped. `comp-run` does it for you; when you write rows any other way, do it
+  yourself. Adding `echo` to the store looked like it worked and silently wrote nothing, because the
+  document is an explicit literal and the field was not in it.
+- **Run `comp-audit.ts` before you act on the board, not only after a scare.** It re-derives every
+  check it can from what is stored and says plainly what it cannot: `wrong` means a contradiction in
+  the data, `unverifiable` means something you are taking on trust. It exits non-zero on `wrong`.
+- **A check that leaves no evidence is a check you have to trust.** Record what the PAGE said — not
+  what you asked for — in `echo`, so the comparison can be re-run long after the tab is closed. The
+  owner asked whether an in-flight contamination had touched older rows and nothing stored could
+  answer it; that is the failure this field exists to prevent.
+- **When a search is ambiguous, probe the property directly.** It is one load and it converts a
+  guess into a reading — and record that page's echo too: an `unavailable` read off a page showing
+  other dates is as wrong as a price read off one.
 - The full history is `docs/competitive-position-engine.md`. When something here looks arbitrary, the
   reason is there, and it is usually a stored wrong number.

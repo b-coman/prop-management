@@ -54,6 +54,27 @@ export interface Observation {
   /** `api` for the direct engine, `browser` for anything read off a page. */
   source: 'api' | 'browser';
   url?: string;
+  /**
+   * What the PAGE said it was quoting, as data rather than prose.
+   *
+   * The owner asked whether a contamination found today could already be sitting in rows collected
+   * earlier, and the honest answer was that nothing stored could settle it: the echo was checked once
+   * in flight and left behind only a sentence in `sessionState`. A check that leaves no evidence is a
+   * check you have to take on trust, which is the opposite of what this store is for.
+   *
+   * Recorded verbatim from the page — never from the probe — so an audit can re-derive the comparison
+   * long after the tab is closed. `verified` is that comparison's result at capture time; absent means
+   * the capture predates this field, which is itself the finding an audit should report.
+   */
+  echo?: {
+    checkIn?: string | null;
+    checkOut?: string | null;
+    nights?: number | null;
+    adults?: number | null;
+    children?: number | null;
+    /** True when every recorded field matched what was asked. */
+    verified?: boolean;
+  };
 }
 
 /**
