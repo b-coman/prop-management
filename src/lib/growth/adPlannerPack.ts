@@ -24,6 +24,7 @@ import { getBaseUrl } from '@/lib/structured-data';
 import { serverTranslateContent } from '@/lib/server-language-utils';
 import { getMaxDailyBudgetMinor } from '@/config/growth-ads';
 import { searchCities } from '@/services/growth/metaAds/geo';
+import { audienceCandidates, type AudienceCandidate } from '@/services/growth/metaAds/audiences';
 import { getAdAccountHealth, getPageHealth } from '@/services/growth/metaAds/brandHealth';
 import { buildAdLearnings } from '@/lib/growth/adLearnings';
 import type { AdOpportunity, AdFraming } from '@/lib/growth/contracts';
@@ -74,6 +75,11 @@ export interface AdPlannerPack {
   targeting: {
     candidateCities: CityMatch[];
     candidateCityKeys: string[];
+    /**
+     * The retargeting audiences available on the account, each with Meta's own deliverability
+     * verdict. Empty ⇒ this property has no retargeting option and the plan must be prospecting.
+     */
+    candidateAudiences: AudienceCandidate[];
     note: string;
   };
   account:
@@ -103,6 +109,9 @@ export async function buildAdPlannerPack(
 ): Promise<AdPlannerPack> {
   const asOf = opts?.asOf ?? new Date();
   const propertyId = opportunity.propertyId;
+  // Read-only; returns [] when the account has none, so a missing audience list degrades this pack
+  // to a prospecting-only pack rather than failing the planning run.
+  const candidateAudiences = await audienceCandidates(propertyId);
 
   // Health blocks + candidate-city resolution + property doc, in parallel (all read-only, all degrade).
   const [accountRes, pageRes, cityResults, propSnap, learnings] = await Promise.all([
@@ -184,7 +193,12 @@ export async function buildAdPlannerPack(
     targeting: {
       candidateCities,
       candidateCityKeys: candidateCities.map((c) => c.key),
-      note: 'Pick a SUBSET of these cities (with a per-city radius in km). Advantage+ Audience owns demographics (§9f) — there is NO age/gender/interest control; GEO + the copy angle qualify the audience. Favor the feeder markets that fit the occasion and the property (a mountain weekend sells to nearby cities + Bucharest).',
+      candidateAudiences,
+      note:
+        'Pick a SUBSET of these cities (with a per-city radius in km). For a PROSPECTING plan, Advantage+ Audience owns demographics (§9f) — there is NO age/gender/interest control, and detailed-interest EXCLUSIONS were removed by Meta in 2026; GEO + the copy angle qualify the audience. Favor the feeder markets that fit the occasion and the property (a mountain weekend sells to nearby cities + Bucharest). ' +
+        (candidateAudiences.length
+          ? 'For a RETARGETING plan, set targeting.customAudiences to a SUBSET of candidateAudiences and prefer country-level geo (targeting.countries) so the audience is not clipped by a city radius — only audiences marked deliverable:true can run, and Advantage+ expansion is turned OFF automatically so delivery stays inside the audience. Retargeting is worth choosing when the pool was built by a recent cold flight and the offer is one those visitors already saw; it multiplies an existing funnel rather than finding new demand.'
+          : 'No custom audiences are available on this account, so a retargeting plan is not possible — plan prospecting.'),
     },
     account,
     page,

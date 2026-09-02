@@ -284,6 +284,35 @@ export async function composeAndCreateAd(input: ComposeAndCreateAdInput): Promis
     ? { cities: cities.map((c) => ({ key: c.key, radius: c.radius, distance_unit: 'kilometer' })) }
     : { countries };
 
+  // (3d) RETARGETING. A custom audience turns this ad set from prospecting into retargeting, and two
+  // things must change together or it silently stops being retargeting at all:
+  //
+  //   - `advantage_audience` must go to 0. The default is 1 (campaignBuilder.createAdSet bakes it
+  //     in), and Advantage+ expansion deliberately delivers BEYOND the audience you named — which is
+  //     correct for prospecting and ruinous here: you would pay retargeting money to reach strangers.
+  //     Verified on the wire 2026-09-02: an ad set created with `custom_audiences` came back carrying
+  //     `targeting_automation: {advantage_audience: 1}` until it was explicitly set to 0.
+  //   - geo stays. Meta still requires a geo target; the audience NARROWS it rather than replacing
+  //     it, which is why the `no-geo-targeting` check above applies to retargeting plans too.
+  //
+  // Detailed-interest EXCLUSIONS are not offered here because Meta removed them entirely in 2026
+  // ("Detailed targeting exclusions are no longer available for ad sets", err 100/3858492). Audience
+  // exclusions — a customer list, say — are a different mechanism and do still work.
+  const customAudiences = input.targeting.customAudiences ?? [];
+  const excludedAudiences = input.targeting.excludedCustomAudiences ?? [];
+  const isRetargeting = customAudiences.length > 0;
+  const audienceTargeting = {
+    ...(isRetargeting
+      ? {
+          custom_audiences: customAudiences.map((a) => ({ id: a.id })),
+          targeting_automation: { advantage_audience: 0 },
+        }
+      : {}),
+    ...(excludedAudiences.length
+      ? { excluded_custom_audiences: excludedAudiences.map((a) => ({ id: a.id })) }
+      : {}),
+  };
+
   // (4) allocate the doc id — NO Firestore write, just id generation (B5) —
   // so `utm_campaign` can be embedded in the link before the creative exists.
   let adCampaignId: string;
@@ -345,13 +374,17 @@ export async function composeAndCreateAd(input: ComposeAndCreateAdInput): Promis
       objective: metaObjective,
     },
     adSet: {
-      name: `${input.propertyId} — ${adCampaignId} — ad set`,
+      name: `${input.propertyId} — ${adCampaignId} — ${isRetargeting ? 'retargeting' : 'ad'} set`,
       dailyBudgetMinor: input.dailyBudgetMinor,
       landingUrl: input.landingBaseUrl,
-      // NO age_min/age_max: the default `advantage_audience:1` (set by
-      // campaignBuilder.createAdSet) OWNS demographics and rejects a hard age
-      // range outright (§9f) — GEO + copy qualify the audience instead.
-      targeting: { geo_locations: geoLocations },
+      // NO age_min/age_max: on a PROSPECTING ad set the default
+      // `advantage_audience:1` (set by campaignBuilder.createAdSet) OWNS
+      // demographics and rejects a hard age range outright (§9f) — GEO + copy
+      // qualify the audience instead. A RETARGETING ad set sets
+      // advantage_audience:0 (see 3d), which would permit an age range, but the
+      // audience is already the qualification and slicing a ~1,000-person pool
+      // demographically drops it below deliverable size.
+      targeting: { geo_locations: geoLocations, ...audienceTargeting },
       endTime: input.endTime,
     },
     creative: {

@@ -37,6 +37,15 @@ export interface AdPlannerPackForValidation {
   targeting: {
     /** The ad-geolocation city keys the planner may pick from (narrows-never-widens). */
     candidateCityKeys: string[];
+    /**
+     * The custom audiences the planner may retarget, with Meta's own deliverability verdict.
+     *
+     * `deliverable` comes from the audience's `delivery_status` (code 200 = ready). It has to be
+     * carried IN THE PACK rather than checked here because this validator is pure: Meta reports
+     * every audience's approximate size as "1000-1000" regardless of the truth, so delivery_status
+     * is the only honest signal and it costs a network call to read.
+     */
+    candidateAudiences?: Array<{ id: string; name: string; deliverable: boolean }>;
   };
 }
 
@@ -44,7 +53,7 @@ export interface AdPlanValidationResult {
   ok: boolean;
   errors: string[];   // hard failures — reject the whole plan (feed back to the planner; bounded repair)
   warnings: string[]; // worth surfacing at review but not blocking
-  stats: { dailyBudgetMinor: number; cities: number; daysToEnd: number | null; projectedTotalMinor: number | null };
+  stats: { dailyBudgetMinor: number; cities: number; audiences: number; daysToEnd: number | null; projectedTotalMinor: number | null };
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -65,16 +74,20 @@ export function validateAdPlan(
   const errors: string[] = [];
   const warnings: string[] = [];
   const cities = brief.targeting?.cities ?? [];
+  const countries = brief.targeting?.countries ?? [];
+  const audiences = brief.targeting?.customAudiences ?? [];
+  const excluded = brief.targeting?.excludedCustomAudiences ?? [];
   const nothing = (daysToEnd: number | null, projected: number | null): AdPlanValidationResult => ({
     ok: errors.length === 0,
     errors,
     warnings,
-    stats: { dailyBudgetMinor: brief.dailyBudgetMinor, cities: cities.length, daysToEnd, projectedTotalMinor: projected },
+    stats: { dailyBudgetMinor: brief.dailyBudgetMinor, cities: cities.length, audiences: audiences.length, daysToEnd, projectedTotalMinor: projected },
   });
 
   // A plan that declined to act is valid iff it targeted nobody (mirrors validatePlan's act:false rule).
   if (!brief.act) {
     if (cities.length > 0) errors.push(`act:false but ${cities.length} city target(s) selected — a declined plan must target nobody`);
+    if (audiences.length > 0) errors.push(`act:false but ${audiences.length} audience(s) selected — a declined plan must target nobody`);
     return nothing(null, null);
   }
 
@@ -99,16 +112,48 @@ export function validateAdPlan(
     if (daysToEnd <= 0) errors.push('end time is not in the future — a bounded run needs a future end date');
   }
 
-  // 4. Geo — at least one city, all from the candidate set, each with a sane radius.
-  if (cities.length === 0) {
-    errors.push('no city targeting — an ad set needs at least one geo target');
-  } else {
+  // 4. Geo — a target is required, all cities from the candidate set, each with a sane radius.
+  //
+  // A RETARGETING plan may target a whole country instead of cities: the audience is the real
+  // targeting, and pinning website visitors to one city radius silently discards part of the pool
+  // the cold flight paid to build. Meta still demands SOME geo, so one of the two must be present.
+  if (cities.length === 0 && countries.length === 0) {
+    errors.push('no geo targeting — an ad set needs at least one city or country');
+  } else if (cities.length === 0 && audiences.length === 0) {
+    errors.push('country-level geo with no custom audience — too broad for a prospecting ad set; pick cities or an audience');
+  } else if (cities.length > 0) {
     const candidates = new Set(pack.targeting.candidateCityKeys);
     const offList = cities.filter((c) => !candidates.has(c.key)).map((c) => c.key);
     if (offList.length) errors.push(`selected ${offList.length} city key(s) not in the pack's candidates: ${offList.join(', ')}`);
     const badRadius = cities.filter((c) => !Number.isFinite(c.radius) || c.radius < MIN_RADIUS_KM || c.radius > MAX_RADIUS_KM);
     if (badRadius.length) {
       errors.push(`${badRadius.length} city radius/radii out of range [${MIN_RADIUS_KM}, ${MAX_RADIUS_KM}] km: ${badRadius.map((c) => `${c.key}:${c.radius}`).join(', ')}`);
+    }
+  }
+
+  // 4b. Audiences — narrows-never-widens, and each must actually be able to deliver.
+  if (audiences.length || excluded.length) {
+    const candidates = pack.targeting.candidateAudiences ?? [];
+    if (!candidates.length) {
+      errors.push('audience targeting selected but the pack offers no candidate audiences — the planner cannot invent an audience id');
+    } else {
+      const byId = new Map(candidates.map((a) => [a.id, a]));
+      for (const [label, list] of [['targeted', audiences], ['excluded', excluded]] as const) {
+        const off = list.filter((a) => !byId.has(a.id));
+        if (off.length) {
+          errors.push(`${off.length} ${label} audience id(s) not in the pack's candidates: ${off.map((a) => a.id).join(', ')}`);
+        }
+      }
+      // Deliverability applies to TARGETED audiences only. An excluded audience under the floor is
+      // harmless — Meta simply subtracts a small set — whereas a targeted one cannot run at all.
+      const undeliverable = audiences.filter((a) => byId.get(a.id) && !byId.get(a.id)!.deliverable);
+      if (undeliverable.length) {
+        errors.push(
+          `${undeliverable.length} targeted audience(s) below Meta's delivery floor (~1,000 people): ` +
+            undeliverable.map((a) => `${a.name || a.id}`).join(', ') +
+            ' — wait for the audience to fill, or target a broader one'
+        );
+      }
     }
   }
 

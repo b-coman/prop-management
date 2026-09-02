@@ -922,6 +922,17 @@ export interface CityTarget {
 }
 
 /**
+ * One Meta custom audience, in the platform-NEUTRAL shape the planner and composer share.
+ *
+ * `name` is carried alongside the id purely so a brief, a validation error and the admin review
+ * screen can all say WHICH audience without a second Meta round-trip. Meta only needs the id.
+ */
+export interface AudienceTarget {
+  id: string;
+  name: string;
+}
+
+/**
  * `adComposer.composeAndCreateAd` input — the platform-NEUTRAL compose
  * boundary (plan "The seam"). Nothing Meta-specific may leak in here (S1) —
  * everything platform-specific lives downstream, in `metaAds/*`.
@@ -965,6 +976,17 @@ export interface ComposeAndCreateAdInput {
     cities: CityTarget[];
     /** Fallback ONLY — used as `geo_locations.countries` when `cities` is empty (backward-compatible with 2a's whole-country targeting). */
     countries?: string[];
+    /**
+     * RETARGETING. When non-empty the ad set targets these Meta custom audiences, and the composer
+     * turns Advantage+ audience expansion OFF — expansion delivers to people OUTSIDE the audience,
+     * which defeats the entire point of retargeting, and it also caps `age_min` at 25.
+     *
+     * Meta still requires a geo target on a retargeting ad set, so `cities` or `countries` must
+     * still be present; the audience narrows that geo, it does not replace it.
+     */
+    customAudiences?: AudienceTarget[];
+    /** Audiences to exclude — e.g. a hashed customer list, so you stop paying to reach people who already booked. */
+    excludedCustomAudiences?: AudienceTarget[];
   };
   /** ISO 8601 — REQUIRED in 2a (plan REVISIONS B2): bounds the ad set's real spend window (Meta's 500 RON campaign-level spend-cap floor is too high for a small first test). */
   endTime: string;

@@ -9,7 +9,7 @@
  *
  * Pure types + a couple of pure guards — no Firestore, no network.
  */
-import type { AdObjective, CityTarget, LanguageCode } from '@/types';
+import type { AdObjective, CityTarget, LanguageCode, AudienceTarget } from '@/types';
 
 // ── analyst → router → per-instrument planner ────────────────────────────────
 /**
@@ -215,6 +215,25 @@ export interface AdBrief {
   targeting: {
     /** Selected city targets — a SUBSET of the pack's candidate cities (validateAdPlan enforces). */
     cities: CityTarget[];
+    /**
+     * Country-level geo, used when no city is selected. Mainly for RETARGETING, where the audience
+     * is the real targeting and the geo only needs to be wide enough not to clip it: a website
+     * visitor could be anywhere in the country, so pinning them to one city radius would silently
+     * discard part of the pool you paid to build.
+     */
+    countries?: string[];
+    /**
+     * RETARGETING — Meta custom audiences to reach. A SUBSET of the pack's candidate audiences
+     * (validateAdPlan enforces the same narrows-never-widens rule as cities), and each must be
+     * deliverable: Meta refuses an audience under ~1,000 people, so selecting a too-small one
+     * produces an ad set that cannot run.
+     *
+     * Their presence is what makes the composer turn Advantage+ expansion off. Without that the ad
+     * set would deliver beyond the audience and stop being retargeting.
+     */
+    customAudiences?: AudienceTarget[];
+    /** Audiences to exclude — e.g. past guests, so budget is not spent re-selling to people who booked. */
+    excludedCustomAudiences?: AudienceTarget[];
   };
   dailyBudgetMinor: number;     // bani — ≤ MAX_DAILY_BUDGET_MINOR (validated)
   endTime: string;              // ISO 8601 — bounds the run + the spend-cap math
