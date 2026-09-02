@@ -34,7 +34,7 @@ const arg = (n: string, d?: string) => {
 };
 const SLUG = arg('property', 'prahova-mountain-chalet')!;
 
-type Finding = { level: 'wrong' | 'unverifiable'; line: string };
+type Finding = { level: 'wrong' | 'superseded' | 'unverifiable'; line: string };
 
 (async () => {
   const db = await getAdminDb();
@@ -47,7 +47,19 @@ type Finding = { level: 'wrong' | 'unverifiable'; line: string };
 
   const findings: Finding[] = [];
   const wrong = (line: string) => findings.push({ level: 'wrong', line });
+  const superseded = (line: string) => findings.push({ level: 'superseded', line });
   const unverifiable = (line: string) => findings.push({ level: 'unverifiable', line });
+
+  // A bad row that a later reading has already replaced is history, not a live error. The store is
+  // append-only on purpose, so the four prices banked before a party bar was discovered will sit in it
+  // forever — flagging them at the same severity as something the board is USING would make the exit
+  // code meaningless, and an alarm that always fires stops being read.
+  const newest = new Map<string, string>();
+  for (const o of comp) {
+    const k = o.cellId;
+    if (!newest.has(k) || o.capturedAt > newest.get(k)!) newest.set(k, o.capturedAt);
+  }
+  const isCurrent = (o: { cellId: string; capturedAt: string }) => newest.get(o.cellId) === o.capturedAt;
 
   console.log(`\nCOMP-AUDIT — ${comp.length} competitor observation(s), ${set.all.length} curated listing(s)\n`);
 
@@ -94,8 +106,10 @@ type Finding = { level: 'wrong' | 'unverifiable'; line: string };
     if (!l) { wrong(`${o.checkIn}→${o.checkOut}: priced row for '${o.subject.listingId}', which is not in the set`); continue; }
     const fit = hostsParty(l, partyForGuests(mix, o.guests));
     if (fit.kind === 'out-of-set') {
-      wrong(`${o.checkIn}→${o.checkOut} ${o.channel} ${l.displayName}: priced at ${o.guestTotal}, but the set ` +
-            `says it cannot host ${partyLabel(partyForGuests(mix, o.guests))} (${fit.reason})`);
+      const line = `${o.checkIn}→${o.checkOut} ${o.channel} ${l.displayName}: priced at ${o.guestTotal}, ` +
+                   `but the set says it cannot host ${partyLabel(partyForGuests(mix, o.guests))} (${fit.reason})`;
+      if (isCurrent(o)) wrong(line);
+      else superseded(`${line} — superseded by a later reading of the same cell`);
     }
   }
 
@@ -123,11 +137,17 @@ type Finding = { level: 'wrong' | 'unverifiable'; line: string };
 
   // ---------------------------------------------------------------- report
   const bad = findings.filter((f) => f.level === 'wrong');
+  const old = findings.filter((f) => f.level === 'superseded');
   const soft = findings.filter((f) => f.level === 'unverifiable');
 
   if (bad.length) {
     console.log(`\nWRONG — ${bad.length}. These are contradictions in the stored data, not gaps:`);
     for (const f of bad) console.log(`  ! ${f.line}`);
+  }
+  if (old.length) {
+    console.log(`\nWRONG BUT SUPERSEDED — ${old.length}. Already replaced by a later reading; the board does ` +
+                `not use these, and absorption discounts them:`);
+    for (const f of old) console.log(`  ~ ${f.line}`);
   }
   if (soft.length) {
     console.log(`\nCANNOT BE VERIFIED FROM THE STORE — ${soft.length}. Not errors; things you are taking on trust:`);
@@ -135,6 +155,7 @@ type Finding = { level: 'wrong' | 'unverifiable'; line: string };
   }
   if (!findings.length) console.log(`\nNothing wrong and nothing unverifiable. Every priced row re-checks against its own echo.`);
 
-  console.log(`\n${bad.length} wrong · ${soft.length} unverifiable · ${comp.length} rows examined\n`);
+  console.log(`\n${bad.length} wrong · ${old.length} superseded · ${soft.length} unverifiable · ` +
+              `${comp.length} rows examined\n`);
   if (bad.length) process.exitCode = 1;
 })().catch((e) => { console.error(e); process.exit(1); });

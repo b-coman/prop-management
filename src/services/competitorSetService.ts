@@ -151,7 +151,7 @@ export async function recordVerification(
   propertyId: string,
   listingId: string,
   observed: Partial<Pick<CompetitorListing,
-    'displayName' | 'city' | 'heroPhotoUrl' | 'photoProvenance' | 'units' |
+    'displayName' | 'city' | 'heroPhotoUrl' | 'photoProvenance' | 'units' | 'partyPolicy' |
     'rating' | 'reviewCount' | 'propertyType' | 'amenities' | 'distanceKm'>>,
   verifiedBy: string,
   at = new Date().toISOString(),

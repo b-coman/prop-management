@@ -217,3 +217,45 @@ describe('validateListing', () => {
       .toEqual([expect.stringContaining('maxPersons')]);
   });
 });
+
+describe('a standing party bar is not a sell-out', () => {
+  // Both measured on Booking, twice, on two different windows: Villa The Frame prints "Ooops! This is
+  // an adult-only property" and AVA Chalet "Ooops! Only children 12 years and older can stay here" —
+  // while still showing a price. The SEARCH just omits them, so 44 rows across 13 windows had been
+  // stored as `unavailable`, inflating the share of the field that had supposedly sold.
+  const ADULTS_ONLY = { units: [u('Villa', 8)], partyPolicy: { adultsOnly: true } };
+  const OVER_12 = { units: [u('Villa', 6)], partyPolicy: { minChildAge: 12 } };
+
+  it('takes an adults-only property out of the field for any party with children', () => {
+    const fit = hostsParty(ADULTS_ONLY, P_2A1C);
+    expect(fit.kind).toBe('out-of-set');
+    if (fit.kind === 'out-of-set') expect(fit.reason).toMatch(/adults-only/);
+  });
+
+  it('still counts it for an adults-only party — the bar is about children, not size', () => {
+    expect(hostsParty(ADULTS_ONLY, P_4A).kind).toBe('single');
+  });
+
+  it('applies a minimum child age against the ACTUAL ages, not the count', () => {
+    // CHILD_AGES is [10, 4]: a 2a+1c party brings a ten-year-old, which a 12+ rule bars.
+    const fit = hostsParty(OVER_12, P_2A1C);
+    expect(fit.kind).toBe('out-of-set');
+    if (fit.kind === 'out-of-set') expect(fit.reason).toMatch(/from 12 only.*10-year-old/);
+    expect(hostsParty(OVER_12, P_4A).kind).toBe('single');
+  });
+
+  it('lets a party through when every child clears the bar', () => {
+    expect(hostsParty({ units: [u('Villa', 6)], partyPolicy: { minChildAge: 8 } }, P_2A1C).kind).toBe('single');
+  });
+
+  it('changes nothing for a listing with no policy recorded', () => {
+    expect(hostsParty({ units: [u('Villa', 8)] }, P_2A1C).kind).toBe('single');
+  });
+
+  it('is checked BEFORE capacity, so a bar never reaches the scarcity denominator', () => {
+    // A huge adults-only villa is out of set for a family — not "too small", and not "nothing left".
+    const fit = hostsParty({ units: [u('Villa', 20)], partyPolicy: { adultsOnly: true } }, P_4A2C);
+    expect(fit.kind).toBe('out-of-set');
+    if (fit.kind === 'out-of-set') expect(fit.reason).not.toMatch(/do not fit|no single unit/);
+  });
+});

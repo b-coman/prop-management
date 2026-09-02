@@ -99,6 +99,12 @@ competes for a family through its small apartment rather than its 21-person hous
   set recorded it as unable to host them.
 - **A comparable that cannot host the party is a FINDING, not a gap** — competition he does not face
   on that window, measured without a page load. Never counted against coverage.
+- **A standing party BAR is not a sell-out.** Booking prints *"Ooops! This is an adult-only property"*
+  or *"Only children 12 years and older can stay here"* — and still shows a price — while the SEARCH
+  just omits the property, so the absence looks identical to nothing being left. Record it as
+  `partyPolicy` on the listing and `hostsParty` takes it out of the field for that party: no probe, no
+  denominator, no false scarcity. It is PER CHANNEL: Villa The Frame and AVA Chalet refuse families on
+  Booking and accept them on Airbnb, and both facts are true at once.
 - **Unread capacity is `unknown`, never a moat.** Claiming "no competition here" on missing data is
   wrong in the flattering direction.
 - **A search proves capacity, but not in how many PIECES.** A property the search returns for party

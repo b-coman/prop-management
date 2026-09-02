@@ -95,6 +95,28 @@ export interface CompetitorListing {
    */
   substitutionBasis: string;
 
+  /**
+   * Who the listing will not take, as a standing policy rather than an availability fact.
+   *
+   * Booking states these on the page — *"Ooops! This is an adult-only property"*, *"Ooops! Only
+   * children 12 years and older can stay here"* — and then still prints a price, which is the trap in
+   * §24. Worse, the SEARCH simply omits such a property for a barred party, so the absence arrives
+   * looking exactly like a sell-out: 44 rows across 13 windows were stored as `unavailable`, inflating
+   * the share of the field that had supposedly sold and pushing windows toward a scarcity reading
+   * they had not earned.
+   *
+   * A bar is not demand. Recording it here takes the listing out of the field for that party
+   * altogether — no probe, no denominator, no false scarcity — and it is PER CHANNEL, because it
+   * really is: both of these take families on Airbnb and refuse them on Booking.
+   */
+  partyPolicy?: {
+    adultsOnly?: boolean;
+    /** Children below this age are not accepted. */
+    minChildAge?: number;
+    /** Where the policy was read, verbatim, so it can be re-checked rather than believed. */
+    source?: string;
+  };
+
   active: boolean;
   retiredReason?: string;
 
@@ -168,8 +190,31 @@ export const SEPARATE_ROOM_MIN_AGE = 7;
  * This decides FEASIBILITY only. What a combination COSTS is a question for observed prices, and it
  * takes the cheapest units rather than the fewest — a different ordering, deliberately elsewhere.
  */
-export function hostsParty(listing: Pick<CompetitorListing, 'units'>, party: Party): PartyFit {
+export function hostsParty(
+  listing: Pick<CompetitorListing, 'units'> & Pick<Partial<CompetitorListing>, 'partyPolicy'>,
+  party: Party,
+): PartyFit {
   const need = partySize(party);
+
+  // A standing bar comes first: no amount of capacity makes a property that will not take children
+  // a comparable for a family. Checked before capacity so it never reaches the scarcity denominator
+  // — an adults-only listing absent from a family search is not a sold-out one.
+  const policy = listing.partyPolicy;
+  if (policy && party.children > 0) {
+    if (policy.adultsOnly) {
+      return { kind: 'out-of-set', reason: 'adults-only property — it will not take a party with children' };
+    }
+    if (policy.minChildAge != null) {
+      const tooYoung = childAges(party).filter((age) => age < policy.minChildAge!);
+      if (tooYoung.length) {
+        return {
+          kind: 'out-of-set',
+          reason: `accepts children from ${policy.minChildAge} only, and this party includes ` +
+                  `${tooYoung.length === 1 ? `a ${tooYoung[0]}-year-old` : `children aged ${tooYoung.join(' and ')}`}`,
+        };
+      }
+    }
+  }
   if (!listing.units.length) {
     return { kind: 'unknown', reason: 'capacity not read yet — Booking states it only on a priced probe' };
   }
