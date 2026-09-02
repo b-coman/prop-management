@@ -6,6 +6,7 @@
  */
 import {
   parseSearchCard, verifySearchBatch, matchToSet, slugOf, norm, IN_PAGE_SEARCH_COLLECTOR,
+  parserSnippet,
 } from '../searchResults';
 import type { CompetitorListing } from '../set';
 
@@ -151,5 +152,23 @@ describe('the in-page collector', () => {
     // The single mechanic most likely to be forgotten: 25 cards at the top, 6 after scrolling.
     expect(IN_PAGE_SEARCH_COLLECTOR).toMatch(/property-card/);
     expect(IN_PAGE_SEARCH_COLLECTOR).toMatch(/hotel/);
+  });
+});
+
+describe('the parser shipped INTO the page is the same parser', () => {
+  // Not an agreement test between two implementations — there is only one. What this catches is the
+  // esbuild `__name` shim going stale, which would otherwise surface as a silent parse failure on a
+  // live page rather than as a red test.
+  const inPage = new Function(`${parserSnippet()}; return parseSearchCard;`)() as typeof parseSearchCard;
+
+  const CASES: Array<[string, string]> = [
+    ['a discounted card', 'Vila X\n4 nights, 2 adults, 1 child\n3,200 lei2,719 lei\nOriginal price 3,200 lei. Current price 2,719 lei.'],
+    ['an undiscounted card', 'Vila Y\n1.5 km from centre\n4 nights, 2 adults, 1 child\n4,180 lei\nPrice 4,180 lei'],
+    ['a card with a non-breaking space', 'Vila Z\n4 nights, 2 adults, 1 child\nPrice 4,180\u00a0lei'],
+    ['a card with nothing parseable', 'See availability'],
+  ];
+
+  it.each(CASES)('agrees with the module on %s', (_label, text) => {
+    expect(inPage('slug', 'Name', text)).toEqual(parseSearchCard('slug', 'Name', text));
   });
 });

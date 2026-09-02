@@ -21,7 +21,8 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 import * as fs from 'fs';
 import { getCompetitorSet } from '@/services/competitorSetService';
 import {
-  parseSearchCard, verifySearchBatch, matchToSet, IN_PAGE_SEARCH_COLLECTOR,
+  parseSearchCard, verifySearchBatch, matchToSet, IN_PAGE_SEARCH_COLLECTOR, parserSnippet,
+  type SearchCard,
 } from '@/lib/competitive/searchResults';
 import { partiesFor, CHILD_AGES, partyLabel, type Party } from '@/lib/parity/party';
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
@@ -73,20 +74,32 @@ const searchUrl = (party: Party, checkIn: string, checkOut: string) => {
       console.log(`   are for the configured shapes, so there would be nothing to compare against.`);
     }
     console.log(`\n1. Open this in Chrome, signed in, and let it settle ~12s:\n\n${url}\n`);
-    console.log(`2. Run the collector BEFORE scrolling — the list is virtualised and scrolling`);
-    console.log(`   DESTROYS off-screen cards (25 at the top became 6 after scrolling to the bottom):\n`);
-    console.log(IN_PAGE_SEARCH_COLLECTOR);
-    console.log(`\n3. Save what it returns to cards.json, then:`);
+    console.log(`2. Run THIS before scrolling — the list is virtualised and scrolling DESTROYS`);
+    console.log(`   off-screen cards (25 at the top became 6 after scrolling to the bottom).`);
+    console.log(`   It parses IN THE PAGE: the raw text is ~15KB carrying 72 non-breaking spaces, and`);
+    console.log(`   getting that back out by hand costs 17 slices and a whitespace repair that went`);
+    console.log(`   wrong the first time. The parser below is the COMPILED SOURCE of parseSearchCard,`);
+    console.log(`   not a copy, so it cannot drift from the tests:\n`);
+    console.log(`${parserSnippet()}
+var __raw = JSON.parse(${IN_PAGE_SEARCH_COLLECTOR});
+JSON.stringify(__raw.cards.map(function(c){ return parseSearchCard(c.slug, c.name, c.text); }));`);
+    console.log(`\n3. Save what it returns to cards.json — and CHECK THE HASH of the reassembly`);
+    console.log(`   before trusting it (protocol §10). Then:`);
     console.log(`   npx tsx scripts/comp-search.ts --in ${IN} --out ${OUT} --party ${PARTY} --cards cards.json\n`);
     return;
   }
 
-  const raw = JSON.parse(fs.readFileSync(CARDS, 'utf8')) as
-    { cards: Array<{ slug: string; name: string; text: string; photo?: string | null }> };
-  const collected = Array.isArray(raw) ? raw as never : raw.cards;
-  if (!collected?.length) { console.error('cards file has no cards'); process.exit(1); }
+  // The file may hold cards ALREADY PARSED in the page (the normal path, step 2 above) or raw ones
+  // (the fallback, if the parser could not be injected). Same function either way — only the place
+  // it ran differs.
+  const file = JSON.parse(fs.readFileSync(CARDS, 'utf8'));
+  const collected: Array<Record<string, unknown>> =
+    Array.isArray(file) ? file : ((file as { cards?: Array<Record<string, unknown>> }).cards ?? []);
+  if (!collected.length) { console.error('cards file has no cards'); process.exit(1); }
 
-  const parsed = collected.map((c) => parseSearchCard(c.slug, c.name, c.text));
+  const parsed: SearchCard[] = collected.map((c) => 'echo' in c
+    ? (c as unknown as SearchCard)
+    : parseSearchCard(c.slug as string, c.name as string, c.text as string));
   const batch = verifySearchBatch(parsed, { nights, adults: party.adults, children: party.children });
   if (!batch.ok) {
     console.error(`\nREFUSED: ${batch.problem}`);

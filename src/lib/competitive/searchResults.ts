@@ -43,7 +43,8 @@ export interface SearchCard {
 /** Booking writes a non-breaking space in prices and labels. Normalise before matching anything. */
 export const norm = (s: string): string => s.replace(/ /g, ' ');
 
-const money = (s: string | undefined): number | null => {
+/** Exported so the compiled source can be shipped into the page — see {@link parserSnippet}. */
+export const money = (s: string | undefined): number | null => {
   if (!s) return null;
   const n = Number(s.replace(/,/g, ''));
   return Number.isFinite(n) && n > 0 ? n : null;
@@ -182,6 +183,28 @@ export function matchToSet(
  * Cards are found by `[data-testid="property-card"]`, which is a DOM dependency — but one that fails
  * LOUDLY (zero cards, refused by `verifySearchBatch`) rather than silently returning something wrong.
  */
+/**
+ * The tested parser, as source, ready to paste into a page.
+ *
+ * The same move as `airbnbSearch.parserSnippet`, and for the same reason it was built there: a
+ * Booking results page is ~15KB of raw text carrying 72 non-breaking spaces, the extension blocks
+ * bulk egress, and `javascript_tool` truncates its return near 1KB. Transcribing that by hand costs
+ * seventeen slices and a whitespace repair, and it went wrong the first time (§29.4). Parsing in the
+ * page cuts the payload by two thirds and removes every NBSP before it can be lost.
+ *
+ * This is NOT a second implementation. It is the compiled source of `parseSearchCard`, so it changes
+ * when the parser changes. `norm` and `money` live in this module, so unlike the Airbnb snippet there
+ * is no namespace reference to rewrite — only the esbuild `__name` tag to stand in for.
+ */
+export function parserSnippet(): string {
+  return [
+    'var __name = function(f){ return f; };',
+    `var norm = ${norm.toString()};`,
+    `var money = ${money.toString()};`,
+    `var parseSearchCard = ${parseSearchCard.toString()};`,
+  ].join('\n');
+}
+
 export const IN_PAGE_SEARCH_COLLECTOR = String.raw`
 (function(){
   var cards = document.querySelectorAll('[data-testid="property-card"]');
