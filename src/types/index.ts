@@ -856,6 +856,10 @@ export interface AdCampaign {
     copy: CopyVariant[];
     photos: Array<{ storagePath: string; url: string }>;
     cities: Array<{ name: string; radius: number }>;
+    /** Country codes, when a retargeting draft targets country-wide so the audience is not clipped. */
+    countries?: string[];
+    /** RETARGETING — the custom audiences this draft reaches. Empty/absent ⇒ a prospecting draft. */
+    audiences?: Array<{ id: string; name: string }>;
     creativeBrief: string;
     rationale: string;
     /** Photos the AI wanted but the gallery lacks — each with a ready generation prompt (manual-gen v1). */

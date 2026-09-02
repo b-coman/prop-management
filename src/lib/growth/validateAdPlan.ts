@@ -91,8 +91,13 @@ export function validateAdPlan(
     return nothing(null, null);
   }
 
-  // 1. Objective (2a supports only 'sales').
-  if (brief.objective !== 'sales') errors.push(`unsupported objective "${brief.objective}" — only 'sales' is verified`);
+  // 1. Objective. 'traffic' joined 'sales' once OUTCOME_TRAFFIC was live-verified on this account
+  // (three campaigns ran on it through August 2026). It is also the right objective for retargeting
+  // and for any flight whose pixel has too few purchase events to optimise on — optimising for
+  // PURCHASE against zero recorded purchases gave Meta no signal and cost 63% more per click.
+  if (brief.objective !== 'sales' && brief.objective !== 'traffic') {
+    errors.push(`unsupported objective "${brief.objective}" — only 'sales' and 'traffic' are verified`);
+  }
 
   // 2. Budget ceiling.
   const daily = brief.dailyBudgetMinor;

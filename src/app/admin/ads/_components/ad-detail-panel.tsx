@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
-import { Loader2, ExternalLink, RefreshCw, Ban, Rocket, Sparkles, Trash2, MapPin, Send, Save } from 'lucide-react';
+import { Loader2, ExternalLink, RefreshCw, Ban, Rocket, Sparkles, Trash2, MapPin, Send, Save, Users } from 'lucide-react';
 import type { AdCampaign, CopyVariant } from '@/types';
 import {
   approveAdAction,
@@ -158,7 +158,7 @@ function ProposalCard({
           </div>
         )}
 
-        {proposal.cities.length > 0 && (
+        {(proposal.cities.length > 0 || (proposal.countries?.length ?? 0) > 0) && (
           <div className="flex flex-wrap items-center gap-1.5">
             <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
             {proposal.cities.map((c) => (
@@ -166,7 +166,26 @@ function ProposalCard({
                 {c.name} · {c.radius}km
               </Badge>
             ))}
+            {(proposal.countries ?? []).map((c) => (
+              <Badge key={c} variant="outline" className="text-[11px]">
+                {c} (country-wide)
+              </Badge>
+            ))}
             {editable && <span className="text-[10px] text-muted-foreground">(geo edits: discard &amp; regenerate for now)</span>}
+          </div>
+        )}
+        {/* Retargeting is the single most important thing to see before pressing Push: it decides
+            whether this ad spends on strangers or on people who already visited. Badged distinctly
+            from geo so the two are never read as the same control. */}
+        {(proposal.audiences?.length ?? 0) > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Users className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-[11px] font-medium text-muted-foreground">Retargeting</span>
+            {(proposal.audiences ?? []).map((a) => (
+              <Badge key={a.id} variant="secondary" className="text-[11px]">
+                {a.name}
+              </Badge>
+            ))}
           </div>
         )}
         {proposal.photos.length > 0 && (
