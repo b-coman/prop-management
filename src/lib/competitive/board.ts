@@ -167,7 +167,7 @@ function verdict(row: BoardRowInput, position: Position, scarcity: Scarcity, abo
   if (row.quoted < MIN_QUOTES) {
     return {
       attention: 'thin', label: 'Too thin',
-      why: `Only ${row.quoted} comparable${row.quoted === 1 ? '' : 's'} quoted — no rank, and nothing ` +
+      why: `Only ${row.quoted} comparable${row.quoted === 1 ? '' : 's'} quoted - no rank, and nothing ` +
            `inferred from ${row.quoted === 1 ? 'it' : 'them'}.` +
            (row.nothingLeft ? ` ${row.nothingLeft} of the field had nothing left, which is itself the finding.` : ''),
     };
@@ -177,7 +177,7 @@ function verdict(row: BoardRowInput, position: Position, scarcity: Scarcity, abo
   // a sold window looked like is how you price the next one, but it never asks for attention.
   if (row.soldNights >= row.nights) {
     return { attention: 'ok', label: 'Sold',
-             why: 'Already booked for us — nothing to decide here, but worth remembering what the field looked like.' };
+             why: 'Already booked for us - nothing to decide here, but worth remembering what the field looked like.' };
   }
 
   if (position === 'cheap' && scarcity === 'tight') {
@@ -193,7 +193,7 @@ function verdict(row: BoardRowInput, position: Position, scarcity: Scarcity, abo
     return {
       attention: 'watch', label: 'Exposed',
       why: `${row.quoted} of ${row.quoted + row.nothingLeft} comparables are still bookable, so a guest ` +
-           `has real choice${aboveAll ? ' — and every one of them is cheaper than you' : ''}. This is ` +
+           `has real choice${aboveAll ? ' - and every one of them is cheaper than you' : ''}. This is ` +
            `the case where being dear actually costs you.`,
     };
   }
@@ -201,7 +201,7 @@ function verdict(row: BoardRowInput, position: Position, scarcity: Scarcity, abo
   if (position === 'dear' && scarcity === 'tight') {
     return {
       attention: 'ok', label: 'Cleared above you',
-      why: `Most of the field is gone — only ${row.quoted} of ${row.quoted + row.nothingLeft} still on ` +
+      why: `Most of the field is gone - only ${row.quoted} of ${row.quoted + row.nothingLeft} still on ` +
            `sale. You are dearest of what REMAINS, which is the leftovers, not the market. That is not ` +
            `evidence you are overpriced; if anything it is the reverse.`,
     };
@@ -211,7 +211,7 @@ function verdict(row: BoardRowInput, position: Position, scarcity: Scarcity, abo
     return {
       attention: 'ok', label: 'Cheap, market quiet',
       why: `You are below the field and most of the field is still bookable. Cheapness is not buying ` +
-           `you anything here — an empty week on this window is a demand problem, not a price one.`,
+           `you anything here - an empty week on this window is a demand problem, not a price one.`,
     };
   }
 
@@ -226,7 +226,7 @@ function verdict(row: BoardRowInput, position: Position, scarcity: Scarcity, abo
            : position === 'cheap' ? `${far ? 'Far below' : 'Below'} the field, coverage thin`
            : 'In line, coverage thin',
       why: `${row.quoted} quoted and ${row.unread} never read, so whether this window has largely sold ` +
-           `or is wide open is not yet decidable — and that is what decides whether being ` +
+           `or is wide open is not yet decidable - and that is what decides whether being ` +
            `${position === 'cheap' ? 'cheap here costs you money or nothing' : 'dear here matters'}. ` +
            `Probe the ${row.unread} before acting.`,
     };
@@ -243,7 +243,7 @@ function verdict(row: BoardRowInput, position: Position, scarcity: Scarcity, abo
     return {
       attention: 'watch',
       label: under ? 'Far below the field' : 'Far above the field',
-      why: `${Math.abs(Math.round(gapPct))}% ${under ? 'below' : 'above'} the field median — too far ` +
+      why: `${Math.abs(Math.round(gapPct))}% ${under ? 'below' : 'above'} the field median - too far ` +
            `to explain by position alone, whatever the scarcity band says. ${row.quoted} of ` +
            `${row.quoted + row.nothingLeft} comparables are still bookable, so this is not a cleared ` +
            `market; it is a gap worth understanding before the window gets closer.`,
@@ -253,7 +253,7 @@ function verdict(row: BoardRowInput, position: Position, scarcity: Scarcity, abo
   if (position === 'unknown') {
     return { attention: 'thin', label: 'No price of ours',
              why: `${row.quoted} comparables quoted, but we have no captured price on ${row.channelLabel} ` +
-                  `for this stay — so there is nothing to place among them.` };
+                  `for this stay - so there is nothing to place among them.` };
   }
 
   const onSale = `${row.quoted} of ${row.quoted + row.nothingLeft} still bookable`;
@@ -270,7 +270,7 @@ function verdict(row: BoardRowInput, position: Position, scarcity: Scarcity, abo
   if (position === 'dear') {
     return { attention: 'ok', label: 'Above the field',
              why: `You are above the field median with ${onSale}. Not enough choice left to call this ` +
-                  `exposed, not scarce enough to call it cleared — a window to re-read rather than to act on.` };
+                  `exposed, not scarce enough to call it cleared - a window to re-read rather than to act on.` };
   }
   if (position === 'cheap') {
     return { attention: 'ok', label: 'Below the field',
@@ -354,7 +354,7 @@ export function summariseBoard(rows: BoardRow[]): BoardSummary {
     !rows.length ? 'Nothing captured yet.'
     : act + watch === 0
       ? `${windows} window${windows === 1 ? '' : 's'} read across ${rows.length} channel contest${rows.length === 1 ? '' : 's'}. ` +
-        `Nothing is out of line — no window is both mispriced and facing real competition.`
+        `Nothing is out of line - no window is both mispriced and facing real competition.`
       : `${windows} window${windows === 1 ? '' : 's'} read. ` +
         [act && `${act} where you are cheap in a market that has largely sold`,
          watch && `${watch} where you are dear and buyers still have choice`]

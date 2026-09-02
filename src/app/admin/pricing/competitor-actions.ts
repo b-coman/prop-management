@@ -283,8 +283,8 @@ export async function fetchMarketPositions(propertyId: string): Promise<{
                 wentOffSale: field.wentOffSale.map((x) => ({ name: nameOf(x.listingId), lastPrice: x.lastPrice, between: x.between })),
                 parksSoldOut: field.parksSoldOut.map((x) => ({ name: nameOf(x.listingId), between: x.between })) }
             : { started: false,
-                summary: `Every listing here has one reading. Whether the field is selling — as opposed ` +
-                         `to how much of it is on sale right now — needs a SECOND reading of this window.`,
+                summary: `Every listing here has one reading. Whether the field is selling - as opposed ` +
+                         `to how much of it is on sale right now - needs a SECOND reading of this window.`,
                 wentOffSale: [], parksSoldOut: [] },
         });
       }

@@ -194,8 +194,8 @@ function Verify({ row, party }: { row: LadderRow; party: string }) {
       <div className="mt-2 space-y-1">
         {row.capturedAt && (
           <div>
-            Read {longDay(row.capturedAt)}{age !== null && age > 0 && ` — ${age} day${age === 1 ? '' : 's'} ago`}
-            {age === 0 && ' — today'}.
+            Read {longDay(row.capturedAt)}{age !== null && age > 0 && ` - ${age} day${age === 1 ? '' : 's'} ago`}
+            {age === 0 && ' - today'}.
           </div>
         )}
         {stayBack
@@ -215,8 +215,8 @@ function Verify({ row, party }: { row: LadderRow; party: string }) {
       <div className="mt-2">
         <div className="text-muted-foreground">
           Prices there are live. A different number means the market has moved since{' '}
-          {row.capturedAt ? longDay(row.capturedAt) : 'the reading'} — that movement is what this
-          screen watches — and if they no longer appear at all, they have sold out since.
+          {row.capturedAt ? longDay(row.capturedAt) : 'the reading'} - that movement is what this
+          screen watches - and if they no longer appear at all, they have sold out since.
         </div>
         <div className="mt-1 flex flex-wrap gap-4">
           {row.url && (
@@ -421,7 +421,7 @@ function Period({ g, columns }: { g: PeriodGroupView; columns: GridColumn[] }) {
                 return r
                   ? <Cell key={`${c.channel}|${c.partyLabel}`} r={r} />
                   : <span key={`${c.channel}|${c.partyLabel}`}
-                      title={`${c.channelLabel} · ${c.partyLabel} — never captured for this window`}
+                      title={`${c.channelLabel} · ${c.partyLabel} - never captured for this window`}
                       className="h-6 rounded border border-dotted border-slate-200" />;
               })}
               <span className="text-right text-xs tabular-nums text-muted-foreground">
@@ -454,7 +454,7 @@ function Cell({ r }: { r: MarketRow }) {
   const asked = r.quoted + r.nothingLeft;
   if (r.attention === 'thin') {
     return (
-      <span title={`${r.channelLabel} · ${r.partyLabel} — ${r.why}`}
+      <span title={`${r.channelLabel} · ${r.partyLabel} - ${r.why}`}
         className="flex h-6 items-center justify-center rounded border border-dashed border-slate-300 text-[10px] text-slate-400">
         too thin
       </span>
@@ -463,7 +463,7 @@ function Cell({ r }: { r: MarketRow }) {
   // The gap over the on-sale fraction. Both axes in every tile — a rank without the second one is the
   // reading that pointed the wrong way in the first place.
   return (
-    <span title={`${r.channelLabel} · ${r.partyLabel} — ${r.label}. ${r.why}`}
+    <span title={`${r.channelLabel} · ${r.partyLabel} - ${r.label}. ${r.why}`}
       className={`flex h-6 items-center justify-center gap-1 rounded px-1 text-[11px] tabular-nums ${
         loud ? `${tone.chip} font-semibold` : 'border border-slate-200 bg-slate-50 text-slate-600'}`}>
       <span>{r.gapPct === null ? '—' : `${r.gapPct > 0 ? '+' : ''}${Math.round(r.gapPct)}%`}</span>
@@ -549,7 +549,7 @@ export function MarketPanel({ rows, grouped, columns = [], summary }: {
           return thin.length ? (
             <p className="px-3 pt-3 text-xs text-muted-foreground">
               {thin.length} contest{thin.length === 1 ? '' : 's'} too thin to rank (shown as ·)
-              {airbnb > 0 && `, ${airbnb} of them Airbnb`} — that part of the board is unread, not calm.
+              {airbnb > 0 && `, ${airbnb} of them Airbnb`} - that part of the board is unread, not calm.
             </p>
           ) : null;
         })()}
