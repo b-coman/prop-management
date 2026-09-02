@@ -97,6 +97,7 @@ Before working on ANY Facebook, Instagram, or Meta advertising task (ads, Market
 | Guest Service | `src/services/guestService.ts` |
 | Hold Cleanup Cron | `src/app/api/cron/release-holds/route.ts` |
 | Firestore Query Tool | `scripts/query-firestore.ts` |
+| Tracking wiring check (run after adding any tracking event) | `scripts/verify-tracking-events.ts` (`npm run verify:tracking`) |
 | Meta Ads/CAPI Reference (read for any FB/IG work) | `docs/meta-ads-infrastructure-2026.md` |
 | Meta CAPI | `src/lib/meta-capi.ts` |
 

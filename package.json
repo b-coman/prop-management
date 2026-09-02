@@ -22,6 +22,7 @@
     "migrate:dry-run": "tsx scripts/migrate-property-data.ts --mode=dry-run",
     "migrate:execute": "tsx scripts/migrate-property-data.ts --mode=execute",
     "typecheck:scripts": "tsc --noEmit --skipLibCheck --project tsconfig.scripts.json",
+    "verify:tracking": "tsx scripts/verify-tracking-events.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
