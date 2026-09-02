@@ -2779,10 +2779,8 @@ whole field at no extra cost. It may only ever RAISE a recorded capacity — an 
 can mean sold out, so it can never lower one. Raising is also the safe direction: it adds competitors
 rather than removing them.
 
-**And one limit on it, found an hour later (§34):** the capture URL carries `no_rooms=1`, so the
-search returns only properties that can house the party in ONE unit. A park that would take six
-across three rooms is excluded by that parameter rather than by capacity, so an absence settles
-nothing at all for a multi-unit listing — not even when its availability is independently known.
+**A limit was proposed and then DISPROVEN (§34.1):** that `no_rooms=1` hides multi-room offers. It
+does not — Booking composes them regardless. The rule above stands as written.
 
 ### 33.4 Open
 
@@ -2815,16 +2813,47 @@ So the set was in better shape than §33 feared: of the eight recorded under six
 wrong** (Maramureș Nook and TETRA Plus 569, already corrected) and **three are now confirmed right**.
 The alarm was proportionate; the conclusion was not that everything was broken.
 
-### 34.1 The blind spot: `no_rooms=1`
+### 34.1 A blind spot that turned out not to exist — and the error it hid
 
-The capture URL asks for **one room**. So the search returns only properties that can house the party
-in a single unit, and a park that would take six across three rooms is filtered out by the parameter,
-not by capacity. For a multi-unit listing an absence therefore settles nothing — not even with
-availability independently confirmed, which is exactly the case for both Casutele.
+The first write-up of this section claimed the capture URL's `no_rooms=1` filtered out any property
+that needed several rooms, so an absence could not settle a park. The owner asked the obvious
+question — *"so you will redo with no limitation on no of rooms?"* — and the answer was to test it
+rather than argue it.
 
-This qualifies the rule written in §33.3 an hour earlier. The positive direction still holds: a
-property the search RETURNS can host the party in one unit. Everything else it says about capacity is
-silence. Settling a multi-unit listing needs its own detail page, where the unit table is visible.
+**One load at `no_rooms=3`, same window, same party: the identical six listings came back.** All three
+parks were still absent. Booking composes multi-room offers regardless of the parameter, which the
+data already showed if anyone had looked — Casutele de la Poienita appeared in the 24-28 Oct 2a+1c
+search as `1× Double Room` plus `1× Double Room`, with `no_rooms=1` set.
+
+So there is no blind spot, and the 22 stored `unavailable` rows for parks are **correct**: those
+properties genuinely cannot take that party on those dates. The two Casutele stay recorded as they
+were, and `hostsParty` already puts them in the 4a+2c field by combination — nothing was ever wrong
+with them.
+
+**But the test exposed a real error, and it was mine.** The `no_rooms=3` page put a `2×` room marker
+on TETRA Plus 569. Checking the captures back:
+
+| party | beds | m² |
+|---|---|---|
+| 2a+1c | 2 | 45 |
+| 4a+2c | 4 | *(none — two units listed)* |
+
+TETRA is **two units of three**, not one unit of six. Yesterday's §33 correction raised its
+`maxPersons` to 6 on the evidence that Booking sold it to a six-person party — reading a two-unit
+composition as one large unit. That is §21's mistake in reverse: there, beds summed across unit blocks
+turned six tiny houses into one 22-person unit; here, a two-unit offer inflated a three-person house.
+
+Corrected to `maxPersons: 3, count: 2`. It stays in the 4a+2c field, now honestly as a **combination
+across two units** rather than as a single unit that does not exist. Maramureș Nook re-checked and
+left at 6: identical beds and m² across both parties, and no room marker — genuinely one unit that
+takes six.
+
+Its captured 4a+2c prices (4,961 / 3,355 / 5,592 / 5,710) are two-unit totals, which remains the right
+comparison for a party that would split under the age rule (§30). The observations stand.
+
+**The lesson worth keeping:** a capacity raised from *"the search sold it to N people"* is only sound
+when the offer is one unit. The search proves the property can house the party; it does not say in how
+many pieces. Check the room markers before believing a number.
 
 ### 34.2 Kept from the two loads
 
