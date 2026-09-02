@@ -116,15 +116,27 @@ function classify(row: BoardRowInput): { position: Position; scarcity: Scarcity;
     : gapPct < -LEVEL_BAND_PCT ? 'cheap'
     : 'level';
 
-  // The denominator is what was ASKED — quoted plus nothing-left. Unread comparables are excluded
-  // from the share and reported separately: folding them in either direction would invent a market.
+  // Scarcity is a BOUND, not a point, because unread comparables could be on sale or gone and we do
+  // not know which. Take the worst and best cases; if they land in different bands the honest answer
+  // is `unknown`, not the flattering end of the range.
+  //
+  // This is not hypothetical. The Airbnb reading for 22-28 Sep was 3 quoted, 0 known gone, 4 never
+  // read — and a point estimate of 3/3 called the market OPEN, which would have turned a window
+  // where we are 60% under the field into "cheap and quiet, it is a demand problem". The bounds are
+  // 3/7 and 7/7: mixed to open, so nothing can be concluded until those four are probed.
+  const field = row.quoted + row.nothingLeft + row.unread;
+  const band = (share: number): Scarcity =>
+    share < SCARCITY.tight ? 'tight' : share > SCARCITY.open ? 'open' : 'mixed';
+  const worst = field > 0 ? row.quoted / field : null;
+  const best = field > 0 ? (row.quoted + row.unread) / field : null;
+  const scarcity: Scarcity =
+    worst === null || best === null ? 'unknown'
+    : band(worst) === band(best) ? band(worst)
+    : 'unknown';
+  // The share we DISPLAY stays the measured one — what quoted, of what was actually asked.
   const asked = row.quoted + row.nothingLeft;
   const share = asked > 0 ? row.quoted / asked : null;
-  const scarcity: Scarcity =
-    share === null ? 'unknown'
-    : share < SCARCITY.tight ? 'tight'
-    : share > SCARCITY.open ? 'open'
-    : 'mixed';
+  void share;
 
   return { position, scarcity, gapPct };
 }
@@ -186,6 +198,20 @@ function verdict(row: BoardRowInput, position: Position, scarcity: Scarcity, abo
       attention: 'ok', label: 'Cheap, market quiet',
       why: `You are below the field and most of the field is still bookable. Cheapness is not buying ` +
            `you anything here — an empty week on this window is a demand problem, not a price one.`,
+    };
+  }
+
+  // Scarcity unknown means the unread ones decide it, so say that rather than guessing a quadrant.
+  if (scarcity === 'unknown' && row.unread > 0) {
+    return {
+      attention: 'ok',
+      label: position === 'dear' ? 'Above the field, coverage thin'
+           : position === 'cheap' ? 'Below the field, coverage thin'
+           : 'In line, coverage thin',
+      why: `${row.quoted} quoted and ${row.unread} never read, so whether this window has largely sold ` +
+           `or is wide open is not yet decidable — and that is what decides whether being ` +
+           `${position === 'cheap' ? 'cheap here costs you money or nothing' : 'dear here matters'}. ` +
+           `Probe the ${row.unread} before acting.`,
     };
   }
 

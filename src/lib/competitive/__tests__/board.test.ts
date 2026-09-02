@@ -199,3 +199,37 @@ describe('the summary', () => {
     expect(s.headline).not.toMatch(/%/);
   });
 });
+
+describe('scarcity is a bound, not a point', () => {
+  // The Airbnb reading for 22-28 Sep: 3 quoted, 0 known gone, 4 never read. A point estimate of 3/3
+  // called the market open, which would have turned "60% under the field" into "cheap and quiet, a
+  // demand problem" — the flattering end of a range nobody had measured.
+  const SEPT = row({
+    channel: 'airbnb', channelLabel: 'Airbnb',
+    ourPrice: 2940, ourDirect: 2442, fieldMedian: 7396, fieldMin: 7025, fieldMax: 7626,
+    quoted: 3, nothingLeft: 0, unread: 4, eligible: 7,
+  });
+
+  it('refuses to call a market open when the unread could all be gone', () => {
+    const r = buildBoard([SEPT])[0];
+    expect(r.position).toBe('cheap');
+    expect(r.scarcity).toBe('unknown');          // bounds are 3/7 and 7/7 — mixed to open
+    expect(r.attention).toBe('ok');
+    expect(r.label).toBe('Below the field, coverage thin');
+    expect(r.why).toMatch(/never read/);
+    expect(r.why).toMatch(/Probe the 4 before acting/);
+  });
+
+  it('is confident when the unread cannot change the band', () => {
+    // 4 quoted, 11 gone, 0 unread: both bounds are 4/15. Nothing to be uncertain about.
+    const r = buildBoard([row({ quoted: 4, nothingLeft: 11, unread: 0, ourPrice: 2767, fieldMedian: 4480 })])[0];
+    expect(r.scarcity).toBe('tight');
+    expect(r.attention).toBe('act');
+  });
+
+  it('stays confident when a few unread cannot move the verdict', () => {
+    // 2 quoted, 20 gone, 1 unread: worst 2/23, best 3/23 — both tight.
+    const r = buildBoard([row({ quoted: 4, nothingLeft: 20, unread: 1, ourPrice: 1000, fieldMedian: 4000 })])[0];
+    expect(r.scarcity).toBe('tight');
+  });
+});
