@@ -5,6 +5,7 @@
  */
 
 import type { LanguageCode } from '@/types';
+import { getEmailPalette, type EmailPalette } from '@/lib/email-theme';
 
 // Email translations for all templates
 const emailTranslations = {
@@ -12,15 +13,15 @@ const emailTranslations = {
     // Common
     dear: 'Dear',
     thankYou: 'Thank you!',
-    theTeam: 'The RentalSpot Team',
+    theTeam: 'The {propertyName} Team',
     automatedMessage: 'This is an automated message. Please do not reply to this email.',
-    thankYouForChoosing: 'Thank you for choosing RentalSpot!',
+    thankYouForChoosing: 'Thank you for choosing {propertyName}!',
 
     // Booking confirmation
     bookingConfirmation: 'Booking Confirmation',
     bookingConfirmedMessage: 'Thank you for your booking! Your reservation is confirmed.',
     bookingDetails: 'Booking Details',
-    bookingId: 'Booking ID',
+    bookingId: 'Booking reference',
     property: 'Property',
     checkIn: 'Check-in',
     checkOut: 'Check-out',
@@ -37,6 +38,10 @@ const emailTranslations = {
     host: 'Host',
     hostPhone: 'Host Phone',
     cancellationPolicy: 'Cancellation Policy',
+    paidInFull: 'Paid in full',
+    replyPrompt: 'This confirmation was sent automatically, but you can reply to it - your message reaches us.',
+    paidOn: 'Paid on {date}',
+    amountPaid: 'Amount paid',
     specialRequests: 'Special Requests',
 
     // Hold confirmation
@@ -115,15 +120,15 @@ const emailTranslations = {
     // Common
     dear: 'Dragă',
     thankYou: 'Vă mulțumim!',
-    theTeam: 'Echipa RentalSpot',
+    theTeam: 'Echipa {propertyName}',
     automatedMessage: 'Acesta este un mesaj automat. Vă rugăm să nu răspundeți la acest email.',
-    thankYouForChoosing: 'Vă mulțumim că ați ales RentalSpot!',
+    thankYouForChoosing: 'Vă mulțumim că ați ales {propertyName}!',
 
     // Booking confirmation
     bookingConfirmation: 'Confirmare Rezervare',
     bookingConfirmedMessage: 'Vă mulțumim pentru rezervare! Rezervarea dumneavoastră este confirmată.',
     bookingDetails: 'Detalii Rezervare',
-    bookingId: 'ID Rezervare',
+    bookingId: 'Referință rezervare',
     property: 'Proprietate',
     checkIn: 'Check-in',
     checkOut: 'Check-out',
@@ -140,6 +145,10 @@ const emailTranslations = {
     host: 'Gazdă',
     hostPhone: 'Telefon Gazdă',
     cancellationPolicy: 'Politica de Anulare',
+    paidInFull: 'Achitat integral',
+    replyPrompt: 'Acest mesaj a fost trimis automat, dar puteți răspunde - mesajul ajunge la noi.',
+    paidOn: 'Achitat pe {date}',
+    amountPaid: 'Sumă achitată',
     specialRequests: 'Cereri Speciale',
 
     // Hold confirmation
@@ -241,6 +250,7 @@ function tArray(lang: LanguageCode, key: TranslationKey): readonly string[] {
 interface ReviewRequestEmailData {
   guestName: string;
   propertyName: string;
+  brand?: EmailBrand;
   checkInDate: string;
   checkOutDate: string;
   reviewUrl: string;
@@ -250,6 +260,7 @@ interface ReviewRequestEmailData {
 interface CheckoutConfirmationEmailData {
   guestName: string;
   propertyName: string;
+  brand?: EmailBrand;
   propertyId: string;
   checkInDate: string;
   checkOutDate: string;
@@ -261,6 +272,7 @@ interface CheckoutConfirmationEmailData {
 interface ReturnIncentiveEmailData {
   guestName: string;
   propertyName: string;
+  brand?: EmailBrand;
   propertyId: string;
   couponCode: string;
   discount: number;
@@ -271,6 +283,7 @@ interface ReturnIncentiveEmailData {
 interface SeasonalReminderEmailData {
   guestName: string;
   propertyName: string;
+  brand?: EmailBrand;
   propertyId: string;
   unsubscribeUrl: string;
 }
@@ -279,6 +292,7 @@ interface BookingEmailData {
   guestName: string;
   bookingId: string;
   propertyName: string;
+  brand?: EmailBrand;
   checkInDate: string;
   checkOutDate: string;
   checkInTime?: string;
@@ -291,6 +305,9 @@ interface BookingEmailData {
   totalAmount: string;
   currency: string;
   cancellationPolicy?: string;
+  /** Set when the money has actually landed, so the email states it plainly. */
+  isPaid?: boolean;
+  paidOnDate?: string;
   propertyAddress?: string;
   hostName?: string;
   hostPhone?: string;
@@ -301,6 +318,7 @@ interface HoldEmailData {
   guestName: string;
   holdId: string;
   propertyName: string;
+  brand?: EmailBrand;
   checkInDate: string;
   checkOutDate: string;
   numberOfGuests: number;
@@ -314,6 +332,7 @@ interface InquiryEmailData {
   guestName: string;
   inquiryId: string;
   propertyName: string;
+  brand?: EmailBrand;
   message: string;
   responseMessage?: string;
   hostName?: string;
@@ -322,55 +341,125 @@ interface InquiryEmailData {
 /**
  * Creates email header with consistent styling
  */
-function createHeader(title: string): string {
+export interface EmailBrand {
+  propertyName: string;
+  palette: EmailPalette;
+  /** Absolute URL of the property hero. Omitted -> the card simply has no image. */
+  heroImageUrl?: string;
+  websiteUrl?: string;
+  /** An inbox a human reads. Set -> the footer invites a reply instead of forbidding one. */
+  replyToEmail?: string;
+}
+
+const NEUTRAL_BRAND_PALETTE = getEmailPalette(undefined);
+
+/**
+ * Opens the email: canvas, centred card, optional hero, overline + title.
+ *
+ * Layout is a table because Outlook's Word engine ignores most modern CSS. The
+ * <style> block below is progressive enhancement (spacing, mobile) - every
+ * colour that matters is also inlined so the design survives a client that
+ * drops embedded styles.
+ */
+function createHeader(title: string, brand?: EmailBrand): string {
+  const c = brand?.palette || NEUTRAL_BRAND_PALETTE;
+  const hero = brand?.heroImageUrl
+    ? `      <tr>
+        <td style="padding:0;">
+          <img src="${brand.heroImageUrl}" alt="" style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;text-decoration:none;" />
+        </td>
+      </tr>
+`
+    : '';
+
   return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
   <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 0; }
-    .header { background-color: #4f46e5; color: white; padding: 30px; text-align: center; }
-    .content { padding: 30px; }
-    .info-box { background-color: #f9fafb; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #4f46e5; }
-    .footer { text-align: center; padding: 30px; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
-    table { width: 100%; border-collapse: collapse; }
-    td { padding: 8px 0; }
-    .right { text-align: right; }
-    .total-row { font-weight: bold; font-size: 18px; border-top: 2px solid #e5e7eb; padding-top: 10px; }
-    h1 { margin: 0; font-size: 24px; }
-    h2 { color: #4f46e5; margin-top: 0; margin-bottom: 15px; font-size: 18px; }
-    .highlight { background-color: #fef3c7; padding: 15px; border-radius: 5px; margin: 15px 0; }
-    .button { background-color: #4f46e5; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 15px; }
-    p { margin: 0 0 10px 0; }
-    ul { margin: 10px 0; padding-left: 20px; }
-    li { margin-bottom: 5px; }
+    body { margin:0; padding:0; background:${c.canvas}; -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }
+    .content { padding: 32px 40px 8px 40px; font-family:${c.bodyFont}; font-size:16px; line-height:1.65; color:${c.foreground}; }
+    .content p { margin: 0 0 14px 0; }
+    /* Measured in Georgia Bold - the REAL fallback, since no webfont is loaded.
+       The widest one-line title, "Confirmare Rezervare", costs ~11.6px of width
+       per 1px of font-size, against an available width of viewport-70. 5.8vw
+       therefore holds it on one line from a 360px phone up, while genuinely long
+       titles ("We Miss You at <property>!", 568px at 26px) still wrap - which is
+       right. The plain px declaration is the fallback where clamp() is unknown. */
+    h1 { margin:0; font-family:${c.headingFont}; font-weight:600; font-size:30px; font-size:clamp(20px, 5.8vw, 30px); line-height:1.25; color:${c.foreground}; letter-spacing:-0.01em; }
+    .reference { margin:18px 0 0 0; font-family:${c.bodyFont}; font-size:12px; letter-spacing:0.03em; color:${c.mutedForeground}; }
+    h2 { margin:0 0 14px 0; font-family:${c.headingFont}; font-weight:600; font-size:16px; letter-spacing:0.06em; text-transform:uppercase; color:${c.primary}; }
+    .overline { font-family:${c.bodyFont}; font-size:12px; letter-spacing:0.18em; text-transform:uppercase; color:${c.mutedForeground}; margin:0 0 10px 0; }
+    /* Sections are separated by a hairline rather than sitting in grey boxes. */
+    .info-box { background:transparent; border:0; border-top:1px solid ${c.border}; border-radius:0; padding:24px 0 4px 0; margin:24px 0 0 0; }
+    .highlight { background:${c.canvas}; border:1px solid ${c.border}; border-radius:0; padding:16px 18px; margin:20px 0; }
+    table { width:100%; border-collapse:collapse; }
+    td { padding:8px 0; font-size:16px; }
+    .right { text-align:right; }
+    .total-row td { border-top:1px solid ${c.border}; padding-top:16px; font-weight:700; font-size:21px; font-family:${c.headingFont}; color:${c.foreground}; }
+    .paid-pill { display:inline-block; padding:7px 14px; background:${c.primary}; color:#ffffff; font-family:${c.bodyFont}; font-size:12px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; }
+    .button { display:inline-block; background:${c.primary}; color:#ffffff !important; padding:13px 28px; text-decoration:none; border-radius:2px; font-family:${c.bodyFont}; font-size:14px; font-weight:600; letter-spacing:0.02em; margin-top:6px; }
+    .footer { padding:28px 40px 36px 40px; text-align:center; font-family:${c.bodyFont}; font-size:13px; line-height:1.6; color:${c.mutedForeground}; border-top:1px solid ${c.border}; }
+    ul { margin:10px 0; padding-left:20px; } li { margin-bottom:6px; }
+    a { color:${c.primary}; }
+    @media only screen and (max-width:620px) {
+      .masthead { padding:26px 22px 0 22px !important; }
+      .content { padding:26px 22px 4px 22px !important; font-size:17px !important; }
+      .content p, .content td { font-size:17px !important; }
+      .content p.reference { font-size:12px !important; }
+      .footer { padding:24px 22px 30px 22px !important; font-size:14px !important; }
+      /* 25px fits a 375px phone when clamp() is unsupported; clamp wins where it is. */
+      h1 { font-size:21px !important; font-size:clamp(20px, 5.8vw, 30px) !important; }
+      h2 { font-size:16px !important; }
+      .total-row td { font-size:21px !important; }
+    }
   </style>
 </head>
-<body>
-  <div class="header">
-    <h1>${title}</h1>
-  </div>
+<body style="margin:0;padding:0;background:${c.canvas};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${c.canvas};">
+  <tr>
+    <td align="center" style="padding:28px 12px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:${c.surface};border:1px solid ${c.border};">
+${hero}        <tr>
+          <td class="masthead" style="padding:34px 40px 0 40px;">
+            ${brand?.propertyName ? `<p class="overline">${brand.propertyName}</p>` : ''}
+            <h1>${title}</h1>
+          </td>
+        </tr>
+        <tr>
+          <td>
 `;
 }
 
 /**
- * Creates email footer
+ * Closes the card opened by createHeader.
  */
-function createFooter(lang: LanguageCode, unsubscribeUrl?: string): string {
+function createFooter(lang: LanguageCode, brandOrName: EmailBrand | string, unsubscribeUrl?: string): string {
+  const brand = typeof brandOrName === 'string' ? undefined : brandOrName;
+  const propertyName = typeof brandOrName === 'string' ? brandOrName : brandOrName.propertyName;
+  const c = brand?.palette || NEUTRAL_BRAND_PALETTE;
   return `
-  <div class="footer">
-    <p>${t(lang, 'thankYouForChoosing')}</p>
-    ${unsubscribeUrl ? `
-    <p style="margin-top: 10px; font-size: 11px; color: #9ca3af;">
-      ${t(lang, 'unsubscribeText')} <a href="${unsubscribeUrl}" style="color: #6b7280; text-decoration: underline;">${t(lang, 'unsubscribeLink')}</a>.
-    </p>
-    ` : ''}
-    <p style="margin-top: 10px; font-size: 11px; color: #9ca3af;">
-      ${t(lang, 'automatedMessage')}
-    </p>
-  </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="footer">
+            <p style="margin:0 0 8px 0; color:${c.foreground};">${t(lang, 'thankYouForChoosing', { propertyName })}</p>
+            ${brand?.websiteUrl ? `<p style="margin:0 0 8px 0;"><a href="${brand.websiteUrl}" style="color:${c.primary}; text-decoration:none;">${brand.websiteUrl.replace(/^https?:\/\//, '')}</a></p>` : ''}
+            ${unsubscribeUrl ? `
+            <p style="margin-top:10px; font-size:11px;">
+              ${t(lang, 'unsubscribeText')} <a href="${unsubscribeUrl}" style="color:${c.mutedForeground}; text-decoration:underline;">${t(lang, 'unsubscribeLink')}</a>.
+            </p>
+            ` : ''}
+            <p style="margin-top:10px; font-size:11px;">${brand?.replyToEmail ? t(lang, 'replyPrompt') : t(lang, 'automatedMessage')}</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
 </body>
 </html>
 `;
@@ -395,17 +484,18 @@ ${t(lang, 'dear')} ${data.guestName},
 ${t(lang, 'bookingConfirmedMessage')}
 
 ${t(lang, 'bookingDetails')}:
-- ${t(lang, 'bookingId')}: ${data.bookingId}
 - ${t(lang, 'property')}: ${data.propertyName}
 - ${t(lang, 'checkIn')}: ${data.checkInDate}${data.checkInTime ? ` (${t(lang, 'after')} ${data.checkInTime})` : ''}
 - ${t(lang, 'checkOut')}: ${data.checkOutDate}${data.checkOutTime ? ` (${t(lang, 'before')} ${data.checkOutTime})` : ''}
 - ${t(lang, 'guests')}: ${data.numberOfGuests}
+- ${t(lang, 'bookingId')}: ${data.bookingId}
 
 ${t(lang, 'paymentSummary')}:
 - ${data.numberOfNights} ${t(lang, 'nights')}: ${data.baseAmount}
 - ${t(lang, 'cleaningFee')}: ${data.cleaningFee}
 ${data.extraGuestFee ? `- ${t(lang, 'extraGuestFee')}: ${data.extraGuestFee}` : ''}
-- ${t(lang, 'total')}: ${data.totalAmount} ${data.currency}
+- ${t(lang, 'total')}: ${data.totalAmount}${data.isPaid ? `
+- ${t(lang, 'paidInFull')}${data.paidOnDate ? ` (${t(lang, 'paidOn', { date: data.paidOnDate })})` : ''}` : ''}
 
 ${data.propertyAddress ? `${t(lang, 'address')}:\n${data.propertyAddress}\n` : ''}
 ${data.hostName ? `${t(lang, 'host')}: ${data.hostName}` : ''}
@@ -414,22 +504,24 @@ ${data.hostPhone ? `${t(lang, 'hostPhone')}: ${data.hostPhone}` : ''}
 ${data.cancellationPolicy ? `${t(lang, 'cancellationPolicy')}:\n${data.cancellationPolicy}\n` : ''}
 
 ${t(lang, 'thankYou')}
-${t(lang, 'theTeam')}
+${t(lang, 'theTeam', { propertyName: data.propertyName })}
 `;
 
   const html = `
-${createHeader(t(lang, 'bookingConfirmation'))}
+${createHeader(t(lang, 'bookingConfirmation'), data.brand)}
   <div class="content">
     <p>${t(lang, 'dear')} ${data.guestName},</p>
     <p>${t(lang, 'bookingConfirmedMessage')}</p>
 
     <div class="info-box">
       <h2>${t(lang, 'bookingDetails')}</h2>
-      <p><strong>${t(lang, 'bookingId')}:</strong> ${data.bookingId}</p>
       <p><strong>${t(lang, 'property')}:</strong> ${data.propertyName}</p>
       <p><strong>${t(lang, 'checkIn')}:</strong> ${data.checkInDate}${data.checkInTime ? ` (${t(lang, 'after')} ${data.checkInTime})` : ''}</p>
       <p><strong>${t(lang, 'checkOut')}:</strong> ${data.checkOutDate}${data.checkOutTime ? ` (${t(lang, 'before')} ${data.checkOutTime})` : ''}</p>
       <p><strong>${t(lang, 'guests')}:</strong> ${data.numberOfGuests}</p>
+      <!-- A reference, not information: opaque to the guest, needed only if
+           something goes wrong. So it closes the block quietly instead of leading it. -->
+      <p class="reference">${t(lang, 'bookingId')} ${data.bookingId}</p>
     </div>
 
     <div class="info-box">
@@ -451,9 +543,15 @@ ${createHeader(t(lang, 'bookingConfirmation'))}
         ` : ''}
         <tr class="total-row">
           <td>${t(lang, 'total')}</td>
-          <td class="right">${data.totalAmount} ${data.currency}</td>
+          <td class="right">${data.totalAmount}</td>
         </tr>
       </table>
+      ${data.isPaid ? `
+      <p style="margin:18px 0 0 0;">
+        <span class="paid-pill">${t(lang, 'paidInFull')}</span>
+      </p>
+      ${data.paidOnDate ? `<p style="margin:8px 0 0 0; font-size:13px;">${t(lang, 'paidOn', { date: data.paidOnDate })}</p>` : ''}
+      ` : ''}
     </div>
 
     ${data.propertyAddress || data.hostName ? `
@@ -478,7 +576,7 @@ ${createHeader(t(lang, 'bookingConfirmation'))}
     </div>
     ` : ''}
   </div>
-${createFooter(lang)}
+${createFooter(lang, data.brand || data.propertyName)}
 `;
 
   return { text, html, subject };
@@ -509,16 +607,16 @@ ${t(lang, 'holdDetails')}:
 - ${t(lang, 'checkOut')}: ${data.checkOutDate}
 - ${t(lang, 'guests')}: ${data.numberOfGuests}
 - ${t(lang, 'expires')}: ${data.expirationTime}
-- ${t(lang, 'estimatedTotal')}: ${data.estimatedTotal} ${data.currency}
+- ${t(lang, 'estimatedTotal')}: ${data.estimatedTotal}
 
 ${t(lang, 'holdExpirationWarning', { time: data.expirationTime })}
 
 ${t(lang, 'thankYou')}
-${t(lang, 'theTeam')}
+${t(lang, 'theTeam', { propertyName: data.propertyName })}
 `;
 
   const html = `
-${createHeader(t(lang, 'holdConfirmation'))}
+${createHeader(t(lang, 'holdConfirmation'), data.brand)}
   <div class="content">
     <p>${t(lang, 'dear')} ${data.guestName},</p>
     <p>${t(lang, 'holdCreatedMessage')}</p>
@@ -530,7 +628,7 @@ ${createHeader(t(lang, 'holdConfirmation'))}
       <p><strong>${t(lang, 'checkIn')}:</strong> ${data.checkInDate}</p>
       <p><strong>${t(lang, 'checkOut')}:</strong> ${data.checkOutDate}</p>
       <p><strong>${t(lang, 'guests')}:</strong> ${data.numberOfGuests}</p>
-      <p><strong>${t(lang, 'estimatedTotal')}:</strong> ${data.estimatedTotal} ${data.currency}</p>
+      <p><strong>${t(lang, 'estimatedTotal')}:</strong> ${data.estimatedTotal}</p>
     </div>
 
     <div class="highlight">
@@ -543,7 +641,7 @@ ${createHeader(t(lang, 'holdConfirmation'))}
     </div>
     ` : ''}
   </div>
-${createFooter(lang)}
+${createFooter(lang, data.brand || data.propertyName)}
 `;
 
   return { text, html, subject };
@@ -579,11 +677,11 @@ ${t(lang, 'whatsNext')}:
 ${whatsNextItems.map(item => `- ${item}`).join('\n')}
 
 ${t(lang, 'thankYou')}
-${t(lang, 'theTeam')}
+${t(lang, 'theTeam', { propertyName: data.propertyName })}
 `;
 
   const html = `
-${createHeader(t(lang, 'inquiryConfirmation'))}
+${createHeader(t(lang, 'inquiryConfirmation'), data.brand)}
   <div class="content">
     <p>${t(lang, 'dear')} ${data.guestName},</p>
     <p>${t(lang, 'inquiryReceivedMessage')}</p>
@@ -606,7 +704,7 @@ ${createHeader(t(lang, 'inquiryConfirmation'))}
       </ul>
     </div>
   </div>
-${createFooter(lang)}
+${createFooter(lang, data.brand || data.propertyName)}
 `;
 
   return { text, html, subject };
@@ -642,11 +740,11 @@ ${t(lang, 'whatsNext')}:
 ${whatsNextItems.map(item => `- ${item}`).join('\n')}
 
 ${t(lang, 'thankYou')}
-${t(lang, 'theTeam')}
+${t(lang, 'theTeam', { propertyName: data.propertyName })}
 `;
 
   const html = `
-${createHeader(t(lang, 'inquiryResponse'))}
+${createHeader(t(lang, 'inquiryResponse'), data.brand)}
   <div class="content">
     <p>${t(lang, 'dear')} ${data.guestName},</p>
     <p>${t(lang, 'inquiryResponseMessage', { hostName, propertyName: data.propertyName })}</p>
@@ -672,7 +770,7 @@ ${createHeader(t(lang, 'inquiryResponse'))}
       <a href="#" class="button">${t(lang, 'bookNow')}</a>
     </div>
   </div>
-${createFooter(lang)}
+${createFooter(lang, data.brand || data.propertyName)}
 `;
 
   return { text, html, subject };
@@ -701,16 +799,16 @@ ${t(lang, 'cancelledBookingDetails')}:
 - ${t(lang, 'property')}: ${data.propertyName}
 - ${t(lang, 'checkIn')}: ${data.checkInDate}
 - ${t(lang, 'checkOut')}: ${data.checkOutDate}
-- ${t(lang, 'refundAmount')}: ${data.totalAmount} ${data.currency}
+- ${t(lang, 'refundAmount')}: ${data.totalAmount}
 
 ${t(lang, 'refundProcessingTime')}
 
 ${t(lang, 'thankYou')}
-${t(lang, 'theTeam')}
+${t(lang, 'theTeam', { propertyName: data.propertyName })}
 `;
 
   const html = `
-${createHeader(t(lang, 'bookingCancellation'))}
+${createHeader(t(lang, 'bookingCancellation'), data.brand)}
   <div class="content">
     <p>${t(lang, 'dear')} ${data.guestName},</p>
     <p>${t(lang, 'bookingCancelledMessage')}</p>
@@ -721,14 +819,14 @@ ${createHeader(t(lang, 'bookingCancellation'))}
       <p><strong>${t(lang, 'property')}:</strong> ${data.propertyName}</p>
       <p><strong>${t(lang, 'checkIn')}:</strong> ${data.checkInDate}</p>
       <p><strong>${t(lang, 'checkOut')}:</strong> ${data.checkOutDate}</p>
-      <p><strong>${t(lang, 'refundAmount')}:</strong> ${data.totalAmount} ${data.currency}</p>
+      <p><strong>${t(lang, 'refundAmount')}:</strong> ${data.totalAmount}</p>
     </div>
 
     <div class="highlight">
       <p>${t(lang, 'refundProcessingTime')}</p>
     </div>
   </div>
-${createFooter(lang)}
+${createFooter(lang, data.brand || data.propertyName)}
 `;
 
   return { text, html, subject };
@@ -765,11 +863,11 @@ ${data.reviewUrl}
 ${t(lang, 'reviewRequestThanks')}
 
 ${t(lang, 'thankYou')}
-${t(lang, 'theTeam')}
+${t(lang, 'theTeam', { propertyName: data.propertyName })}
 `;
 
   const html = `
-${createHeader(t(lang, 'reviewRequest'))}
+${createHeader(t(lang, 'reviewRequest'), data.brand)}
   <div class="content">
     <p>${t(lang, 'dear')} ${data.guestName},</p>
     <p>${t(lang, 'reviewRequestMessage', { propertyName: data.propertyName })}</p>
@@ -788,7 +886,7 @@ ${createHeader(t(lang, 'reviewRequest'))}
 
     <p style="margin-top: 20px; color: #6b7280; font-size: 14px;">${t(lang, 'reviewRequestThanks')}</p>
   </div>
-${createFooter(lang, data.unsubscribeUrl)}
+${createFooter(lang, data.brand || data.propertyName, data.unsubscribeUrl)}
 `;
 
   return { text, html, subject };
@@ -816,16 +914,16 @@ ${t(lang, 'reviewStayDetails')}:
 - ${t(lang, 'property')}: ${data.propertyName}
 - ${t(lang, 'checkIn')}: ${data.checkInDate}
 - ${t(lang, 'checkOut')}: ${data.checkOutDate}
-- ${t(lang, 'total')}: ${data.totalAmount} ${data.currency}
+- ${t(lang, 'total')}: ${data.totalAmount}
 
 ${t(lang, 'checkoutSafeTravel')}
 
 ${t(lang, 'thankYou')}
-${t(lang, 'theTeam')}
+${t(lang, 'theTeam', { propertyName: data.propertyName })}
 `;
 
   const html = `
-${createHeader(t(lang, 'checkoutConfirmation'))}
+${createHeader(t(lang, 'checkoutConfirmation'), data.brand)}
   <div class="content">
     <p>${t(lang, 'dear')} ${data.guestName},</p>
     <p>${t(lang, 'checkoutConfirmationMessage', { propertyName: data.propertyName })}</p>
@@ -835,12 +933,12 @@ ${createHeader(t(lang, 'checkoutConfirmation'))}
       <p><strong>${t(lang, 'property')}:</strong> ${data.propertyName}</p>
       <p><strong>${t(lang, 'checkIn')}:</strong> ${data.checkInDate}</p>
       <p><strong>${t(lang, 'checkOut')}:</strong> ${data.checkOutDate}</p>
-      <p><strong>${t(lang, 'total')}:</strong> ${data.totalAmount} ${data.currency}</p>
+      <p><strong>${t(lang, 'total')}:</strong> ${data.totalAmount}</p>
     </div>
 
     <p>${t(lang, 'checkoutSafeTravel')}</p>
   </div>
-${createFooter(lang, data.unsubscribeUrl)}
+${createFooter(lang, data.brand || data.propertyName, data.unsubscribeUrl)}
 `;
 
   return { text, html, subject };
@@ -872,11 +970,11 @@ ${t(lang, 'returnIncentiveExpiry', { expiryDate: data.expiryDate })}
 ${bookUrl}
 
 ${t(lang, 'thankYou')}
-${t(lang, 'theTeam')}
+${t(lang, 'theTeam', { propertyName: data.propertyName })}
 `;
 
   const html = `
-${createHeader(t(lang, 'returnIncentive'))}
+${createHeader(t(lang, 'returnIncentive'), data.brand)}
   <div class="content">
     <p>${t(lang, 'dear')} ${data.guestName},</p>
     <p>${t(lang, 'returnIncentiveMessage', { propertyName: data.propertyName })}</p>
@@ -892,7 +990,7 @@ ${createHeader(t(lang, 'returnIncentive'))}
       <a href="${bookUrl}" class="button">${t(lang, 'returnIncentiveBook')}</a>
     </div>
   </div>
-${createFooter(lang, data.unsubscribeUrl)}
+${createFooter(lang, data.brand || data.propertyName, data.unsubscribeUrl)}
 `;
 
   return { text, html, subject };
@@ -920,11 +1018,11 @@ ${t(lang, 'seasonalReminderMessage', { propertyName: data.propertyName })}
 ${bookUrl}
 
 ${t(lang, 'thankYou')}
-${t(lang, 'theTeam')}
+${t(lang, 'theTeam', { propertyName: data.propertyName })}
 `;
 
   const html = `
-${createHeader(t(lang, 'seasonalReminder', { propertyName: data.propertyName }))}
+${createHeader(t(lang, 'seasonalReminder', { propertyName: data.propertyName }), data.brand)}
   <div class="content">
     <p>${t(lang, 'dear')} ${data.guestName},</p>
     <p>${t(lang, 'seasonalReminderMessage', { propertyName: data.propertyName })}</p>
@@ -933,7 +1031,7 @@ ${createHeader(t(lang, 'seasonalReminder', { propertyName: data.propertyName }))
       <a href="${bookUrl}" class="button">${t(lang, 'seasonalReminderBook')}</a>
     </div>
   </div>
-${createFooter(lang, data.unsubscribeUrl)}
+${createFooter(lang, data.brand || data.propertyName, data.unsubscribeUrl)}
 `;
 
   return { text, html, subject };

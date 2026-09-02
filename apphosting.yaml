@@ -135,6 +135,17 @@ env:
     availability:
         - RUNTIME
 
+# Sender address for ALL outbound email (public, not a secret).
+# Until prahova-chalet.ro was verified in Resend this was unset, so emailService
+# fell back to `onboarding@resend.dev` — a shared Resend sender that is refused
+# for any recipient other than the account owner (403 validation_error). That
+# single missing line is why no guest has ever received an email from us.
+# Domain verified 2026-09-02; sending from it to a non-account address confirmed.
+  - variable: RESEND_FROM_EMAIL
+    value: "Prahova Mountain Chalet <rezervari@prahova-chalet.ro>"
+    availability:
+        - RUNTIME
+
 # Super admin emails for authorization
   - variable: SUPER_ADMIN_EMAILS
     secret: projects/1061532538391/secrets/SUPER_ADMIN_EMAILS/versions/latest

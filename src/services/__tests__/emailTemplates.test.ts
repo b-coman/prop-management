@@ -290,14 +290,17 @@ describe('Email Templates', () => {
       expect(result.html).toContain('<html>');
       expect(result.html).toContain('</html>');
       expect(result.html).toContain('<head>');
-      expect(result.html).toContain('<body>');
+      // <body> now carries an inline background, so match the opening tag only.
+      expect(result.html).toContain('<body');
     });
 
     it('should include styling', () => {
       const result = createBookingConfirmationTemplate(sampleBookingData, 'en');
 
       expect(result.html).toContain('<style>');
-      expect(result.html).toContain('.header');
+      // The indigo `.header` bar was replaced by a card with an overline +
+      // title, so assert the structure the design actually has now.
+      expect(result.html).toContain('.overline');
       expect(result.html).toContain('.content');
       expect(result.html).toContain('.footer');
     });

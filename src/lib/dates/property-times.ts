@@ -183,7 +183,7 @@ export function getBucharestHourMinute(d: Date): { hour: number; minute: number 
  *
  * Pattern uses date-fns tokens: 'PPP' (long), 'PP' (medium), 'MMM d', 'HH:mm', etc.
  */
-export function formatBucharestDateTime(d: Date, pattern: string): string {
+export function formatBucharestDateTime(d: Date, pattern: string, locale?: unknown): string {
   // Read Bucharest's wall-clock components, then build a Date whose LOCAL components match.
   // date-fns format() reads .getFullYear()/.getMonth()/etc., which are local-TZ methods, so the
   // formatted output now reflects Bucharest regardless of where this code runs.
@@ -201,7 +201,9 @@ export function formatBucharestDateTime(d: Date, pattern: string): string {
   );
   // Lazy import to avoid pulling date-fns into modules that don't need formatting.
   const { format } = require('date-fns');
-  return format(local, pattern);
+  // `locale` is a date-fns Locale. Optional so existing callers are unaffected;
+  // supplied by the email layer so a Romanian email does not carry English dates.
+  return format(local, pattern, locale ? { locale } : undefined);
 }
 
 const bucharestFullFmt = new Intl.DateTimeFormat('en-CA', {
