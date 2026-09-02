@@ -50,6 +50,20 @@ export const SCARCITY = { tight: 0.4, open: 0.75 } as const;
 /** Below this many quotes there is no band and no rank — the same floor `position.ts` enforces. */
 export const MIN_QUOTES = 3;
 
+/**
+ * A gap this large is worth attention whatever the scarcity band says.
+ *
+ * The verdict was built on position × scarcity alone, which made it blind to MAGNITUDE — and on the
+ * live board that produced a visible absurdity: 22-28 Sep on Airbnb sat grey at −60% beside a red
+ * −38%, because 3-of-7 lands a single point above the "tight" threshold. The bigger gap looked
+ * calmer. A threshold that turns a 60% gap quiet is measuring the wrong thing.
+ *
+ * This does not override the two axes; it stops them silencing an outlier. A cheap-and-open window
+ * is still a demand story, not a price one — but at this distance from the field it is a story worth
+ * being told about, so the row escalates to `watch` rather than to `act`.
+ */
+export const LOUD_GAP_PCT = 35;
+
 export type Position = 'dear' | 'level' | 'cheap' | 'unknown';
 export type Scarcity = 'tight' | 'mixed' | 'open' | 'unknown';
 export type Attention = 'act' | 'watch' | 'ok' | 'thin';
@@ -147,8 +161,8 @@ function classify(row: BoardRowInput): { position: Position; scarcity: Scarcity;
  * The asymmetry is deliberate: an owner who is told everything is urgent stops reading, and the whole
  * complaint that produced this module was that the screen did not separate signal from listing.
  */
-function verdict(row: BoardRowInput, position: Position, scarcity: Scarcity, aboveAll: boolean):
-  { attention: Attention; label: string; why: string } {
+function verdict(row: BoardRowInput, position: Position, scarcity: Scarcity, aboveAll: boolean,
+                 gapPct: number | null): { attention: Attention; label: string; why: string } {
 
   if (row.quoted < MIN_QUOTES) {
     return {
@@ -203,15 +217,36 @@ function verdict(row: BoardRowInput, position: Position, scarcity: Scarcity, abo
 
   // Scarcity unknown means the unread ones decide it, so say that rather than guessing a quadrant.
   if (scarcity === 'unknown' && row.unread > 0) {
+    const far = gapPct !== null && Math.abs(gapPct) >= LOUD_GAP_PCT;
     return {
-      attention: 'ok',
-      label: position === 'dear' ? 'Above the field, coverage thin'
-           : position === 'cheap' ? 'Below the field, coverage thin'
+      // A gap this size is worth a look even while the market state is undecidable — but the advice
+      // stays "probe first", because the unread comparables are what decide whether it costs anything.
+      attention: far ? 'watch' : 'ok',
+      label: position === 'dear' ? `${far ? 'Far above' : 'Above'} the field, coverage thin`
+           : position === 'cheap' ? `${far ? 'Far below' : 'Below'} the field, coverage thin`
            : 'In line, coverage thin',
       why: `${row.quoted} quoted and ${row.unread} never read, so whether this window has largely sold ` +
            `or is wide open is not yet decidable — and that is what decides whether being ` +
            `${position === 'cheap' ? 'cheap here costs you money or nothing' : 'dear here matters'}. ` +
            `Probe the ${row.unread} before acting.`,
+    };
+  }
+
+  // Magnitude, before the middle-ground labels swallow it. See LOUD_GAP_PCT.
+  //
+  // Deliberately does NOT reach an OPEN market: cheap-and-open is a demand story and stays one at any
+  // distance — if every comparable is bookable and nobody is booking, being further below them is not
+  // the lever. `unknown` is handled above, where the honest advice is to probe before acting.
+  if (gapPct !== null && Math.abs(gapPct) >= LOUD_GAP_PCT
+      && scarcity !== 'open' && scarcity !== 'unknown') {
+    const under = gapPct < 0;
+    return {
+      attention: 'watch',
+      label: under ? 'Far below the field' : 'Far above the field',
+      why: `${Math.abs(Math.round(gapPct))}% ${under ? 'below' : 'above'} the field median — too far ` +
+           `to explain by position alone, whatever the scarcity band says. ${row.quoted} of ` +
+           `${row.quoted + row.nothingLeft} comparables are still bookable, so this is not a cleared ` +
+           `market; it is a gap worth understanding before the window gets closer.`,
     };
   }
 
@@ -268,7 +303,7 @@ export function buildBoard(rows: BoardRowInput[]): BoardRow[] {
     .map((row): BoardRow => {
       const { position, scarcity, gapPct } = classify(row);
       const aboveAll = row.ourPrice !== null && row.fieldMax !== null && row.ourPrice > row.fieldMax;
-      const v = verdict(row, position, scarcity, aboveAll);
+      const v = verdict(row, position, scarcity, aboveAll, gapPct);
       const asked = row.quoted + row.nothingLeft;
       const unsoldNights = Math.max(0, row.nights - row.soldNights);
       return {

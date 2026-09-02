@@ -20,7 +20,7 @@ import { buildPosition, type CompetitorQuote } from '@/lib/competitive/position'
 import { readAbsorption, summariseField, type SellReading, type SellState } from '@/lib/competitive/absorption';
 import { hostsParty, largestUnit, unitCount, verificationAge } from '@/lib/competitive/set';
 import { buildBoard, summariseBoard, type BoardRowInput } from '@/lib/competitive/board';
-import { groupByPeriod, nightsOf as periodNights, type PricingPeriod } from '@/lib/competitive/periods';
+import { groupByPeriod, gridColumns, nightsOf as periodNights, type PricingPeriod } from '@/lib/competitive/periods';
 import { getPeriods } from '@/services/periodService';
 import { partiesFor, partyForGuests, partyLabel } from '@/lib/parity/party';
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
@@ -115,6 +115,7 @@ export async function fetchMarketPositions(propertyId: string): Promise<{
   error?: string;
   rows?: unknown[];
   grouped?: unknown[];
+  columns?: unknown[];
   summary?: unknown;
 }> {
   try {
@@ -330,7 +331,7 @@ export async function fetchMarketPositions(propertyId: string): Promise<{
       })),
     }));
 
-    return { ok: true, rows, grouped, summary: summariseBoard(board) };
+    return { ok: true, rows, grouped, columns: gridColumns(board), summary: summariseBoard(board) };
   } catch (e) {
     logger.error('Could not build the market board', { propertyId, error: (e as Error).message });
     return { ok: false, error: (e as Error).message };

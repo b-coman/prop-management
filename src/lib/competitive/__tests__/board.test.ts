@@ -103,14 +103,14 @@ describe('the label never contradicts the number beside it', () => {
                                 quoted: 5, nothingLeft: 2 })])[0];
     expect(r.scarcity).toBe('mixed');
     expect(r.position).toBe('cheap');
-    expect(r.label).toBe('Below the field');
+    expect(r.label).toBe('Far below the field');   // 48% is past LOUD_GAP_PCT
     expect(r.label).not.toBe('In line');
   });
 
   it('labels a dear price in a middling market as above the field, not level', () => {
     const r = buildBoard([row({ ourPrice: 6000, fieldMedian: 3000, quoted: 5, nothingLeft: 2 })])[0];
-    expect(r.label).toBe('Above the field');
-    expect(r.attention).toBe('ok');     // mixed is not exposed — that needs an open field
+    expect(r.label).toBe('Far above the field');   // +100% is past LOUD_GAP_PCT
+    expect(r.attention).toBe('watch');  // loud by magnitude, not by scarcity
   });
 
   it('keeps "In line" for prices that actually are', () => {
@@ -214,8 +214,8 @@ describe('scarcity is a bound, not a point', () => {
     const r = buildBoard([SEPT])[0];
     expect(r.position).toBe('cheap');
     expect(r.scarcity).toBe('unknown');          // bounds are 3/7 and 7/7 — mixed to open
-    expect(r.attention).toBe('ok');
-    expect(r.label).toBe('Below the field, coverage thin');
+    expect(r.attention).toBe('watch');            // -60% is far, even while scarcity is undecidable
+    expect(r.label).toBe('Far below the field, coverage thin');
     expect(r.why).toMatch(/never read/);
     expect(r.why).toMatch(/Probe the 4 before acting/);
   });
@@ -271,5 +271,50 @@ describe('the three defects Fable found', () => {
     expect(s.act).toBe(2);                 // two windows, not three rows
     expect(s.channelReadings).toBe(3);
     expect(s.headline).toMatch(/2 where you are cheap/);
+  });
+});
+
+describe('magnitude is not silenced by the scarcity band', () => {
+  // Seen on the live board: 22-28 Sep on Airbnb rendered grey at -60% beside a red -38%, because
+  // 3-of-7 lands one point above the "tight" threshold. The bigger gap looked calmer.
+  it('does not leave a 60% gap quiet just because scarcity is mixed', () => {
+    const r = buildBoard([row({ channel: 'airbnb', ourPrice: 2940, fieldMedian: 7396,
+                                quoted: 3, nothingLeft: 4, unread: 0 })])[0];
+    expect(Math.round(r.gapPct!)).toBe(-60);
+    expect(r.scarcity).toBe('mixed');
+    expect(r.attention).toBe('watch');
+    expect(r.label).toBe('Far below the field');
+  });
+
+  it('escalates to watch, never to act', () => {
+    const r = buildBoard([row({ ourPrice: 1000, fieldMedian: 4000, quoted: 5, nothingLeft: 4 })])[0];
+    expect(r.scarcity).toBe('mixed');
+    expect(r.attention).toBe('watch');
+    expect(r.label).toBe('Far below the field');
+  });
+
+  it('leaves an OPEN market alone at any distance — that is a demand story, not a price one', () => {
+    const r = buildBoard([row({ ourPrice: 1000, fieldMedian: 4000, quoted: 9, nothingLeft: 1 })])[0];
+    expect(r.scarcity).toBe('open');
+    expect(r.attention).toBe('ok');
+    expect(r.why).toMatch(/demand problem, not a price one/);
+  });
+
+  it('leaves the four corner verdicts alone', () => {
+    // cheap + tight stays ACT even at a huge gap — it is the loudest thing on the board.
+    const act = buildBoard([row({ ourPrice: 1000, fieldMedian: 4000, quoted: 3, nothingLeft: 10 })])[0];
+    expect(act.attention).toBe('act');
+    expect(act.label).toBe('Left money');
+    // dear + tight stays quiet even at +117% — that is the whole point of the two axes.
+    const cleared = buildBoard([row({ ourPrice: 7243, fieldMedian: 3341, fieldMax: 3856,
+                                      quoted: 3, nothingLeft: 10 })])[0];
+    expect(cleared.attention).toBe('ok');
+    expect(cleared.label).toBe('Cleared above you');
+  });
+
+  it('does not fire below the threshold', () => {
+    const r = buildBoard([row({ ourPrice: 2400, fieldMedian: 3000, quoted: 5, nothingLeft: 2 })])[0];
+    expect(Math.round(r.gapPct!)).toBe(-20);
+    expect(r.label).toBe('Below the field');
   });
 });

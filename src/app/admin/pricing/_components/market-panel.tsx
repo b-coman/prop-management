@@ -79,6 +79,8 @@ export interface PeriodGroupView {
   alsoSampledBy: Array<{ key: string; checkIn: string; checkOut: string; nightsInside: number }>;
 }
 
+export interface GridColumn { channel: string; channelLabel: string; partyLabel: string }
+
 export interface MarketSummary {
   windows: number; channelReadings: number; act: number; watch: number; headline: string;
 }
@@ -368,7 +370,7 @@ function Row({ r }: { r: MarketRow }) {
  * pooling them (C8), so the colour stays down at the contest where it was measured, and the heading
  * reports counts and money only.
  */
-function Period({ g }: { g: PeriodGroupView }) {
+function Period({ g, columns }: { g: PeriodGroupView; columns: GridColumn[] }) {
   const p = g.period;
   const contests = g.windows.reduce((n, w) => n + w.rows.length, 0);
   const loud = g.windows.flatMap((w) => w.rows).filter((r) => r.attention === 'act' || r.attention === 'watch').length;
@@ -403,8 +405,19 @@ function Period({ g }: { g: PeriodGroupView }) {
                   ({w.nightsInside} of {w.nights} nights here)
                 </span>
               )}
-              <span className="flex flex-wrap gap-1">
-                {w.rows.map((r) => <Cell key={`${r.channel}|${r.partyLabel}`} r={r} />)}
+              {/* Fixed grid: a tile only means something if the same coordinate is the same contest
+                  on every row. The first build wrapped tiles, so column 1 was Booking 2a+1c on one
+                  line and Airbnb 4a+2c on the next — unscannable. */}
+              <span className="grid shrink-0 gap-1"
+                style={{ gridTemplateColumns: `repeat(${columns.length}, 5.5rem)` }}>
+                {columns.map((c) => {
+                  const r = w.rows.find((x) => x.channel === c.channel && x.partyLabel === c.partyLabel);
+                  return r
+                    ? <Cell key={`${c.channel}|${c.partyLabel}`} r={r} />
+                    : <span key={`${c.channel}|${c.partyLabel}`}
+                        title={`${c.channelLabel} · ${c.partyLabel} — never captured for this window`}
+                        className="h-6 rounded border border-dotted border-slate-200" />;
+                })}
               </span>
               {loud > 0 && w.rows.some((r) => r.attention === 'act' || r.attention === 'watch') && (
                 <span className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground">
@@ -438,15 +451,17 @@ function Cell({ r }: { r: MarketRow }) {
   if (r.attention === 'thin') {
     return (
       <span title={`${r.channelLabel} · ${r.partyLabel} — ${r.why}`}
-        className="inline-flex h-6 w-[5.5rem] items-center justify-center rounded border border-dashed border-slate-300 text-[11px] text-slate-400">
-        {r.partyLabel} ·
+        className="flex h-6 items-center justify-center rounded border border-dashed border-slate-300 text-[10px] text-slate-400">
+        too thin
       </span>
     );
   }
+  // The gap over the on-sale fraction. Both axes in every tile — a rank without the second one is the
+  // reading that pointed the wrong way in the first place.
   return (
     <span title={`${r.channelLabel} · ${r.partyLabel} — ${r.label}. ${r.why}`}
-      className={`inline-flex h-6 w-[5.5rem] items-center justify-center gap-1 rounded px-1 text-[11px] tabular-nums ${
-        loud ? `${tone.chip} font-semibold` : 'bg-slate-50 text-slate-500 border border-slate-200'}`}>
+      className={`flex h-6 items-center justify-center gap-1 rounded px-1 text-[11px] tabular-nums ${
+        loud ? `${tone.chip} font-semibold` : 'border border-slate-200 bg-slate-50 text-slate-600'}`}>
       <span>{r.gapPct === null ? '—' : `${r.gapPct > 0 ? '+' : ''}${Math.round(r.gapPct)}%`}</span>
       <span className={loud ? 'opacity-90' : 'text-slate-400'}>
         {r.quoted}/{asked}{r.unread > 0 && '+?'}
@@ -455,8 +470,8 @@ function Cell({ r }: { r: MarketRow }) {
   );
 }
 
-export function MarketPanel({ rows, grouped, summary }: {
-  rows: MarketRow[]; grouped?: PeriodGroupView[]; summary: MarketSummary;
+export function MarketPanel({ rows, grouped, columns = [], summary }: {
+  rows: MarketRow[]; grouped?: PeriodGroupView[]; columns?: GridColumn[]; summary: MarketSummary;
 }) {
   if (!rows.length) {
     return (
@@ -499,9 +514,33 @@ export function MarketPanel({ rows, grouped, summary }: {
         </details>
       </CardHeader>
       <CardContent className="px-0 pb-2">
-        {grouped?.length
-          ? <div>{grouped.map((g) => <Period key={g.period?.id ?? 'none'} g={g} />)}</div>
-          : <div className="divide-y">{rows.map((r) => <Row key={`${r.key}|${r.channel}`} r={r} />)}</div>}
+        {grouped?.length ? (
+          <div>
+            {/* The column header, sticky: without it a tile is a number with no coordinate. */}
+            {columns.length > 0 && (
+              <div className="sticky top-0 z-10 flex flex-wrap items-end gap-x-3 border-b bg-background px-3 py-1.5">
+                <span className="w-[10.5rem] shrink-0" />
+                <span className="w-24 shrink-0" />
+                <span className="grid shrink-0 gap-1"
+                  style={{ gridTemplateColumns: `repeat(${columns.length}, 5.5rem)` }}>
+                  {columns.map((c, i) => (
+                    <span key={`${c.channel}|${c.partyLabel}`} className="text-center leading-tight">
+                      {(i === 0 || columns[i - 1].channel !== c.channel) && (
+                        <span className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          {c.channelLabel}
+                        </span>
+                      )}
+                      <span className="block text-[11px] text-muted-foreground">{c.partyLabel}</span>
+                    </span>
+                  ))}
+                </span>
+              </div>
+            )}
+            {grouped.map((g) => <Period key={g.period?.id ?? 'none'} g={g} columns={columns} />)}
+          </div>
+        ) : (
+          <div className="divide-y">{rows.map((r) => <Row key={`${r.key}|${r.channel}`} r={r} />)}</div>
+        )}
         {(() => {
           const thin = rows.filter((r) => r.attention === 'thin');
           const airbnb = thin.filter((r) => r.channel === 'airbnb').length;

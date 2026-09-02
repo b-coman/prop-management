@@ -33,6 +33,36 @@ export interface PricingPeriod {
   weekendRate: number | null;
 }
 
+/**
+ * The columns of the grid: one per channel and party, in a fixed order.
+ *
+ * Derived from the data rather than hard-coded, because the party mix is configuration and has
+ * already moved once. Fixed ORDER is the point: a tile only means something if the same coordinate
+ * means the same contest on every row — the first build wrapped tiles in a flex row, so position 1
+ * was Booking 2a+1c on one line and Airbnb 4a+2c on the next, and a column could not be scanned.
+ */
+export interface GridColumn { channel: string; channelLabel: string; partyLabel: string }
+
+export function gridColumns(rows: BoardRow[]): GridColumn[] {
+  const seen = new Map<string, GridColumn>();
+  for (const r of rows) {
+    const k = `${r.channel}|${r.partyLabel}`;
+    if (!seen.has(k)) seen.set(k, { channel: r.channel, channelLabel: r.channelLabel, partyLabel: r.partyLabel });
+  }
+  const guests = (p: string) => {
+    const m = p.match(/^(\d+)a(?:\+(\d+)c)?$/);
+    return m ? Number(m[1]) + Number(m[2] ?? 0) : 99;
+  };
+  // Booking first because it carries the larger field (15 comparables against Airbnb's 7), then party
+  // by headcount. Alphabetical would put Airbnb first, which is why this is explicit.
+  const CHANNEL_ORDER = ['booking.com', 'airbnb'];
+  const rank = (c: string) => { const i = CHANNEL_ORDER.indexOf(c); return i === -1 ? 99 : i; };
+  return [...seen.values()].sort((a, b) =>
+    rank(a.channel) - rank(b.channel)
+    || a.channel.localeCompare(b.channel)
+    || guests(a.partyLabel) - guests(b.partyLabel));
+}
+
 export interface PeriodGroup {
   period: PricingPeriod | null;
   /** Windows that fall mostly inside this period, chronological. */
