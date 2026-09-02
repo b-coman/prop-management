@@ -75,12 +75,12 @@ const DOC = {
     // promise: this is a place you can actually work from.
     imagePath: img('8dd1f1ae-bb30-4fcb-bb2d-758260fbd430.jpg'),
     headline: {
-      en: 'Seven nights cost less than two weekends',
-      ro: 'Șapte nopți costă mai puțin decât două weekenduri',
+      en: 'Seven autumn nights, for the price of three in summer',
+      ro: 'Șapte nopți de toamnă, la prețul a trei de vară',
     },
     subcopy: {
-      en: 'An hour from Bucharest, with fibre internet and a covered terrace. From 22 September to 8 October the house is free, all of it.',
-      ro: 'La o oră de București, cu internet prin fibră optică și terasă acoperită. De pe 22 septembrie până pe 8 octombrie casa e liberă, toată.',
+      en: 'An hour from Bucharest, with fibre internet and a covered terrace. From 22 September to 8 October the house is free, all of it. Squirrels, birdsong and something good in the cauldron.',
+      ro: 'La o oră de București, cu internet prin fibră optică și terasă acoperită. De pe 22 septembrie până pe 8 octombrie casa e liberă, toată. Cu veverițe, ciripit de păsărele și bunătăți la ceaun.',
     },
   },
   story: {
@@ -98,7 +98,16 @@ const DOC = {
   exampleStays: [
     {
       start: '2026-09-22', end: '2026-09-29', nights: 7, guests: 2, priceHint: null as number | null,
-      label: { en: 'A full week, Tuesday to Tuesday - 25% off', ro: 'O săptămână întreagă, de marți până marți - 25% reducere' },
+      featured: true,
+      label: { en: 'A full week, Tuesday to Tuesday', ro: 'O săptămână întreagă, de marți până marți' },
+      // THE marginal number, and the reason this page needs a `note` field at all. Quoted live
+      // 2026-09-02: six nights 2,442.05, seven 2,458.50. The 25% tier at seven nights more than pays
+      // for the seventh, so the extra night costs 16.45 - rounded UP to 17, never below what the
+      // booking form will actually charge.
+      note: {
+        en: 'The seventh night costs 17 lei. The 25% discount pays for it.',
+        ro: 'A șaptea noapte costă 17 lei. Reducerea de 25% o plătește.',
+      },
       occasion: 'Lucru de la munte',
     },
     {

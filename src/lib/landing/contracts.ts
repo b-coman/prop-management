@@ -14,6 +14,22 @@ export interface ExampleStay {
   occasion?: string | null;
   priceHint?: number | null;   // from-price in the property's base currency (P2 fills from pricing)
   guests?: number | null;
+  /**
+   * Lift one stay out of the equal-width row and render it as the page's recommendation.
+   *
+   * The grid gave every stay identical visual weight, which is wrong whenever one of them is the
+   * offer and the rest are fallbacks: the 22-29 Sep week is the thing worth selling, and a reader
+   * scanning three same-sized cards has no way to know that. At most one stay should carry this.
+   */
+  featured?: boolean | null;
+  /**
+   * A short line under the price, for the arithmetic that makes the stay obviously correct.
+   *
+   * Exists because the strongest argument for a long stay is usually MARGINAL, not total: going from
+   * six nights to seven on this rate card costs 16.45 lei, because the 25% tier at seven more than
+   * pays for the extra night. A "from 2,459 lei" price cannot say that; this can.
+   */
+  note?: Ml;
 }
 
 export interface LandingConfig {
@@ -76,7 +92,7 @@ export interface LandingModel {
   hero: { image: LandingImage | null; headline: string; subcopy: string };
   story: { title: string; body: string } | null;
   period: { kind: 'window' | 'season'; start?: string | null; end?: string | null; label: string };
-  exampleStays: Array<{ start: string; end: string; nights: number; label: string; occasion?: string | null; priceHint?: number | null; guests?: number | null; bookUrl: string }>;
+  exampleStays: Array<{ start: string; end: string; nights: number; label: string; occasion?: string | null; priceHint?: number | null; guests?: number | null; featured?: boolean; note?: string | null; bookUrl: string }>;
   gallery: LandingImage[];
   offer: string | null;
   phone: string | null;

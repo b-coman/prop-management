@@ -132,6 +132,7 @@ export async function buildLandingModel(
   const exampleStays = (config.exampleStays ?? []).map((s) => ({
     start: s.start, end: s.end, nights: s.nights, label: tr(s.label),
     occasion: s.occasion ?? null, priceHint: s.priceHint ?? null, guests: s.guests ?? null,
+    featured: s.featured === true, note: s.note ? tr(s.note) : null,
     bookUrl: withDates(s.start, s.end, s.guests),
   }));
 

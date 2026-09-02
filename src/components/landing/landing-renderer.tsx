@@ -76,8 +76,13 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
   const rootThemeCss = `:root{${Object.entries(themeStyles).map(([k, v]) => `${k}:${v as string} !important`).join(';')}}`;
   // Example-stay cards: an equal-width grid whose column count matches the number of stays (1/2/3), so
   // every card sits on the same row at the top breakpoint and stacks cleanly on mobile — no orphans.
+  // At most one stay is the RECOMMENDATION; the rest are fallbacks. Splitting them here rather than
+  // in the map keeps the grid sizing honest — the column count must match the number of cards that
+  // actually land in the row, not the total number of stays.
+  const featuredStay = m.exampleStays.find((s) => s.featured) ?? null;
+  const otherStays = m.exampleStays.filter((s) => s !== featuredStay);
   const staysCols = (() => {
-    const n = m.exampleStays.length;
+    const n = otherStays.length;
     if (n <= 1) return 'max-w-sm grid-cols-1';
     if (n === 2) return 'max-w-3xl grid-cols-1 sm:grid-cols-2';
     return 'max-w-5xl grid-cols-1 md:grid-cols-3';
@@ -189,10 +194,52 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
             <div className="mx-auto max-w-5xl px-5">
               <h2 className="text-center text-2xl font-semibold sm:text-3xl">{t(lang, 'Stays that fit this window', 'Sejururi potrivite pentru această perioadă')}</h2>
               <p className="mx-auto mt-2 max-w-xl text-center text-muted-foreground">{t(lang, 'Real dates, ready to book.', 'Date reale, gata de rezervare.')}</p>
+              {/* THE RECOMMENDATION, full width and visually ahead of the alternatives.
+                  A row of equal cards cannot say "this is the one" — and on this window the whole
+                  offer is the long stay, with the shorter ones there only so a reader who cannot
+                  take a week still has somewhere to go. `note` carries the marginal arithmetic,
+                  which is what actually persuades: the seventh night costs 16 lei. */}
+              {featuredStay && (
+                <Card className="mx-auto mt-8 w-full max-w-3xl overflow-hidden border-2 border-primary shadow-lg">
+                  <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-7">
+                    <div className="flex flex-col gap-2">
+                      <span className="inline-flex w-fit items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
+                        {t(lang, 'Best value', 'Cea mai bună ofertă')}
+                      </span>
+                      <p className="text-xl font-semibold sm:text-2xl">{featuredStay.label}</p>
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                        <span className="inline-flex items-center gap-1"><CalendarDays className="h-4 w-4" />{fmtRange(featuredStay.start, featuredStay.end, lang)}</span>
+                        <span className="inline-flex items-center gap-1"><Moon className="h-4 w-4" />{featuredStay.nights} {nightsWord(featuredStay.nights, lang)}</span>
+                      </div>
+                      {featuredStay.note ? (
+                        <p className="text-sm font-medium text-primary">{featuredStay.note}</p>
+                      ) : null}
+                    </div>
+                    <div className="flex shrink-0 flex-col items-start gap-3 sm:items-end">
+                      {featuredStay.priceHint ? (
+                        <p className="text-sm text-muted-foreground">
+                          {t(lang, 'from', 'de la')}{' '}
+                          <span className="text-2xl font-bold text-foreground">{Math.round(featuredStay.priceHint).toLocaleString()} {m.baseCurrency}</span>
+                        </p>
+                      ) : null}
+                      <Button variant="cta" size="lg" asChild>
+                        <Link href={featuredStay.bookUrl} onClick={() => track.trackStayClick(featuredStay, 0)}>
+                          {t(lang, 'Book this', 'Rezervă')}<ArrowRight className="ml-1 h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              {featuredStay && otherStays.length > 0 && (
+                <p className="mt-10 text-center text-sm font-medium text-muted-foreground">
+                  {t(lang, 'Or, if a full week is too much', 'Sau, dacă o săptămână întreagă e prea mult')}
+                </p>
+              )}
               {/* Grid (not flex-wrap): equal columns matching the card count → all cards on one row, same
                   width; grid items stretch to equal height so the buttons align via mt-auto. */}
-              <div className={`mx-auto mt-8 grid gap-5 ${staysCols}`}>
-                {m.exampleStays.map((s, i) => (
+              <div className={`mx-auto mt-4 grid gap-5 ${staysCols}`}>
+                {otherStays.map((s, i) => (
                   <Card key={i} className="flex w-full flex-col overflow-hidden transition-shadow hover:shadow-lg">
                     <CardContent className="flex flex-1 flex-col p-5">
                       <p className="text-lg font-semibold">{s.label}</p>
