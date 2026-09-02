@@ -34,6 +34,16 @@ export const DEFAULT_PARTIES: Party[] = [
  */
 export const CHILD_AGES = [10, 4];
 
+/**
+ * The ages of THIS party's children, oldest first.
+ *
+ * A party carries a child COUNT, and Booking prices by age, so the ages come from `CHILD_AGES` in the
+ * same order the capture URL uses them. Anything reasoning about what children can and cannot do —
+ * such as whether one is old enough for a room of their own — must read them from here rather than
+ * assume, so a change to the configured ages moves every such judgement with it.
+ */
+export const childAges = (p: Party): number[] => CHILD_AGES.slice(0, p.children);
+
 export const partySize = (p: Party): number => p.adults + p.children;
 export const partyLabel = (p: Party): string => `${p.adults}a${p.children ? `+${p.children}c` : ''}`;
 

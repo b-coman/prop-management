@@ -70,9 +70,15 @@ The same house on both channels is two entries, linked by `sameAs` for display o
 `hostsParty` decides membership, and it takes the **smallest unit that fits**, so a group venue
 competes for a family through its small apartment rather than its 21-person house.
 
-- **A party with children needs ONE unit.** The owner's rule: *"if I'm with kids, is less likely to put
-  small children in another unit."*
-- **An adults-only party may combine units**, cheapest first, respecting stock.
+- **Child AGE decides splitting, not the presence of children.** The owner, 2026-09-02: *"a kid around
+  7 or older is acceptable in a second room for properties that sell these type of accommodation."*
+  Every child under `SEPARATE_ROOM_MIN_AGE` (7) needs a unit with an adult in it; older children and
+  adults go anywhere. Ages come from `childAges()`, never assumed.
+- **Combining takes two conditions**: everyone fits across the bookable units, AND one bookable unit
+  holds an adult plus every under-seven child. Totals alone would put a four-year-old in a room alone.
+- The earlier "a party with children needs ONE unit" was this rule read too bluntly, and it cost a
+  real comparable: Booking was selling Casutele de la Poienita to a 2+1 as two double rooms while the
+  set recorded it as unable to host them.
 - **A comparable that cannot host the party is a FINDING, not a gap** — competition he does not face
   on that window, measured without a page load. Never counted against coverage.
 - **Unread capacity is `unknown`, never a moat.** Claiming "no competition here" on missing data is

@@ -18,7 +18,7 @@
  */
 import type { ChannelId } from '@/lib/channels';
 import type { Party } from '@/lib/parity/party';
-import { partySize } from '@/lib/parity/party';
+import { partySize, childAges } from '@/lib/parity/party';
 
 /**
  * One separately bookable unit type, as the listing's availability section states it.
@@ -107,7 +107,7 @@ export interface CompetitorListing {
 export type PartyFit =
   /** One unit takes the whole party. The ordinary case and the only one a family will accept. */
   | { kind: 'single'; units: CompetitorUnit[]; unitCount: 1; stockUnknown: boolean }
-  /** Several units together take the party. Adults only — see `hostsParty`. */
+  /** Several units together take the party — allowed only under the splitting rule in `hostsParty`. */
   | { kind: 'combination'; units: CompetitorUnit[]; unitCount: number; stockUnknown: boolean }
   /**
    * The listing cannot serve this party the way this party books. A FINDING, not a gap (C4): it is
@@ -130,23 +130,40 @@ export const unitCount = (l: Pick<CompetitorListing, 'units'>): number =>
 /** More than one bookable unit changes how absorption reads: it sells out later and more rarely. */
 export const isMultiUnit = (l: Pick<CompetitorListing, 'units'>): boolean => unitCount(l) > 1;
 
+/** Below this age a child sleeps in the adults' unit; at or above it, a room of their own is fine. */
+export const SEPARATE_ROOM_MIN_AGE = 7;
+
 /**
  * Can this listing host this party, and in how many units?
  *
- * **The splitting rule is the owner's, stated 2026-09-01:**
+ * **The splitting rule is the owner's.** Stated 2026-09-01:
  *
  * > *"we are a group of 6 adults, we can share 2 or 3 units. If I'm with kids, is less likely to put
  * > small children in another unit."*
  *
- * So a party with children needs ONE unit; an adults-only party may combine. Two of the three
- * configured parties (2a+1c and 4a+2c) have children, which is why the single-unit rule is not an
- * approximation for them but the right answer.
+ * and refined 2026-09-02, which is the rule now implemented:
  *
- * The asymmetry that matters: when a party with children cannot fit one unit, that is `out-of-set` —
- * a real moat, because that family will not book there. When an adults-only party cannot be housed
- * even by combining, that is also out-of-set. But **unread capacity is `unknown`, never a moat**:
- * claiming "no competition here" on missing data is wrong in the flattering direction, and the
- * flattering direction is the one nobody catches.
+ * > *"a kid around 7 or older is acceptable in a second room for properties that sell these type of
+ * > accommodation"*
+ *
+ * So it is AGE, not the presence of children, that decides. Every child under {@link
+ * SEPARATE_ROOM_MIN_AGE} must be in a unit with an adult; older children and adults may be placed
+ * anywhere. Ages come from the party's own configuration (`childAges`), never from an assumption —
+ * the configured mix is 2a+1c with a ten-year-old, and 4a+2c with a ten- and a four-year-old, so the
+ * first party CAN split and the second still needs a unit that holds an adult plus the four-year-old.
+ *
+ * The first reading of the older rule cost a real comparable: Casutele de la Poienita was recorded as
+ * unable to host 2a+1c while Booking was selling it to exactly that party as two double rooms, so a
+ * priced competitor sat outside the ladder.
+ *
+ * Feasibility with a combination is therefore two conditions, not one: everybody fits across the
+ * available units, AND some unit is big enough for one adult plus every under-age child. Checking
+ * only the total would house a four-year-old alone.
+ *
+ * The asymmetry that matters: when a party cannot be housed even by combining, that is `out-of-set` —
+ * a real moat, because that family will not book there. But **unread capacity is `unknown`, never a
+ * moat**: claiming "no competition here" on missing data is wrong in the flattering direction, and
+ * the flattering direction is the one nobody catches.
  *
  * This decides FEASIBILITY only. What a combination COSTS is a question for observed prices, and it
  * takes the cheapest units rather than the fewest — a different ordering, deliberately elsewhere.
@@ -167,20 +184,28 @@ export function hostsParty(listing: Pick<CompetitorListing, 'units'>, party: Par
     return { kind: 'single', units: [fits[0]], unitCount: 1, stockUnknown: fits[0].count === null };
   }
 
-  if (party.children > 0) {
-    return {
-      kind: 'out-of-set',
-      reason: `no single unit takes ${need} (largest is ${largestUnit(listing)}), and a party with ` +
-              `children does not split across units`,
-    };
-  }
-
-  // Adults only: combine, largest first, so this answers "is it possible" in the fewest units.
+  // Combine, largest first, so this answers "is it possible" in the fewest units.
   // Unread stock counts as exactly one unit — enough to not pretend the unit is absent, never enough
-  // to invent inventory that may not exist.
+  // to invent inventory that may not exist. A sold-out unit is not in the pool at all, which is why
+  // the anchor below is measured against what is BOOKABLE rather than against `largestUnit`.
   const pool = [...listing.units]
     .filter((u) => u.count === null || u.count > 0)
     .sort((a, b) => b.maxPersons - a.maxPersons);
+
+  // Every child too young for a room of their own has to be with an adult, so one bookable unit must
+  // hold at least that group. The biggest available unit is the best case: if even it is too small,
+  // no arrangement of the rest can rescue it.
+  const tooYoung = childAges(party).filter((age) => age < SEPARATE_ROOM_MIN_AGE).length;
+  const anchorNeeds = tooYoung > 0 ? tooYoung + 1 : 1;
+  const biggestAvailable = pool.length ? pool[0].maxPersons : 0;
+  if (tooYoung > 0 && biggestAvailable < anchorNeeds) {
+    return {
+      kind: 'out-of-set',
+      reason: `no single unit takes ${need} (largest is ${largestUnit(listing)}), and no bookable unit ` +
+              `holds an adult plus ${tooYoung} child${tooYoung === 1 ? '' : 'ren'} under ` +
+              `${SEPARATE_ROOM_MIN_AGE}, who cannot have a unit to themselves`,
+    };
+  }
   const taken: CompetitorUnit[] = [];
   let seats = 0;
   let stockUnknown = false;

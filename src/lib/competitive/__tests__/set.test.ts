@@ -23,9 +23,11 @@ const CASUTELE_DE_LA = { units: [u('Double Room', 2, 3)] };
 const MOODYSUN = { units: [u('Studio', 3)] };
 const AYDA = { units: [u('Two-Bedroom Chalet', 5)] };
 
-const P_2A1C: Party = { adults: 2, children: 1 };   // 3
+// The configured ages are CHILD_AGES = [10, 4], oldest first, so 2a+1c travels with a ten-year-old
+// (old enough for a room of their own) and 4a+2c adds a four-year-old (not).
+const P_2A1C: Party = { adults: 2, children: 1 };   // 3, child 10
 const P_4A: Party = { adults: 4, children: 0 };     // 4
-const P_4A2C: Party = { adults: 4, children: 2 };   // 6
+const P_4A2C: Party = { adults: 4, children: 2 };   // 6, children 10 and 4
 
 describe('capacity is a table, not a scalar', () => {
   it('reads the largest single unit, not the total', () => {
@@ -42,24 +44,38 @@ describe('capacity is a table, not a scalar', () => {
   });
 });
 
-describe('a party with children needs ONE unit (the owner\'s rule)', () => {
+describe('how a party splits is decided by child AGE (the owner\'s rule)', () => {
   it('places a family of six in the smallest unit that fits, not the biggest', () => {
     const fit = hostsParty(CLIFF, P_4A2C);
     expect(fit.kind).toBe('single');
     if (fit.kind === 'single') expect(fit.units[0].label).toBe('Two-Bedroom Villa'); // 6, not the 10
   });
 
-  it('marks a family of six OUT-OF-SET at a park whose largest unit takes four', () => {
+  it('houses a family of six across two chalets — the four-year-old rides with the adults', () => {
+    // Largest unit takes four, so nobody fits in one. The 4-person chalet anchors an adult and the
+    // four-year-old; the rest go next door. Under the pre-2026-09-02 rule this was out-of-set.
     const fit = hostsParty(CASUTELE_DIN, P_4A2C);
-    expect(fit.kind).toBe('out-of-set');
-    if (fit.kind === 'out-of-set') expect(fit.reason).toMatch(/does not split/);
+    expect(fit.kind).toBe('combination');
+    if (fit.kind === 'combination') expect(fit.unitCount).toBe(2);
   });
 
-  it('marks 2+1 out-of-set at a listing whose rooms take two, even though three rooms exist', () => {
-    // Six person-places on site, and still no room a family of three will take.
+  it('lets 2+1 take two double rooms — a ten-year-old may have their own', () => {
+    // The case that exposed the old rule: Booking sells Casutele de la Poienita to exactly this party
+    // as two double rooms, while the set recorded it as unable to host them at all.
     const fit = hostsParty(CASUTELE_DE_LA, P_2A1C);
+    expect(fit.kind).toBe('combination');
+    if (fit.kind === 'combination') expect(fit.unitCount).toBe(2);
+  });
+
+  it('refuses when no bookable unit holds an adult beside the under-age child', () => {
+    // Single rooms only: the four-year-old would be alone. Seats exist; the arrangement does not.
+    const singles = { units: [u('Single Room', 1, 8)] };
+    const fit = hostsParty(singles, P_4A2C);
     expect(fit.kind).toBe('out-of-set');
-    expect(totalCapacity(CASUTELE_DE_LA)).toBeGreaterThan(3);
+    if (fit.kind === 'out-of-set') expect(fit.reason).toMatch(/adult plus 1 child under 7/);
+    expect(totalCapacity(singles)).toBeGreaterThan(6);   // capacity was never the problem
+    // Four adults in the same rooms is fine — the constraint is the child, not the room size.
+    expect(hostsParty(singles, P_4A).kind).toBe('combination');
   });
 
   it('lets the 21 m² studio host 2+1 — it sleeps three in one unit', () => {
@@ -67,7 +83,7 @@ describe('a party with children needs ONE unit (the owner\'s rule)', () => {
   });
 });
 
-describe('an adults-only party may combine units', () => {
+describe('combining units', () => {
   it('houses four adults across two of the three double rooms', () => {
     const fit = hostsParty(CASUTELE_DE_LA, P_4A);
     expect(fit.kind).toBe('combination');
@@ -88,10 +104,11 @@ describe('an adults-only party may combine units', () => {
     expect(hostsParty(plenty, { adults: 6, children: 0 }).kind).toBe('combination');
   });
 
-  it('never combines for a party with children, even when the seats exist', () => {
-    // Same listing, same seat count, different answer — this IS the owner's rule.
+  it('combines for a party with children too, now that age decides it', () => {
+    // Same listing, same seat count. Both combine: the four-year-old in 2a+2c shares a double room
+    // with an adult, which is the arrangement the owner said he would accept.
     expect(hostsParty(CASUTELE_DE_LA, { adults: 4, children: 0 }).kind).toBe('combination');
-    expect(hostsParty(CASUTELE_DE_LA, { adults: 2, children: 2 }).kind).toBe('out-of-set');
+    expect(hostsParty(CASUTELE_DE_LA, { adults: 2, children: 2 }).kind).toBe('combination');
   });
 
   it('flags unread stock rather than inventing inventory', () => {
@@ -115,7 +132,7 @@ describe('unread capacity is UNKNOWN, never a moat', () => {
 
   it('still counts as probeworthy — the missing data is the reason TO probe', () => {
     expect(isProbeworthy(hostsParty({ units: [] }, P_4A2C))).toBe(true);
-    expect(isProbeworthy(hostsParty(CASUTELE_DIN, P_4A2C))).toBe(false); // genuinely out of set
+    expect(isProbeworthy(hostsParty(MOODYSUN, P_4A2C))).toBe(false); // a 3-person studio, genuinely out
   });
 
   it('treats a sold-out unit as unavailable rather than absent', () => {
@@ -130,21 +147,24 @@ describe('the field changes size with the party (C4)', () => {
     const set = [CLIFF, VILA_LUNA, AYDA, CASUTELE_DIN, MOODYSUN, CASUTELE_DE_LA];
     const canHost = (p: Party) =>
       set.filter((l) => ['single', 'combination'].includes(hostsParty(l, p).kind)).length;
-    expect(canHost(P_2A1C)).toBe(5);   // all but Casutele de la Poienita (rooms take two)
+    expect(canHost(P_2A1C)).toBe(6);   // all of them, once two double rooms count for a 2+1
     expect(canHost(P_4A)).toBe(5);     // all but MoodySun (studio takes three)
-    expect(canHost(P_4A2C)).toBe(2);   // only Cliff's 6-person villa and Vila Luna
+    // Cliff's 6-person villa, Vila Luna, and the two multi-unit sites that can seat six across rooms.
+    // Ayda (5 places) and MoodySun (3) simply do not have the seats.
+    expect(canHost(P_4A2C)).toBe(4);
   });
 
-  it('MoodySun is in for 2+1 and out for four adults; Casutele de la is the reverse', () => {
+  it('MoodySun takes 2+1 in one unit and cannot take four adults at all', () => {
     expect(hostsParty(MOODYSUN, P_2A1C).kind).toBe('single');
-    expect(hostsParty(MOODYSUN, P_4A).kind).toBe('out-of-set');
-    expect(hostsParty(CASUTELE_DE_LA, P_2A1C).kind).toBe('out-of-set');
+    expect(hostsParty(MOODYSUN, P_4A).kind).toBe('out-of-set');   // 3 places, no second unit
+    // Casutele de la reaches both parties, but only ever across rooms.
+    expect(hostsParty(CASUTELE_DE_LA, P_2A1C).kind).toBe('combination');
     expect(hostsParty(CASUTELE_DE_LA, P_4A).kind).toBe('combination');
   });
 
   it('fieldMembership answers for every party in one call', () => {
     const rows = fieldMembership(CASUTELE_DIN, [P_2A1C, P_4A, P_4A2C]);
-    expect(rows.map((r) => r.fit.kind)).toEqual(['single', 'single', 'out-of-set']);
+    expect(rows.map((r) => r.fit.kind)).toEqual(['single', 'single', 'combination']);
   });
 });
 

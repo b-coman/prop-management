@@ -2470,3 +2470,58 @@ Booking is offering it as two Double Rooms. `hostsParty` refuses that because of
 I'm with kids, is less likely to put small children in another unit"* — so the price is recorded and
 correctly excluded from the ladder. That is a substitutability judgement, not an availability fact,
 and it stays his to make. Nothing changes unless he says so.
+
+---
+
+## 30. The splitting rule is about AGE, not about children (owner, 2026-09-02)
+
+§29.5 put the Casutele de la Poienita tension to the owner. His answer:
+
+> *"a kid around 7 or older is acceptable in a second room for properties that sell these type of
+> accommodation"*
+
+So the original rule — *a party with children needs one unit* — was a reasonable reading of
+*"less likely to put small children in another unit"* and too blunt. **Small** was the operative word,
+and it means an age, not the presence of a child.
+
+### 30.1 What is implemented
+
+`SEPARATE_ROOM_MIN_AGE = 7` in `lib/competitive/set.ts`. Every child below it must share a unit with an
+adult; children at or above it, and adults, may be placed anywhere. The ages are the party's own
+(`childAges()` in `lib/parity/party.ts`, from the configured `CHILD_AGES = [10, 4]`), never assumed —
+so changing the configured ages moves this judgement with them, the way it already moves the Booking
+capture URL.
+
+Feasibility across units is now **two** conditions, not one:
+
+1. everybody fits across the bookable units, and
+2. some bookable unit holds **one adult plus every under-seven child**.
+
+Checking only the total would house a four-year-old alone in a double room. The anchor is measured
+against the pool of *bookable* units, not `largestUnit`, so a sold-out big unit cannot satisfy it.
+
+With `CHILD_AGES = [10, 4]`: **2a+1c** (a ten-year-old) may split freely; **4a+2c** carries a
+four-year-old and needs a unit that seats at least two.
+
+### 30.2 What it changed in the field
+
+Three listings joined fields they had been excluded from — a contained, checkable change, not a
+loosening that swept everything in:
+
+| party | in-set before | in-set now | joined |
+|---|---|---|---|
+| 2a+1c | 21 of 22 | **22 of 22** | Casutele de la Poienita |
+| 4a | 18 of 22 | 18 of 22 | — |
+| 4a+2c | 13 of 22 | **15 of 22** | Casutele din Poienita, Moon Village |
+
+On 24-28 Oct, Casutele de la Poienita's already-captured **3,497** moved from excluded into the ladder,
+just above us. Booking now reads **9 of 15 quoted, you 4 of 10** — our position unchanged, the field
+one deeper and, more to the point, no longer claiming a moat that Booking was actively selling through.
+
+### 30.3 The general lesson
+
+The old rule was not a bug in the code; the code did exactly what §12 said. It was a **rule stated
+once, in passing, and then encoded as though it were exact.** What caught it was not a test but the
+market disagreeing with it in public: Booking selling the property to a party the set said it could
+not host. When an instrument and the market disagree, the instrument is the thing to re-examine —
+and the fix belongs with the owner, because substitutability is his judgement, not a measurement.
