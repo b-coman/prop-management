@@ -184,6 +184,14 @@ JSON.stringify({ pages: __pages.length, onThisPage: __raw.collected,
     sessionState: `Airbnb SEARCH results, signed in, RON. One page load for the whole page of the ` +
                   `field, so every price here was read under identical conditions. Card echo (from ` +
                   `the card's own link): ${IN}→${OUT}, ${party.adults}a+${party.children}c.`,
+    // The card's OWN statement of the stay, kept as data. Prose cannot be re-checked; this can, and
+    // on Airbnb it is the only thing separating a real quote from an alternative-date suggestion.
+    echo: {
+      checkIn: card.echo.checkIn, checkOut: card.echo.checkOut,
+      adults: card.echo.adults, children: card.echo.children,
+      verified: card.echo.checkIn === IN && card.echo.checkOut === OUT
+                && card.echo.adults === party.adults && card.echo.children === party.children,
+    },
     // No `programApplied`: Airbnb has no loyalty programme to apply, and `promoActive` already
     // records that the card showed a struck-through price.
     session: { loggedIn: true, program: null, currency: 'RON' },
