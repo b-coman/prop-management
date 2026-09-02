@@ -1,5 +1,5 @@
 /**
- * Reading a listing's IDENTITY off its page — what the property is, not what it costs.
+ * Reading a listing's IDENTITY off its page - what the property is, not what it costs.
  *
  * This is a different job from `parity/extract.ts` and must not share its approach. Price capture is
  * mechanical, runs hundreds of times against a known layout, and has an echo check and a magnitude
@@ -8,7 +8,7 @@
  * downstream can tell.
  *
  * That failure is not hypothetical. Regexing these pages for "bedrooms" returned plausible, wrong
- * answers on three of nine Booking listings — a village of villas read as one villa, a four-bedroom
+ * answers on three of nine Booking listings - a village of villas read as one villa, a four-bedroom
  * house read as eleven bedrooms. So this module reads the fields the page actually states, and
  * refuses the ones that only look like facts:
  *
@@ -18,11 +18,11 @@
  * away; nothing may ever read them as capacity.
  *
  * Capacity comes from, in strict order:
- *   1. `Max persons: N` / `Max adults: N (+ Max children: M)` — but NOT on every page: Booking renders
+ *   1. `Max persons: N` / `Max adults: N (+ Max children: M)` - but NOT on every page: Booking renders
  *      it only where several rows must be told apart, so a single-unit listing has none at all.
  *   2. The bed configuration, counted. Always present, and invariant across searches.
  *
- * PURE. Text in, a structured identity out. No I/O, no DOM — the DOM-only parts (the hero photo) are
+ * PURE. Text in, a structured identity out. No I/O, no DOM - the DOM-only parts (the hero photo) are
  * supplied by the caller, because they cannot be derived from text.
  */
 
@@ -31,7 +31,7 @@ export type VerifyChannel = 'airbnb' | 'booking.com';
 export interface VerifiedUnit {
   label: string;
   maxPersons: number;
-  /** How many units of this type were bookable on the probed dates — a LOWER BOUND on inventory. */
+  /** How many units of this type were bookable on the probed dates - a LOWER BOUND on inventory. */
   count: number;
   sqm: number | null;
 }
@@ -48,7 +48,7 @@ export type IdentityState =
 export interface Identity {
   state: IdentityState;
   units: VerifiedUnit[];
-  /** Beds counted across the whole availability section — the fallback, and the cross-check. */
+  /** Beds counted across the whole availability section - the fallback, and the cross-check. */
   bedsTotal: number | null;
   rating: number | null;
   reviewCount: number | null;
@@ -85,7 +85,7 @@ export function countBeds(text: string): number {
   return n;
 }
 
-/** Lines that are layout, price or amenity chrome — never a unit name. */
+/** Lines that are layout, price or amenity chrome - never a unit name. */
 const NOISE = new RegExp(
   '^(Price|Includes|Free|Non|Select|Only|We have|Genius|Original|Current|Bathrooms|Cot|Entire|' +
   'Private|Balcony|Garden|Mountain|City|Inner|Air|Dish|Flat|Sound|Barbecue|Terrace|Coffee|Sauna|' +
@@ -102,7 +102,7 @@ const NOISE = new RegExp(
  * Room"; de-duplicating collapsed them to one, the bed fallback fired anyway, and the property came
  * back as a single 9-person unit. Three identical names are three units.
  *
- * Used to decide whether the bed fallback may fire at all — see `parseBooking`.
+ * Used to decide whether the bed fallback may fire at all - see `parseBooking`.
  */
 export function unitHeadings(seg: string): string[] {
   const titles = (seg.match(/^[A-Z][^\n]{2,58}$/gm) ?? []).filter((n) => !NOISE.test(n));
@@ -132,7 +132,7 @@ function parseRatingBooking(t: string): { rating: number | null; reviewCount: nu
 }
 
 function parseAirbnb(t: string): Identity {
-  // The header line is a PROPERTY ATTRIBUTE — verified unchanged across ?adults=2 and ?adults=5 on
+  // The header line is a PROPERTY ATTRIBUTE - verified unchanged across ?adults=2 and ?adults=5 on
   // the same listing, unlike anything equivalent on Booking.
   const cap = t.match(/(\d{1,2})\s+guests?\s*·\s*(\d{1,2})\s+bedrooms?/i);
   const guests = cap ? Number(cap[1]) : null;
@@ -156,12 +156,12 @@ function parseAirbnb(t: string): Identity {
  * 🔴 **`Max persons` is a LOWER BOUND that grows with the search.** Measured 2026-09-02 on the same
  * page: Chalet Husky read `Max persons: 2` and `1` when searched with 2 adults, and `4` and `3` when
  * searched with 4. Booking renders rate rows around the party you asked for, so a small search sees
- * only small-occupancy rows. §14.2 called it authoritative and it is not — Vila Luna's `11` was
+ * only small-occupancy rows. §14.2 called it authoritative and it is not - Vila Luna's `11` was
  * correct only because that search happened to be large enough.
  *
  * The **bed configuration is invariant**: all seven listings probed at 2 and at 4 adults produced
  * byte-identical per-unit bed counts. So capacity per unit is `max(beds in this block, any Max marker
- * in this block)` — the bed count carries it, and the marker can only raise it.
+ * in this block)` - the bed count carries it, and the marker can only raise it.
  *
  * Counting beds must be PER BLOCK, never per section: summing the section turned Moon Village's six
  * tiny houses into one 22-person unit, which is the §19.1 error in a new place.
@@ -246,7 +246,7 @@ export interface Reconciled {
   ok: boolean;
   /** Only the fields that were IDENTICAL across both reads. Anything else is not a fact. */
   stable: Pick<Identity, 'units' | 'bedsTotal' | 'rating' | 'reviewCount' | 'city'>;
-  /** Fields that changed between the two reads — proven to be search echoes, discarded. */
+  /** Fields that changed between the two reads - proven to be search echoes, discarded. */
   moved: string[];
   /** Why the check could not be run, when it could not. */
   problem?: string;
@@ -256,7 +256,7 @@ export interface Reconciled {
  * What must match for two reads to describe the same property: the unit LABELS and their CAPACITY.
  *
  * `count` is deliberately excluded. It is a lower bound read from however many rate rows the page
- * chose to render, and it moves with the search occupancy — The Cliff Village showed 6 One-Bedroom
+ * chose to render, and it moves with the search occupancy - The Cliff Village showed 6 One-Bedroom
  * Villas at 4 adults and 5 at 2 adults, on the same day. Requiring it to match would reject a
  * perfectly good pair over a field that is closer to an echo than a fact, and `sqm` is omitted for
  * the same reason (it is read from whichever row rendered last).
@@ -281,7 +281,7 @@ function mergeCounts(a: VerifiedUnit[], b: VerifiedUnit[]): VerifiedUnit[] {
  *
  * This is the echo check from `extract.ts`, run in reverse. There, a value that fails to move signals
  * a stale render; here, a value that DOES move signals a field that is not a fact. Two page loads per
- * listing, once, at curation time — and it makes the whole class of error impossible rather than
+ * listing, once, at curation time - and it makes the whole class of error impossible rather than
  * merely documented.
  */
 export function reconcile({ a, b }: ReconcileInput): Reconciled {
@@ -289,14 +289,14 @@ export function reconcile({ a, b }: ReconcileInput): Reconciled {
   if (a.occupancy === b.occupancy) {
     return {
       ok: false, stable: empty, moved: [],
-      problem: `both reads used occupancy ${a.occupancy} — the check only means something when the ` +
+      problem: `both reads used occupancy ${a.occupancy} - the check only means something when the ` +
                `two searches differ, and an unrun check must never pass silently`,
     };
   }
   if (a.identity.state !== 'ok' || b.identity.state !== 'ok') {
     return {
       ok: false, stable: empty, moved: [],
-      problem: `reads are ${a.identity.state} / ${b.identity.state} — nothing to reconcile`,
+      problem: `reads are ${a.identity.state} / ${b.identity.state} - nothing to reconcile`,
     };
   }
 
@@ -316,7 +316,7 @@ export function reconcile({ a, b }: ReconcileInput): Reconciled {
   const city = same(a.identity.city, b.identity.city, 'city');
 
   // The echo fields SHOULD move. If they did not, either the page states nothing (fine) or the two
-  // probes were not really different (already caught above) — worth reporting, never worth trusting.
+  // probes were not really different (already caught above) - worth reporting, never worth trusting.
   const echoMoved =
     a.identity.echo.sleeps !== b.identity.echo.sleeps ||
     a.identity.echo.recommendedFor !== b.identity.echo.recommendedFor;
@@ -326,7 +326,7 @@ export function reconcile({ a, b }: ReconcileInput): Reconciled {
     stable: { units: units ?? [], bedsTotal, rating, reviewCount, city },
     moved,
     ...(units === null
-      ? { problem: 'capacity DIFFERED between the two reads — the value read is a search echo, not a fact' }
+      ? { problem: 'capacity DIFFERED between the two reads - the value read is a search echo, not a fact' }
       : !echoMoved && (a.identity.echo.sleeps || a.identity.echo.recommendedFor)
         ? { problem: 'the echo fields did not move, so this check proves less than it appears to' }
         : {}),
@@ -336,7 +336,7 @@ export function reconcile({ a, b }: ReconcileInput): Reconciled {
 /**
  * The identity parser as a string of JavaScript, to run INSIDE the page.
  *
- * There must be two implementations — the extension refuses to let a page's text out in bulk — and a
+ * There must be two implementations - the extension refuses to let a page's text out in bulk - and a
  * drifted pair is worse than either alone, because the tested one passes while the running one is
  * wrong. `__tests__/verify.test.ts` evaluates this string and asserts it agrees with `parseIdentity`
  * on every fixture. Change one and that test fails until you change the other.
@@ -413,7 +413,7 @@ export function inPageVerifyRunner(channel: VerifyChannel, listingId: string, oc
   var id = __identity('${channel}', document.body.innerText);
   var og = (document.querySelector('meta[property="og:image"]')||{}).content || null;
   // The path embeds the listing id on newer Airbnb listings and on nothing else, so provenance is
-  // recorded rather than claimed — an older listing returns a bare uuid and is trusted only because
+  // recorded rather than claimed - an older listing returns a bare uuid and is trusted only because
   // it came from this page load.
   // The listing id may be embedded plainly (Hosting-1404937633401111364) or base64-encoded
   // (Hosting-U3RheVN1cHBseUxpc3Rpbmc6MTA0Ni... decodes to "StaySupplyListing:1046..."). Reading only

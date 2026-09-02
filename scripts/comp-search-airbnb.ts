@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * comp-search-airbnb — the Airbnb half of the search instrument.
+ * comp-search-airbnb - the Airbnb half of the search instrument.
  *
  * The protocol said for months that Airbnb had no search equivalent and that per-listing probes were
  * the only way. It was never tested; the owner sent a search URL on 2026-09-02 and it turned out to
@@ -20,7 +20,7 @@
  * Booking search returns the whole town in one page, so an absence is a finding. Airbnb paginates
  * eighteen at a time over fifteen pages of a much wider radius, so an absence has two causes that
  * look identical from the page. The owner's reading is that it is usually genuine unavailability and
- * the evidence supports him — but "usually" is not "always", and this system has twice recorded a
+ * the evidence supports him - but "usually" is not "always", and this system has twice recorded a
  * plausible value nobody measured. One detail load per absentee settles it, and the run is still
  * cheaper than probing the whole set: on 24-28 Oct it was 1 search + 3 probes instead of 7 probes.
  *
@@ -52,7 +52,7 @@ const PLACE_ID = arg('place-id', 'ChIJIflseREFs0ARhjSvKJ9MtNM')!;
 
 function parseParty(s: string): Party {
   const m = s.match(/^(\d+)a(?:(\d+)c)?$/i);
-  if (!m) throw new Error(`--party must look like 2a1c, 4a or 4a2c — got "${s}"`);
+  if (!m) throw new Error(`--party must look like 2a1c, 4a or 4a2c - got "${s}"`);
   return { adults: Number(m[1]), children: m[2] ? Number(m[2]) : 0 };
 }
 
@@ -78,14 +78,14 @@ const searchUrl = (p: Party, checkIn: string, checkOut: string) =>
     const mix = partiesFor(prop?.channelPricing).parties;
     const known = mix.some((p) => p.adults === party.adults && p.children === party.children);
 
-    console.log(`\nCOMP-SEARCH-AIRBNB — ${IN} → ${OUT} (${nights}n, ${partyLabel(party)})`);
+    console.log(`\nCOMP-SEARCH-AIRBNB - ${IN} → ${OUT} (${nights}n, ${partyLabel(party)})`);
     if (!known) {
       console.log(`\n!! ${partyLabel(party)} is not in compareParties (${mix.map(partyLabel).join(' · ')}).`);
-      console.log(`   Fine for a one-off look; do not build a position on it — our own stored prices`);
+      console.log(`   Fine for a one-off look; do not build a position on it - our own stored prices`);
       console.log(`   are for the configured shapes, so there would be nothing to compare against.`);
     }
     console.log(`\n1. Open this in Chrome, signed in, and let it settle ~12s:\n\n${url}\n`);
-    console.log(`2. Run THIS once per page — before scrolling, then again after each Next. Airbnb`);
+    console.log(`2. Run THIS once per page - before scrolling, then again after each Next. Airbnb`);
     console.log(`   shows 18 per page over ~15 pages; two or three usually hold the set, and whoever`);
     console.log(`   is still missing goes on the probe list rather than being guessed at.`);
     console.log(`   It parses IN THE PAGE and accumulates in sessionStorage: a page of cards is ~16KB`);
@@ -139,7 +139,7 @@ JSON.stringify({ pages: __pages.length, onThisPage: __raw.collected,
   const airbnbSet = set.active.filter((l) => l.channel === 'airbnb');
   const { curated, toProbe, candidates, ours } = matchAirbnbToSet(batch.cards, airbnbSet, ourRoomId);
 
-  console.log(`\nCOMP-SEARCH-AIRBNB — ${IN} → ${OUT} (${nights}n, ${partyLabel(party)})`);
+  console.log(`\nCOMP-SEARCH-AIRBNB - ${IN} → ${OUT} (${nights}n, ${partyLabel(party)})`);
   console.log(`${pageCount} page(s) · ${batch.cards.length} cards · every one echoes the probe · ` +
               `${curated.length} of ${airbnbSet.length} curated · ${candidates.length} candidates\n`);
 
@@ -152,11 +152,11 @@ JSON.stringify({ pages: __pages.length, onThisPage: __raw.collected,
 
   // The free cross-check. Our own card is priced under exactly the conditions the comparables were,
   // so a disagreement with what we stored for ourselves is a fault in one of the two instruments.
-  if (ours) console.log(`\nOUR OWN CARD: ${ours.price} — compare against the stored self observation ` +
+  if (ours) console.log(`\nOUR OWN CARD: ${ours.price} - compare against the stored self observation ` +
                         `for this window; they should agree to the leu.`);
 
   if (toProbe.length) {
-    console.log(`\nNOT ON THE PAGES READ — probe these, do not assume. Absence here is usually real`);
+    console.log(`\nNOT ON THE PAGES READ - probe these, do not assume. Absence here is usually real`);
     console.log(`(no availability, or a party the listing will not take), but Airbnb also paginates`);
     console.log(`~15 pages deep, so "absent" and "ranked low" look identical from the results:`);
     for (const l of toProbe) {
@@ -166,14 +166,14 @@ JSON.stringify({ pages: __pages.length, onThisPage: __raw.collected,
   }
 
   if (candidates.length) {
-    console.log(`\nCANDIDATES — in the results a guest sees, not in your set. The page proposes; you dispose:`);
+    console.log(`\nCANDIDATES - in the results a guest sees, not in your set. The page proposes; you dispose:`);
     [...candidates].sort((a, b) => (b.reviewCount ?? 0) - (a.reviewCount ?? 0)).slice(0, 12)
       .forEach((c) => console.log(
         `  ${String(c.reviewCount ?? '-').padStart(4)}rv ${String(c.rating ?? '-').padStart(4)}  ` +
         `${String(c.price).padStart(6)}  ${c.name.slice(0, 40)}`));
   }
 
-  // Rows for the ONE write path — PRESENT listings only. Nothing is written for an absentee: this is
+  // Rows for the ONE write path - PRESENT listings only. Nothing is written for an absentee: this is
   // the line the Booking collector can cross and this one cannot.
   const rows = curated.map(({ card, listing }) => ({
     competitorListingId: listing.listingId, channel: 'airbnb',
@@ -203,7 +203,7 @@ JSON.stringify({ pages: __pages.length, onThisPage: __raw.collected,
   console.log(`  npx tsx scripts/parity-capture.ts --rows ${dest} --dry-run`);
   console.log(`  npx tsx scripts/parity-capture.ts --rows ${dest}`);
   if (toProbe.length) {
-    console.log(`\nThen probe the ${toProbe.length} above and record what their own pages say — the`);
+    console.log(`\nThen probe the ${toProbe.length} above and record what their own pages say - the`);
     console.log(`window is not fully read until they have an outcome with a reason.`);
   }
 })();

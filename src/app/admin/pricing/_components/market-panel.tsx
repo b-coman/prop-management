@@ -6,12 +6,12 @@ import { AlertTriangle, Info, ChevronRight, ExternalLink } from 'lucide-react';
  *
  * The first version of this screen showed, per window, every competitor price with our row marked.
  * The owner's verdict was that he could not read his position quickly, and the December capture
- * showed the problem was not layout: *"30 Dec – 2 Jan, you 7,243, dearest of 4"* is true and points
+ * showed the problem was not layout: *"30 Dec - 2 Jan, you 7,243, dearest of 4"* is true and points
  * the wrong way, because ten of the thirteen comparables had nothing left. The ladder was ranking us
  * against the leftovers.
  *
- * So the screen is built on the two axes in `lib/competitive/board.ts` — where the price sits AND how
- * much of the field is still on sale — and every row leads with the verdict those two produce.
+ * So the screen is built on the two axes in `lib/competitive/board.ts` - where the price sits AND how
+ * much of the field is still on sale - and every row leads with the verdict those two produce.
  *
  * THE RULES OF THIS LAYOUT, each one load-bearing:
  *
@@ -82,7 +82,8 @@ export interface PeriodGroupView {
 export interface GridColumn { channel: string; channelLabel: string; partyLabel: string }
 
 export interface MarketSummary {
-  windows: number; channelReadings: number; act: number; watch: number; headline: string;
+  windows: number; channelReadings: number; act: number; watch: number;
+  under: number; over: number; headline: string;
 }
 
 const money = (n: number) => Math.round(n).toLocaleString('en-US');
@@ -97,49 +98,86 @@ const day = (iso: string) => {
  *
  * Both must be laid out by the same grid or the columns drift: the first build put the date, the
  * optional "(4 of 5 nights here)" note and the tiles in a flex row, so a window carrying that note
- * pushed its tiles sideways and Christmas no longer lined up with Fall — or with the header, which
+ * pushed its tiles sideways and Christmas no longer lined up with Fall - or with the header, which
  * was offset by its own guessed spacer widths. A column that does not line up is not a column.
  */
 const rowTemplate = (n: number) => ({ gridTemplateColumns: `11rem 8rem repeat(${n}, 5.5rem) 1fr` });
 
+/**
+ * Hue says WHICH WAY the error points; shade says how loud.
+ *
+ * It used to say severity alone: red for `act`, amber for `watch`. The owner, 2026-09-03: *"why red
+ * if we are below the competition? why amber?"* Two things were wrong with the answer.
+ *
+ * Red meant one single situation - cheap in a market that has largely sold - but nothing in the
+ * colour said so, and red reads as "you did something wrong" rather than "money left behind". Worse,
+ * amber covered three situations, two of which point in OPPOSITE directions: dear in an open market,
+ * and a gap of 35% either way. A colour that can mean "too dear" or "too cheap" is not a signal.
+ *
+ * The sign of the number already carries direction, so the hue now agrees with it instead of adding
+ * a second rule to learn: minus is always cool, plus is always warm, and the two can never disagree.
+ * `attention` is untouched - that is the model's verdict, and it still decides loudness and rank.
+ */
 const TONE = {
-  act:   { chip: 'bg-red-600 text-white', edge: 'border-l-4 border-l-red-600', loud: true },
-  watch: { chip: 'bg-amber-500 text-white', edge: 'border-l-4 border-l-amber-500', loud: true },
-  ok:    { chip: 'bg-slate-100 text-slate-700 border border-slate-300', edge: 'border-l-4 border-l-transparent', loud: false },
-  thin:  { chip: 'bg-slate-100 text-slate-500 border border-dashed border-slate-300', edge: 'border-l-4 border-l-transparent', loud: false },
+  /** Cheap where cheapness costs money. Only ever `act`, so it takes the strong shade. */
+  under:      { chip: 'bg-sky-700 text-white', edge: 'border-l-4 border-l-sky-700', loud: true },
+  /** Cheap by a distance, but the market has not settled the question. */
+  underWatch: { chip: 'bg-sky-500 text-white', edge: 'border-l-4 border-l-sky-500', loud: true },
+  /** Dear where a guest has real choice. */
+  over:       { chip: 'bg-red-600 text-white', edge: 'border-l-4 border-l-red-600', loud: true },
+  quiet:      { chip: 'bg-slate-100 text-slate-700 border border-slate-300', edge: 'border-l-4 border-l-transparent', loud: false },
+  thin:       { chip: 'bg-slate-100 text-slate-500 border border-dashed border-slate-300', edge: 'border-l-4 border-l-transparent', loud: false },
 } as const;
 
+/** The verdict, turned into a direction. Presentation only: `attention` still decides rank. */
+function toneOf(r: { attention: string; gapPct: number | null }): typeof TONE[keyof typeof TONE] {
+  if (r.attention === 'thin') return TONE.thin;
+  if (r.attention !== 'act' && r.attention !== 'watch') return TONE.quiet;
+  if (r.gapPct === null) return TONE.quiet;
+  if (r.gapPct > 0) return TONE.over;
+  return r.attention === 'act' ? TONE.under : TONE.underWatch;
+}
+
 /**
- * On-sale share — and what is still UNKNOWN.
+ * How much of the party-eligible field has already GONE.
  *
- * This drew `quoted / (quoted + nothingLeft)`, which for 22-28 Sep was 3 of 3: a completely full bar
- * on the exact row `classify()` returns `scarcity: 'unknown'` for, because four more comparables had
- * never been read. The model refused to guess and the display guessed for it — the loudest possible
- * contradiction, on the axis the whole board turns on.
+ * Dark = sold out, light = still bookable, amber = never read. Drawn in that direction and never the
+ * reverse: the verdict turns on scarcity, so a FULL bar has to mean a picked-over window.
  *
- * The unread share is now drawn as its own hatched segment and named in the text. A reader can see at
- * a glance that the bar is not finished being measured.
+ * This replaces the `4/13` the tile used to print beside the gap. That fraction hid the one
+ * comparison the colour depends on - the reader had to work out 31% against a 40% threshold they
+ * could not see, and then do it again for 3/7 to find out why one tile was red and the other amber.
+ * The owner, 2026-09-03: *"what means numbers, and what means colour and how I can process them"*,
+ * and, when a legend was offered, *"not the legend is the solution"*. He is right: a mark you have to
+ * do arithmetic on is not a mark. The rule is now in the picture.
  */
+function FieldBar({ gone, onSale, unread }: { gone: number; onSale: number; unread: number }) {
+  const field = gone + onSale + unread;
+  if (!field) return <span className="h-[3px] w-full" />;
+  const pct = (n: number) => `${(n / field) * 100}%`;
+  return (
+    <span className="flex h-[3px] w-full overflow-hidden rounded-full bg-slate-200" aria-hidden>
+      <span className="bg-slate-700" style={{ width: pct(gone) }} />
+      <span className="bg-slate-200" style={{ width: pct(onSale) }} />
+      <span className="bg-amber-400" style={{ width: pct(unread) }} />
+    </span>
+  );
+}
+
+/** The same bar in the drill-down, with both counts spelled out so neither has to be inferred. */
 function OnSale({ quoted, asked, unread }: { quoted: number; asked: number; unread: number }) {
-  const field = asked + unread;
-  if (!field) return <span className="text-muted-foreground text-xs">not read</span>;
-  const px = (n: number) => Math.round((n / field) * 10);
-  const on = Math.max(quoted > 0 ? 1 : 0, px(quoted));
-  const unknown = unread > 0 ? Math.max(1, px(unread)) : 0;
-  const gone = Math.max(0, 10 - on - unknown);
+  const gone = asked - quoted;
+  if (!(asked + unread)) return <span className="text-muted-foreground text-xs">not read</span>;
   return (
     <span className="inline-flex items-center gap-2 whitespace-nowrap">
-      <span className="font-mono text-[11px] leading-none tracking-[-1px]" aria-hidden>
-        <span className="text-slate-800">{'█'.repeat(on)}</span>
-        <span className="text-slate-300">{'█'.repeat(gone)}</span>
-        <span className="text-amber-400">{'▒'.repeat(unknown)}</span>
-      </span>
+      <span className="w-16 shrink-0"><FieldBar gone={gone} onSale={quoted} unread={unread} /></span>
       <span className="text-xs tabular-nums">
-        {/* "0 of 0 on sale" is not a reading, it is the absence of one. Say so. */}
+        {/* "0 of 0" is not a reading, it is the absence of one. Say so. */}
         {asked === 0
           ? <span className="text-amber-700">none read &middot; {unread} to probe</span>
           : <>
-              {quoted} of {asked}<span className="text-muted-foreground"> on sale</span>
+              {gone} of {asked}<span className="text-muted-foreground"> gone</span>
+              <span className="text-muted-foreground"> &middot; {quoted} on sale</span>
               {unread > 0 && <span className="text-amber-700"> +{unread}?</span>}
             </>}
       </span>
@@ -155,7 +193,7 @@ const longDay = (iso: string) => {
 };
 
 /**
- * "Can I trust this number?" — answered in four sentences and two links.
+ * "Can I trust this number?" - answered in four sentences and two links.
  *
  * The owner asked to be able to check the numbers himself. So this leads with HIS OWN reason for
  * curating the listing, then when the price was read, then what the page said it was quoting, then
@@ -169,7 +207,7 @@ function Verify({ row, party }: { row: LadderRow; party: string }) {
   const age = row.capturedAt ? daysSince(row.capturedAt) : null;
   const e = row.echo;
   const stayBack = e?.verified && (e.nights || e.checkIn)
-    ? `The page quoted this exact stay back: ${e.checkIn ? `${longDay(e.checkIn)} – ${longDay(e.checkOut!)}, ` : ''}` +
+    ? `The page quoted this exact stay back: ${e.checkIn ? `${longDay(e.checkIn)} - ${longDay(e.checkOut!)}, ` : ''}` +
       `${party}${e.nights ? `, ${e.nights} nights` : ''}.`
     : null;
 
@@ -238,7 +276,7 @@ function Verify({ row, party }: { row: LadderRow; party: string }) {
 }
 
 function Row({ r }: { r: MarketRow }) {
-  const tone = TONE[r.attention];
+  const tone = toneOf(r);
   const asked = r.quoted + r.nothingLeft;
   const d = r.detail;
 
@@ -252,11 +290,11 @@ function Row({ r }: { r: MarketRow }) {
           <span className="w-20 shrink-0 text-xs text-muted-foreground">{r.partyLabel}</span>
 
           <span className="w-20 shrink-0 text-right text-sm tabular-nums">
-            {r.ourPrice !== null ? money(r.ourPrice) : '—'}
+            {r.ourPrice !== null ? money(r.ourPrice) : '·'}
           </span>
           <span className={`w-16 shrink-0 text-right text-sm tabular-nums ${
             r.gapPct === null ? 'text-muted-foreground' : r.gapPct > 0 ? 'text-slate-900' : 'text-slate-500'}`}>
-            {r.gapPct === null ? '—' : `${r.gapPct > 0 ? '+' : ''}${Math.round(r.gapPct)}%`}
+            {r.gapPct === null ? '·' : `${r.gapPct > 0 ? '+' : ''}${Math.round(r.gapPct)}%`}
           </span>
 
           {/* Widened twice by measurement, never by eye: w-44 clipped the "+4?" unread marker, and
@@ -284,7 +322,7 @@ function Row({ r }: { r: MarketRow }) {
             <div className="text-muted-foreground">
               {d.rank && <>You are {d.rank.position} of {d.rank.of} on {r.channelLabel} &middot; </>}
               {r.fieldMedian !== null && (
-                <>the field {money(r.fieldMin!)} &ndash; {money(r.fieldMax!)}, median {money(r.fieldMedian)} &middot; </>
+                <>the field {money(r.fieldMin!)} - {money(r.fieldMax!)}, median {money(r.fieldMedian)} &middot; </>
               )}
               confidence {d.confidence}
               {r.oldestAgeDays !== null && <> &middot; oldest reading {r.oldestAgeDays}d</>}
@@ -301,7 +339,7 @@ function Row({ r }: { r: MarketRow }) {
                   <span className="flex-1 truncate">{row.name}</span>
                 </div>
               ) : (
-                // Every competitor price opens into its own evidence — the owner checks rather than
+                // Every competitor price opens into its own evidence - the owner checks rather than
                 // trusts, and the number should carry what it takes to check it.
                 <details key={row.listingId} className="group/v">
                   <summary className="flex cursor-pointer list-none gap-2 hover:bg-muted/40">
@@ -322,7 +360,7 @@ function Row({ r }: { r: MarketRow }) {
               {d.silent.map((s) => (
                 <div key={s.listingId} className="flex gap-2 text-muted-foreground">
                   <span className="w-3 shrink-0" />
-                  <span className="w-16 shrink-0 text-right">&mdash;</span>
+                  <span className="w-16 shrink-0 text-right">·</span>
                   <span className="flex-1 truncate" title={s.reason}>{s.name}</span>
                   <span className="shrink-0">{s.status}</span>
                 </div>
@@ -331,13 +369,13 @@ function Row({ r }: { r: MarketRow }) {
 
             {d.outOfSet.length > 0 && (
               <div className="text-muted-foreground">
-                <strong>{d.outOfSet.length} cannot host {r.partyLabel}</strong> &mdash; competition you do
+                <strong>{d.outOfSet.length} cannot host {r.partyLabel}</strong> - competition you do
                 not face on this window: {d.outOfSet.map((o) => o.name).join(', ')}
               </div>
             )}
             {d.unreadNames.length > 0 && (
               <div className="text-amber-700">
-                <strong>{d.unreadNames.length} never read for this window</strong> &mdash; unknown, not
+                <strong>{d.unreadNames.length} never read for this window</strong> - unknown, not
                 absent: {d.unreadNames.map((u) => u.name).join(', ')}
               </div>
             )}
@@ -347,13 +385,13 @@ function Row({ r }: { r: MarketRow }) {
               {d.absorption.summary}
               {d.absorption.wentOffSale.map((x) => (
                 <div key={x.name} className="mt-1">
-                  &middot; {x.name} &mdash; last priced {x.lastPrice != null ? money(x.lastPrice) : '?'} on{' '}
+                  &middot; {x.name} - last priced {x.lastPrice != null ? money(x.lastPrice) : '?'} on{' '}
                   {x.between[0].slice(0, 10)}, gone by {x.between[1].slice(0, 10)}
                 </div>
               ))}
               {d.absorption.parksSoldOut.map((x) => (
                 <div key={x.name} className="mt-1">
-                  &middot; {x.name} &mdash; <strong>every unit</strong> gone between{' '}
+                  &middot; {x.name} - <strong>every unit</strong> gone between{' '}
                   {x.between[0].slice(0, 10)} and {x.between[1].slice(0, 10)} (a park, so reported apart)
                 </div>
               ))}
@@ -391,7 +429,7 @@ function Period({ g, columns }: { g: PeriodGroupView; columns: GridColumn[] }) {
     <section id={p ? `p-${p.id}` : undefined} className="border-t first:border-t-0">
       <header className="flex flex-wrap items-baseline gap-x-3 bg-muted/40 px-3 py-1.5">
         <h3 className="text-sm font-semibold uppercase tracking-wide">{p ? p.name : 'Outside your periods'}</h3>
-        {p && <span className="text-xs text-muted-foreground">{day(p.startDate)} &ndash; {day(p.endDate)}</span>}
+        {p && <span className="text-xs text-muted-foreground">{day(p.startDate)} - {day(p.endDate)}</span>}
         <span className="text-xs text-muted-foreground">
           {g.windows.length
             ? `${g.windows.length} window${g.windows.length === 1 ? '' : 's'} read · ${contests} contest${contests === 1 ? '' : 's'}`
@@ -410,7 +448,7 @@ function Period({ g, columns }: { g: PeriodGroupView; columns: GridColumn[] }) {
             <div className="grid items-center gap-x-2 gap-y-1" style={rowTemplate(columns.length)}>
               <span className="flex items-center gap-1 text-sm">
                 <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
-                {day(w.checkIn)} &ndash; {day(w.checkOut)}
+                {day(w.checkIn)} - {day(w.checkOut)}
                 <span className="text-xs text-muted-foreground">{w.nights}n</span>
               </span>
               <span className="text-xs text-muted-foreground">
@@ -422,7 +460,10 @@ function Period({ g, columns }: { g: PeriodGroupView; columns: GridColumn[] }) {
                   ? <Cell key={`${c.channel}|${c.partyLabel}`} r={r} />
                   : <span key={`${c.channel}|${c.partyLabel}`}
                       title={`${c.channelLabel} · ${c.partyLabel} - never captured for this window`}
-                      className="h-6 rounded border border-dotted border-slate-200" />;
+                      className="flex flex-col gap-1">
+                      <span className="h-6 rounded border border-dotted border-slate-200" />
+                      <span className="h-[3px]" />
+                    </span>;
               })}
               <span className="text-right text-xs tabular-nums text-muted-foreground">
                 {w.rows.some((r) => r.attention === 'act' || r.attention === 'watch')
@@ -439,7 +480,7 @@ function Period({ g, columns }: { g: PeriodGroupView; columns: GridColumn[] }) {
       {/* Evidence is never moved in silence: a neighbour that samples these nights says so. */}
       {g.alsoSampledBy.length > 0 && (
         <p className="px-3 py-1.5 text-xs text-muted-foreground">
-          Also sampled by {g.alsoSampledBy.map((a) => `${day(a.checkIn)}–${day(a.checkOut)} (${a.nightsInside}n here)`).join(', ')},
+          Also sampled by {g.alsoSampledBy.map((a) => `${day(a.checkIn)}-${day(a.checkOut)} (${a.nightsInside}n here)`).join(', ')},
           listed under the neighbouring period.
         </p>
       )}
@@ -449,27 +490,30 @@ function Period({ g, columns }: { g: PeriodGroupView; columns: GridColumn[] }) {
 
 /** One contest, as a compact tile: the gap, the on-sale fraction, tinted by the verdict. */
 function Cell({ r }: { r: MarketRow }) {
-  const tone = TONE[r.attention];
+  const tone = toneOf(r);
   const loud = tone.loud;
-  const asked = r.quoted + r.nothingLeft;
+  const bar = <FieldBar gone={r.nothingLeft} onSale={r.quoted} unread={r.unread} />;
+
   if (r.attention === 'thin') {
     return (
-      <span title={`${r.channelLabel} · ${r.partyLabel} - ${r.why}`}
-        className="flex h-6 items-center justify-center rounded border border-dashed border-slate-300 text-[10px] text-slate-400">
-        too thin
+      <span title={`${r.channelLabel} · ${r.partyLabel} - ${r.why}`} className="flex flex-col gap-1">
+        <span className="flex h-6 items-center justify-center rounded border border-dashed border-slate-300 text-[10px] text-slate-400">
+          too thin
+        </span>
+        {bar}
       </span>
     );
   }
-  // The gap over the on-sale fraction. Both axes in every tile — a rank without the second one is the
+  // The gap over the field bar. Both axes in every tile, and now BOTH readable without arithmetic:
+  // how far off you are, and how much of the field is left. A rank without the second one is the
   // reading that pointed the wrong way in the first place.
   return (
-    <span title={`${r.channelLabel} · ${r.partyLabel} - ${r.label}. ${r.why}`}
-      className={`flex h-6 items-center justify-center gap-1 rounded px-1 text-[11px] tabular-nums ${
+    <span title={`${r.channelLabel} · ${r.partyLabel} - ${r.label}. ${r.why}`} className="flex flex-col gap-1">
+      <span className={`flex h-6 items-center justify-center rounded px-1 text-[11px] tabular-nums ${
         loud ? `${tone.chip} font-semibold` : 'border border-slate-200 bg-slate-50 text-slate-600'}`}>
-      <span>{r.gapPct === null ? '—' : `${r.gapPct > 0 ? '+' : ''}${Math.round(r.gapPct)}%`}</span>
-      <span className={loud ? 'opacity-90' : 'text-slate-400'}>
-        {r.quoted}/{asked}{r.unread > 0 && '+?'}
+        {r.gapPct === null ? '·' : `${r.gapPct > 0 ? '+' : ''}${Math.round(r.gapPct)}%`}
       </span>
+      {bar}
     </span>
   );
 }
@@ -484,7 +528,7 @@ export function MarketPanel({ rows, grouped, columns = [], summary }: {
           <CardTitle>Where you sit</CardTitle>
           <CardDescription>
             No competitor prices captured yet. A run takes a few minutes and needs your signed-in
-            browser &mdash; there is no API for this, so it cannot happen on its own.
+            browser - there is no API for this, so it cannot happen on its own.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-1 text-sm text-muted-foreground">
@@ -502,15 +546,15 @@ export function MarketPanel({ rows, grouped, columns = [], summary }: {
         <CardDescription className="text-base text-foreground">{summary.headline}</CardDescription>
         {/*
           The mental model, in one line. Without it the board reads as a table of prices, which is the
-          thing that read as noise — and the whole point is that neither axis means much alone.
+          thing that read as noise - and the whole point is that neither axis means much alone.
         */}
-        {/* He has read this. It stays available and silent — he asked to understand fast. */}
+        {/* He has read this. It stays available and silent - he asked to understand fast. */}
         <details className="text-xs text-muted-foreground">
           <summary className="cursor-pointer select-none">How to read this</summary>
           <p className="mt-1 max-w-3xl">
             Two things decide a window: <strong>where your price sits</strong>, and{' '}
             <strong>how much of the field is still on sale</strong>. Being dearest of a field that has
-            sold out is not the same as being overpriced &mdash; it is nearly the opposite. One contest
+            sold out is not the same as being overpriced - it is nearly the opposite. One contest
             per channel, never pooled. Grouped by your own pricing periods, because a period is what
             you change; a window is only a probe into one. Competitor prices are context for your
             decision and never change a rate.
@@ -524,7 +568,11 @@ export function MarketPanel({ rows, grouped, columns = [], summary }: {
             {columns.length > 0 && (
               <div className="sticky top-0 z-10 grid items-end gap-x-2 border-b bg-background px-3 py-1.5"
                    style={rowTemplate(columns.length)}>
-                <span /><span />
+                {/* An axis label, in space that was empty anyway. The bar means nothing unnamed. */}
+                <span className="text-[10px] leading-tight text-muted-foreground">
+                  bar under each tile = share of the field already sold
+                </span>
+                <span />
                 {columns.map((c, i) => (
                   <span key={`${c.channel}|${c.partyLabel}`} className="text-center leading-tight">
                     {(i === 0 || columns[i - 1].channel !== c.channel) && (

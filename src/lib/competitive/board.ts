@@ -6,25 +6,25 @@
  * and fast my property position against competition"*. The December capture showed why, and it is not
  * a layout problem.
  *
- * > 30 Dec – 2 Jan: you 7,243 on Booking, **dearest of 4**.
+ * > 30 Dec - 2 Jan: you 7,243 on Booking, **dearest of 4**.
  *
  * True, and the opposite of what it looks like. Ten of the thirteen party-eligible comparables had
  * nothing left. The three still quoting were the remainder nobody had booked, so being top of that
- * ladder is not evidence of being overpriced — it is close to evidence of the reverse. A rank on its
+ * ladder is not evidence of being overpriced - it is close to evidence of the reverse. A rank on its
  * own is not just incomplete, it points the wrong way.
  *
  * **So the unit here is two axes, never one:**
  *
  * |            | most of the field GONE            | field still OPEN                  |
  * |------------|-----------------------------------|-----------------------------------|
- * | you dear   | dearest of what is left — fine    | EXPOSED — real choice, you're dear|
- * | you cheap  | LEFT MONEY — in-demand window     | cheap and still quiet — demand    |
+ * | you dear   | dearest of what is left - fine    | EXPOSED - real choice, you're dear|
+ * | you cheap  | LEFT MONEY - in-demand window     | cheap and still quiet - demand    |
  *
  * The bottom-left is the money leak the ladder screen would have shown as "good news, you are the
  * cheapest". The top-left is the false alarm it showed on New Year. Same numbers, opposite actions.
  *
  * **Scarcity is readable from ONE capture.** How many of the field are on sale *right now* is a
- * state, not an event, so it needs no second reading — unlike absorption (`absorption.ts`), which
+ * state, not an event, so it needs no second reading - unlike absorption (`absorption.ts`), which
  * asks whether that share CHANGED and needs two. That is why this board works on a first capture and
  * absorption sharpens it later rather than gating it.
  *
@@ -47,19 +47,19 @@ export const LEVEL_BAND_PCT = 10;
  */
 export const SCARCITY = { tight: 0.4, open: 0.75 } as const;
 
-/** Below this many quotes there is no band and no rank — the same floor `position.ts` enforces. */
+/** Below this many quotes there is no band and no rank - the same floor `position.ts` enforces. */
 export const MIN_QUOTES = 3;
 
 /**
  * A gap this large is worth attention whatever the scarcity band says.
  *
- * The verdict was built on position × scarcity alone, which made it blind to MAGNITUDE — and on the
+ * The verdict was built on position × scarcity alone, which made it blind to MAGNITUDE - and on the
  * live board that produced a visible absurdity: 22-28 Sep on Airbnb sat grey at −60% beside a red
  * −38%, because 3-of-7 lands a single point above the "tight" threshold. The bigger gap looked
  * calmer. A threshold that turns a 60% gap quiet is measuring the wrong thing.
  *
  * This does not override the two axes; it stops them silencing an outlier. A cheap-and-open window
- * is still a demand story, not a price one — but at this distance from the field it is a story worth
+ * is still a demand story, not a price one - but at this distance from the field it is a story worth
  * being told about, so the row escalates to `watch` rather than to `act`.
  */
 export const LOUD_GAP_PCT = 35;
@@ -86,7 +86,7 @@ export interface BoardRowInput {
   fieldMax: number | null;
   /** Comparables that gave a price. */
   quoted: number;
-  /** Comparables that COULD host this party — the honest denominator. */
+  /** Comparables that COULD host this party - the honest denominator. */
   eligible: number;
   /** Eligible, asked, and not on sale. */
   nothingLeft: number;
@@ -104,7 +104,7 @@ export interface BoardRowInput {
 export interface BoardRow extends BoardRowInput {
   /** Our price against the field median, in percent. The one number that scans across windows. */
   gapPct: number | null;
-  /** Dearer than every comparable that quoted — crisper than a median on a field of three. */
+  /** Dearer than every comparable that quoted - crisper than a median on a field of three. */
   aboveAll: boolean;
   onSaleShare: number | null;
   position: Position;
@@ -135,7 +135,7 @@ function classify(row: BoardRowInput): { position: Position; scarcity: Scarcity;
   // is `unknown`, not the flattering end of the range.
   //
   // This is not hypothetical. The Airbnb reading for 22-28 Sep was 3 quoted, 0 known gone, 4 never
-  // read — and a point estimate of 3/3 called the market OPEN, which would have turned a window
+  // read - and a point estimate of 3/3 called the market OPEN, which would have turned a window
   // where we are 60% under the field into "cheap and quiet, it is a demand problem". The bounds are
   // 3/7 and 7/7: mixed to open, so nothing can be concluded until those four are probed.
   const field = row.quoted + row.nothingLeft + row.unread;
@@ -147,7 +147,7 @@ function classify(row: BoardRowInput): { position: Position; scarcity: Scarcity;
     worst === null || best === null ? 'unknown'
     : band(worst) === band(best) ? band(worst)
     : 'unknown';
-  // The share we DISPLAY stays the measured one — what quoted, of what was actually asked.
+  // The share we DISPLAY stays the measured one - what quoted, of what was actually asked.
   const asked = row.quoted + row.nothingLeft;
   const share = asked > 0 ? row.quoted / asked : null;
   void share;
@@ -219,7 +219,7 @@ function verdict(row: BoardRowInput, position: Position, scarcity: Scarcity, abo
   if (scarcity === 'unknown' && row.unread > 0) {
     const far = gapPct !== null && Math.abs(gapPct) >= LOUD_GAP_PCT;
     return {
-      // A gap this size is worth a look even while the market state is undecidable — but the advice
+      // A gap this size is worth a look even while the market state is undecidable - but the advice
       // stays "probe first", because the unread comparables are what decide whether it costs anything.
       attention: far ? 'watch' : 'ok',
       label: position === 'dear' ? `${far ? 'Far above' : 'Above'} the field, coverage thin`
@@ -235,7 +235,7 @@ function verdict(row: BoardRowInput, position: Position, scarcity: Scarcity, abo
   // Magnitude, before the middle-ground labels swallow it. See LOUD_GAP_PCT.
   //
   // Deliberately does NOT reach an OPEN market: cheap-and-open is a demand story and stays one at any
-  // distance — if every comparable is bookable and nobody is booking, being further below them is not
+  // distance - if every comparable is bookable and nobody is booking, being further below them is not
   // the lever. `unknown` is handled above, where the honest advice is to probe before acting.
   if (gapPct !== null && Math.abs(gapPct) >= LOUD_GAP_PCT
       && scarcity !== 'open' && scarcity !== 'unknown') {
@@ -285,8 +285,8 @@ function verdict(row: BoardRowInput, position: Position, scarcity: Scarcity, abo
 /**
  * Sort weight. `thin` sits LAST, below `ok`.
  *
- * It used to sit above it, which put 23 rows that refuse to say anything — "Too thin", "No price of
- * ours" — at the top of the board, ahead of quiet findings that had something to report. Forty per
+ * It used to sit above it, which put 23 rows that refuse to say anything - "Too thin", "No price of
+ * ours" - at the top of the board, ahead of quiet findings that had something to report. Forty per
  * cent of the screen was refusals styled as findings. A row that declines to rank is the least
  * urgent thing on the page, not the third most.
  */
@@ -295,7 +295,7 @@ const RANK: Record<Attention, number> = { act: 0, watch: 1, ok: 2, thin: 3 };
 /**
  * Build the board, most consequential first.
  *
- * Ordering is attention, then money — the same rule the year board uses, because "what should I look
+ * Ordering is attention, then money - the same rule the year board uses, because "what should I look
  * at" is answered by how much is riding on it, not by which date comes first.
  */
 export function buildBoard(rows: BoardRowInput[]): BoardRow[] {
@@ -328,6 +328,9 @@ export interface BoardSummary {
   channelReadings: number;
   act: number;
   watch: number;
+  /** Loud windows where our price is BELOW the field, and above it. The tiles are hued the same way. */
+  under: number;
+  over: number;
   /** The plain-English headline. Never a percentage of a market we did not read. */
   headline: string;
 }
@@ -336,12 +339,12 @@ export interface BoardSummary {
  * Count WINDOWS, not contests.
  *
  * The headline used to say "10 where you are cheap in a market that has largely sold" while counting
- * rows — and those ten rows were seven windows, because the same window fires at two party sizes. He
+ * rows - and those ten rows were seven windows, because the same window fires at two party sizes. He
  * read ten problems where he had seven decisions. A decision is a window; a contest is evidence for
  * one.
  */
 export function summariseBoard(rows: BoardRow[]): BoardSummary {
-  // A DATE-window, not `key` — `key` carries the party, so counting it said "29 windows" for the
+  // A DATE-window, not `key` - `key` carries the party, so counting it said "29 windows" for the
   // thirteen date ranges actually read. Three parties on one stay is one set of dates to decide about.
   const dates = (r: BoardRow) => `${r.checkIn}|${r.checkOut}`;
   const windowsOf = (level: Attention) =>
@@ -350,15 +353,23 @@ export function summariseBoard(rows: BoardRow[]): BoardSummary {
   const act = windowsOf('act');
   const watch = windowsOf('watch');
 
+  // Counted by DIRECTION, not by severity, because the headline is read beside the tiles and the two
+  // have to agree. It used to say `watch` meant "you are dear and buyers still have choice", which was
+  // true when `watch` held only the dear-and-open case. Magnitude escalation then put cheap rows in it
+  // too, so the sentence claimed "3 where you are dear" above three tiles reading -60%, -48%, -42%.
+  const loud = rows.filter((r) => r.attention === 'act' || r.attention === 'watch');
+  const under = new Set(loud.filter((r) => r.gapPct !== null && r.gapPct < 0).map(dates)).size;
+  const over = new Set(loud.filter((r) => r.gapPct !== null && r.gapPct > 0).map(dates)).size;
+
   const headline =
     !rows.length ? 'Nothing captured yet.'
-    : act + watch === 0
+    : under + over === 0
       ? `${windows} window${windows === 1 ? '' : 's'} read across ${rows.length} channel contest${rows.length === 1 ? '' : 's'}. ` +
         `Nothing is out of line - no window is both mispriced and facing real competition.`
       : `${windows} window${windows === 1 ? '' : 's'} read. ` +
-        [act && `${act} where you are cheap in a market that has largely sold`,
-         watch && `${watch} where you are dear and buyers still have choice`]
+        [under && `${under} where sitting under the field is worth a look`,
+         over && `${over} where sitting over it is`]
           .filter(Boolean).join(', ') + '.';
 
-  return { windows, channelReadings: rows.length, act, watch, headline };
+  return { windows, channelReadings: rows.length, act, watch, under, over, headline };
 }

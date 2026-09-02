@@ -3,7 +3,7 @@
  *
  * WHY THE PERIOD, AND NOT THE WINDOW. The board was built with one row per date-window, which looked
  * right until the December data arrived: 23-26, 23-27, 24-29 and 25-28 Dec are four probes into the
- * same nights. As four rows they read as four decisions. They are one situation — Christmas — and he
+ * same nights. As four rows they read as four decisions. They are one situation - Christmas - and he
  * has a period named exactly that.
  *
  * Two things follow, and the second is the one that actually forced this module:
@@ -11,11 +11,11 @@
  *  - **A period is the lever.** He prices `Christmas`, `Vacanta Toamna`, `1 Decembrie`. A window is
  *    only a probe into a period; it is evidence, not a decision.
  *  - **Money is only honest at the period.** Summing "unsold direct money" per window counted the
- *    same nights once per overlapping probe — 14,018 RON of Christmas exposure for about five nights.
+ *    same nights once per overlapping probe - 14,018 RON of Christmas exposure for about five nights.
  *    Nights exist once, so the money has to be computed once, from the period's own nights.
  *
  * WHAT THIS REFUSES TO DO. A period never gets a verdict of its own. Rolling contests up across
- * channels is one step from pooling them, which C8 forbids — so a period carries counts and money,
+ * channels is one step from pooling them, which C8 forbids - so a period carries counts and money,
  * and the verdicts stay down at the contest where they were measured.
  *
  * PURE. Periods and rows in, grouped rows out. No I/O, no clock.
@@ -28,7 +28,7 @@ export interface PricingPeriod {
   startDate: string;
   /** Inclusive, as the pricing engine stores it. */
   endDate: string;
-  /** What the engine currently charges per night — HIS number, never compared to a competitor's. */
+  /** What the engine currently charges per night - HIS number, never compared to a competitor's. */
   weekdayRate: number | null;
   weekendRate: number | null;
 }
@@ -38,7 +38,7 @@ export interface PricingPeriod {
  *
  * Derived from the data rather than hard-coded, because the party mix is configuration and has
  * already moved once. Fixed ORDER is the point: a tile only means something if the same coordinate
- * means the same contest on every row — the first build wrapped tiles in a flex row, so position 1
+ * means the same contest on every row - the first build wrapped tiles in a flex row, so position 1
  * was Booking 2a+1c on one line and Airbnb 4a+2c on the next, and a column could not be scanned.
  */
 export interface GridColumn { channel: string; channelLabel: string; partyLabel: string }
@@ -69,7 +69,7 @@ export interface PeriodGroup {
   windows: Array<{ key: string; checkIn: string; checkOut: string; nights: number; rows: BoardRow[];
                    /** Nights of this window that land inside the period, when it spills. */
                    nightsInside: number }>;
-  /** Direct revenue on this period's UNSOLD nights. Counted once — see the module note. */
+  /** Direct revenue on this period's UNSOLD nights. Counted once - see the module note. */
   unsoldMoney: number;
   openNights: number;
   /** Windows read that sample this period but are filed under a neighbour. */
@@ -96,7 +96,7 @@ export interface GroupInput {
   periods: PricingPeriod[];
   /** Nights already booked, so the money is what is genuinely still at stake. */
   soldNights: Set<string>;
-  /** Per-night direct rate, by date. From the price calendar — his own number. */
+  /** Per-night direct rate, by date. From the price calendar - his own number. */
   rateByNight: Map<string, number>;
 }
 

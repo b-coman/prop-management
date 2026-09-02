@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * comp-search — build the search URL for a window, and turn a collected page into rows.
+ * comp-search - build the search URL for a window, and turn a collected page into rows.
  *
  * Two modes, because the middle step needs a browser:
  *
@@ -39,10 +39,10 @@ const CARDS = arg('cards');
 const DEST = arg('dest', 'Comarnic%2C+Prahova%2C+Romania')!;
 const DEST_ID = arg('dest-id', '-1156460')!;
 
-/** `2a1c` / `4a` / `4a2c` — the same shapes as compareParties, written for a command line. */
+/** `2a1c` / `4a` / `4a2c` - the same shapes as compareParties, written for a command line. */
 function parseParty(s: string): Party {
   const m = s.match(/^(\d+)a(?:(\d+)c)?$/i);
-  if (!m) throw new Error(`--party must look like 2a1c, 4a or 4a2c — got "${s}"`);
+  if (!m) throw new Error(`--party must look like 2a1c, 4a or 4a2c - got "${s}"`);
   return { adults: Number(m[1]), children: m[2] ? Number(m[2]) : 0 };
 }
 
@@ -61,21 +61,21 @@ const searchUrl = (party: Party, checkIn: string, checkOut: string) => {
   const url = searchUrl(party, IN, OUT);
 
   if (!CARDS) {
-    // Warn when the requested party is not one the rest of the system prices at — a one-off is fine,
+    // Warn when the requested party is not one the rest of the system prices at - a one-off is fine,
     // but silently drifting from `compareParties` is how two halves stop being comparable.
     const db = await getAdminDb();
     const prop = (await db.collection('properties').doc(SLUG).get()).data() as { channelPricing?: unknown } | undefined;
     const mix = partiesFor(prop?.channelPricing).parties;
     const known = mix.some((p) => p.adults === party.adults && p.children === party.children);
 
-    console.log(`\nCOMP-SEARCH — ${IN} → ${OUT} (${nights}n, ${partyLabel(party)})`);
+    console.log(`\nCOMP-SEARCH - ${IN} → ${OUT} (${nights}n, ${partyLabel(party)})`);
     if (!known) {
       console.log(`\n!! ${partyLabel(party)} is not in compareParties (${mix.map(partyLabel).join(' · ')}).`);
-      console.log(`   Fine for a one-off look; do not build a position on it — our own stored prices`);
+      console.log(`   Fine for a one-off look; do not build a position on it - our own stored prices`);
       console.log(`   are for the configured shapes, so there would be nothing to compare against.`);
     }
     console.log(`\n1. Open this in Chrome, signed in, and let it settle ~12s:\n\n${url}\n`);
-    console.log(`2. Run THIS before scrolling — the list is virtualised and scrolling DESTROYS`);
+    console.log(`2. Run THIS before scrolling - the list is virtualised and scrolling DESTROYS`);
     console.log(`   off-screen cards (25 at the top became 6 after scrolling to the bottom).`);
     console.log(`   It parses IN THE PAGE: the raw text is ~15KB carrying 72 non-breaking spaces, and`);
     console.log(`   getting that back out by hand costs 17 slices and a whitespace repair that went`);
@@ -84,14 +84,14 @@ const searchUrl = (party: Party, checkIn: string, checkOut: string) => {
     console.log(`${parserSnippet()}
 var __raw = JSON.parse(${IN_PAGE_SEARCH_COLLECTOR});
 JSON.stringify(__raw.cards.map(function(c){ return parseSearchCard(c.slug, c.name, c.text); }));`);
-    console.log(`\n3. Save what it returns to cards.json — and CHECK THE HASH of the reassembly`);
+    console.log(`\n3. Save what it returns to cards.json - and CHECK THE HASH of the reassembly`);
     console.log(`   before trusting it (protocol §10). Then:`);
     console.log(`   npx tsx scripts/comp-search.ts --in ${IN} --out ${OUT} --party ${PARTY} --cards cards.json\n`);
     return;
   }
 
   // The file may hold cards ALREADY PARSED in the page (the normal path, step 2 above) or raw ones
-  // (the fallback, if the parser could not be injected). Same function either way — only the place
+  // (the fallback, if the parser could not be injected). Same function either way - only the place
   // it ran differs.
   const file = JSON.parse(fs.readFileSync(CARDS, 'utf8'));
   const collected: Array<Record<string, unknown>> =
@@ -112,7 +112,7 @@ JSON.stringify(__raw.cards.map(function(c){ return parseSearchCard(c.slug, c.nam
   const set = await getCompetitorSet(SLUG);
   const { curated, candidates, absent } = matchToSet(batch.cards, set.all, 'booking.com');
 
-  console.log(`\nCOMP-SEARCH — ${IN} → ${OUT} (${nights}n, ${partyLabel(party)})`);
+  console.log(`\nCOMP-SEARCH - ${IN} → ${OUT} (${nights}n, ${partyLabel(party)})`);
   console.log(`${batch.cards.length} cards · every one echoes the probe · ${curated.length} curated · ${candidates.length} candidates\n`);
 
   console.log('CURATED (these become observations):');
@@ -122,13 +122,13 @@ JSON.stringify(__raw.cards.map(function(c){ return parseSearchCard(c.slug, c.nam
       `${listing.displayName.slice(0, 32).padEnd(34)}${card.distanceKm ?? '?'}km`));
 
   if (absent.length) {
-    console.log(`\nABSENT from the results — a FINDING, not a gap. The search omits a property that`);
+    console.log(`\nABSENT from the results - a FINDING, not a gap. The search omits a property that`);
     console.log(`will not take this party (adults-only, a child-age bar) or has no availability:`);
     absent.forEach((l) => console.log(`  ${l.displayName}`));
   }
 
   if (candidates.length) {
-    console.log(`\nCANDIDATES — in the results a guest sees, not in your set. The page proposes; you dispose:`);
+    console.log(`\nCANDIDATES - in the results a guest sees, not in your set. The page proposes; you dispose:`);
     [...candidates].sort((a, b) => (b.reviewCount ?? 0) - (a.reviewCount ?? 0)).slice(0, 12)
       .forEach((c) => console.log(
         `  ${String(c.reviewCount ?? '-').padStart(4)}rv ${String(c.score ?? '-').padStart(4)}  ` +

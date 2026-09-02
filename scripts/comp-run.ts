@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * comp-run — a whole Booking batch in two commands and one browser session.
+ * comp-run - a whole Booking batch in two commands and one browser session.
  *
  * WHY THIS EXISTS. The owner's question, 2026-09-02: *"Next time when I run the batch would I be in
  * the same problems like now? I want to get to a point when acquiring fresh data is a matter of 10
@@ -10,7 +10,7 @@
  *   navigate → paste parser → chunk the payload out → reassemble it → hash-check it → write a file →
  *   comp-search --cards → combine the row files → dry-run → capture → hand-write a read-back check
  *
- * Nine of those eleven are the same every time, and one of them — the read-back — was retyped from
+ * Nine of those eleven are the same every time, and one of them - the read-back - was retyped from
  * memory on every run, which is exactly the check that must never be optional.
  *
  * WHAT IS LEFT. Two commands and one browser pass:
@@ -51,7 +51,7 @@ const DEST_ID = arg('dest-id', '-1156460')!;
 
 function parseParty(s: string): Party {
   const m = s.trim().match(/^(\d+)a(?:(\d+)c)?$/i);
-  if (!m) throw new Error(`party must look like 2a1c, 4a or 4a2c — got "${s}"`);
+  if (!m) throw new Error(`party must look like 2a1c, 4a or 4a2c - got "${s}"`);
   return { adults: Number(m[1]), children: m[2] ? Number(m[2]) : 0 };
 }
 
@@ -78,9 +78,9 @@ const keyOf = (checkIn: string, checkOut: string, party: Party) =>
     if (!windows.length) { console.error('--windows 2026-11-27:2026-12-02,2026-12-25:2026-12-28  (and optionally --parties 2a1c,4a2c)'); process.exit(1); }
     const jobs = windows.flatMap((w) => parties.map((p) => ({ ...w, party: p })));
 
-    console.log(`\nCOMP-RUN — ${jobs.length} page load(s): ${windows.length} window(s) × ${parties.length} part(y/ies)\n`);
+    console.log(`\nCOMP-RUN - ${jobs.length} page load(s): ${windows.length} window(s) × ${parties.length} part(y/ies)\n`);
     console.log(`Chrome, signed in. Load each URL, let it settle ~10s, then paste the SNIPPET once.`);
-    console.log(`Nothing is lost between navigations — the snippet accumulates in sessionStorage.\n`);
+    console.log(`Nothing is lost between navigations - the snippet accumulates in sessionStorage.\n`);
     jobs.forEach((j, n) => console.log(
       `${String(n + 1).padStart(2)}. ${j.checkIn} → ${j.checkOut}  ${partyLabel(j.party)}\n    ${searchUrl(j.party, j.checkIn, j.checkOut)}`));
 
@@ -97,7 +97,7 @@ JSON.stringify({ key: __key, cards: __run[__key].length,
   echo: __run[__key].every(function(p){ return p.echo.adults === Number(__q.get('group_adults')); }),
   done: Object.keys(__run).length });`);
 
-    console.log(`\n--- THEN, ONCE, read it out (slice it, and CHECK THE HASH — protocol §10) ---\n`);
+    console.log(`\n--- THEN, ONCE, read it out (slice it, and CHECK THE HASH - protocol §10) ---\n`);
     console.log(`sessionStorage.getItem('__run')`);
     console.log(`\nSave it to blob.json and run:\n  npx tsx scripts/comp-run.ts --blob blob.json\n`);
     return;
@@ -108,7 +108,7 @@ JSON.stringify({ key: __key, cards: __run[__key].length,
   const set = await getCompetitorSet(SLUG);
   const dry = has('dry-run');
 
-  console.log(`\nCOMP-RUN — ${Object.keys(blob).length} window/party group(s)${dry ? '  [DRY RUN]' : ''}\n`);
+  console.log(`\nCOMP-RUN - ${Object.keys(blob).length} window/party group(s)${dry ? '  [DRY RUN]' : ''}\n`);
   let written = 0, refused = 0;
   const wrote: Array<{ checkIn: string; checkOut: string; guests: number; id: string; status: string; total: number | null }> = [];
 
@@ -123,7 +123,7 @@ JSON.stringify({ key: __key, cards: __run[__key].length,
     const batch = verifySearchBatch(parsed, { nights, adults: party.adults, children: party.children });
     if (!batch.ok) {
       refused++;
-      console.log(`  REFUSED  ${label} — ${batch.problem}`);
+      console.log(`  REFUSED  ${label} - ${batch.problem}`);
       batch.mismatched.forEach((m) => console.log(`             ${m.slug}: echoes ${JSON.stringify(m.echo)}`));
       continue;
     }
@@ -133,7 +133,7 @@ JSON.stringify({ key: __key, cards: __run[__key].length,
 
     console.log(`  ${label}  ${curated.length} quoted · ${absent.length} nothing left · ${candidates.length} candidates`);
     // A dry run goes through the SAME conversion, writing nothing. The first version skipped it, so a
-    // dry run passed and the real run refused every row on a field-name mismatch — a rehearsal that
+    // dry run passed and the real run refused every row on a field-name mismatch - a rehearsal that
     // does not rehearse the risky step is worse than none, because it buys false confidence.
     for (const r of rows) {
       await recordCaptureRow(SLUG, r, { dryRun: dry, capturedBy: 'comp-run' });
@@ -162,7 +162,7 @@ JSON.stringify({ key: __key, cards: __run[__key].length,
     }
   }
   console.log(`\n${written} row(s) written${refused ? `, ${refused} page(s) refused` : ''}.`);
-  console.log(bad ? `READ-BACK FAILURES: ${bad} — do not trust this run.\n`
+  console.log(bad ? `READ-BACK FAILURES: ${bad} - do not trust this run.\n`
                   : `All ${wrote.length} read back and matched their source.\n`);
   if (bad) process.exit(1);
 })().catch((e) => { console.error(e); process.exit(1); });

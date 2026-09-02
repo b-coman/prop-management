@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * comp-next — which comparables to price on one window, with the URLs already built.
+ * comp-next - which comparables to price on one window, with the URLs already built.
  *
  * **The window must already have OUR price in the store (C5).** A competitor total with nothing to
  * compare it against is a number, not a position, and deriving competitor windows independently is
@@ -8,7 +8,7 @@
  * store first and refuses a window we have not quoted ourselves.
  *
  * Membership is decided by `hostsParty`, so a comparable that cannot take the party is dropped
- * BEFORE a page is loaded — that is C4 paying for itself: the moat is measured by not probing.
+ * BEFORE a page is loaded - that is C4 paying for itself: the moat is measured by not probing.
  *
  *   npx tsx scripts/comp-next.ts --in 2026-10-24 --out 2026-10-28 --guests 3
  *   npx tsx scripts/comp-next.ts --in 2026-10-24 --out 2026-10-28 --guests 3 --channel booking.com --json
@@ -66,7 +66,7 @@ const fitWord = (f: PartyFit) =>
         listingId: l.listingId, displayName: l.displayName, channel: l.channel,
         largestUnit: largestUnit(l) || null,
         fit: fit.kind, fitWhy: fitWord(fit),
-        // Probe a listing that can host the party, and one whose capacity we have not read — the
+        // Probe a listing that can host the party, and one whose capacity we have not read - the
         // missing data is itself the reason to look. Never probe one we know is too small.
         probe: fit.kind !== 'out-of-set',
         url: buildCaptureUrl(l.channel, l.url, { checkIn: IN, checkOut: OUT, party }),
@@ -85,11 +85,11 @@ const fitWord = (f: PartyFit) =>
     return;
   }
 
-  console.log(`\nCOMP-NEXT — ${IN} → ${OUT}  (${nights}n, ${partyLabel(party)})`);
+  console.log(`\nCOMP-NEXT - ${IN} → ${OUT}  (${nights}n, ${partyLabel(party)})`);
   console.log(`our price: ${Object.entries(ourPrice).map(([c, v]) => `${c} ${v}`).join(' · ')}\n`);
   for (const ch of [...new Set(rows.map((r) => r.channel))].sort()) {
     const inCh = rows.filter((r) => r.channel === ch);
-    console.log(`${ch} — ${inCh.filter((r) => r.probe).length} to probe of ${inCh.length}`);
+    console.log(`${ch} - ${inCh.filter((r) => r.probe).length} to probe of ${inCh.length}`);
     for (const r of inCh) {
       console.log(`  ${r.probe ? ' ' : '·'} ${r.displayName.slice(0, 30).padEnd(32)}` +
                   `sleeps ${String(r.largestUnit ?? '?').padStart(2)}  ${r.fitWhy}`);
@@ -99,7 +99,7 @@ const fitWord = (f: PartyFit) =>
   }
   const skipped = rows.filter((r) => !r.probe);
   if (skipped.length) {
-    console.log(`${skipped.length} not probed — they cannot host this party. That is a FINDING, not a`);
+    console.log(`${skipped.length} not probed - they cannot host this party. That is a FINDING, not a`);
     console.log(`gap: it is competition you do not face on this window, measured without a page load.\n`);
   }
   console.log(`Capture with the ota-parity loop, then record through the one write path:`);

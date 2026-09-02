@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * comp-report — where we sit on one window, rendered FROM THE STORE.
+ * comp-report - where we sit on one window, rendered FROM THE STORE.
  *
  * Never hand-assembled. Every figure traces to a `channelPriceObservations` row with a URL, a
  * timestamp and a session; a comparable that did not quote appears with its reason rather than being
@@ -35,7 +35,7 @@ const money = (n: number) => Math.round(n).toLocaleString('en-US');
 
   // Sequential, not Promise.all: three concurrent first calls to getAdminDb() race the Admin SDK's
   // initializeApp and each loser logs a scary "default Firebase app already exists" at ERROR level.
-  // The SDK recovers, so it is noise rather than a fault — but noise at ERROR is how a real error
+  // The SDK recovers, so it is noise rather than a fault - but noise at ERROR is how a real error
   // gets missed. Warm the connection once, then fan out.
   const db = await getAdminDb();
   const selfAll = await latestByCell(SLUG, { kind: 'self' });
@@ -57,7 +57,7 @@ const money = (n: number) => Math.round(n).toLocaleString('en-US');
   const direct = ours.find((o) => o.channel === 'direct');
   const ourDirect = direct?.status === 'captured' ? direct.guestTotal : null;
 
-  console.log(`\nMARKET POSITION — ${IN} → ${OUT}  (${nights}n, ${partyLabel(party)})`);
+  console.log(`\nMARKET POSITION - ${IN} → ${OUT}  (${nights}n, ${partyLabel(party)})`);
   console.log('='.repeat(78));
 
   for (const channel of ['airbnb', 'booking.com']) {
@@ -71,7 +71,7 @@ const money = (n: number) => Math.round(n).toLocaleString('en-US');
       const fit = hostsParty(l, party);
       if (fit.kind === 'out-of-set') { outOfSet.push({ listingId: l.listingId, displayName: l.displayName, fit }); continue; }
       // A cell we never captured is neither a quote nor a refusal. It used to be dropped here, on the
-      // theory that "of how many asked" covered it — it does not: that printed 4 of 7 for a field of
+      // theory that "of how many asked" covered it - it does not: that printed 4 of 7 for a field of
       // fifteen. It is carried through as UNREAD and named.
       const o = theirs.find((x) => x.channel === channel && x.subject?.kind === 'competitor'
         && x.subject.listingId === l.listingId);
@@ -109,10 +109,10 @@ const money = (n: number) => Math.round(n).toLocaleString('en-US');
     if (pos.rank) {
       console.log(`  you      ${money(pos.ourChannelPrice!)}  ->  ${pos.rank.position} of ${pos.rank.of} on ${channel}`);
     } else if (pos.ourChannelPrice !== null) {
-      console.log(`  you      ${money(pos.ourChannelPrice)}  (no rank — too few comparables quoted)`);
+      console.log(`  you      ${money(pos.ourChannelPrice)}  (no rank - too few comparables quoted)`);
     }
     if (pos.ourDirectPrice !== null) {
-      console.log(`  direct   ${money(pos.ourDirectPrice)}  (reference — no guest browsing ${channel} sees this)`);
+      console.log(`  direct   ${money(pos.ourDirectPrice)}  (reference - no guest browsing ${channel} sees this)`);
     }
 
     console.log('\n  cheapest first:');
@@ -121,7 +121,7 @@ const money = (n: number) => Math.round(n).toLocaleString('en-US');
       console.log(`    ${r.isUs ? '>>' : '  '} ${money(r.total).padStart(6)}  ${r.name.slice(0, 34).padEnd(36)}` +
                   `${r.promo ? 'promo ' : '      '}${q}`);
     }
-    for (const s of pos.silent) console.log(`       ${'—'.padStart(6)}  ${s.name.slice(0, 34).padEnd(36)}${s.status}: ${s.reason.slice(0, 40)}`);
+    for (const s of pos.silent) console.log(`       ${'-'.padStart(6)}  ${s.name.slice(0, 34).padEnd(36)}${s.status}: ${s.reason.slice(0, 40)}`);
     for (const o of pos.outOfSet) console.log(`       ${'·'.padStart(6)}  ${o.name.slice(0, 34).padEnd(36)}out of set`);
     for (const u of pos.unread) console.log(`       ${'?'.padStart(6)}  ${u.name.slice(0, 34).padEnd(36)}never read for this window`);
 
@@ -143,24 +143,24 @@ const money = (n: number) => Math.round(n).toLocaleString('en-US');
     })
     .filter((r) => r.absorption.readings > 0);
 
-  console.log(`\nABSORPTION — is this window selling at all?`);
+  console.log(`\nABSORPTION - is this window selling at all?`);
   const withTwo = rows.filter((r) => r.absorption.readings >= 2);
   if (!withTwo.length) {
     console.log(`  Not yet. ${rows.length} listing(s) have one reading each, so nothing can be compared.`);
-    console.log(`  Absorption needs a SECOND reading of this window, separated in time — it is the only`);
+    console.log(`  Absorption needs a SECOND reading of this window, separated in time - it is the only`);
     console.log(`  output no amount of building substitutes for.`);
   } else {
     const f = summariseField(rows);
     console.log(`  ${f.summary}`);
     for (const w of f.wentOffSale) {
       const name = rows.find((r) => r.listingId === w.listingId)!.displayName;
-      console.log(`    ${name} — last priced ${Math.round(w.lastPrice ?? 0)} on ${w.between[0].slice(0, 10)}, gone by ${w.between[1].slice(0, 10)}`);
+      console.log(`    ${name} - last priced ${Math.round(w.lastPrice ?? 0)} on ${w.between[0].slice(0, 10)}, gone by ${w.between[1].slice(0, 10)}`);
     }
     for (const p of f.parksSoldOut) {
       const name = rows.find((r) => r.listingId === p.listingId)!.displayName;
-      console.log(`    ${name} — EVERY unit gone between ${p.between[0].slice(0, 10)} and ${p.between[1].slice(0, 10)} (a park; reported apart)`);
+      console.log(`    ${name} - EVERY unit gone between ${p.between[0].slice(0, 10)} and ${p.between[1].slice(0, 10)} (a park; reported apart)`);
     }
-    if (f.tooEarly) console.log(`    ${f.tooEarly} listing(s) still on one reading — their clock has not started.`);
+    if (f.tooEarly) console.log(`    ${f.tooEarly} listing(s) still on one reading - their clock has not started.`);
   }
 
   console.log(`\n${'='.repeat(78)}`);

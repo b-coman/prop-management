@@ -110,7 +110,7 @@ Original price 5,887${NBSP}lei Current price 4,752${NBSP}lei
 ${pad}`;
 
 /**
- * Casutele de la Poienita at occupancy 1 — THREE rooms, and Booking renders no capacity column at
+ * Casutele de la Poienita at occupancy 1 - THREE rooms, and Booking renders no capacity column at
  * all. Read live on 2026-09-01, and the shape that broke the first version of the bed fallback:
  * summing beds across the whole section reported one imaginary 9-person unit for a property whose
  * largest room takes two.
@@ -221,7 +221,7 @@ describe('a page with no capacity marker falls back to beds', () => {
 
   // The live regression this fixture was written for: three rooms of two, no capacity column, and a
   // section-wide bed sum reported one 9-person unit. Per-BLOCK counting reads it correctly as three
-  // rooms of two — better than the earlier refusal, and it never sums across units.
+  // rooms of two - better than the earlier refusal, and it never sums across units.
   it('reads a multi-unit page with no capacity column as its actual units', () => {
     const id = parseIdentity('booking.com', MULTI_UNIT_NO_MARKER);
     expect(id.state).toBe('ok');
@@ -269,7 +269,7 @@ describe('airbnb states capacity as a property attribute', () => {
 describe('the location sub-score is not the property score', () => {
   it('ignores "rated 9.7/10" and takes the Scored/Rated/reviews block', () => {
     const withLocation = VILA_LUNA_8A.replace(
-      'Scored 10', 'Excellent location — rated 9.7/10!(score from 67 reviews)\nScored 10');
+      'Scored 10', 'Excellent location - rated 9.7/10!(score from 67 reviews)\nScored 10');
     const id = parseIdentity('booking.com', withLocation);
     expect(id.rating).toBe(10);
     expect(id.reviewCount).toBe(57);
@@ -285,7 +285,7 @@ describe('non-breaking spaces', () => {
   });
 });
 
-describe('reconcile — the two-occupancy self-check', () => {
+describe('reconcile - the two-occupancy self-check', () => {
   const at = (occupancy: number, text: string) =>
     ({ occupancy, identity: parseIdentity('booking.com', text) });
 
@@ -297,14 +297,14 @@ describe('reconcile — the two-occupancy self-check', () => {
     expect(r.problem).toBeUndefined();
   });
 
-  it('REFUSES when both reads used the same occupancy — an unrun check must not pass', () => {
+  it('REFUSES when both reads used the same occupancy - an unrun check must not pass', () => {
     const r = reconcile({ a: at(8, VILA_LUNA_8A), b: at(8, VILA_LUNA_8A) });
     expect(r.ok).toBe(false);
     expect(r.problem).toMatch(/only means something when the two searches differ/);
   });
 
   it('discards capacity that MOVED between reads, and says why', () => {
-    // Move the BED configuration, which is the field capacity is derived from — changing only the
+    // Move the BED configuration, which is the field capacity is derived from - changing only the
     // Max marker no longer moves capacity, because the marker can raise a bed count but not lower it.
     const drifted = VILA_LUNA_8A
       .replace('Bedroom 4: 1 large double bed', 'Bedroom 4: 1 single bed')
@@ -372,7 +372,7 @@ describe('Max persons is a LOWER bound that grows with the search; beds are inva
   // Measured live 2026-09-02 on ONE page: Chalet Husky read "Max persons: 2" searched with 2 adults
   // and "Max persons: 4" searched with 4, while its bed configuration was byte-identical in both.
   // §14.2 called the marker authoritative; it is not. Capacity is max(beds, marker), so the marker
-  // can only ever RAISE a bed count, never lower it — and reconcile therefore stops rejecting good
+  // can only ever RAISE a bed count, never lower it - and reconcile therefore stops rejecting good
   // pairs over a field that moves by design.
   const page = (maxMarker: number) => `
 Chalet Husky, Şotrile, Romania

@@ -7,13 +7,13 @@
  * for curation hygiene; nothing in this module reads it.
  *
  * THE COMPARABLE IS THE UNIT, NOT THE PROPERTY EITHER. The Cliff Village is not one competitor with
- * an asterisk — it is a 200 m² two-bedroom villa AND a three-bedroom deluxe AND a 300 m² four-bedroom,
+ * an asterisk - it is a 200 m² two-bedroom villa AND a three-bedroom deluxe AND a 300 m² four-bedroom,
  * each separately bookable, each a whole house with its own kitchen. So capacity is a TABLE, never a
  * scalar: "three rooms of two" is a fact a single number cannot carry, and the scalar version of this
  * module would have written off a property that comfortably hosts a party of four.
  *
  * Pure. No I/O, no clock (`now` is injected). Everything here is a fact about the listing or a
- * deterministic consequence of the owner's stated booking rules — never a price. Prices live in
+ * deterministic consequence of the owner's stated booking rules - never a price. Prices live in
  * `channelPriceObservations`; this module only decides whether a price is worth asking for.
  */
 import type { ChannelId } from '@/lib/channels';
@@ -23,14 +23,14 @@ import { partySize, childAges } from '@/lib/parity/party';
 /**
  * One separately bookable unit type, as the listing's availability section states it.
  *
- * `count` is **INVENTORY** — how many units of this type the property has — not how many remain on a
+ * `count` is **INVENTORY** - how many units of this type the property has - not how many remain on a
  * given date. The two must not share a field: inventory is curation and changes when the owner builds
  * another cabin; remaining availability changes hourly and IS the absorption signal, so it belongs to
  * an observation with a date and a URL attached.
  *
  * In practice inventory is read as a LOWER BOUND: a probe shows the rows bookable on those dates, so
- * a property with four cabins and one sold shows three. That is fine — a lower bound never invents
- * capacity — but it means `count` may rise at a later verification and should never be treated as
+ * a property with four cabins and one sold shows three. That is fine - a lower bound never invents
+ * capacity - but it means `count` may rise at a later verification and should never be treated as
  * exact. `null` means nobody has read it, which is different from zero and must never quietly become
  * one.
  */
@@ -54,7 +54,7 @@ export type PhotoProvenance =
   | 'capture-context';
 
 export interface CompetitorListing {
-  /** Owner-assigned, stable, and embedded in every cell id — so it must never change. No `|`. */
+  /** Owner-assigned, stable, and embedded in every cell id - so it must never change. No `|`. */
   listingId: string;
   propertyId: string;
   displayName: string;
@@ -68,11 +68,11 @@ export interface CompetitorListing {
   heroPhotoUrl: string | null;
   photoProvenance?: PhotoProvenance;
 
-  /** The same physical house on the other channel. Owner-asserted. DISPLAY ONLY — never merged. */
+  /** The same physical house on the other channel. Owner-asserted. DISPLAY ONLY - never merged. */
   sameAs?: { listingId: string; assertedBy: string; basis: string };
 
   /**
-   * Every separately bookable unit. Empty means capacity has not been read yet — which is the normal
+   * Every separately bookable unit. Empty means capacity has not been read yet - which is the normal
    * state for a Booking listing after curation, because Booking states capacity only on a priced
    * probe (Airbnb states it on the listing page).
    */
@@ -98,15 +98,15 @@ export interface CompetitorListing {
   /**
    * Who the listing will not take, as a standing policy rather than an availability fact.
    *
-   * Booking states these on the page — *"Ooops! This is an adult-only property"*, *"Ooops! Only
-   * children 12 years and older can stay here"* — and then still prints a price, which is the trap in
+   * Booking states these on the page - *"Ooops! This is an adult-only property"*, *"Ooops! Only
+   * children 12 years and older can stay here"* - and then still prints a price, which is the trap in
    * §24. Worse, the SEARCH simply omits such a property for a barred party, so the absence arrives
    * looking exactly like a sell-out: 44 rows across 13 windows were stored as `unavailable`, inflating
    * the share of the field that had supposedly sold and pushing windows toward a scarcity reading
    * they had not earned.
    *
    * A bar is not demand. Recording it here takes the listing out of the field for that party
-   * altogether — no probe, no denominator, no false scarcity — and it is PER CHANNEL, because it
+   * altogether - no probe, no denominator, no false scarcity - and it is PER CHANNEL, because it
    * really is: both of these take families on Airbnb and refuse them on Booking.
    */
   partyPolicy?: {
@@ -129,7 +129,7 @@ export interface CompetitorListing {
 export type PartyFit =
   /** One unit takes the whole party. The ordinary case and the only one a family will accept. */
   | { kind: 'single'; units: CompetitorUnit[]; unitCount: 1; stockUnknown: boolean }
-  /** Several units together take the party — allowed only under the splitting rule in `hostsParty`. */
+  /** Several units together take the party - allowed only under the splitting rule in `hostsParty`. */
   | { kind: 'combination'; units: CompetitorUnit[]; unitCount: number; stockUnknown: boolean }
   /**
    * The listing cannot serve this party the way this party books. A FINDING, not a gap (C4): it is
@@ -142,7 +142,7 @@ export type PartyFit =
 export const largestUnit = (l: Pick<CompetitorListing, 'units'>): number =>
   l.units.reduce((m, u) => Math.max(m, u.maxPersons), 0);
 
-/** Total person-places on offer, treating unread stock as one unit — see `hostsParty`. */
+/** Total person-places on offer, treating unread stock as one unit - see `hostsParty`. */
 export const totalCapacity = (l: Pick<CompetitorListing, 'units'>): number =>
   l.units.reduce((n, u) => n + u.maxPersons * (u.count ?? 1), 0);
 
@@ -170,7 +170,7 @@ export const SEPARATE_ROOM_MIN_AGE = 7;
  *
  * So it is AGE, not the presence of children, that decides. Every child under {@link
  * SEPARATE_ROOM_MIN_AGE} must be in a unit with an adult; older children and adults may be placed
- * anywhere. Ages come from the party's own configuration (`childAges`), never from an assumption —
+ * anywhere. Ages come from the party's own configuration (`childAges`), never from an assumption -
  * the configured mix is 2a+1c with a ten-year-old, and 4a+2c with a ten- and a four-year-old, so the
  * first party CAN split and the second still needs a unit that holds an adult plus the four-year-old.
  *
@@ -182,13 +182,13 @@ export const SEPARATE_ROOM_MIN_AGE = 7;
  * available units, AND some unit is big enough for one adult plus every under-age child. Checking
  * only the total would house a four-year-old alone.
  *
- * The asymmetry that matters: when a party cannot be housed even by combining, that is `out-of-set` —
+ * The asymmetry that matters: when a party cannot be housed even by combining, that is `out-of-set` -
  * a real moat, because that family will not book there. But **unread capacity is `unknown`, never a
  * moat**: claiming "no competition here" on missing data is wrong in the flattering direction, and
  * the flattering direction is the one nobody catches.
  *
  * This decides FEASIBILITY only. What a combination COSTS is a question for observed prices, and it
- * takes the cheapest units rather than the fewest — a different ordering, deliberately elsewhere.
+ * takes the cheapest units rather than the fewest - a different ordering, deliberately elsewhere.
  */
 export function hostsParty(
   listing: Pick<CompetitorListing, 'units'> & Pick<Partial<CompetitorListing>, 'partyPolicy'>,
@@ -198,11 +198,11 @@ export function hostsParty(
 
   // A standing bar comes first: no amount of capacity makes a property that will not take children
   // a comparable for a family. Checked before capacity so it never reaches the scarcity denominator
-  // — an adults-only listing absent from a family search is not a sold-out one.
+  // - an adults-only listing absent from a family search is not a sold-out one.
   const policy = listing.partyPolicy;
   if (policy && party.children > 0) {
     if (policy.adultsOnly) {
-      return { kind: 'out-of-set', reason: 'adults-only property — it will not take a party with children' };
+      return { kind: 'out-of-set', reason: 'adults-only property - it will not take a party with children' };
     }
     if (policy.minChildAge != null) {
       const tooYoung = childAges(party).filter((age) => age < policy.minChildAge!);
@@ -216,7 +216,7 @@ export function hostsParty(
     }
   }
   if (!listing.units.length) {
-    return { kind: 'unknown', reason: 'capacity not read yet — Booking states it only on a priced probe' };
+    return { kind: 'unknown', reason: 'capacity not read yet - Booking states it only on a priced probe' };
   }
   if (need < 1) return { kind: 'unknown', reason: 'empty party' };
 
@@ -230,7 +230,7 @@ export function hostsParty(
   }
 
   // Combine, largest first, so this answers "is it possible" in the fewest units.
-  // Unread stock counts as exactly one unit — enough to not pretend the unit is absent, never enough
+  // Unread stock counts as exactly one unit - enough to not pretend the unit is absent, never enough
   // to invent inventory that may not exist. A sold-out unit is not in the pool at all, which is why
   // the anchor below is measured against what is BOOKABLE rather than against `largestUnit`.
   const pool = [...listing.units]
@@ -272,7 +272,7 @@ export function hostsParty(
   };
 }
 
-/** The parties this listing competes for, and the ones it does not. Zero page loads — this is C4. */
+/** The parties this listing competes for, and the ones it does not. Zero page loads - this is C4. */
 export function fieldMembership(
   listing: Pick<CompetitorListing, 'units'>,
   parties: Party[],
@@ -288,7 +288,7 @@ export const VERIFICATION_BUDGET_DAYS = 180;
 
 /**
  * How stale the curation is. An entry nobody has re-checked is a hypothesis about a listing that may
- * have been remodelled, repriced, relisted or delisted — so the set ages rather than staying true.
+ * have been remodelled, repriced, relisted or delisted - so the set ages rather than staying true.
  */
 export function verificationAge(
   listing: Pick<CompetitorListing, 'verifiedAt'>,
@@ -304,11 +304,11 @@ export function verificationAge(
 /** Refuse a listingId that would corrupt a cell id. Same rule as `cellId`, checked at curation time. */
 export function assertListingId(id: string): void {
   if (!id || id.includes('|')) {
-    throw new Error(`listingId must be non-empty and free of "|" — got ${JSON.stringify(id)}`);
+    throw new Error(`listingId must be non-empty and free of "|" - got ${JSON.stringify(id)}`);
   }
   if (!/^[a-z0-9][a-z0-9-]*$/.test(id)) {
     throw new Error(
-      `listingId "${id}" must be lowercase kebab-case — it is embedded in every cell id for the ` +
+      `listingId "${id}" must be lowercase kebab-case - it is embedded in every cell id for the ` +
       `life of the record and can never be renamed without orphaning its history.`,
     );
   }
@@ -322,13 +322,13 @@ export function validateListing(l: Partial<CompetitorListing>): string[] {
   const problems: string[] = [];
   if (!l.listingId) problems.push('listingId is required');
   else { try { assertListingId(l.listingId); } catch (e) { problems.push((e as Error).message); } }
-  if (!l.propertyId) problems.push('propertyId is required — the set is per property, never global');
+  if (!l.propertyId) problems.push('propertyId is required - the set is per property, never global');
   if (!l.displayName?.trim()) problems.push('displayName is required (the admin list shows it)');
-  if (!l.channel) problems.push('channel is required — a listing competes on exactly one');
+  if (!l.channel) problems.push('channel is required - a listing competes on exactly one');
   if (!l.url?.trim()) problems.push('url is required');
   if (!l.city?.trim()) problems.push('city is required (the admin list shows it)');
   if (!l.substitutionBasis?.trim()) {
-    problems.push('substitutionBasis is required — a comparable nobody can explain rots the set');
+    problems.push('substitutionBasis is required - a comparable nobody can explain rots the set');
   }
   if (l.sameAs && l.sameAs.listingId === l.listingId) problems.push('sameAs cannot point at itself');
   for (const u of l.units ?? []) {

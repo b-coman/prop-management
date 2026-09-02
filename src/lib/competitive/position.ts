@@ -8,12 +8,12 @@
  * Three things this refuses to do, each because the honest version is less flattering:
  *
  *  - **It does not rank the direct price.** Nobody browsing a channel sees it. It is carried as a
- *    reference line — it is the price he controls and wants booked — but it does not compete for a
+ *    reference line - it is the price he controls and wants booked - but it does not compete for a
  *    position it never appears in.
  *  - **It does not report a percentile.** With six to ten comparables that is false precision. Rank
  *    out of the number actually sampled, or nothing.
  *  - **It does not fold quality into price.** Rating sits beside the number. One flag fires, on a
- *    specific pair of listings, and only above a review floor — five of the nine Booking comparables
+ *    specific pair of listings, and only above a review floor - five of the nine Booking comparables
  *    score 9.5+, so score alone separates almost nothing and review count does the work.
  *
  * PURE. No I/O, no clock (`now` is injected). Prices come from `channelPriceObservations`; nothing
@@ -48,7 +48,7 @@ export interface CompetitorQuote {
   rating: number | null;
   reviewCount: number | null;
   largestUnit: number | null;
-  /** The exact search or page URL the price was read from — it reproduces the reading. */
+  /** The exact search or page URL the price was read from - it reproduces the reading. */
   url?: string;
   /** What the PAGE said it was quoting. Absent on rows captured before it was stored. */
   echo?: { checkIn?: string | null; checkOut?: string | null; nights?: number | null;
@@ -64,7 +64,7 @@ export interface PositionInput {
   channel: string;
   /** His own guest-facing total ON THIS CHANNEL. The only price that is ranked. */
   ourChannelPrice: number | null;
-  /** His direct total for the same stay. Reference only — never ranked (see above). */
+  /** His direct total for the same stay. Reference only - never ranked (see above). */
   ourDirectPrice: number | null;
   ourRating?: number | null;
   ourReviewCount?: number | null;
@@ -78,7 +78,7 @@ export interface PositionInput {
    *
    * These must be passed in, because the alternative is what the first build did: drop them, and
    * print "4 of 7 quoted" for a Booking field of fifteen. That reads as near-complete coverage of a
-   * market when it is under half of it, and it errs in the flattering direction — it is the same
+   * market when it is under half of it, and it errs in the flattering direction - it is the same
    * mistake as treating unread capacity as a moat. An unread comparable is UNKNOWN, not absent.
    */
   unread?: Array<{ listingId: string; displayName: string }>;
@@ -91,7 +91,7 @@ export interface Position {
   partyLabel: string;
   confidence: Confidence;
   /**
-   * How many comparables actually quoted, over how many were asked — plus how many of the field
+   * How many comparables actually quoted, over how many were asked - plus how many of the field
    * nobody has asked yet, which is the number that decides whether the first two mean anything.
    */
   sample: { quoted: number; asked: number; unread: number; field: number; oldestAgeDays: number | null };
@@ -105,7 +105,7 @@ export interface Position {
    *
    * Each row carries what it takes to CHECK it: when it was read, the page's own statement of the
    * stay, and the URL that reproduces the search. The owner asked to be able to see the numbers
-   * himself — so the evidence travels with the number rather than living in a log he cannot reach.
+   * himself - so the evidence travels with the number rather than living in a log he cannot reach.
    */
   ladder: Array<{ listingId: string; name: string; total: number; isUs: boolean; promo: boolean;
                   rating: number | null; reviewCount: number | null;
@@ -149,7 +149,7 @@ export function buildPosition(input: PositionInput): Position {
     : 'none';
 
   const totals = priced.map((q) => q.guestTotal as number);
-  // Below the floor the individual readings are still reported — a band and a rank are not.
+  // Below the floor the individual readings are still reported - a band and a rank are not.
   const band = confidence === 'none' ? null
     : { min: Math.min(...totals), median: median(totals), max: Math.max(...totals) };
 
@@ -171,7 +171,7 @@ export function buildPosition(input: PositionInput): Position {
   const flags: string[] = [];
   const notes: string[] = [];
 
-  // The one checkable quality statement — a claim about a specific pair, not a model. Gated on the
+  // The one checkable quality statement - a claim about a specific pair, not a model. Gated on the
   // review floor because a 5.0 from one review outranks nothing.
   if (ourChannelPrice !== null && input.ourRating != null) {
     for (const q of priced) {
@@ -190,15 +190,15 @@ export function buildPosition(input: PositionInput): Position {
   //
   // An earlier version called this "NOT LIKE-FOR-LIKE" and said the position was "flattered". The
   // owner corrected it (2026-09-02) and he is right: captured from one signed-in session, these are
-  // the prices that guest actually sees — ours discounted because our property offers Genius, Vila
+  // the prices that guest actually sees - ours discounted because our property offers Genius, Vila
   // Luna's not because theirs does not. That is a real difference in what is on sale, and hiding it
   // would understate an advantage rather than protect against one.
   //
   // What remains true and worth stating: the ORDER can differ for a guest who is not signed in. So
-  // this is a note about who the ranking is for, never a correction to it — and it adjusts nothing.
+  // this is a note about who the ranking is for, never a correction to it - and it adjusts nothing.
   if (input.ourProgramApplied && priced.length) {
     const withProg = priced.filter((q) => q.programApplied === true).length;
-    // Absent is UNMEASURED, not "no discount" — the search-page instrument cannot tell a Genius
+    // Absent is UNMEASURED, not "no discount" - the search-page instrument cannot tell a Genius
     // discount from an ordinary promotion. Counting unknowns as absences would state as fact the
     // exact thing the capture declined to guess.
     const withoutProg = priced.filter((q) => q.programApplied === false).length;
@@ -221,13 +221,13 @@ export function buildPosition(input: PositionInput): Position {
       notes.push(
         `${gone.length} of ${quotes.length} ${gone.length === 1 ? 'is' : 'are'} not sellable on these ` +
         `dates (${gone.map((g) => g.name).join(', ')}). ` +
-        `On ONE reading that is "not sellable", never "sold" — it becomes evidence of selling only if ` +
+        `On ONE reading that is "not sellable", never "sold" - it becomes evidence of selling only if ` +
         `an earlier reading had it priced.`);
     }
   }
   if (outOfSet.length) {
     notes.push(
-      `${outOfSet.length} comparable(s) cannot host ${partyLabel} at all — competition you do not face ` +
+      `${outOfSet.length} comparable(s) cannot host ${partyLabel} at all - competition you do not face ` +
       `on this window, measured without a page load.`);
   }
   // Said before the confidence notes, because it changes what "solid" is solid ABOUT: four quotes out
@@ -237,14 +237,14 @@ export function buildPosition(input: PositionInput): Position {
     notes.push(
       `${unread.length} of the ${field} comparables on ${channel} have never been read for this window ` +
       `(${unread.map((u) => u.displayName).join(', ')}). The band and the rank are over the ` +
-      `${priced.length} that quoted, not over the field — a comparable nobody asked is unknown, not absent.`);
+      `${priced.length} that quoted, not over the field - a comparable nobody asked is unknown, not absent.`);
   }
   if (confidence === 'indicative') {
     notes.push(`Only ${priced.length} comparables quoted. Band and rank are indicative, not settled.`);
   }
   if (confidence === 'none') {
     notes.push(
-      `Fewer than ${CONFIDENCE.indicative} comparables quoted, so there is no band and no rank — ` +
+      `Fewer than ${CONFIDENCE.indicative} comparables quoted, so there is no band and no rank - ` +
       `the individual readings are reported and nothing is inferred from them.`);
   }
 

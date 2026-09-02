@@ -1,14 +1,14 @@
 #!/usr/bin/env npx tsx
 /**
- * comp-verify-record — the ONE write path for a verification pass.
+ * comp-verify-record - the ONE write path for a verification pass.
  *
  * Takes the JSON blobs the in-page verifier returned (two per listing, at two different occupancies),
  * reconciles each pair, and stores only what survived. Nothing else may write `verifiedAt`: that
  * field is the difference between "a human confirmed this against the live listing" and "someone
  * touched the row", and it is the whole basis of the set's aging.
  *
- * **A pair that fails to reconcile is REFUSED, not stored with a caveat.** The failure it catches —
- * capacity read from a field that echoes the search — produces a number that looks perfectly
+ * **A pair that fails to reconcile is REFUSED, not stored with a caveat.** The failure it catches -
+ * capacity read from a field that echoes the search - produces a number that looks perfectly
  * reasonable and makes `hostsParty` report competition that does not exist. There is no safe way to
  * half-trust it.
  *
@@ -59,7 +59,7 @@ interface Row {
     byListing.set(r.listingId, [...(byListing.get(r.listingId) ?? []), r]);
   }
 
-  console.log(`\nCOMP-VERIFY RECORD — ${SLUG}   (${DRY ? 'dry run, nothing written' : 'WRITING'})`);
+  console.log(`\nCOMP-VERIFY RECORD - ${SLUG}   (${DRY ? 'dry run, nothing written' : 'WRITING'})`);
   console.log(`${rows.length} reads across ${byListing.size} listing(s)\n`);
 
   let stored = 0;
@@ -67,7 +67,7 @@ interface Row {
 
   for (const [listingId, reads] of byListing) {
     const known = await getCompetitorListing(SLUG, listingId);
-    if (!known) { refused.push(`${listingId}: not in the curated set — curate it before verifying`); continue; }
+    if (!known) { refused.push(`${listingId}: not in the curated set - curate it before verifying`); continue; }
 
     if (reads.length < 2) {
       refused.push(`${listingId}: only ${reads.length} read. Two occupancies are required, or the ` +
@@ -116,7 +116,7 @@ interface Row {
 
   console.log(`\n${DRY ? 'would store' : 'stored'}: ${stored}/${byListing.size}`);
   if (refused.length) {
-    console.log(`\nREFUSED (${refused.length}) — these keep their previous record and stay unverified:`);
+    console.log(`\nREFUSED (${refused.length}) - these keep their previous record and stay unverified:`);
     refused.forEach((x) => console.log(`  - ${x}`));
     console.log(`\nA refusal is an outcome, not a failure. Re-probe rather than lowering the bar.`);
   }

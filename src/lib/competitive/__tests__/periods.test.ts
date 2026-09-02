@@ -68,7 +68,7 @@ describe('money is counted once, from the period', () => {
       periods: [XMAS], soldNights: new Set(), rateByNight: rate,
     });
     const xmas = g.find((x) => x.period?.id === 'xmas')!;
-    expect(xmas.openNights).toBe(4);          // 24, 25, 26, 27 — inclusive end
+    expect(xmas.openNights).toBe(4);          // 24, 25, 26, 27 - inclusive end
     expect(xmas.unsoldMoney).toBe(4000);      // not 14,018
   });
 
@@ -83,7 +83,7 @@ describe('money is counted once, from the period', () => {
 });
 
 describe('what it refuses to do', () => {
-  it('gives a period no verdict of its own — rolling up across channels is pooling', () => {
+  it('gives a period no verdict of its own - rolling up across channels is pooling', () => {
     const g = groupByPeriod({
       rows: [row('2026-12-24', '2026-12-27'), row('2026-12-24', '2026-12-27', { channel: 'airbnb' })],
       periods: [XMAS], soldNights: new Set(), rateByNight: new Map(),
@@ -94,7 +94,7 @@ describe('what it refuses to do', () => {
     expect(xmas.windows[0].rows).toHaveLength(2);   // both contests survive, separately
   });
 
-  it('keeps a period with nothing read — an unread period is a stated absence', () => {
+  it('keeps a period with nothing read - an unread period is a stated absence', () => {
     const g = groupByPeriod({ rows: [], periods: [XMAS, PNY], soldNights: new Set(), rateByNight: new Map() });
     expect(g.map((x) => x.period?.name)).toEqual(['Christmas', 'Pre-New Year']);
     expect(g.every((x) => x.windows.length === 0)).toBe(true);

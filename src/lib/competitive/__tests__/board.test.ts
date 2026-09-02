@@ -18,7 +18,7 @@ const row = (over: Partial<BoardRowInput> = {}): BoardRowInput => ({
   ...over,
 });
 
-/** 30 Dec – 2 Jan, exactly as captured: 7,243 against three leftovers, ten with nothing left. */
+/** 30 Dec - 2 Jan, exactly as captured: 7,243 against three leftovers, ten with nothing left. */
 const NEW_YEAR = row({
   key: 'ny', checkIn: '2026-12-30', checkOut: '2027-01-02', nights: 3,
   ourPrice: 7243, ourDirect: 5842,
@@ -194,8 +194,12 @@ describe('the summary', () => {
     ]));
     expect(s.act).toBe(1);
     expect(s.watch).toBe(1);
-    expect(s.headline).toMatch(/cheap in a market that has largely sold/);
-    expect(s.headline).toMatch(/dear and buyers still have choice/);
+    // Worded by DIRECTION, because the headline is read beside tiles that are hued by direction.
+    // Severity wording made it claim "3 where you are dear" over three tiles reading -60%, -48%, -42%.
+    expect(s.under).toBe(1);
+    expect(s.over).toBe(1);
+    expect(s.headline).toMatch(/1 where sitting under the field is worth a look/);
+    expect(s.headline).toMatch(/1 where sitting over it is/);
     expect(s.headline).not.toMatch(/%/);
   });
 });
@@ -203,7 +207,7 @@ describe('the summary', () => {
 describe('scarcity is a bound, not a point', () => {
   // The Airbnb reading for 22-28 Sep: 3 quoted, 0 known gone, 4 never read. A point estimate of 3/3
   // called the market open, which would have turned "60% under the field" into "cheap and quiet, a
-  // demand problem" — the flattering end of a range nobody had measured.
+  // demand problem" - the flattering end of a range nobody had measured.
   const SEPT = row({
     channel: 'airbnb', channelLabel: 'Airbnb',
     ourPrice: 2940, ourDirect: 2442, fieldMedian: 7396, fieldMin: 7025, fieldMax: 7626,
@@ -213,7 +217,7 @@ describe('scarcity is a bound, not a point', () => {
   it('refuses to call a market open when the unread could all be gone', () => {
     const r = buildBoard([SEPT])[0];
     expect(r.position).toBe('cheap');
-    expect(r.scarcity).toBe('unknown');          // bounds are 3/7 and 7/7 — mixed to open
+    expect(r.scarcity).toBe('unknown');          // bounds are 3/7 and 7/7 - mixed to open
     expect(r.attention).toBe('watch');            // -60% is far, even while scarcity is undecidable
     expect(r.label).toBe('Far below the field, coverage thin');
     expect(r.why).toMatch(/never read/);
@@ -228,7 +232,7 @@ describe('scarcity is a bound, not a point', () => {
   });
 
   it('stays confident when a few unread cannot move the verdict', () => {
-    // 2 quoted, 20 gone, 1 unread: worst 2/23, best 3/23 — both tight.
+    // 2 quoted, 20 gone, 1 unread: worst 2/23, best 3/23 - both tight.
     const r = buildBoard([row({ quoted: 4, nothingLeft: 20, unread: 1, ourPrice: 1000, fieldMedian: 4000 })])[0];
     expect(r.scarcity).toBe('tight');
   });
@@ -247,7 +251,7 @@ describe('the three defects Fable found', () => {
   });
 
   it('counts DATE-windows, not window-party keys', () => {
-    // `key` is checkIn|checkOut|guests, so three parties on one stay were counted as three windows —
+    // `key` is checkIn|checkOut|guests, so three parties on one stay were counted as three windows -
     // the live board said "29 windows read" for thirteen date ranges.
     const cheapTight = { ourPrice: 2000, fieldMedian: 4000, quoted: 3, nothingLeft: 10 };
     const s = summariseBoard(buildBoard([
@@ -270,7 +274,7 @@ describe('the three defects Fable found', () => {
     ]));
     expect(s.act).toBe(2);                 // two windows, not three rows
     expect(s.channelReadings).toBe(3);
-    expect(s.headline).toMatch(/2 where you are cheap/);
+    expect(s.headline).toMatch(/2 where sitting under the field is worth a look/);
   });
 });
 
@@ -293,7 +297,7 @@ describe('magnitude is not silenced by the scarcity band', () => {
     expect(r.label).toBe('Far below the field');
   });
 
-  it('leaves an OPEN market alone at any distance — that is a demand story, not a price one', () => {
+  it('leaves an OPEN market alone at any distance - that is a demand story, not a price one', () => {
     const r = buildBoard([row({ ourPrice: 1000, fieldMedian: 4000, quoted: 9, nothingLeft: 1 })])[0];
     expect(r.scarcity).toBe('open');
     expect(r.attention).toBe('ok');
@@ -301,11 +305,11 @@ describe('magnitude is not silenced by the scarcity band', () => {
   });
 
   it('leaves the four corner verdicts alone', () => {
-    // cheap + tight stays ACT even at a huge gap — it is the loudest thing on the board.
+    // cheap + tight stays ACT even at a huge gap - it is the loudest thing on the board.
     const act = buildBoard([row({ ourPrice: 1000, fieldMedian: 4000, quoted: 3, nothingLeft: 10 })])[0];
     expect(act.attention).toBe('act');
     expect(act.label).toBe('Left money');
-    // dear + tight stays quiet even at +117% — that is the whole point of the two axes.
+    // dear + tight stays quiet even at +117% - that is the whole point of the two axes.
     const cleared = buildBoard([row({ ourPrice: 7243, fieldMedian: 3341, fieldMax: 3856,
                                       quoted: 3, nothingLeft: 10 })])[0];
     expect(cleared.attention).toBe('ok');
@@ -316,5 +320,27 @@ describe('magnitude is not silenced by the scarcity band', () => {
     const r = buildBoard([row({ ourPrice: 2400, fieldMedian: 3000, quoted: 5, nothingLeft: 2 })])[0];
     expect(Math.round(r.gapPct!)).toBe(-20);
     expect(r.label).toBe('Below the field');
+  });
+});
+
+describe('the headline cannot contradict the tiles', () => {
+  /**
+   * The tiles are hued by the SIGN of the gap; the headline used to count by severity. Once
+   * magnitude escalation started putting cheap rows into `watch`, the sentence said "you are dear"
+   * above blue tiles reading -60%. These two readings come off the same screen, so they are pinned
+   * to the same axis.
+   */
+  it('counts a magnitude-escalated CHEAP window as under, never as over', () => {
+    // -60% with 3 of 7 on sale: 43% clears the tight line, so it escalates on magnitude alone.
+    const s = summariseBoard(buildBoard([
+      row({ key: 'sep', checkIn: '2026-09-22', checkOut: '2026-09-29', nights: 7,
+            ourPrice: 1400, ourDirect: 1200,
+            fieldMedian: 3500, fieldMin: 3000, fieldMax: 4000,
+            quoted: 3, eligible: 7, nothingLeft: 4, cantHost: 0, unread: 0 }),
+    ]));
+    expect(s.watch).toBe(1);
+    expect(s.over).toBe(0);
+    expect(s.under).toBe(1);
+    expect(s.headline).not.toMatch(/over it/);
   });
 });

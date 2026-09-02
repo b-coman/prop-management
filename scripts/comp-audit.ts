@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * comp-audit — what in the store can be trusted, and what can only be taken on faith.
+ * comp-audit - what in the store can be trusted, and what can only be taken on faith.
  *
  * WHY THIS EXISTS. The owner, 2026-09-02, after a contamination was found mid-run:
  *
@@ -10,13 +10,13 @@
  *
  * The honest answer at the time was that nothing stored could settle it. Every capture was verified
  * once, in flight, and left behind only a sentence of prose. So the question could only be answered
- * by reasoning about what the code used to do — which is exactly the kind of answer that should not
+ * by reasoning about what the code used to do - which is exactly the kind of answer that should not
  * be believed.
  *
  * A check that leaves no evidence is a check you have to take on trust. This reads the evidence back
  * instead, and it is meant to be run BEFORE acting on the board, not only after a scare.
  *
- * It never writes. It only ever reports, and it exits non-zero when something is actually wrong —
+ * It never writes. It only ever reports, and it exits non-zero when something is actually wrong -
  * so it can sit in front of a decision the way `--dry-run` sits in front of a write.
  */
 import * as dotenv from 'dotenv';
@@ -52,7 +52,7 @@ type Finding = { level: 'wrong' | 'superseded' | 'unverifiable'; line: string };
 
   // A bad row that a later reading has already replaced is history, not a live error. The store is
   // append-only on purpose, so the four prices banked before a party bar was discovered will sit in it
-  // forever — flagging them at the same severity as something the board is USING would make the exit
+  // forever - flagging them at the same severity as something the board is USING would make the exit
   // code meaningless, and an alarm that always fires stops being read.
   const newest = new Map<string, string>();
   for (const o of comp) {
@@ -61,7 +61,7 @@ type Finding = { level: 'wrong' | 'superseded' | 'unverifiable'; line: string };
   }
   const isCurrent = (o: { cellId: string; capturedAt: string }) => newest.get(o.cellId) === o.capturedAt;
 
-  console.log(`\nCOMP-AUDIT — ${comp.length} competitor observation(s), ${set.all.length} curated listing(s)\n`);
+  console.log(`\nCOMP-AUDIT - ${comp.length} competitor observation(s), ${set.all.length} curated listing(s)\n`);
 
   // ---------------------------------------------------------------- 1. the echo, as evidence
   // A row whose echo was recorded can be re-checked here, years later. A row without one was checked
@@ -88,7 +88,7 @@ type Finding = { level: 'wrong' | 'superseded' | 'unverifiable'; line: string };
   }
   const noEcho = comp.length - withEcho.length;
   if (noEcho) {
-    unverifiable(`${noEcho} row(s) predate stored echoes — verified in flight, but not re-checkable here`);
+    unverifiable(`${noEcho} row(s) predate stored echoes - verified in flight, but not re-checkable here`);
   }
 
   // ---------------------------------------------------------------- 2. outcomes carry reasons
@@ -109,14 +109,14 @@ type Finding = { level: 'wrong' | 'superseded' | 'unverifiable'; line: string };
       const line = `${o.checkIn}→${o.checkOut} ${o.channel} ${l.displayName}: priced at ${o.guestTotal}, ` +
                    `but the set says it cannot host ${partyLabel(partyForGuests(mix, o.guests))} (${fit.reason})`;
       if (isCurrent(o)) wrong(line);
-      else superseded(`${line} — superseded by a later reading of the same cell`);
+      else superseded(`${line} - superseded by a later reading of the same cell`);
     }
   }
 
   // ---------------------------------------------------------------- 4. our own price, cross-checked
   // Every search that priced competitors also showed OUR listing. Comparing that against the stored
   // self price is a free check on the whole instrument, and it has caught nothing yet precisely
-  // because it was run by hand every time — which is why it belongs here instead.
+  // because it was run by hand every time - which is why it belongs here instead.
   const cells = new Set(priced.map((o) => `${o.checkIn}|${o.checkOut}|${o.guests}|${o.channel}`));
   let selfMissing = 0;
   for (const c of cells) {
@@ -127,7 +127,7 @@ type Finding = { level: 'wrong' | 'superseded' | 'unverifiable'; line: string };
   }
   if (selfMissing) {
     unverifiable(`${selfMissing} of ${cells.size} competitor cell(s) have no captured price of OURS on the same ` +
-                 `channel and stay — the board can show the field but cannot place us in it`);
+                 `channel and stay - the board can show the field but cannot place us in it`);
   }
 
   // ---------------------------------------------------------------- 5. the set ages
@@ -141,16 +141,16 @@ type Finding = { level: 'wrong' | 'superseded' | 'unverifiable'; line: string };
   const soft = findings.filter((f) => f.level === 'unverifiable');
 
   if (bad.length) {
-    console.log(`\nWRONG — ${bad.length}. These are contradictions in the stored data, not gaps:`);
+    console.log(`\nWRONG - ${bad.length}. These are contradictions in the stored data, not gaps:`);
     for (const f of bad) console.log(`  ! ${f.line}`);
   }
   if (old.length) {
-    console.log(`\nWRONG BUT SUPERSEDED — ${old.length}. Already replaced by a later reading; the board does ` +
+    console.log(`\nWRONG BUT SUPERSEDED - ${old.length}. Already replaced by a later reading; the board does ` +
                 `not use these, and absorption discounts them:`);
     for (const f of old) console.log(`  ~ ${f.line}`);
   }
   if (soft.length) {
-    console.log(`\nCANNOT BE VERIFIED FROM THE STORE — ${soft.length}. Not errors; things you are taking on trust:`);
+    console.log(`\nCANNOT BE VERIFIED FROM THE STORE - ${soft.length}. Not errors; things you are taking on trust:`);
     for (const f of soft) console.log(`  ? ${f.line}`);
   }
   if (!findings.length) console.log(`\nNothing wrong and nothing unverifiable. Every priced row re-checks against its own echo.`);

@@ -98,7 +98,7 @@ describe('a comparable that did not quote is never dropped', () => {
 
   it('never lets an unread comparable pass as an absent one', () => {
     // The bug this pins was live on the screen: the Booking field is fifteen, seven had readings, and
-    // the panel printed "4 of 7 quoted" — coverage of a third of the market, rendered as coverage of
+    // the panel printed "4 of 7 quoted" - coverage of a third of the market, rendered as coverage of
     // the market. The unread ones must be named, and the note must say what the rank is over.
     const p = buildPosition({ ...base, channel: 'booking.com',
       quotes: [q('a', 2803), q('b', 3600), q('c', 4180), q('d', 5320)],
@@ -142,7 +142,7 @@ describe('quality sits beside price, and only above the review floor', () => {
     expect(p.flags.join(' ')).toMatch(/priced above rival/);
   });
 
-  it(`stays silent below the ${REVIEW_FLOOR}-review floor — a 5.0 from a handful outranks nothing`, () => {
+  it(`stays silent below the ${REVIEW_FLOOR}-review floor - a 5.0 from a handful outranks nothing`, () => {
     const p = buildPosition({ ...base, ourRating: 4.8, ourReviewCount: 50,
       quotes: [cheaperBetter(3), q('b', 2702), q('c', 4594)] });
     expect(p.flags).toEqual([]);
@@ -176,7 +176,7 @@ describe('staleness is part of the reading', () => {
 });
 
 describe('a programme discount is part of the offer, not a measurement flaw', () => {
-  // Owner, 2026-09-02: signed in with one account throughout, these ARE the prices that guest sees —
+  // Owner, 2026-09-02: signed in with one account throughout, these ARE the prices that guest sees -
   // ours discounted because our property offers Genius, others not because theirs do not. Calling it
   // "not like-for-like" understated a real advantage. What survives is a note about WHO the ranking
   // is for, which adjusts nothing.
@@ -187,7 +187,7 @@ describe('a programme discount is part of the offer, not a measurement flaw', ()
       quotes: q3.map((x) => ({ ...x, programApplied: false })) });
     expect(p.notes.join(' ')).toMatch(/as a signed-in member sees it/);
     expect(p.notes.join(' ')).toMatch(/3 of 3 comparables' prices demonstrably do not/);
-    // and it is NOT a flag — it is not a fault
+    // and it is NOT a flag - it is not a fault
     expect(p.flags.join(' ')).not.toMatch(/signed-in|loyalty/);
   });
 
@@ -213,7 +213,7 @@ describe('a programme discount is part of the offer, not a measurement flaw', ()
     expect(p.notes.join(' ')).not.toMatch(/signed-in member/);
   });
 
-  it('does NOT adjust the band or the rank — it only says who it is for', () => {
+  it('does NOT adjust the band or the rank - it only says who it is for', () => {
     const flagged = buildPosition({ ...base, ourProgramApplied: true, quotes: q3 });
     const plain = buildPosition({ ...base, ourProgramApplied: false, quotes: q3 });
     expect(flagged.band).toEqual(plain.band);

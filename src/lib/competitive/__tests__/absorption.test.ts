@@ -2,7 +2,7 @@
 
 /**
  * Absorption is the half of the engine that changes a decision, and almost every test here pins a
- * REFUSAL to over-claim. The failure mode is not a wrong number — it is a confident sentence about
+ * REFUSAL to over-claim. The failure mode is not a wrong number - it is a confident sentence about
  * demand built on a page that simply did not quote.
  */
 import { readAbsorption, summariseField, type SellReading } from '../absorption';
@@ -60,7 +60,7 @@ describe('a refusal or an error says nothing about demand', () => {
   });
 
   it('does not let a refusal masquerade as going off sale', () => {
-    // Priced, then the party was refused. Not a sale — and, since the refusal is a standing policy
+    // Priced, then the party was refused. Not a sale - and, since the refusal is a standing policy
     // rather than a passing state, not "still on sale" either: the earlier price was never a price
     // this party could book, so there is nothing usable left.
     const a = read([r('2026-09-10T10:00:00Z', 'priced', 2000), r('2026-09-25T10:00:00Z', 'refused')]);
@@ -71,7 +71,7 @@ describe('a refusal or an error says nothing about demand', () => {
   it('discards the prices read BEFORE a refusal, instead of calling their disappearance a sale', () => {
     // This is the AVA Chalet series, exactly (§29): two prices banked before the party-not-accepted
     // trap was found, then the refusal that exposed them, then an absence from the search. Read
-    // naively that is "priced, then gone" — a sale. It is not: the property does not take a family
+    // naively that is "priced, then gone" - a sale. It is not: the property does not take a family
     // with a ten-year-old, so those 5,040s were never on sale to one. Two rows like this flipped a
     // window's headline from "the market is not selling" to "the market IS selling".
     const a = read([
@@ -142,7 +142,7 @@ describe('the field summary never states a percentage', () => {
     expect(f.summary).not.toMatch(/not a demand problem/);
   });
 
-  it('says the market is NOT selling when nothing moved — the "do not discount" case', () => {
+  it('says the market is NOT selling when nothing moved - the "do not discount" case', () => {
     const f = summariseField([
       row('a', [r('2026-09-10T10:00:00Z', 'priced', 2100), r('2026-09-25T10:00:00Z', 'priced', 2100)]),
       row('b', [r('2026-09-10T10:00:00Z', 'priced', 2500), r('2026-09-25T10:00:00Z', 'priced', 2500)]),

@@ -5,11 +5,11 @@
  *
  * READ-ONLY. Nothing here changes a price, and nothing here reads one: a competitor observation is
  * context for a human decision and never an input to a rate (C2). This action deliberately does not
- * touch `channelPriceObservations` at all — position arrives in Phase 4, and keeping the surfaces
+ * touch `channelPriceObservations` at all - position arrives in Phase 4, and keeping the surfaces
  * apart is what stops "market context" quietly becoming a pricing input.
  *
  * NOTE: a 'use server' file may only export async functions. Types live in the card component and in
- * `@/lib/competitive/set` — exporting an interface from here is a silent 500 on every action in the
+ * `@/lib/competitive/set` - exporting an interface from here is a silent 500 on every action in the
  * module graph.
  */
 import { loggers } from '@/lib/logger';
@@ -67,7 +67,7 @@ export async function fetchCompetitorSet(propertyId: string): Promise<{
         reviewCount: l.reviewCount,
         amenities: l.amenities,
         substitutionBasis: l.substitutionBasis,
-        // Until the owner edits it, the reason is a draft written from page reads — and the screen
+        // Until the owner edits it, the reason is a draft written from page reads - and the screen
         // says so, because recording a guess as his reasoning defeats the point of the field.
         basisIsDraft: /\(draft\)/i.test(l.curatedBy ?? ''),
         sameAsName: l.sameAs ? nameById.get(l.sameAs.listingId) : undefined,
@@ -90,7 +90,7 @@ export async function fetchCompetitorSet(propertyId: string): Promise<{
       };
     });
 
-    // Active first, then by channel, then name — the retired ones stay visible but out of the way.
+    // Active first, then by channel, then name - the retired ones stay visible but out of the way.
     rows.sort((a, b) =>
       Number(b.active) - Number(a.active) ||
       a.channel.localeCompare(b.channel) ||
@@ -108,7 +108,7 @@ export async function fetchCompetitorSet(propertyId: string): Promise<{
  *
  * READ-ONLY, and it reads nothing that could move a price (C2). What changed from the first version
  * is not the data but the SHAPE: this returns a verdict per contest rather than a ladder, because a
- * ladder produced a true reading that pointed the wrong way — see `lib/competitive/board.ts`.
+ * ladder produced a true reading that pointed the wrong way - see `lib/competitive/board.ts`.
  */
 export async function fetchMarketPositions(propertyId: string): Promise<{
   ok: boolean;
@@ -293,7 +293,7 @@ export async function fetchMarketPositions(propertyId: string): Promise<{
     const board = buildBoard(inputs);
     const rows = board.map((r) => ({ ...r, detail: details.get(`${r.key}|${r.channel}`) ?? null }));
 
-    // Group under HIS pricing periods — the thing he actually changes. A window is a probe; four
+    // Group under HIS pricing periods - the thing he actually changes. A window is a probe; four
     // December probes are the same nights, and money summed per window counted them four times.
     const horizonEnd = windows.reduce((m, w) => (w.checkOut > m ? w.checkOut : m), today);
     const periods: PricingPeriod[] = (await getPeriods(propertyId))

@@ -2,7 +2,7 @@
 
 /**
  * The set logic, tested against the REAL measured comparables (docs §12-14) rather than invented
- * shapes — because every subtlety here came from one of them, and a fixture that does not resemble
+ * shapes - because every subtlety here came from one of them, and a fixture that does not resemble
  * the market would test nothing that has ever gone wrong.
  */
 import {
@@ -51,7 +51,7 @@ describe('how a party splits is decided by child AGE (the owner\'s rule)', () =>
     if (fit.kind === 'single') expect(fit.units[0].label).toBe('Two-Bedroom Villa'); // 6, not the 10
   });
 
-  it('houses a family of six across two chalets — the four-year-old rides with the adults', () => {
+  it('houses a family of six across two chalets - the four-year-old rides with the adults', () => {
     // Largest unit takes four, so nobody fits in one. The 4-person chalet anchors an adult and the
     // four-year-old; the rest go next door. Under the pre-2026-09-02 rule this was out-of-set.
     const fit = hostsParty(CASUTELE_DIN, P_4A2C);
@@ -59,7 +59,7 @@ describe('how a party splits is decided by child AGE (the owner\'s rule)', () =>
     if (fit.kind === 'combination') expect(fit.unitCount).toBe(2);
   });
 
-  it('lets 2+1 take two double rooms — a ten-year-old may have their own', () => {
+  it('lets 2+1 take two double rooms - a ten-year-old may have their own', () => {
     // The case that exposed the old rule: Booking sells Casutele de la Poienita to exactly this party
     // as two double rooms, while the set recorded it as unable to host them at all.
     const fit = hostsParty(CASUTELE_DE_LA, P_2A1C);
@@ -74,11 +74,11 @@ describe('how a party splits is decided by child AGE (the owner\'s rule)', () =>
     expect(fit.kind).toBe('out-of-set');
     if (fit.kind === 'out-of-set') expect(fit.reason).toMatch(/adult plus 1 child under 7/);
     expect(totalCapacity(singles)).toBeGreaterThan(6);   // capacity was never the problem
-    // Four adults in the same rooms is fine — the constraint is the child, not the room size.
+    // Four adults in the same rooms is fine - the constraint is the child, not the room size.
     expect(hostsParty(singles, P_4A).kind).toBe('combination');
   });
 
-  it('lets the 21 m² studio host 2+1 — it sleeps three in one unit', () => {
+  it('lets the 21 m² studio host 2+1 - it sleeps three in one unit', () => {
     expect(hostsParty(MOODYSUN, P_2A1C).kind).toBe('single');
   });
 });
@@ -97,7 +97,7 @@ describe('combining units', () => {
     expect(hostsParty(CASUTELE_DIN, P_4A).kind).toBe('single');
   });
 
-  it('respects stock — two rooms of two cannot seat six when only two remain', () => {
+  it('respects stock - two rooms of two cannot seat six when only two remain', () => {
     const scarce = { units: [u('Double Room', 2, 2)] };
     expect(hostsParty(scarce, { adults: 6, children: 0 }).kind).toBe('out-of-set');
     const plenty = { units: [u('Double Room', 2, 3)] };
@@ -130,7 +130,7 @@ describe('unread capacity is UNKNOWN, never a moat', () => {
     if (fit.kind === 'unknown') expect(fit.reason).toMatch(/priced probe/);
   });
 
-  it('still counts as probeworthy — the missing data is the reason TO probe', () => {
+  it('still counts as probeworthy - the missing data is the reason TO probe', () => {
     expect(isProbeworthy(hostsParty({ units: [] }, P_4A2C))).toBe(true);
     expect(isProbeworthy(hostsParty(MOODYSUN, P_4A2C))).toBe(false); // a 3-person studio, genuinely out
   });
@@ -142,7 +142,7 @@ describe('unread capacity is UNKNOWN, never a moat', () => {
 
 describe('the field changes size with the party (C4)', () => {
   it('reproduces the measured Booking field', () => {
-    // Six of the eight active Booking comparables — Villa The Frame (8) and AVA Chalet (6) are
+    // Six of the eight active Booking comparables - Villa The Frame (8) and AVA Chalet (6) are
     // omitted here because both host every party, so they add nothing to this test.
     const set = [CLIFF, VILA_LUNA, AYDA, CASUTELE_DIN, MOODYSUN, CASUTELE_DE_LA];
     const canHost = (p: Party) =>
@@ -198,7 +198,7 @@ describe('validateListing', () => {
   };
   it('passes a complete entry', () => expect(validateListing(ok)).toEqual([]));
 
-  it('requires substitutionBasis — the field C1 exists for', () => {
+  it('requires substitutionBasis - the field C1 exists for', () => {
     expect(validateListing({ ...ok, substitutionBasis: '  ' }))
       .toEqual([expect.stringContaining('substitutionBasis')]);
   });
@@ -220,7 +220,7 @@ describe('validateListing', () => {
 
 describe('a standing party bar is not a sell-out', () => {
   // Both measured on Booking, twice, on two different windows: Villa The Frame prints "Ooops! This is
-  // an adult-only property" and AVA Chalet "Ooops! Only children 12 years and older can stay here" —
+  // an adult-only property" and AVA Chalet "Ooops! Only children 12 years and older can stay here" -
   // while still showing a price. The SEARCH just omits them, so 44 rows across 13 windows had been
   // stored as `unavailable`, inflating the share of the field that had supposedly sold.
   const ADULTS_ONLY = { units: [u('Villa', 8)], partyPolicy: { adultsOnly: true } };
@@ -232,7 +232,7 @@ describe('a standing party bar is not a sell-out', () => {
     if (fit.kind === 'out-of-set') expect(fit.reason).toMatch(/adults-only/);
   });
 
-  it('still counts it for an adults-only party — the bar is about children, not size', () => {
+  it('still counts it for an adults-only party - the bar is about children, not size', () => {
     expect(hostsParty(ADULTS_ONLY, P_4A).kind).toBe('single');
   });
 
@@ -253,7 +253,7 @@ describe('a standing party bar is not a sell-out', () => {
   });
 
   it('is checked BEFORE capacity, so a bar never reaches the scarcity denominator', () => {
-    // A huge adults-only villa is out of set for a family — not "too small", and not "nothing left".
+    // A huge adults-only villa is out of set for a family - not "too small", and not "nothing left".
     const fit = hostsParty({ units: [u('Villa', 20)], partyPolicy: { adultsOnly: true } }, P_4A2C);
     expect(fit.kind).toBe('out-of-set');
     if (fit.kind === 'out-of-set') expect(fit.reason).not.toMatch(/do not fit|no single unit/);

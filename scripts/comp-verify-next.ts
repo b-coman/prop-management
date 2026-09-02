@@ -1,15 +1,15 @@
 #!/usr/bin/env npx tsx
 /**
- * comp-verify-next — the verification work-list, with both probe URLs already built.
+ * comp-verify-next - the verification work-list, with both probe URLs already built.
  *
  * Verification confirms what a curated comparable IS: its capacity, its units, its rating, its photo.
  * It is a JUDGEMENT task run rarely on a handful of listings, so it READS the page rather than
- * pattern-matching a number out of it — the opposite of price capture, and for a reason:
+ * pattern-matching a number out of it - the opposite of price capture, and for a reason:
  * getting identity wrong is silent, and a wrong capacity makes `hostsParty` report a moat that does
  * not exist.
  *
  * TWO URLS PER LISTING, NOT ONE. Booking's `Sleeps:` and `Recommended for` lines echo the search
- * occupancy back at you — the same Vila Luna unit reads "4 adults, 2 children" or "8 adults"
+ * occupancy back at you - the same Vila Luna unit reads "4 adults, 2 children" or "8 adults"
  * depending only on the URL, while its real capacity is 11. So every listing is read at two different
  * occupancies and only the fields that DID NOT MOVE are kept (`reconcile`). It is the echo check from
  * price capture, run in reverse: there a value that fails to move signals a stale render; here a value
@@ -43,7 +43,7 @@ const CHANNEL = arg('channel');
 
 /**
  * The two occupancies. Both default to values EVERY comparable can host, because a search a listing
- * cannot serve returns "no availability" and the check cannot run at all — and the smallest largest-
+ * cannot serve returns "no availability" and the check cannot run at all - and the smallest largest-
  * unit in this set is 2 (Casutele de la Poienita's double rooms). Raising these silently skips the
  * listings that most need checking.
  */
@@ -105,7 +105,7 @@ const [FROM, TO] = [arg('from') ?? defaultWindow()[0], arg('to') ?? defaultWindo
     return;
   }
 
-  console.log(`\nCOMP-VERIFY — ${SLUG}`);
+  console.log(`\nCOMP-VERIFY - ${SLUG}`);
   console.log(`window ${FROM} → ${TO}   ·   occupancies ${OCC.join(' and ')} (two reads per listing)`);
   console.log(`${work.length} listing(s) owed verification of ${set.active.length} active\n`);
   if (!work.length) {
@@ -115,9 +115,9 @@ const [FROM, TO] = [arg('from') ?? defaultWindow()[0], arg('to') ?? defaultWindo
   for (const w of work) {
     console.log(`${w.displayName.slice(0, 38).padEnd(40)}${w.channel.padEnd(13)}${w.why}` +
                 (w.knownLargestUnit ? `   (recorded: sleeps ${w.knownLargestUnit})` : '   (capacity unread)'));
-    for (const p of w.probes) console.log(`    ${String(p.occupancy).padStart(2)} adults  ${p.url ?? 'NO URL — listing url unusable'}`);
+    for (const p of w.probes) console.log(`    ${String(p.occupancy).padStart(2)} adults  ${p.url ?? 'NO URL - listing url unusable'}`);
   }
-  console.log(`\nDrive these in Chrome (javascript_tool only — get_page_text and screenshots time out`);
+  console.log(`\nDrive these in Chrome (javascript_tool only - get_page_text and screenshots time out`);
   console.log(`on these pages). Run each probe's \`script\` in the page after it settles, collect the`);
   console.log(`JSON each returns, then record the batch:`);
   console.log(`\n    npx tsx scripts/comp-verify-record.ts --rows rows.json --dry-run`);

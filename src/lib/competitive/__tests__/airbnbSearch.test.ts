@@ -2,7 +2,7 @@
 
 /**
  * The Airbnb search instrument, tested against card text copied off the live page (24-28 Oct 2026,
- * Comarnic) rather than invented — the two price forms, the href echo and the missing-rating case all
+ * Comarnic) rather than invented - the two price forms, the href echo and the missing-rating case all
  * came from real cards, and a fixture that does not resemble the page would test nothing.
  *
  * Most of these pin a REFUSAL. The important one is the last group: an absent listing is a listing to
@@ -92,7 +92,7 @@ describe('one card disagreeing refuses the whole page', () => {
     expect(batch.cards).toHaveLength(2);
   });
 
-  it('DROPS a card echoing other dates, and keeps the page — Airbnb mixes alternatives in', () => {
+  it('DROPS a card echoing other dates, and keeps the page - Airbnb mixes alternatives in', () => {
     // Measured: a 24-29 Dec search returned AVA Chalet echoing 26-29 Dec at 3,630, beside two more
     // echoing 24-28, among 36 correct cards. Banking it would have stored a 3-night price as a
     // 5-night one; refusing all 39 would have thrown away a good page over Airbnb's own suggestions.
@@ -104,7 +104,7 @@ describe('one card disagreeing refuses the whole page', () => {
     expect(batch.problem).toMatch(/alternatives rather than the stay that was asked for/);
   });
 
-  it('refuses when the mismatched outnumber the matched — that is another search, not a suggestion', () => {
+  it('refuses when the mismatched outnumber the matched - that is another search, not a suggestion', () => {
     const alt = (id: string) => parseAirbnbCard(raw({ roomId: id, href: HREF().replace('2026-10-28', '2026-10-27') }));
     const batch = verifyAirbnbBatch([parseAirbnbCard(raw()), alt('8'), alt('9')], probe);
     expect(batch.ok).toBe(false);
@@ -112,7 +112,7 @@ describe('one card disagreeing refuses the whole page', () => {
     expect(batch.problem).toMatch(/the render is about another search/);
   });
 
-  it('a listing seen only on a dropped card is NOT present — it falls to the probe list', () => {
+  it('a listing seen only on a dropped card is NOT present - it falls to the probe list', () => {
     const setById = [{ ...listing('x', 'Only On An Alternative'), url: 'https://www.airbnb.com/rooms/9' }] as CompetitorListing[];
     const alt = parseAirbnbCard(raw({ roomId: '9', href: HREF().replace('2026-10-28', '2026-10-27') }));
     const batch = verifyAirbnbBatch([parseAirbnbCard(raw()), parseAirbnbCard(raw({ roomId: '2' })), alt], probe);
@@ -150,7 +150,7 @@ describe('matching joins by room id, and an absence is a PROBE, not a verdict', 
   it('returns a missing curated listing as something to PROBE, never as unavailable', () => {
     // This is the whole difference from the Booking collector. Airbnb paginates 18 at a time over 15
     // pages, so "not on the pages we read" and "not on sale" are the same shape from here. The owner
-    // is right that it is usually the second — every absentee on the first run had a real cause — but
+    // is right that it is usually the second - every absentee on the first run had a real cause - but
     // usually is not always, and one detail load settles it.
     const field = matchAirbnbToSet([parseAirbnbCard(raw({ roomId: '111' }))], setById);
     expect(field.toProbe.map((l) => l.displayName)).toEqual(['Adorable 2 Bedroom Tiny Home']);
@@ -186,8 +186,8 @@ describe('the in-page collector', () => {
 describe('the parser shipped INTO the page is the same parser', () => {
   // Everywhere else in this system a page-side parser is a second implementation held in step by an
   // agreement test. Here there is only one: the snippet is the compiled source of parseAirbnbCard,
-  // with shims for the two things the bundle would have supplied. This test cannot catch drift —
-  // there is none to catch — but it does catch the shims going stale when esbuild changes its
+  // with shims for the two things the bundle would have supplied. This test cannot catch drift -
+  // there is none to catch - but it does catch the shims going stale when esbuild changes its
   // output, which would otherwise show up as a silent parse failure on a live page.
   const inPage = new Function(`${parserSnippet()}; return parseAirbnbCard;`)() as typeof parseAirbnbCard;
 

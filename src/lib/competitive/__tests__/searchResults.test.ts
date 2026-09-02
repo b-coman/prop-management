@@ -12,7 +12,7 @@ import type { CompetitorListing } from '../set';
 
 const NBSP = ' ';
 
-/** Discounted card — 11 of 25 on the live page looked like this. */
+/** Discounted card - 11 of 25 on the live page looked like this. */
 const OURS = `Mountain Family Chalet on Prahova Valley - 1000 sqm private yard
 Opens in new window
 Managed by a private host
@@ -30,7 +30,7 @@ Free cancellation
 Original price 1,640${NBSP}lei. Current price 1,491${NBSP}lei.
 Includes taxes and charges`;
 
-/** Undiscounted card — the other 14. A pair-only parser misses all of these. */
+/** Undiscounted card - the other 14. A pair-only parser misses all of these. */
 const LUNA = `Vila Luna
 Opens in new window
 ComarnicShow on map
@@ -42,7 +42,7 @@ Exceptional
 Entire holiday home • 4 bedrooms • 200 m²
 7 beds (1 single, 2 doubles, 2 sofa beds, 2 large doubles)
 Free cancellation
-No prepayment needed – pay at the property
+No prepayment needed - pay at the property
 2 nights, 2 adults, 2 children
 1,980${NBSP}lei
 Price 1,980${NBSP}lei
@@ -94,7 +94,7 @@ describe('the whole batch is accepted or refused together', () => {
     expect(r.cards).toHaveLength(2);
   });
 
-  it('REFUSES the whole page when one card disagrees — a mid-update render', () => {
+  it('REFUSES the whole page when one card disagrees - a mid-update render', () => {
     const stale = parseSearchCard('c', 'C', OURS.replace('2 nights, 2 adults, 2 children', '4 nights, 2 adults, 2 children'));
     const r = verifySearchBatch([...good, stale], { nights: 2, adults: 2, children: 2 });
     expect(r.ok).toBe(false);
@@ -133,7 +133,7 @@ describe('matching is by SLUG, never by display name', () => {
     expect(m.candidates).toHaveLength(0);
   });
 
-  it('reports curated listings the search did NOT return — an absence is a finding', () => {
+  it('reports curated listings the search did NOT return - an absence is a finding', () => {
     const m = matchToSet([parseSearchCard('vila-luna-comarnic', 'Vila Luna', LUNA)],
       [listing('vila-luna', 'vila-luna-comarnic'), listing('missing-one', 'ava-chalet-comarnic')]);
     expect(m.absent.map((l) => l.listingId)).toEqual(['missing-one']);
@@ -156,7 +156,7 @@ describe('the in-page collector', () => {
 });
 
 describe('the parser shipped INTO the page is the same parser', () => {
-  // Not an agreement test between two implementations — there is only one. What this catches is the
+  // Not an agreement test between two implementations - there is only one. What this catches is the
   // esbuild `__name` shim going stale, which would otherwise surface as a silent parse failure on a
   // live page rather than as a red test.
   const inPage = new Function(`${parserSnippet()}; return parseSearchCard;`)() as typeof parseSearchCard;
@@ -175,7 +175,7 @@ describe('the parser shipped INTO the page is the same parser', () => {
 
 describe('a stay length Booking writes in WEEKS', () => {
   // "1 week, 2 adults, 1 child" is what a seven-night search prints. The old regex demanded
-  // digits-then-"nights", so the whole echo — adults and children included — came back null, and the
+  // digits-then-"nights", so the whole echo - adults and children included - came back null, and the
   // batch check then passed by vacuous truth. Two bugs, one line apart.
   const card = (text: string) => parseSearchCard('slug', 'Name', text);
 
