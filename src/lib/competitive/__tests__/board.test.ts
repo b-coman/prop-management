@@ -233,3 +233,30 @@ describe('scarcity is a bound, not a point', () => {
     expect(r.scarcity).toBe('tight');
   });
 });
+
+describe('the three defects Fable found', () => {
+  it('sorts refusals BELOW quiet findings, not above them', () => {
+    // 23 rows that decline to rank were sitting at the top of the board, ahead of everything that
+    // had something to say. A row that refuses to rank is the least urgent thing on the page.
+    const board = buildBoard([
+      row({ key: 'thin', quoted: 1, nothingLeft: 1 }),                       // thin
+      row({ key: 'quiet', ourPrice: 3000, fieldMedian: 3000 }),              // ok / in line
+      row({ key: 'act', ourPrice: 2000, fieldMedian: 4000, quoted: 3, nothingLeft: 10 }),
+    ]);
+    expect(board.map((r) => r.key)).toEqual(['act', 'quiet', 'thin']);
+  });
+
+  it('counts WINDOWS in the headline, not contests', () => {
+    // The same window firing at two party sizes is one decision, not two. The old headline said
+    // "10 where you are cheap" for what was seven windows.
+    const cheapTight = { ourPrice: 2000, fieldMedian: 4000, quoted: 3, nothingLeft: 10 };
+    const s = summariseBoard(buildBoard([
+      row({ key: 'w1', channel: 'booking.com', ...cheapTight }),
+      row({ key: 'w1', channel: 'airbnb', ...cheapTight }),   // same window, second contest
+      row({ key: 'w2', channel: 'booking.com', ...cheapTight }),
+    ]));
+    expect(s.act).toBe(2);                 // two windows, not three rows
+    expect(s.channelReadings).toBe(3);
+    expect(s.headline).toMatch(/2 where you are cheap/);
+  });
+});

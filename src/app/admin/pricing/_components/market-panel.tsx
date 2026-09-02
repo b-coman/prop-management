@@ -83,18 +83,34 @@ const TONE = {
   thin:  { chip: 'bg-slate-100 text-slate-500 border border-dashed border-slate-300', edge: 'border-l-4 border-l-transparent', loud: false },
 } as const;
 
-/** On-sale share, as ten blocks. The single most misread number on the old screen. */
-function OnSale({ quoted, asked }: { quoted: number; asked: number }) {
-  if (!asked) return <span className="text-muted-foreground text-xs">not read</span>;
-  const filled = Math.max(1, Math.round((quoted / asked) * 10));
+/**
+ * On-sale share — and what is still UNKNOWN.
+ *
+ * This drew `quoted / (quoted + nothingLeft)`, which for 22-28 Sep was 3 of 3: a completely full bar
+ * on the exact row `classify()` returns `scarcity: 'unknown'` for, because four more comparables had
+ * never been read. The model refused to guess and the display guessed for it — the loudest possible
+ * contradiction, on the axis the whole board turns on.
+ *
+ * The unread share is now drawn as its own hatched segment and named in the text. A reader can see at
+ * a glance that the bar is not finished being measured.
+ */
+function OnSale({ quoted, asked, unread }: { quoted: number; asked: number; unread: number }) {
+  const field = asked + unread;
+  if (!field) return <span className="text-muted-foreground text-xs">not read</span>;
+  const px = (n: number) => Math.round((n / field) * 10);
+  const on = Math.max(quoted > 0 ? 1 : 0, px(quoted));
+  const unknown = unread > 0 ? Math.max(1, px(unread)) : 0;
+  const gone = Math.max(0, 10 - on - unknown);
   return (
     <span className="inline-flex items-center gap-2 whitespace-nowrap">
       <span className="font-mono text-[11px] leading-none tracking-[-1px]" aria-hidden>
-        <span className="text-slate-800">{'█'.repeat(filled)}</span>
-        <span className="text-slate-300">{'█'.repeat(10 - filled)}</span>
+        <span className="text-slate-800">{'█'.repeat(on)}</span>
+        <span className="text-slate-300">{'█'.repeat(gone)}</span>
+        <span className="text-amber-400">{'▒'.repeat(unknown)}</span>
       </span>
       <span className="text-xs tabular-nums">
         {quoted} of {asked}<span className="text-muted-foreground"> on sale</span>
+        {unread > 0 && <span className="text-amber-700"> +{unread}?</span>}
       </span>
     </span>
   );
@@ -124,7 +140,7 @@ function Row({ r }: { r: MarketRow }) {
             {r.gapPct === null ? '—' : `${r.gapPct > 0 ? '+' : ''}${Math.round(r.gapPct)}%`}
           </span>
 
-          <span className="w-44 shrink-0"><OnSale quoted={r.quoted} asked={asked} /></span>
+          <span className="w-44 shrink-0"><OnSale quoted={r.quoted} asked={asked} unread={r.unread} /></span>
 
           <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${tone.chip}`}>{r.label}</span>
 

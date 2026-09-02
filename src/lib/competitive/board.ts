@@ -247,7 +247,15 @@ function verdict(row: BoardRowInput, position: Position, scarcity: Scarcity, abo
            why: `Within ${LEVEL_BAND_PCT}% of the field median, with ${onSale}.` };
 }
 
-const RANK: Record<Attention, number> = { act: 0, watch: 1, thin: 2, ok: 3 };
+/**
+ * Sort weight. `thin` sits LAST, below `ok`.
+ *
+ * It used to sit above it, which put 23 rows that refuse to say anything — "Too thin", "No price of
+ * ours" — at the top of the board, ahead of quiet findings that had something to report. Forty per
+ * cent of the screen was refusals styled as findings. A row that declines to rank is the least
+ * urgent thing on the page, not the third most.
+ */
+const RANK: Record<Attention, number> = { act: 0, watch: 1, ok: 2, thin: 3 };
 
 /**
  * Build the board, most consequential first.
@@ -289,10 +297,20 @@ export interface BoardSummary {
   headline: string;
 }
 
+/**
+ * Count WINDOWS, not contests.
+ *
+ * The headline used to say "10 where you are cheap in a market that has largely sold" while counting
+ * rows — and those ten rows were seven windows, because the same window fires at two party sizes. He
+ * read ten problems where he had seven decisions. A decision is a window; a contest is evidence for
+ * one.
+ */
 export function summariseBoard(rows: BoardRow[]): BoardSummary {
+  const windowsOf = (level: Attention) =>
+    new Set(rows.filter((r) => r.attention === level).map((r) => r.key)).size;
   const windows = new Set(rows.map((r) => r.key)).size;
-  const act = rows.filter((r) => r.attention === 'act').length;
-  const watch = rows.filter((r) => r.attention === 'watch').length;
+  const act = windowsOf('act');
+  const watch = windowsOf('watch');
 
   const headline =
     !rows.length ? 'Nothing captured yet.'
