@@ -113,3 +113,7 @@ scripts/migration-backup-*.json
 
 # Business strategy / driver docs — kept local, like plans/
 docs/business/
+
+# Throwaway investigation scripts. They are scratch, not deliverables — and without this line
+# a `git add -A` sweeps whatever is lying around into a commit, which is how 13 of them got in.
+scripts/tmp-*
