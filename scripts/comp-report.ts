@@ -66,14 +66,16 @@ const money = (n: number) => Math.round(n).toLocaleString('en-US');
 
     const quotes: CompetitorQuote[] = [];
     const outOfSet: Array<{ listingId: string; displayName: string; fit: ReturnType<typeof hostsParty> }> = [];
+    const unread: Array<{ listingId: string; displayName: string }> = [];
     for (const l of field) {
       const fit = hostsParty(l, party);
       if (fit.kind === 'out-of-set') { outOfSet.push({ listingId: l.listingId, displayName: l.displayName, fit }); continue; }
-      // A cell we never captured is neither a quote nor a refusal — it is simply absent, and the
-      // sample line says so by counting what was asked.
+      // A cell we never captured is neither a quote nor a refusal. It used to be dropped here, on the
+      // theory that "of how many asked" covered it — it does not: that printed 4 of 7 for a field of
+      // fifteen. It is carried through as UNREAD and named.
       const o = theirs.find((x) => x.channel === channel && x.subject?.kind === 'competitor'
         && x.subject.listingId === l.listingId);
-      if (!o) continue;
+      if (!o) { unread.push({ listingId: l.listingId, displayName: l.displayName }); continue; }
       quotes.push({
         listingId: l.listingId, displayName: l.displayName, status: o.status,
         guestTotal: o.guestTotal, listTotal: o.listTotal, promoActive: o.promoActive,
@@ -93,11 +95,12 @@ const money = (n: number) => Math.round(n).toLocaleString('en-US');
         // Older self-captures predate the structured session; fall back to the prose, which for this
         // property states Genius explicitly when it applied.
         ?? /genius[^.]{0,30}applied|Genius \d+% applied/i.test(mine?.sessionState ?? ''),
-      quotes, outOfSet, now,
+      quotes, outOfSet, unread, now,
     });
 
     console.log(`\n${channel.toUpperCase()}`);
     console.log(`  sample   ${pos.sample.quoted} of ${pos.sample.asked} quoted` +
+      (pos.sample.unread ? `, ${pos.sample.unread} of ${pos.sample.field} never read` : '') +
       (pos.sample.oldestAgeDays !== null ? ` · oldest ${pos.sample.oldestAgeDays}d` : '') +
       ` · confidence ${pos.confidence}`);
     if (pos.band) {
@@ -120,6 +123,7 @@ const money = (n: number) => Math.round(n).toLocaleString('en-US');
     }
     for (const s of pos.silent) console.log(`       ${'—'.padStart(6)}  ${s.name.slice(0, 34).padEnd(36)}${s.status}: ${s.reason.slice(0, 40)}`);
     for (const o of pos.outOfSet) console.log(`       ${'·'.padStart(6)}  ${o.name.slice(0, 34).padEnd(36)}out of set`);
+    for (const u of pos.unread) console.log(`       ${'?'.padStart(6)}  ${u.name.slice(0, 34).padEnd(36)}never read for this window`);
 
     for (const f of pos.flags) console.log(`\n  ! ${f}`);
     for (const n of pos.notes) console.log(`\n  · ${n}`);

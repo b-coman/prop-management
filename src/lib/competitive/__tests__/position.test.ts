@@ -96,6 +96,30 @@ describe('a comparable that did not quote is never dropped', () => {
     expect(note).toMatch(/evidence of selling only if an earlier reading had it priced/);
   });
 
+  it('never lets an unread comparable pass as an absent one', () => {
+    // The bug this pins was live on the screen: the Booking field is fifteen, seven had readings, and
+    // the panel printed "4 of 7 quoted" — coverage of a third of the market, rendered as coverage of
+    // the market. The unread ones must be named, and the note must say what the rank is over.
+    const p = buildPosition({ ...base, channel: 'booking.com',
+      quotes: [q('a', 2803), q('b', 3600), q('c', 4180), q('d', 5320)],
+      outOfSet: [{ listingId: 'park', displayName: 'Park', fit: { kind: 'out-of-set', reason: 'children need one unit' } }],
+      unread: [{ listingId: 'u1', displayName: 'Zaivan Retreat' }, { listingId: 'u2', displayName: 'TETRA Plus 569' }],
+    });
+    expect(p.sample).toMatchObject({ quoted: 4, asked: 4, unread: 2, field: 7 });
+    expect(p.unread.map((u) => u.name)).toEqual(['Zaivan Retreat', 'TETRA Plus 569']);
+    const note = p.notes.join(' ');
+    expect(note).toMatch(/never been read for this window/);
+    expect(note).toMatch(/Zaivan Retreat, TETRA Plus 569/);
+    expect(note).toMatch(/unknown, not absent/);
+  });
+
+  it('says nothing about unread comparables when the field is fully read', () => {
+    const p = buildPosition({ ...base, quotes: [q('a', 2438), q('b', 2702), q('c', 3000)] });
+    expect(p.unread).toEqual([]);
+    expect(p.sample.field).toBe(3);
+    expect(p.notes.join(' ')).not.toMatch(/never been read/);
+  });
+
   it('reports out-of-set comparables as a finding, not a gap', () => {
     const p = buildPosition({ ...base,
       quotes: [q('a', 2438), q('b', 2702), q('c', 3000)],

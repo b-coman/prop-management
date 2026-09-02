@@ -2301,3 +2301,76 @@ being re-derived, with the same traps rediscovered, every time.
   price".
 - **No run shapes or budget allocation.** §5's arithmetic is obsolete anyway now that one load covers a
   field; it should be rewritten against the search instrument rather than patched.
+
+---
+
+## 28. The market tab, and the coverage lie it exposed (2026-09-02)
+
+Phase 5. `comp-report`'s reading now has a screen, and building the screen surfaced a defect in the
+reading that the CLI had been printing, unnoticed, all along.
+
+### 28.1 A fifth tab, not a sixth card
+
+`/admin/pricing` now carries **The market** beside The year, Prices & channels, Rules and Testing —
+and the comparable-set card **moved** into it, out of Prices & channels where §17 had parked it.
+
+The move is the point, not tidying. Everything on Prices & channels is a number the owner
+**controls**; nothing on The market is (C2 — competitor prices never move a rate). Mixing them puts a
+rival's price an inch from the slider that sets his, which invites exactly the reflex the whole design
+refuses. Two tabs, two kinds of fact.
+
+Inside the tab, per window:
+
+1. **Absorption first**, above the prices. A rank means opposite things in a market that is selling
+   and one that is not, so "is this window selling" cannot sit in a footnote under the ladder.
+2. **Two panels side by side, one per channel** (C8), never merged.
+3. The ladder cheapest first, our row marked, rating and review count beside each price.
+4. Everything that did not quote, with its reason.
+
+Wiring: `fetchMarketPositions()` in `competitor-actions.ts` — read-only, joins `latestByCell(self)`,
+`latestByCell(competitor)`, the **full** competitor history (absorption is a comparison BETWEEN
+readings, so `latestByCell` alone cannot produce it), the set and the party mix. Windows are derived
+from the competitor observations themselves and filtered to `checkOut >= today`: a stay already past
+cannot be sold, so it is history, not a decision. Rendered by `_components/market-panel.tsx`.
+
+### 28.2 The defect: "4 of 7 quoted" for a field of fifteen
+
+The tab rendered, and the Booking panel read:
+
+```
+4 of 7 quoted · oldest 0d · solid
+```
+
+Confident, and materially misleading. The Booking field is **fifteen**. Seven listings had readings
+for 24-28 Oct; one cannot host 2a+1c; **seven had never been read at all** — and both readers dropped
+them silently, on this reasoning, which was written into `comp-report.ts` as a comment:
+
+> *A cell we never captured is neither a quote nor a refusal — it is simply absent, and the sample line
+> says so by counting what was asked.*
+
+It does not say so. "4 of 7" reads as near-complete coverage of a market; it was coverage of a third
+of one, with `confidence: solid` on top. This is the same error as treating unread capacity as a moat
+(§25) — wrong in the **flattering** direction, which is the direction that gets acted on.
+
+Fixed in the pure module, so both readers inherit it: `PositionInput.unread` carries the comparables
+that **could** host the party and simply have not been read. They are counted apart (`sample.unread`,
+`sample.field`), named on screen, and noted:
+
+> *7 of the 15 comparables on booking.com have never been read for this window (…). The band and the
+> rank are over the 4 that quoted, not over the field — a comparable nobody asked is unknown, not
+> absent.*
+
+Confidence is deliberately **not** downgraded automatically. "Solid" still describes the four quotes;
+what changed is that the screen now says what those four are solid *about*. Whether a third of the
+field is enough is the owner's judgement, and it needs the number in front of him, not a label
+computed over it.
+
+Two tests pin it, including the negative: a fully-read field says nothing about unread comparables.
+
+### 28.3 Still not built
+
+- **No situation-pack `market` section** (§27.6 stands) — the analyst still cannot route "that is
+  demand, not price".
+- **No run shapes or budget allocation.** §5's arithmetic is obsolete now that one load covers a field.
+- **The seven unread Booking comparables are a real gap in the 24-28 Oct reading**, not a display bug.
+  One search page closes it.

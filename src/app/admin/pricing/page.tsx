@@ -15,10 +15,11 @@ import { ChannelsCard, type ChannelRow } from './_components/channels-card';
 import { RateSheetEditor } from './_components/rate-sheet-editor';
 import { ParityPanel, type ParityWindow, type ParitySummaryShape } from './_components/parity-panel';
 import { CompetitorSetCard, type CompetitorRow } from './_components/competitor-set-card';
+import { MarketPanel, type MarketWindow } from './_components/market-panel';
 import { YearBoard, type YearBoardData } from './_components/year-board';
 import { fetchYearBoard } from './year-actions';
 import { fetchParityView } from './parity-actions';
-import { fetchCompetitorSet } from './competitor-actions';
+import { fetchCompetitorSet, fetchMarketPositions } from './competitor-actions';
 import { getAnchorConfig } from '@/services/anchorConfigService';
 import { getPeriods } from '@/services/periodService';
 import { DEFAULT_TIER_MULTIPLIERS, datesInRange, type TierMultipliers } from '@/lib/pricing/periods';
@@ -59,6 +60,7 @@ export default async function PricingPage({
   let anchorSaved = false;
   let parity: { ok: boolean; error?: string; windows?: unknown[]; summary?: unknown; meta?: unknown } = { ok: false, error: 'not loaded' };
   let competitors: { ok: boolean; error?: string; rows?: unknown[] } = { ok: false, error: 'not loaded' };
+  let market: { ok: boolean; error?: string; windows?: unknown[] } = { ok: false, error: 'not loaded' };
   let board: { ok: boolean; error?: string; board?: unknown } = { ok: false, error: 'not loaded' };
   let anchorPeriods: AnchoredPeriodInput[] = [];
   let tierMultipliers: TierMultipliers = DEFAULT_TIER_MULTIPLIERS;
@@ -103,16 +105,18 @@ export default async function PricingPage({
     // rendering a page never writes.
     // The parity read degrades on its own (it returns {ok:false, error} rather than throwing), so a
     // missing channel config cannot take the whole pricing page down with it.
-    const [anchor, periodDocs, parityRes, boardRes, compRes] = await Promise.all([
+    const [anchor, periodDocs, parityRes, boardRes, compRes, marketRes] = await Promise.all([
       getAnchorConfig(propertyId),
       getPeriods(propertyId),
       fetchParityView(propertyId),
       fetchYearBoard(propertyId),
       fetchCompetitorSet(propertyId),
+      fetchMarketPositions(propertyId),
     ]);
     parity = parityRes;
     board = boardRes;
     competitors = compRes;
+    market = marketRes;
     anchorConfig = {
       anchorChannelId: anchor.anchorChannelId,
       weekdayPrice: anchor.weekdayPrice,
@@ -170,15 +174,22 @@ export default async function PricingPage({
       <PropertyUrlSync />
 
       {/*
-        Four tabs, one per QUESTION, instead of six shaped like Firestore collections. Position
-        answers "where do I stand"; Prices and channels answers "what do I set, and where"; Rules
-        holds the machinery that produces those prices and is rarely opened; Testing stays a tool.
+        Five tabs, one per QUESTION, instead of six shaped like Firestore collections. The year
+        answers "where am I wrong, and what do I click"; Prices and channels answers "what do I set,
+        and where"; The market answers "where do I sit against everyone else"; Rules holds the
+        machinery that produces those prices and is rarely opened; Testing stays a tool.
+
+        The market is its own tab and not a card under Prices and channels, because the two answer
+        opposite kinds of question. Everything on Prices and channels is a number the owner CONTROLS;
+        nothing on The market is (C2 — competitor prices never move a rate). Mixing them invites
+        exactly the reflex the design refuses: seeing a rival's number and reaching for the slider.
       */}
       {propertyId ? (
         <Tabs defaultValue="year">
           <TabsList>
             <TabsTrigger value="year">The year</TabsTrigger>
             <TabsTrigger value="channels">Prices &amp; channels</TabsTrigger>
+            <TabsTrigger value="market">The market</TabsTrigger>
             <TabsTrigger value="rules">Rules</TabsTrigger>
             <TabsTrigger value="testing">Testing</TabsTrigger>
           </TabsList>
@@ -314,21 +325,6 @@ export default async function PricingPage({
               </Card>
             )}
             <ChannelsCard rows={channelRows} propertyId={propertyId} />
-            {/*
-              The comparable set sits with the channels because it IS a channel-shaped fact: Airbnb and
-              Booking are two separate contests (C8) and the card renders them apart. It shows WHO you
-              are measured against; where you sit against them arrives with the position reader.
-            */}
-            {competitors.ok
-              ? <CompetitorSetCard rows={competitors.rows as CompetitorRow[]} />
-              : (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>The comparable set</CardTitle>
-                    <CardDescription>Could not be read: {competitors.error}</CardDescription>
-                  </CardHeader>
-                </Card>
-              )}
             {anchorConfig && (
               <RateSheetEditor
                 propertyId={propertyId}
@@ -344,10 +340,44 @@ export default async function PricingPage({
             )}
           </TabsContent>
 
+          {/*
+            Where you sit, and whether the window is selling at all — the second question being the one
+            that separates "I am priced wrong" from "nobody is travelling", which are opposite
+            instructions. The reading comes first and the SET comes below it, because who you are
+            measured against is the thing you check when a number surprises you.
+          */}
+          <TabsContent value="market" className="space-y-6">
+            {market.ok ? (
+              <MarketPanel windows={market.windows as MarketWindow[]} />
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Where you sit</CardTitle>
+                  <CardDescription>
+                    No market reading available: {market.error}. Nothing is estimated in its place — a
+                    band drawn over the comparables that happened to answer would read as the market
+                    and would not be it.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            )}
+            {/*
+              Airbnb and Booking are two separate contests (C8) and the card renders them apart. The
+              set is owner-curated: nothing adds to it on its own, and every entry carries why it
+              competes, in his words.
+            */}
+            {competitors.ok
+              ? <CompetitorSetCard rows={competitors.rows as CompetitorRow[]} />
+              : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>The comparable set</CardTitle>
+                    <CardDescription>Could not be read: {competitors.error}</CardDescription>
+                  </CardHeader>
+                </Card>
+              )}
+          </TabsContent>
 
-
-
-          
           <TabsContent value="testing">
             <Card>
               <CardHeader>

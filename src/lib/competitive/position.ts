@@ -68,6 +68,15 @@ export interface PositionInput {
   quotes: CompetitorQuote[];
   /** Comparables that cannot host this party at all. A finding, not a gap (C4). */
   outOfSet: Array<{ listingId: string; displayName: string; fit: PartyFit }>;
+  /**
+   * Comparables that COULD host this party and simply have not been read for this window.
+   *
+   * These must be passed in, because the alternative is what the first build did: drop them, and
+   * print "4 of 7 quoted" for a Booking field of fifteen. That reads as near-complete coverage of a
+   * market when it is under half of it, and it errs in the flattering direction — it is the same
+   * mistake as treating unread capacity as a moat. An unread comparable is UNKNOWN, not absent.
+   */
+  unread?: Array<{ listingId: string; displayName: string }>;
   now: Date;
 }
 
@@ -76,8 +85,11 @@ export interface Position {
   channel: string;
   partyLabel: string;
   confidence: Confidence;
-  /** How many comparables actually quoted, over how many were asked. */
-  sample: { quoted: number; asked: number; oldestAgeDays: number | null };
+  /**
+   * How many comparables actually quoted, over how many were asked — plus how many of the field
+   * nobody has asked yet, which is the number that decides whether the first two mean anything.
+   */
+  sample: { quoted: number; asked: number; unread: number; field: number; oldestAgeDays: number | null };
   band: { min: number; median: number; max: number } | null;
   /** Rank of his channel price among the quoted comparables plus himself. Null below the floor. */
   rank: { position: number; of: number } | null;
@@ -89,6 +101,8 @@ export interface Position {
   /** Comparables that did not quote, with the reason. Never silently dropped. */
   silent: Array<{ listingId: string; name: string; status: string; reason: string }>;
   outOfSet: Array<{ listingId: string; name: string; why: string }>;
+  /** In the field, able to host this party, never read for this window. */
+  unread: Array<{ listingId: string; name: string }>;
   flags: string[];
   notes: string[];
 }
@@ -104,6 +118,7 @@ export function buildPosition(input: PositionInput): Position {
     checkIn, checkOut, nights, guests, partyLabel, channel,
     ourChannelPrice, ourDirectPrice, quotes, outOfSet, now,
   } = input;
+  const unread = input.unread ?? [];
 
   const priced = quotes.filter((q) => q.status === 'captured' && typeof q.guestTotal === 'number');
   const silent = quotes
@@ -192,6 +207,15 @@ export function buildPosition(input: PositionInput): Position {
       `${outOfSet.length} comparable(s) cannot host ${partyLabel} at all — competition you do not face ` +
       `on this window, measured without a page load.`);
   }
+  // Said before the confidence notes, because it changes what "solid" is solid ABOUT: four quotes out
+  // of a field of fifteen is a firm reading of a third of the market, not a firm reading of the market.
+  if (unread.length) {
+    const field = quotes.length + outOfSet.length + unread.length;
+    notes.push(
+      `${unread.length} of the ${field} comparables on ${channel} have never been read for this window ` +
+      `(${unread.map((u) => u.displayName).join(', ')}). The band and the rank are over the ` +
+      `${priced.length} that quoted, not over the field — a comparable nobody asked is unknown, not absent.`);
+  }
   if (confidence === 'indicative') {
     notes.push(`Only ${priced.length} comparables quoted. Band and rank are indicative, not settled.`);
   }
@@ -204,12 +228,14 @@ export function buildPosition(input: PositionInput): Position {
   return {
     window: `${checkIn} → ${checkOut} (${nights}n, ${guests}g)`,
     channel, partyLabel, confidence,
-    sample: { quoted: priced.length, asked: quotes.length, oldestAgeDays },
+    sample: { quoted: priced.length, asked: quotes.length, unread: unread.length,
+              field: quotes.length + outOfSet.length + unread.length, oldestAgeDays },
     band, rank, ourChannelPrice, ourDirectPrice, ladder, silent,
     outOfSet: outOfSet.map((o) => ({
       listingId: o.listingId, name: o.displayName,
       why: o.fit.kind === 'out-of-set' ? o.fit.reason : o.fit.kind,
     })),
+    unread: unread.map((u) => ({ listingId: u.listingId, name: u.displayName })),
     flags, notes,
   };
 }
