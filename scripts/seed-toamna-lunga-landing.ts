@@ -100,13 +100,12 @@ const DOC = {
       start: '2026-09-22', end: '2026-09-29', nights: 7, guests: 2, priceHint: null as number | null,
       featured: true,
       label: { en: 'A full week, Tuesday to Tuesday', ro: 'O săptămână întreagă, de marți până marți' },
-      // THE marginal number, and the reason this page needs a `note` field at all. Quoted live
-      // 2026-09-02: six nights 2,442.05, seven 2,458.50. The 25% tier at seven nights more than pays
-      // for the seventh, so the extra night costs 16.45 - rounded UP to 17, never below what the
-      // booking form will actually charge.
+      // Repeats the hero's comparison at the button, because that is the choice the reader is
+      // actually making: a weekend away, or this. (A marginal framing - "the seventh night costs
+      // 17 lei" - was tried and dropped: it only persuades someone already set on six nights.)
       note: {
-        en: 'The seventh night costs 17 lei. The 25% discount pays for it.',
-        ro: 'A șaptea noapte costă 17 lei. Reducerea de 25% o plătește.',
+        en: 'Three summer nights cost about the same. Here you get seven.',
+        ro: 'Trei nopți de vară costă cam la fel. Aici ai șapte.',
       },
       occasion: 'Lucru de la munte',
     },

@@ -23,11 +23,13 @@ export interface ExampleStay {
    */
   featured?: boolean | null;
   /**
-   * A short line under the price, for the arithmetic that makes the stay obviously correct.
+   * A short line under the price, restating the offer's comparison at the point of decision.
    *
-   * Exists because the strongest argument for a long stay is usually MARGINAL, not total: going from
-   * six nights to seven on this rate card costs 16.45 lei, because the 25% tier at seven more than
-   * pays for the extra night. A "from 2,459 lei" price cannot say that; this can.
+   * Keep it anchored on what the READER is choosing between, not on internal rate-card mechanics.
+   * A marginal framing ("the seventh night costs 17 lei") was tried and rejected: it only lands on
+   * someone who has already decided to stay six, and nobody arrives at that. They arrive weighing a
+   * weekend. So the note repeats the hero's comparison where the button is, rather than introducing
+   * a second, narrower argument.
    */
   note?: Ml;
 }
