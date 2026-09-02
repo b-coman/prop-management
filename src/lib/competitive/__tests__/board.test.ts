@@ -34,7 +34,7 @@ describe('the case that produced this module', () => {
     expect(r.position).toBe('dear');
     expect(r.scarcity).toBe('tight');
     expect(r.attention).toBe('ok');
-    expect(r.label).toBe('Cleared above you');
+    expect(r.label).toBe('Cleared below you');
     expect(r.why).toMatch(/not evidence you are overpriced/);
     expect(r.aboveAll).toBe(true);
   });
@@ -131,7 +131,7 @@ describe('the label never contradicts the number beside it', () => {
         const r = buildBoard([row({ ourPrice: p, fieldMedian: 3000, fieldMax: 4000, quoted, nothingLeft: gone })])[0];
         if (r.gapPct === null) continue;
         if (r.gapPct > LEVEL_BAND_PCT) expect(r.label).not.toMatch(/In line|Below the field/);
-        if (r.gapPct < -LEVEL_BAND_PCT) expect(r.label).not.toMatch(/In line|Above the field|Cleared above you/);
+        if (r.gapPct < -LEVEL_BAND_PCT) expect(r.label).not.toMatch(/In line|Above the field|Cleared below you/);
       }
     }
   });
@@ -313,7 +313,7 @@ describe('magnitude is not silenced by the scarcity band', () => {
     const cleared = buildBoard([row({ ourPrice: 7243, fieldMedian: 3341, fieldMax: 3856,
                                       quoted: 3, nothingLeft: 10 })])[0];
     expect(cleared.attention).toBe('ok');
-    expect(cleared.label).toBe('Cleared above you');
+    expect(cleared.label).toBe('Cleared below you');
   });
 
   it('does not fire below the threshold', () => {

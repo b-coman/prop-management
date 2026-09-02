@@ -200,7 +200,10 @@ function verdict(row: BoardRowInput, position: Position, scarcity: Scarcity, abo
 
   if (position === 'dear' && scarcity === 'tight') {
     return {
-      attention: 'ok', label: 'Cleared above you',
+      // "Cleared BELOW you": the cheaper comparables are the ones that sold. It said "above" until
+      // 2026-09-03, which reads as "they sold at prices above yours" - the exact opposite, on the
+      // one verdict whose whole job is to stop a dear position being read as a fault.
+      attention: 'ok', label: 'Cleared below you',
       why: `Most of the field is gone - only ${row.quoted} of ${row.quoted + row.nothingLeft} still on ` +
            `sale. You are dearest of what REMAINS, which is the leftovers, not the market. That is not ` +
            `evidence you are overpriced; if anything it is the reverse.`,
