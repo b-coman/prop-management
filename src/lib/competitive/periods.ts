@@ -139,7 +139,12 @@ export function groupByPeriod(input: GroupInput): PeriodGroup[] {
     const ownerId = owner ? owner[0] : '__none';
     groups.get(ownerId)!.windows.push({
       key: `${checkIn}|${checkOut}`, checkIn, checkOut, nights: nights.length,
-      rows: group.sort((a, b) => a.channel.localeCompare(b.channel) || a.partyLabel.localeCompare(b.partyLabel)),
+      // Same order the grid columns use, so the expanded list reads left-to-right like the row above it.
+      rows: group.sort((a, b) => {
+        const order = ['booking.com', 'airbnb'];
+        const rank = (c: string) => { const i = order.indexOf(c); return i === -1 ? 99 : i; };
+        return rank(a.channel) - rank(b.channel) || a.partyLabel.localeCompare(b.partyLabel);
+      }),
       nightsInside: owner ? owner[1] : nights.length,
     });
 

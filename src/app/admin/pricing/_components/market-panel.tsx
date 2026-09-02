@@ -92,6 +92,16 @@ const day = (iso: string) => {
   return `${Number(d)} ${MONTHS[Number(m) - 1]}`;
 };
 
+/**
+ * The row template, used by the header AND every window row.
+ *
+ * Both must be laid out by the same grid or the columns drift: the first build put the date, the
+ * optional "(4 of 5 nights here)" note and the tiles in a flex row, so a window carrying that note
+ * pushed its tiles sideways and Christmas no longer lined up with Fall — or with the header, which
+ * was offset by its own guessed spacer widths. A column that does not line up is not a column.
+ */
+const rowTemplate = (n: number) => ({ gridTemplateColumns: `11rem 8rem repeat(${n}, 5.5rem) 1fr` });
+
 const TONE = {
   act:   { chip: 'bg-red-600 text-white', edge: 'border-l-4 border-l-red-600', loud: true },
   watch: { chip: 'bg-amber-500 text-white', edge: 'border-l-4 border-l-amber-500', loud: true },
@@ -125,8 +135,13 @@ function OnSale({ quoted, asked, unread }: { quoted: number; asked: number; unre
         <span className="text-amber-400">{'▒'.repeat(unknown)}</span>
       </span>
       <span className="text-xs tabular-nums">
-        {quoted} of {asked}<span className="text-muted-foreground"> on sale</span>
-        {unread > 0 && <span className="text-amber-700"> +{unread}?</span>}
+        {/* "0 of 0 on sale" is not a reading, it is the absence of one. Say so. */}
+        {asked === 0
+          ? <span className="text-amber-700">none read yet{unread > 0 && ` — ${unread} to probe`}</span>
+          : <>
+              {quoted} of {asked}<span className="text-muted-foreground"> on sale</span>
+              {unread > 0 && <span className="text-amber-700"> +{unread}?</span>}
+            </>}
       </span>
     </span>
   );
@@ -232,11 +247,9 @@ function Row({ r }: { r: MarketRow }) {
       <summary className="cursor-pointer list-none px-3 py-2.5 hover:bg-muted/40">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
-          <span className="w-[9.5rem] shrink-0 text-sm font-semibold">
-            {day(r.checkIn)} &ndash; {day(r.checkOut)}
-          </span>
-          <span className="w-24 shrink-0 text-xs text-muted-foreground">{r.nights}n &middot; {r.partyLabel}</span>
-          <span className="w-24 shrink-0 text-xs">{r.channelLabel}</span>
+          {/* The window is named by the row above; repeating it six times is noise. */}
+          <span className="w-28 shrink-0 text-sm font-semibold">{r.channelLabel}</span>
+          <span className="w-20 shrink-0 text-xs text-muted-foreground">{r.partyLabel}</span>
 
           <span className="w-20 shrink-0 text-right text-sm tabular-nums">
             {r.ourPrice !== null ? money(r.ourPrice) : '—'}
@@ -394,36 +407,27 @@ function Period({ g, columns }: { g: PeriodGroupView; columns: GridColumn[] }) {
       {g.windows.map((w) => (
         <details key={w.key} id={`w-${w.key.replace(/\|/g, '_')}`} className="group border-t">
           <summary className="cursor-pointer list-none px-3 py-2 hover:bg-muted/30">
-            <div className="flex flex-wrap items-baseline gap-x-3">
-              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
-              <span className="w-[10.5rem] shrink-0 text-sm">
+            <div className="grid items-center gap-x-2 gap-y-1" style={rowTemplate(columns.length)}>
+              <span className="flex items-center gap-1 text-sm">
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
                 {day(w.checkIn)} &ndash; {day(w.checkOut)}
-                <span className="ml-1 text-xs text-muted-foreground">{w.nights}n</span>
+                <span className="text-xs text-muted-foreground">{w.nights}n</span>
               </span>
-              {w.nightsInside < w.nights && (
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  ({w.nightsInside} of {w.nights} nights here)
-                </span>
-              )}
-              {/* Fixed grid: a tile only means something if the same coordinate is the same contest
-                  on every row. The first build wrapped tiles, so column 1 was Booking 2a+1c on one
-                  line and Airbnb 4a+2c on the next — unscannable. */}
-              <span className="grid shrink-0 gap-1"
-                style={{ gridTemplateColumns: `repeat(${columns.length}, 5.5rem)` }}>
-                {columns.map((c) => {
-                  const r = w.rows.find((x) => x.channel === c.channel && x.partyLabel === c.partyLabel);
-                  return r
-                    ? <Cell key={`${c.channel}|${c.partyLabel}`} r={r} />
-                    : <span key={`${c.channel}|${c.partyLabel}`}
-                        title={`${c.channelLabel} · ${c.partyLabel} — never captured for this window`}
-                        className="h-6 rounded border border-dotted border-slate-200" />;
-                })}
+              <span className="text-xs text-muted-foreground">
+                {w.nightsInside < w.nights && `${w.nightsInside} of ${w.nights} nights here`}
               </span>
-              {loud > 0 && w.rows.some((r) => r.attention === 'act' || r.attention === 'watch') && (
-                <span className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground">
-                  {money(w.rows[0].ourDirect ?? 0)} direct
-                </span>
-              )}
+              {columns.map((c) => {
+                const r = w.rows.find((x) => x.channel === c.channel && x.partyLabel === c.partyLabel);
+                return r
+                  ? <Cell key={`${c.channel}|${c.partyLabel}`} r={r} />
+                  : <span key={`${c.channel}|${c.partyLabel}`}
+                      title={`${c.channelLabel} · ${c.partyLabel} — never captured for this window`}
+                      className="h-6 rounded border border-dotted border-slate-200" />;
+              })}
+              <span className="text-right text-xs tabular-nums text-muted-foreground">
+                {w.rows.some((r) => r.attention === 'act' || r.attention === 'watch')
+                  ? `${money(w.rows[0].ourDirect ?? 0)} direct` : ''}
+              </span>
             </div>
           </summary>
           <div className="divide-y border-t bg-muted/10">
@@ -518,22 +522,20 @@ export function MarketPanel({ rows, grouped, columns = [], summary }: {
           <div>
             {/* The column header, sticky: without it a tile is a number with no coordinate. */}
             {columns.length > 0 && (
-              <div className="sticky top-0 z-10 flex flex-wrap items-end gap-x-3 border-b bg-background px-3 py-1.5">
-                <span className="w-[10.5rem] shrink-0" />
-                <span className="w-24 shrink-0" />
-                <span className="grid shrink-0 gap-1"
-                  style={{ gridTemplateColumns: `repeat(${columns.length}, 5.5rem)` }}>
-                  {columns.map((c, i) => (
-                    <span key={`${c.channel}|${c.partyLabel}`} className="text-center leading-tight">
-                      {(i === 0 || columns[i - 1].channel !== c.channel) && (
-                        <span className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          {c.channelLabel}
-                        </span>
-                      )}
-                      <span className="block text-[11px] text-muted-foreground">{c.partyLabel}</span>
-                    </span>
-                  ))}
-                </span>
+              <div className="sticky top-0 z-10 grid items-end gap-x-2 border-b bg-background px-3 py-1.5"
+                   style={rowTemplate(columns.length)}>
+                <span /><span />
+                {columns.map((c, i) => (
+                  <span key={`${c.channel}|${c.partyLabel}`} className="text-center leading-tight">
+                    {(i === 0 || columns[i - 1].channel !== c.channel) && (
+                      <span className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        {c.channelLabel}
+                      </span>
+                    )}
+                    <span className="block text-[11px] text-muted-foreground">{c.partyLabel}</span>
+                  </span>
+                ))}
+                <span />
               </div>
             )}
             {grouped.map((g) => <Period key={g.period?.id ?? 'none'} g={g} columns={columns} />)}
