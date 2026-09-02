@@ -2624,3 +2624,94 @@ The recommendation in §30's wake was wrong by a factor of seven on the Airbnb s
 Airbnb no longer has to be rationed. The lesson is older than the fix: **a line in a doc is not a
 measurement.** "No equivalent" survived because it was never worth an experiment to anyone — until
 the person who uses the tool went and looked.
+
+---
+
+## 32. The board: a rank that points the right way (2026-09-02)
+
+The market tab shipped and the owner used it:
+
+> *"Not very happy with what I see there because can't understand easy and fast my property position
+> against competition, the market situation."*
+
+He proposed filling every window and party first. The order was flipped, and the reason matters: the
+screen already failed at one window, so 200 more panels of the same thing would only make the wall
+taller. But designing a ranked board against a single window is designing blind, so: **a small
+targeted capture, then the redesign, then the bulk fill.**
+
+### 32.1 The capture that settled the design
+
+Four New Year windows on Booking, one load each, 2a+1c. Our own listing appeared in all four searches
+at 4,539 / 6,010 / 5,330 / 7,243 — matching the stored self prices **to the leu, four for four**.
+
+And the reading that broke the old screen:
+
+> **30 Dec – 2 Jan: you 7,243, dearest of 4.**
+
+True, and pointing the wrong way. **Ten of the thirteen party-eligible comparables had nothing left.**
+The three still quoting were the remainder nobody had booked. Being top of that ladder is not evidence
+of overpricing; it is closer to evidence of the reverse. A ladder cannot express that, because a ladder
+has one axis.
+
+### 32.2 Two axes, four states
+
+| | most of the field GONE | field still OPEN |
+|---|---|---|
+| **you dear** | *Cleared above you* — the field is the remainder, not the market | **Exposed** — real choice, and you are the dear one |
+| **you cheap** | **Left money** — a picked-over window you priced as though it were quiet | *Cheap, market quiet* — demand, not price |
+
+The bottom-left is the money leak the old screen would have shown as *"good news, you are the
+cheapest"*. The top-left is the false alarm it showed on New Year. Same numbers, opposite actions.
+
+**Scarcity is readable from ONE capture.** How much of the field is on sale *right now* is a state,
+not an event — unlike absorption, which asks whether that share CHANGED and needs two readings. So the
+board works on a first capture and absorption sharpens it later instead of gating it.
+
+`lib/competitive/board.ts` is pure and holds the thresholds: `LEVEL_BAND_PCT = 10`,
+`SCARCITY = { tight: 0.4, open: 0.75 }`, `MIN_QUOTES = 3`. Twenty tests, most of them pinning the
+December and October readings directly.
+
+### 32.3 What the screen does with it
+
+- **Only two colours mean anything** — red for money left, amber for real exposure. A screen where
+  five things are urgent has nothing urgent on it, which is what the owner was describing.
+- **"On sale" is never off-screen.** It decides what a rank MEANS, so it sits beside the rank with a
+  ten-block bar, not in a footnote.
+- **The gap is a percentage.** Totals do not compare across 3-, 4- and 5-night windows; a percentage
+  is the only figure that scans down a column.
+- **Ordered by attention, then by money at stake**, pro-rated by the nights still unsold — the same
+  rule the year board uses. A window already booked is dimmed, labelled `Sold`, and asks for nothing.
+- **The evidence is one `<details>` click away**, so the ladder, the silent comparables, the unread
+  ones and absorption are all still there without a client component.
+
+Availability comes from `availability/{id}_{YYYY-MM}`, verified against real docs: keys are unpadded
+day numbers, and the only taken nights in range (9-10 Oct) fall outside every captured window, so
+every "riding on it" figure is genuinely open money.
+
+### 32.4 A defect the screen caught on itself
+
+First render showed the October Airbnb row as **`-48%` … "In line"**. Every mixed-scarcity row was
+falling through to the same label, so a 48% gap was described as level. That is worse than saying
+nothing: a row that argues with its own number makes the reader stop believing the rest of the screen.
+
+Fixed, with `Above the field` / `Below the field` for the middle ground, and pinned by a test that
+sweeps prices and scarcities and asserts **no label ever disagrees in direction with the gap beside
+it.**
+
+### 32.5 What the board says today
+
+| window | you | gap | on sale | verdict |
+|---|---|---|---|---|
+| 23–27 Dec, Booking | 4,539 | −12% | 5 of 15 | **Left money** |
+| 30 Dec–2 Jan, Booking | 7,243 | +117% | 3 of 15 | Cleared above you |
+| 24–29 Dec, Booking | 6,010 | −6% | 4 of 15 | Cleared, you're level |
+| 28–31 Dec, Booking | 5,330 | +93% | 4 of 15 | Cleared above you |
+| 24–28 Oct, Airbnb | 2,369 | −48% | 5 of 7 | Below the field |
+| 24–28 Oct, Booking | 2,719 | −22% | 9 of 15 | Below the field |
+
+One row asks for something. The two that the old screen would have screamed about are correctly quiet.
+
+### 32.6 Next
+
+The bulk fill, now that the shape is known and worth capturing into — and Airbnb for the December
+windows, which is where the board is currently half-blind.

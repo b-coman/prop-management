@@ -15,7 +15,7 @@ import { ChannelsCard, type ChannelRow } from './_components/channels-card';
 import { RateSheetEditor } from './_components/rate-sheet-editor';
 import { ParityPanel, type ParityWindow, type ParitySummaryShape } from './_components/parity-panel';
 import { CompetitorSetCard, type CompetitorRow } from './_components/competitor-set-card';
-import { MarketPanel, type MarketWindow } from './_components/market-panel';
+import { MarketPanel, type MarketRow, type MarketSummary } from './_components/market-panel';
 import { YearBoard, type YearBoardData } from './_components/year-board';
 import { fetchYearBoard } from './year-actions';
 import { fetchParityView } from './parity-actions';
@@ -60,7 +60,7 @@ export default async function PricingPage({
   let anchorSaved = false;
   let parity: { ok: boolean; error?: string; windows?: unknown[]; summary?: unknown; meta?: unknown } = { ok: false, error: 'not loaded' };
   let competitors: { ok: boolean; error?: string; rows?: unknown[] } = { ok: false, error: 'not loaded' };
-  let market: { ok: boolean; error?: string; windows?: unknown[] } = { ok: false, error: 'not loaded' };
+  let market: { ok: boolean; error?: string; rows?: unknown[]; summary?: unknown } = { ok: false, error: 'not loaded' };
   let board: { ok: boolean; error?: string; board?: unknown } = { ok: false, error: 'not loaded' };
   let anchorPeriods: AnchoredPeriodInput[] = [];
   let tierMultipliers: TierMultipliers = DEFAULT_TIER_MULTIPLIERS;
@@ -348,7 +348,7 @@ export default async function PricingPage({
           */}
           <TabsContent value="market" className="space-y-6">
             {market.ok ? (
-              <MarketPanel windows={market.windows as MarketWindow[]} />
+              <MarketPanel rows={market.rows as MarketRow[]} summary={market.summary as MarketSummary} />
             ) : (
               <Card>
                 <CardHeader>
