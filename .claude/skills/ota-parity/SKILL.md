@@ -283,6 +283,13 @@ not.
 
 ## 4. Capturing the OTA side (Chrome) — the driven loop
 
+> 🔗 **The mechanics of this loop now live in `docs/ota-capture-protocol.md`**, which
+> `competitive-position` follows too. Read it first: it carries the readiness predicate, the
+> stash-then-parse-once rule, the never-slice rule, the five traps that each produced a stored wrong
+> number, and the pacing. What stays below is what is specific to OUR OWN listings — the parity
+> economics, the standing discounts, the min-stay escalation. Where the two overlap, the protocol doc
+> is the one to change; a rule kept in two places is a rule that drifts.
+
 This used to be "open each page, read the number, retype it into a CLI", about a hundred times. That
 is why a full run costs an afternoon and has happened three times. The loop below is the same work
 with the hand-typing removed; the reading is still yours, because only `javascript_tool` reaches these

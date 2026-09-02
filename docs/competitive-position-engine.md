@@ -2226,3 +2226,78 @@ those two himself.
 
 **Phase 1's gate is met.** The comparable set is curated, verified, photographed and complete, and the
 admin card has every field it was specified with: name, city, picture, link.
+
+---
+
+## 27. The three missing pieces, built (2026-09-02)
+
+An audit before this section found the data and the logic solid, and the parts needed to USE it
+without an agent re-deriving the method absent: no skill, no codified search capture, no absorption.
+
+### 27.1 `searchResults.ts` + `comp-search.ts` — the instrument, codified
+
+The best capture we found existed only as JavaScript typed into a browser, and it took three wrong
+attempts to get right. It is now a module with 14 tests, carrying every mechanic that cost one of those
+attempts:
+
+- **Both price forms.** 11 of 25 live cards carry `Original price X. Current price Y.`; the other 14 a
+  bare `Price X lei`. A pair-only parser misses more than half.
+- **The virtualised list.** Off-screen cards leave the DOM — 25 at the top, **6** after scrolling. The
+  collector's own comment says collect-before-scrolling, because that is where it will be read.
+- **Split on the name anchor**, not the trailing `See availability`, which parsed 6 of 25.
+- **Whole-batch echo.** Every card states `2 nights, 2 adults, 2 children` beside its own price. If ONE
+  card disagrees the page is mid-update and the entire batch is refused — nothing partially banked.
+- **Matching by SLUG, never by name**: `Casa Drumetului` lives at `vila-drumetului-comarnic`.
+- **Absences reported.** A curated listing the search omits is a finding (§24.2), never a blank.
+
+`comp-search.ts` prints the URL and the collector, then turns the collected cards into rows for the one
+write path — including `unavailable` rows for the absences, with the reason.
+
+### 27.2 `docs/ota-capture-protocol.md` — one description of the loop
+
+The browser loop lived inside `ota-parity/SKILL.md` and would have been copied into the new skill, so
+the two would have drifted — and a drifted capture loop fails silently with plausible numbers. It is
+now one document both skills point at, carrying the five traps that each produced a stored wrong
+number, the never-slice rule, the pacing, and the read-back rule.
+
+`ota-parity` §4 now defers to it and keeps only what is specific to our own listings.
+
+### 27.3 `absorption.ts` — the half that changes a decision
+
+Two readings become an answer. Almost every one of its 17 tests pins a REFUSAL to over-claim:
+
+- Only a **transition** — priced, then not — is evidence something sold, always with both dates and
+  the last price.
+- A single `not-sellable` reading is **a state, never an event**.
+- A **refusal or an error says nothing about demand** — it is about the probe.
+- A **park** sells out only when every unit goes: a stronger, rarer signal, reported apart and never
+  tallied beside single houses.
+- **No percentage sold, ever.**
+
+Wired into `comp-report`, which now reads the full append-only history rather than the newest row per
+cell — the first output in this system that the append-only store actually exists for.
+
+### 27.4 The skill
+
+`.claude/skills/competitive-position/` — the run in order, the rules the reading may not break, and
+one instruction it repeats because it is the one an agent will otherwise skip: **never add to or
+retire from the set on your own.** The search page produces candidates; the owner disposes.
+
+### 27.5 What this does and does not buy
+
+A run is now: *"where do I stand on 24-28 October?"* → the skill loads, drives the browser for a few
+minutes, records through the one write path, and prints the board.
+
+**It is still not unattended, and cannot be.** The capture needs the owner's signed-in browser driven
+by an agent — there is no API, and the Genius session is his. The honest ceiling is a triggered run,
+not a cron job. What the skill changes is that the run is repeatable and self-correcting instead of
+being re-derived, with the same traps rediscovered, every time.
+
+### 27.6 Still not built, and deliberately
+
+- **The position never reaches the admin screen.** The tab shows the comparable set; `comp-report` is
+  CLI. That is Phase 5.
+- **No situation-pack `market` section**, so the analyst still cannot route "that is demand, not
+  price".
+- **No run shapes or budget allocation.** §5's arithmetic is obsolete anyway now that one load covers a
+  field; it should be rewritten against the search instrument rather than patched.

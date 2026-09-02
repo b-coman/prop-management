@@ -11,10 +11,11 @@
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
-import { latestByCell } from '@/services/growth/parityObservations';
+import { latestByCell, loadObservations } from '@/services/growth/parityObservations';
 import { getCompetitorSet } from '@/services/competitorSetService';
-import { hostsParty, largestUnit } from '@/lib/competitive/set';
+import { hostsParty, largestUnit, unitCount } from '@/lib/competitive/set';
 import { buildPosition, type CompetitorQuote } from '@/lib/competitive/position';
+import { readAbsorption, summariseField, type SellReading, type SellState } from '@/lib/competitive/absorption';
 import { partiesFor, partyForGuests, partyLabel } from '@/lib/parity/party';
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 
@@ -39,6 +40,9 @@ const money = (n: number) => Math.round(n).toLocaleString('en-US');
   const db = await getAdminDb();
   const selfAll = await latestByCell(SLUG, { kind: 'self' });
   const compAll = await latestByCell(SLUG, { kind: 'competitor' });
+  // The FULL history, not just the newest per cell: absorption is a comparison between readings, so
+  // it is the one part of this report that the append-only store exists for.
+  const compHistory = await loadObservations(SLUG, { kind: 'competitor' });
   const set = await getCompetitorSet(SLUG);
   const propDoc = await db.collection('properties').doc(SLUG).get();
   const prop = propDoc.data() as { channelPricing?: unknown; rating?: number; reviewCount?: number } | undefined;
@@ -119,6 +123,40 @@ const money = (n: number) => Math.round(n).toLocaleString('en-US');
 
     for (const f of pos.flags) console.log(`\n  ! ${f}`);
     for (const n of pos.notes) console.log(`\n  · ${n}`);
+  }
+
+  // ---- absorption: who stopped being on sale between readings ----
+  const asSellState = (s: string): SellState =>
+    s === 'captured' ? 'priced' : s === 'unavailable' ? 'not-sellable' : s === 'refused' ? 'refused' : 'error';
+  const rows = set.active
+    .filter((l) => l.channel === 'booking.com' || l.channel === 'airbnb')
+    .map((l) => {
+      const readings: SellReading[] = compHistory
+        .filter((o) => match(o) && o.subject?.kind === 'competitor' && o.subject.listingId === l.listingId)
+        .map((o) => ({ at: o.capturedAt, state: asSellState(o.status), price: o.guestTotal ?? null, reason: o.reason }));
+      return { listingId: l.listingId, displayName: l.displayName,
+               absorption: readAbsorption({ readings, multiUnit: unitCount(l) > 1, now }) };
+    })
+    .filter((r) => r.absorption.readings > 0);
+
+  console.log(`\nABSORPTION — is this window selling at all?`);
+  const withTwo = rows.filter((r) => r.absorption.readings >= 2);
+  if (!withTwo.length) {
+    console.log(`  Not yet. ${rows.length} listing(s) have one reading each, so nothing can be compared.`);
+    console.log(`  Absorption needs a SECOND reading of this window, separated in time — it is the only`);
+    console.log(`  output no amount of building substitutes for.`);
+  } else {
+    const f = summariseField(rows);
+    console.log(`  ${f.summary}`);
+    for (const w of f.wentOffSale) {
+      const name = rows.find((r) => r.listingId === w.listingId)!.displayName;
+      console.log(`    ${name} — last priced ${Math.round(w.lastPrice ?? 0)} on ${w.between[0].slice(0, 10)}, gone by ${w.between[1].slice(0, 10)}`);
+    }
+    for (const p of f.parksSoldOut) {
+      const name = rows.find((r) => r.listingId === p.listingId)!.displayName;
+      console.log(`    ${name} — EVERY unit gone between ${p.between[0].slice(0, 10)} and ${p.between[1].slice(0, 10)} (a park; reported apart)`);
+    }
+    if (f.tooEarly) console.log(`    ${f.tooEarly} listing(s) still on one reading — their clock has not started.`);
   }
 
   console.log(`\n${'='.repeat(78)}`);
