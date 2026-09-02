@@ -2525,3 +2525,102 @@ once, in passing, and then encoded as though it were exact.** What caught it was
 market disagreeing with it in public: Booking selling the property to a party the set said it could
 not host. When an instrument and the market disagree, the instrument is the thing to re-examine —
 and the fix belongs with the owner, because substitutability is his judgement, not a measurement.
+
+---
+
+## 31. Airbnb has a search page. It never did not. (owner, 2026-09-02)
+
+Asked what was next, the reply was a recommendation built on a false premise: *Booking costs 1 load
+per window, Airbnb costs 7, so ration Airbnb.* The owner answered with a URL — an Airbnb search for
+Comarnic, 24-28 Oct, 2 adults and 2 children.
+
+The protocol had said **"Airbnb (no equivalent)"** since it was written. Nobody had tested it.
+
+### 31.1 What the card actually carries
+
+Everything Booking's does, and the echo in a better place:
+
+- **A stay TOTAL**, struck-through and discounted: `L 2,595 RON   L 2,369 RON total`.
+- **The room id**, in the card's own `/rooms/<id>` link — the join key, never the name.
+- **The echo in that same href**: `check_in`, `check_out`, `adults`, `children`. Booking states its
+  echo in card text; Airbnb states it in the link, which survives a card still rendering its text.
+- Rating, review count, bedrooms, beds, and a **candidate feed** — 30 of the 36 cards over two pages
+  were not in the curated set.
+
+**It agrees with the detail probes.** Our own card read **2,369** against a stored self observation of
+2,369. AVA Chalet 4,684 = 4,684. Peaceful Forest Haven 4,594 = 4,594. Panoramic View Cabin 3,520 =
+3,520. Two moved slightly (MSC 2,426 vs 2,438; Villa The Frame 5,644 vs 5,705) — same party, a day
+apart, so those are price movements rather than instrument error.
+
+### 31.2 The difference that matters: an absence
+
+A Booking search returns the town in one page, so a missing curated property has been **excluded**,
+and `comp-search.ts` records that as `unavailable` with a reason. Airbnb paginates **18 at a time over
+~15 pages** of a much wider radius, so "missing" and "ranked below where we stopped" are the same
+shape from the page.
+
+The owner pushed back on the first draft of this, and was right to:
+
+> *"the absence from the first 2-3 pages on a Comarnic search could be the total absence which means
+> they are booked or they don't have availability for the requested party"*
+
+The evidence supports him. All three absentees on the first run had a real cause:
+
+| absent | why |
+|---|---|
+| MSC Forest Retreat | sleeps 3, the party was 4 — Airbnb's guest filter excluded it. At 2a+1c it reappeared. |
+| Ceas cu Cuc | probed: *"Those dates are not available"* |
+| Adorable 2 Bedroom Tiny Home | probed at both parties: *"Those dates are not available"*, and it sleeps 6, so the party was not the reason |
+
+Three for three. But "usually" is not "always", and this system has twice recorded a plausible value
+nobody measured (§20, §29.2). So `matchAirbnbToSet` returns absentees as a **probe list**, and one
+detail load each turns a strong hint into a read. On 24-28 Oct that was **1 search + 2 probes instead
+of 7 probes**, and every stored row came from a page that was actually read.
+
+### 31.3 The parse happens IN the page, using the compiled parser
+
+A page of Airbnb cards is ~16KB of raw text; two pages carried **608 non-breaking spaces**. Getting
+that out through a tool that truncates near 1KB and blocks bulk egress means dozens of hand-copied
+slices and a hand-patched whitespace repair (§29.4). Not sustainable across 69 windows.
+
+So `parserSnippet()` ships the **compiled source of `parseAirbnbCard`** into the page. This is the
+opposite of the two-implementation trap the protocol warns about: there is exactly one implementation,
+the tested one, executing in both places. The payload dropped from **32,442 chars with 608 NBSPs to
+9,561 chars with none**, and the reassembly matched the page's hash on the first attempt.
+
+Two shims stand in for what a bundle would provide. The namespace one is toolchain-specific —
+`import_searchResults.norm` under tsx, `_searchResults.norm` under jest — so the reference is
+**rewritten away** rather than shimmed under whichever name today's compiler picked. A test evaluates
+the snippet and asserts it agrees with the module on four fixtures, which cannot catch drift (there is
+none) but does catch the shims going stale.
+
+### 31.4 What the window says now, and the first real absorption signal
+
+Airbnb is fully read: **5 of 7 quoted, 2 probed unavailable, you cheapest at 2,369** against a set of
+2,426-5,644. Both channels are now complete for 24-28 Oct.
+
+And the first genuine absorption event in the system's history:
+
+> *Adorable 2 Bedroom Tiny Home — last priced 2,702 on 2026-09-01, gone by 2026-09-02.*
+
+No refusal contaminates that series (§29.3), and the disappearance was confirmed on the listing's own
+page rather than inferred from a search absence. Something sold.
+
+**Which prompted one more correction.** `summariseField` answered that single transition with *"This
+window IS selling — so an empty week here is not a demand problem"* — a sentence that reads as an
+instruction to cut a price, drawn from n=1. One sale is a booking, not a trend. The headline is now
+scaled to the evidence: at one, *"enough to say the window is not dead, not enough to say our price is
+why it is empty for us. A third reading would tell you which."* The strong sentence needs two.
+
+### 31.5 The cost model, corrected
+
+The recommendation in §30's wake was wrong by a factor of seven on the Airbnb side:
+
+| | per window × party | 69 windows |
+|---|---|---|
+| Booking | 1 load | a few sessions |
+| Airbnb | 2-3 loads + one probe per absentee | comparable, not prohibitive |
+
+Airbnb no longer has to be rationed. The lesson is older than the fix: **a line in a doc is not a
+measurement.** "No equivalent" survived because it was never worth an experiment to anyone — until
+the person who uses the tool went and looked.

@@ -28,14 +28,19 @@ storing a wrong number.
 | # | | |
 |---|---|---|
 | 1 | `comp-next.ts --in --out --guests` | Who competes for this party, with URLs. Refuses a window we have not quoted ourselves. |
-| 2 | `comp-search.ts --in --out --party` | The search URL + collector. **Prefer this** — one load, whole field. |
+| 2 | `comp-search.ts --in --out --party` | Booking: the search URL + collector. **Prefer this** — one load, whole field. |
+| 2b | `comp-search-airbnb.ts --in --out --party` | Airbnb: same idea, 18 per page. Absentees come back as a probe list, never as `unavailable` (its search is 15 pages deep, so "missing" and "ranked low" look identical). |
 | 3 | *Chrome: load → collect → save cards.json* | The only step that is not a command. Protocol doc. |
 | 4 | `comp-search.ts ... --cards cards.json` | Verifies every card's echo, matches by slug, writes rows. |
 | 5 | `parity-capture.ts --rows … --dry-run` then for real | The one write path. |
 | 6 | `comp-report.ts --in --out --guests` | The reading. Render it; do not rebuild it. |
 
-Per-listing probes (`comp-next`) are the fallback for Airbnb, for listings outside the searched
-radius, and for capacity verification (`comp-verify-next` / `comp-verify-record`).
+Per-listing probes (`comp-next`) are the fallback for Airbnb absentees, for listings outside the
+searched radius, and for capacity verification (`comp-verify-next` / `comp-verify-record`).
+
+The Airbnb run parses IN THE PAGE, using the compiled source of `parseAirbnbCard` shipped there by
+`parserSnippet()` — one implementation, not two. It also cuts the payload by 70% and removes every
+non-breaking space, which is what makes the hand-transcription back out survivable.
 
 ---
 

@@ -39,8 +39,21 @@ For Booking, one search returns the whole town: ~25 properties, one load, identi
 each card echoes the search next to its own price. Use `scripts/comp-search.ts` — it prints the URL
 and the collector, then turns the result into capture rows.
 
-Detail pages remain necessary for: Airbnb (no equivalent), listings outside the searched radius, and
-capacity verification.
+**Airbnb has a search page too** — `scripts/comp-search-airbnb.ts`. That line read "no equivalent"
+for months and was never tested; the owner sent a search URL on 2026-09-02 and it carries a stay
+TOTAL on every card, the room id in each card's link, and the echo (`check_in`, `check_out`,
+`adults`, `children`) in that same href. Our own card read 2,369 against a stored detail probe of
+2,369, and three comparables matched to the leu.
+
+**The two searches differ in what an ABSENCE means, and that difference is the whole design.** Booking
+returns the town in one page, so a curated property that is missing has been excluded and that is a
+finding it records. Airbnb paginates 18 at a time over ~15 pages of a much wider radius, so "missing"
+and "ranked low" are the same shape — it hands absentees back as a PROBE LIST instead. Absence is
+usually real (all three on the first run were: one sleeps 3 against a party of 4, one was already
+known unavailable, one had genuinely gone off sale), but usually is not always and one load settles it.
+
+Detail pages remain necessary for: absentees from an Airbnb search, listings outside the searched
+radius, and capacity verification.
 
 **Three mechanics that will bite you on the search page:**
 

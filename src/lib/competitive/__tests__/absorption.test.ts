@@ -118,15 +118,28 @@ describe('the field summary never states a percentage', () => {
   const row = (id: string, readings: SellReading[], multiUnit = false) =>
     ({ listingId: id, absorption: readAbsorption({ readings, multiUnit, now: NOW }) });
 
-  it('says the market IS selling when houses went off sale', () => {
+  it('says the market IS selling when SEVERAL houses went off sale', () => {
+    const f = summariseField([
+      row('a', [r('2026-09-10T10:00:00Z', 'priced', 2100), r('2026-09-25T10:00:00Z', 'not-sellable')]),
+      row('b', [r('2026-09-10T10:00:00Z', 'priced', 2200), r('2026-09-25T10:00:00Z', 'not-sellable')]),
+      row('c', [r('2026-09-10T10:00:00Z', 'priced', 2500), r('2026-09-25T10:00:00Z', 'priced', 2500)]),
+    ]);
+    expect(f.wentOffSale.map((w) => w.listingId)).toEqual(['a', 'b']);
+    expect(f.stillOnSale).toBe(1);
+    expect(f.summary).toMatch(/IS selling/);
+    expect(f.summary).not.toMatch(/%/);
+  });
+
+  it('will not turn ONE sale into "the market is selling, so it is your price"', () => {
+    // n=1 is a booking, not a trend, and the strong sentence reads as an instruction to cut.
     const f = summariseField([
       row('a', [r('2026-09-10T10:00:00Z', 'priced', 2100), r('2026-09-25T10:00:00Z', 'not-sellable')]),
       row('b', [r('2026-09-10T10:00:00Z', 'priced', 2500), r('2026-09-25T10:00:00Z', 'priced', 2500)]),
     ]);
     expect(f.wentOffSale.map((w) => w.listingId)).toEqual(['a']);
-    expect(f.stillOnSale).toBe(1);
-    expect(f.summary).toMatch(/IS selling/);
-    expect(f.summary).not.toMatch(/%/);
+    expect(f.summary).toMatch(/one booking, not a trend/);
+    expect(f.summary).not.toMatch(/IS selling/);
+    expect(f.summary).not.toMatch(/not a demand problem/);
   });
 
   it('says the market is NOT selling when nothing moved — the "do not discount" case', () => {

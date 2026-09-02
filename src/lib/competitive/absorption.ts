@@ -199,12 +199,23 @@ export function summariseField(
   const noSignal = rows.filter((r) => r.absorption.verdict === 'no-signal' || r.absorption.verdict === 'never-priced').length;
 
   const moved = wentOffSale.length + parksSoldOut.length;
+  const parks = parksSoldOut.length
+    ? `, and ${parksSoldOut.length} multi-unit propert${parksSoldOut.length === 1 ? 'y' : 'ies'} sold out entirely`
+    : '';
+
+  // The conclusion is scaled to the evidence. One transition is one booking: enough to know the
+  // window is not dead, nowhere near enough to conclude that our own emptiness is a price problem.
+  // The earlier version jumped straight from a single sale to "an empty week here is not a demand
+  // problem" — which is an instruction to cut a price, drawn from n=1.
   const summary = moved === 0
     ? `Nothing in the set went off sale between readings; ${stillOnSale} still on sale. If this window ` +
       `is empty for us, the market is not selling it either.`
-    : `${wentOffSale.length} of the set went off sale between readings` +
-      (parksSoldOut.length ? `, and ${parksSoldOut.length} multi-unit propert${parksSoldOut.length === 1 ? 'y' : 'ies'} sold out entirely` : '') +
-      `; ${stillOnSale} still on sale. This window IS selling — so an empty week here is not a demand problem.`;
+    : moved === 1
+    ? `One property went off sale between readings${parks}; ${stillOnSale} still on sale. That is one ` +
+      `booking, not a trend: enough to say the window is not dead, not enough to say our price is why ` +
+      `it is empty for us. A third reading would tell you which.`
+    : `${wentOffSale.length} of the set went off sale between readings${parks}; ${stillOnSale} still ` +
+      `on sale. This window IS selling — so an empty week here is not a demand problem.`;
 
   return { wentOffSale, parksSoldOut, stillOnSale, tooEarly, noSignal, summary };
 }
