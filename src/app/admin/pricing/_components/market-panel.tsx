@@ -137,7 +137,7 @@ function OnSale({ quoted, asked, unread }: { quoted: number; asked: number; unre
       <span className="text-xs tabular-nums">
         {/* "0 of 0 on sale" is not a reading, it is the absence of one. Say so. */}
         {asked === 0
-          ? <span className="text-amber-700">none read yet{unread > 0 && ` — ${unread} to probe`}</span>
+          ? <span className="text-amber-700">none read &middot; {unread} to probe</span>
           : <>
               {quoted} of {asked}<span className="text-muted-foreground"> on sale</span>
               {unread > 0 && <span className="text-amber-700"> +{unread}?</span>}
@@ -259,9 +259,9 @@ function Row({ r }: { r: MarketRow }) {
             {r.gapPct === null ? '—' : `${r.gapPct > 0 ? '+' : ''}${Math.round(r.gapPct)}%`}
           </span>
 
-          {/* w-52, not w-44: adding the unread "+4?" pushed this to 200px in a 176px box, and it
-              clipped in every expanded contest. Measured, not seen — screenshots time out here. */}
-          <span className="w-52 shrink-0"><OnSale quoted={r.quoted} asked={asked} unread={r.unread} /></span>
+          {/* Widened twice by measurement, never by eye: w-44 clipped the "+4?" unread marker, and
+              w-52 clipped "none read". Screenshots time out here, so this is read off the live DOM. */}
+          <span className="w-56 shrink-0"><OnSale quoted={r.quoted} asked={asked} unread={r.unread} /></span>
 
           <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${tone.chip}`}>{r.label}</span>
 
