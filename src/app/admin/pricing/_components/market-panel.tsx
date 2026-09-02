@@ -65,6 +65,15 @@ export interface MarketRow {
   } | null;
 }
 
+export interface PeriodGroupView {
+  period: { id: string; name: string; startDate: string; endDate: string } | null;
+  windows: Array<{ key: string; checkIn: string; checkOut: string; nights: number;
+                   nightsInside: number; rows: MarketRow[] }>;
+  unsoldMoney: number;
+  openNights: number;
+  alsoSampledBy: Array<{ key: string; checkIn: string; checkOut: string; nightsInside: number }>;
+}
+
 export interface MarketSummary {
   windows: number; channelReadings: number; act: number; watch: number; headline: string;
 }
@@ -244,7 +253,103 @@ function Row({ r }: { r: MarketRow }) {
   );
 }
 
-export function MarketPanel({ rows, summary }: { rows: MarketRow[]; summary: MarketSummary }) {
+/**
+ * One period: his lever, its dates, what has been read, and the money once.
+ *
+ * A period deliberately carries NO verdict. Rolling contests up across channels is one step from
+ * pooling them (C8), so the colour stays down at the contest where it was measured, and the heading
+ * reports counts and money only.
+ */
+function Period({ g }: { g: PeriodGroupView }) {
+  const p = g.period;
+  const contests = g.windows.reduce((n, w) => n + w.rows.length, 0);
+  const loud = g.windows.flatMap((w) => w.rows).filter((r) => r.attention === 'act' || r.attention === 'watch').length;
+  return (
+    <section id={p ? `p-${p.id}` : undefined} className="border-t first:border-t-0">
+      <header className="flex flex-wrap items-baseline gap-x-3 bg-muted/40 px-3 py-1.5">
+        <h3 className="text-sm font-semibold uppercase tracking-wide">{p ? p.name : 'Outside your periods'}</h3>
+        {p && <span className="text-xs text-muted-foreground">{day(p.startDate)} &ndash; {day(p.endDate)}</span>}
+        <span className="text-xs text-muted-foreground">
+          {g.windows.length
+            ? `${g.windows.length} window${g.windows.length === 1 ? '' : 's'} read · ${contests} contest${contests === 1 ? '' : 's'}`
+            : 'nothing read here'}
+        </span>
+        {g.unsoldMoney > 0 && (
+          <span className="ml-auto text-xs tabular-nums text-muted-foreground">
+            {money(g.unsoldMoney)} unsold over {g.openNights} night{g.openNights === 1 ? '' : 's'}
+          </span>
+        )}
+      </header>
+
+      {g.windows.map((w) => (
+        <details key={w.key} id={`w-${w.key.replace(/\|/g, '_')}`} className="group border-t">
+          <summary className="cursor-pointer list-none px-3 py-2 hover:bg-muted/30">
+            <div className="flex flex-wrap items-baseline gap-x-3">
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
+              <span className="w-[10.5rem] shrink-0 text-sm">
+                {day(w.checkIn)} &ndash; {day(w.checkOut)}
+                <span className="ml-1 text-xs text-muted-foreground">{w.nights}n</span>
+              </span>
+              {w.nightsInside < w.nights && (
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  ({w.nightsInside} of {w.nights} nights here)
+                </span>
+              )}
+              <span className="flex flex-wrap gap-1">
+                {w.rows.map((r) => <Cell key={`${r.channel}|${r.partyLabel}`} r={r} />)}
+              </span>
+              {loud > 0 && w.rows.some((r) => r.attention === 'act' || r.attention === 'watch') && (
+                <span className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground">
+                  {money(w.rows[0].ourDirect ?? 0)} direct
+                </span>
+              )}
+            </div>
+          </summary>
+          <div className="divide-y border-t bg-muted/10">
+            {w.rows.map((r) => <Row key={`${r.channel}|${r.partyLabel}`} r={r} />)}
+          </div>
+        </details>
+      ))}
+
+      {/* Evidence is never moved in silence: a neighbour that samples these nights says so. */}
+      {g.alsoSampledBy.length > 0 && (
+        <p className="px-3 py-1.5 text-xs text-muted-foreground">
+          Also sampled by {g.alsoSampledBy.map((a) => `${day(a.checkIn)}–${day(a.checkOut)} (${a.nightsInside}n here)`).join(', ')},
+          listed under the neighbouring period.
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** One contest, as a compact tile: the gap, the on-sale fraction, tinted by the verdict. */
+function Cell({ r }: { r: MarketRow }) {
+  const tone = TONE[r.attention];
+  const loud = tone.loud;
+  const asked = r.quoted + r.nothingLeft;
+  if (r.attention === 'thin') {
+    return (
+      <span title={`${r.channelLabel} · ${r.partyLabel} — ${r.why}`}
+        className="inline-flex h-6 w-[5.5rem] items-center justify-center rounded border border-dashed border-slate-300 text-[11px] text-slate-400">
+        {r.partyLabel} ·
+      </span>
+    );
+  }
+  return (
+    <span title={`${r.channelLabel} · ${r.partyLabel} — ${r.label}. ${r.why}`}
+      className={`inline-flex h-6 w-[5.5rem] items-center justify-center gap-1 rounded px-1 text-[11px] tabular-nums ${
+        loud ? `${tone.chip} font-semibold` : 'bg-slate-50 text-slate-500 border border-slate-200'}`}>
+      <span>{r.gapPct === null ? '—' : `${r.gapPct > 0 ? '+' : ''}${Math.round(r.gapPct)}%`}</span>
+      <span className={loud ? 'opacity-90' : 'text-slate-400'}>
+        {r.quoted}/{asked}{r.unread > 0 && '+?'}
+      </span>
+    </span>
+  );
+}
+
+export function MarketPanel({ rows, grouped, summary }: {
+  rows: MarketRow[]; grouped?: PeriodGroupView[]; summary: MarketSummary;
+}) {
   if (!rows.length) {
     return (
       <Card>
@@ -272,18 +377,33 @@ export function MarketPanel({ rows, summary }: { rows: MarketRow[]; summary: Mar
           The mental model, in one line. Without it the board reads as a table of prices, which is the
           thing that read as noise — and the whole point is that neither axis means much alone.
         */}
-        <CardDescription>
-          Two things decide a window: <strong>where your price sits</strong>, and{' '}
-          <strong>how much of the field is still on sale</strong>. Being dearest of a field that has
-          sold out is not the same as being overpriced &mdash; it is nearly the opposite. One contest
-          per channel, never pooled; competitor prices are context for your decision and never change
-          a rate.
-        </CardDescription>
+        {/* He has read this. It stays available and silent — he asked to understand fast. */}
+        <details className="text-xs text-muted-foreground">
+          <summary className="cursor-pointer select-none">How to read this</summary>
+          <p className="mt-1 max-w-3xl">
+            Two things decide a window: <strong>where your price sits</strong>, and{' '}
+            <strong>how much of the field is still on sale</strong>. Being dearest of a field that has
+            sold out is not the same as being overpriced &mdash; it is nearly the opposite. One contest
+            per channel, never pooled. Grouped by your own pricing periods, because a period is what
+            you change; a window is only a probe into one. Competitor prices are context for your
+            decision and never change a rate.
+          </p>
+        </details>
       </CardHeader>
       <CardContent className="px-0 pb-2">
-        <div className="divide-y">
-          {rows.map((r) => <Row key={`${r.key}|${r.channel}`} r={r} />)}
-        </div>
+        {grouped?.length
+          ? <div>{grouped.map((g) => <Period key={g.period?.id ?? 'none'} g={g} />)}</div>
+          : <div className="divide-y">{rows.map((r) => <Row key={`${r.key}|${r.channel}`} r={r} />)}</div>}
+        {(() => {
+          const thin = rows.filter((r) => r.attention === 'thin');
+          const airbnb = thin.filter((r) => r.channel === 'airbnb').length;
+          return thin.length ? (
+            <p className="px-3 pt-3 text-xs text-muted-foreground">
+              {thin.length} contest{thin.length === 1 ? '' : 's'} too thin to rank (shown as ·)
+              {airbnb > 0 && `, ${airbnb} of them Airbnb`} — that part of the board is unread, not calm.
+            </p>
+          ) : null;
+        })()}
       </CardContent>
     </Card>
   );

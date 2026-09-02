@@ -246,6 +246,19 @@ describe('the three defects Fable found', () => {
     expect(board.map((r) => r.key)).toEqual(['act', 'quiet', 'thin']);
   });
 
+  it('counts DATE-windows, not window-party keys', () => {
+    // `key` is checkIn|checkOut|guests, so three parties on one stay were counted as three windows —
+    // the live board said "29 windows read" for thirteen date ranges.
+    const cheapTight = { ourPrice: 2000, fieldMedian: 4000, quoted: 3, nothingLeft: 10 };
+    const s = summariseBoard(buildBoard([
+      row({ key: '2026-12-23|2026-12-27|3', checkIn: '2026-12-23', checkOut: '2026-12-27', ...cheapTight }),
+      row({ key: '2026-12-23|2026-12-27|6', checkIn: '2026-12-23', checkOut: '2026-12-27', ...cheapTight }),
+      row({ key: '2026-12-23|2026-12-27|4', checkIn: '2026-12-23', checkOut: '2026-12-27', ...cheapTight }),
+    ]));
+    expect(s.windows).toBe(1);
+    expect(s.act).toBe(1);
+  });
+
   it('counts WINDOWS in the headline, not contests', () => {
     // The same window firing at two party sizes is one decision, not two. The old headline said
     // "10 where you are cheap" for what was seven windows.
@@ -253,7 +266,7 @@ describe('the three defects Fable found', () => {
     const s = summariseBoard(buildBoard([
       row({ key: 'w1', channel: 'booking.com', ...cheapTight }),
       row({ key: 'w1', channel: 'airbnb', ...cheapTight }),   // same window, second contest
-      row({ key: 'w2', channel: 'booking.com', ...cheapTight }),
+      row({ key: 'w2', channel: 'booking.com', checkIn: '2026-11-13', checkOut: '2026-11-20', ...cheapTight }),
     ]));
     expect(s.act).toBe(2);                 // two windows, not three rows
     expect(s.channelReadings).toBe(3);

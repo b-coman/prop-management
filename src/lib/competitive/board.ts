@@ -306,9 +306,12 @@ export interface BoardSummary {
  * one.
  */
 export function summariseBoard(rows: BoardRow[]): BoardSummary {
+  // A DATE-window, not `key` — `key` carries the party, so counting it said "29 windows" for the
+  // thirteen date ranges actually read. Three parties on one stay is one set of dates to decide about.
+  const dates = (r: BoardRow) => `${r.checkIn}|${r.checkOut}`;
   const windowsOf = (level: Attention) =>
-    new Set(rows.filter((r) => r.attention === level).map((r) => r.key)).size;
-  const windows = new Set(rows.map((r) => r.key)).size;
+    new Set(rows.filter((r) => r.attention === level).map(dates)).size;
+  const windows = new Set(rows.map(dates)).size;
   const act = windowsOf('act');
   const watch = windowsOf('watch');
 

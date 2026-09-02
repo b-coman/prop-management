@@ -20,6 +20,8 @@ import { buildPosition, type CompetitorQuote } from '@/lib/competitive/position'
 import { readAbsorption, summariseField, type SellReading, type SellState } from '@/lib/competitive/absorption';
 import { hostsParty, largestUnit, unitCount, verificationAge } from '@/lib/competitive/set';
 import { buildBoard, summariseBoard, type BoardRowInput } from '@/lib/competitive/board';
+import { groupByPeriod, nightsOf as periodNights, type PricingPeriod } from '@/lib/competitive/periods';
+import { getPeriods } from '@/services/periodService';
 import { partiesFor, partyForGuests, partyLabel } from '@/lib/parity/party';
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 
@@ -112,6 +114,7 @@ export async function fetchMarketPositions(propertyId: string): Promise<{
   ok: boolean;
   error?: string;
   rows?: unknown[];
+  grouped?: unknown[];
   summary?: unknown;
 }> {
   try {
@@ -270,7 +273,46 @@ export async function fetchMarketPositions(propertyId: string): Promise<{
 
     const board = buildBoard(inputs);
     const rows = board.map((r) => ({ ...r, detail: details.get(`${r.key}|${r.channel}`) ?? null }));
-    return { ok: true, rows, summary: summariseBoard(board) };
+
+    // Group under HIS pricing periods — the thing he actually changes. A window is a probe; four
+    // December probes are the same nights, and money summed per window counted them four times.
+    const horizonEnd = windows.reduce((m, w) => (w.checkOut > m ? w.checkOut : m), today);
+    const periods: PricingPeriod[] = (await getPeriods(propertyId))
+      .filter((p) => p.status === 'active' && p.endDate >= today && p.startDate <= horizonEnd)
+      .map((p) => ({ id: p.id, name: p.name, startDate: p.startDate, endDate: p.endDate,
+                     weekdayRate: null, weekendRate: null }));
+
+    // Per-night rate and sold flag, read from the same docs the year board uses.
+    const rateByNight = new Map<string, number>();
+    const soldNights = new Set<string>();
+    const allMonths = new Set<string>(months);
+    for (const p of periods) for (const d of periodNights(p.startDate, p.endDate)) allMonths.add(d.slice(0, 7));
+    await Promise.all([...allMonths].map(async (ym) => {
+      const [cal, avail] = await Promise.all([
+        db.collection('priceCalendars').doc(`${propertyId}_${ym}`).get(),
+        db.collection('availability').doc(`${propertyId}_${ym}`).get(),
+      ]);
+      const days = ((cal.data() ?? {}) as { days?: Record<string, { adjustedPrice?: number }> }).days ?? {};
+      const availMap = ((avail.data() ?? {}) as { available?: Record<string, boolean> }).available ?? {};
+      for (const [dn, d] of Object.entries(days)) {
+        const date = `${ym}-${dn.padStart(2, '0')}`;
+        if (typeof d.adjustedPrice === 'number') rateByNight.set(date, d.adjustedPrice);
+        if (availMap[String(Number(dn))] === false || availMap[dn] === false) soldNights.add(date);
+      }
+      for (const [dn, v] of Object.entries(availMap)) {
+        if (v === false) soldNights.add(`${ym}-${String(dn).padStart(2, '0')}`);
+      }
+    }));
+
+    const grouped = groupByPeriod({ rows: board, periods, soldNights, rateByNight }).map((g) => ({
+      ...g,
+      windows: g.windows.map((w) => ({
+        ...w,
+        rows: w.rows.map((r) => ({ ...r, detail: details.get(`${r.key}|${r.channel}`) ?? null })),
+      })),
+    }));
+
+    return { ok: true, rows, grouped, summary: summariseBoard(board) };
   } catch (e) {
     logger.error('Could not build the market board', { propertyId, error: (e as Error).message });
     return { ok: false, error: (e as Error).message };
