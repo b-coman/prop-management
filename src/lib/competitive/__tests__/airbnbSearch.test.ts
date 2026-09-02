@@ -92,13 +92,33 @@ describe('one card disagreeing refuses the whole page', () => {
     expect(batch.cards).toHaveLength(2);
   });
 
-  it('refuses the batch — not just the offending card — when one echoes another stay', () => {
-    const stale = parseAirbnbCard(raw({ roomId: '9', href: HREF().replace('2026-10-28', '2026-10-27') }));
-    const batch = verifyAirbnbBatch([parseAirbnbCard(raw()), stale], probe);
-    expect(batch.ok).toBe(false);
-    expect(batch.cards).toHaveLength(0);          // nothing banked, not even the good card
+  it('DROPS a card echoing other dates, and keeps the page — Airbnb mixes alternatives in', () => {
+    // Measured: a 24-29 Dec search returned AVA Chalet echoing 26-29 Dec at 3,630, beside two more
+    // echoing 24-28, among 36 correct cards. Banking it would have stored a 3-night price as a
+    // 5-night one; refusing all 39 would have thrown away a good page over Airbnb's own suggestions.
+    const alt = parseAirbnbCard(raw({ roomId: '9', href: HREF().replace('2026-10-28', '2026-10-27') }));
+    const batch = verifyAirbnbBatch([parseAirbnbCard(raw()), parseAirbnbCard(raw({ roomId: '2' })), alt], probe);
+    expect(batch.ok).toBe(true);
+    expect(batch.cards.map((c) => c.roomId)).toEqual(['43265214', '2']);   // the alternative is gone
     expect(batch.mismatched.map((m) => m.roomId)).toEqual(['9']);
-    expect(batch.problem).toMatch(/mid-update/);
+    expect(batch.problem).toMatch(/alternatives rather than the stay that was asked for/);
+  });
+
+  it('refuses when the mismatched outnumber the matched — that is another search, not a suggestion', () => {
+    const alt = (id: string) => parseAirbnbCard(raw({ roomId: id, href: HREF().replace('2026-10-28', '2026-10-27') }));
+    const batch = verifyAirbnbBatch([parseAirbnbCard(raw()), alt('8'), alt('9')], probe);
+    expect(batch.ok).toBe(false);
+    expect(batch.cards).toHaveLength(0);
+    expect(batch.problem).toMatch(/the render is about another search/);
+  });
+
+  it('a listing seen only on a dropped card is NOT present — it falls to the probe list', () => {
+    const setById = [{ ...listing('x', 'Only On An Alternative'), url: 'https://www.airbnb.com/rooms/9' }] as CompetitorListing[];
+    const alt = parseAirbnbCard(raw({ roomId: '9', href: HREF().replace('2026-10-28', '2026-10-27') }));
+    const batch = verifyAirbnbBatch([parseAirbnbCard(raw()), parseAirbnbCard(raw({ roomId: '2' })), alt], probe);
+    const field = matchAirbnbToSet(batch.cards, setById);
+    expect(field.curated).toHaveLength(0);
+    expect(field.toProbe.map((l) => l.displayName)).toEqual(['Only On An Alternative']);
   });
 
   it('refuses a page that rendered cards but no totals', () => {

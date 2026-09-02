@@ -135,12 +135,25 @@ export interface AirbnbBatch {
 }
 
 /**
- * Accept a page's cards only if EVERY card's own link echoes what was asked.
+ * Keep the cards whose own link echoes what was asked, and drop the rest by name.
  *
- * Same rule as the Booking batch and for the same reason: eighteen cards rendered together either all
- * describe the requested search or the render is mid-update, and a single disagreement means the page
- * is refused rather than partly banked. The cheapest fix is one more load; the alternative is a stale
- * price with a plausible number on it.
+ * **This does NOT work like the Booking batch, and the difference is a measured one.** Booking does
+ * not mix stays: a card echoing another search means the page is mid-update, so the whole batch is
+ * refused. Airbnb DOES mix them — it quietly seeds "alternative dates" into the same grid, visually
+ * identical to the rest, and only the card's own href gives it away. A 24-29 Dec search returned AVA
+ * Chalet echoing 26-29 Dec at 3,630, beside two more echoing 24-28. Banking that page would have
+ * stored a three-night price as a five-night one, which is a large error pointing the wrong way.
+ *
+ * So a mismatch here is not evidence the page is stale — it is evidence that CARD is about a
+ * different stay. Dropping the offenders and keeping the rest is the honest reading, and refusing all
+ * thirty-nine because Airbnb suggested three alternatives would be the kind of false alarm that gets
+ * a check switched off.
+ *
+ * Two things still refuse the page outright: nothing matching at all, and more mismatched than
+ * matched — either means the render is about a search we did not ask for.
+ *
+ * A curated listing seen ONLY on a dropped card is not present. It falls through to the probe list,
+ * which is where an unknown belongs.
  */
 export function verifyAirbnbBatch(cards: AirbnbCard[], probe: AirbnbProbe): AirbnbBatch {
   if (!cards.length) {
@@ -154,18 +167,27 @@ export function verifyAirbnbBatch(cards: AirbnbCard[], probe: AirbnbProbe): Airb
     || (c.echo.children !== null && c.echo.children !== probe.children))
     .map((c) => ({ roomId: c.roomId, echo: c.echo }));
 
-  if (mismatched.length) {
+  const kept = cards.filter((c) => !mismatched.some((m) => m.roomId === c.roomId));
+
+  if (!kept.length || mismatched.length > kept.length) {
     return {
       ok: false, cards: [], mismatched,
       problem: `${mismatched.length} of ${cards.length} cards echo a different search than was asked ` +
-               `(${probe.checkIn}→${probe.checkOut}, ${probe.adults}a+${probe.children}c) — the page ` +
-               `is mid-update. Re-load.`,
+               `(${probe.checkIn}→${probe.checkOut}, ${probe.adults}a+${probe.children}c) — that is ` +
+               `too many to be Airbnb's alternative-date suggestions, so the render is about another ` +
+               `search. Re-load.`,
     };
   }
-  if (!cards.some((c) => c.price !== null)) {
-    return { ok: false, cards: [], mismatched: [], problem: 'cards rendered but none carried a total' };
+  if (!kept.some((c) => c.price !== null)) {
+    return { ok: false, cards: [], mismatched, problem: 'cards rendered but none carried a total' };
   }
-  return { ok: true, cards, mismatched: [] };
+  return {
+    ok: true, cards: kept, mismatched,
+    problem: mismatched.length
+      ? `${mismatched.length} card(s) dropped — they echo other dates, which is Airbnb offering ` +
+        `alternatives rather than the stay that was asked for.`
+      : undefined,
+  };
 }
 
 /** The room id inside a stored Airbnb listing URL — the join key between a card and the set. */
