@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'crypto';
+import { getAppBaseUrl } from '@/lib/app-url';
 
 function getSecret(): string {
   const secret = process.env.REVIEW_TOKEN_SECRET;
@@ -34,6 +35,6 @@ export function validateUnsubscribeToken(email: string, token: string): boolean 
  */
 export function getUnsubscribeUrl(email: string): string {
   const token = generateUnsubscribeToken(email);
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+  const baseUrl = getAppBaseUrl();
   return `${baseUrl}/unsubscribe?email=${encodeURIComponent(email.toLowerCase().trim())}&token=${token}`;
 }

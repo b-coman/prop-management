@@ -2715,3 +2715,75 @@ One row asks for something. The two that the old screen would have screamed abou
 
 The bulk fill, now that the shape is known and worth capturing into — and Airbnb for the December
 windows, which is where the board is currently half-blind.
+
+---
+
+## 33. The 4a+2c capture, and the capacities that were floors (2026-09-02)
+
+### 33.1 Why this party, and not more windows
+
+The board's first reading judged New Year on **2a+1c**, and the three comparables still quoting on
+30 Dec – 2 Jan were:
+
+| survivor | sleeps | size |
+|---|---|---|
+| TETRA Plus 569 | 3 | 45 m², 1 bedroom |
+| Chalet Husky | 3 | 58 m², 1 bedroom |
+| Maramureș Nook | 5 | 200 m², 2 bedrooms |
+
+Ours is 145 m², three bedrooms, capped at 5 adults + 2 children. So "+117%, dearest" was measured
+against **two one-bedroom cabins under half its size** — the party where the house is most oversized
+for the field, and where the field is widest (15 of 15 Booking comparables could host 2a+1c).
+
+So the next capture was not more windows: it was **the same windows at 4a+2c**, the party the house is
+actually sized for. Four loads, all four echoing the probe, and our own listing appearing in each
+search at 6,242 / 5,469 / 7,382 / 3,954 — matching the stored self prices to the leu, four for four
+again.
+
+### 33.2 What it actually found
+
+Almost nothing quoted: **0 to 1 of 10** eligible comparables per window. But the reason was not
+scarcity. Booking had returned **Maramureș Nook and TETRA Plus 569, priced, for a 4-adults-plus-2-
+children search** — while the curated set recorded their capacity as **5 and 3**, so `hostsParty` was
+excluding them from the field as unable to host six.
+
+Booking's search filters by occupancy. If it sells a property to a party of six, that property takes
+six. The set was wrong.
+
+**The cause is a trap this project had already written down.** Protocol §5: *"`Max persons` is a LOWER
+BOUND that also grows with the search — the same page read 2 and then 4 for one unit."* The
+verification pass read each listing at whatever party its probe used and stored the answer as a
+maximum. Every capacity in the set is a floor wearing a ceiling's label — and the error runs in the
+flattering direction, because it shrinks the field and hides competitors.
+
+Eight of the fifteen Booking comparables are recorded under 6. Two are now proven wrong; the other six
+are unproven, not exonerated.
+
+### 33.3 The correction, and the rule that follows
+
+Both were raised to a floor of six from measurement, and read back with `units`, `heroPhotoUrl` and
+`substitutionBasis` intact. Field membership moved:
+
+| party | before | after |
+|---|---|---|
+| 2a+1c | 15 of 15 | 15 of 15 |
+| 4a | 12 of 15 | **13 of 15** |
+| 4a+2c | 10 of 15 | **12 of 15** |
+
+And 30 Dec – 2 Jan at 4a+2c now reads 4,406 (Maramureș) and 5,592 (TETRA) against our 7,382 — still
+under the three-quote floor, so still no rank, which is the honest answer.
+
+**The general rule, and it is nearly free:** a search run for party *P* is an authoritative statement
+that every property it returns can host *P*. So one search per party gives capacity floors for the
+whole field at no extra cost. It may only ever RAISE a recorded capacity — an absence from a search
+can mean sold out, so it can never lower one. Raising is also the safe direction: it adds competitors
+rather than removing them.
+
+### 33.4 Open
+
+- **Six Booking listings still carry capacities that may be floors** (Casutele de la Poienita 2,
+  Casutele din Poienita 4, Chalet Husky 3, Cozy A-Frame Ayda 5, MoodySun 3, Moon Village 5). A 4a+2c
+  search on a window where they are available would settle each one.
+- **`comp-verify` should record capacity as a floor, not a maximum**, and probe at the largest
+  configured party rather than the smallest.
+- Airbnb is still unread for every December window.

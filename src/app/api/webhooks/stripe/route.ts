@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
       // Send booking confirmation email
       try {
         // Dynamically import the email service to avoid loading it unnecessarily
-        const { sendBookingConfirmationEmail, sendHoldConfirmationEmail } = await import('@/services/emailService');
+        const { sendBookingConfirmationEmail, sendHoldConfirmationEmail, sendBookingNotificationEmail } = await import('@/services/emailService');
 
         // Send the appropriate confirmation email based on payment type
         let emailResult;
@@ -168,8 +168,21 @@ export async function POST(req: NextRequest) {
           // Don't fail the webhook if just the email fails
         }
 
-        // TODO: Send notification to property owner/admin
-        // This could be implemented similarly, using the owner's email from the property details
+        // Tell the owner a booking landed. Kept in its own try/catch, separate
+        // from the guest email above, because the two must fail independently:
+        // a guest with no email address (every OTA-imported booking) must not
+        // also mean the owner hears nothing. Holds are included on purpose -
+        // dates coming off sale is news whether or not the full amount paid.
+        try {
+          const ownerResult = await sendBookingNotificationEmail(bookingId);
+          if (ownerResult.success) {
+            logger.info('Owner notification email sent', { bookingId, isHold });
+          } else {
+            logger.warn('Failed to send owner notification email', { bookingId, isHold, error: ownerResult.error });
+          }
+        } catch (ownerError) {
+          logger.error('Error sending owner notification email', ownerError as Error, { bookingId });
+        }
 
         // Housekeeping WhatsApp notification (non-blocking)
         if (!isHold && propertyId) {

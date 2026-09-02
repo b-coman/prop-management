@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { formatBucharestDateTime } from '@/lib/dates/property-times';
 import type { Booking, Property, Inquiry, LanguageCode } from '@/types';
 import { getPropertyBySlug } from '@/lib/property-utils';
+import { getAppBaseUrl } from '@/lib/app-url';
 import {
   createBookingConfirmationTemplate,
   createHoldConfirmationTemplate,
@@ -274,7 +275,7 @@ export async function sendHoldConfirmationEmail(
       expirationTime: booking.holdUntil ? formatDate(booking.holdUntil) : 'N/A',
       estimatedTotal: formatCurrency(booking.holdFee || 0, booking.pricing?.currency || 'EUR'),
       currency: booking.pricing?.currency || 'EUR',
-      completeBookingUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/booking/check/${booking.propertyId}`
+      completeBookingUrl: `${getAppBaseUrl()}/booking/check/${booking.propertyId}`
     }, language);
 
     const emailSubject = `${subject} - ${propertyName}`;
@@ -292,7 +293,7 @@ export async function sendHoldConfirmationEmail(
  */
 export async function sendBookingNotificationEmail(
   bookingId: string,
-  recipientEmail: string
+  recipientEmail?: string
 ): Promise<{ success: boolean; messageId?: string; previewUrl?: string; error?: string }> {
   try {
     console.log(`[EmailService] Preparing booking notification for ${bookingId}`);
@@ -304,6 +305,14 @@ export async function sendBookingNotificationEmail(
 
     const property = await getPropertyBySlug(booking.propertyId);
     const propertyName = getPropertyName(property, booking.propertyId);
+
+    // Resolve the owner the same way createInquiryAction does, so both
+    // notifications land in the same inbox: the property's own owner address
+    // first, ADMIN_EMAIL only as a fallback.
+    const ownerEmail = recipientEmail || property?.ownerEmail || process.env.ADMIN_EMAIL;
+    if (!ownerEmail) {
+      return { success: false, error: 'No owner email configured for property' };
+    }
     const checkInDate = formatDate(booking.checkInDate);
     const checkOutDate = formatDate(booking.checkOutDate);
 
@@ -371,15 +380,15 @@ ${booking.pricing.taxes ? `<tr><td>Taxes</td><td class="right">${formatCurrency(
 ${booking.pricing.discountAmount ? `<tr><td>Discount</td><td class="right">-${formatCurrency(booking.pricing.discountAmount, booking.pricing.currency)}</td></tr>` : ''}
 <tr class="total"><td>Total</td><td class="right">${formatCurrency(booking.pricing.total, booking.pricing.currency)}</td></tr>
 </table></div>
-<a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://rentalspot.com'}/admin/bookings/${booking.id}" class="button">View Booking Details</a>
+<a href="${getAppBaseUrl()}/admin/bookings/${booking.id}" class="button">View Booking Details</a>
 <p>Thank you,<br>The RentalSpot Team</p></div>
 <div class="footer"><p>&copy; ${new Date().getFullYear()} RentalSpot. All rights reserved.</p></div>
 </body></html>`;
 
     const subject = `New Booking - ${propertyName}`;
-    console.log(`[EmailService] Sending booking notification to ${recipientEmail}`);
+    console.log(`[EmailService] Sending booking notification to ${ownerEmail}`);
 
-    return sendEmail(recipientEmail, subject, text, html);
+    return sendEmail(ownerEmail, subject, text, html);
   } catch (error) {
     console.error('[EmailService] Error sending booking notification:', error);
     return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -486,7 +495,7 @@ body{font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;mar
 <p><strong>Email:</strong> ${inquiry.guestInfo.email}</p>
 <p><strong>Phone:</strong> ${inquiry.guestInfo.phone || 'Not provided'}</p></div>
 <div class="section"><h2>Guest Message</h2><p>${inquiry.message}</p></div>
-<a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://rentalspot.com'}/admin/inquiries/${inquiry.id}" class="button">Respond to Inquiry</a>
+<a href="${getAppBaseUrl()}/admin/inquiries/${inquiry.id}" class="button">Respond to Inquiry</a>
 <p>Thank you,<br>The RentalSpot Team</p></div>
 <div class="footer"><p>&copy; ${new Date().getFullYear()} RentalSpot. All rights reserved.</p></div>
 </body></html>`;
@@ -682,7 +691,7 @@ export async function sendReviewRequestEmail(
 
     const { generateReviewToken } = await import('@/lib/review-token');
     const token = generateReviewToken(bookingId, email);
-    const reviewUrl = `${process.env.NEXT_PUBLIC_APP_URL}/review/${bookingId}?token=${token}`;
+    const reviewUrl = `${getAppBaseUrl()}/review/${bookingId}?token=${token}`;
 
     const { getUnsubscribeUrl } = await import('@/lib/unsubscribe-token');
     const unsubscribeUrl = getUnsubscribeUrl(email);
