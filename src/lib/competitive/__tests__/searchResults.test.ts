@@ -172,3 +172,49 @@ describe('the parser shipped INTO the page is the same parser', () => {
     expect(inPage('slug', 'Name', text)).toEqual(parseSearchCard('slug', 'Name', text));
   });
 });
+
+describe('a stay length Booking writes in WEEKS', () => {
+  // "1 week, 2 adults, 1 child" is what a seven-night search prints. The old regex demanded
+  // digits-then-"nights", so the whole echo — adults and children included — came back null, and the
+  // batch check then passed by vacuous truth. Two bugs, one line apart.
+  const card = (text: string) => parseSearchCard('slug', 'Name', text);
+
+  it('reads "1 week" as seven nights', () => {
+    const c = card('Vila\n1 week, 2 adults, 1 child\nPrice 3,144 lei');
+    expect(c.echo).toEqual({ nights: 7, adults: 2, children: 1 });
+    expect(c.price).toBe(3144);
+  });
+
+  it('still reads plain nights', () => {
+    expect(card('Vila\n4 nights, 2 adults, 1 child\nPrice 100 lei').echo)
+      .toEqual({ nights: 4, adults: 2, children: 1 });
+  });
+
+  it('adds a weeks-plus-nights form', () => {
+    expect(card('Vila\n1 week, 3 nights, 4 adults, 2 children\nPrice 100 lei').echo)
+      .toEqual({ nights: 10, adults: 4, children: 2 });
+  });
+
+  it('reads a party with no children as zero, not unknown', () => {
+    expect(card('Vila\n2 weeks, 4 adults\nPrice 100 lei').echo)
+      .toEqual({ nights: 14, adults: 4, children: 0 });
+  });
+});
+
+describe('a batch nobody can verify is refused', () => {
+  const probe = { nights: 7, adults: 2, children: 1 };
+  const mute = (slug: string) => parseSearchCard(slug, 'Name', 'Vila\nPrice 3,144 lei');
+
+  it('refuses a page where NO card states its stay, instead of passing vacuously', () => {
+    const b = verifySearchBatch([mute('a'), mute('b'), mute('c')], probe);
+    expect(b.ok).toBe(false);
+    expect(b.cards).toHaveLength(0);
+    expect(b.problem).toMatch(/nothing to compare/);
+    expect(b.problem).toMatch(/Refusing rather than banking/);
+  });
+
+  it('accepts a page where the cards do state it', () => {
+    const good = parseSearchCard('a', 'Name', 'Vila\n1 week, 2 adults, 1 child\nPrice 3,144 lei');
+    expect(verifySearchBatch([good], probe).ok).toBe(true);
+  });
+});

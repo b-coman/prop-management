@@ -28,7 +28,7 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 import { cellId, type ObservationStatus, type ObservationSubject } from '@/lib/growth/parityWorklist';
-import { recordObservation } from '@/services/growth/parityObservations';
+import { recordObservation, recordCaptureRow } from '@/services/growth/parityObservations';
 
 const arg = (name: string): string | null => {
   const i = process.argv.indexOf(`--${name}`);
@@ -80,23 +80,8 @@ async function runBatch(propertyId: string, file: string, capturedBy: string, dr
   const failures: string[] = [];
 
   for (const r of rows) {
-    const nights = Math.round((Date.parse(r.checkOut) - Date.parse(r.checkIn)) / 86_400_000);
-    const subject: ObservationSubject = r.competitorListingId
-      ? { kind: 'competitor', listingId: r.competitorListingId }
-      : { kind: 'self' };
-    const id = cellId(propertyId, r.checkIn, r.checkOut, r.guests, r.channel, subject);
     try {
-      await recordObservation({
-        dryRun, subject,
-        propertyId, cellId: id, checkIn: r.checkIn, checkOut: r.checkOut, nights, guests: r.guests,
-        channel: r.channel, status: r.status ?? 'captured',
-        guestTotal: r.guestTotal ?? null, listTotal: r.listTotal ?? null,
-        promoActive: r.promoActive, reason: r.reason, source: 'browser', url: r.url,
-        sessionState: r.sessionState, session: r.session, ratePlan: r.ratePlan, party: r.party,
-        rawExcerpt: r.rawExcerpt, referenceTotal: r.referenceTotal,
-        rawCurrency: r.rawCurrency, fxRateToRon: r.fxRateToRon, fxRateSource: r.fxRateSource,
-        capturedBy, capturedAt,
-      });
+      await recordCaptureRow(propertyId, r, { dryRun, capturedBy, capturedAt });
       ok++;
     } catch (e) {
       failures.push(`${r.channel} ${r.checkIn}→${r.checkOut} ${r.guests}g: ${(e as Error).message}`);

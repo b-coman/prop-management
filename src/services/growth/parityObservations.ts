@@ -11,7 +11,7 @@
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
 import type { Observation, ObservationStatus, ObservationSubject, ObservationScope } from '@/lib/growth/parityWorklist';
-import { DEFAULT_SUBJECT, subjectOf, matchesScope, requireScope } from '@/lib/growth/parityWorklist';
+import { DEFAULT_SUBJECT, subjectOf, matchesScope, requireScope, cellId } from '@/lib/growth/parityWorklist';
 import { normalizeChannel } from '@/lib/channels';
 
 const logger = loggers.parity;
@@ -321,4 +321,44 @@ export async function latestByCell(
   const map = new Map<string, ObservationRecord>();
   for (const o of all) if (!map.has(o.cellId)) map.set(o.cellId, o); // already newest-first
   return map;
+}
+
+
+/**
+ * A capture ROW — the shape the scripts build from a page — recorded as an observation.
+ *
+ * Extracted because `comp-run` grew its own copy of this conversion and got it wrong on first use:
+ * it passed the row straight to `recordObservation`, whose field names differ, and every write was
+ * refused for a missing status. Worse, its dry run had passed, because the dry run never exercised
+ * the conversion. One function, used by both scripts, and a dry run that goes through it.
+ */
+export async function recordCaptureRow(
+  propertyId: string,
+  r: {
+    competitorListingId?: string;
+    channel: string; checkIn: string; checkOut: string; guests: number;
+    status?: string; guestTotal?: number | null; listTotal?: number | null;
+    promoActive?: boolean; reason?: string; url?: string;
+    sessionState?: string; session?: unknown; ratePlan?: string; party?: unknown;
+    rawExcerpt?: string; referenceTotal?: number | null;
+    rawCurrency?: string; fxRateToRon?: number; fxRateSource?: string;
+  },
+  opts: { dryRun?: boolean; capturedBy: string; capturedAt?: string },
+): Promise<void> {
+  const nights = Math.round((Date.parse(r.checkOut) - Date.parse(r.checkIn)) / 86_400_000);
+  const subject: ObservationSubject = r.competitorListingId
+    ? { kind: 'competitor', listingId: r.competitorListingId }
+    : { kind: 'self' };
+  await recordObservation({
+    dryRun: opts.dryRun, subject,
+    propertyId, cellId: cellId(propertyId, r.checkIn, r.checkOut, r.guests, r.channel, subject),
+    checkIn: r.checkIn, checkOut: r.checkOut, nights, guests: r.guests,
+    channel: r.channel, status: (r.status ?? 'captured') as never,
+    guestTotal: r.guestTotal ?? null, listTotal: r.listTotal ?? null,
+    promoActive: r.promoActive, reason: r.reason, source: 'browser', url: r.url,
+    sessionState: r.sessionState, session: r.session as never, ratePlan: r.ratePlan as never,
+    party: r.party as never, rawExcerpt: r.rawExcerpt, referenceTotal: r.referenceTotal,
+    rawCurrency: r.rawCurrency, fxRateToRon: r.fxRateToRon, fxRateSource: r.fxRateSource,
+    capturedBy: opts.capturedBy, capturedAt: opts.capturedAt,
+  } as never);
 }

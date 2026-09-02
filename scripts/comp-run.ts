@@ -32,7 +32,7 @@ import * as path from 'path';
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 import * as fs from 'fs';
 import { getCompetitorSet } from '@/services/competitorSetService';
-import { latestByCell, recordObservation } from '@/services/growth/parityObservations';
+import { latestByCell, recordCaptureRow } from '@/services/growth/parityObservations';
 import {
   parseSearchCard, verifySearchBatch, matchToSet, parserSnippet, IN_PAGE_SEARCH_COLLECTOR,
   type SearchCard,
@@ -132,12 +132,13 @@ JSON.stringify({ key: __key, cards: __run[__key].length,
     const rows = bookingRows({ curated, absent, checkIn, checkOut, nights, party, url: searchUrl(party, checkIn, checkOut) });
 
     console.log(`  ${label}  ${curated.length} quoted · ${absent.length} nothing left · ${candidates.length} candidates`);
-    if (!dry) {
-      for (const r of rows) {
-        await recordObservation(SLUG, r as never);
-        wrote.push({ checkIn, checkOut, guests: r.guests, id: r.competitorListingId,
-                     status: r.status, total: r.guestTotal ?? null });
-      }
+    // A dry run goes through the SAME conversion, writing nothing. The first version skipped it, so a
+    // dry run passed and the real run refused every row on a field-name mismatch — a rehearsal that
+    // does not rehearse the risky step is worse than none, because it buys false confidence.
+    for (const r of rows) {
+      await recordCaptureRow(SLUG, r, { dryRun: dry, capturedBy: 'comp-run' });
+      if (!dry) wrote.push({ checkIn, checkOut, guests: r.guests, id: r.competitorListingId,
+                             status: r.status, total: r.guestTotal ?? null });
     }
     written += rows.length;
   }

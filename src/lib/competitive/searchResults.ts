@@ -60,7 +60,15 @@ export function parseSearchCard(slug: string, name: string, rawText: string): Se
   const t = norm(rawText);
   const pair = t.match(/Original price\s+([\d.,]+)\s*lei\.\s*Current price\s+([\d.,]+)\s*lei/i);
   const single = t.match(/\bPrice\s+([\d.,]+)\s*lei/i);
-  const echo = t.match(/(\d+)\s*nights?,\s*(\d+)\s*adults?(?:,\s*(\d+)\s*child(?:ren)?)?/i);
+  // Booking writes the stay length as "4 nights" OR "1 week" — and for ten nights, "1 week, 3
+  // nights". A regex that demanded digits-then-"nights" returned null for the WHOLE echo on every
+  // seven-night stay, taking the adult and child counts down with it, which left the batch check
+  // with nothing to compare and passing silently (§35).
+  const echo = t.match(/((?:\d+\s*(?:weeks?|nights?)\s*,\s*)+)(\d+)\s*adults?(?:\s*,\s*(\d+)\s*child(?:ren)?)?/i);
+  const nights = echo
+    ? [...echo[1].matchAll(/(\d+)\s*(week|night)/gi)]
+        .reduce((n, m) => n + Number(m[1]) * (m[2].toLowerCase() === 'week' ? 7 : 1), 0)
+    : null;
   const km = t.match(/([\d.]+)\s*km from centre/);
   const m = t.match(/(\d+)\s*m from centre/);
 
@@ -70,7 +78,7 @@ export function parseSearchCard(slug: string, name: string, rawText: string): Se
     price: money(pair ? pair[2] : single?.[1]),
     listPrice: money(pair?.[1]),
     echo: {
-      nights: echo ? Number(echo[1]) : null,
+      nights,
       adults: echo ? Number(echo[2]) : null,
       children: echo?.[3] !== undefined ? Number(echo[3]) : (echo ? 0 : null),
     },
@@ -114,6 +122,19 @@ export function verifySearchBatch(cards: SearchCard[], probe: SearchProbe): Sear
     || (c.echo.adults !== null && c.echo.adults !== probe.adults)
     || (c.echo.children !== null && c.echo.children !== probe.children))
     .map((c) => ({ slug: c.slug, echo: c.echo }));
+
+  // "Nothing disagreed" is not "everything agreed". A page where NO card states an echo passes every
+  // comparison below by vacuous truth, and the check quietly becomes a no-op — which is exactly what
+  // happened on a seven-night search whose cards read "1 week" and parsed to null. A batch that
+  // cannot be verified is refused, not banked.
+  if (!cards.some((c) => c.echo.nights !== null || c.echo.adults !== null)) {
+    return {
+      ok: false, cards: [], mismatched: [],
+      problem: `none of the ${cards.length} cards states what stay it is quoting, so the echo check ` +
+               `has nothing to compare — the layout changed, or the parser cannot read this form. ` +
+               `Refusing rather than banking ${cards.length} unverified prices.`,
+    };
+  }
 
   const priced = cards.filter((c) => c.price !== null);
   if (mismatched.length) {
