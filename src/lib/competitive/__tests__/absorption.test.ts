@@ -56,14 +56,40 @@ describe('a refusal or an error says nothing about demand', () => {
   it.each([['refused'], ['error']] as const)('ignores a run of %s readings', (state) => {
     const a = read([r('2026-09-10T10:00:00Z', state), r('2026-09-25T10:00:00Z', state)]);
     expect(a.verdict).toBe('no-signal');
-    expect(a.note).toMatch(/about the probe, not about demand/);
+    expect(a.note).toMatch(state === 'error' ? /about the probe, not about demand/ : /nothing usable survives the refusal/);
   });
 
   it('does not let a refusal masquerade as going off sale', () => {
-    // Priced, then the party was refused (a min-stay change, say). That is not a sale.
+    // Priced, then the party was refused. Not a sale — and, since the refusal is a standing policy
+    // rather than a passing state, not "still on sale" either: the earlier price was never a price
+    // this party could book, so there is nothing usable left.
     const a = read([r('2026-09-10T10:00:00Z', 'priced', 2000), r('2026-09-25T10:00:00Z', 'refused')]);
-    expect(a.verdict).toBe('on-sale');   // the refusal is skipped, the last INFORMATIVE state stands
+    expect(a.verdict).toBe('no-signal');
     expect(a.countsAsDemandSignal).toBe(false);
+  });
+
+  it('discards the prices read BEFORE a refusal, instead of calling their disappearance a sale', () => {
+    // This is the AVA Chalet series, exactly (§29): two prices banked before the party-not-accepted
+    // trap was found, then the refusal that exposed them, then an absence from the search. Read
+    // naively that is "priced, then gone" — a sale. It is not: the property does not take a family
+    // with a ten-year-old, so those 5,040s were never on sale to one. Two rows like this flipped a
+    // window's headline from "the market is not selling" to "the market IS selling".
+    const a = read([
+      r('2026-09-01T20:37:00Z', 'priced', 5040),
+      r('2026-09-01T21:18:00Z', 'priced', 5040),
+      r('2026-09-01T22:12:00Z', 'refused'),
+      r('2026-09-02T10:22:00Z', 'not-sellable'),
+    ]);
+    expect(a.verdict).not.toBe('went-off-sale');
+    expect(a.transition).toBeUndefined();
+    expect(a.countsAsDemandSignal).toBe(false);
+    expect(a.note).toMatch(/never on sale to it/);
+  });
+
+  it('still reads a genuine sale when no refusal contaminates the series', () => {
+    const a = read([r('2026-09-01T10:00:00Z', 'priced', 3000), r('2026-09-02T10:00:00Z', 'not-sellable')]);
+    expect(a.verdict).toBe('went-off-sale');
+    expect(a.countsAsDemandSignal).toBe(true);
   });
 });
 

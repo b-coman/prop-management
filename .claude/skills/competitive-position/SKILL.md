@@ -88,6 +88,9 @@ competes for a family through its small apartment rather than its 21-person hous
 - **Rank out of the number sampled. Never a percentile** — six to ten comparables cannot support one.
 - **Sample size and age on every figure.** "6 of 8, oldest 9d" is part of the number.
 - **A comparable that did not quote is never dropped** — it appears with its reason.
+- **A comparable nobody has READ is not an absent one.** It is counted and named apart (`sample.unread`),
+  because "4 of 7 quoted" over a field of fifteen reads as coverage of a market and was coverage of a
+  third of it. Filling that gap once moved this property from 1st of 5 to 4th of 9.
 - **Quality sits beside price, never inside it.** One flag, on a specific pair, above a 20-review
   floor. Most of this market scores 9.5+; review count does the work.
 - **`not-sellable`, never `sold`**, on a single reading.
@@ -106,6 +109,10 @@ instructions.
 
 - Only a **transition** — priced, then not — is evidence something sold, always reported with both
   dates and the last price seen.
+- **A refusal invalidates every reading before it.** An adults-only or child-age bar is a standing
+  policy, not a passing state: if the property will not take this party now, the price banked for this
+  party last week was never on sale to it. Two such rows once flipped a window from "not selling" to
+  "IS selling" — opposite instructions, off prices that never existed.
 - A **park** does not go off sale when it sells one unit. Its sell-out is a stronger and rarer signal,
   reported apart, never tallied beside single houses.
 - **No percentage sold, ever.**

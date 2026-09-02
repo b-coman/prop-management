@@ -19,6 +19,13 @@
  *    how much the market is selling, invisibly.
  *  - **No percentage sold, ever.** "5 of 7 sampled are no longer on sale" is a true sentence.
  *    "71% occupancy in the set" is not.
+ *  - **A refusal DISCREDITS the prices read before it.** An adults-only bar or a child-age bar is a
+ *    standing policy, not a state that changes between probes: if the property will not take this
+ *    party today, the price we banked for this party last week was never on sale to them. Treating
+ *    the refusal as merely uninformative left those prices standing, and the transition
+ *    priced → refused → not-sellable then read as "it sold". Two such rows were enough to flip a
+ *    window's headline from "the market is not selling" to "the market IS selling" — opposite
+ *    instructions, from prices that never existed for this party (§29).
  *
  * PURE. Observations in, a verdict out. No clock — `now` is injected.
  */
@@ -96,11 +103,23 @@ export function readAbsorption(input: AbsorptionInput): Absorption {
              note: 'no readings inside the freshness window' };
   }
 
-  // A refusal or an error is not a statement about demand — it is a statement about the probe.
-  const informative = fresh.filter((r) => r.state === 'priced' || r.state === 'not-sellable');
+  // A refusal is not merely uninformative — it INVALIDATES what came before it. The property will not
+  // take this party, which is a policy rather than a passing state, so any price we banked for this
+  // party before the refusal was never a price this party could book. Only readings AFTER the last
+  // refusal can say anything, and often that leaves nothing, which is the honest answer.
+  const lastRefusal = fresh.map((r) => r.state).lastIndexOf('refused');
+  const usable = lastRefusal === -1 ? fresh : fresh.slice(lastRefusal + 1);
+  const refusalNote = lastRefusal === -1 ? ''
+    : ' (a refusal in the series discarded every earlier reading: the property does not take this ' +
+      'party, so those prices were never on sale to it)';
+
+  // An error is a statement about the probe, not about demand.
+  const informative = usable.filter((r) => r.state === 'priced' || r.state === 'not-sellable');
   if (!informative.length) {
     return { ...base, verdict: 'no-signal', countsAsDemandSignal: false,
-             note: `every reading is ${[...new Set(fresh.map((r) => r.state))].join('/')} — that is about the probe, not about demand` };
+             note: lastRefusal === -1
+               ? `every reading is ${[...new Set(fresh.map((r) => r.state))].join('/')} — that is about the probe, not about demand`
+               : `nothing usable survives the refusal${refusalNote}` };
   }
 
   const latest = informative[informative.length - 1];
@@ -111,10 +130,10 @@ export function readAbsorption(input: AbsorptionInput): Absorption {
       ...base,
       verdict: latest.state === 'priced' ? 'on-sale' : 'single-reading',
       countsAsDemandSignal: false,
-      note: latest.state === 'priced'
+      note: (latest.state === 'priced'
         ? 'priced, on one reading — nothing yet about whether it is selling'
         : 'NOT SELLABLE on a single reading. That is a state, not an event: it becomes evidence of ' +
-          'selling only when an earlier reading had it priced.',
+          'selling only when an earlier reading had it priced.') + refusalNote,
     };
   }
 

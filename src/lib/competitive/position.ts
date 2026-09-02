@@ -184,12 +184,20 @@ export function buildPosition(input: PositionInput): Position {
   // this is a note about who the ranking is for, never a correction to it — and it adjusts nothing.
   if (input.ourProgramApplied && priced.length) {
     const withProg = priced.filter((q) => q.programApplied === true).length;
+    // Absent is UNMEASURED, not "no discount" — the search-page instrument cannot tell a Genius
+    // discount from an ordinary promotion. Counting unknowns as absences would state as fact the
+    // exact thing the capture declined to guess.
+    const withoutProg = priced.filter((q) => q.programApplied === false).length;
+    const unknown = priced.length - withProg - withoutProg;
     if (withProg < priced.length) {
       notes.push(
         `This ranking is as a signed-in member sees it. Our ${channel} price includes a loyalty ` +
-        `discount and ${priced.length - withProg} of ${priced.length} comparables' prices do not — ` +
-        `their properties do not all offer one. That is a real difference in what is on sale. A guest ` +
-        `who is NOT signed in may see a different order.`);
+        `discount; ` +
+        (withoutProg ? `${withoutProg} of ${priced.length} comparables' prices demonstrably do not` : '') +
+        (withoutProg && unknown ? `, and ` : '') +
+        (unknown ? `${unknown} of ${priced.length} were read off the search page, which does not say ` +
+                   `whether a discount is a loyalty one` : '') +
+        `. A guest who is NOT signed in may see a different order.`);
     }
   }
 
@@ -197,7 +205,8 @@ export function buildPosition(input: PositionInput): Position {
     const gone = silent.filter((s) => s.status === 'unavailable');
     if (gone.length) {
       notes.push(
-        `${gone.length} of ${quotes.length} is not sellable on these dates (${gone.map((g) => g.name).join(', ')}). ` +
+        `${gone.length} of ${quotes.length} ${gone.length === 1 ? 'is' : 'are'} not sellable on these ` +
+        `dates (${gone.map((g) => g.name).join(', ')}). ` +
         `On ONE reading that is "not sellable", never "sold" — it becomes evidence of selling only if ` +
         `an earlier reading had it priced.`);
     }

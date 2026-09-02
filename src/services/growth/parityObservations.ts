@@ -25,11 +25,16 @@ const COLLECTION = 'channelPriceObservations';
  * The Genius LEVEL is deliberately not recorded — this property participates at Level 1 only, so an
  * L1 and an L3 account see the same price and storing the level would imply a distinction that does
  * not exist here.
+ *
+ * `programApplied` is OPTIONAL, and absent means NOT MEASURED — never "no discount". The search-page
+ * instrument cannot tell a Genius discount from an ordinary promotion: a card shows a struck-through
+ * price either way and does not name the reason. Writing `false` there was how fabricated provenance
+ * got into this field once already, in a field that exists precisely to prevent that.
  */
 export interface CaptureSession {
   loggedIn: boolean;
   program: 'genius' | 'host' | null;
-  programApplied: boolean;
+  programApplied?: boolean;
   currency: string;
 }
 

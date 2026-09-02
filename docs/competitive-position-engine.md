@@ -2374,3 +2374,99 @@ Two tests pin it, including the negative: a fully-read field says nothing about 
 - **No run shapes or budget allocation.** §5's arithmetic is obsolete now that one load covers a field.
 - **The seven unread Booking comparables are a real gap in the 24-28 Oct reading**, not a display bug.
   One search page closes it.
+
+---
+
+## 29. The Booking field filled — and two fabrications it exposed (2026-09-02)
+
+§28.3 left seven Booking comparables unread for 24-28 Oct. One search load closed that. The gap was
+worth closing on its own; what it changed, and what it exposed on the way, matters more.
+
+### 29.1 The reading it replaced was wrong in the flattering direction
+
+| | before (7 of 15 read) | after (15 of 15) |
+|---|---|---|
+| Booking sample | 4 of 7 quoted | 8 of 14 quoted, 0 unread |
+| The set | 2,803 – 5,320, median 3,890 | **1,706 – 5,320, median 3,202** |
+| Our rank | **1 of 5 — cheapest** | **4 of 9 — mid-pack** |
+
+Three comparables sit below us and none of them had ever been read: TETRA Plus 569 at 1,706,
+Moon Valley at 2,279, Chalet Husky at 2,524 — all three carrying a discount. The partial sample did
+not merely understate the field, it inverted the conclusion: "you are the cheapest house on Booking"
+became "three cheaper ones are on the same page." Exactly the decision this system exists to protect.
+
+The Airbnb field was complete already and is unchanged: 6 of 7, cheapest at 2,369.
+
+**Cross-validation, free:** our own listing appears in the search results at **2,719**, identical to
+the detail-page capture stored for the same window. Two instruments, one number.
+
+### 29.2 `programApplied: false` was fabricated, again
+
+`comp-search.ts` stamped `session: { program: 'genius', programApplied: false }` on every row as a
+literal. It is not measured and cannot be: **a search card shows a struck-through price for a Genius
+discount and for an ordinary promotion alike, and never says which.** This is the second time a
+plausible default has been written into the one field that exists to record what was actually seen
+(the first is in §20).
+
+Fixed at the type: `CaptureSession.programApplied` is now **optional, and absent means NOT MEASURED**.
+`comp-search` omits it; `promoActive` still records that *something* was discounted, which is what the
+card genuinely shows. `position.ts` now separates "demonstrably has no loyalty discount" from "read
+off an instrument that cannot tell", and says which in the note.
+
+### 29.3 A refusal discredits the prices read before it
+
+With the new rows in, absorption reported:
+
+> *2 of the set went off sale between readings; 15 still on sale. **This window IS selling** — so an
+> empty week here is not a demand problem.*
+> *AVA Chalet — last priced 5040 on 2026-09-01, gone by 2026-09-02*
+> *Villa The Frame — last priced 7025 on 2026-09-01, gone by 2026-09-02*
+
+Both are false, and the headline they produced is the opposite of the truth. Their series are:
+
+```
+ava-chalet-bk    priced 5040 → priced 5040 → refused (children under 12) → not-sellable
+villa-the-frame  priced 4752 → priced 7025 → refused (adults-only)       → not-sellable
+```
+
+Those prices are the ones banked before the party-not-accepted trap was found (§24.3). The properties
+do not take a family with a ten-year-old **at all**, so nothing was ever on sale to that party and
+nothing could have sold. `readAbsorption` dropped refusals as "uninformative", which left the bad
+prices standing and turned their disappearance into a sale.
+
+**The rule is now: a refusal invalidates every reading before it.** An adults-only bar or a child-age
+bar is a standing policy, not a state that changes between probes — so only readings *after* the last
+refusal can say anything, and often that leaves nothing, which is the honest answer. Two rows were
+enough to flip a window's verdict; the corrected reading is *"nothing went off sale; 15 still on
+sale"*, which is what the market actually did.
+
+Note this also changes `priced → refused` from `on-sale` to `no-signal`. The old test asserted the
+former on the reasoning that the last *informative* state stands. It does not stand: the price it
+refers to was never bookable by this party.
+
+### 29.4 Bulk egress is blocked, so verify the transcription with a hash
+
+The collector's output is 15KB and every escape route is closed — a `fetch` to `127.0.0.1` is blocked
+by CSP like everything else, and `javascript_tool` truncates its return near 1KB. The payload has to
+come back in ~900-char slices and be reassembled by hand, which is exactly the kind of step that
+introduces a silent one-character error.
+
+So don't trust it — **check it**. Compute FNV-1a over the string in the page, compute it over the
+reassembled file, and compare before parsing anything:
+
+```js
+let h=2166136261>>>0; for(let i=0;i<s.length;i++){h^=s.charCodeAt(i); h=Math.imul(h,16777619)>>>0;}
+```
+
+It caught a real error immediately: the file was the right *length* and the hash differed, because
+Booking writes **72 non-breaking spaces** inside prices and the transcription rendered them as plain
+spaces. A per-slice hash localised it; a character-class inventory identified it; the 72 indices
+patched it, and the file then matched the page byte for byte.
+
+### 29.5 Open, for the owner
+
+**Casutele de la Poienita is quoted at 3,497 for 2a+1c and the set says it cannot host that party.**
+Booking is offering it as two Double Rooms. `hostsParty` refuses that because of his own rule — *"if
+I'm with kids, is less likely to put small children in another unit"* — so the price is recorded and
+correctly excluded from the ladder. That is a substitutability judgement, not an availability fact,
+and it stays his to make. Nothing changes unless he says so.

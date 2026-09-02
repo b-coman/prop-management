@@ -183,11 +183,23 @@ describe('a programme discount is part of the offer, not a measurement flaw', ()
   const q3 = [q('a', 3000), q('b', 4000), q('c', 5000)];
 
   it('says who the ranking is for, as a NOTE and never as a defect', () => {
-    const p = buildPosition({ ...base, channel: 'booking.com', ourProgramApplied: true, quotes: q3 });
+    const p = buildPosition({ ...base, channel: 'booking.com', ourProgramApplied: true,
+      quotes: q3.map((x) => ({ ...x, programApplied: false })) });
     expect(p.notes.join(' ')).toMatch(/as a signed-in member sees it/);
-    expect(p.notes.join(' ')).toMatch(/3 of 3 comparables' prices do not/);
+    expect(p.notes.join(' ')).toMatch(/3 of 3 comparables' prices demonstrably do not/);
     // and it is NOT a flag — it is not a fault
     expect(p.flags.join(' ')).not.toMatch(/signed-in|loyalty/);
+  });
+
+  it('does not turn an UNMEASURED programme flag into "no discount"', () => {
+    // The search page is the instrument for most competitor prices, and it shows a struck-through
+    // price for a Genius discount and an ordinary promotion alike without ever naming which. Absent
+    // means unmeasured; saying "their prices do not include one" would be a fabricated observation.
+    const p = buildPosition({ ...base, channel: 'booking.com', ourProgramApplied: true, quotes: q3 });
+    const note = p.notes.join(' ');
+    expect(note).toMatch(/as a signed-in member sees it/);
+    expect(note).toMatch(/does not say whether a discount is a loyalty one/);
+    expect(note).not.toMatch(/demonstrably do not/);
   });
 
   it('stays silent when the whole field carries it too', () => {

@@ -160,6 +160,12 @@ URL, a session and a provenance, and it validates.
 **Fill provenance from measurement, never from a plausible default.** Setting `programApplied: false`
 on rows nobody had checked put fabricated evidence in a field that exists to prevent exactly that.
 
+It happened twice. The second time it was a literal in `comp-search.ts`, on every search row — and
+there it is not merely unchecked but **unmeasurable**: a search card shows a struck-through price for
+a Genius discount and an ordinary promotion alike, and never says which. `CaptureSession.programApplied`
+is therefore OPTIONAL, and **absent means not measured**, never "no discount". `promoActive` still
+records that something was discounted, which is what the card actually shows.
+
 ---
 
 ## 9. Read the data back
@@ -170,3 +176,19 @@ every stored photo and the run that preserved them.
 **After any write, read back the fields you wrote — and the ones you did not.** Both data-loss bugs in
 this system were found that way, and the second was found only after the first report checked one
 field and stopped.
+
+## 10. Hash what you transcribe
+
+A search page's collected output runs ~15KB and every escape route is closed — a `fetch` to
+`127.0.0.1` is blocked like the rest — so it comes back in ~900-char slices and is reassembled by
+hand. Never parse that reassembly untested. Compute FNV-1a over the string in the page and over the
+local file, and compare first:
+
+```js
+let h=2166136261>>>0; for(let i=0;i<s.length;i++){h^=s.charCodeAt(i); h=Math.imul(h,16777619)>>>0;}
+```
+
+The first time this ran, length matched and the hash did not: Booking writes **72 non-breaking spaces**
+inside its prices, and the transcription had rendered them as plain spaces. Per-slice hashes localise
+the damage; a character-code inventory names it; the index list repairs it. Without the check, a
+"clean" file would have gone straight into the write path.

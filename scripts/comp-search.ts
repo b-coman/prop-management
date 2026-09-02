@@ -133,7 +133,10 @@ const searchUrl = (party: Party, checkIn: string, checkOut: string) => {
       sessionState: `Booking SEARCH results, signed in, RON. One page load for the whole field, so ` +
                     `every price here was read under identical conditions. Card echo: ${nights}n, ` +
                     `${party.adults}a+${party.children}c.`,
-      session: { loggedIn: true, program: 'genius', programApplied: false, currency: 'RON' },
+      // `programApplied` is deliberately ABSENT: a search card shows a struck-through price for a
+      // Genius discount and for an ordinary promotion alike, and never says which. Unmeasured, not
+      // false — `promoActive` records that SOMETHING was discounted, which is what we can see.
+      session: { loggedIn: true, program: 'genius', currency: 'RON' },
     })),
     ...absent.map((l) => ({
       competitorListingId: l.listingId, channel: 'booking.com',
