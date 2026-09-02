@@ -2779,6 +2779,11 @@ whole field at no extra cost. It may only ever RAISE a recorded capacity — an 
 can mean sold out, so it can never lower one. Raising is also the safe direction: it adds competitors
 rather than removing them.
 
+**And one limit on it, found an hour later (§34):** the capture URL carries `no_rooms=1`, so the
+search returns only properties that can house the party in ONE unit. A park that would take six
+across three rooms is excluded by that parameter rather than by capacity, so an absence settles
+nothing at all for a multi-unit listing — not even when its availability is independently known.
+
 ### 33.4 Open
 
 - **Six Booking listings still carry capacities that may be floors** (Casutele de la Poienita 2,
@@ -2787,3 +2792,44 @@ rather than removing them.
 - **`comp-verify` should record capacity as a floor, not a maximum**, and probe at the largest
   configured party rather than the smallest.
 - Airbnb is still unread for every December window.
+
+
+---
+
+## 34. Step A: the capacities were mostly right, and the probe has a blind spot (2026-09-02)
+
+Two loads, both echoing the probe, to test the six Booking listings still recorded under six. The
+method: run a **4a+2c** search on a window where each is independently known to have availability. If
+it has rooms and Booking still excludes it from a six-person search, its capacity really is under six.
+
+| listing | recorded | verdict |
+|---|---|---|
+| Chalet Husky | 3 | **confirmed under 6** — on sale 24-28 Oct at 2a+1c, absent at 4a+2c |
+| Cozy A-Frame Ayda | 5 | **confirmed under 6** — same window, same test |
+| MoodySun Studio | 3 | **confirmed under 6** — on sale 23-27 Dec at 2a+1c, absent at 4a+2c |
+| Casutele de la Poienita | 2 | **inconclusive** — multi-unit, see below |
+| Casutele din Poienita | 4 | **inconclusive** — multi-unit |
+| Moon Village Comarnic | 5 | still unknown — never seen on sale in any capture |
+
+So the set was in better shape than §33 feared: of the eight recorded under six, **two were genuinely
+wrong** (Maramureș Nook and TETRA Plus 569, already corrected) and **three are now confirmed right**.
+The alarm was proportionate; the conclusion was not that everything was broken.
+
+### 34.1 The blind spot: `no_rooms=1`
+
+The capture URL asks for **one room**. So the search returns only properties that can house the party
+in a single unit, and a park that would take six across three rooms is filtered out by the parameter,
+not by capacity. For a multi-unit listing an absence therefore settles nothing — not even with
+availability independently confirmed, which is exactly the case for both Casutele.
+
+This qualifies the rule written in §33.3 an hour earlier. The positive direction still holds: a
+property the search RETURNS can host the party in one unit. Everything else it says about capacity is
+silence. Settling a multi-unit listing needs its own detail page, where the unit table is visible.
+
+### 34.2 Kept from the two loads
+
+Nine real 4a+2c prices, written through the one write path and read back: 24-28 Oct (Vila Luna 4,180,
+Moon Valley 3,751, TETRA 3,186, Maramureș 5,776, Cliff Village 7,052, Zaivan 11,414) and 23-27 Dec
+(Maramureș 5,776, TETRA 3,638, Zaivan 11,414). We hold no 4a+2c price of our own on either window, so
+the board will show them as `No price of ours` until one is captured — honest, and a gap worth
+closing in step B.
