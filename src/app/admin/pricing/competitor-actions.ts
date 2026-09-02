@@ -212,6 +212,9 @@ export async function fetchMarketPositions(propertyId: string): Promise<{
             guestTotal: o.guestTotal, listTotal: o.listTotal, promoActive: o.promoActive,
             reason: o.reason, capturedAt: o.capturedAt, programApplied: o.session?.programApplied,
             rating: l.rating, reviewCount: l.reviewCount, largestUnit: largestUnit(l) || null,
+            // What it takes to check the number: the search that produced it, and what that page
+            // said it was quoting.
+            url: o.url, echo: (o as { echo?: CompetitorQuote['echo'] }).echo,
           });
         }
         if (!quotes.length && !outOfSet.length) continue;
@@ -255,9 +258,24 @@ export async function fetchMarketPositions(propertyId: string): Promise<{
           movedSinceLastReading: moved,
         });
 
+        // The ladder carries the price; the listing carries what the price is OF. Joined here so a
+        // verification card can open with the owner's own reason for curating it.
+        const byListing = new Map(set.all.map((l) => [l.listingId, l]));
+        const ladder = pos.ladder.map((row) => {
+          const l = byListing.get(row.listingId);
+          return {
+            ...row,
+            listingUrl: l?.url ?? null,
+            photo: l?.heroPhotoUrl ?? null,
+            basis: l?.substitutionBasis ?? null,
+            sleeps: l ? largestUnit(l) || null : null,
+            sqm: l?.units?.[0]?.sqm ?? null,
+          };
+        });
+
         details.set(rowKey, {
           rank: pos.rank, confidence: pos.confidence,
-          ladder: pos.ladder, silent: pos.silent, outOfSet: pos.outOfSet, unreadNames: pos.unread,
+          ladder, silent: pos.silent, outOfSet: pos.outOfSet, unreadNames: pos.unread,
           flags: pos.flags, notes: pos.notes,
           absorption: comparable.length
             ? { started: true, summary: field.summary,

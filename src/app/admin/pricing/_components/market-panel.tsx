@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { AlertTriangle, Info, ChevronRight } from 'lucide-react';
+import { AlertTriangle, Info, ChevronRight, ExternalLink } from 'lucide-react';
 
 /**
  * Where you sit, as a board rather than a set of ladders.
@@ -31,6 +31,11 @@ import { AlertTriangle, Info, ChevronRight } from 'lucide-react';
 interface LadderRow {
   listingId: string; name: string; total: number; isUs: boolean; promo: boolean;
   rating: number | null; reviewCount: number | null;
+  listTotal?: number | null; capturedAt?: string; url?: string;
+  echo?: { checkIn?: string | null; checkOut?: string | null; nights?: number | null;
+           adults?: number | null; children?: number | null; verified?: boolean };
+  listingUrl?: string | null; photo?: string | null; basis?: string | null;
+  sleeps?: number | null; sqm?: number | null;
 }
 
 export interface MarketRow {
@@ -125,6 +130,96 @@ function OnSale({ quoted, asked, unread }: { quoted: number; asked: number; unre
   );
 }
 
+const daysSince = (iso: string) => Math.floor((Date.now() - Date.parse(iso)) / 86_400_000);
+const longDay = (iso: string) => {
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return `${Number(d)} ${MONTHS[Number(m) - 1]}`;
+  void y;
+};
+
+/**
+ * "Can I trust this number?" — answered in four sentences and two links.
+ *
+ * The owner asked to be able to check the numbers himself. So this leads with HIS OWN reason for
+ * curating the listing, then when the price was read, then what the page said it was quoting, then
+ * the link that reproduces the search.
+ *
+ * The line about live prices is load-bearing and must stay ABOVE the links. The first time Booking
+ * shows a different number he will conclude the screen is broken; saying so first turns a mismatch
+ * from an apparent bug into the movement this board exists to watch.
+ */
+function Verify({ row, party }: { row: LadderRow; party: string }) {
+  const age = row.capturedAt ? daysSince(row.capturedAt) : null;
+  const e = row.echo;
+  const stayBack = e?.verified && (e.nights || e.checkIn)
+    ? `The page quoted this exact stay back: ${e.checkIn ? `${longDay(e.checkIn)} – ${longDay(e.checkOut!)}, ` : ''}` +
+      `${party}${e.nights ? `, ${e.nights} nights` : ''}.`
+    : null;
+
+  return (
+    <div className="mt-1 rounded-md border bg-background p-3">
+      <div className="flex gap-3">
+        {row.photo && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={row.photo} alt="" className="h-16 w-24 shrink-0 rounded object-cover" />
+        )}
+        <div className="min-w-0">
+          <div className="font-semibold">{row.name}</div>
+          <div className="text-muted-foreground">
+            {[row.sqm && `${row.sqm} m²`, row.sleeps && `sleeps ${row.sleeps}`,
+              row.rating != null && `${row.rating}${row.reviewCount != null ? ` (${row.reviewCount} reviews)` : ''}`]
+              .filter(Boolean).join(' · ')}
+          </div>
+          {row.basis && <div className="mt-1 max-w-xl">In your set because: {row.basis}</div>}
+        </div>
+      </div>
+
+      <div className="mt-2 space-y-1">
+        {row.capturedAt && (
+          <div>
+            Read {longDay(row.capturedAt)}{age !== null && age > 0 && ` — ${age} day${age === 1 ? '' : 's'} ago`}
+            {age === 0 && ' — today'}.
+          </div>
+        )}
+        {stayBack
+          ? <div>{stayBack}</div>
+          : <div className="text-muted-foreground">
+              Read before we began saving the page&apos;s own confirmation of the stay. The link below
+              reproduces the search exactly if you want to check it.
+            </div>}
+        {row.listTotal != null && row.listTotal > row.total && (
+          <div>
+            {money(row.total)} is the total with their promotion applied; the page lists{' '}
+            {money(row.listTotal)} before it, so you will see both numbers there.
+          </div>
+        )}
+      </div>
+
+      <div className="mt-2">
+        <div className="text-muted-foreground">
+          Prices there are live. A different number means the market has moved since{' '}
+          {row.capturedAt ? longDay(row.capturedAt) : 'the reading'} — that movement is what this
+          screen watches — and if they no longer appear at all, they have sold out since.
+        </div>
+        <div className="mt-1 flex flex-wrap gap-4">
+          {row.url && (
+            <a href={row.url} target="_blank" rel="noopener noreferrer"
+               className="inline-flex items-center gap-1 font-medium underline underline-offset-2">
+              Open this exact search <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
+          {row.listingUrl && (
+            <a href={row.listingUrl} target="_blank" rel="noopener noreferrer"
+               className="inline-flex items-center gap-1 underline underline-offset-2">
+              Open {row.name.split(/[·,|]/)[0].trim()}&apos;s page <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Row({ r }: { r: MarketRow }) {
   const tone = TONE[r.attention];
   const asked = r.quoted + r.nothingLeft;
@@ -182,18 +277,29 @@ function Row({ r }: { r: MarketRow }) {
             </div>
 
             <div className="space-y-0.5">
-              {d.ladder.map((row) => (
-                <div key={row.listingId} className={`flex gap-2 ${row.isUs ? 'font-semibold' : ''}`}>
-                  <span className="w-3 shrink-0">{row.isUs ? '▸' : ''}</span>
+              {d.ladder.map((row) => row.isUs ? (
+                <div key={row.listingId} className="flex gap-2 font-semibold">
+                  <span className="w-3 shrink-0">▸</span>
                   <span className="w-16 shrink-0 text-right tabular-nums">{money(row.total)}</span>
                   <span className="flex-1 truncate">{row.name}</span>
-                  {row.promo && <span className="shrink-0 text-muted-foreground">promo</span>}
-                  {row.rating != null && (
-                    <span className="w-16 shrink-0 text-right text-muted-foreground">
-                      {row.rating}{row.reviewCount != null && `/${row.reviewCount}`}
-                    </span>
-                  )}
                 </div>
+              ) : (
+                // Every competitor price opens into its own evidence — the owner checks rather than
+                // trusts, and the number should carry what it takes to check it.
+                <details key={row.listingId} className="group/v">
+                  <summary className="flex cursor-pointer list-none gap-2 hover:bg-muted/40">
+                    <span className="w-3 shrink-0 text-muted-foreground group-open/v:rotate-90">›</span>
+                    <span className="w-16 shrink-0 text-right tabular-nums">{money(row.total)}</span>
+                    <span className="flex-1 truncate">{row.name}</span>
+                    {row.promo && <span className="shrink-0 text-muted-foreground">promo</span>}
+                    {row.rating != null && (
+                      <span className="w-16 shrink-0 text-right text-muted-foreground">
+                        {row.rating}{row.reviewCount != null && `/${row.reviewCount}`}
+                      </span>
+                    )}
+                  </summary>
+                  <Verify row={row} party={r.partyLabel} />
+                </details>
               ))}
               {/* Never dropped: the reason a comparable is silent IS the finding. */}
               {d.silent.map((s) => (

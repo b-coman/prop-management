@@ -48,6 +48,11 @@ export interface CompetitorQuote {
   rating: number | null;
   reviewCount: number | null;
   largestUnit: number | null;
+  /** The exact search or page URL the price was read from — it reproduces the reading. */
+  url?: string;
+  /** What the PAGE said it was quoting. Absent on rows captured before it was stored. */
+  echo?: { checkIn?: string | null; checkOut?: string | null; nights?: number | null;
+           adults?: number | null; children?: number | null; verified?: boolean };
 }
 
 export interface PositionInput {
@@ -95,9 +100,17 @@ export interface Position {
   rank: { position: number; of: number } | null;
   ourChannelPrice: number | null;
   ourDirectPrice: number | null;
-  /** Sorted cheapest first, his own row included and marked. */
+  /**
+   * Sorted cheapest first, his own row included and marked.
+   *
+   * Each row carries what it takes to CHECK it: when it was read, the page's own statement of the
+   * stay, and the URL that reproduces the search. The owner asked to be able to see the numbers
+   * himself — so the evidence travels with the number rather than living in a log he cannot reach.
+   */
   ladder: Array<{ listingId: string; name: string; total: number; isUs: boolean; promo: boolean;
-                  rating: number | null; reviewCount: number | null }>;
+                  rating: number | null; reviewCount: number | null;
+                  listTotal?: number | null; capturedAt?: string; url?: string;
+                  echo?: CompetitorQuote['echo'] }>;
   /** Comparables that did not quote, with the reason. Never silently dropped. */
   silent: Array<{ listingId: string; name: string; status: string; reason: string }>;
   outOfSet: Array<{ listingId: string; name: string; why: string }>;
@@ -144,6 +157,7 @@ export function buildPosition(input: PositionInput): Position {
     ...priced.map((q) => ({
       listingId: q.listingId, name: q.displayName, total: q.guestTotal as number,
       isUs: false, promo: !!q.promoActive, rating: q.rating, reviewCount: q.reviewCount,
+      listTotal: q.listTotal ?? null, capturedAt: q.capturedAt, url: q.url, echo: q.echo,
     })),
     ...(ourChannelPrice !== null ? [{
       listingId: '(us)', name: 'US', total: ourChannelPrice, isUs: true, promo: false,
