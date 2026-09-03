@@ -21,6 +21,7 @@ import React, { createContext, useContext, useCallback, useEffect, useReducer } 
 import { useSessionStorage } from '@/hooks/use-session-storage';
 import type { Property, PricingResponse, CurrencyCode } from '@/types';
 import { loggers } from '@/lib/logger';
+import { splitHeadcount, clampParty, maxChildrenFor, type OccupancyLimits } from '@/lib/occupancy';
 
 // ===== Types =====
 
@@ -32,7 +33,14 @@ interface BookingState {
   // Date Selection State
   checkInDate: Date | null;
   checkOutDate: Date | null;
+  /**
+   * The TOTAL, and always `adults + children`. Kept as the single number every existing consumer
+   * reads - the collapsed mobile banner, the WhatsApp message, PricingSummary, MobilePriceDrawer,
+   * the pricing fetch - so splitting the party below changed none of them.
+   */
   guestCount: number;
+  adults: number;
+  children: number;
   
   // API Data State
   unavailableDates: Date[];
@@ -65,6 +73,9 @@ interface BookingActions {
   setCheckInDate: (date: Date | null) => void;
   setCheckOutDate: (date: Date | null) => void;
   setGuestCount: (count: number) => void;
+  /** Setting either one re-clamps the pair; see clampParty in @/lib/occupancy. */
+  setAdults: (adults: number) => void;
+  setChildren: (children: number) => void;
   
   // API Calls
   fetchUnavailableDates: () => Promise<void>;
@@ -103,6 +114,9 @@ type BookingContextType = BookingState & BookingActions;
 
 // ===== Context =====
 
+/** The occupancy rules as this property states them. `maxAdults` is optional; not every property caps adults. */
+const limitsOf = (p: any): OccupancyLimits => ({ maxGuests: p?.maxGuests ?? 10, maxAdults: p?.maxAdults ?? null });
+
 const BookingContext = createContext<BookingContextType | null>(null);
 
 // ===== Reducer =====
@@ -111,6 +125,7 @@ type BookingAction =
   | { type: 'SET_CHECK_IN_DATE'; payload: Date | null }
   | { type: 'SET_CHECK_OUT_DATE'; payload: Date | null }
   | { type: 'SET_GUEST_COUNT'; payload: number }
+  | { type: 'SET_PARTY'; payload: { adults: number; children: number } }
   | { type: 'SET_UNAVAILABLE_DATES'; payload: { dates: Date[]; loading: boolean; error: string | null } }
   | { type: 'SET_PRICING'; payload: { pricing: PricingResponse | null; loading: boolean; error: string | null } }
   | { type: 'SET_SELECTED_ACTION'; payload: 'book' | 'hold' | 'contact' | null }
@@ -128,8 +143,18 @@ function bookingReducer(state: BookingState, action: BookingAction): BookingStat
     case 'SET_CHECK_OUT_DATE':
       return { ...state, checkOutDate: action.payload };
     
-    case 'SET_GUEST_COUNT':
-      return { ...state, guestCount: action.payload };
+    case 'SET_PARTY': {
+      const { adults, children } = clampParty(action.payload, limitsOf(state.property));
+      return { ...state, adults, children, guestCount: adults + children };
+    }
+
+    case 'SET_GUEST_COUNT': {
+      // A bare total, from a `?guests=` link, a session stored before the split existed, or a
+      // suggested stay tapped on the entry panel. Resolve it to a legal party rather than trust it:
+      // 7 people cannot be 7 adults here.
+      const { adults, children } = splitHeadcount(action.payload, limitsOf(state.property));
+      return { ...state, adults, children, guestCount: adults + children };
+    }
     
     case 'SET_UNAVAILABLE_DATES':
       return {
@@ -170,6 +195,7 @@ function bookingReducer(state: BookingState, action: BookingAction): BookingStat
         ...state,
         checkInDate: null,
         checkOutDate: null,
+        ...splitHeadcount(state.property.baseOccupancy || 2, limitsOf(state.property)),
         guestCount: state.property.baseOccupancy || 2,
         selectedAction: null,
         pricing: null,
@@ -235,6 +261,7 @@ export function BookingProvider({
     checkInDate: null,
     checkOutDate: null,
     guestCount: property.baseOccupancy || 2,
+    ...splitHeadcount(property.baseOccupancy || 2, limitsOf(property)),
     unavailableDates: [],
     isLoadingUnavailable: false,
     unavailableError: null,
@@ -267,6 +294,17 @@ export function BookingProvider({
   const [storedGuestCount, setStoredGuestCount] = useSessionStorage<number>(
     `booking_${propertySlug}_guests`, 
     property.baseOccupancy || 2
+  );
+  // The defaults are only used when a key is ABSENT, which is exactly a session stored before the
+  // split existed. So the migration is the default itself: no version flag, no one-off script.
+  const legacyParty = splitHeadcount(storedGuestCount, limitsOf(property));
+  const [storedAdults, setStoredAdults] = useSessionStorage<number>(
+    `booking_${propertySlug}_adults`,
+    legacyParty.adults
+  );
+  const [storedChildren, setStoredChildren] = useSessionStorage<number>(
+    `booking_${propertySlug}_children`,
+    legacyParty.children
   );
   const [storedAction, setStoredAction] = useSessionStorage<string | null>(
     `booking_${propertySlug}_action`, 
@@ -316,12 +354,31 @@ export function BookingProvider({
       dispatch({ type: 'SET_CHECK_OUT_DATE', payload: storedCheckOut });
     }
     
-    if (guestsParam) {
+    // `?adults=&children=` states a party outright; `?guests=` is a bare total and every link, ad and
+    // bookmark in the wild still carries it, so it keeps working - resolved through splitHeadcount.
+    const adultsParam = urlParams.get('adults');
+    const childrenParam = urlParams.get('children');
+    if (adultsParam) {
+      const a = parseInt(adultsParam);
+      const c = parseInt(childrenParam ?? '0');
+      if (!isNaN(a)) {
+        const party = clampParty({ adults: a, children: isNaN(c) ? 0 : c }, limitsOf(property));
+        dispatch({ type: 'SET_PARTY', payload: party });
+        setStoredAdults(party.adults);
+        setStoredChildren(party.children);
+        setStoredGuestCount(party.adults + party.children);
+      }
+    } else if (guestsParam) {
       const guestCount = parseInt(guestsParam);
       if (!isNaN(guestCount) && guestCount >= 1 && guestCount <= property.maxGuests) {
-        dispatch({ type: 'SET_GUEST_COUNT', payload: guestCount });
+        const party = splitHeadcount(guestCount, limitsOf(property));
+        dispatch({ type: 'SET_PARTY', payload: party });
+        setStoredAdults(party.adults);
+        setStoredChildren(party.children);
         setStoredGuestCount(guestCount);
       }
+    } else if (storedAdults || storedChildren) {
+      dispatch({ type: 'SET_PARTY', payload: { adults: storedAdults, children: storedChildren } });
     } else if (storedGuestCount) {
       dispatch({ type: 'SET_GUEST_COUNT', payload: storedGuestCount });
     }
@@ -368,15 +425,40 @@ export function BookingProvider({
     }
   }, [state.pricing, state.pricingError, setStoredCheckOut]);
 
+  /** Kept for callers that only know a total - BookingEntryPanel does this when a stay is tapped. */
   const setGuestCount = useCallback((count: number) => {
+    const party = splitHeadcount(count, limitsOf(property));
     dispatch({ type: 'SET_GUEST_COUNT', payload: count });
-    setStoredGuestCount(count);
-    
+    setStoredGuestCount(party.adults + party.children);
+    setStoredAdults(party.adults);
+    setStoredChildren(party.children);
+
     // V2.1: Clear pricing and errors when guest count changes
     if (state.pricing || state.pricingError) {
       dispatch({ type: 'SET_PRICING', payload: { pricing: null, loading: false, error: null } });
     }
-  }, [state.pricing, state.pricingError, setStoredGuestCount]);
+  }, [property, state.pricing, state.pricingError, setStoredGuestCount, setStoredAdults, setStoredChildren]);
+
+  const setParty = useCallback((next: { adults: number; children: number }) => {
+    const party = clampParty(next, limitsOf(property));
+    dispatch({ type: 'SET_PARTY', payload: party });
+    setStoredAdults(party.adults);
+    setStoredChildren(party.children);
+    setStoredGuestCount(party.adults + party.children);
+
+    if (state.pricing || state.pricingError) {
+      dispatch({ type: 'SET_PRICING', payload: { pricing: null, loading: false, error: null } });
+    }
+  }, [property, state.pricing, state.pricingError, setStoredAdults, setStoredChildren, setStoredGuestCount]);
+
+  /** Raising adults can leave no room for the chosen children; clampParty gives way on children. */
+  const setAdults = useCallback((adults: number) => {
+    setParty({ adults, children: state.children });
+  }, [setParty, state.children]);
+
+  const setChildren = useCallback((children: number) => {
+    setParty({ adults: state.adults, children });
+  }, [setParty, state.adults]);
 
   const fetchUnavailableDates = useCallback(async () => {
     dispatch({ type: 'SET_UNAVAILABLE_DATES', payload: { dates: [], loading: true, error: null } });
@@ -438,7 +520,9 @@ export function BookingProvider({
           propertyId: propertySlug,
           checkIn: state.checkInDate.toISOString().split('T')[0],
           checkOut: state.checkOutDate.toISOString().split('T')[0],
-          guests: state.guestCount
+          guests: state.guestCount,
+          adults: state.adults,
+          children: state.children
         })
       });
       
@@ -616,6 +700,8 @@ export function BookingProvider({
     setCheckInDate,
     setCheckOutDate,
     setGuestCount,
+    setAdults,
+    setChildren,
     fetchUnavailableDates,
     fetchPricing,
     setSelectedAction,

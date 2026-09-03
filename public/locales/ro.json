@@ -296,7 +296,20 @@
     "seasonSummer": "Vara copiii nu mai intră în casă. Leagăn, grătar, și umbră până seara.",
     "pickDate": "Alege data",
     "entryPickOwn": "Cauți altceva? Alege datele",
-    "arrivingLeavingShort": "Sosiți {{arrivalDay}} și plecați {{departureDay}}"
+    "arrivingLeavingShort": "Sosiți {{arrivalDay}} și plecați {{departureDay}}",
+    "adults": "Adulți",
+    "children": "Copii",
+    "adultsCount_one": "1 adult",
+    "adultsCount_other": "{{count}} adulți",
+    "childrenCount_zero": "Fără copii",
+    "childrenCount_one": "1 copil",
+    "childrenCount_other": "{{count}} copii",
+    "selectAdults": "Alege adulții",
+    "selectChildren": "Alege copiii",
+    "occupancyTotal": "Până la {{guests}} persoane.",
+    "occupancyAdults": "Dintre care maximum {{adults}} adulți.",
+    "occupancyBaseRate": "Tariful de bază include {{base}} persoane.",
+    "occupancyChildAge": "Copil = sub {{age}} ani."
   },
   "property": {
     "amenities": "Facilități",

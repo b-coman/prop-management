@@ -44,10 +44,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { HelpTooltip } from '@/components/ui/help-tooltip';
-import { CalendarDays, Users, Loader2, Calendar } from 'lucide-react';
+import { CalendarDays, Loader2, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatShortDate } from '@/lib/date-short';
 import { loggers } from '@/lib/logger';
+import { maxAdultsFor, maxChildrenFor } from '@/lib/occupancy';
 // Removed import - we'll implement locally for translation support
 
 interface DateAndGuestSelectorProps {
@@ -61,7 +62,8 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
     property,
     checkInDate,
     checkOutDate,
-    guestCount,
+    adults,
+    children,
     unavailableDates,
     isLoadingUnavailable,
     unavailableError,
@@ -71,7 +73,8 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
     showMinStayWarning,
     setCheckInDate,
     setCheckOutDate,
-    setGuestCount,
+    setAdults,
+    setChildren,
     fetchPricing,
     dismissMinStayWarning
   } = useBooking();
@@ -257,17 +260,26 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
     setCheckOutOpen(false); // Close popover after selection
   }, [setCheckOutDate, checkInDate]);
 
-  // Handle guest count change
-  const handleGuestCountChange = useCallback((value: string) => {
-    const count = parseInt(value);
-    if (!isNaN(count) && count >= 1 && count <= property.maxGuests) {
-      setGuestCount(count);
-      loggers.bookingContext.debug('Guest count updated', {
-        newCount: count,
-        maxGuests: property.maxGuests
-      });
-    }
-  }, [property.maxGuests, setGuestCount]);
+  /** The rules as this property states them; `maxAdults` is optional. */
+  const occupancyLimits = useMemo(
+    () => ({ maxGuests: property.maxGuests, maxAdults: (property as any).maxAdults ?? null }),
+    [property]
+  );
+
+  const handleAdultsChange = useCallback((value: string) => {
+    const n = parseInt(value);
+    if (isNaN(n)) return;
+    // The provider re-clamps the pair: raising adults can leave no room for the chosen children.
+    setAdults(n);
+    loggers.bookingContext.debug('Adults updated', { adults: n, limits: occupancyLimits });
+  }, [setAdults, occupancyLimits]);
+
+  const handleChildrenChange = useCallback((value: string) => {
+    const n = parseInt(value);
+    if (isNaN(n)) return;
+    setChildren(n);
+    loggers.bookingContext.debug('Children updated', { children: n, limits: occupancyLimits });
+  }, [setChildren, occupancyLimits]);
 
   // V2.1: Calculate nights for display
   const numberOfNights = checkInDate && checkOutDate ? getDaysBetween(checkInDate, checkOutDate) : 0;
@@ -308,19 +320,63 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
     return modifiers;
   }, [checkInDate, checkOutDate, getDatesBetween, unavailableDates]);
 
-  // Generate guest count options
-  const guestOptions = useMemo(() => {
+  const adultOptions = useMemo(() => {
     const options = [];
-    for (let i = 1; i <= property.maxGuests; i++) {
+    for (let i = 1; i <= maxAdultsFor(occupancyLimits); i++) {
+      // `(included)` marks BASE OCCUPANCY, which is a property of the TOTAL rather than of adults, so
+      // it has to be computed against the current children. With none chosen - the default, and the
+      // overwhelmingly common case - it lands on exactly the option the old single select marked.
+      const isBase = i + children === property.baseOccupancy;
       options.push(
         <SelectItem key={i} value={i.toString()}>
-          {i} {i === 1 ? t('booking.guest', 'Guest') : t('booking.guests', 'Guests')}
-          {i === property.baseOccupancy && ` (${t('booking.standard', 'included')})`}
+          {i === 1
+            ? t('booking.adultsCount_one', '1 adult')
+            : t('booking.adultsCount_other', '{{count}} adults', { count: i })}
+          {isBase && ` (${t('booking.standard', 'included')})`}
         </SelectItem>
       );
     }
     return options;
-  }, [property.maxGuests, property.baseOccupancy, t]);
+  }, [occupancyLimits, children, property.baseOccupancy, t]);
+
+  const childOptions = useMemo(() => {
+    const options = [];
+    // The ceiling on children moves with the adult count, which is why no `maxChildren` is stored.
+    for (let i = 0; i <= maxChildrenFor(adults, occupancyLimits); i++) {
+      options.push(
+        <SelectItem key={i} value={i.toString()}>
+          {i === 0
+            ? t('booking.childrenCount_zero', 'No children')
+            : i === 1
+              ? t('booking.childrenCount_one', '1 child')
+              : t('booking.childrenCount_other', '{{count}} children', { count: i })}
+        </SelectItem>
+      );
+    }
+    return options;
+  }, [adults, occupancyLimits, t]);
+
+  /**
+   * Everything the old `(included)` marker and max-guests tooltip said, plus the two facts that had
+   * no home before. It lives in the tooltip rather than a line under the row because at the 360x640
+   * floor the entry screen has FOUR pixels of headroom above the sticky bar - a visible hint line
+   * measured 22px and sat under it.
+   */
+  const occupancyHelp = useMemo(() => {
+    const p = property as any;
+    const parts = [t('booking.occupancyTotal', 'Up to {{guests}} guests.', { guests: property.maxGuests })];
+    if (p.maxAdults && p.maxAdults < property.maxGuests) {
+      parts.push(t('booking.occupancyAdults', 'At most {{adults}} of them adults.', { adults: p.maxAdults }));
+    }
+    if (property.baseOccupancy) {
+      parts.push(t('booking.occupancyBaseRate', 'The base rate includes {{base}} guests.', { base: property.baseOccupancy }));
+    }
+    // Only when the property actually states an age - never defaulted, see the Property type.
+    if (p.childMaxAge) {
+      parts.push(t('booking.occupancyChildAge', 'A child is under {{age}}.', { age: p.childMaxAge }));
+    }
+    return parts.join(' ');
+  }, [property, t]);
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -572,24 +628,48 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
           {/* Visual Separator */}
           <div className="border-t border-border my-3 sm:my-4" />
           
-          {/* Guest Selection Row - Below dates with visual separation */}
-          <div className="space-y-1.5 sm:space-y-3">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              <HelpTooltip 
-                content={`${t('booking.maxGuests', 'Max {{guests}} guests', { guests: property.maxGuests })}. ${t('booking.extraGuestsNotAllowed', 'Extra guests are not allowed without approval')}`}
-              >
-                <label className="text-sm font-medium">{t('booking.numberOfGuests', 'Number of Guests')}</label>
-              </HelpTooltip>
+          {/* Guest Selection Row - Below dates with visual separation.
+
+              Two controls side by side, mirroring the date row above, and deliberately NOT stacked.
+              Measured on the dateless entry screen: at 390x692 there are 70px between this row and
+              the sticky bar, and at the documented 360x640 floor there are FOUR. A stacked second
+              control needs ~76px, so it would sit under the bar on a real phone - the same failure
+              the date fields were rewritten to avoid. Two up costs nothing: label plus h-11 is the
+              same row height as the single select this replaces, and the columns land at exactly the
+              date-button width.
+
+              No leading icon, also deliberate. The date labels carry none - their glyphs sit inside
+              the controls - so the old Users icon made this the only row that broke the pattern. */}
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            <div className="space-y-1.5 sm:space-y-2">
+              <div className="flex items-center gap-2">
+                <HelpTooltip content={occupancyHelp}>
+                  <label className="text-sm font-medium">{t('booking.adults', 'Adults')}</label>
+                </HelpTooltip>
+              </div>
+              <Select value={adults.toString()} onValueChange={handleAdultsChange}>
+                <SelectTrigger className="w-full h-11">
+                  <SelectValue placeholder={t('booking.selectAdults', 'Select adults')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {adultOptions}
+                </SelectContent>
+              </Select>
             </div>
-            <Select value={guestCount.toString()} onValueChange={handleGuestCountChange}>
-              <SelectTrigger className="w-full h-11">
-                <SelectValue placeholder={t('booking.selectNumberOfGuests', 'Select number of guests')} />
-              </SelectTrigger>
-              <SelectContent>
-                {guestOptions}
-              </SelectContent>
-            </Select>
+
+            <div className="space-y-1.5 sm:space-y-2">
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium">{t('booking.children', 'Children')}</label>
+              </div>
+              <Select value={children.toString()} onValueChange={handleChildrenChange}>
+                <SelectTrigger className="w-full h-11">
+                  <SelectValue placeholder={t('booking.selectChildren', 'Select children')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {childOptions}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Minimum Stay Warning */}

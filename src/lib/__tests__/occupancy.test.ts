@@ -17,6 +17,8 @@ import {
   asLanguage,
   hadChildren,
   childrenShare,
+  splitHeadcount,
+  clampParty,
 } from '../occupancy';
 
 /** Prahova: 7 people, at most 5 of them adults. */
@@ -215,5 +217,41 @@ describe('hadChildren / childrenShare — unknown is not zero', () => {
 
   it('handles an empty set', () => {
     expect(childrenShare([])).toEqual({ pct: null, knownOf: 0, ofTotal: 0 });
+  });
+});
+
+describe('splitHeadcount', () => {
+  it('preserves the headcount and pushes the overflow to children', () => {
+    expect(splitHeadcount(7, CHALET)).toEqual({ adults: 5, children: 2 });
+    expect(splitHeadcount(6, CHALET)).toEqual({ adults: 5, children: 1 });
+    expect(splitHeadcount(4, CHALET)).toEqual({ adults: 4, children: 0 });
+    expect(splitHeadcount(1, CHALET)).toEqual({ adults: 1, children: 0 });
+  });
+
+  it('never produces an illegal party, whatever it is handed', () => {
+    for (const n of [-3, 0, 1, 7, 8, 99, 2.7, NaN]) {
+      expect(validateParty(splitHeadcount(n as number, CHALET), CHALET)).toEqual({ ok: true });
+    }
+  });
+
+  it('needs no children when the property caps no adults', () => {
+    expect(splitHeadcount(5, FLAT)).toEqual({ adults: 5, children: 0 });
+  });
+});
+
+describe('clampParty', () => {
+  it('gives way on children when adults rise, because adults is what was just touched', () => {
+    expect(clampParty({ adults: 5, children: 3 }, CHALET)).toEqual({ adults: 5, children: 2 });
+    expect(clampParty({ adults: 4, children: 6 }, CHALET)).toEqual({ adults: 4, children: 3 });
+  });
+
+  it('leaves a legal party alone', () => {
+    expect(clampParty({ adults: 2, children: 2 }, CHALET)).toEqual({ adults: 2, children: 2 });
+  });
+
+  it('always returns something valid', () => {
+    for (const p of [{ adults: 0, children: 0 }, { adults: 9, children: 9 }, { adults: 1, children: -2 }]) {
+      expect(validateParty(clampParty(p, CHALET), CHALET)).toEqual({ ok: true });
+    }
   });
 });

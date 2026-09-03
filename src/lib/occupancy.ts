@@ -86,6 +86,32 @@ export function maxAdultsFor(limits: OccupancyLimits): number {
   return Math.min(limits.maxGuests, limits.maxAdults ?? limits.maxGuests);
 }
 
+/**
+ * Resolve a bare headcount into a legal party.
+ *
+ * Needed wherever a total arrives without a composition: a `?guests=7` link, a session stored before
+ * the split existed, or a suggested stay tapped on the entry panel. Seven people cannot be seven
+ * adults here, so the headcount the visitor asked for is preserved and the overflow becomes children
+ * — 7 resolves to 5 + 2 rather than being refused or silently reduced.
+ */
+export function splitHeadcount(total: number, limits: OccupancyLimits): Party {
+  const capped = Math.min(Math.max(1, Math.floor(total) || 1), limits.maxGuests);
+  const adults = Math.min(capped, maxAdultsFor(limits));
+  return { adults, children: capped - adults };
+}
+
+/**
+ * Pull a party back inside the rules, adults first.
+ *
+ * The guest selector needs this because the two controls are coupled: raising adults to 5 when 3
+ * children are already chosen would make 8 people. Children give way, because the adult count is the
+ * one the visitor just touched.
+ */
+export function clampParty(party: Party, limits: OccupancyLimits): Party {
+  const adults = Math.min(Math.max(1, party.adults), maxAdultsFor(limits));
+  return { adults, children: Math.min(Math.max(0, party.children), maxChildrenFor(adults, limits)) };
+}
+
 // ============================================================================
 // Describing a party
 // ============================================================================

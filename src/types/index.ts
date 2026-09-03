@@ -140,6 +140,15 @@ export interface Property {
    * legal party. No constant can express the ceiling on children: it moves with the adult count.
    */
   maxAdults?: number;
+  /**
+   * The age below which a guest counts as a child, when the property states one.
+   *
+   * Only used to TELL people the rule - it changes no price, because a child above base occupancy
+   * costs the same as an adult (deliberately; see plans/occupancy-adults-children.md). Optional and
+   * never defaulted: inventing "under 14" for a property that never said so would be stating a policy
+   * on the owner's behalf, so the sentence simply does not appear.
+   */
+  childMaxAge?: number;
   baseOccupancy: number; // Number of guests included in pricePerNight
   defaultMinimumStay: number; // Required minimum nights for booking
   extraGuestFee?: number; // Fee per additional guest per night, in property's baseCurrency

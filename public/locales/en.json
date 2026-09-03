@@ -296,7 +296,20 @@
     "seasonSummer": "In summer the children never come indoors. Swing, grill, and shade until evening.",
     "pickDate": "Pick a date",
     "entryPickOwn": "Looking for something else? Pick your dates",
-    "arrivingLeavingShort": "Arriving {{arrivalDay}}, leaving {{departureDay}}"
+    "arrivingLeavingShort": "Arriving {{arrivalDay}}, leaving {{departureDay}}",
+    "adults": "Adults",
+    "children": "Children",
+    "adultsCount_one": "1 adult",
+    "adultsCount_other": "{{count}} adults",
+    "childrenCount_zero": "No children",
+    "childrenCount_one": "1 child",
+    "childrenCount_other": "{{count}} children",
+    "selectAdults": "Select adults",
+    "selectChildren": "Select children",
+    "occupancyTotal": "Up to {{guests}} guests.",
+    "occupancyAdults": "At most {{adults}} of them adults.",
+    "occupancyBaseRate": "The base rate includes {{base}} guests.",
+    "occupancyChildAge": "A child is under {{age}}."
   },
   "property": {
     "amenities": "Amenities",
