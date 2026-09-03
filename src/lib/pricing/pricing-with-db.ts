@@ -28,6 +28,7 @@ export async function getPropertyWithDb(propertyId: string): Promise<PropertyPri
     baseOccupancy: data.baseOccupancy || 2,
     extraGuestFee: data.extraGuestFee || 0,
     maxGuests: data.maxGuests || 10,
+    maxAdults: data.maxAdults ?? null,
     defaultMinimumStay: data.defaultMinimumStay || 1,
     pricingConfig: data.pricingConfig || {
       weekendAdjustment: 1.2,
@@ -44,7 +45,8 @@ export async function getPropertyWithDb(propertyId: string): Promise<PropertyPri
     pricePerNight: property.pricePerNight,
     baseOccupancy: property.baseOccupancy,
     extraGuestFee: property.extraGuestFee,
-    maxGuests: property.maxGuests
+    maxGuests: property.maxGuests,
+    maxAdults: property.maxAdults
   });
   
   return property;

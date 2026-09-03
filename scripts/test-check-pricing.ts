@@ -11,18 +11,47 @@
  *   npx tsx scripts/test-check-pricing.ts http://localhost:9002
  */
 
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+import { getAdminDb } from '../src/lib/firebaseAdminSafe';
+
 const BASE_URL = process.argv[2] || 'http://localhost:9002';
 const PROPERTY_ID = 'prahova-mountain-chalet';
 
-// Known property config (from Firestore, updated Feb 2026)
+/**
+ * Read live, never hardcoded.
+ *
+ * These were literal constants "from Firestore, updated Feb 2026" and had silently gone stale: the
+ * August 2026 repricing moved baseOccupancy 4 -> 3 and extraGuestFee 25 -> 75, so the extra-guest
+ * assertion had been failing against a CORRECT engine, and two more were warning. A test that
+ * measures against a config the property no longer has reports noise, and noise is how a real
+ * regression gets waved through. Reading the same document the API reads cannot drift.
+ */
 const EXPECTED = {
-  pricePerNight: 523,
-  weekendAdjustment: 1.3155,
-  weekendDays: ['friday', 'saturday'],
-  baseOccupancy: 4,
-  extraGuestFee: 25,
-  cleaningFee: 200,
+  pricePerNight: 0,
+  weekendAdjustment: 0,
+  weekendDays: [] as string[],
+  baseOccupancy: 0,
+  extraGuestFee: 0,
+  cleaningFee: 0,
 };
+
+async function loadExpectedFromFirestore() {
+  const db = await getAdminDb();
+  const doc = await db!.collection('properties').doc(PROPERTY_ID).get();
+  if (!doc.exists) throw new Error(`Property ${PROPERTY_ID} not found`);
+  const d = doc.data()!;
+  const cfg = d.pricingConfig ?? d.pricing?.weekendPricing ?? {};
+  EXPECTED.pricePerNight = d.pricePerNight ?? 0;
+  EXPECTED.weekendAdjustment = cfg.weekendAdjustment ?? 1;
+  EXPECTED.weekendDays = cfg.weekendDays ?? ['friday', 'saturday'];
+  EXPECTED.baseOccupancy = d.baseOccupancy ?? 2;
+  EXPECTED.extraGuestFee = d.extraGuestFee ?? 0;
+  EXPECTED.cleaningFee = d.cleaningFee ?? 0;
+  console.log(`  Config (live): base ${EXPECTED.pricePerNight}, weekend x${EXPECTED.weekendAdjustment}, ` +
+    `occ ${EXPECTED.baseOccupancy}, extra ${EXPECTED.extraGuestFee}, cleaning ${EXPECTED.cleaningFee}`);
+}
 
 // Helper: format a local Date as YYYY-MM-DD without UTC timezone shift
 function formatDate(d: Date): string {
@@ -75,6 +104,8 @@ async function run() {
   console.log(`  Server: ${BASE_URL}`);
   console.log(`  Property: ${PROPERTY_ID}`);
   console.log('===========================================\n');
+
+  await loadExpectedFromFirestore();
 
   // Check server (use check-pricing with invalid body — just needs a connection)
   try {

@@ -160,6 +160,13 @@ export const PropertyPricingSchema = z.object({
   baseOccupancy: z.number().int().positive(),
   extraGuestFee: z.number().nonnegative().optional(),
   maxGuests: z.number().int().positive().optional(),
+  /**
+   * The cap on ADULTS, carried here only so `/api/check-pricing` can enforce it. The pricing engine
+   * never reads it: a child costs the same as an adult above base occupancy, deliberately. See
+   * `@/lib/occupancy` for the rule and `plans/occupancy-adults-children.md` for why the child rate
+   * was deferred.
+   */
+  maxAdults: z.number().int().positive().nullable().optional(),
   pricingConfig: z.object({
     weekendAdjustment: z.number().positive(),
     weekendDays: z.array(z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'])),

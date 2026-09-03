@@ -6,6 +6,7 @@ import { differenceInDays, format, addDays, parseISO } from 'date-fns';
 import { checkAvailabilityWithFlags } from '@/lib/availability-service';
 import { loggers } from '@/lib/logger';
 import { checkRateLimit, rateLimitHeaders } from '@/lib/rate-limiter';
+import { validateParty, type PartyRejection, type OccupancyLimits } from '@/lib/occupancy';
 
 const logger = loggers.pricing;
 
@@ -27,6 +28,17 @@ const RATE_LIMIT_CONFIG = { maxRequests: 60, windowSeconds: 60, keyPrefix: 'chec
  * }
  * ```
  */
+/**
+ * Developer-facing text for a refused party. The client renders its own localised copy from `reason`
+ * and `limits`, so these never reach a guest.
+ */
+const OCCUPANCY_MESSAGES: Record<PartyRejection, (l: OccupancyLimits) => string> = {
+  no_adult: () => 'A booking needs at least one adult',
+  too_many_adults: (l) => `This property accommodates at most ${l.maxAdults} adults`,
+  too_many_guests: (l) => `This property accommodates at most ${l.maxGuests} guests`,
+  malformed: () => 'Guest counts must be whole, non-negative numbers',
+};
+
 export async function POST(request: NextRequest) {
   // Check rate limit
   const rateLimitResult = checkRateLimit(request, RATE_LIMIT_CONFIG);
@@ -40,10 +52,14 @@ export async function POST(request: NextRequest) {
   try {
     // Parse request body
     const body = await request.json();
-    const { propertyId, checkIn, checkOut, guests } = body;
+    const { propertyId, checkIn, checkOut, guests, adults, children } = body;
     
-    // Validate required parameters
-    if (!propertyId || !checkIn || !checkOut || !guests) {
+    // Validate required parameters. A caller may state the party either way round: a bare `guests`
+    // headcount (every caller before this change) or an `adults`/`children` split.
+    // Presence, not truthiness: `guests: 0` and `adults: 0` are stated parties, and they are wrong for
+    // a reason worth reporting. Falling into "missing parameters" would refuse them correctly and
+    // explain them wrongly, leaving the caller nothing to render.
+    if (!propertyId || !checkIn || !checkOut || (guests == null && adults == null)) {
       return NextResponse.json(
         { error: 'Missing required parameters' },
         { status: 400 }
@@ -58,7 +74,9 @@ export async function POST(request: NextRequest) {
       propertyId,
       checkIn,
       checkOut,
-      guests
+      guests,
+      adults,
+      children
     });
     
     // Validate past dates
@@ -89,6 +107,52 @@ export async function POST(request: NextRequest) {
       extraGuestFee: property.extraGuestFee,
       pricePerNight: property.pricePerNight
     });
+
+    // ---- occupancy ----
+    // Until now this route priced ANY headcount, including one above `maxGuests`: 8 guests came back
+    // with a real total for a house that sleeps 7.
+    //
+    // The adult cap can only be applied to a party whose composition is actually stated. A bare
+    // `guests` count says nothing about who those people are, and treating it as all-adults would
+    // refuse a perfectly legal family of six — and would break every existing caller, the parity pack
+    // among them, which quotes 4 adults + 2 children as the headcount 6. So: split given, both rules;
+    // headcount only, ceiling only.
+    const hasSplit = adults != null;
+    const partyAdults = hasSplit ? Number(adults) : Number(guests);
+    const partyChildren = hasSplit ? Number(children ?? 0) : 0;
+    const headcount = partyAdults + partyChildren;
+
+    if (hasSplit && guests != null && Number(guests) !== headcount) {
+      // Never pick a winner between two headcounts the caller disagrees with itself about — that is
+      // how a party gets priced for one size and charged for another.
+      return NextResponse.json(
+        {
+          error: `guests (${guests}) does not equal adults + children (${headcount})`,
+          reason: 'party_mismatch',
+        },
+        { status: 400 }
+      );
+    }
+
+    const limits = {
+      maxGuests: (property as any).maxGuests,
+      maxAdults: hasSplit ? ((property as any).maxAdults ?? null) : null,
+    };
+    const partyCheck = validateParty({ adults: partyAdults, children: partyChildren }, limits);
+
+    if (!partyCheck.ok) {
+      logger.debug('Party refused', { propertyId, adults: partyAdults, children: partyChildren, reason: partyCheck.reason });
+      return NextResponse.json(
+        {
+          available: false,
+          error: OCCUPANCY_MESSAGES[partyCheck.reason](limits),
+          reason: partyCheck.reason,
+          // The caller renders its own copy from these; the message above is for logs and dev.
+          limits: { maxGuests: (property as any).maxGuests, maxAdults: (property as any).maxAdults ?? null },
+        },
+        { status: 400 }
+      );
+    }
     
     // Get number of nights
     const nights = differenceInDays(checkOutDate, checkInDate);
@@ -162,12 +226,12 @@ export async function POST(request: NextRequest) {
       const dayPrice = calendar.days[day];
       
       // Record price for this date using the prices dict (includes base occupancy)
-      const occupancyPrice = dayPrice.prices?.[guests.toString()];
+      const occupancyPrice = dayPrice.prices?.[headcount.toString()];
       if (occupancyPrice !== undefined) {
         dailyPrices[dateStr] = occupancyPrice;
       } else {
         // Fallback: calculate from adjustedPrice (not basePrice, which is the raw property price)
-        const extraGuests = Math.max(0, guests - property.baseOccupancy);
+        const extraGuests = Math.max(0, headcount - property.baseOccupancy);
         const extraGuestFee = property.extraGuestFee || 0;
         dailyPrices[dateStr] = dayPrice.adjustedPrice + (extraGuests * extraGuestFee);
       }
@@ -207,7 +271,7 @@ export async function POST(request: NextRequest) {
       };
       
       logger.debug('Final pricing response', {
-        guests,
+        guests: headcount,
         total: finalResponse.pricing.total,
         nights: finalResponse.pricing.numberOfNights
       });
