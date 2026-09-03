@@ -173,38 +173,6 @@ export function formatGuestCount(
 }
 
 /**
- * "4 oaspeti" — a headcount with no claim about its composition.
- *
- * 73 of the 175 stored bookings carry no `numberOfChildren`, and that is an unknown rather than a
- * zero. This is what an unknown split renders as. Diacritic-free for the same reason as above.
- */
-export function formatHeadcount(total: number, language: Language): string {
-  if (language === 'ro') {
-    return total === 1 ? '1 oaspete' : `${total} oaspeti`;
-  }
-  return `${total} guest${total !== 1 ? 's' : ''}`;
-}
-
-/**
- * How a booking's party reads, choosing honestly between the two renderers above.
- *
- * `children == null` means the split was never recorded, so `total` is all that can be said.
- */
-export function describeGuests(
-  booking: { numberOfAdults?: number | null; numberOfChildren?: number | null; numberOfGuests?: number | null },
-  language: Language
-): string {
-  const { numberOfAdults, numberOfChildren, numberOfGuests } = booking;
-
-  if (numberOfAdults != null && numberOfChildren != null) {
-    return formatGuestCount(numberOfAdults, numberOfChildren, language);
-  }
-
-  const total = numberOfGuests ?? numberOfAdults ?? 0;
-  return formatHeadcount(total, language);
-}
-
-/**
  * The property's capacity as a guest-facing phrase: "pana la 7 persoane (max. 5 adulti)".
  *
  * Web copy, so diacritics are correct here — see the note on `formatGuestCount`.
@@ -241,12 +209,6 @@ export function capacityParts(
   return null;
 }
 
-/** The same thing as one string, for anywhere that cannot style the two halves separately. */
-export function capacityLabel(limits: OccupancyLimits, language: Language): string | null {
-  const parts = capacityParts(limits, language);
-  if (!parts) return null;
-  return [parts.primary, parts.qualifier].filter(Boolean).join(' ');
-}
 
 // ============================================================================
 // Unknown is not zero

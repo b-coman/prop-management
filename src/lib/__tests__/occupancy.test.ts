@@ -10,9 +10,6 @@ import {
   maxChildrenFor,
   maxAdultsFor,
   formatGuestCount,
-  formatHeadcount,
-  describeGuests,
-  capacityLabel,
   capacityParts,
   asLanguage,
   hadChildren,
@@ -116,53 +113,8 @@ describe('formatGuestCount — pinned against the live WhatsApp wording', () => 
   });
 });
 
-describe('formatHeadcount', () => {
-  it('says nothing about composition', () => {
-    expect(formatHeadcount(1, 'ro')).toBe('1 oaspete');
-    expect(formatHeadcount(4, 'ro')).toBe('4 oaspeti');
-    expect(formatHeadcount(1, 'en')).toBe('1 guest');
-    expect(formatHeadcount(4, 'en')).toBe('4 guests');
-  });
-});
 
-describe('describeGuests', () => {
-  it('uses the split when it is known', () => {
-    expect(describeGuests({ numberOfAdults: 2, numberOfChildren: 1, numberOfGuests: 3 }, 'ro'))
-      .toBe('2 adulti, 1 copil');
-  });
 
-  it('states a known zero as a real zero', () => {
-    expect(describeGuests({ numberOfAdults: 4, numberOfChildren: 0, numberOfGuests: 4 }, 'ro'))
-      .toBe('4 adulti');
-  });
-
-  it('falls back to a headcount when the split was never recorded', () => {
-    // 73 of 175 stored bookings look like this. Rendering "4 adulti" here would invent a fact.
-    expect(describeGuests({ numberOfAdults: 4, numberOfChildren: null, numberOfGuests: 4 }, 'ro'))
-      .toBe('4 oaspeti');
-    expect(describeGuests({ numberOfGuests: 4 }, 'en')).toBe('4 guests');
-  });
-});
-
-describe('capacityLabel', () => {
-  it('states both facts when the adult cap binds', () => {
-    expect(capacityLabel(CHALET, 'ro')).toBe('până la 7 persoane (max. 5 adulți)');
-    expect(capacityLabel(CHALET, 'en')).toBe('up to 7 guests (max. 5 adults)');
-  });
-
-  it('omits the parenthesis when no adult cap binds', () => {
-    expect(capacityLabel(FLAT, 'ro')).toBe('până la 5 persoane');
-    expect(capacityLabel({ maxGuests: 5, maxAdults: 5 }, 'en')).toBe('up to 5 guests');
-  });
-
-  it('keeps web diacritics, unlike the WhatsApp renderer', () => {
-    expect(capacityLabel(CHALET, 'ro')).toMatch(/adulți/);
-  });
-
-  it('returns null when a property states no capacity at all', () => {
-    expect(capacityLabel({ maxGuests: 0 }, 'ro')).toBeNull();
-  });
-});
 
 describe('capacityParts', () => {
   it('separates the fact from its qualifier so the UI can style them apart', () => {
@@ -176,14 +128,6 @@ describe('capacityParts', () => {
     expect(capacityParts(FLAT, 'en')).toEqual({ primary: 'up to 5 guests', qualifier: null });
   });
 
-  it('stays consistent with capacityLabel', () => {
-    for (const limits of [CHALET, FLAT, { maxGuests: 3, maxAdults: 2 }]) {
-      for (const lang of ['ro', 'en'] as const) {
-        const p = capacityParts(limits, lang)!;
-        expect(capacityLabel(limits, lang)).toBe([p.primary, p.qualifier].filter(Boolean).join(' '));
-      }
-    }
-  });
 });
 
 describe('asLanguage', () => {
