@@ -17,6 +17,7 @@ import { detectLanguage } from '@/lib/growth/audience';
 import { getNotesByGuest, isTouch, isLive } from '@/services/guestNoteService';
 import type { CampaignBrief } from '@/lib/growth/contracts';
 import { normalizeChannel } from '@/lib/channels';
+import { hadChildren } from '@/lib/occupancy';
 
 const toD = (v: any): Date | null => v?._seconds ? new Date(v._seconds * 1000) : v?.toDate ? v.toDate() : typeof v === 'string' ? new Date(v) : v instanceof Date ? v : null;
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
@@ -161,7 +162,7 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
     if (last) groundedFacts.push({ key: 'lastStayPhrase', value: lastStayPhrase(last, AS_OF), source: `bookings/${lastBk.id}` });
     if (last) groundedFacts.push({ key: 'lastStaySeason', value: seasonOf(last), source: `bookings/${lastBk.id}` });
     if (lastBk?.numberOfGuests) groundedFacts.push({ key: 'partySize', value: lastBk.numberOfGuests, source: `bookings/${lastBk.id}` });
-    if (lastBk && (lastBk.numberOfChildren ?? 0) > 0) groundedFacts.push({ key: 'hadChildren', value: true, source: `bookings/${lastBk.id}` });
+    if (lastBk && hadChildren(lastBk) === true) groundedFacts.push({ key: 'hadChildren', value: true, source: `bookings/${lastBk.id}` });
     if (totalBookings >= 2) groundedFacts.push({ key: 'isRepeatGuest', value: totalBookings, source: `guests/${gid}` });
     if (booksDirect) groundedFacts.push({ key: 'booksDirect', value: { directBookings: directCount, otaBookings: otaCount }, source: `bookings(guests/${gid})` });
     reviewThemes.forEach(t => groundedFacts.push({ key: `reviewPraised:${t}`, value: t, source: `reviews/${(rv[0] || {}).id || gid}` }));
@@ -197,7 +198,9 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
         lastStayPhrase: lastStayPhrase(last, AS_OF),
         lastStaySeason: last ? seasonOf(last) : null,
         partySize: lastBk?.numberOfGuests ?? null,
-        hadChildren: lastBk ? (lastBk.numberOfChildren ?? 0) > 0 : null,
+        // null = never recorded. Returning `false` here stated something nobody established, to a
+        // writer whose whole contract is that it may only assert what the pack grounds.
+        hadChildren: lastBk ? hadChildren(lastBk) : null,
         reviewThemes,
         bookingChannel: { lastChannel, directCount, otaCount },
       },

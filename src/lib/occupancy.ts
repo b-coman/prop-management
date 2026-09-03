@@ -213,3 +213,40 @@ export function capacityLabel(limits: OccupancyLimits, language: Language): stri
   if (!parts) return null;
   return [parts.primary, parts.qualifier].filter(Boolean).join(' ');
 }
+
+// ============================================================================
+// Unknown is not zero
+// ============================================================================
+
+/**
+ * Did this booking's party include children? `null` when nobody ever recorded it.
+ *
+ * This exists because the same mistake was made independently in two places: `(numberOfChildren ?? 0)
+ * > 0` reads a MISSING composition as a recorded zero. 73 of 175 stored bookings have no value — they
+ * predate the field or came from a channel that never sent it — and coalescing them to 0 turned
+ * "we never asked" into "there were no children", which then travelled into an analyst statistic and
+ * into the grounded facts a copywriter may assert. Naming the semantic is what stops it happening a
+ * third time.
+ */
+export function hadChildren(booking: { numberOfChildren?: number | null }): boolean | null {
+  return booking.numberOfChildren != null ? booking.numberOfChildren > 0 : null;
+}
+
+/**
+ * The share of a set of bookings whose party included children, over the ones that actually SAY.
+ *
+ * Returns the sample alongside the figure: a percentage computed on 97 of 170 bookings is a different
+ * claim from one computed on all 170, and a reader given only the number cannot tell which it holds.
+ */
+export function childrenShare(
+  bookings: Array<{ numberOfChildren?: number | null }>
+): { pct: number | null; knownOf: number; ofTotal: number } {
+  const known = bookings.filter(b => b.numberOfChildren != null);
+  if (!known.length) return { pct: null, knownOf: 0, ofTotal: bookings.length };
+  const withKids = known.filter(b => (b.numberOfChildren as number) > 0).length;
+  return {
+    pct: Math.round((withKids / known.length) * 100),
+    knownOf: known.length,
+    ofTotal: bookings.length,
+  };
+}

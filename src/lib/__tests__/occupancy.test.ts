@@ -15,6 +15,8 @@ import {
   capacityLabel,
   capacityParts,
   asLanguage,
+  hadChildren,
+  childrenShare,
 } from '../occupancy';
 
 /** Prahova: 7 people, at most 5 of them adults. */
@@ -189,5 +191,29 @@ describe('asLanguage', () => {
     expect(asLanguage('de')).toBe('en');
     expect(asLanguage(undefined)).toBe('en');
     expect(asLanguage(null)).toBe('en');
+  });
+});
+
+describe('hadChildren / childrenShare — unknown is not zero', () => {
+  it('distinguishes a recorded zero from a missing value', () => {
+    expect(hadChildren({ numberOfChildren: 2 })).toBe(true);
+    expect(hadChildren({ numberOfChildren: 0 })).toBe(false);
+    expect(hadChildren({ numberOfChildren: null })).toBeNull();
+    expect(hadChildren({})).toBeNull();
+  });
+
+  it('computes the share over what is known, and says what that was', () => {
+    // Two known (one with children), two never recorded. The old form said 25%; it is 50% of what
+    // was actually recorded, and the caller can now see it rests on two bookings out of four.
+    const set = [{ numberOfChildren: 2 }, { numberOfChildren: 0 }, { numberOfChildren: null }, {}];
+    expect(childrenShare(set)).toEqual({ pct: 50, knownOf: 2, ofTotal: 4 });
+  });
+
+  it('reports null rather than 0% when nothing is known', () => {
+    expect(childrenShare([{}, { numberOfChildren: null }])).toEqual({ pct: null, knownOf: 0, ofTotal: 2 });
+  });
+
+  it('handles an empty set', () => {
+    expect(childrenShare([])).toEqual({ pct: null, knownOf: 0, ofTotal: 0 });
   });
 });

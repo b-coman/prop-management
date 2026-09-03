@@ -19,6 +19,7 @@ import { getPageHealth, getAdAccountHealth } from '@/services/growth/metaAds/bra
 import { computeRecentCancellations, computeOutreachLedger, computeFreeRuns, computeOccasions, computeExtendedWindows, type HolidayDoc } from '@/lib/growth/signals';
 import { getNotesByGuest, isTouch } from '@/services/guestNoteService';
 import { normalizeChannel } from '@/lib/channels';
+import { childrenShare, hadChildren } from '@/lib/occupancy';
 
 const toD = (v: any): Date | null =>
   v?._seconds ? new Date(v._seconds * 1000) : v?.toDate ? v.toDate() : typeof v === 'string' ? new Date(v) : v instanceof Date ? v : null;
@@ -338,7 +339,10 @@ export async function buildSituationPack(
   const product = {
     lengthOfStay: { median: pct(losArr, 0.5), mean: round(losArr.reduce((a, b) => a + b, 0) / losArr.length, 1), twoOrThreeNightSharePct: round(losArr.filter(n => n <= 3).length / losArr.length * 100) },
     partySize: { p25: pct(partyArr, 0.25), median: pct(partyArr, 0.5), p75: pct(partyArr, 0.75) },
-    withChildrenPct: round(completed.filter(b => (b.numberOfChildren ?? 0) > 0).length / completed.length * 100),
+    // Over the stays that actually RECORD a composition, and reporting that sample. The old form
+    // counted every unrecorded booking as "no children", which biased the figure down by an unknown
+    // amount and handed the analyst a percentage with no denominator to judge it by.
+    withChildren: childrenShare(completed),
     nightsByDayOfWeek: Object.fromEntries(DOW.map(d => [d, dowNights.get(d) || 0])),
   };
 
@@ -382,7 +386,11 @@ export async function buildSituationPack(
       lastStay: last ? ymd(last) : null,
       daysSinceLastStay: last ? nightsBetween(last, AS_OF) : null,
       lastStaySeason: last ? seasonOf(last) : null,
-      lastStayHadChildren: lastBooking ? (lastBooking.numberOfChildren ?? 0) > 0 : null,
+      // null means UNKNOWN, and `familySegment` below already has an `unknown` bucket waiting for it.
+      // The old form returned `false` whenever a booking existed without a recorded composition, so
+      // every such guest landed in adults-only and the unknown bucket only ever caught guests with
+      // no booking at all.
+      lastStayHadChildren: lastBooking ? hadChildren(lastBooking) : null,
       hasReview: (reviewsBy.get(g.id) || 0) > 0,
       inboundMessages: inbound,
       loggedCalls: calls.length,
