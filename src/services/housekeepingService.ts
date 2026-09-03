@@ -6,6 +6,7 @@ import { loggers } from '@/lib/logger';
 import { formatBucharestDate } from '@/lib/dates/property-times';
 import type { HousekeepingContact, HousekeepingMessage } from '@/types';
 import type { WhatsAppTemplateName } from '@/services/whatsappService';
+import { formatGuestCount } from '@/lib/occupancy';
 
 const logger = loggers.housekeeping;
 
@@ -128,32 +129,8 @@ async function getBookingsForProperty(
 // Guest count formatting
 // ============================================================================
 
-function formatGuestCount(adults: number, children: number, language: 'ro' | 'en'): string {
-  if (language === 'ro') {
-    let parts: string[] = [];
-    if (adults === 1) {
-      parts.push('1 adult');
-    } else {
-      parts.push(`${adults} adulti`);
-    }
-    if (children > 0) {
-      if (children === 1) {
-        parts.push('1 copil');
-      } else {
-        parts.push(`${children} copii`);
-      }
-    }
-    return parts.join(', ');
-  }
-
-  // English
-  let parts: string[] = [];
-  parts.push(`${adults} adult${adults !== 1 ? 's' : ''}`);
-  if (children > 0) {
-    parts.push(`${children} child${children !== 1 ? 'ren' : ''}`);
-  }
-  return parts.join(', ');
-}
+// Moved to `@/lib/occupancy` so email, admin and the booking UI describe a party identically.
+// Imported at the top of this file; the wording is pinned by src/lib/__tests__/occupancy.test.ts.
 
 // ============================================================================
 // Message builders
