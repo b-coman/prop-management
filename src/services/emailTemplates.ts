@@ -6,6 +6,7 @@
 
 import type { LanguageCode } from '@/types';
 import { getEmailPalette, type EmailPalette } from '@/lib/email-theme';
+import { formatGuestCount, asLanguage } from '@/lib/occupancy';
 
 // Email translations for all templates
 const emailTranslations = {
@@ -228,6 +229,17 @@ const emailTranslations = {
 type TranslationKey = keyof typeof emailTranslations.en;
 
 // Helper to get translation
+/**
+ * "2 adulți, 1 copil" when the booking recorded a composition, otherwise the bare total exactly as
+ * before. Absent is an unknown, not a zero, so it must not render as "N adults, 0 children".
+ */
+function guestsLine(data: { numberOfGuests: number; numberOfAdults?: number; numberOfChildren?: number }, lang: LanguageCode): string {
+  if (data.numberOfAdults != null && data.numberOfChildren != null) {
+    return formatGuestCount(data.numberOfAdults, data.numberOfChildren, asLanguage(lang as string), { diacritics: true });
+  }
+  return String(data.numberOfGuests);
+}
+
 function t(lang: LanguageCode, key: TranslationKey, replacements?: Record<string, string>): string {
   const translations = emailTranslations[lang] || emailTranslations.en;
   let text = translations[key] as string;
@@ -298,6 +310,9 @@ interface BookingEmailData {
   checkInTime?: string;
   checkOutTime?: string;
   numberOfGuests: number;
+  /** Composition when the booking recorded one. Absent means unknown, never zero. */
+  numberOfAdults?: number;
+  numberOfChildren?: number;
   numberOfNights: number;
   baseAmount: string;
   cleaningFee: string;
@@ -322,6 +337,9 @@ interface HoldEmailData {
   checkInDate: string;
   checkOutDate: string;
   numberOfGuests: number;
+  /** Composition when the booking recorded one. Absent means unknown, never zero. */
+  numberOfAdults?: number;
+  numberOfChildren?: number;
   expirationTime: string;
   estimatedTotal: string;
   currency: string;
@@ -487,7 +505,7 @@ ${t(lang, 'bookingDetails')}:
 - ${t(lang, 'property')}: ${data.propertyName}
 - ${t(lang, 'checkIn')}: ${data.checkInDate}${data.checkInTime ? ` (${t(lang, 'after')} ${data.checkInTime})` : ''}
 - ${t(lang, 'checkOut')}: ${data.checkOutDate}${data.checkOutTime ? ` (${t(lang, 'before')} ${data.checkOutTime})` : ''}
-- ${t(lang, 'guests')}: ${data.numberOfGuests}
+- ${t(lang, 'guests')}: ${guestsLine(data, lang)}
 - ${t(lang, 'bookingId')}: ${data.bookingId}
 
 ${t(lang, 'paymentSummary')}:
@@ -518,7 +536,7 @@ ${createHeader(t(lang, 'bookingConfirmation'), data.brand)}
       <p><strong>${t(lang, 'property')}:</strong> ${data.propertyName}</p>
       <p><strong>${t(lang, 'checkIn')}:</strong> ${data.checkInDate}${data.checkInTime ? ` (${t(lang, 'after')} ${data.checkInTime})` : ''}</p>
       <p><strong>${t(lang, 'checkOut')}:</strong> ${data.checkOutDate}${data.checkOutTime ? ` (${t(lang, 'before')} ${data.checkOutTime})` : ''}</p>
-      <p><strong>${t(lang, 'guests')}:</strong> ${data.numberOfGuests}</p>
+      <p><strong>${t(lang, 'guests')}:</strong> ${guestsLine(data, lang)}</p>
       <!-- A reference, not information: opaque to the guest, needed only if
            something goes wrong. So it closes the block quietly instead of leading it. -->
       <p class="reference">${t(lang, 'bookingId')} ${data.bookingId}</p>
@@ -605,7 +623,7 @@ ${t(lang, 'holdDetails')}:
 - ${t(lang, 'property')}: ${data.propertyName}
 - ${t(lang, 'checkIn')}: ${data.checkInDate}
 - ${t(lang, 'checkOut')}: ${data.checkOutDate}
-- ${t(lang, 'guests')}: ${data.numberOfGuests}
+- ${t(lang, 'guests')}: ${guestsLine(data, lang)}
 - ${t(lang, 'expires')}: ${data.expirationTime}
 - ${t(lang, 'estimatedTotal')}: ${data.estimatedTotal}
 
@@ -627,7 +645,7 @@ ${createHeader(t(lang, 'holdConfirmation'), data.brand)}
       <p><strong>${t(lang, 'property')}:</strong> ${data.propertyName}</p>
       <p><strong>${t(lang, 'checkIn')}:</strong> ${data.checkInDate}</p>
       <p><strong>${t(lang, 'checkOut')}:</strong> ${data.checkOutDate}</p>
-      <p><strong>${t(lang, 'guests')}:</strong> ${data.numberOfGuests}</p>
+      <p><strong>${t(lang, 'guests')}:</strong> ${guestsLine(data, lang)}</p>
       <p><strong>${t(lang, 'estimatedTotal')}:</strong> ${data.estimatedTotal}</p>
     </div>
 

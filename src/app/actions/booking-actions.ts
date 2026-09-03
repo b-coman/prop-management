@@ -44,6 +44,10 @@ const CreatePendingBookingSchema = z.object({
   checkInDate: z.string().datetime(), // ISO string
   checkOutDate: z.string().datetime(), // ISO string
   numberOfGuests: z.number().int().positive(),
+  // The composition, when the client knows it. Optional so an older client - or any caller that only
+  // has a headcount - keeps working exactly as before; `numberOfGuests` stays the total either way.
+  numberOfAdults: z.number().int().positive().optional(),
+  numberOfChildren: z.number().int().nonnegative().optional(),
   pricing: z.object({ // Includes currency
     baseRate: z.number().nonnegative(),
     numberOfNights: z.number().int().positive(),
@@ -104,6 +108,8 @@ export async function createPendingBookingAction(
     checkInDate: checkInStr,
     checkOutDate: checkOutStr,
     numberOfGuests,
+    numberOfAdults,
+    numberOfChildren,
     pricing,
     status,
     appliedCouponCode,
@@ -159,6 +165,10 @@ export async function createPendingBookingAction(
       checkInDate: Timestamp.fromDate(checkIn),
       checkOutDate: Timestamp.fromDate(checkOut),
       numberOfGuests,
+      // Spread rather than assign: Firestore rejects an explicit `undefined`, and an absent split is
+      // an unknown rather than a zero - see hadChildren() in @/lib/occupancy.
+      ...(numberOfAdults != null ? { numberOfAdults } : {}),
+      ...(numberOfChildren != null ? { numberOfChildren } : {}),
       pricing, // Should be fully validated by the schema already
       status: 'pending', // Always pending when created via this action
       appliedCouponCode: appliedCouponCode ?? null,

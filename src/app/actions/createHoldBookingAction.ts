@@ -19,6 +19,9 @@ const CreateHoldBookingSchema = z.object({
   checkInDate: z.string().datetime("Invalid check-in date."),
   checkOutDate: z.string().datetime("Invalid check-out date."),
   guestCount: z.number().int().positive("Invalid guest count."),
+  // Composition when known; `guestCount` remains the total.
+  numberOfAdults: z.number().int().positive().optional(),
+  numberOfChildren: z.number().int().nonnegative().optional(),
   guestInfo: z.object({
     firstName: z.string().min(1, "First name is required.").transform(sanitizeText),
     lastName: z.string().min(1, "Last name is required.").transform(sanitizeText),
@@ -79,6 +82,8 @@ export async function createHoldBookingAction(
     checkInDate,
     checkOutDate,
     guestCount,
+    numberOfAdults,
+    numberOfChildren,
     guestInfo,
     holdFeeAmount,
     holdDurationHours = 24, // Default to 24 hours
@@ -106,6 +111,8 @@ export async function createHoldBookingAction(
       checkInDate: Timestamp.fromDate(checkIn),
       checkOutDate: Timestamp.fromDate(checkOut),
       numberOfGuests: guestCount,
+      ...(numberOfAdults != null ? { numberOfAdults } : {}),
+      ...(numberOfChildren != null ? { numberOfChildren } : {}),
       status: "on-hold",
       holdFee: holdFeeAmount,
       holdUntil: Timestamp.fromDate(holdUntil),

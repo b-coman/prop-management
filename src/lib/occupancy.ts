@@ -138,13 +138,21 @@ export const asLanguage = (lang: string | null | undefined): Language => (lang =
  * Only for a party whose split is actually KNOWN. When it is not, use `formatHeadcount` — rendering
  * an absent split as "0 copii" states something nobody established.
  */
-export function formatGuestCount(adults: number, children: number, language: Language): string {
+export function formatGuestCount(
+  adults: number,
+  children: number,
+  language: Language,
+  opts: { diacritics?: boolean } = {}
+): string {
   if (language === 'ro') {
     const parts: string[] = [];
     if (adults === 1) {
       parts.push('1 adult');
     } else {
-      parts.push(`${adults} adulti`);
+      // The ONLY word here that carries a diacritic. Default off for WhatsApp; email turns it on,
+      // because the rest of the Romanian email copy is written with diacritics and a bare "adulti"
+      // in the middle of it reads like a typo.
+      parts.push(`${adults} ${opts.diacritics ? 'adulți' : 'adulti'}`);
     }
     if (children > 0) {
       if (children === 1) {

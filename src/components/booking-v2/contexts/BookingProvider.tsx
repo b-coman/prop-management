@@ -21,7 +21,7 @@ import React, { createContext, useContext, useCallback, useEffect, useReducer } 
 import { useSessionStorage } from '@/hooks/use-session-storage';
 import type { Property, PricingResponse, CurrencyCode } from '@/types';
 import { loggers } from '@/lib/logger';
-import { splitHeadcount, clampParty, maxChildrenFor, type OccupancyLimits } from '@/lib/occupancy';
+import { splitHeadcount, clampParty, type OccupancyLimits } from '@/lib/occupancy';
 
 // ===== Types =====
 

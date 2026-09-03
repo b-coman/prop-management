@@ -10,6 +10,7 @@ import { getAppBaseUrl } from '@/lib/app-url';
 import { getEmailPalette } from '@/lib/email-theme';
 import { getPropertyHeroImage } from '@/lib/property-utils';
 import type { EmailBrand } from './emailTemplates';
+import { formatGuestCount } from '@/lib/occupancy';
 import {
   createBookingConfirmationTemplate,
   createHoldConfirmationTemplate,
@@ -268,6 +269,8 @@ export async function sendBookingConfirmationEmail(
       checkInTime: property?.checkInTime,
       checkOutTime: property?.checkOutTime,
       numberOfGuests: booking.numberOfGuests,
+      numberOfAdults: (booking as any).numberOfAdults,
+      numberOfChildren: (booking as any).numberOfChildren,
       numberOfNights: booking.pricing.numberOfNights,
       baseAmount: formatCurrency(booking.pricing.baseRate * booking.pricing.numberOfNights, booking.pricing.currency),
       cleaningFee: formatCurrency(booking.pricing.cleaningFee, booking.pricing.currency),
@@ -332,6 +335,8 @@ export async function sendHoldConfirmationEmail(
       checkInDate: formatDate(booking.checkInDate, language),
       checkOutDate: formatDate(booking.checkOutDate, language),
       numberOfGuests: booking.numberOfGuests,
+      numberOfAdults: (booking as any).numberOfAdults,
+      numberOfChildren: (booking as any).numberOfChildren,
       expirationTime: booking.holdUntil ? formatDate(booking.holdUntil, language) : 'N/A',
       estimatedTotal: formatCurrency(booking.holdFee || 0, booking.pricing?.currency || 'EUR'),
       currency: booking.pricing?.currency || 'EUR',
@@ -351,6 +356,18 @@ export async function sendHoldConfirmationEmail(
 /**
  * Sends a booking notification email to the property owner or admin
  */
+/**
+ * "2 adults, 1 child" when the booking recorded a composition, otherwise the bare total exactly as
+ * before. The owner is the reader who most needs the split - it decides beds and what the cleaner is
+ * told - but an absent value is unknown, not zero, so it must never render as "0 children".
+ */
+function ownerGuestsLine(booking: { numberOfGuests?: number; numberOfAdults?: number; numberOfChildren?: number }): string {
+  if (booking.numberOfAdults != null && booking.numberOfChildren != null) {
+    return formatGuestCount(booking.numberOfAdults, booking.numberOfChildren, 'en');
+  }
+  return String(booking.numberOfGuests ?? '');
+}
+
 export async function sendBookingNotificationEmail(
   bookingId: string,
   recipientEmail?: string
@@ -387,7 +404,7 @@ Booking ID: ${booking.id}
 Property: ${propertyName}
 Check-in: ${checkInDate}
 Check-out: ${checkOutDate}
-Guests: ${booking.numberOfGuests}
+Guests: ${ownerGuestsLine(booking as any)}
 
 Guest Information:
 ------------------
@@ -426,7 +443,7 @@ table{width:100%}td{padding:5px 0}.right{text-align:right}
 <p><strong>Property:</strong> ${propertyName}</p>
 <p><strong>Check-in:</strong> ${checkInDate}</p>
 <p><strong>Check-out:</strong> ${checkOutDate}</p>
-<p><strong>Guests:</strong> ${booking.numberOfGuests}</p></div>
+<p><strong>Guests:</strong> ${ownerGuestsLine(booking as any)}</p></div>
 <div class="section"><h2>Guest Information</h2>
 <p><strong>Name:</strong> ${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''}</p>
 <p><strong>Email:</strong> ${booking.guestInfo.email || 'Not provided'}</p>
@@ -656,6 +673,8 @@ export async function sendBookingCancellationEmail(
       checkInTime: property?.checkInTime,
       checkOutTime: property?.checkOutTime,
       numberOfGuests: booking.numberOfGuests,
+      numberOfAdults: (booking as any).numberOfAdults,
+      numberOfChildren: (booking as any).numberOfChildren,
       numberOfNights: booking.pricing.numberOfNights,
       baseAmount: formatCurrency(booking.pricing.baseRate * booking.pricing.numberOfNights, booking.pricing.currency),
       cleaningFee: formatCurrency(booking.pricing.cleaningFee, booking.pricing.currency),

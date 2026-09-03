@@ -255,3 +255,18 @@ describe('clampParty', () => {
     }
   });
 });
+
+describe('formatGuestCount diacritics option', () => {
+  it('is off by default, which is what WhatsApp gets', () => {
+    expect(formatGuestCount(3, 1, 'ro')).toBe('3 adulti, 1 copil');
+  });
+
+  it('turns on for email, where the surrounding Romanian carries diacritics', () => {
+    expect(formatGuestCount(3, 1, 'ro', { diacritics: true })).toBe('3 adulți, 1 copil');
+  });
+
+  it('changes nothing else — one adult and every English form are untouched', () => {
+    expect(formatGuestCount(1, 0, 'ro', { diacritics: true })).toBe('1 adult');
+    expect(formatGuestCount(3, 2, 'en', { diacritics: true })).toBe('3 adults, 2 children');
+  });
+});

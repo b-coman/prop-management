@@ -130,6 +130,8 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { cla
     checkInDate,
     checkOutDate,
     guestCount,
+    adults,
+    children,
     pricing,
     isLoadingPricing,
     pricingError,
@@ -550,6 +552,8 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { cla
                         checkInDate: checkInDate!.toISOString(),
                         checkOutDate: checkOutDate!.toISOString(),
                         guestCount,
+                        numberOfAdults: adults,
+                        numberOfChildren: children,
                         guestInfo: {
                           firstName: values.firstName,
                           lastName: values.lastName,
@@ -627,6 +631,8 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { cla
                         checkInDate: checkInDate!.toISOString(),
                         checkOutDate: checkOutDate!.toISOString(),
                         guestCount,
+                        numberOfAdults: adults,
+                        numberOfChildren: children,
                         guestInfo: {
                           firstName: values.firstName,
                           lastName: values.lastName,
@@ -730,6 +736,8 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { cla
                         checkInDate: checkInDate!.toISOString(),
                         checkOutDate: checkOutDate!.toISOString(),
                         numberOfGuests: guestCount,
+                        numberOfAdults: adults,
+                        numberOfChildren: children,
                         pricing: {
                           // Calculate baseRate from accommodationTotal / nights (pricing API doesn't return baseRate directly)
                           baseRate: convertPrice(
