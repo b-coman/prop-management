@@ -30,6 +30,14 @@ export interface ThemeColors {
   accent: string;          // Highlight/accent color
   muted: string;           // Subdued background
   border: string;          // Border color
+  /**
+   * Focus ring. Optional: when a theme does not state one it follows `primary`, which is what the
+   * hardcoded default in globals.css always was - `--ring: 358 100% 62%` is the airbnb theme's own
+   * primary, with the comment "Primary pink for rings". Because no theme ever set `--ring`, every
+   * other theme silently inherited Airbnb's pink: a forest-green site outlined its focused controls
+   * in red, which reads as a validation error rather than as focus.
+   */
+  ring?: string;
 }
 
 /**

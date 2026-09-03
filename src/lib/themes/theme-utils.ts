@@ -30,6 +30,8 @@ export function themeToInlineStyles(theme: Theme): React.CSSProperties {
     '--accent': theme.colors.accent,
     '--muted': theme.colors.muted,
     '--border': theme.colors.border,
+    // Follows primary unless the theme states its own - see ThemeColors.ring.
+    '--ring': theme.colors.ring ?? theme.colors.primary,
     // Typography
     '--font-family': theme.typography.fontFamily,
     // Sizing
@@ -68,6 +70,7 @@ export function applyThemeToDOM(theme: Theme): void {
   root.style.setProperty('--accent', theme.colors.accent);
   root.style.setProperty('--muted', theme.colors.muted);
   root.style.setProperty('--border', theme.colors.border);
+  root.style.setProperty('--ring', theme.colors.ring ?? theme.colors.primary);
   
   // Apply typography variables
   root.style.setProperty('--font-family', theme.typography.fontFamily);
