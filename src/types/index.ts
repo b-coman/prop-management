@@ -131,13 +131,15 @@ export interface Property {
   cleaningFee?: number;
   maxGuests: number;
   /**
-   * Optional split of `maxGuests` for display. The booking engine still prices on `maxGuests`;
-   * these exist because "up to 7 guests" overstates what the place actually sleeps comfortably —
-   * the owner's real figure is 5 adults plus 2 children, and a landing page that promises seven
-   * adults is selling something it cannot deliver.
+   * The cap on ADULTS, which is a separate constraint from `maxGuests` rather than a share of it.
+   * The rule is `adults <= maxAdults` AND `adults + children <= maxGuests`, so a 7-person house that
+   * sleeps at most 5 adults takes 5+2 and 4+3 alike. See `@/lib/occupancy` for the one implementation.
+   *
+   * There is deliberately no `maxChildren`. It existed, held 2, and was rendered as "5 adulți + 2
+   * copii" — a pair that sums correctly and still understates the house, because it reads as the only
+   * legal party. No constant can express the ceiling on children: it moves with the adult count.
    */
   maxAdults?: number;
-  maxChildren?: number;
   baseOccupancy: number; // Number of guests included in pricePerNight
   defaultMinimumStay: number; // Required minimum nights for booking
   extraGuestFee?: number; // Fee per additional guest per night, in property's baseCurrency
