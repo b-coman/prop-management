@@ -78,9 +78,14 @@ export interface LandingModel {
    * far enough to reach any price at all, and none of them were told what it buys.
    */
   maxGuests?: number | null;
-  /** Split of the capacity for display: "5 adulți + 2 copii" is truthful where "7 persoane" is not. */
+  /**
+   * The adult cap, rendered as a qualifier on the total rather than half of a pair. This field used
+   * to sit beside `maxChildren` and print "5 adulți + 2 copii", which reads as the ONLY valid party
+   * and understates a house that also takes 4+3. Capacity is a total with an adult cap; see
+   * `@/lib/occupancy`. `maxChildren` was removed because no constant can express it — the ceiling on
+   * children moves with the adult count.
+   */
   maxAdults?: number | null;
-  maxChildren?: number | null;
   menuItems: Array<{ label: string; url: string; isButton?: boolean }>;
   logoSrc?: string;
   logoAlt?: string;

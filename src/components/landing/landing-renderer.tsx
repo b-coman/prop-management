@@ -23,6 +23,7 @@ import { useLandingTracking } from '@/components/landing/use-landing-tracking';
 import { Star, MapPin, ArrowRight, CalendarDays, Moon, Users } from 'lucide-react';
 import type { LandingModel, LandingImage } from '@/lib/landing/contracts';
 import { displaySrc } from '@/lib/image-src';
+import { capacityParts, asLanguage } from '@/lib/occupancy';
 
 const t = (lang: string, en: string, ro: string) => (lang === 'ro' ? ro : en);
 
@@ -139,20 +140,27 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                       <span className="text-white/80"> · {m.ratings.count} {t(lang, 'reviews', 'recenzii')}</span></span>
                   </li>
                 )}
-                {(m.maxAdults || m.maxGuests) ? (
-                  <li className="inline-flex items-center gap-1.5">
-                    <span aria-hidden className="hidden text-white/40 sm:inline">·</span>
-                    <Users className="h-4 w-4 flex-shrink-0" aria-hidden />
-                    {/* The adults/children split when the property states one. "Up to 7 guests" is the
-                        booking engine's occupancy ceiling, not a promise the place can make to seven
-                        adults — saying so on the page would be selling something it cannot deliver. */}
-                    <span>{m.maxAdults && m.maxChildren
-                      ? t(lang, `Whole chalet, ${m.maxAdults} adults + ${m.maxChildren} children`, `Toată casa, ${m.maxAdults} adulți + ${m.maxChildren} copii`)
-                      : m.maxAdults
-                        ? t(lang, `Whole chalet, up to ${m.maxAdults} adults`, `Toată casa, până la ${m.maxAdults} adulți`)
-                        : t(lang, `Whole chalet, up to ${m.maxGuests} guests`, `Toată casa, până la ${m.maxGuests} persoane`)}</span>
-                  </li>
-                ) : null}
+                {(() => {
+                  /* Capacity is a TOTAL WITH AN ADULT CAP, never an additive pair. This line used to
+                     read "Toată casa, 5 adulți + 2 copii", which happens to sum to seven and is why it
+                     looked right — but it presents one legal party as the only one and understates a
+                     house that also takes 4+3, to exactly the families most likely to fill it.
+                     "Up to 7 guests" alone is the opposite error: an occupancy ceiling read as a
+                     promise of seven adults. So both facts, with the qualifier dimmed like the review
+                     count above it, because the number people scan for is the total. */
+                  const capacity = capacityParts({ maxGuests: m.maxGuests ?? 0, maxAdults: m.maxAdults }, asLanguage(lang));
+                  if (!capacity) return null;
+                  return (
+                    <li className="inline-flex items-center gap-1.5">
+                      <span aria-hidden className="hidden text-white/40 sm:inline">·</span>
+                      <Users className="h-4 w-4 flex-shrink-0" aria-hidden />
+                      <span>
+                        {t(lang, 'Whole chalet,', 'Toată casa,')} {capacity.primary}
+                        {capacity.qualifier ? <span className="text-white/80"> {capacity.qualifier}</span> : null}
+                      </span>
+                    </li>
+                  );
+                })()}
                 {m.advertisedRate ? (
                   <li className="inline-flex items-center gap-1.5">
                     <span aria-hidden className="hidden text-white/40 sm:inline">·</span>
