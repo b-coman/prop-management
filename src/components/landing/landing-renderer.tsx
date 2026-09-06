@@ -103,6 +103,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
           logoAlt={m.logoAlt}
           isCustomDomain={m.isCustomDomain}
           advertisedRate={m.advertisedRate}
+          advertisedRateNote={m.advertisedRateNote}
           baseCurrency={m.baseCurrency as never}
           onNavClick={track.trackNavToSite}
           bookingHref={m.checkDatesUrl}
@@ -164,7 +165,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                 {m.advertisedRate ? (
                   <li className="inline-flex items-center gap-1.5">
                     <span aria-hidden className="hidden text-white/40 sm:inline">·</span>
-                    <span>{t(lang, 'from', 'de la')} <span className="font-semibold">{Math.round(m.advertisedRate).toLocaleString()} {m.baseCurrency}</span>{t(lang, ' / night', ' / noapte')}</span>
+                    <span>{t(lang, 'from', 'de la')} <span className="font-semibold">{Math.round(m.advertisedRate).toLocaleString()} {m.baseCurrency}</span>{t(lang, ' / night', ' / noapte')}{m.advertisedRateNote ? <span aria-hidden="true">*</span> : null}</span>
                   </li>
                 ) : null}
               </ul>
@@ -347,6 +348,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
         </section>
 
         <Footer
+          advertisedRateNote={m.advertisedRateNote}
           quickLinks={m.footer.quickLinks}
           contactInfo={m.footer.contactInfo}
           socialLinks={m.footer.socialLinks}

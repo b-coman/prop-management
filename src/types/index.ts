@@ -127,6 +127,13 @@ export interface Property {
   /** How copy for this property should sound. Read by the ad copywriter on every generation. */
   brandVoice?: BrandVoice;
   advertisedRateType?: 'starting' | 'average' | 'special' | 'nightly'; // Type of advertised rate
+  /**
+   * The small print behind `advertisedRate`. A "from" rate is only reachable under conditions -
+   * a length of stay, a season, an occupancy - and quoting it bare invites a visitor to meet a
+   * very different number on the booking page. Set this and the price gets an asterisk in the
+   * mobile bar, with the text in the footer. Left unset, nothing renders and nothing changes.
+   */
+  advertisedRateNote?: { en: string; ro: string };
   baseCurrency: CurrencyCode; // The currency in which pricePerNight & advertisedRate are set
   cleaningFee?: number;
   maxGuests: number;

@@ -141,6 +141,7 @@ export async function buildLandingModel(
     propertySlug: config.propertyId, propertyName, city: (property as any).location?.city ?? null,
     themeId: property.themeId || 'airbnb',
     baseCurrency, advertisedRate: property.advertisedRate || property.pricePerNight,
+    advertisedRateNote: property.advertisedRateNote,
     maxGuests: (property as any).maxGuests ?? null,
     maxAdults: (property as any).maxAdults ?? null,
     menuItems, logoSrc, logoAlt, footer,

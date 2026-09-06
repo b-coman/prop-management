@@ -757,6 +757,7 @@ export function PropertyPageRenderer({
           isCustomDomain={isCustomDomain}
           advertisedRate={(property as any)?.advertisedRate || (property as any)?.pricePerNight}
           advertisedRateType={(property as any)?.advertisedRateType}
+          advertisedRateNote={(property as any)?.advertisedRateNote}
           baseCurrency={(property as any)?.baseCurrency}
         />
         
@@ -804,6 +805,7 @@ export function PropertyPageRenderer({
               : undefined)
           }
           socialLinks={overrides.footer?.socialLinks}
+          advertisedRateNote={(property as any)?.advertisedRateNote}
           propertyName={propertyName}
           propertySlug={propertySlug}
           isCustomDomain={isCustomDomain}

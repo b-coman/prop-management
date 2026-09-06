@@ -29,6 +29,8 @@ interface HeaderProps {
   // Price hint for mobile bottom bar
   advertisedRate?: number;
   advertisedRateType?: string | { en: string; ro: string };
+  /** Small print behind the rate. Renders as an asterisk beside the price; the text lives in the footer. */
+  advertisedRateNote?: { en: string; ro: string };
   baseCurrency?: CurrencyCode;
   /**
    * Fired when a nav link is clicked, with the destination. Optional and unset on the main site, so
@@ -60,6 +62,7 @@ export function Header({
   isCustomDomain = false,
   advertisedRate,
   advertisedRateType,
+  advertisedRateNote,
   baseCurrency,
   onNavClick,
   bookingHref,
@@ -498,6 +501,9 @@ export function Header({
             <span className="text-lg font-bold text-foreground leading-tight" suppressHydrationWarning>
               {formattedPrice}
               <span className="text-sm font-normal text-muted-foreground ml-1" suppressHydrationWarning>/{t('common.night', 'night')}</span>
+              {advertisedRateNote && (
+                <span className="text-sm font-normal text-muted-foreground" aria-hidden="true">*</span>
+              )}
             </span>
           </div>
         )}

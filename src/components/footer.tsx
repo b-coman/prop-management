@@ -18,6 +18,11 @@ interface FooterProps {
   propertyName?: string;
   propertySlug?: string;
   isCustomDomain?: boolean;
+  /**
+   * The small print behind the header's "from" rate. Lives here rather than in the mobile bar
+   * because the bar has one line and this needs three. Absent unless the property sets it.
+   */
+  advertisedRateNote?: { en: string; ro: string };
   /** See HeaderProps.onNavClick — same contract, so a landing page records both ends of its nav. */
   onNavClick?: (destination: string) => void;
 }
@@ -29,6 +34,7 @@ export function Footer({
   propertyName,
   propertySlug,
   isCustomDomain = false,
+  advertisedRateNote,
   onNavClick,
 }: FooterProps) {
   const { t, tc, currentLang, getLocalizedPath } = useLanguage();
@@ -109,6 +115,9 @@ export function Footer({
         </div>
 
         <div className="border-t border-border pt-8 text-center text-xs text-muted-foreground">
+          {advertisedRateNote && (
+            <p className="mx-auto mb-4 max-w-2xl text-balance">*&nbsp;{tc(advertisedRateNote)}</p>
+          )}
           <p>
             &copy; {new Date().getFullYear()} {propertyName || 'RentalSpot'}.{' '}
             {t('footer.rights', 'All rights reserved.')}

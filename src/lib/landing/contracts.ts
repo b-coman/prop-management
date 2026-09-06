@@ -70,6 +70,8 @@ export interface LandingModel {
   themeId: string;
   baseCurrency?: string;
   advertisedRate?: number;
+  /** Small print behind the "from" rate - asterisk in the hero and the mobile bar, text in the footer. */
+  advertisedRateNote?: { en: string; ro: string };
   /**
    * Whole-property capacity, shown next to the price in the hero.
    *
