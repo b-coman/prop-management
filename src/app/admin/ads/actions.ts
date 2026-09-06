@@ -88,6 +88,8 @@ interface AdCampaignDocData {
   effectiveStatus?: string;
   creativeRef?: string;
   approvedBy?: string;
+  /** Present on drafts from the "Generate from an opportunity" flow; read here to re-resolve photo URLs. */
+  proposal?: AdCampaign['proposal'];
 }
 
 // ---------------------------------------------------------------------------
@@ -116,6 +118,47 @@ export async function fetchAdCampaignsAction(propertyId: string): Promise<Array<
   }
 }
 
+/**
+ * Map a proposal's photo/assetGap storage paths back to displayable gallery URLs.
+ *
+ * Shares its lookup shape with `generateAdProposalAction`, deliberately: one place decides that a
+ * thumbnail beats a full-size original for a review grid. Returns undefined when there is nothing
+ * to resolve, so the caller can leave the stored proposal untouched.
+ */
+async function resolveProposalPhotoUrls(
+  propertyId: string | undefined,
+  proposal: AdCampaign['proposal']
+): Promise<AdCampaign['proposal'] | undefined> {
+  if (!propertyId || !proposal) return undefined;
+  const photos = proposal.photos ?? [];
+  const gaps = proposal.assetGaps ?? [];
+  if (photos.length === 0 && gaps.length === 0) return undefined;
+
+  try {
+    const db = await getAdminDb();
+    const propDoc = await db.collection('properties').doc(propertyId).get();
+    const images = (propDoc.data()?.images ?? []) as PropertyImage[];
+    const urlByPath = new Map(
+      images.filter((i) => i.storagePath).map((i) => [i.storagePath!, i.thumbnailUrl || i.url])
+    );
+    return {
+      ...proposal,
+      photos: photos.map((p) => ({ ...p, url: urlByPath.get(p.storagePath) ?? p.url ?? '' })),
+      ...(gaps.length
+        ? { assetGaps: gaps.map((g) => ({ ...g, nearestAssetUrl: urlByPath.get(g.nearestAssetPath) ?? g.nearestAssetUrl ?? '' })) }
+        : {}),
+    };
+  } catch (error) {
+    // A gallery read failure must not take the review screen down with it - the panel already
+    // renders "no preview" for a missing URL, which is the pre-existing behaviour.
+    logger.warn('resolveProposalPhotoUrls failed; falling back to stored values', {
+      propertyId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return undefined;
+  }
+}
+
 /** Single `adCampaigns` doc, plus a best-effort Ads Manager deep link (account id resolved server-side; the Meta access token never leaves this module). Null on not-found or auth failure. */
 export async function fetchAdCampaignAction(
   adCampaignId: string
@@ -138,8 +181,18 @@ export async function fetchAdCampaignAction(
       adsManagerUrl = buildAdsManagerUrl(ctx?.adAccountId, data.metaCampaignId);
     }
 
+    // Re-resolve the photo display URLs from the gallery.
+    //
+    // `generateAdProposalAction` attaches them once, at generation, but only a `storagePath` is
+    // durable enough to store — a Storage download URL carries a token that can be rotated, and a
+    // draft written by anything other than the generate path (a script, a seed) has no URL at all.
+    // So the panel rendered "no preview" for every photo on every visit after the first, which
+    // meant reviewing an ad without being able to see it. Resolved here, on read, where the
+    // gallery is the single source of truth.
+    const withPhotoUrls = await resolveProposalPhotoUrls(data.propertyId, data.proposal);
+
     return {
-      ...(convertTimestampsToISOStrings({ id: snap.id, ...data }) as AdCampaign),
+      ...(convertTimestampsToISOStrings({ id: snap.id, ...data, ...(withPhotoUrls ? { proposal: withPhotoUrls } : {}) }) as AdCampaign),
       adsManagerUrl,
     };
   } catch (error) {
