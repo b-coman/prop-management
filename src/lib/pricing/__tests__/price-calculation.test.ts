@@ -512,9 +512,12 @@ describe('Price Calculation Tests', () => {
       expect(result.accommodationTotal).toBe(700);
       expect(result.subtotal).toBe(750);
       expect(result.lengthOfStayDiscount).not.toBeNull();
-      expect(result.lengthOfStayDiscount?.discountAmount).toBe(37.5);
-      expect(result.totalDiscountAmount).toBe(37.5);
-      expect(result.total).toBe(712.5);
+      // The ladder discounts ACCOMMODATION only: 5% of 700, not of the 750 subtotal.
+      // The cleaner costs the same on a 3-night stay as on a 7-night one, so
+      // discounting the fee gave away a fixed cost as though it scaled.
+      expect(result.lengthOfStayDiscount?.discountAmount).toBe(35);
+      expect(result.totalDiscountAmount).toBe(35);
+      expect(result.total).toBe(715);
     });
 
     it('should apply coupon discount', () => {
@@ -546,10 +549,11 @@ describe('Price Calculation Tests', () => {
       const result = calculateBookingPrice(dailyPrices, 50, lengthOfStayDiscounts, 10);
 
       expect(result.subtotal).toBe(750);
-      expect(result.lengthOfStayDiscount?.discountAmount).toBe(37.5);
+      // LoS on accommodation (5% of 700); the coupon still applies to the subtotal.
+      expect(result.lengthOfStayDiscount?.discountAmount).toBe(35);
       expect(result.couponDiscount?.discountAmount).toBe(75);
-      expect(result.totalDiscountAmount).toBe(112.5);
-      expect(result.total).toBe(637.5);
+      expect(result.totalDiscountAmount).toBe(110);
+      expect(result.total).toBe(640);
     });
 
     it('should cap combined discounts at subtotal (never go negative)', () => {
@@ -566,5 +570,66 @@ describe('Price Calculation Tests', () => {
       expect(result.totalDiscountAmount).toBe(150); // Capped at subtotal
       expect(result.total).toBe(0); // Never negative
     });
+  });
+});
+
+describe('calculateBookingPrice — the ladder cannot make a longer stay cheaper', () => {
+  const LADDER = [
+    { nightsThreshold: 4, discountPercentage: 10, enabled: true },
+    { nightsThreshold: 5, discountPercentage: 15, enabled: true },
+    { nightsThreshold: 7, discountPercentage: 25, enabled: true },
+  ];
+  const CLEAN = 200;
+  /** The real festive curve: Christmas 1051, shoulder 940, the two party nights 2351. */
+  const NIGHT: Record<string, number> = {
+    '2026-12-25': 1051, '2026-12-26': 1051, '2026-12-27': 1051,
+    '2026-12-28': 940, '2026-12-29': 940,
+    '2026-12-30': 2351, '2026-12-31': 2351,
+  };
+  const stay = (from: string, to: string) => {
+    const out: Record<string, number> = {};
+    for (const d of Object.keys(NIGHT).sort()) if (d >= from && d <= to) out[d] = NIGHT[d];
+    return calculateBookingPrice(out, CLEAN, LADDER).total;
+  };
+
+  it('never lets an extra night lower the total, across the whole festive week', () => {
+    const dates = Object.keys(NIGHT).sort();
+    // Same checkout, progressively earlier arrival — the direction that used to break.
+    let prev = 0;
+    for (let i = dates.length - 1; i >= 0; i--) {
+      const t = stay(dates[i], '2026-12-31');
+      expect(t).toBeGreaterThanOrEqual(prev);
+      prev = t;
+    }
+  });
+
+  it('floors the case that was measured live: 7 nights was cheaper than 6', () => {
+    const six = stay('2026-12-26', '2026-12-31');
+    const seven = stay('2026-12-25', '2026-12-31');
+    expect(seven).toBeGreaterThanOrEqual(six);
+  });
+
+  it('leaves an ordinary stay untouched — the floor only bites when the ladder misbehaves', () => {
+    const flat: Record<string, number> = {};
+    for (let i = 1; i <= 7; i++) flat[`2026-03-0${i}`] = 405;
+    const r = calculateBookingPrice(flat, CLEAN, LADDER);
+    // 7 x 405 = 2835, less 25% of the accommodation = 2126.25, plus cleaning.
+    expect(r.total).toBeCloseTo(2835 * 0.75 + CLEAN, 2);
+  });
+
+  it('never discounts the cleaning fee', () => {
+    const flat: Record<string, number> = {};
+    for (let i = 1; i <= 4; i++) flat[`2026-03-0${i}`] = 100;
+    const r = calculateBookingPrice(flat, CLEAN, LADDER);
+    expect(r.lengthOfStayDiscount?.discountAmount).toBe(40);  // 10% of 400, not of 600
+    expect(r.total).toBe(400 - 40 + CLEAN);
+  });
+
+  it('does not let the floor cancel a coupon', () => {
+    const flat: Record<string, number> = {};
+    for (let i = 1; i <= 7; i++) flat[`2026-03-0${i}`] = 100;
+    const withCoupon = calculateBookingPrice(flat, CLEAN, LADDER, 10);
+    const without = calculateBookingPrice(flat, CLEAN, LADDER);
+    expect(withCoupon.total).toBeLessThan(without.total);
   });
 });

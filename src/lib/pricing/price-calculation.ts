@@ -277,6 +277,41 @@ export function calculateLengthOfStayDiscount(
 /**
  * Calculates the total price for a booking
  */
+/**
+ * The highest total any contiguous shorter stay inside this one would cost.
+ *
+ * The guarantee is the one every rate card implies and none of ours enforced:
+ * adding a night never lowers the price. It cannot be expressed as a ladder rule
+ * because it depends on WHICH night is added — a 1,051 Christmas night bolted
+ * onto six nights averaging 1,447 does not pay for the extra ten points of
+ * discount it triggers.
+ *
+ * Checks every contiguous sub-range, which is O(n^2) on a stay length that never
+ * exceeds a couple of months. Returns 0 for stays too short to have one.
+ */
+function containedStayFloor(
+  dailyPrices: Record<string, number>,
+  cleaningFee: number,
+  lengthOfStayDiscounts?: LengthOfStayDiscount[],
+): number {
+  const dates = Object.keys(dailyPrices).sort();
+  if (dates.length < 2) return 0;
+
+  let floor = 0;
+  for (let i = 0; i < dates.length; i++) {
+    for (let j = i; j < dates.length; j++) {
+      const nights = j - i + 1;
+      if (nights === dates.length) continue;          // the stay itself
+      let accommodation = 0;
+      for (let k = i; k <= j; k++) accommodation += dailyPrices[dates[k]];
+      const { discountAmount } = calculateLengthOfStayDiscount(accommodation, nights, lengthOfStayDiscounts);
+      const candidate = accommodation + cleaningFee - discountAmount;
+      if (candidate > floor) floor = candidate;
+    }
+  }
+  return floor;
+}
+
 export function calculateBookingPrice(
   dailyPrices: Record<string, number>,
   cleaningFee: number,
@@ -297,10 +332,12 @@ export function calculateBookingPrice(
   
   // Add cleaning fee
   const subtotal = accommodationTotal + cleaningFee;
-  
-  // Apply length-of-stay discount
+
+  // The length-of-stay discount applies to the ACCOMMODATION only, never to the
+  // cleaning fee. The cleaner is paid the same whether the guest stays three
+  // nights or seven, so discounting it gave away a fixed cost as though it scaled.
   const { appliedDiscount, discountAmount } = calculateLengthOfStayDiscount(
-    subtotal,
+    accommodationTotal,
     numberOfNights,
     lengthOfStayDiscounts
   );
@@ -311,9 +348,29 @@ export function calculateBookingPrice(
     couponDiscountAmount = subtotal * (couponDiscountPercentage / 100);
   }
   
+  // THE FLOOR: a stay may never cost less than a shorter stay inside it.
+  //
+  // A percentage ladder assumes every night is worth roughly the same. These are
+  // not: 25 December is 1,051 and 31 December is 2,351, so adding a cheap night
+  // to a run of expensive ones can hand back more discount than the night is
+  // worth. Measured 2026-09-07: 26-31 Dec (6n) cost 7,581 while 25-31 Dec (7n)
+  // cost 7,501 — the extra night was free and took 80 lei with it.
+  //
+  // No amount of ladder tuning fixes that, because it depends on WHICH night is
+  // added, not how many. So the ladder is bounded by the rule everyone already
+  // assumes holds: one more night never costs less.
+  //
+  // It applies to the LADDER only, before any coupon. A coupon is a reduction the
+  // operator chose to give; flooring after it would quietly cancel it.
+  const afterLadder = Math.max(
+    Math.max(0, subtotal - Math.min(discountAmount, subtotal)),
+    containedStayFloor(dailyPrices, cleaningFee, lengthOfStayDiscounts),
+  );
+
   // Calculate final total (cap discounts at subtotal to prevent negative totals)
   const totalDiscountAmount = Math.min(discountAmount + couponDiscountAmount, subtotal);
-  const total = Math.max(0, subtotal - totalDiscountAmount);
+  const total = Math.max(0, afterLadder - couponDiscountAmount);
+
   
   // IMPORTANT: Return both 'total' and 'totalPrice' for backward compatibility
   // This ensures code that expects either name will work

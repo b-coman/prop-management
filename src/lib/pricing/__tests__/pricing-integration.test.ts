@@ -257,13 +257,13 @@ describe('Check-pricing API flow simulation', () => {
     // Fri + Sat: 180 * 1.2 * 1.5 = 324 (2 days = 648)
     // Accommodation: 1350 + 648 = 1998
     // Subtotal: 1998 + 50 (cleaning) = 2048
-    // Discount: 5% of 2048 = 102.40
-    // Total: 2048 - 102.40 = 1945.60
+    // Discount: 5% of the ACCOMMODATION only = 99.90 (never of the cleaning fee)
+    // Total: 2048 - 99.90 = 1948.10
 
     expect(result.numberOfNights).toBe(7);
     expect(result.lengthOfStayDiscount).not.toBeNull();
     expect(result.lengthOfStayDiscount?.discountPercentage).toBe(5);
-    expect(result.total).toBeCloseTo(2048 - 102.4, 1);
+    expect(result.total).toBeCloseTo(2048 - 99.9, 1);
   });
 
   it('should handle non-seasonal weekday correctly', () => {
