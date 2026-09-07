@@ -49,6 +49,22 @@ export interface TravelWindow {
   departureEvening: boolean;
   /** Plain-language account of why this window is what it is. */
   why: string;
+  /**
+   * The holiday this window was computed FOR, as asked.
+   *
+   * Needed because a bridged stretch is shared. Once 28-31 Dec are seeded as
+   * `bridge-day`, asking about Craciun and asking about Anul Nou both return the
+   * same 24 Dec -> 3 Jan window, which is true (nobody works between them) and
+   * useless on its own: a caller holding two identical windows cannot tell which
+   * product it is looking at. The anchor says which question was asked.
+   */
+  anchor: { startDate: string; endDate: string };
+  /**
+   * Every official day inside the window, in date order — so a caller can see that
+   * this stretch contains BOTH Craciun and Anul Nou, and slice it into products
+   * accordingly. Slicing is a PERIOD decision; this is the evidence for it.
+   */
+  spans: OfficialDay[];
 }
 
 const DAY = 86_400_000;
@@ -105,8 +121,15 @@ export function travelWindow(
   if (departureEvening) parts.push(`${checkIn} sold as the departure evening`);
   parts.push(`home on ${checkOut}`);
 
+  const spans = officialDays
+    .filter((o) => o.date >= checkIn && o.date <= checkOut)
+    .slice()
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
+  const distinct = [...new Set(spans.map((o) => o.name))];
+  if (distinct.length > 1) parts.push(`spans ${distinct.join(' + ')}`);
+
   return { checkIn, checkOut, nights, daysOff: { from, to }, bridged, departureEvening,
-           why: parts.join('; ') };
+           why: parts.join('; '), anchor: { startDate: holidayStart, endDate: holidayEnd }, spans };
 }
 
 /**

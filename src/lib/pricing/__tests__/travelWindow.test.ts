@@ -124,3 +124,46 @@ describe('suggestedMinStay', () => {
     expect(suggestedMinStay({ nights: 2 } as never)).toBe(2);
   });
 });
+
+describe('travelWindow — the festive stretch (bridge-day rows)', () => {
+  // "In real terms, nobody works between Christmas and NY" — owner, 2026-09-07.
+  // Seeded as `bridge-day` rows because travelWindow bridges at most 1-2 working
+  // days on its own, and there are four here.
+  const PUBLIC_ONLY = [
+    { date: '2026-12-25', name: 'Craciunul' }, { date: '2026-12-26', name: 'Craciunul' },
+    { date: '2027-01-01', name: 'Anul Nou' }, { date: '2027-01-02', name: 'Anul Nou' },
+  ];
+  const WITH_BRIDGE = [
+    ...PUBLIC_ONLY,
+    { date: '2026-12-28', name: 'Punte Craciun-Revelion' }, { date: '2026-12-29', name: 'Punte Craciun-Revelion' },
+    { date: '2026-12-30', name: 'Punte Craciun-Revelion' }, { date: '2026-12-31', name: 'Punte Craciun-Revelion' },
+  ];
+
+  it('splits the stretch into two short windows on public holidays alone', () => {
+    expect(travelWindow('2026-12-25', '2026-12-26', PUBLIC_ONLY).nights).toBe(3);
+    expect(travelWindow('2027-01-01', '2027-01-02', PUBLIC_ONLY).checkIn).toBe('2026-12-31');
+  });
+
+  it('returns ONE continuous 10-night stretch once the bridge days are seeded', () => {
+    const w = travelWindow('2026-12-25', '2026-12-26', WITH_BRIDGE);
+    expect(w.checkIn).toBe('2026-12-24');
+    expect(w.checkOut).toBe('2027-01-03');
+    expect(w.nights).toBe(10);
+  });
+
+  it('carries its ANCHOR, so two identical stretches stay distinguishable', () => {
+    const craciun = travelWindow('2026-12-25', '2026-12-26', WITH_BRIDGE);
+    const anulNou = travelWindow('2027-01-01', '2027-01-02', WITH_BRIDGE);
+    expect(craciun.checkIn).toBe(anulNou.checkIn);
+    expect(craciun.nights).toBe(anulNou.nights);
+    expect(craciun.anchor).toEqual({ startDate: '2026-12-25', endDate: '2026-12-26' });
+    expect(anulNou.anchor).toEqual({ startDate: '2027-01-01', endDate: '2027-01-02' });
+  });
+
+  it('lists every official day inside, so the stretch can be sliced into products', () => {
+    const w = travelWindow('2026-12-25', '2026-12-26', WITH_BRIDGE);
+    const names = [...new Set(w.spans.map((o) => o.name))];
+    expect(names).toEqual(expect.arrayContaining(['Craciunul', 'Anul Nou']));
+    expect(w.why).toMatch(/spans .*Craciunul.*Anul Nou/);
+  });
+});

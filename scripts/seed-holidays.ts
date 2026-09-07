@@ -59,6 +59,24 @@ const ROWS: Row[] = [
   { slug: 'sf-andrei-ziua-nationala', name: 'Sfantul Andrei + Ziua Nationala', startDate: '2027-11-30', endDate: '2027-12-01', type: 'major', source: SRC_HOL_2027, official: true, notes: 'Tue+Wed — midweek, weaker than 2026' },
   { slug: 'craciun', name: 'Craciunul', startDate: '2027-12-25', endDate: '2027-12-26', type: 'major', source: SRC_HOL_2027, official: true, notes: 'Sat-Sun' },
 
+  // ---------------- the festive stretch (owner's observation, not law) ----------------
+  // "In real terms, nobody works between Christmas and NY" — owner, 2026-09-07.
+  //
+  // These are the only `bridge-day` rows in the collection, and they exist because
+  // `travelWindow` bridges at most 1-2 working days. Between Craciun and Anul Nou
+  // there are four or five, so without these it splits one continuous holiday into
+  // two three-night windows and prices the middle as ordinary winter. With them it
+  // returns 24 Dec -> 3 Jan as a single 10-night stretch, which is what people
+  // actually book.
+  //
+  // `official: false` on purpose: this is observed demand behaviour, not a legal
+  // day off, and the distinction matters if anyone ever reasons about entitlement.
+  // It does NOT set prices — the stretch is still sold as four priced products
+  // (Christmas / Pre-New Year / New Year's Eve / Post-New Year), which is a
+  // PERIOD decision, not a holiday-calendar one.
+  { slug: 'punte-craciun-revelion', name: 'Punte Craciun-Revelion', startDate: '2026-12-28', endDate: '2026-12-31', type: 'bridge-day', source: 'owner observation 2026-09-07', official: false, notes: 'Mon-Thu between Craciun (Fri-Sat) and Anul Nou (Fri-Sat). Nominally working days; in practice almost nobody works them.' },
+  { slug: 'punte-craciun-revelion', name: 'Punte Craciun-Revelion', startDate: '2027-12-27', endDate: '2027-12-31', type: 'bridge-day', source: 'owner observation 2026-09-07', official: false, notes: 'Mon-Fri between Craciun (Sat-Sun) and Anul Nou (Sat-Sun). Five working days on paper, none in practice.' },
+
   // ---------------- school year 2026-2027 (Monitorul Oficial) ----------------
   { slug: 'scoala-start', name: 'Inceputul cursurilor 2026-2027', startDate: '2026-09-07', endDate: '2026-09-07', type: 'school-break', source: SRC_SCHOOL, official: true, notes: 'Marker, not a break. Courses run 7 Sep 2026 -> 18 Jun 2027 (36 weeks). Anything before this date sells on "before school starts".' },
   { slug: 'vacanta-toamna', name: 'Vacanta de toamna', startDate: '2026-10-24', endDate: '2026-11-01', type: 'school-break', source: SRC_SCHOOL, official: true, notes: '9 days. The main autumn family window.' },

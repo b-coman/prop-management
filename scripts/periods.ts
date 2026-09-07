@@ -5,6 +5,9 @@
  *   npx tsx scripts/periods.ts migrate  [slug] [--write]   # seasons+overrides -> pricingPeriods
  *   npx tsx scripts/periods.ts compile  [slug] [--write]   # pricingPeriods -> seasons+overrides
  *   npx tsx scripts/periods.ts worklist [slug] [--year 2027]
+ *   npx tsx scripts/periods.ts add      [slug] --name "..." --start D --end D
+ *                                       [--tier base] [--min 2] [--fixed 940]
+ *                                       [--trim-previous] [--write]
  *
  * Always dry-run unless --write. Run `verify-period-identity.ts` before any --write on a property
  * whose prices are live.
@@ -21,6 +24,7 @@ import { DEFAULT_TIER_MULTIPLIERS, datesInRange, type TierMultipliers, type Pric
 const CMD = process.argv[2] ?? 'list';
 const SLUG = process.argv[3]?.startsWith('--') || !process.argv[3] ? 'prahova-mountain-chalet' : process.argv[3];
 const WRITE = process.argv.includes('--write');
+const arg = (n: string, d?: string) => { const i = process.argv.indexOf(`--${n}`); return i >= 0 ? process.argv[i + 1] : d; };
 const YEAR = (() => { const i = process.argv.indexOf('--year'); return i > -1 ? Number(process.argv[i + 1]) : null; })();
 
 async function propertyConfig(slug: string) {
@@ -30,6 +34,15 @@ async function propertyConfig(slug: string) {
   return {
     tierMultipliers: (p.pricingConfig?.tierMultipliers ?? DEFAULT_TIER_MULTIPLIERS) as TierMultipliers,
     defaultMinimumStay: p.defaultMinimumStay ?? 1,
+    // WITHOUT THIS, six periods that state an explicit weekday rate compile to
+    // nothing ("cannot be expressed as a multiplier — skipped"), and
+    // `compileAndWrite` then DELETES their previously-emitted seasons because they
+    // were not re-emitted. Skip-on-warning plus delete-not-emitted is data loss:
+    // on 2026-09-07 one `--write` removed Early September, Fall, Vacanta Toamna,
+    // Late Fall, 1 Decembrie and Early Winter from `seasonalPricing` in a single
+    // batch. The guard now also lives in `compileAndWrite`, which refuses to
+    // delete anything when it had to skip a period.
+    basePrice: p.pricePerNight ?? p.pricingConfig?.baseRate,
   };
 }
 
@@ -66,6 +79,73 @@ const fmt = (p: PricingPeriod) =>
     issues.forEach((i) => console.log(`  [${i.kind}] ${i.message}`));
     if (WRITE) { await upsertPeriods(periods, 'scripts/periods.ts migrate'); console.log('\nwritten.'); }
     else console.log('\nDry run. Re-run with --write.');
+    return;
+  }
+
+  if (CMD === 'add') {
+    // Create ONE period, then compile — the same one-write-path rule as
+    // apply-band-pricing and set-holiday-window, for the same reason: a period
+    // written without a compile leaves the calendars disagreeing with the model.
+    const name = arg('name');
+    const start = arg('start');
+    const end = arg('end');
+    if (!name || !start || !end) {
+      console.error('required: --name "..." --start YYYY-MM-DD --end YYYY-MM-DD [--tier base] [--min 2] [--fixed N] [--trim-previous]');
+      process.exit(2);
+    }
+    const tier = (arg('tier') ?? 'base') as PricingPeriod['tier'];
+    const minStay = arg('min') ? Number(arg('min')) : null;
+    const fixed = arg('fixed') ? Number(arg('fixed')) : null;
+    const existing = (await getPeriods(SLUG)).filter((p) => p.status === 'active');
+
+    // Overlap is not a tie for the engine to break — it is a bug. Refuse, unless
+    // the caller explicitly asks to trim the period that is in the way.
+    const clash = existing.filter((p) => start <= p.endDate && p.startDate <= end);
+    const toTrim: PricingPeriod[] = [];
+    if (clash.length) {
+      if (!process.argv.includes('--trim-previous')) {
+        console.error(`\nrefusing: ${clash.length} active period(s) already cover these dates:`);
+        clash.forEach((p) => console.error(fmt(p)));
+        console.error('\nPass --trim-previous to pull the earlier period back to the day before this one starts.');
+        process.exit(1);
+      }
+      for (const c of clash) {
+        if (c.startDate < start) {
+          const d = new Date(`${start}T00:00:00Z`); d.setUTCDate(d.getUTCDate() - 1);
+          toTrim.push({ ...c, endDate: d.toISOString().slice(0, 10) });
+        } else {
+          console.error(`refusing: ${c.name} (${c.startDate}→${c.endDate}) starts inside the new period; trim it by hand.`);
+          process.exit(1);
+        }
+      }
+    }
+
+    // `slug` and `year` are NOT decoration: the compiler builds every emitted season
+    // id as `${propertyId}_${year}_${slug}`. Omitting them produced
+    // `prahova-mountain-chalet_undefined_undefined` on 2026-09-07 — one id shared by
+    // every new period, so the second would have silently overwritten the first.
+    const slug = name.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const year = Number(start.slice(0, 4));
+    const period = {
+      id: `${SLUG}_${slug}_${year}`, propertyId: SLUG, year, slug, name,
+      startDate: start, endDate: end, tier,
+      priority: fixed != null ? 100 : 0, minStay, fixedNightPrice: fixed,
+      status: 'active' as const,
+    } as PricingPeriod;
+
+    console.log(`\n=== add — ${SLUG} ${WRITE ? '(WRITING)' : '(dry run)'} ===`);
+    toTrim.forEach((t) => console.log(`  trim:  ${t.name} → ends ${t.endDate}`));
+    console.log(`  new:   ${fmt(period).trim()}`);
+    if (WRITE) {
+      await upsertPeriods([...toTrim, period], 'scripts/periods.ts add');
+      const cfg = await propertyConfig(SLUG);
+      const r = await compileAndWrite(SLUG, { ...cfg, dryRun: false });
+      console.log(`\nwritten + compiled (${r.seasons?.length ?? 0} seasons, ${r.overrides?.length ?? 0} overrides).`);
+    } else {
+      console.log('\nDry run. Re-run with --write.');
+    }
     return;
   }
 

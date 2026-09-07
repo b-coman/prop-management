@@ -123,6 +123,20 @@ const DROP_THRESHOLD = 3;
   const periods = (await getPeriods(SLUG)).filter((p) => p.status === 'active' && p.endDate >= today);
   const changes: Array<{ p: any; rate: number; inBand: number; dearer: number; stays: number }> = [];
   const skipped: string[] = [];
+  /**
+   * Periods the solver could not price, and WHY.
+   *
+   * These used to `continue` in silence, which is how a rate ends up standing on
+   * nothing without anyone knowing. It nearly happened to 1 Decembrie on
+   * 2026-09-07: shortening the period by one night (the day people drive home)
+   * put both of its measured windows outside it, so the next run here would have
+   * passed over it and left 587 unbacked, invisibly.
+   *
+   * A rate the solver cannot see is not "unchanged", it is UNVERIFIED. Say so.
+   */
+  const unbacked: Array<{ name: string; slug: string; rate: number; reason: string }> = [];
+  const rateOf = (p: typeof periods[number]) =>
+    p.weekdayRate ?? p.fixedNightPrice ?? Math.round((prop.pricePerNight ?? 0) * (tierMultipliers[p.tier] ?? 1));
 
   for (const p of periods) {
     if (SKIP.includes(p.name.toLowerCase()) || SKIP.includes(p.slug)) { skipped.push(p.name); continue; }
@@ -139,11 +153,19 @@ const DROP_THRESHOLD = 3;
       return w.checkIn >= p.startDate && ns[ns.length - 1].date <= p.endDate;
     }).map((w) => ({ nights: stayNights(w.checkIn, w.checkOut), guests: w.guests,
                      bestPrice: w.best!.effective, floor: w.floor ?? null }));
-    if (!arr.length) continue;
+    if (!arr.length) {
+      unbacked.push({ name: p.name, slug: p.slug, rate: rateOf(p),
+        reason: `no measured stay falls entirely inside ${p.startDate}..${p.endDate}` });
+      continue;
+    }
     const flatRate = Boolean(p.flatRate);
     const r = bestRateForBand(arr, { flatRate, useWeekendUplift: !flatRate },
       { weekendAdjustment, econ: econNext });
-    if (!r) continue;
+    if (!r) {
+      unbacked.push({ name: p.name, slug: p.slug, rate: rateOf(p),
+        reason: `${arr.length} measured stay(s), but no rate satisfies the band` });
+      continue;
+    }
     const sp = spreadAt(r.rate, arr, { flatRate, useWeekendUplift: !flatRate }, { weekendAdjustment, econ: econNext });
     changes.push({ p, rate: r.rate, inBand: sp.inBand, dearer: sp.dearer, stays: arr.length });
   }
@@ -160,7 +182,16 @@ const DROP_THRESHOLD = 3;
     console.log(`   ${c.p.name.padEnd(18)} ${String(cur).padStart(5)} -> ${String(c.rate).padStart(5)} (${lever})   ${verdict}`);
   }
 
-  if (skipped.length) console.log(`\n   left unchanged: ${skipped.join(', ')}`);
+  if (skipped.length) console.log(`\n   left unchanged (on the skip list): ${skipped.join(', ')}`);
+
+  if (unbacked.length) {
+    console.log(`\n🔴 ${unbacked.length} period(s) the solver COULD NOT PRICE — their rates stand on no evidence:`);
+    for (const u of unbacked) {
+      console.log(`   ${u.name.padEnd(18)} ${String(u.rate).padStart(5)}   ${u.reason}`);
+    }
+    console.log('   These are NOT "unchanged". Re-probe the period with the ota-parity skill, then');
+    console.log('   re-run this. A rate nobody measured is a guess wearing a number.');
+  }
   if (!WRITE) { console.log('\nDry run. Nothing written. Re-run with --write to apply.'); process.exit(0); }
 
   // ---- one batch, one compile, one regeneration ----

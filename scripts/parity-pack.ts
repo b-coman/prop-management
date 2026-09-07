@@ -238,8 +238,20 @@ async function quoteDirect(propertyId: string, checkIn: string, checkOut: string
   for (const h of holidays) {
     const rawStart = parse(h.startDate);
     let ci0 = rawStart < soonest ? soonest : rawStart;
-    // `endDate` is the last day OFF, so the sellable window runs one night past it.
-    let periodEnd = addDays(parse(h.endDate), 1);
+    // `endDate` is the last day OFF, and people DRIVE HOME on it — so the last night
+    // sold is the night before, and `endDate` is the checkout.
+    //
+    // This used to add a day ("the sellable window runs one night past it"), which
+    // contradicted `travelWindow` outright. The booking record settles it: across all
+    // 175 stays, year-corrected, NOBODY has ever slept the last day off of Autumn
+    // Break, 1 Decembrie or the winter break. The two who slept a last day off
+    // elsewhere (Easter and Rusalii 2026) had arrived on the first day off and were
+    // exactly 3 nights — the minimum stay pushed them there, demand did not.
+    //
+    // It mattered: probing one night too long measured a stay shape the model says
+    // nobody books, and left 1 Decembrie's rate solved only over windows that
+    // include a night the period is about to stop owning.
+    let periodEnd = parse(h.endDate);
     let remaining = Math.round((periodEnd.getTime() - ci0.getTime()) / 86_400_000);
     if (remaining < 2) continue;
 

@@ -10,9 +10,28 @@
  *
  * Price level: Airbnb net + 10% (middle ground between Airbnb net and Booking.com gross)
  *
+ * ⚠️ SUPERSEDED — HISTORICAL RECORD, NOT A LIVE TOOL (noted 2026-09-07).
+ *
+ * This is where the owner's Excel plan was processed into the system, once, in
+ * February 2026. It has not been touched since (one commit, d817372) and its
+ * numbers have been overtaken by everything that happened after:
+ *
+ *   Fall          script x0.9 (~471/night)   live 405/night   (repriced Aug 2026)
+ *   Late Fall     script ends 2026-11-27     live ends 11-26
+ *   1 Decembrie   script starts 2026-11-28   live starts 11-27  ← a deliberate fix:
+ *                 the period began the Saturday while the stay begins Friday
+ *                 evening, so a holiday night was billed at the ordinary rate
+ *                 (see src/lib/pricing/travelWindow.ts).
+ *   minimumStay   script mostly 1            live mostly 2
+ *
+ * The live source of truth is the PERIOD MODEL (`pricingPeriods` -> compile ->
+ * `seasonalPricing`/`dateOverrides`). Running this with --write would overwrite
+ * months of repricing with February's figures. It is kept for provenance: it
+ * records what the owner's sheet actually said.
+ *
  * Usage:
  *   npx tsx -r tsconfig-paths/register scripts/setup-2026-pricing.ts          # dry-run
- *   npx tsx -r tsconfig-paths/register scripts/setup-2026-pricing.ts --write  # write to Firestore
+ *   npx tsx -r tsconfig-paths/register scripts/setup-2026-pricing.ts --write  # REFUSED once periods exist
  */
 
 import { register } from 'tsconfig-paths';
@@ -320,6 +339,29 @@ async function run() {
     console.log('  Run with --write to apply changes');
     console.log('===========================================\n');
     return;
+  }
+
+  // ── superseded: refuse to write once the period model owns the prices ──────
+  //
+  // This script holds February 2026's figures. The period model has repriced
+  // since (Fall 471 -> 405), moved a boundary to fix a real defect (1 Decembrie
+  // 11-28 -> 11-27, the departure evening), and raised minimum stays. Writing
+  // now would silently revert all of it.
+  //
+  // The guard is empirical rather than a flag: if `pricingPeriods` exist for this
+  // property, the period model is in charge and this script is history.
+  const livePeriods = await db.collection('pricingPeriods').where('propertyId', '==', PROPERTY_ID).get();
+  if (!livePeriods.empty) {
+    console.error('===========================================');
+    console.error('  REFUSING TO WRITE');
+    console.error(`  ${livePeriods.size} pricingPeriods exist for ${PROPERTY_ID}.`);
+    console.error('  The PERIOD MODEL owns pricing now; this script holds February 2026 figures');
+    console.error('  and would revert every repricing since.');
+    console.error('');
+    console.error('  Change prices with:  npx tsx scripts/periods.ts add | apply-band-pricing.ts');
+    console.error('  Then:                npx tsx scripts/periods.ts compile --write');
+    console.error('===========================================\n');
+    process.exit(1);
   }
 
   // =========================================================================

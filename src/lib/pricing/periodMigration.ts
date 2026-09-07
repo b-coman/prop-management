@@ -118,8 +118,21 @@ export function migrateToPeriods(
   // This is the step that turns eleven scattered documents back into the four decisions that produced
   // them (Christmas, pre-New-Year, New Year's Eve, post-New-Year).
   const mine = overrides.filter((r) => r.propertyId === propertyId).sort((a, b) => a.date.localeCompare(b.date));
+  // NOTE: price is deliberately NOT part of the key.
+  //
+  // It used to be, and that broke the moment one product carried a price CURVE.
+  // The New Year season is six nights at 940/940/2351/2351/940/940 under a single
+  // reason; keying on price split it into three runs, two of which produced the
+  // SAME id (`..._2026_new-year`, from the same reason and year). They collided,
+  // one won, and 2,351 — the most valuable rate on the property — silently became
+  // 940 on the round trip.
+  //
+  // Grouping by the DECISION (reason, minimum, flags) and expressing the price
+  // variation as a `nightProfile` is the faithful inverse of what the compiler
+  // emits. Where a run's price is constant, this produces exactly what it always
+  // did.
   const key = (o: LegacyOverrideRow) =>
-    [o.customPrice, o.minimumStay ?? '', o.reason ?? '', o.flatRate ?? true, o.available ?? true].join('|');
+    [o.minimumStay ?? '', o.reason ?? '', o.flatRate ?? true, o.available ?? true].join('|');
 
   let run: LegacyOverrideRow[] = [];
   const flush = () => {
@@ -127,6 +140,16 @@ export function migrateToPeriods(
     const first = run[0];
     const year = Number(first.date.slice(0, 4));
     const slug = slugify(first.reason || `fixed-${first.customPrice}`);
+
+    // The run's base price is the one most nights carry; every night that differs
+    // becomes a profile entry. Constant runs yield no profile at all.
+    const tally = new Map<number, number>();
+    for (const o of run) tally.set(o.customPrice, (tally.get(o.customPrice) ?? 0) + 1);
+    const basePriceForRun = [...tally.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
+    const profile = run
+      .filter((o) => o.customPrice !== basePriceForRun)
+      .map((o) => ({ date: o.date, price: o.customPrice }));
+
     periods.push({
       id: `${propertyId}_${year}_${slug}`,
       propertyId, year, slug,
@@ -135,7 +158,8 @@ export function migrateToPeriods(
       endDate: run[run.length - 1].date,
       tier: 'base',                       // inert: fixedNightPrice wins
       priority: FIXED_PRICE_PRIORITY,
-      fixedNightPrice: first.customPrice,
+      fixedNightPrice: basePriceForRun,
+      ...(profile.length ? { nightProfile: profile } : {}),
       minStay: first.minimumStay ?? null,
       status: 'active',
       flatRate: first.flatRate ?? true,

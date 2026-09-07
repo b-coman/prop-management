@@ -102,6 +102,29 @@ export async function compileAndWrite(
   const seasonsPreserved = seasonSnap.docs.filter((d) => !ownedBy(d) && !emittedSeasonIds.has(d.id)).map((d) => d.id);
   const overridesPreserved = overrideSnap.docs.filter((d) => !ownedBy(d) && !emittedOverrideIds.has(d.id)).map((d) => d.id);
 
+  // ── refuse to delete anything when the compile had to SKIP a period ──────────
+  //
+  // `compilePeriods` skips a period it cannot express ("sets an explicit weekday
+  // rate but the property has no base price — skipped rather than silently
+  // repriced"), which is the right instinct on its own. Combined with
+  // delete-what-was-not-emitted below, it becomes data loss: on 2026-09-07 a
+  // single `--write` removed Early September, Fall, Vacanta Toamna, Late Fall,
+  // 1 Decembrie and Early Winter from `seasonalPricing`, because all six had been
+  // skipped for a missing `basePrice`. The prices themselves survived only because
+  // nobody regenerated the calendars before it was noticed.
+  //
+  // A skip means the compile is INCOMPLETE. An incomplete compile may add, but it
+  // may never delete.
+  const skipped = result.warnings.filter((w) => w.kind === 'unknown-tier');
+  const wouldDelete = seasonsDeleted.length + overridesDeleted.length;
+  if (!dryRun && skipped.length && wouldDelete) {
+    throw new Error(
+      `refusing to compile: ${skipped.length} period(s) were skipped and could not be expressed, ` +
+        `so deleting the ${wouldDelete} row(s) they previously produced would drop live pricing rules. ` +
+        `Fix the skips first — ${skipped.map((w) => w.periodIds?.join(',') ?? '?').join('; ')}`
+    );
+  }
+
   if (!dryRun) {
     const batch = db.batch();
     for (const s of result.seasons) batch.set(db.collection(SEASONS).doc(s.id), s, { merge: true });

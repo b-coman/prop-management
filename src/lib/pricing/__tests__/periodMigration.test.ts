@@ -142,3 +142,119 @@ describe('compile ∘ migrate = identity', () => {
     });
   });
 });
+
+describe('compilePeriods — night profile (one season, a price curve)', () => {
+  const base = {
+    propertyId: 'p', year: 2026, priority: 100, tier: 'base' as const,
+    status: 'active' as const, minStay: 3, weekdayRate: null,
+  };
+
+  /** The three rows as they stood before the merge. */
+  const THREE = [
+    { ...base, id: 'p_pre-new-year_2026', slug: 'pre-new-year', name: 'Pre-New Year',
+      startDate: '2026-12-28', endDate: '2026-12-29', fixedNightPrice: 940 },
+    { ...base, id: 'p_new-year-s-eve_2026', slug: 'new-year-s-eve', name: "New Year's Eve",
+      startDate: '2026-12-30', endDate: '2026-12-31', fixedNightPrice: 2351 },
+    { ...base, id: 'p_post-new-year_2027', slug: 'post-new-year', name: 'Post-New Year',
+      startDate: '2027-01-01', endDate: '2027-01-02', fixedNightPrice: 940 },
+  ];
+
+  /** The same product as ONE period carrying the curve. */
+  const MERGED = [{
+    ...base, id: 'p_new-year_2026', slug: 'new-year', name: 'New Year',
+    startDate: '2026-12-28', endDate: '2027-01-02', fixedNightPrice: 940,
+    nightProfile: [
+      { date: '2026-12-30', price: 2351 },
+      { date: '2026-12-31', price: 2351 },
+    ],
+    legacyOverrideIdByDate: {
+      '2026-12-28': 'p-2026-12-28-pre-new-year',
+      '2026-12-29': 'p-2026-12-29-pre-new-year',
+      '2026-12-30': 'p-2026-12-30-new-year-s-eve',
+      '2026-12-31': 'p-2026-12-31-new-year-s-eve',
+      '2027-01-01': 'p-2027-01-01-post-new-year',
+      '2027-01-02': 'p-2027-01-02-post-new-year',
+    },
+  }];
+
+  const opts = { basePrice: 525, defaultMinimumStay: 2 };
+
+  it('produces BYTE-IDENTICAL overrides to the three rows it replaces', () => {
+    const a = compilePeriods(THREE as never, opts).overrides
+      .map((o) => ({ id: o.id, date: o.date, customPrice: o.customPrice, minimumStay: o.minimumStay, flatRate: o.flatRate }))
+      .sort((x, y) => (x.date < y.date ? -1 : 1));
+    const b = compilePeriods(MERGED as never, opts).overrides
+      .map((o) => ({ id: o.id, date: o.date, customPrice: o.customPrice, minimumStay: o.minimumStay, flatRate: o.flatRate }))
+      .sort((x, y) => (x.date < y.date ? -1 : 1));
+    expect(b).toEqual(a);
+    expect(b.map((o) => o.customPrice)).toEqual([940, 940, 2351, 2351, 940, 940]);
+  });
+
+  it('keeps the party premium on exactly the two nights around 31 Dec', () => {
+    const out = compilePeriods(MERGED as never, opts).overrides;
+    const at = (d: string) => out.find((o) => o.date === d)!.customPrice;
+    expect(at('2026-12-29')).toBe(940);
+    expect(at('2026-12-30')).toBe(2351);
+    expect(at('2026-12-31')).toBe(2351);
+    expect(at('2027-01-01')).toBe(940);
+  });
+
+  it('falls back to fixedNightPrice for a night the profile does not name', () => {
+    const out = compilePeriods(MERGED as never, opts).overrides;
+    expect(out.find((o) => o.date === '2026-12-28')!.customPrice).toBe(940);
+  });
+
+  it('warns rather than silently unpricing a night when there is no fallback', () => {
+    const noFallback = [{ ...MERGED[0], fixedNightPrice: null }];
+    const r = compilePeriods(noFallback as never, opts);
+    expect(r.overrides.map((o) => o.date)).toEqual(['2026-12-30', '2026-12-31']);
+    expect(r.warnings.some((w) => w.message.includes('does not cover'))).toBe(true);
+  });
+});
+
+describe('migrateToPeriods — a price CURVE round-trips as one period', () => {
+  // The six live New Year overrides: one product, one reason, two prices.
+  const NY = ['2026-12-28', '2026-12-29', '2026-12-30', '2026-12-31', '2027-01-01', '2027-01-02']
+    .map((date, i) => ({
+      id: `p-${date}-new-year`, propertyId: 'p', date,
+      customPrice: i === 2 || i === 3 ? 2351 : 940,
+      minimumStay: 3, flatRate: true, available: true, reason: 'New Year',
+    }));
+
+  it('produces ONE period, not three colliding ones', () => {
+    const { periods } = migrateToPeriods('p', [], NY as never, {});
+    const ny = periods.filter((x) => x.name === 'New Year');
+    expect(ny).toHaveLength(1);
+    expect(new Set(periods.map((x) => x.id)).size).toBe(periods.length); // no id collisions
+  });
+
+  it('keeps the party premium in a nightProfile rather than flattening it', () => {
+    const { periods } = migrateToPeriods('p', [], NY as never, {});
+    const ny = periods.find((x) => x.name === 'New Year')!;
+    expect(ny.fixedNightPrice).toBe(940);
+    expect(ny.nightProfile).toEqual([
+      { date: '2026-12-30', price: 2351 },
+      { date: '2026-12-31', price: 2351 },
+    ]);
+    expect(ny.startDate).toBe('2026-12-28');
+    expect(ny.endDate).toBe('2027-01-02');
+  });
+
+  it('round-trips: migrate then compile reproduces every override exactly', () => {
+    const { periods } = migrateToPeriods('p', [], NY as never, {});
+    const back = compilePeriods(periods, { basePrice: 525, defaultMinimumStay: 2 }).overrides;
+    expect(back.map((o) => ({ date: o.date, customPrice: o.customPrice, id: o.id })))
+      .toEqual(NY.map((o) => ({ date: o.date, customPrice: o.customPrice, id: o.id })));
+  });
+
+  it('a constant-price run still yields no profile — unchanged behaviour', () => {
+    const xmas = ['2026-12-24', '2026-12-25'].map((date) => ({
+      id: `p-${date}-christmas`, propertyId: 'p', date, customPrice: 1051,
+      minimumStay: 3, flatRate: true, available: true, reason: 'Christmas',
+    }));
+    const { periods } = migrateToPeriods('p', [], xmas as never, {});
+    const c = periods.find((x) => x.name === 'Christmas')!;
+    expect(c.fixedNightPrice).toBe(1051);
+    expect(c.nightProfile).toBeUndefined();
+  });
+});

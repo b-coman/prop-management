@@ -89,6 +89,31 @@ export interface PricingPeriod {
    * equivalent. Without this, every day of every calendar changes id and the proof is worthless.
    */
   legacySeasonId?: string;
+  /**
+   * A per-night price curve across ONE period.
+   *
+   * The New Year product is a single commercial window — people travel for the
+   * period, not for one night — but its price is not flat: the two nights around
+   * 31 December carry a party premium and the shoulder nights do not. With only
+   * one `fixedNightPrice` per row, expressing that needed THREE periods
+   * (Pre-New Year 940 / New Year's Eve 2351 / Post-New Year 940), and that split
+   * did real damage:
+   *
+   *   - it made the rates UNMEASURABLE. `apply-band-pricing` only solves over
+   *     stays that fall entirely inside a period; a 2-day period carrying a
+   *     3-night minimum can never contain a bookable stay, so 2351 — the most
+   *     valuable rate on the property — could never be checked against the OTAs.
+   *   - one product rolled forward as three anchors, splitting across the
+   *     `year` field at the New Year boundary.
+   *   - the owner reads it as one season, correctly, and the table disagreed.
+   *
+   * Dates are explicit here because a period is a CONCRETE artifact. The rule that
+   * generates them for a given year (e.g. "31 Dec and the night before are the
+   * party premium") belongs to the canonical season table, not to this row.
+   *
+   * A date inside the period with no profile entry falls back to `fixedNightPrice`.
+   */
+  nightProfile?: Array<{ date: string; price: number }> | null;
   /** Same, per date, for hand-set prices that were already dateOverride documents. */
   legacyOverrideIdByDate?: Record<string, string>;
   legacySeasonType?: string;
@@ -283,15 +308,27 @@ export function compilePeriods(periods: PricingPeriod[], opts: CompileOptions = 
     const prov: Provenance = { source: 'period-compiler', periodId: p.id, ...(compiledAt ? { compiledAt } : {}) };
     const minimumStay = p.minStay ?? defaultMinStay;
 
-    if (p.fixedNightPrice != null) {
+    if (p.fixedNightPrice != null || p.nightProfile?.length) {
       // A hand-set price means "replace everything for this night", which is exactly dateOverride
       // semantics — so it compiles to one override per date rather than to a season.
+      const profile = new Map((p.nightProfile ?? []).map((n) => [n.date, n.price]));
       for (const date of datesInRange(seg.start, seg.end)) {
+        const price = profile.get(date) ?? p.fixedNightPrice;
+        if (price == null) {
+          warnings.push({
+            kind: 'unknown-tier',
+            message:
+              `Period "${p.slug}" has a night profile that does not cover ${date}, and no ` +
+              'fixedNightPrice to fall back on — that night would be left unpriced, so it is skipped.',
+            periodIds: [p.id],
+          });
+          continue;
+        }
         overrides.push({
           id: p.legacyOverrideIdByDate?.[date] ?? `${p.propertyId}-${date}-${p.slug}`,
           propertyId: p.propertyId,
           date,
-          customPrice: p.fixedNightPrice,
+          customPrice: price,
           minimumStay,
           available: p.available ?? true,
           flatRate: p.flatRate ?? true,
