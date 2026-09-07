@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +32,7 @@ import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { Loader2, ExternalLink, RefreshCw, Ban, Rocket, Sparkles, Trash2, MapPin, Send, Save, Users } from 'lucide-react';
 import type { AdCampaign, CopyVariant } from '@/types';
+import type { SeasonSlotContext } from '@/lib/growth/contracts';
 import {
   approveAdAction,
   activateAdAction,
@@ -40,6 +41,7 @@ import {
   discardAdDraftAction,
   pushAdToMetaAction,
   updateAdDraftAction,
+  fetchSeasonSlotContextAction,
 } from '../actions';
 
 /**
@@ -333,6 +335,86 @@ function daysToEndTime(endTime: string | undefined): number | null {
   return days > 0 ? days : null;
 }
 
+/**
+ * The year, shown where the money is decided.
+ *
+ * The per-window slot is ADVISORY by the owner's decision — nothing here blocks.
+ * But without it each proposal looks reasonable on its own and the annual
+ * envelope is gone by February, so the four numbers appear beside the spend-cap
+ * field, at the moment a figure is actually typed.
+ *
+ * Read-only and best-effort: a Meta outage renders nothing rather than an error.
+ */
+function SeasonBudgetBlock({ adCampaignId, proposedMinor }: { adCampaignId: string; proposedMinor?: number }) {
+  const [ctx, setCtx] = useState<SeasonSlotContext | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    fetchSeasonSlotContextAction(adCampaignId)
+      .then((r) => { if (live && r.ok) setCtx(r.context); })
+      .catch(() => { /* context is decoration — never break the dialog for it */ });
+    return () => { live = false; };
+  }, [adCampaignId]);
+
+  if (!ctx || !ctx.ledger.available) return null;
+
+  const { slot, ledger } = ctx;
+  const proposal = proposedMinor ?? ctx.proposalTotalMinor ?? 0;
+  const afterMinor = ledger.remainingMinor - proposal;
+
+  // Never blocking, and the wording says whose decision it is.
+  const verdict =
+    proposal > ledger.remainingMinor
+      ? { tone: 'text-destructive', text: `This is ${formatMinor(proposal - ledger.remainingMinor)} more than the ad year has left.` }
+      : slot && proposal > slot.advisoryBudgetMinor
+        ? { tone: 'text-amber-600', text: `${formatMinor(proposal - slot.advisoryBudgetMinor)} over this window's slot — that is yours to make; it comes out of a later window.` }
+        : null;
+
+  return (
+    <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
+      <div className="flex justify-between">
+        <span className="text-muted-foreground">Season slot (advisory)</span>
+        <span className="font-medium">
+          {slot ? formatMinor(slot.advisoryBudgetMinor) : '—'}
+          {slot && (
+            <span className="ml-2 font-normal text-muted-foreground">
+              {slot.occasion ?? slot.checkIn} · rank {slot.rank} of {slot.of}
+            </span>
+          )}
+        </span>
+      </div>
+      <div className="flex justify-between">
+        <span className="text-muted-foreground">This proposal</span>
+        <span className="font-medium">{formatMinor(proposal)}</span>
+      </div>
+      <div className="flex justify-between">
+        <span className="text-muted-foreground">Committed this ad year ({ledger.adYearLabel})</span>
+        <span className="font-medium">
+          {formatMinor(ledger.committedMinor)} of {formatMinor(ledger.annualMinor)}
+          {ledger.spentUnplannedMinor > 0 && (
+            <span className="ml-2 font-normal text-muted-foreground">
+              incl. {formatMinor(ledger.spentUnplannedMinor)} boosted by hand
+            </span>
+          )}
+        </span>
+      </div>
+      <div className="flex justify-between">
+        <span className="text-muted-foreground">Remaining</span>
+        <span className="font-medium">
+          {formatMinor(ledger.remainingMinor)}
+          <span className="ml-2 font-normal text-muted-foreground">after this: {formatMinor(afterMinor)}</span>
+        </span>
+      </div>
+      {ctx.matchQuality === 'none' && (
+        <p className="pt-1 text-muted-foreground">
+          No season slot covers this window — this campaign sits outside the plan.
+        </p>
+      )}
+      {verdict && <p className={`pt-1 ${verdict.tone}`}>{verdict.text}</p>}
+    </div>
+  );
+}
+
 export function AdDetailPanel({ campaign }: { campaign: AdCampaign & { adsManagerUrl?: string } }) {
   const { toast } = useToast();
   const router = useRouter();
@@ -345,6 +427,7 @@ export function AdDetailPanel({ campaign }: { campaign: AdCampaign & { adsManage
   const [goLiveOpen, setGoLiveOpen] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [spendCapRon, setSpendCapRon] = useState('50');
+  const [overrideAnnual, setOverrideAnnual] = useState(false);
 
   const days = daysToEndTime(campaign.endTime);
   const projectedSpendMinor =
@@ -372,7 +455,7 @@ export function AdDetailPanel({ campaign }: { campaign: AdCampaign & { adsManage
       return;
     }
     startGoLive(async () => {
-      const ap = await approveAdAction(campaign.id, spendCapMinor);
+      const ap = await approveAdAction(campaign.id, spendCapMinor, overrideAnnual);
       if (isStaleAction(ap, toast)) return;
       if (!ap.ok) {
         toast({ title: 'Go live blocked at approval', description: ap.error, variant: 'destructive' });
@@ -595,6 +678,7 @@ export function AdDetailPanel({ campaign }: { campaign: AdCampaign & { adsManage
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-2">
+                  <SeasonBudgetBlock adCampaignId={campaign.id} proposedMinor={Math.round(Number(spendCapRon) * 100) || undefined} />
                   <Label htmlFor="spend-cap">Spend cap (RON)</Label>
                   <Input id="spend-cap" type="number" min={1} step="0.01" value={spendCapRon} onChange={(e) => setSpendCapRon(e.target.value)} />
                   {days !== null && projectedSpendMinor !== undefined && (
@@ -606,6 +690,18 @@ export function AdDetailPanel({ campaign }: { campaign: AdCampaign & { adsManage
                       end date, and the ad account&apos;s own spend limit.
                     </p>
                   )}
+                  <label className="flex items-start gap-2 pt-2 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={overrideAnnual}
+                      onChange={(e) => setOverrideAnnual(e.target.checked)}
+                    />
+                    <span>
+                      Spend beyond this year&apos;s budget. Only needed if approval is refused for breaching
+                      the {formatMinor(400000)} ad year; the choice is recorded on the campaign.
+                    </span>
+                  </label>
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setGoLiveOpen(false)} disabled={goingLive}>

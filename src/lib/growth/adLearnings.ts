@@ -86,6 +86,11 @@ export async function buildAdLearnings(propertyId: string, opts?: { maxCampaigns
         utmRevenue: round(o.utmAttributed.revenue),
         verdict: o.verdict,
         angle: (o.creativeBrief ?? '').slice(0, 200),
+        // The storagePaths this campaign actually ran. `AdOutcome` has carried them
+        // since the learning loop was built; they were simply dropped here, which
+        // made creative REUSE invisible — three campaigns to the same city can run
+        // the same four photos and nothing in the pack would say so.
+        photos: o.photos ?? [],
       })),
       note: LEARNINGS_NOTE,
     };

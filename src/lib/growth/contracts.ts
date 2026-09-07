@@ -330,3 +330,227 @@ export function toCampaignProposal(brief: CampaignBrief): CampaignProposal {
     opportunity: brief.opportunity,
   };
 }
+
+// ── season planning: rank the year's windows, then spread one envelope over them ──────────────────
+/**
+ * The season layer sits ABOVE the per-campaign ad planner. `AdBrief` answers
+ * "how should this one campaign run"; `SeasonPlan` answers "which windows are
+ * worth advertising at all this season, in what order, and with how much of the
+ * year's money".
+ *
+ * The division of labour is deliberate and is the reason these types look the
+ * way they do. The ALLOCATOR ranks and does every calculation; the SKILL may
+ * only exclude a window, shift its emphasis by a named tier, and write the
+ * angle. That is why `SeasonPlanEdits` carries no numeric field anywhere — the
+ * skill cannot type a budget because there is nowhere to type one.
+ */
+
+/** Where a candidate window came from. Drives the tier ladder in the allocator. */
+/**
+ * Where a candidate came from. `period` is one of the owner's own pricing periods
+ * taken whole — the source that stops a 25-night block decomposing into twenty
+ * anonymous scraps that each rank below a two-night minor holiday.
+ */
+export type SeasonCandidateKind = 'occasion' | 'period' | 'school-break' | 'weekend' | 'residual';
+
+/**
+ * One sellable stay window the season could advertise — a MEASURED FACT built by
+ * the pack, never invented by a reasoner.
+ *
+ * `checkOut` is EXCLUSIVE (the booking-engine convention), while
+ * `computeFreeRuns` reports its `end` as the LAST FREE NIGHT. Those two
+ * conventions meeting in one place is where this breaks; see `seasonWindows.ts`.
+ */
+export interface SeasonCandidate {
+  /** `${checkIn}_${nights}` — stable across re-runs, so a slot survives a re-plan. */
+  id: string;
+  checkIn: string;
+  checkOut: string;
+  nights: number;
+  kind: SeasonCandidateKind;
+  occasion: { name: string; type: string; startDate: string; endDate: string } | null;
+  /** `travelWindow.why`, verbatim — e.g. the departure evening and which days were bridged. */
+  why: string | null;
+  bridged: string[];
+  departureEvening: boolean;
+  minStay: number;
+  /** Real quoted total at base occupancy. Null when a night lacks calendar data. */
+  priceRon: number | null;
+  /** Open nights x asking price — the same arithmetic as `PeriodPosition.valueAtRisk`. */
+  valueAtRiskRon: number;
+  openNights: number;
+  daysOut: number;
+  periodId: string | null;
+  periodName: string | null;
+  /**
+   * The pricing period's parity verdict. `'losing'` GATES the window out of
+   * advertising: if a guest can beat this price on an OTA, an ad pays to send
+   * them to the worse price. Mirrors `PeriodVerdict` in `@/lib/parity/pricingPosition`.
+   */
+  parityVerdict: 'losing' | 'level' | 'thin' | 'healthy' | 'overshoot' | 'unmeasured';
+  includesWeekendNight: boolean;
+  /**
+   * The inventory this candidate CLAIMS, which is not always the stay it proposes.
+   *
+   * A `period` candidate proposes a representative stay but claims the whole
+   * period: funding "Vacanta Toamna" means the autumn break is covered, so the
+   * school-break slices inside it must not also be funded. Without this the
+   * allocator funded the same nine nights three times, because the three
+   * representative stays did not happen to overlap each other.
+   *
+   * Defaults to the stay range for every other kind.
+   */
+  covers: { from: string; to: string };
+  /** False when the gallery has no photo for the season this window falls in. */
+  creativeReady: boolean;
+  creativeGaps: string[];
+}
+
+/**
+ * One flight inside a slot. Cold runs first and BUILDS the pool; the retarget
+ * burst then works that pool and is dropped entirely when there is no
+ * deliverable audience to work.
+ */
+export interface SeasonPhase {
+  kind: 'cold' | 'retarget';
+  /** When the CAMPAIGN runs — never the stay window. Always strictly before `checkIn`. */
+  startDate: string;
+  endDate: string;
+  days: number;
+  dailyBudgetMinor: number;
+  /** Always `dailyBudgetMinor * days`; the validator asserts it. */
+  budgetMinor: number;
+  objective: AdObjective;
+  purpose: string;
+  /** Retarget only — checked again at land time, because audiences cross Meta's size floor slowly. */
+  requires?: 'deliverable-custom-audience';
+}
+
+/** One window the season plan decided to fund (or explicitly decided not to). */
+export interface SeasonSlot {
+  candidateId: string;
+  rank: number;
+  /** Rank before the skill's edits, so its influence is visible rather than absorbed. */
+  baselineRank: number;
+  tier: 1 | 2 | 3 | 4;
+  checkIn: string;
+  checkOut: string;
+  nights: number;
+  kind: SeasonCandidateKind;
+  occasion: string | null;
+  valueAtRiskRon: number;
+  priceRon: number | null;
+  /** ADVISORY. Never enters `validateAdPlan`; the operator approves or changes it at review. */
+  advisoryBudgetMinor: number;
+  /** `campaignSpendEnvelopeMinor(valueAtRisk)` — the existing per-campaign ceiling, unchanged. */
+  hardCapMinor: number;
+  phases: SeasonPhase[];
+  funded: boolean;
+  fundingNote: string;
+  emphasis: 'lead' | 'normal' | 'trailing';
+  angle: string | null;
+  rationale: string | null;
+  /** Filled in when a real `adCampaigns` doc lands against this slot. */
+  campaignIds: string[];
+  /** The named ranking inputs, so a plan can print WHY rank 4 is rank 4. */
+  scoreComponents: Array<{ name: string; value: number; note: string }>;
+}
+
+/**
+ * The three powers the skill has over the baseline plan. Note what is absent:
+ * every field is a name, a tier or prose. There is no number to type, so a
+ * reasoner cannot set a budget even by accident.
+ */
+export interface SeasonPlanEdits {
+  exclude: Array<{ candidateId: string; reason: string }>;
+  emphasis: Array<{ candidateId: string; emphasis: 'lead' | 'normal' | 'trailing'; citing: string }>;
+  angle: Array<{ candidateId: string; angle: string; rationale?: string }>;
+  narrative: { headline: string; approach: string; risks: string[] };
+}
+
+export type SeasonPlanStatus = 'draft' | 'active' | 'superseded';
+
+/**
+ * The landed artifact. One doc per VERSION at `seasonPlans/{id}`; superseding is
+ * a transaction that creates v(N+1) `active` and patches v(N) to `superseded`,
+ * so a past plan stays immutable evidence of what was decided and why — the same
+ * instinct that freezes `adOutcomes` rather than mutating them.
+ */
+export interface SeasonPlan {
+  /** `${propertyId}_${seasonKey}_v${version}` */
+  id: string;
+  propertyId: string;
+  /** e.g. '2026-27-winter' */
+  seasonKey: string;
+  season: { start: string; end: string; nights: number; label: string };
+  status: SeasonPlanStatus;
+  version: number;
+  supersedes: string | null;
+  supersededBy: string | null;
+  asOf: string;
+  envelope: {
+    adYear: string;
+    annualMinor: number;
+    reserveMinor: number;
+    /** Snapshots for audit. The LIVE numbers are always recomputed, never read from here. */
+    committedAtLandMinor: number;
+    remainingAtLandMinor: number;
+  };
+  slots: SeasonSlot[];
+  /**
+   * Every candidate NOT funded, with a reason. First-class rather than an
+   * omission: an un-planned window must render as un-planned, never as absent
+   * (the `parityWorklist` doctrine). It is also where the skill's real judgement
+   * lands — "Revelion sells itself on Booking; do not pay to reach people who
+   * would have found it anyway" is an argument, and it deserves to be recorded.
+   */
+  excluded: Array<{
+    candidateId: string;
+    checkIn: string;
+    nights: number;
+    reason: string;
+    by: 'allocator' | 'planner';
+  }>;
+  narrative: { headline: string; approach: string; risks: string[] };
+  /** The allocator's own rules, copied verbatim, so the plan is auditable years later. */
+  method: string[];
+  createdBy: string;
+}
+
+/**
+ * What the ads console shows beside the money, at the two moments money is
+ * decided: the daily-budget field and the Go-live dialog.
+ *
+ * Without this, each proposal looks reasonable on its own and the year's budget
+ * is gone by February. It lives here rather than in `actions.ts` because a
+ * `'use server'` module may only export async functions.
+ */
+export interface SeasonSlotContext {
+  planId: string | null;
+  seasonKey: string | null;
+  slot: {
+    candidateId: string;
+    rank: number;
+    of: number;
+    checkIn: string;
+    checkOut: string;
+    occasion: string | null;
+    advisoryBudgetMinor: number;
+    hardCapMinor: number;
+  } | null;
+  /**
+   * How the campaign was matched to a slot. `none` is a real signal — a campaign
+   * outside the season plan should say so, never borrow the nearest slot's advice.
+   */
+  matchQuality: 'exact' | 'overlapping' | 'none';
+  ledger: {
+    available: boolean;
+    annualMinor: number;
+    committedMinor: number;
+    remainingMinor: number;
+    spentUnplannedMinor: number;
+    adYearLabel: string;
+  };
+  /** dailyBudget x days-to-end x 1.25 — computed the SAME way `validateApprovalCap` does. */
+  proposalTotalMinor: number | null;
+}

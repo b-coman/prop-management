@@ -756,6 +756,27 @@ export interface AdOutcome {
   utmAttributed: { bookings: number; revenue: number; bookingIds: string[] }; // FIRST-PARTY utm→booking join (a floor)
   verdict: 'converted' | 'clicked-no-booking' | 'no-delivery' | 'rejected' | 'never-activated';
   caveats: string[];
+  /**
+   * TIER 2 — bookings that landed on an OTA after the guest arrived via this ad.
+   *
+   * Populated FORENSICALLY, case by case, never automatically: the link is
+   * inferential (a consentEvent carrying this campaign's utm, then a
+   * booking-check log for the exact stay window, then an OTA reservation for
+   * those same nights). It is NEVER summed into `utmAttributed`, and it is not a
+   * rate — with 175 bookings and 10 RON/day there is no honest denominator.
+   *
+   * It exists because the owner's goal is OCCUPANCY, not direct-channel share, so
+   * "the ad worked but the site did not close it" is a materially different
+   * outcome from "the ad did nothing" — and the utm join alone cannot tell them
+   * apart. See the 3-6 Sep 2026 case: ~182 RON of spend, no direct booking, and a
+   * Booking.com reservation for exactly the window the visitor had priced.
+   */
+  otaAssisted?: {
+    bookingIds: string[];
+    /** What links each booking to this campaign, in words. One entry per booking. */
+    evidence: string[];
+    note: string;
+  };
 }
 
 /**
@@ -784,6 +805,7 @@ export interface AdLearnings {
     utmRevenue: number;
     verdict: AdOutcome['verdict'];
     angle: string;                  // creativeBrief, truncated
+    photos: string[];               // storagePaths actually used — so creative REUSE is visible
   }>;
   note: string;                     // the statistical contract, shipped verbatim to the LLM
 }
@@ -1010,6 +1032,17 @@ export interface ComposeAndCreateAdInput {
     /** Audiences to exclude — e.g. a hashed customer list, so you stop paying to reach people who already booked. */
     excludedCustomAudiences?: AudienceTarget[];
   };
+  /**
+   * ISO 8601 — when the ad set should START delivering. Optional; omitted means
+   * "as soon as it is un-paused", which is the pre-season behaviour.
+   *
+   * A season plan schedules a cold phase to begin on a DATE (e.g. 35 days before
+   * check-in), not on the day someone happens to press the button. Meta accepts
+   * `start_time` alongside `daily_budget` (§9d) and `campaignBuilder.createAdSet`
+   * already sends it. Without this field every phase would have to be launched by
+   * hand on its start date, which defeats planning a season.
+   */
+  startTime?: string;
   /** ISO 8601 — REQUIRED in 2a (plan REVISIONS B2): bounds the ad set's real spend window (Meta's 500 RON campaign-level spend-cap floor is too high for a small first test). */
   endTime: string;
 }

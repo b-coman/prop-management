@@ -386,6 +386,12 @@ export async function composeAndCreateAd(input: ComposeAndCreateAdInput): Promis
       // demographically drops it below deliverable size.
       targeting: { geo_locations: geoLocations, ...audienceTargeting },
       endTime: input.endTime,
+      // A season plan schedules a cold phase to START on a date, not "today".
+      // Meta accepts `start_time` alongside `daily_budget` (§9d) and
+      // `campaignBuilder.createAdSet` already sends it — without threading it
+      // here, every phase would have to be launched by hand on its start date,
+      // which defeats planning a season at all.
+      ...(input.startTime ? { startTime: input.startTime } : {}),
     },
     creative: {
       name: `${input.propertyId} — ${adCampaignId} — creative`,

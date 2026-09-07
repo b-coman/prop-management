@@ -52,3 +52,133 @@ export const MAX_DAILY_BUDGET_MINOR = 20000; // 200 RON/day
 export function getMaxDailyBudgetMinor(): number {
   return MAX_DAILY_BUDGET_MINOR;
 }
+
+// ── Season planning: the ad year and the annual envelope ────────────────────
+//
+// Everything below is the MONEY POLICY for planning a whole season at once
+// (docs/season-ad-planner.md). It lives here, in config, for the same reason
+// MAX_DAILY_BUDGET_MINOR does: raising a ceiling should require a deploy, not a
+// form field. The per-window slot a season plan proposes is ADVISORY — the
+// operator approves or changes it at review — but the ANNUAL envelope below
+// bites at approval time (`approveAdAction`), overridable only by an explicit,
+// recorded `overrodeAnnualBudget` flag.
+
+/**
+ * The DEFAULT annual Meta ad envelope, bani. 4,000 RON — this owner's stated
+ * yearly budget for his one property.
+ *
+ * A second property will not share it. Use `annualBudgetMinorFor(propertyId)`
+ * rather than this constant, so a per-property override is a config change and
+ * not a code change when that day comes.
+ */
+export const AD_ANNUAL_BUDGET_MINOR = 400_000;
+
+/**
+ * Per-property annual envelopes, bani. A property absent here falls back to the
+ * default above — which is correct for a single-property operator and stays
+ * correct as the first override is added.
+ */
+export const AD_ANNUAL_BUDGET_BY_PROPERTY: Record<string, number> = {
+  'prahova-mountain-chalet': 400_000,
+};
+
+/** The ad-year envelope for one property, bani. */
+export function annualBudgetMinorFor(propertyId: string): number {
+  return AD_ANNUAL_BUDGET_BY_PROPERTY[propertyId] ?? AD_ANNUAL_BUDGET_MINOR;
+}
+
+/**
+ * The ad year starts 1 SEPTEMBER, not 1 January (MM-DD).
+ *
+ * The owner's commercial year turns here: summer ends, the early-autumn period
+ * begins, and the Romanian school year restarts. Two practical consequences,
+ * both of which a calendar year gets wrong:
+ *   1. A winter season (e.g. 2026-10-11 → 2027-04-29) straddles New Year, so a
+ *      calendar envelope would split ONE season across TWO budgets and force a
+ *      plan to carry two ledgers.
+ *   2. The first real flights launched 2026-09-06. A 1 October boundary would
+ *      charge them to a prior ad year that has no plan and no envelope.
+ */
+export const AD_YEAR_START_MONTH_DAY = '09-01';
+
+/**
+ * Share of the annual envelope held back from season planning, for the window
+ * nobody predicted — a late cancellation re-opening a holiday, a competitor
+ * going off sale. A season plan may allocate `annual - committed - reserve`.
+ */
+export const AD_RESERVE_PCT = 0.2;
+
+/**
+ * Floor for a flight's daily budget, bani (20 RON/day).
+ *
+ * Not a preference — a delivery threshold. Meta wants ~50 optimisation events
+ * per ad set per week to leave the learning phase. Smearing 4,000 RON across
+ * seven months is ~19 RON/day, which is below it. The honest output of the
+ * allocator is therefore to fund FEW windows properly and mark the rest
+ * explicitly unfunded. Do NOT lower this to "cover more windows" — that buys
+ * coverage on paper and delivery nowhere.
+ */
+export const MIN_VIABLE_DAILY_MINOR = 2_000;
+
+/** Days a window needs between planning and check-in for a cold phase to be worth running. */
+export const MIN_LEAD_DAYS = 14;
+
+/** Never plan to spend more than this share of the money at stake on one window. */
+export const MAX_SPEND_RATIO_OF_VALUE = 0.15;
+
+/**
+ * Absolute per-campaign total-spend ceiling, bani. MOVED here from
+ * `adPlannerPack.ts`, where it was module-private and therefore unreachable by
+ * the season allocator.
+ *
+ * Its ROLE changed with the season plan: it used to be policy ("no campaign may
+ * exceed 500 RON"). Policy now lives in the advisory season slot, which the
+ * operator can overrule. This remains only as a TYPO GUARD — the thing that
+ * catches 4000 fat-fingered as 40000 — so it sits well above any flight that
+ * would really be run.
+ */
+export const ABSOLUTE_MAX_TOTAL_MINOR = 50_000;
+
+/**
+ * The spend envelope for ONE campaign, bani: never plan to outspend the revenue
+ * at risk, and never exceed the typo guard.
+ *
+ * Extracted because this expression was about to exist in three places
+ * (`adPlannerPack`, the season allocator, the review screen) and three copies
+ * of a money rule drift invisibly — the drift only surfaces as a plan rejected
+ * for a reason nobody can reproduce.
+ */
+export function campaignSpendEnvelopeMinor(valueAtRiskRon: number | null | undefined): number {
+  const atRiskMinor =
+    valueAtRiskRon != null && valueAtRiskRon > 0 ? Math.round(valueAtRiskRon * 100) : null;
+  return atRiskMinor != null ? Math.min(atRiskMinor, ABSOLUTE_MAX_TOTAL_MINOR) : ABSOLUTE_MAX_TOTAL_MINOR;
+}
+
+/** One ad year: inclusive `start`/`end` as YYYY-MM-DD, plus a '2026-27' style label. */
+export interface AdYear {
+  start: string;
+  end: string;
+  label: string;
+}
+
+/** Add whole days to a YYYY-MM-DD string in UTC. String in, string out — never a local Date. */
+function addDaysYmd(ymd: string, days: number): string {
+  const [y, m, d] = ymd.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+/**
+ * The ad year containing `date`. Pure, and deliberately string-only: this
+ * codebase has repeatedly been bitten by local-time date maths (see the
+ * `parseDateLocal` fixes and the DST bug in `getMonthsBetweenDates`), so the
+ * boundary is compared as text and advanced in UTC.
+ */
+export function adYearFor(date: string | Date): AdYear {
+  const ymd = typeof date === 'string' ? date.slice(0, 10) : date.toISOString().slice(0, 10);
+  const year = Number(ymd.slice(0, 4));
+  const monthDay = ymd.slice(5, 10);
+  const startYear = monthDay >= AD_YEAR_START_MONTH_DAY ? year : year - 1;
+  const start = `${startYear}-${AD_YEAR_START_MONTH_DAY}`;
+  const end = addDaysYmd(`${startYear + 1}-${AD_YEAR_START_MONTH_DAY}`, -1);
+  return { start, end, label: `${startYear}-${String((startYear + 1) % 100).padStart(2, '0')}` };
+}

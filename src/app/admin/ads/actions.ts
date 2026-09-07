@@ -35,7 +35,6 @@ import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { convertTimestampsToISOStrings } from '@/lib/utils';
 import { serverTranslateContent } from '@/lib/server-language-utils';
 import { getBaseUrl } from '@/lib/structured-data';
-import { getMaxDailyBudgetMinor } from '@/config/growth-ads';
 import type { AdCampaign, AdCampaignStatus, ComposeAndCreateAdInput, CopyVariant, PropertyImage } from '@/types';
 import { composeAndCreateAd, validateApprovalCap, validateDailyBudget, type ComposeAndCreateAdResult } from '@/services/growth/adComposer';
 import { activateCampaign, type ActivateResult } from '@/services/growth/adExecutionGateway';
@@ -46,7 +45,12 @@ import { searchCities, type CityMatch } from '@/services/growth/metaAds/geo';
 import { deleteResource } from '@/services/growth/metaAds/client';
 import { planAndCreative } from '@/services/growth/adProposal';
 import { buildGenerationPrompt } from '@/lib/growth/generationPrompt';
-import type { AdOpportunity } from '@/lib/growth/contracts';
+import { getMaxDailyBudgetMinor, adYearFor, annualBudgetMinorFor, AD_RESERVE_PCT } from '@/config/growth-ads';
+import { computeSeasonLedger } from '@/lib/growth/seasonLedger';
+import { fetchInFlight, fetchTrackedMetaCampaignIds } from '@/lib/growth/inFlight';
+import { getAccountSpend, todayInTimezone } from '@/services/growth/metaAds/accountSpend';
+import { getActiveSeasonPlan } from '@/services/growth/seasonPlanService';
+import type { AdOpportunity, SeasonSlotContext } from '@/lib/growth/contracts';
 
 const logger = loggers.ads;
 
@@ -345,8 +349,14 @@ export async function composeAdAction(input: ComposeAndCreateAdInput): Promise<C
  */
 export async function approveAdAction(
   adCampaignId: string,
-  spendCapMinor: number
-): Promise<{ ok: true } | { ok: false; error: string }> {
+  spendCapMinor: number,
+  /**
+   * The owner's explicit, recorded decision to spend past this ad year's
+   * envelope. Without it, an approval that would breach the annual budget is
+   * REFUSED — the one place the budget bites. Per-window slots stay advisory.
+   */
+  overrideAnnualBudget = false
+): Promise<{ ok: true } | { ok: false; error: string; annualBudget?: { committedMinor: number; annualMinor: number; wouldCommitMinor: number } }> {
   let actor: string;
   try {
     actor = await requireActor();
@@ -383,9 +393,31 @@ export async function approveAdAction(
       return { ok: false, error: capCheck.reason };
     }
 
+    // ── the ANNUAL envelope, the one enforced budget ─────────────────────────
+    // The owner decided per-window slots are advisory and that he sets the number
+    // at review. The year as a whole is not advisory: approving here commits real
+    // money, so this is where it is checked. Overspending stays his call, but it
+    // becomes a deliberate, recorded act rather than an accident discovered in
+    // March.
+    const budget = await checkAnnualBudget(doc.propertyId, adCampaignId, spendCapMinor);
+    if (budget && budget.wouldCommitMinor > budget.annualMinor && !overrideAnnualBudget) {
+      logger.warn('approveAdAction: refused — would breach the ad year envelope', {
+        actor, adCampaignId, ...budget,
+      });
+      return {
+        ok: false,
+        error:
+          `annual-budget-exceeded: this would commit ${(budget.wouldCommitMinor / 100).toFixed(0)} RON ` +
+          `against a ${(budget.annualMinor / 100).toFixed(0)} RON ad year. Tick "spend beyond this ` +
+          `year's budget" to approve anyway.`,
+        annualBudget: budget,
+      };
+    }
+
     await ref.update({
       status: 'approved',
       spendCapMinor,
+      ...(overrideAnnualBudget ? { overrodeAnnualBudget: true } : {}),
       approvalSnapshot: {
         dailyBudgetMinor,
         spendCapMinor,
@@ -396,7 +428,7 @@ export async function approveAdAction(
       updatedAt: FieldValue.serverTimestamp(),
     });
 
-    logger.info('approveAdAction: approved', { actor, adCampaignId, spendCapMinor });
+    logger.info('approveAdAction: approved', { actor, adCampaignId, spendCapMinor, overrodeAnnualBudget: overrideAnnualBudget });
     revalidatePath('/admin/ads');
     revalidatePath(`/admin/ads/${adCampaignId}`);
     return { ok: true };
@@ -948,4 +980,175 @@ export async function discardAdDraftAction(adCampaignId: string): Promise<{ ok: 
     logger.error('discardAdDraftAction failed', error as Error, { adCampaignId });
     return { ok: false, error: 'internal-error' };
   }
+}
+
+/**
+ * What approving this campaign would commit against the ad year, in bani.
+ *
+ * Spend is read at ACCOUNT level, so boosts made by hand in Ads Manager count —
+ * they come out of the same 4,000 RON and never produce an `adCampaigns` doc.
+ * Returns null when Meta cannot be read: a budget check that cannot see the
+ * spend must not silently pass as "plenty left", so the caller treats null as
+ * "unknown" and lets the approval through with the existing gates intact rather
+ * than blocking on an outage.
+ */
+async function checkAnnualBudget(
+  propertyId: string | undefined,
+  adCampaignId: string,
+  spendCapMinor: number
+): Promise<{ committedMinor: number; annualMinor: number; wouldCommitMinor: number } | null> {
+  if (!propertyId) return null;
+  try {
+    const adYear = adYearFor(new Date().toISOString().slice(0, 10));
+    const [spend, inFlight, tracked] = await Promise.all([
+      getAccountSpend(propertyId, adYear.start, todayInTimezone('CET')),
+      fetchInFlight(propertyId, new Date().toISOString()),
+      fetchTrackedMetaCampaignIds(propertyId),
+    ]);
+    if (!spend.ok) return null;
+
+    const ledger = computeSeasonLedger({
+      adYear,
+      annualMinor: annualBudgetMinorFor(propertyId),
+      reservePct: AD_RESERVE_PCT,
+      accountSpend: spend.data,
+      trackedMetaCampaignIds: tracked,
+      reservedInFlightMinor: inFlight.totalProjectedRemainingMinor,
+      asOf: new Date().toISOString(),
+    });
+
+    // This campaign may already be counted in `reservedInFlightMinor` (it is
+    // `pushed`, so it is in-flight-capable). Subtract its own projection before
+    // adding the cap being approved, or it is counted twice.
+    const own = inFlight.campaigns.find((c) => c.adCampaignId === adCampaignId);
+    const alreadyCounted = own?.projectedRemainingMinor ?? 0;
+    const wouldCommitMinor = ledger.committedMinor - alreadyCounted + spendCapMinor;
+
+    return { committedMinor: ledger.committedMinor, annualMinor: ledger.annualMinor, wouldCommitMinor };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The season context for one campaign: what its window was advised, and what the
+ * ad year has left.
+ *
+ * Read-only, and it never blocks anything — the per-window figure is advisory by
+ * the owner's decision. Its whole job is to make sure that when he types a
+ * budget, the year is on screen next to it.
+ */
+export async function fetchSeasonSlotContextAction(
+  adCampaignId: string
+): Promise<{ ok: true; context: SeasonSlotContext } | { ok: false; error: string }> {
+  try {
+    await requireActor();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return { ok: false, error: handleAuthError(error).error };
+    throw error;
+  }
+
+  try {
+    const db = await getAdminDb();
+    const snap = await db.collection('adCampaigns').doc(adCampaignId).get();
+    if (!snap.exists) return { ok: false, error: 'not-found' };
+    const doc = snap.data() as AdCampaignDocData & {
+      seasonPlanId?: string;
+      seasonSlotId?: string;
+      proposal?: { occasion?: { start: string; end: string } | null };
+    };
+    const propertyId = doc.propertyId;
+    if (!propertyId) return { ok: false, error: 'no-property' };
+
+    const adYear = adYearFor(new Date().toISOString().slice(0, 10));
+    const [spend, inFlight, tracked] = await Promise.all([
+      getAccountSpend(propertyId, adYear.start, todayInTimezone('CET')),
+      fetchInFlight(propertyId, new Date().toISOString()),
+      fetchTrackedMetaCampaignIds(propertyId),
+    ]);
+    const ledger = computeSeasonLedger({
+      adYear,
+      annualMinor: annualBudgetMinorFor(propertyId),
+      reservePct: AD_RESERVE_PCT,
+      accountSpend: spend.ok ? spend.data : null,
+      trackedMetaCampaignIds: tracked,
+      reservedInFlightMinor: inFlight.totalProjectedRemainingMinor,
+      asOf: new Date().toISOString(),
+    });
+
+    // Match to a slot. An explicit `seasonSlotId` written at generate time is
+    // exact; otherwise fall back to stay-window overlap. When nothing matches we
+    // say `none` rather than attaching the nearest slot — an unmatched campaign
+    // is worth seeing, not smoothing over.
+    let slot: SeasonSlotContext['slot'] = null;
+    let matchQuality: SeasonSlotContext['matchQuality'] = 'none';
+    let planId: string | null = doc.seasonPlanId ?? null;
+    let seasonKey: string | null = null;
+
+    const win = doc.proposal?.occasion ?? null;
+    if (win?.start && win?.end) {
+      const key = `${win.start.slice(0, 4)}-${win.end.slice(2, 4)}-${seasonNameFor(win.start)}`;
+      const plan = await getActiveSeasonPlan(propertyId, key);
+      if (plan) {
+        planId = plan.id;
+        seasonKey = plan.seasonKey;
+        const funded = plan.slots.filter((s) => s.funded);
+        const exact = doc.seasonSlotId ? funded.find((s) => s.candidateId === doc.seasonSlotId) : undefined;
+        const endExclusive = new Date(new Date(`${win.end}T00:00:00Z`).getTime() + 86_400_000)
+          .toISOString()
+          .slice(0, 10);
+        const hit = exact ?? funded.find((s) => s.checkIn < endExclusive && win.start < s.checkOut);
+        if (hit) {
+          matchQuality = exact ? 'exact' : 'overlapping';
+          slot = {
+            candidateId: hit.candidateId,
+            rank: hit.rank,
+            of: funded.length,
+            checkIn: hit.checkIn,
+            checkOut: hit.checkOut,
+            occasion: hit.occasion,
+            advisoryBudgetMinor: hit.advisoryBudgetMinor,
+            hardCapMinor: hit.hardCapMinor,
+          };
+        }
+      }
+    }
+
+    // The same arithmetic validateApprovalCap uses, so the screen and the gate agree.
+    const daily = doc.dailyBudgetMinor ?? 0;
+    const endMs = doc.endTime ? Date.parse(doc.endTime) : NaN;
+    const days = Number.isFinite(endMs) ? Math.max(0, Math.ceil((endMs - Date.now()) / 86_400_000)) : null;
+    const proposalTotalMinor = days != null && daily > 0 ? Math.ceil(daily * days * 1.25) : null;
+
+    return {
+      ok: true,
+      context: {
+        planId,
+        seasonKey,
+        slot,
+        matchQuality,
+        ledger: {
+          available: ledger.available,
+          annualMinor: ledger.annualMinor,
+          committedMinor: ledger.committedMinor,
+          remainingMinor: ledger.remainingMinor,
+          spentUnplannedMinor: ledger.spentUnplannedMinor,
+          adYearLabel: ledger.adYear.label,
+        },
+        proposalTotalMinor,
+      },
+    };
+  } catch (error) {
+    logger.error('fetchSeasonSlotContextAction failed', error as Error, { adCampaignId });
+    return { ok: false, error: 'internal-error' };
+  }
+}
+
+/** Northern-hemisphere season of a date — must match `seasonPack`'s key format. */
+function seasonNameFor(dateYmd: string): 'winter' | 'spring' | 'summer' | 'autumn' {
+  const m = Number(dateYmd.slice(5, 7));
+  if (m === 12 || m <= 2) return 'winter';
+  if (m <= 5) return 'spring';
+  if (m <= 8) return 'summer';
+  return 'autumn';
 }

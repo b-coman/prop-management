@@ -264,8 +264,13 @@ export async function quoteStay(
 }
 
 /** Real quoted total for a stay at `guests` occupancy (occupancy price + cleaning fee + LoS discount),
- *  identical to the booking page. Null if any night lacks calendar data (card renders without a price). */
-function priceStay(
+ *  identical to the booking page. Null if any night lacks calendar data (card renders without a price).
+ *
+ *  Exported for `seasonPack`, which prices dozens of candidate windows in one pass. Going through
+ *  `quoteStay` there would re-read the property and every price calendar PER CANDIDATE — an N+1 against
+ *  Firestore, and worse, candidates priced from different snapshots. The pack already holds every
+ *  calendar it needs, so it supplies its own `dayCell` and the arithmetic stays in one place. */
+export function priceStay(
   start: string, nights: number, guests: number,
   dayCell: (d: string) => { prices?: Record<string, number>; adjustedPrice?: number; minimumStay?: number } | null,
   property: { baseOccupancy: number; extraGuestFee: number; cleaningFee: number },

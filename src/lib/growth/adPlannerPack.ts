@@ -22,11 +22,13 @@
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { getBaseUrl } from '@/lib/structured-data';
 import { serverTranslateContent } from '@/lib/server-language-utils';
-import { getMaxDailyBudgetMinor } from '@/config/growth-ads';
+import { getMaxDailyBudgetMinor, campaignSpendEnvelopeMinor } from '@/config/growth-ads';
 import { searchCities } from '@/services/growth/metaAds/geo';
 import { audienceCandidates, type AudienceCandidate } from '@/services/growth/metaAds/audiences';
 import { getAdAccountHealth, getPageHealth } from '@/services/growth/metaAds/brandHealth';
 import { buildAdLearnings } from '@/lib/growth/adLearnings';
+import { fetchInFlight, type InFlightBlock } from '@/lib/growth/inFlight';
+import { getActiveSeasonPlan } from '@/services/growth/seasonPlanService';
 import type { AdOpportunity, AdFraming } from '@/lib/growth/contracts';
 import type { CityMatch } from '@/services/growth/metaAds/geo';
 import type { PropertyImage, AiImageDescription, AdLearnings, BrandVoice } from '@/types';
@@ -43,9 +45,6 @@ const RO_FEEDER_CITIES = [
   'Bucharest', 'Ploiesti', 'Brasov', 'Constanta', 'Pitesti',
   'Targoviste', 'Buzau', 'Galati', 'Braila', 'Ramnicu Valcea',
 ];
-
-/** Absolute ceiling on a single plan's spend envelope, bani — 500 RON (Meta's campaign spend-cap floor). */
-const ABSOLUTE_MAX_TOTAL_MINOR = 50000;
 
 /** Diacritic-insensitive lowercase, so "Bucuresti" matches "București". */
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -70,8 +69,32 @@ export interface AdPlannerPack {
     maxDailyBudgetMinor: number;
     /** Spend envelope for this plan, bani = min(revenue-at-risk, absolute cap). Null if value unknown → planner sizes conservatively. */
     maxTotalSpendMinor: number | null;
+    /**
+     * What the season plan advises for THIS window, if one covers it.
+     *
+     * ADVISORY, and deliberately not enforced: it is NOT min()'d into
+     * `maxTotalSpendMinor` and `validateAdPlan` only WARNS when a plan exceeds it.
+     * The operator decides the number at review; this is the context he decides
+     * it in. Null when no active season plan covers the window.
+     */
+    seasonSlot: {
+      planId: string;
+      seasonKey: string;
+      candidateId: string;
+      advisoryBudgetMinor: number;
+      rank: number;
+      of: number;
+      phase: 'cold' | 'retarget' | null;
+      note: string;
+    } | null;
     note: string;
   };
+  /**
+   * Campaigns already running for this property. Without it the planner proposes
+   * a second campaign into a window it is already advertising, and on Meta your
+   * own ad sets bid against each other.
+   */
+  inFlight: InFlightBlock;
   targeting: {
     candidateCities: CityMatch[];
     candidateCityKeys: string[];
@@ -137,10 +160,16 @@ export async function buildAdPlannerPack(
     }
   }
 
-  // Spend envelope: never plan to outspend the revenue at risk (valueAtRisk is RON → bani).
-  const valueAtRiskMinor =
-    opportunity.valueAtRisk != null && opportunity.valueAtRisk > 0 ? Math.round(opportunity.valueAtRisk * 100) : null;
-  const maxTotalSpendMinor = valueAtRiskMinor != null ? Math.min(valueAtRiskMinor, ABSOLUTE_MAX_TOTAL_MINOR) : ABSOLUTE_MAX_TOTAL_MINOR;
+  // Spend envelope: never plan to outspend the revenue at risk. The expression now
+  // lives in config (`campaignSpendEnvelopeMinor`) because the season allocator and
+  // the review screen need the same one, and three copies of a money rule drift.
+  const maxTotalSpendMinor = campaignSpendEnvelopeMinor(opportunity.valueAtRisk ?? null);
+
+  // ── the season layer: what this window is advised, and what is already running ──
+  const [inFlight, seasonSlot] = await Promise.all([
+    fetchInFlight(propertyId, asOf.toISOString()),
+    resolveSeasonSlot(propertyId, opportunity),
+  ]);
 
   // Gallery assets owned by this property (for the creative brief — step 4 picks the actual photos).
   const propData = propSnap.exists ? (propSnap.data() as { images?: PropertyImage[]; customDomain?: string | null; brandVoice?: BrandVoice }) : undefined;
@@ -185,9 +214,11 @@ export async function buildAdPlannerPack(
       audience: opts?.framing?.audience?.trim() || null,
       note: 'The OUTCOME (goal) + AUDIENCE the operator wants for THIS period. Shape EVERYTHING to these together: the creativeBrief\'s angle, the copy the copywriter will write, AND which asset themes to favor must all serve this goal + this audience. Audience steers the copy angle + photo themes (NOT Meta demographics — Advantage+ owns those). If goal/audience are null, infer sensible ones from the occasion + what the property sells, and say what you assumed.',
     },
+    inFlight,
     constraints: {
       maxDailyBudgetMinor: getMaxDailyBudgetMinor(),
       maxTotalSpendMinor,
+      seasonSlot,
       note: `Budgets are in BANI (minor units). Keep dailyBudgetMinor ≤ maxDailyBudgetMinor, and dailyBudget × days-to-endTime ≤ maxTotalSpendMinor (the revenue-at-risk envelope). For a first, unproven acquisition test, size CONSERVATIVELY (a small daily budget + a bounded end date) — the point is to learn whether ads convert, not to spend the envelope.`,
     },
     targeting: {
@@ -216,4 +247,63 @@ export async function buildAdPlannerPack(
       'If learnings.available, treat past campaigns as WEAK PRIORS (read learnings.note): prefer angles/cities with supporting evidence ONLY when they fit this occasion equally — never override the occasion, and one campaign proves nothing.',
     ],
   };
+}
+
+/**
+ * The season plan's advice for the window this opportunity covers, if any.
+ *
+ * Matching is by STAY-WINDOW OVERLAP against the active plan's funded slots. When
+ * nothing matches we return null and say so, rather than attaching the nearest
+ * slot — a campaign outside the season plan is a real signal, and silently
+ * borrowing another window's budget advice would hide it.
+ *
+ * Never throws: a missing or unreadable season plan degrades to "no advice",
+ * which is exactly how the ads arm behaved before this layer existed.
+ */
+async function resolveSeasonSlot(
+  propertyId: string,
+  opportunity: AdOpportunity
+): Promise<AdPlannerPack['constraints']['seasonSlot']> {
+  try {
+    const w = opportunity.window;
+    if (!w?.start || !w?.end) return null;
+    const seasonKey = `${w.start.slice(0, 4)}-${w.end.slice(2, 4)}-${seasonNameOf(w.start)}`;
+    const plan = (await getActiveSeasonPlan(propertyId, seasonKey)) ?? null;
+    if (!plan) return null;
+
+    const funded = plan.slots.filter((s) => s.funded);
+    // checkOut is EXCLUSIVE; the opportunity's `end` is the last night, so compare
+    // against end+1 to avoid missing a slot that finishes on the same night.
+    const endExclusive = new Date(new Date(`${w.end}T00:00:00Z`).getTime() + 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    const hit = funded.find((s) => s.checkIn < endExclusive && w.start < s.checkOut);
+    if (!hit) return null;
+
+    return {
+      planId: plan.id,
+      seasonKey: plan.seasonKey,
+      candidateId: hit.candidateId,
+      advisoryBudgetMinor: hit.advisoryBudgetMinor,
+      rank: hit.rank,
+      of: funded.length,
+      phase: hit.phases[0]?.kind ?? null,
+      note:
+        'ADVISORY, not a ceiling. The season plan sized this window against the whole year; the ' +
+        'operator approves or changes the number at review. Only the ANNUAL envelope is enforced, ' +
+        'and only at approval time. Treat a large departure from this figure as something to justify ' +
+        'in your rationale, not as a rule you have broken.',
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Northern-hemisphere season of a date, matching `seasonPack`'s key format. */
+function seasonNameOf(dateYmd: string): 'winter' | 'spring' | 'summer' | 'autumn' {
+  const m = Number(dateYmd.slice(5, 7));
+  if (m === 12 || m <= 2) return 'winter';
+  if (m <= 5) return 'spring';
+  if (m <= 8) return 'summer';
+  return 'autumn';
 }

@@ -26,7 +26,7 @@ describe('validateAdPlan — happy path', () => {
     const res = run({});
     expect(res.ok).toBe(true);
     expect(res.errors).toEqual([]);
-    expect(res.stats).toEqual({ dailyBudgetMinor: 3000, cities: 1, daysToEnd: 10, projectedTotalMinor: 30000 });
+    expect(res.stats).toEqual({ dailyBudgetMinor: 3000, cities: 1, audiences: 0, daysToEnd: 10, projectedTotalMinor: 30000 });
   });
 });
 
@@ -69,10 +69,10 @@ describe('validateAdPlan — end time', () => {
 });
 
 describe('validateAdPlan — geo (narrows-never-widens)', () => {
-  it('rejects a plan with no cities', () => {
+  it('rejects a plan with no geo at all — neither a city nor a country', () => {
     const res = run({ targeting: { cities: [] } });
     expect(res.ok).toBe(false);
-    expect(res.errors.some((e) => e.includes('no city targeting'))).toBe(true);
+    expect(res.errors.some((e) => e.includes('no geo targeting'))).toBe(true);
   });
   it('rejects a city key not in the pack candidates', () => {
     const res = run({ targeting: { cities: [{ key: '9999999', name: 'Nowhere', radius: 25 }] } });

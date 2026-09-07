@@ -94,7 +94,18 @@ THE RULES
 5. OR DECLINE. If the opportunity is weak — no occasion, tiny value, or the account is blocked — set
    act:false and say why in the rationale, with cities empty. A forced ad spends real money, unlike
    a WhatsApp message; declining is a valid, valuable output.
-6. LEARN, WEAKLY. If learnings.available, prefer angles/cities/audiences with supporting evidence when
+6. DO NOT DOUBLE-TARGET. inFlight lists campaigns already running. If one already covers this
+   window, say so in your rationale and DECLINE (act:false) — the instrument is to extend the running
+   campaign, not to add a second. If one overlaps in cities but sells a different window, avoid its
+   cities where you can: on Meta your own ad sets compete in the same auction, so you pay a higher
+   CPM to reach the same person and neither ad set collects enough events to leave the learning phase.
+
+7. THE SEASON SLOT IS ADVICE, NOT A CEILING. constraints.seasonSlot, when present, is what the
+   season plan set aside for this window against the whole year's budget. Size toward it. You may
+   exceed it — the operator approves the final number at review — but justify a large departure in
+   your rationale, because the money comes out of a later window.
+
+8. LEARN, WEAKLY. If learnings.available, prefer angles/cities/audiences with supporting evidence when
    they fit this occasion EQUALLY well, and note in the rationale which past result influenced you.
    But the occasion + framing ALWAYS win, and one campaign proves nothing — read learnings.note and
    weight CTR/CPC over booking counts at low volume.
@@ -182,7 +193,12 @@ export async function generateAdPlan(
   // both the planner and the copywriter) — else build it here.
   const pack = opts?.pack ?? (await buildAdPlannerPack(opportunity, { asOf: opts?.asOf, framing: opts?.framing }));
   const validationPack: AdPlannerPackForValidation = {
-    constraints: { maxDailyBudgetMinor: pack.constraints.maxDailyBudgetMinor, maxTotalSpendMinor: pack.constraints.maxTotalSpendMinor },
+    constraints: {
+      maxDailyBudgetMinor: pack.constraints.maxDailyBudgetMinor,
+      maxTotalSpendMinor: pack.constraints.maxTotalSpendMinor,
+      // Advisory only — it produces a warning at review, never a rejection.
+      seasonAdvisoryBudgetMinor: pack.constraints.seasonSlot?.advisoryBudgetMinor ?? null,
+    },
     targeting: { candidateCityKeys: pack.targeting.candidateCityKeys },
   };
   const maxRepairs = opts?.maxRepairs ?? 1;
@@ -194,6 +210,11 @@ export async function generateAdPlan(
     targeting: pack.targeting,
     account: pack.account,
     page: pack.page,
+    // `inFlight` is passed EXPLICITLY. packJson is a whitelist, so a field added to
+    // the pack is invisible to the model until it is named here — and this is the
+    // one that stops the planner proposing a campaign into a window it is already
+    // advertising, where its own ad sets would bid against each other.
+    inFlight: pack.inFlight,
     learnings: pack.learnings,
     assetThemes: summariseAssets(pack.assets),
     landing: pack.landing,

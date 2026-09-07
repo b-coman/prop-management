@@ -33,6 +33,15 @@ export interface AdPlannerPackForValidation {
     maxDailyBudgetMinor: number;
     /** Optional overall spend envelope for this plan, bani. Null ⇒ no envelope in the pack (warn, don't block). */
     maxTotalSpendMinor: number | null;
+    /**
+     * The season plan's advisory budget for this window, bani.
+     *
+     * Deliberately produces a WARNING and never an error. The owner decided the
+     * per-window figure is advisory and that he sets it at review; enforcing it
+     * here would start rejecting plans he had explicitly approved. The only
+     * enforced budget is the ANNUAL envelope, checked at `approveAdAction`.
+     */
+    seasonAdvisoryBudgetMinor?: number | null;
   };
   targeting: {
     /** The ad-geolocation city keys the planner may pick from (narrows-never-widens). */
@@ -171,6 +180,18 @@ export function validateAdPlan(
     } else if (projected > pack.constraints.maxTotalSpendMinor) {
       errors.push(`projected total ${projected} bani (${daily}/day × ${daysToEnd}d) exceeds the plan envelope ${pack.constraints.maxTotalSpendMinor}`);
     }
+  }
+
+  // The season slot is ADVICE. A plan above it is allowed and only WARNS: the owner
+  // decided the per-window figure is his to set at review, and enforcing it here
+  // would reject plans he had explicitly approved. The one enforced budget is the
+  // ANNUAL envelope, checked at approveAdAction.
+  const advisory = pack.constraints.seasonAdvisoryBudgetMinor;
+  if (advisory != null && advisory > 0 && projected != null && projected > advisory) {
+    warnings.push(
+      `projected total ${projected} bani is above this window's season slot of ${advisory} — allowed, ` +
+        'but the difference comes out of a later window in the same ad year'
+    );
   }
 
   return nothing(daysToEnd, projected);

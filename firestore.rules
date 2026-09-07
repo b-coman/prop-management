@@ -279,6 +279,22 @@ service cloud.firestore {
       allow write: if false;  // Admin SDK only (written by finalizeAdOutcome)
     }
 
+    match /seasonPlans/{planId} {
+      // Which windows are worth advertising this season, ranked, with an ADVISORY
+      // budget each. One doc per version; a superseded plan is immutable evidence
+      // of what was decided, so nothing here is ever edited in place.
+      allow read: if isSuperAdmin() || isPropertyOwner();
+      allow write: if false;  // Admin SDK only (written by landSeasonPlan)
+    }
+
+    match /adSpendLedger/{ledgerId} {
+      // Cached account-level Meta spend per ad year, refreshed by the ad-reconcile
+      // cron. Account-level on purpose: it is the only source that sees boosts made
+      // by hand in Ads Manager, which our own campaign docs never record.
+      allow read: if isSuperAdmin() || isPropertyOwner();
+      allow write: if false;  // Admin SDK only
+    }
+
     match /pagePosts/{postId} {
       // Drafted organic page posts (manual-post flow) — super-admin/owner read.
       allow read: if isSuperAdmin() || isPropertyOwner();
