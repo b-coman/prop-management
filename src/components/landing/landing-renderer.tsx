@@ -97,18 +97,17 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
    * So when the page HAS stays, the hero scrolls to them and the picker becomes a secondary link.
    * When it has none there is nothing to scroll to, and the old navigation is still the right answer
    * — which is also what keeps this safe for any campaign, not just the ones with cards.
+   *
+   * AND THE JUMP IS NOT SMOOTHED, deliberately. Two versions were tried and measured on the running
+   * page, and both left the button dead: `scrollIntoView({ behavior: 'smooth' })` after a
+   * `preventDefault` moved scrollTop 0 → 0, and so did `scroll-behavior: smooth` on the scrolling
+   * element with the native jump — the hash reached the URL, the page stayed put. Smooth scrolling
+   * is driven by animation frames, so anything that starves them (a backgrounded document,
+   * reduced-motion, an embedded context) turns the page's primary call to action into a no-op that
+   * still reports a click. An instant jump has no such dependency; the polish is not worth it.
    */
   const hasStays = m.exampleStays.length > 0;
 
-  /**
-   * NO SMOOTH SCROLLING HERE, deliberately. Two versions were tried and measured on the running page,
-   * and both left the button dead: `scrollIntoView({ behavior: 'smooth' })` after a `preventDefault`
-   * moved scrollTop 0 → 0, and so did `scroll-behavior: smooth` on the scrolling element with the
-   * native jump — the hash reached the URL, the page stayed put. Smooth scrolling is driven by
-   * animation frames, so anything that starves them (a backgrounded document, reduced-motion, an
-   * embedded context) turns the page's primary call to action into a no-op that still reports a
-   * click. An instant jump has no such dependency. The polish is not worth the failure mode.
-   */
   const staysCols = (() => {
     const n = otherStays.length;
     if (n <= 1) return 'max-w-sm grid-cols-1';
@@ -137,19 +136,39 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
           onBookingClick={track.trackCtaClick}
         />
 
-        {/* ── HERO ── */}
-        <section className="relative flex min-h-[78vh] items-center justify-center overflow-hidden">
+        {/* ── HERO ──
+            OVERLAY ON DESKTOP, STACKED ON A PHONE, and the split is not a matter of taste. Measured
+            on the live page at 390x844: the text overlay was 575px of a 658px hero, so 87% of the
+            photograph was covered; a full-height `from-black/50 via-black/30 to-black/70` scrim
+            darkened the rest; and `min-h-[78vh]` forced a 1000x750 (4:3) photo into a 390x658 (0.59)
+            box, which `object-cover` satisfies by cropping 55% OF THE IMAGE AWAY. The result was a
+            narrow, dark vertical slice — the owner's words were "I can't see the picture, nor read
+            everything". Moving text around could never fix the crop or the scrim.
+
+            A wide viewport has room to put text BESIDE the subject, so desktop keeps the immersive
+            overlay exactly as it was. A phone does not: the copy stacks vertically and inevitably
+            covers the thing it is selling. So below `sm` the photo gets its own 4:3 band at its true
+            aspect — nothing cropped, no scrim needed — and the copy sits underneath on a solid
+            surface where small text is legible without a drop-shadow. */}
+        <section className="relative overflow-hidden sm:flex sm:min-h-[78vh] sm:items-center sm:justify-center">
           {m.hero.image ? (
-            <SafeImage src={displaySrc(m.hero.image)} alt={m.hero.image.alt || m.hero.headline} fill priority
-              blurDataURL={m.hero.image.blurDataURL} className="object-cover" sizes="100vw" />
-          ) : <div className="absolute inset-0 bg-primary/20" />}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/70" />
-          <div className="relative z-10 mx-auto max-w-3xl px-5 pt-20 pb-10 text-center text-white">
+            // `fill` needs a positioned ancestor: on a phone that is this 4:3 band, from `sm` up it
+            // goes back to being the whole section, which is what restores the desktop hero.
+            <div className="relative aspect-[4/3] w-full sm:absolute sm:inset-0 sm:aspect-auto sm:h-full">
+              <SafeImage src={displaySrc(m.hero.image)} alt={m.hero.image.alt || m.hero.headline} fill priority
+                blurDataURL={m.hero.image.blurDataURL} className="object-cover" sizes="100vw" />
+            </div>
+          ) : <div className="aspect-[4/3] w-full bg-primary/20 sm:absolute sm:inset-0 sm:aspect-auto" />}
+          {/* No scrim on a phone: nothing is written on the photo there, so darkening it only hides it. */}
+          <div className="absolute inset-0 hidden bg-gradient-to-b from-black/50 via-black/30 to-black/70 sm:block" />
+          <div className="relative z-10 mx-auto max-w-3xl px-5 pb-10 pt-6 text-center sm:pt-20 sm:text-white">
             {m.period.label && (
-              <Badge className="mb-4 bg-white/15 text-white backdrop-blur-sm border-white/20">{m.period.label}</Badge>
+              // Every colour below is paired: a legible value on the phone's solid surface, and the
+              // original white-on-photo restored from `sm` up. A drop-shadow off the photo is just blur.
+              <Badge className="mb-4 border-primary/20 bg-primary/10 text-foreground sm:border-white/20 sm:bg-white/15 sm:text-white sm:backdrop-blur-sm">{m.period.label}</Badge>
             )}
-            <h1 className="text-3xl font-bold leading-tight drop-shadow-md sm:text-4xl md:text-5xl">{m.hero.headline}</h1>
-            {m.hero.subcopy && <p className="mx-auto mt-4 max-w-xl text-base text-white/90 drop-shadow sm:text-lg">{m.hero.subcopy}</p>}
+            <h1 className="text-3xl font-bold leading-tight sm:text-4xl sm:drop-shadow-md md:text-5xl">{m.hero.headline}</h1>
+            {m.hero.subcopy && <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground sm:text-lg sm:text-white/90 sm:drop-shadow">{m.hero.subcopy}</p>}
 
             {/* The three facts that were previously buried: what people think of it, how big it is,
                 and what it costs. Measured 19-22 Aug: the first price sat at 48% scroll depth and the
@@ -160,12 +179,12 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                 Wraps to a centred stack on a phone and sits on one line from `sm` up; the dot
                 separators are hidden when wrapped so a broken row never shows a dangling bullet. */}
             {(m.ratings || m.maxGuests || m.advertisedRate) && (
-              <ul className="mx-auto mt-5 flex max-w-2xl flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-sm text-white/95 drop-shadow sm:max-w-3xl sm:gap-x-4 sm:text-base">
+              <ul className="mx-auto mt-5 flex max-w-2xl flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-sm text-foreground sm:max-w-3xl sm:gap-x-4 sm:text-base sm:text-white/95 sm:drop-shadow">
                 {m.ratings && m.ratings.count > 0 && (
                   <li className="inline-flex items-center gap-1.5">
                     <Star className="h-4 w-4 flex-shrink-0 fill-amber-400 text-amber-400" aria-hidden />
                     <span><span className="font-semibold">{m.ratings.average.toFixed(1)}</span>
-                      <span className="text-white/80"> · {m.ratings.count} {t(lang, 'reviews', 'recenzii')}</span></span>
+                      <span className="text-muted-foreground sm:text-white/80"> · {m.ratings.count} {t(lang, 'reviews', 'recenzii')}</span></span>
                   </li>
                 )}
                 {(() => {
@@ -184,7 +203,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                       <Users className="h-4 w-4 flex-shrink-0" aria-hidden />
                       <span>
                         {t(lang, 'Whole chalet,', 'Toată casa,')} {capacity.primary}
-                        {capacity.qualifier ? <span className="text-white/80"> {capacity.qualifier}</span> : null}
+                        {capacity.qualifier ? <span className="text-muted-foreground sm:text-white/80"> {capacity.qualifier}</span> : null}
                       </span>
                     </li>
                   );
@@ -201,7 +220,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
             <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
               {m.phone && <CallButton phone={m.phone} label={t(lang, 'Call us', 'Sună-ne')} size="lg" className="w-full sm:w-auto" />}
               {m.showBooking && (
-                <Button variant="outline" size="lg" asChild className="w-full border-white bg-white/10 text-white backdrop-blur-sm hover:bg-white hover:text-foreground sm:w-auto">
+                <Button variant="outline" size="lg" asChild className="w-full sm:w-auto sm:border-white sm:bg-white/10 sm:text-white sm:backdrop-blur-sm sm:hover:bg-white sm:hover:text-foreground">
                   {hasStays ? (
                     /**
                      * A PLAIN ANCHOR, and the click handler only reports. The first version called
@@ -213,7 +232,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                      * bitten by before — a large, obvious control that only looked alive in GA4.
                      *
                      * So navigation is the browser's native hash jump, which cannot fail. See the
-                     * note above `hasStays` for why it is not smoothed.
+                     * `hasStays` doc comment for the full measurement.
                      */
                     <a
                       href={`#${STAYS_ANCHOR}`}
@@ -233,7 +252,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                 <Link
                   href={m.checkDatesUrl}
                   onClick={() => track.trackCtaClick('hero_other_dates')}
-                  className="text-sm text-white/80 underline underline-offset-4 drop-shadow hover:text-white"
+                  className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground sm:text-white/80 sm:drop-shadow sm:hover:text-white"
                 >{t(lang, 'Looking for other dates?', 'Caut alte date')}</Link>
               </div>
             )}
