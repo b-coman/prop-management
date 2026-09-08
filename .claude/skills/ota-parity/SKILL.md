@@ -35,7 +35,7 @@ need the owner to have asked, in as many words.**
 
 | # | | why it is here |
 |---|---|---|
-| 1 | `parity-pack.ts <slug> --max 24` | Builds the probe list from the holiday + override calendars and **records the direct quotes itself**. §3.1-3.4 |
+| 1 | `parity-pack.ts <slug> --max 34` | Builds the probe list from the holiday + override calendars and **records the direct quotes itself**. §3.1-3.4 |
 | 2 | `parity-audit.ts <slug>` | Which stored rows a settings change has already invalidated. A reading can be one day old and still be fiction. §3.4 |
 | 3 | `parity-recheck.ts <slug> --min-nights 4 --json` | Those cells again, URLs pre-built. §3.4 |
 | 4 | `parity-next.ts <slug> --json --limit 15` | The outstanding cells, URLs pre-built. **Never hand-build one.** §4.1 |
@@ -206,7 +206,7 @@ when the run is finished — coverage does.
 
 ```bash
 # 1. Build the probe list; direct prices are quoted and RECORDED automatically.
-npx tsx scripts/parity-pack.ts <slug> --max 24        # party mix comes from compareParties
+npx tsx scripts/parity-pack.ts <slug> --max 34        # party mix comes from compareParties
 #    Scope BOTH ends when the owner names a stretch. `--months` only moves the far edge, so asking
 #    for the autumn also probed the following spring — page loads spent against a bot-detection
 #    budget on windows no decision was waiting on.

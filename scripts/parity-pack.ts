@@ -20,6 +20,7 @@ import { buildWorklist, computeCoverage, outstandingCells } from '@/lib/growth/p
 import { latestByCell, recordObservation } from '@/services/growth/parityObservations';
 import { cellId } from '@/lib/growth/parityWorklist';
 import { partiesFor, partySize, partyLabel } from '@/lib/parity/party';
+import { getPeriods } from '@/services/periodService';
 
 const SLUG = process.argv[2]?.startsWith('--') ? 'prahova-mountain-chalet' : (process.argv[2] ?? 'prahova-mountain-chalet');
 const AS_JSON = process.argv.includes('--json');
@@ -34,7 +35,16 @@ const MONTHS = (() => { const i = process.argv.indexOf('--months'); return i > -
  */
 const FROM = (() => { const i = process.argv.indexOf('--from'); return i > -1 ? process.argv[i + 1] : null; })();
 const TO = (() => { const i = process.argv.indexOf('--to'); return i > -1 ? process.argv[i + 1] : null; })();
-const MAX_PROBES = (() => { const i = process.argv.indexOf('--max'); return i > -1 ? Number(process.argv[i + 1]) : 24; })();
+/**
+ * Each probe costs a person a few page loads in Chrome, so the run is capped.
+ *
+ * Raised from 24 once the pack stopped dropping windows it should always have proposed: three major
+ * holidays (Sf Andrei + Ziua Nationala, Craciunul, Anul Nou) were being skipped by a guard that ran
+ * before they were widened into real windows, and each fans out to three occupancies. The old cap
+ * was tuned around their absence, so keeping it would have paid for the fix by silently dropping the
+ * ordinary-weekend coverage instead.
+ */
+const MAX_PROBES = (() => { const i = process.argv.indexOf('--max'); return i > -1 ? Number(process.argv[i + 1]) : 34; })();
 const GUESTS_ARG = (() => {
   const i = process.argv.indexOf('--guests');
   return i > -1 ? process.argv[i + 1].split(',').map(Number).filter((n) => n > 0) : null;
@@ -53,7 +63,9 @@ const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 type ProbeReason =
   | 'peak' | 'long-weekend' | 'school-break' | 'advertised'
-  | 'los-threshold' | 'ordinary-weekend' | 'midweek' | 'occupancy-variant';
+  | 'los-threshold' | 'ordinary-weekend' | 'midweek' | 'occupancy-variant'
+  /** A pricing period nothing else in this pack would have measured. */
+  | 'period-rate';
 
 /** Short / mid / long — the comparison flips across the length-of-stay tier, so all three are covered. */
 type LengthClass = 'short' | 'mid' | 'long';
@@ -184,6 +196,9 @@ async function quoteDirect(propertyId: string, checkIn: string, checkOut: string
   const probes: Probe[] = [];
   const classify = (nights: number): LengthClass =>
     nights >= (losTiers[0] ?? 7) ? 'long' : nights <= 2 ? 'short' : 'mid';
+  /** Periods that cannot be measured at all, with the reason — reported, never silently dropped. */
+  const unmeasurable: string[] = [];
+
   const push = (p: Omit<Probe, 'lengthClass'> & { lengthClass?: LengthClass }) => {
     const probe: Probe = { ...p, lengthClass: p.lengthClass ?? classify(p.nights) };
     const existing = probes.find((x) => x.checkIn === probe.checkIn && x.checkOut === probe.checkOut && x.guests === probe.guests);
@@ -253,7 +268,12 @@ async function quoteDirect(propertyId: string, checkIn: string, checkOut: string
     // include a night the period is about to stop owning.
     let periodEnd = parse(h.endDate);
     let remaining = Math.round((periodEnd.getTime() - ci0.getTime()) / 86_400_000);
-    if (remaining < 2) continue;
+    // The "too short to sell" guard must NOT judge a `major` row on its raw span. A major holiday is
+    // widened below to the Friday people actually leave on, and that is what makes it a window: Sf
+    // Andrei + Ziua Nationala is a 2-day row spanning ONE night, so this guard dropped it before the
+    // widening could turn it into the 4-night stay the pricing period sells. National Day, Rusalii
+    // and Ziua Muncii were all skipped this way, which is why their rates had never been measured.
+    if (remaining < 2 && h.type !== 'major') continue;
 
     if (h.type === 'major') {
       // A `major` row is a real travel window. Widen to the adjacent weekend where that is free —
@@ -437,6 +457,42 @@ async function quoteDirect(propertyId: string, checkIn: string, checkOut: string
     }
   }
 
+  // ---- 4c. Every pricing PERIOD must be measurable. ----
+  //
+  // Closing a loop that was open: `apply-band-pricing` reports a period whose rate "stands on no
+  // evidence", and nothing here ever read that report — so a period that is neither a holiday, a
+  // school break nor an advertised window was never probed, and its rate stayed a guess forever.
+  // Pre-Christmas ("the five nights before Christmas") and Russian Christmas (the tail of the winter
+  // break) are exactly that shape: real periods carrying real rates, with no calendar row of their own.
+  //
+  // Only periods NO existing probe already falls inside get one, so this adds nothing where the
+  // holiday and advertised passes have already done the work.
+  {
+    const periods = (await getPeriods(SLUG)).filter(
+      (p) => p.status === 'active' && p.endDate >= iso(soonest) && p.startDate <= iso(horizon),
+    );
+    for (const p of periods) {
+      const covered = probes.some((x) => x.checkIn >= p.startDate && addDays(parse(x.checkOut), -1) <= parse(p.endDate));
+      if (covered) continue;
+      const spanNights = Math.round((parse(p.endDate).getTime() - parse(p.startDate).getTime()) / 86_400_000) + 1;
+      const ci0 = parse(p.startDate) < soonest ? soonest : parse(p.startDate);
+      const room = Math.round((parse(p.endDate).getTime() - ci0.getTime()) / 86_400_000) + 1;
+      // A period shorter than its own minimum stay cannot contain a bookable stay and so can never
+      // be measured — say so rather than emitting a probe the booking engine will refuse.
+      const want = Math.max(2, p.minStay ?? 2);
+      if (room < want) {
+        unmeasurable.push(`${p.name} (${p.startDate}→${p.endDate}, ${spanNights}n) needs ${want} nights — no stay fits inside it`);
+        continue;
+      }
+      const nights = Math.min(room, Math.max(want, 3));
+      const start = (await windowFree(ci0, nights)) ? ci0 : await firstFreeWithin(ci0, addDays(parse(p.endDate), 1), nights);
+      if (!start) { unmeasurable.push(`${p.name} (${p.startDate}→${p.endDate}) has no free ${nights}-night window to probe`); continue; }
+      push({ label: `${p.name} — period rate`, reason: 'period-rate', checkIn: iso(start),
+             checkOut: iso(addDays(start, nights)), nights, guests: baseOccupancy,
+             priority: p.priority >= 100 ? 'high' : 'normal' });
+    }
+  }
+
   // ---- 5. Guarantee every length class is represented, whatever the calendar happened to yield. ----
   for (const cls of ['short', 'mid', 'long'] as LengthClass[]) {
     if (probes.some((p) => p.lengthClass === cls)) continue;
@@ -570,6 +626,13 @@ async function quoteDirect(propertyId: string, checkIn: string, checkOut: string
       `${String(r.nights).padStart(2)} ${String(r.guests).padStart(2)}   ${d}` +
       (r.bookableDirect ? '' : '   [BLOCKED direct]')
     );
+  }
+  if (unmeasurable.length) {
+    // A period no probe can reach will stay unbacked no matter how many captures are run, and the
+    // only honest thing to do is name it. The usual cause is a window shorter than its own minimum
+    // stay — the shape that made New Year's 2351 unmeasurable until it was merged into one season.
+    console.log(`\n⚠  ${unmeasurable.length} period(s) CANNOT be measured as configured:`);
+    unmeasurable.forEach((u) => console.log(`   ${u}`));
   }
   console.log(`\nWORKLIST: ${worklist.length} cells (${rows.length} windows × ${channelNames.length + 1} sources)`);
   console.log(`COVERAGE: ${coverage.captured} captured · ${coverage.refused} refused · ${coverage.unavailable} unavailable · ` +
