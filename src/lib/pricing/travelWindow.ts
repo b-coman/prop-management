@@ -201,13 +201,35 @@ export function comparePeriodToWindow(periods: PeriodRef[], w: TravelWindow): Wi
   };
 }
 
+/** A run of days off this long or longer is a long weekend, and carries a three-night minimum. */
+const LONG_WEEKEND_DAYS = 3;
+
+/** Inclusive length of the window's run of days off. 0 when the window carries no run. */
+function daysOffRun(w: TravelWindow): number {
+  const off = w.daysOff;
+  if (!off?.from || !off?.to) return 0;
+  return Math.round((d(off.to).getTime() - d(off.from).getTime()) / DAY) + 1;
+}
+
 /**
- * The longest minimum stay this window can carry without turning guests away.
+ * The minimum stay this window should carry.
  *
- * The owner's rule, stated 2026-09-01: *"I'd go for 3 days to not losing guests because of the
- * constrain."* A minimum equal to the full window forces everyone into the longest stay; one night
- * shorter still keeps single-night bookings out while leaving a shorter break sellable.
+ * The owner's rule, stated 2026-09-07: *"for national day, or any other official holiday, the min
+ * stay should be 3 if there is a long weekend"* — and, separately, that summer stays at 2. So the
+ * minimum is set by the **run of days off**, not by the length of the window:
+ *
+ *   - a run of 3+ days off (a long weekend) -> **3**
+ *   - anything shorter, an ordinary weekend included -> **2**
+ *
+ * The earlier formula was `max(2, min(3, nights - 1))`, derived from window length. It returned
+ * **2** for exactly the case he named: a Friday or Monday holiday makes a 3-day run, which sells a
+ * 3-night window, and `nights - 1` gave 2. It also flipped with the calendar rather than with the
+ * holiday — Ziua Unirii is a Saturday in 2026 (a 2-day run) and a Sunday in 2027 (still 2), while a
+ * Monday would make it 3. Reading the run says which of those it is.
+ *
+ * Capped at `w.nights`, since a window cannot require more nights than it sells.
  */
 export function suggestedMinStay(w: TravelWindow): number {
-  return Math.max(2, Math.min(3, w.nights - 1));
+  const want = daysOffRun(w) >= LONG_WEEKEND_DAYS ? 3 : 2;
+  return Math.max(2, Math.min(want, w.nights || want));
 }

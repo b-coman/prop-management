@@ -114,9 +114,43 @@ describe('comparePeriodToWindow', () => {
 });
 
 describe('suggestedMinStay', () => {
+  // Owner, 2026-09-07: "for national day, or any other official holiday, the min stay should be 3
+  // if there is a long weekend". The trigger is the RUN OF DAYS OFF, not the window length.
+
   it('leaves a shorter break sellable rather than forcing the whole window', () => {
     const w = travelWindow('2026-11-30', '2026-12-01', [H('2026-11-30'), H('2026-12-01')]);
     expect(w.nights).toBe(4);
+    expect(suggestedMinStay(w)).toBe(3);
+  });
+
+  it('asks 3 for a Friday holiday - the case the old formula returned 2 for', () => {
+    // Ziua Muncii 2026: Fri 1 May off, so Fri/Sat/Sun is a 3-day run selling 3 nights.
+    const w = travelWindow('2026-05-01', '2026-05-01', [H('2026-05-01', 'Ziua Muncii')]);
+    expect(w.daysOff).toEqual({ from: '2026-05-01', to: '2026-05-03' });
+    expect(w.nights).toBe(3);
+    expect(suggestedMinStay(w)).toBe(3);
+  });
+
+  it('asks 3 for a Monday holiday too', () => {
+    // Rusalii 2027: Sun 20 / Mon 21 June, giving Sat/Sun/Mon.
+    const w = travelWindow('2027-06-20', '2027-06-21', [H('2027-06-20'), H('2027-06-21')]);
+    expect(suggestedMinStay(w)).toBe(3);
+  });
+
+  it('stays at 2 when the holiday lands inside the weekend', () => {
+    // Ziua Unirii 2027 is a Sunday: no run longer than the weekend itself, so no long weekend.
+    const w = travelWindow('2027-01-24', '2027-01-24', [H('2027-01-24', 'Ziua Unirii')]);
+    expect(suggestedMinStay(w)).toBe(2);
+  });
+
+  it('does not force the whole festive stretch', () => {
+    // The 10-night Craciun->Revelion run: a long weekend many times over, but still min 3, so a
+    // family wanting only the Christmas end can still book.
+    const w = travelWindow('2026-12-25', '2026-12-26', [
+      H('2026-12-25'), H('2026-12-26'), H('2027-01-01'), H('2027-01-02'),
+      H('2026-12-28', 'punte'), H('2026-12-29', 'punte'), H('2026-12-30', 'punte'), H('2026-12-31', 'punte'),
+    ]);
+    expect(w.nights).toBe(10);
     expect(suggestedMinStay(w)).toBe(3);
   });
 
