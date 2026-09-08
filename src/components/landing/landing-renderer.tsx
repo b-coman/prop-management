@@ -120,7 +120,9 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
       {fontUrl && <link rel="stylesheet" href={fontUrl} precedence="default" />}
       <style dangerouslySetInnerHTML={{ __html: rootThemeCss }} />
       <ThemeAndCurrencyEffects baseCurrency={m.baseCurrency} />
-      <div style={themeStyles} className="flex min-h-screen flex-col bg-background text-foreground">
+      {/* The shared header renders a 65px fixed bar below `lg`. Nothing reserved room for it, so it
+          sat on top of the last of the footer. */}
+      <div style={themeStyles} className="flex min-h-screen flex-col bg-background pb-16 text-foreground lg:pb-0">
         <Header
           propertyName={m.propertyName}
           propertySlug={m.propertySlug}
@@ -132,7 +134,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
           advertisedRateNote={m.advertisedRateNote}
           baseCurrency={m.baseCurrency as never}
           onNavClick={track.trackNavToSite}
-          bookingHref={m.checkDatesUrl}
+          bookingHref={hasStays ? `#${STAYS_ANCHOR}` : m.checkDatesUrl}
           onBookingClick={track.trackCtaClick}
         />
 
@@ -150,7 +152,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
             covers the thing it is selling. So below `sm` the photo gets its own 4:3 band at its true
             aspect — nothing cropped, no scrim needed — and the copy sits underneath on a solid
             surface where small text is legible without a drop-shadow. */}
-        <section className="relative overflow-hidden sm:flex sm:min-h-[78vh] sm:items-center sm:justify-center">
+        <section id="hero" className="relative overflow-hidden sm:flex sm:min-h-[78vh] sm:items-center sm:justify-center">
           {m.hero.image ? (
             // `fill` needs a positioned ancestor: on a phone that is this 4:3 band, from `sm` up it
             // goes back to being the whole section, which is what restores the desktop hero.

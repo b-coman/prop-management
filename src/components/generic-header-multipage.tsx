@@ -72,6 +72,15 @@ export function Header({
   const [isScrolled, setIsScrolled] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
   const [showBookingCTA, setShowBookingCTA] = useState(false);
+  /**
+   * A FRAME-INDEPENDENT BACKSTOP for the sticky bar. The precise trigger below is an
+   * IntersectionObserver on the hero, which is the right instrument — but IO callbacks are delivered
+   * through the rendering pipeline, so anything that stops producing frames stops the bar appearing
+   * at all, silently. That is the same failure that made a `behavior:'smooth'` scroll a no-op earlier
+   * on this page. Past roughly one screen of scroll the hero cannot still be in view, and plain
+   * scroll arithmetic needs no frames, so the bar shows either way. Whichever fires first wins.
+   */
+  const [scrolledPastScreen, setScrolledPastScreen] = useState(false);
   const router = useRouter();
   
   // Get current theme from context
@@ -120,9 +129,14 @@ export function Header({
     setHasMounted(true); // Indicate component has mounted for client-side rendering
 
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
+      const y = window.scrollY;
+      setIsScrolled(y > 50);
+      setScrolledPastScreen(y > window.innerHeight * 0.9);
     };
-    window.addEventListener('scroll', handleScroll);
+    // PASSIVE. This fires on every scroll frame; without the flag the browser has to assume the
+    // handler might call preventDefault and cannot hand scrolling to the compositor, which is a
+    // measurable stutter on a phone for a listener that only ever reads scrollY.
+    window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll(); // Initial check
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -147,6 +161,14 @@ export function Header({
     // the branch below navigated them away from the page entirely.
     if (bookingHref) {
       onBookingClick?.(position);
+      // A HASH IS A PLACE ON THIS PAGE, NOT A ROUTE. A campaign landing whose hero CTA scrolls to its
+      // advertised stays passes `#stays` here, so the sticky bar does the same thing as the button it
+      // replaces. Routing it instead would send the visitor to the generic date picker — the exact
+      // mismatch the hero was just fixed to stop. Falls through to a normal push for real URLs.
+      if (bookingHref.startsWith('#')) {
+        const target = document.getElementById(bookingHref.slice(1));
+        if (target) { target.scrollIntoView(); return; }
+      }
       router.push(bookingHref);
       return;
     }
@@ -487,7 +509,7 @@ export function Header({
         "fixed bottom-0 left-0 right-0 z-50 lg:hidden",
         "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t",
         "transition-transform duration-300 ease-in-out",
-        showBookingCTA && hasMounted ? "translate-y-0" : "translate-y-full"
+        (showBookingCTA || scrolledPastScreen) && hasMounted ? "translate-y-0" : "translate-y-full"
       )}
     >
       <div className="flex items-center justify-between px-4 py-3">
