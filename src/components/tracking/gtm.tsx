@@ -1,11 +1,20 @@
 "use client";
 
 import Script from 'next/script';
+import { isConsentSuspended } from '@/lib/consent-suspension';
 
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID;
 
 export function GoogleTagManager() {
   if (!GTM_ID) return null;
+
+  // While the consent gate is suspended (see consent-suspension.ts — a dated, self-expiring
+  // override) Consent Mode starts GRANTED instead of denied, so GA4 measures every visitor rather
+  // than the ~53% who answer the banner. Everything below is otherwise untouched: the redaction and
+  // passthrough settings still apply, and the moment the date lapses this reverts to 'denied' on the
+  // next render with no deploy.
+  const suspended = isConsentSuspended();
+  const state = suspended ? 'granted' : 'denied';
 
   return (
     <>
@@ -18,10 +27,10 @@ export function GoogleTagManager() {
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('consent', 'default', {
-              'analytics_storage': 'denied',
-              'ad_storage': 'denied',
-              'ad_user_data': 'denied',
-              'ad_personalization': 'denied',
+              'analytics_storage': '${state}',
+              'ad_storage': '${state}',
+              'ad_user_data': '${state}',
+              'ad_personalization': '${state}',
               'wait_for_update': 500
             });
             // The two settings that decide how much survives a DENIED answer, and both were missing.

@@ -178,6 +178,20 @@ env:
       - BUILD
       - RUNTIME
 
+  # TEMPORARY, AND IT ENDS BY ITSELF. While this date is in the future the cookie banner is not
+  # shown and GA4 + the Meta Pixel start GRANTED, so the funnel is measured on all traffic instead
+  # of the ~53% who answer the banner. It expires at the END of the named day (UTC) with no deploy:
+  # the value is read at runtime on every render. See src/lib/consent-suspension.ts.
+  #
+  # Romania is in the EU, so this suspends a legal control (ePrivacy/GDPR consent, and Meta's
+  # Business Tools Terms). That is why it is a date rather than a switch — leave it alone and the
+  # banner comes back. To end it EARLY: set an empty value, or any past date, and deploy.
+  - variable: NEXT_PUBLIC_CONSENT_SUSPENDED_UNTIL
+    value: "2026-09-23"
+    availability:
+      - BUILD
+      - RUNTIME
+
 # Twilio WhatsApp (housekeeping notifications)
   - variable: TWILIO_ACCOUNT_SID
     secret: projects/1061532538391/secrets/TWILIO_ACCOUNT_SID/versions/latest

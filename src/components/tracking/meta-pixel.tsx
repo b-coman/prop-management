@@ -3,6 +3,7 @@
 import Script from 'next/script';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { isConsentSuspended } from '@/lib/consent-suspension';
 
 /**
  * Meta (Facebook/Instagram) browser Pixel.
@@ -20,6 +21,11 @@ import { useEffect, useRef, useState } from 'react';
 const COOKIE_NAME = 'cookie_consent';
 
 function hasMarketingConsent(): boolean {
+  // A dated, self-expiring override (consent-suspension.ts): while it is live the pixel behaves as
+  // if marketing consent were granted, so the audience pool fills from all traffic rather than the
+  // ~53% who answer the banner. Checked FIRST because with the banner hidden no cookie is ever
+  // written, so the read below could only ever return false.
+  if (isConsentSuspended()) return true;
   if (typeof document === 'undefined') return false;
   const match = document.cookie.split('; ').find((row) => row.startsWith(`${COOKIE_NAME}=`));
   if (!match) return false;

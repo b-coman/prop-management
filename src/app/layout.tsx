@@ -18,6 +18,8 @@ import { UTMCapture } from '@/components/tracking/utm-capture';
 import { LanguageHtmlUpdater } from '@/components/language-html-updater';
 import { headers, cookies } from 'next/headers';
 import { NO_TRACK_COOKIE, NO_TRACK_HEADER, shouldSuppressTracking } from '@/lib/no-track';
+import { consentSuspensionEndsOn, isConsentSuspended } from '@/lib/consent-suspension';
+import { loggers } from '@/lib/logger';
 import { DEFAULT_LANGUAGE } from '@/lib/language-constants';
 import { getServerTranslations } from '@/lib/language-system/server-translations';
 
@@ -68,6 +70,25 @@ export default async function RootLayout({
     headersList.get(NO_TRACK_HEADER)
   );
 
+  /**
+   * A DATED override that hides the cookie banner and starts GA4 + the Meta Pixel granted, so the
+   * funnel can be measured on all traffic rather than the ~53% who answer. See consent-suspension.ts
+   * for why it expires by itself rather than being a boolean.
+   *
+   * Logged at WARN on every render that uses it: a compliance control that is currently OFF should
+   * leave a trail in Cloud Logging, not be invisible until somebody thinks to read the config. It
+   * also gives an exact "this is when it lapsed" record after the fact.
+   *
+   * Deliberately AND-ed with `!noTrack`: the owner's own visits are excluded from tracking entirely,
+   * so for them there is nothing to consent to and nothing to suspend.
+   */
+  const consentSuspended = !noTrack && isConsentSuspended();
+  if (consentSuspended) {
+    loggers.tracking.warn('Cookie consent SUSPENDED — tags fire without asking', {
+      until: consentSuspensionEndsOn(),
+    });
+  }
+
   return (
     <html lang={detectedLang}>
       <head>
@@ -97,7 +118,9 @@ export default async function RootLayout({
                 <LanguageHtmlUpdater />
                 {children}
                 <Toaster />
-                {!noTrack && <CookieConsent />}
+                {/* Hidden only while the dated suspension is live. When the date lapses this
+                    renders again on the very next request — no deploy, nothing to remember. */}
+                {!noTrack && !consentSuspended && <CookieConsent />}
                 <UTMCapture />
                 {/* A kill-switch you cannot see is one you forget you left on, and then spend an
                     afternoon wondering why your own visit never reached GA4. Deliberately plain and
