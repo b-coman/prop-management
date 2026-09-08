@@ -15,6 +15,11 @@
  * a Saturday one year and a Sunday the next. Those are fetched facts; deriving them is how you get
  * them wrong.
  *
+ * **A year here runs 1 September to 31 August**, the same boundary the ads ledger uses. That keeps a
+ * festive season whole inside one year instead of splitting it across the New Year, and lets a
+ * season plan and a price table name the same window. So the backgrounds below are listed in
+ * SEASON order, starting with September.
+ *
  * See `resolveYear.ts` for the anchor vocabulary and `scripts/verify-canonical.ts` for the proof
  * that these rules reproduce the live table.
  */
@@ -80,6 +85,11 @@ export const OCCASIONS: SeasonRule[] = [
 
   { slug: 'vacanta-toamna', name: 'Autumn Break', priority: 100, tier: 'medium', weekdayRate: 578, minStay: 3,
     anchor: { kind: 'holiday', slug: 'vacanta-toamna', window: 'exact', shiftStart: -1, shiftEnd: -1 },
+    // The ministry publishes this late, but it has landed on the same shape every year on record —
+    // the last full school week of October with the weekend either side (25 Oct-2 Nov 2025,
+    // 24 Oct-1 Nov 2026). So an unpublished year is priced provisionally rather than left bare:
+    // this is the strongest autumn window the property has.
+    fallback: { kind: 'last-school-week', month: 10, padWeekend: true },
     certainty: 'provisional',
     note: 'A school break, not a run of days off, so its dates are taken as seeded. Shifted one day back at both ends: families leave the evening before and drive home on the last day.' },
 
@@ -96,8 +106,8 @@ export const OCCASIONS: SeasonRule[] = [
     note: 'The departure evening before Christmas Day through the night after. A flat whole-house rate, so the occupancy ladder does not apply.' },
 
   { slug: 'new-year', name: 'New Year', priority: 100, tier: 'base', fixedNightPrice: 940, flatRate: true, minStay: 3,
-    anchor: { kind: 'span', from: { rule: 'christmas', edge: 'end', offset: 1 }, to: { holiday: 'anul-nou', edge: 'end', yearOffset: 1 } },
-    premiumNights: { anchor: { holiday: 'anul-nou', edge: 'start', yearOffset: 1 }, offsets: [-2, -1], price: 2351 },
+    anchor: { kind: 'span', from: { rule: 'christmas', edge: 'end', offset: 1 }, to: { holiday: 'anul-nou', edge: 'end' } },
+    premiumNights: { anchor: { holiday: 'anul-nou', edge: 'start' }, offsets: [-2, -1], price: 2351 },
     note: 'One commercial window from the day after Christmas to the end of the New Year holiday. The party premium on the nights around 31 December is a night profile, not a separate season.' },
 ];
 

@@ -79,15 +79,15 @@ const COMPARED = ['adjustedPrice', 'available', 'minimumStay', 'priceSource'] as
     .filter((p) => p.status === 'active');
 
   // ---- resolve ----
-  // Both years: the pricing year runs past 31 December (New Year is the 2026 season's product) and
-  // the tail of the winter break belongs to the next calendar year's rows.
-  const a = resolveYear(SEASON_RULES, holidays, YEAR, { propertyId: SLUG, exceptions: SEASON_EXCEPTIONS });
-  const b = resolveYear(SEASON_RULES, holidays, YEAR + 1, { propertyId: SLUG, exceptions: SEASON_EXCEPTIONS });
+  // A season year runs 1 Sep -> 31 Aug, so the live table's calendar span straddles two of them:
+  // resolving only one would leave half the table with no rule and report it as DROPPED.
+  const a = resolveYear(SEASON_RULES, holidays, YEAR - 1, { propertyId: SLUG, exceptions: SEASON_EXCEPTIONS });
+  const b = resolveYear(SEASON_RULES, holidays, YEAR, { propertyId: SLUG, exceptions: SEASON_EXCEPTIONS });
   const resolved = [...a.periods, ...b.periods];
 
   console.log(`\n=== resolve(${YEAR}) + exceptions = live — ${SLUG} ===`);
   console.log(`rules: ${SEASON_RULES.length}   exceptions: ${SEASON_EXCEPTIONS.length}`);
-  console.log(`resolved: ${a.periods.length} period(s) for ${YEAR}, ${b.periods.length} for ${YEAR + 1}`);
+  console.log(`resolved: ${a.periods.length} period(s) for season ${YEAR - 1}-${String(YEAR % 100).padStart(2, '0')}, ${b.periods.length} for ${YEAR}-${String((YEAR + 1) % 100).padStart(2, '0')}`);
   console.log(`live:     ${livePeriods.length} active period(s)`);
 
   for (const u of [...a.unresolved, ...b.unresolved]) console.log(`  unresolved  ${u.slug}: ${u.reason}`);

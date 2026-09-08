@@ -24,10 +24,31 @@
  * so. Both are reported in `unresolved`, never silently dropped — a missing period is how 444 days
  * of the calendar came to have no price at all.
  *
+ * **A year runs 1 September to 31 August**, not January to December — the owner's boundary, and the
+ * same one the ads ledger uses (`AD_YEAR_START_MONTH_DAY`). It is the right cut for both: a festive
+ * season stays whole inside one year instead of being split across the New Year, and a season plan
+ * and a price table end up talking about the same window. `resolveYear(rules, h, 2026)` therefore
+ * means the **2026-27 season**: 1 Sep 2026 through 31 Aug 2027.
+ *
+ * Periods are still TAGGED with the calendar year their first night falls in, because that is what
+ * the live table and the period ids already use.
+ *
  * Pure. No Firestore, no network. The caller supplies the holidays.
  */
 import { travelWindow, suggestedMinStay, type OfficialDay } from './travelWindow';
 import { addDaysYmd, type PricingPeriod, type Tier } from './periods';
+import { AD_YEAR_START_MONTH_DAY } from '@/config/growth-ads';
+
+/**
+ * Where a pricing year begins. Deliberately the SAME constant the ads ledger uses: the owner set one
+ * business year boundary, and two copies of it would drift.
+ */
+export const SEASON_YEAR_START = AD_YEAR_START_MONTH_DAY;
+
+/** The calendar span of a season year: 1 Sep of `year` through 31 Aug of the next. */
+export function seasonWindow(year: number): { from: string; to: string } {
+  return { from: `${year}-${SEASON_YEAR_START}`, to: addDaysYmd(`${year + 1}-${SEASON_YEAR_START}`, -1) };
+}
 
 /** A seeded holiday row, as `scripts/seed-holidays.ts` writes it. */
 export interface HolidayRow {
@@ -61,7 +82,15 @@ export type Anchor =
    * feeding one to `travelWindow` invents a departure evening it does not have.
    */
   | { kind: 'holiday'; slug: string; window: 'travel' | 'exact'; shiftStart?: number; shiftEnd?: number; yearOffset?: number }
-  | { kind: 'span'; from: SpanEdge; to: SpanEdge };
+  | { kind: 'span'; from: SpanEdge; to: SpanEdge }
+  /**
+   * The last full Monday-to-Friday school week of a month, optionally padded with the weekend on
+   * each side. This is a FALLBACK shape, not a substitute for the seeded calendar: the ministry
+   * publishes the autumn break late, but it has landed on this pattern every year on record
+   * (25 Oct - 2 Nov 2025, 24 Oct - 1 Nov 2026), so a year with no seeded row can still be priced
+   * instead of leaving the strongest autumn window bare.
+   */
+  | { kind: 'last-school-week'; month: number; padWeekend?: boolean };
 
 export interface SeasonRule {
   slug: string;
@@ -89,6 +118,12 @@ export interface SeasonRule {
    * period, and a two-day period with a three-night minimum can never contain a bookable stay.
    */
   premiumNights?: { anchor: SpanEdge; offsets: number[]; price: number };
+  /**
+   * Used only when the primary anchor cannot resolve — a ministerial break not yet published, say.
+   * A period built from a fallback is always reported as provisional, so a draft never reads as
+   * settled fact.
+   */
+  fallback?: Anchor;
   /** Why this rule exists, in the owner's terms. Carried onto the period for the admin UI. */
   note?: string;
 }
@@ -140,18 +175,33 @@ export function officialDaysFrom(holidays: HolidayRow[]): OfficialDay[] {
 }
 
 /**
- * Pick the instance of a holiday that belongs to pricing year `year`.
+ * Pick the instance of a holiday that falls inside season year `year` (1 Sep -> 31 Aug).
  *
- * Prefers the row tagged with that year, then any row whose stretch touches it — the winter break
- * starts in December and ends in January, and both years have a legitimate claim on it.
+ * The window does the disambiguation that a calendar year could not. Anul Nou has an instance at
+ * each end of a calendar year and only one of them belongs to a given season; asking "which row
+ * starts inside 1 Sep 2026 - 31 Aug 2027" answers that without a per-rule year offset.
  */
 function findHoliday(holidays: HolidayRow[], slug: string, year: number): HolidayRow | null {
-  const bySlug = holidays.filter((h) => h.slug === slug);
-  return (
-    bySlug.find((h) => h.year === year) ??
-    bySlug.find((h) => h.startDate.slice(0, 4) === String(year)) ??
-    null
-  );
+  const { from, to } = seasonWindow(year);
+  const inWindow = holidays
+    .filter((h) => h.slug === slug && h.startDate >= from && h.startDate <= to)
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
+  return inWindow[0] ?? null;
+}
+
+/** The last full Mon-Fri week wholly inside `month` of the given calendar year. */
+function lastSchoolWeek(calendarYear: number, month: number, padWeekend: boolean): { start: string; end: string } {
+  const last = new Date(Date.UTC(calendarYear, month, 0));            // last day of the month
+  const fri = new Date(last);
+  while (fri.getUTCDay() !== 5) fri.setUTCDate(fri.getUTCDate() - 1); // last Friday
+  const mon = new Date(fri); mon.setUTCDate(mon.getUTCDate() - 4);
+  if (mon.getUTCMonth() !== month - 1) {                              // that week straddles the month
+    mon.setUTCDate(mon.getUTCDate() + 7); fri.setUTCDate(fri.getUTCDate() + 7);
+  }
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  return padWeekend
+    ? { start: addDaysYmd(iso(mon), -2), end: addDaysYmd(iso(fri), 2) }
+    : { start: iso(mon), end: iso(fri) };
 }
 
 type Resolved = { start: string; end: string; minStayAuto: number | null };
@@ -183,10 +233,21 @@ function resolveAnchor(
 
   if (a.kind === 'calendar') {
     if (!MMDD.test(a.from) || !MMDD.test(a.to)) return { error: `calendar anchor needs MM-DD, got ${a.from}..${a.to}` };
-    const start = `${year}-${a.from}`;
-    // A range whose end reads earlier than its start wraps the year boundary (a festive season).
-    const end = a.to < a.from ? `${year + 1}-${a.to}` : `${year}-${a.to}`;
+    // A season year runs Sep -> Aug, so a month-day at or after 1 September lands in the first
+    // calendar year and everything else in the second. "01-01 to 04-09" is January of the NEXT year.
+    const cal = (md: string) => (md >= SEASON_YEAR_START ? year : year + 1);
+    const start = `${cal(a.from)}-${a.from}`;
+    let end = `${cal(a.to)}-${a.to}`;
+    // A range that still reads backwards wraps the calendar year inside one season (e.g. 12-24..01-02).
+    if (end < start) end = `${Number(end.slice(0, 4)) + 1}-${a.to}`;
     return { start, end, minStayAuto: null };
+  }
+
+  if (a.kind === 'last-school-week') {
+    // Anchored to the calendar year the month falls in within this season year.
+    const cal = String(a.month).padStart(2, '0') >= SEASON_YEAR_START.slice(0, 2) ? year : year + 1;
+    const w = lastSchoolWeek(cal, a.month, a.padWeekend ?? false);
+    return { start: w.start, end: w.end, minStayAuto: null };
   }
 
   if (a.kind === 'holiday') {
@@ -232,11 +293,14 @@ export function resolveYear(
   opts: ResolveOptions
 ): ResolveResult {
   const officialDays = officialDaysFrom(holidays);
-  const exceptions = (opts.exceptions ?? []).filter((e) => e.year === year);
+  // Matched per resolved period, on the calendar year of its FIRST NIGHT — a season year spans two
+  // calendar years, so filtering the list up front by the season year would drop half of them.
+  const exceptions = opts.exceptions ?? [];
   const status = opts.status ?? 'active';
   const unresolved: ResolveResult['unresolved'] = [];
   const notes: string[] = [];
   const done = new Map<string, Resolved>();
+  const fellBack = new Set<string>();
 
   // Spans hang off other rules, so resolve in passes until nothing more moves. A cycle simply stops
   // making progress and every rule left over is reported by name.
@@ -245,10 +309,20 @@ export function resolveYear(
     const stuck: SeasonRule[] = [];
     let moved = false;
     for (const rule of pending) {
-      const r = resolveAnchor(rule, year, holidays, officialDays, done);
+      let r = resolveAnchor(rule, year, holidays, officialDays, done);
       if ('error' in r) {
         // A span waiting on a rule that has not resolved YET is not an error until the passes stop.
         if (r.error.includes('did not resolve')) { stuck.push(rule); continue; }
+        if (rule.fallback) {
+          const f = resolveAnchor({ ...rule, anchor: rule.fallback }, year, holidays, officialDays, done);
+          if (!('error' in f)) {
+            notes.push(`${rule.slug}: PROVISIONAL — ${r.error}; resolved from the declared fallback instead (${f.start}→${f.end})`);
+            fellBack.add(rule.slug);
+            done.set(rule.slug, f);
+            moved = true;
+            continue;
+          }
+        }
         unresolved.push({ slug: rule.slug, reason: r.error });
         moved = true;
         continue;
@@ -268,7 +342,8 @@ export function resolveYear(
   for (const rule of rules) {
     const r = done.get(rule.slug);
     if (!r) continue;
-    const ex = exceptions.find((e) => e.slug === rule.slug);
+    const periodYear = Number(r.start.slice(0, 4));
+    const ex = exceptions.find((e) => e.slug === rule.slug && e.year === periodYear);
     if (ex?.drop) {
       unresolved.push({ slug: rule.slug, reason: `dropped by exception: ${ex.reason}` });
       continue;
@@ -281,11 +356,10 @@ export function resolveYear(
       notes.push(`${rule.slug}: minStay 'auto' needs a holiday window; this anchor has none, so it is unset`);
     }
 
-    const startYear = Number(r.start.slice(0, 4));
     const base: PricingPeriod = {
-      id: `${opts.propertyId}_${rule.slug}_${startYear}`,
+      id: `${opts.propertyId}_${rule.slug}_${periodYear}`,
       propertyId: opts.propertyId,
-      year: startYear,
+      year: periodYear,
       slug: rule.slug,
       name: rule.name,
       startDate: r.start,
@@ -315,13 +389,15 @@ export function resolveYear(
     }
     periods.push(ex?.patch ? { ...base, ...ex.patch } : base);
     if (ex?.patch) notes.push(`${rule.slug}: patched by exception — ${ex.reason}`);
-    if (rule.certainty === 'provisional') {
+    if (rule.certainty === 'provisional' && !fellBack.has(rule.slug)) {
       notes.push(`${rule.slug}: PROVISIONAL — the anchor is not final for ${year}; re-resolve when it is published`);
     }
   }
 
+  const win = seasonWindow(year);
   for (const ex of exceptions) {
     if (!ex.add) continue;
+    if (ex.add.startDate < win.from || ex.add.startDate > win.to) continue;
     const startYear = Number(ex.add.startDate.slice(0, 4));
     periods.push({
       ...ex.add,
