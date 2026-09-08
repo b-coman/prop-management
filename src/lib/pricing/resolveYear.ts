@@ -315,6 +315,11 @@ export function resolveYear(
         if (r.error.includes('did not resolve')) { stuck.push(rule); continue; }
         if (rule.fallback) {
           const f = resolveAnchor({ ...rule, anchor: rule.fallback }, year, holidays, officialDays, done);
+          // A fallback can itself be a span on another rule, and on this pass that rule may simply
+          // not have resolved YET. Defer rather than declaring the fallback failed — Russian
+          // Christmas falls back to "the week after New Year", and judging it on the first pass
+          // reported it unresolved while New Year was sitting one line below, about to resolve.
+          if ('error' in f && f.error.includes('did not resolve')) { stuck.push(rule); continue; }
           if (!('error' in f)) {
             notes.push(`${rule.slug}: PROVISIONAL — ${r.error}; resolved from the declared fallback instead (${f.start}→${f.end})`);
             fellBack.add(rule.slug);

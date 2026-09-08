@@ -23,6 +23,7 @@ const DRY = process.argv.includes('--dry-run');
 
 const SRC_HOL_2026 = 'https://zilelibere.com/zilelibere2026.html';
 const SRC_HOL_2027 = 'https://zilelibere.com/zilelibere2027.html';
+const SRC_HOL_2028 = 'https://zilelibere.com/zilelibere2028.html';
 const SRC_SCHOOL_2025 = 'OMEC nr. 3463/2025 — https://idays.ro/vacante/2025-2026';
 const SRC_SCHOOL = 'https://www.edupedu.ro/oficial-calendarul-anului-scolar-2026-2027-publicat-in-monitorul-oficial-cursurile-incep-pe-7-septembrie-si-se-incheie-pe-18-iunie/';
 
@@ -77,6 +78,21 @@ const ROWS: Row[] = [
   // PERIOD decision, not a holiday-calendar one.
   { slug: 'punte-craciun-revelion', name: 'Punte Craciun-Revelion', startDate: '2026-12-28', endDate: '2026-12-31', type: 'bridge-day', source: 'owner observation 2026-09-07', official: false, notes: 'Mon-Thu between Craciun (Fri-Sat) and Anul Nou (Fri-Sat). Nominally working days; in practice almost nobody works them.' },
   { slug: 'punte-craciun-revelion', name: 'Punte Craciun-Revelion', startDate: '2027-12-27', endDate: '2027-12-31', type: 'bridge-day', source: 'owner observation 2026-09-07', official: false, notes: 'Mon-Fri between Craciun (Sat-Sun) and Anul Nou (Sat-Sun). Five working days on paper, none in practice.' },
+
+  // ---------------- 2028 public holidays ----------------
+  // Dates from the source; WEEKDAYS computed, not copied — the page's own weekday column disagreed
+  // with the calendar on several rows (it put New Year on a Sunday and Christmas on Tue-Wed).
+  { slug: 'anul-nou', name: 'Anul Nou', startDate: '2028-01-01', endDate: '2028-01-02', type: 'major', source: SRC_HOL_2028, official: true, notes: 'Sat-Sun — falls entirely on a weekend.' },
+  { slug: 'boboteaza', name: 'Boboteaza', startDate: '2028-01-06', endDate: '2028-01-06', type: 'minor', source: SRC_HOL_2028, official: true, notes: 'Thu' },
+  { slug: 'sf-ioan', name: 'Sfantul Ioan Botezatorul', startDate: '2028-01-07', endDate: '2028-01-07', type: 'minor', source: SRC_HOL_2028, official: true, notes: 'Fri — with Boboteaza on Thu, a four-day run into the weekend.' },
+  { slug: 'ziua-unirii', name: 'Ziua Unirii Principatelor Romane', startDate: '2028-01-24', endDate: '2028-01-24', type: 'minor', source: SRC_HOL_2028, official: true, notes: 'Mon — a long weekend, unlike 2026 (Sat) and 2027 (Sun).' },
+  { slug: 'paste', name: 'Pastele ortodox', startDate: '2028-04-14', endDate: '2028-04-17', type: 'major', source: SRC_HOL_2028, official: true, notes: 'Fri-Mon; Easter Sunday 16 Apr.' },
+  { slug: 'ziua-muncii', name: 'Ziua Muncii', startDate: '2028-05-01', endDate: '2028-05-01', type: 'major', source: SRC_HOL_2028, official: true, notes: 'Mon — a three-day weekend, and clear of Easter this year.' },
+  { slug: 'ziua-copilului', name: 'Ziua Copilului', startDate: '2028-06-01', endDate: '2028-06-01', type: 'minor', source: SRC_HOL_2028, official: true, notes: 'Thu' },
+  { slug: 'rusalii', name: 'Rusalii', startDate: '2028-06-04', endDate: '2028-06-05', type: 'major', source: SRC_HOL_2028, official: true, notes: 'Sun-Mon — a three-day window.' },
+  { slug: 'sf-maria', name: 'Adormirea Maicii Domnului', startDate: '2028-08-15', endDate: '2028-08-15', type: 'minor', source: SRC_HOL_2028, official: true, notes: 'Tue' },
+  { slug: 'sf-andrei-ziua-nationala', name: 'Sfantul Andrei + Ziua Nationala', startDate: '2028-11-30', endDate: '2028-12-01', type: 'major', source: SRC_HOL_2028, official: true, notes: 'Thu+Fri — a four-day run into the weekend, the strongest shape this holiday takes.' },
+  { slug: 'craciun', name: 'Craciunul', startDate: '2028-12-25', endDate: '2028-12-26', type: 'major', source: SRC_HOL_2028, official: true, notes: 'Mon-Tue' },
 
   // ---------------- school year 2025-2026 (OMEC 3463/2025) ----------------
   // Seeded late, and only from the winter break onward: the pricing horizon starts in January 2026

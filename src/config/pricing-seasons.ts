@@ -58,6 +58,10 @@ export const BACKGROUNDS: SeasonRule[] = [
 export const OCCASIONS: SeasonRule[] = [
   { slug: 'russian-christmas', name: 'Russian Christmas', priority: 100, tier: 'base', minStay: 3,
     anchor: { kind: 'span', from: { holiday: 'vacanta-iarna', edge: 'end', offset: -7 }, to: { holiday: 'vacanta-iarna', edge: 'end' } },
+    // Without the school calendar, "the eight nights after New Year" is the same window by another
+    // route — it reproduced 3-10 Jan 2027 exactly. Better than letting the background price a week
+    // that sells as a holiday.
+    fallback: { kind: 'span', from: { rule: 'new-year', edge: 'end', offset: 1 }, to: { rule: 'new-year', edge: 'end', offset: 8 } },
     note: 'The last week of the winter school break. Christmas for Moldovan and Ukrainian Orthodox guests, and the break is still running for everyone else.' },
 
   { slug: 'ziua-unirii', name: 'Ziua Unirii', priority: 100, tier: 'medium', minStay: 'auto',
@@ -72,6 +76,10 @@ export const OCCASIONS: SeasonRule[] = [
    */
   { slug: 'vacanta-paste', name: 'Easter Break', priority: 110, tier: 'medium', minStay: 3,
     anchor: { kind: 'holiday', slug: 'vacanta-primavara', window: 'exact', shiftStart: -1, shiftEnd: -1 },
+    // The school break is the better window, but it is published a year out at most. The Easter
+    // holiday itself is a fetched fact years ahead, so an unpublished year sells the holiday window
+    // rather than dropping to the Spring background — Easter at low season would be a real mispricing.
+    fallback: { kind: 'holiday', slug: 'paste', window: 'travel' },
     certainty: 'provisional',
     note: 'A moveable feast wrapped in a ministerial break — both fetched from the seeded calendar, never computed.' },
 

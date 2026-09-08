@@ -57,7 +57,18 @@ import type { PropertyPricing, SeasonalPricing, DateOverride, MinimumStayRule } 
 
 const PROPERTY_ID = process.argv.find(a => a.startsWith('--property='))?.split('=')[1] || 'prahova-mountain-chalet';
 const WRITE_MODE = process.argv.includes('--write');
-const MONTHS = 12;
+/**
+ * How far ahead to build calendars, in months from today. 12 was fine while the period table stopped
+ * a year out; once a whole season year is generated ahead of that, 12 silently refuses to build the
+ * months the new periods cover — the dry run reported "0 differences" simply because it never looked
+ * at them. Override with `--months N`.
+ */
+const MONTHS = (() => {
+  const v = process.argv.find((a) => a.startsWith('--months='))?.split('=')[1];
+  const n = v ? Number(v) : 12;
+  if (!Number.isFinite(n) || n < 1 || n > 36) throw new Error(`--months must be 1..36, got ${v}`);
+  return n;
+})();
 
 function convertTimestamps(obj: any): any {
   if (!obj || typeof obj !== 'object') return obj;

@@ -151,6 +151,22 @@ describe('resolveYear — the declared fallback for a ministerial anchor', () =>
     expect(r.notes.join(' ')).toMatch(/PROVISIONAL.*fallback/);
   });
 
+  it('waits for a fallback that hangs off another rule instead of failing it early', () => {
+    // Russian Christmas falls back to "the week after New Year". Judged on the first pass that
+    // reads as a failure, because New Year has not resolved yet — and it reported unresolved while
+    // New Year sat one rule below, about to resolve.
+    const rules: SeasonRule[] = [
+      { slug: 'rc', name: 'Russian Christmas',
+        anchor: { kind: 'span', from: { holiday: 'not-seeded', edge: 'end' }, to: { holiday: 'not-seeded', edge: 'end' } },
+        fallback: { kind: 'span', from: { rule: 'new-year', edge: 'end', offset: 1 }, to: { rule: 'new-year', edge: 'end', offset: 8 } } },
+      { slug: 'new-year', name: 'New Year',
+        anchor: { kind: 'span', from: { holiday: 'craciun', edge: 'end', offset: 2 }, to: { holiday: 'anul-nou', edge: 'end' } } },
+    ];
+    const r = resolveYear(rules, HOLIDAYS, 2026, OPTS);
+    expect(r.unresolved).toHaveLength(0);
+    expect(r.periods.find((p) => p.slug === 'rc')).toMatchObject({ startDate: '2027-01-03', endDate: '2027-01-10' });
+  });
+
   it('still reports unresolved when there is no fallback to fall back to', () => {
     const r = resolveYear([{ ...autumn, fallback: undefined }], HOLIDAYS, 2027, OPTS);
     expect(r.periods).toHaveLength(0);
