@@ -210,12 +210,42 @@ const DROP_THRESHOLD = 3;
               `${compiled.warnings.length ? `, ${compiled.warnings.length} warning(s)` : ''}`);
   for (const w of compiled.warnings) console.log(`    ! ${w.message}`);
 
-  const { generatePriceCalendar } = await import('@/app/admin/pricing/server-actions-hybrid');
-  const gen = await generatePriceCalendar(SLUG);
-  console.log(`  calendars: ${gen.success ? `regenerated ${gen.months ?? ''}` : `FAILED - ${gen.error}`}`);
+  // Calendars, through the SAME path a human would run — not through the server action.
+  //
+  // `generatePriceCalendar` is a Next server action: it calls `requirePropertyAccess`, which reads
+  // `cookies()`, which throws outside a request scope. From the CLI it therefore ALWAYS fails with
+  // "You do not have access to this property", and this script went on to print "Done. Ladder and
+  // rates landed in one write." So a repricing on 2026-09-08 wrote the periods, compiled the
+  // seasons, failed the calendars and reported success — the exact half-applied state this file's
+  // own header says it exists to prevent, and the second time it has happened.
+  //
+  // The horizon is taken from the furthest ACTIVE period rather than a constant: once a whole season
+  // year is generated ahead, a fixed 12 months silently declines to rebuild the months the new rates
+  // actually cover.
+  const furthest = periods.reduce((m, p) => (p.endDate > m ? p.endDate : m), '');
+  const months = furthest
+    ? Math.min(36, Math.max(12, Math.ceil((Date.parse(furthest) - Date.now()) / 2_592_000_000) + 1))
+    : 12;
+  console.log(`\n  regenerating calendars (${months} months, to ${furthest || 'default horizon'}) …`);
+  try {
+    const { execFileSync } = await import('node:child_process');
+    execFileSync('npx', ['tsx', 'scripts/regenerate-calendars-new-engine.ts',
+      `--property=${SLUG}`, `--months=${months}`, '--write'], { stdio: 'inherit' });
+  } catch (e) {
+    // A failure here is NOT a warning. The periods and seasons are already written, so the site is
+    // priced by rules the published calendars do not reflect. Say so, say how to finish it, and exit
+    // non-zero so a caller cannot mistake this for success.
+    console.error('\n🔴 CALENDARS DID NOT REGENERATE — THE CHANGE IS HALF APPLIED.');
+    console.error('   Periods and seasons ARE written; published calendars still hold the old prices.');
+    console.error(`   Finish it with:  npx tsx scripts/regenerate-calendars-new-engine.ts --property=${SLUG} --months=${months} --write`);
+    console.error(`   Then verify:     npx tsx scripts/verify-period-identity.ts ${SLUG} --months ${months}`);
+    loggers.adminPricing.error('Band pricing left half-applied: calendar regeneration failed', {
+      property: SLUG, periods: changes.length, error: e instanceof Error ? e.message : String(e) });
+    process.exit(1);
+  }
 
   loggers.adminPricing.info('Band pricing applied', { property: SLUG,
     ladder: ladderNext.length, periods: changes.length });
-  console.log('\nDone. Ladder and rates landed in one write.');
+  console.log('\nDone. Ladder, rates and calendars all landed.');
   process.exit(0);
 })();
