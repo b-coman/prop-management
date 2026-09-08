@@ -5,6 +5,7 @@
  *   npx tsx scripts/periods.ts migrate  [slug] [--write]   # seasons+overrides -> pricingPeriods
  *   npx tsx scripts/periods.ts compile  [slug] [--write]   # pricingPeriods -> seasons+overrides
  *   npx tsx scripts/periods.ts worklist [slug] [--year 2027]
+ *   npx tsx scripts/periods.ts promote  [slug] [--season 2026] [--write]  # draft -> active
  *   npx tsx scripts/periods.ts add      [slug] --name "..." --start D --end D
  *                                       [--tier base] [--min 2] [--fixed 940]
  *                                       [--trim-previous] [--write]
@@ -19,7 +20,9 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { migrateToPeriods, type LegacySeasonRow, type LegacyOverrideRow } from '@/lib/pricing/periodMigration';
 import { getPeriods, upsertPeriods, compileAndWrite, horizonFor } from '@/services/periodService';
-import { DEFAULT_TIER_MULTIPLIERS, datesInRange, type TierMultipliers, type PricingPeriod } from '@/lib/pricing/periods';
+import { DEFAULT_TIER_MULTIPLIERS, compilePeriods, datesInRange, type TierMultipliers, type PricingPeriod } from '@/lib/pricing/periods';
+import { calculateDayPrice, type PropertyPricing, type SeasonalPricing, type DateOverride } from '@/lib/pricing/price-calculation';
+import { seasonWindow } from '@/lib/pricing/resolveYear';
 
 const CMD = process.argv[2] ?? 'list';
 const SLUG = process.argv[3]?.startsWith('--') || !process.argv[3] ? 'prahova-mountain-chalet' : process.argv[3];
@@ -52,6 +55,70 @@ const fmt = (p: PricingPeriod) =>
 
 (async () => {
   const db = await getAdminDb();
+
+  // ---- promote: draft -> active, but never without showing what it does to the money first ----
+  //
+  // A draft prices nothing: both `compilePeriods` and `compileAndWrite` filter to `active`. Promotion
+  // is therefore the moment a generated season becomes real, and it is the one step in the whole
+  // canonical chain that a person has to agree to. So the dry run prints the PRICE DIFF — every
+  // night whose rate or minimum stay changes — rather than a list of row names, which says nothing
+  // about what a guest would pay.
+  if (CMD === 'promote') {
+    const season = arg('season') ? Number(arg('season')) : null;
+    const cfg = await propertyConfig(SLUG);
+    const all = await getPeriods(SLUG);
+    const win = season != null ? seasonWindow(season) : null;
+    const drafts = all.filter((p) => p.status === 'draft' && (!win || (p.startDate >= win.from && p.startDate <= win.to)));
+
+    console.log(`\n=== promote — ${SLUG}${season != null ? ` season ${season}-${String((season + 1) % 100).padStart(2, '0')}` : ''} ===`);
+    if (!drafts.length) { console.log('no draft periods match.'); return; }
+    drafts.forEach((p) => console.log(fmt(p)));
+
+    const prop = (await db.collection('properties').doc(SLUG).get()).data() as any;
+    const pp = {
+      pricePerNight: prop.pricePerNight, baseOccupancy: prop.baseOccupancy ?? 2,
+      extraGuestFee: prop.extraGuestFee ?? 0, maxGuests: prop.maxGuests ?? 8,
+      pricingConfig: prop.pricingConfig, pricing: prop.pricing,
+    } as PropertyPricing;
+    const ids = new Set(drafts.map((d) => d.id));
+    const compile = (list: PricingPeriod[]) => {
+      const c = compilePeriods(list, cfg);
+      return { seasons: c.seasons.map((x) => ({ ...x, enabled: true })) as unknown as SeasonalPricing[],
+               overrides: c.overrides as unknown as DateOverride[], warnings: c.warnings };
+    };
+    const before = compile(all);
+    const after = compile(all.map((p) => (ids.has(p.id) ? { ...p, status: 'active' as const } : p)));
+    after.warnings.forEach((w) => console.log(`  compiler [${w.kind}] ${w.message}`));
+
+    // Compare across the promoted span only — everything else is untouched by definition.
+    const from = drafts.reduce((m, p) => (p.startDate < m ? p.startDate : m), '9999-12-31');
+    const to = drafts.reduce((m, p) => (p.endDate > m ? p.endDate : m), '0000-01-01');
+    const changes: string[] = [];
+    let priced = 0;
+    for (const ds of datesInRange(from, to)) {
+      const [y, m, d] = ds.split('-').map(Number);
+      const at = new Date(y, m - 1, d);
+      const a: any = calculateDayPrice(pp, at, before.seasons, before.overrides, []);
+      const b: any = calculateDayPrice(pp, at, after.seasons, after.overrides, []);
+      if (b.priceSource !== 'base' && b.priceSource !== 'weekend') priced++;
+      if (a.adjustedPrice !== b.adjustedPrice || a.minimumStay !== b.minimumStay) {
+        changes.push(`    ${ds}  ${String(a.adjustedPrice).padStart(8)} → ${String(b.adjustedPrice).padStart(8)}   min ${a.minimumStay} → ${b.minimumStay}   ${b.seasonName ?? '-'}`);
+      }
+    }
+    const span = datesInRange(from, to).length;
+    console.log(`\n${from} → ${to}: ${span} night(s), ${priced} priced by a period after promotion, ${changes.length} night(s) change`);
+    changes.slice(0, 20).forEach((c) => console.log(c));
+    if (changes.length > 20) console.log(`    ... ${changes.length - 20} more`);
+
+    if (!WRITE) { console.log(`\n${drafts.length} draft(s) would become active. Re-run with --write, then \`compile --write\`.`); return; }
+    const batch = db.batch();
+    for (const d of drafts) batch.update(db.collection('pricingPeriods').doc(d.id), {
+      status: 'active', updatedAt: new Date().toISOString(), updatedBy: 'scripts/periods.ts promote',
+    });
+    await batch.commit();
+    console.log(`\npromoted ${drafts.length} period(s). They price nothing until \`compile --write\` and a calendar regeneration.`);
+    return;
+  }
 
   if (CMD === 'list') {
     const periods = await getPeriods(SLUG);
