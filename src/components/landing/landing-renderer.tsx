@@ -161,14 +161,14 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
           ) : <div className="aspect-[4/3] w-full bg-primary/20 sm:absolute sm:inset-0 sm:aspect-auto" />}
           {/* No scrim on a phone: nothing is written on the photo there, so darkening it only hides it. */}
           <div className="absolute inset-0 hidden bg-gradient-to-b from-black/50 via-black/30 to-black/70 sm:block" />
-          <div className="relative z-10 mx-auto max-w-3xl px-5 pb-10 pt-6 text-center sm:pt-20 sm:text-white">
+          <div className="relative z-10 mx-auto flex max-w-3xl flex-col items-center px-5 pb-10 pt-6 text-center sm:block sm:pt-20 sm:text-white">
             {m.period.label && (
               // Every colour below is paired: a legible value on the phone's solid surface, and the
               // original white-on-photo restored from `sm` up. A drop-shadow off the photo is just blur.
-              <Badge className="mb-4 border-primary/20 bg-primary/10 text-foreground sm:border-white/20 sm:bg-white/15 sm:text-white sm:backdrop-blur-sm">{m.period.label}</Badge>
+              <Badge className="mb-3 border-primary/20 bg-primary/10 text-foreground sm:mb-4 sm:border-white/20 sm:bg-white/15 sm:text-white sm:backdrop-blur-sm">{m.period.label}</Badge>
             )}
             <h1 className="text-3xl font-bold leading-tight sm:text-4xl sm:drop-shadow-md md:text-5xl">{m.hero.headline}</h1>
-            {m.hero.subcopy && <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground sm:text-lg sm:text-white/90 sm:drop-shadow">{m.hero.subcopy}</p>}
+            {m.hero.subcopy && <p className="order-last mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:order-none sm:mt-4 sm:text-lg sm:text-white/90 sm:drop-shadow">{m.hero.subcopy}</p>}
 
             {/* The three facts that were previously buried: what people think of it, how big it is,
                 and what it costs. Measured 19-22 Aug: the first price sat at 48% scroll depth and the
@@ -179,7 +179,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                 Wraps to a centred stack on a phone and sits on one line from `sm` up; the dot
                 separators are hidden when wrapped so a broken row never shows a dangling bullet. */}
             {(m.ratings || m.maxGuests || m.advertisedRate) && (
-              <ul className="mx-auto mt-5 flex max-w-2xl flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-sm text-foreground sm:max-w-3xl sm:gap-x-4 sm:text-base sm:text-white/95 sm:drop-shadow">
+              <ul className="mx-auto mt-4 flex max-w-2xl flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-sm text-foreground sm:mt-5 sm:max-w-3xl sm:gap-x-4 sm:text-base sm:text-white/95 sm:drop-shadow">
                 {m.ratings && m.ratings.count > 0 && (
                   <li className="inline-flex items-center gap-1.5">
                     <Star className="h-4 w-4 flex-shrink-0 fill-amber-400 text-amber-400" aria-hidden />
@@ -217,7 +217,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
               </ul>
             )}
 
-            <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <div className="mt-5 flex w-full flex-col items-center justify-center gap-3 sm:mt-7 sm:w-auto sm:flex-row">
               {m.phone && <CallButton phone={m.phone} label={t(lang, 'Call us', 'Sună-ne')} size="lg" className="w-full sm:w-auto" />}
               {m.showBooking && (
                 <Button variant="outline" size="lg" asChild className="w-full sm:w-auto sm:border-white sm:bg-white/10 sm:text-white sm:backdrop-blur-sm sm:hover:bg-white sm:hover:text-foreground">
