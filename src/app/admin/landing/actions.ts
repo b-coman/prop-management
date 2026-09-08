@@ -92,8 +92,17 @@ async function guard<R>(fn: (actor: string) => Promise<R>): Promise<R | Err> {
   catch (e) { logger.error('landing action failed', e as Error); return { ok: false, error: (e as Error).message || 'internal-error' }; }
 }
 
-/** Generate a draft landing from an ad campaign at `slug`. Refuses if the slug is taken. */
-export async function generateLandingAction(campaignId: string, slug: string): Promise<Ok<{ slug: string }> | Err> {
+/**
+ * Generate a draft landing from an ad campaign at `slug`. Refuses if the slug is taken.
+ *
+ * Returns `stayCount` so the caller can say something when the reasoner found nothing. A page with no
+ * example stays is not a neutral outcome: it is the page with no prices on it, and it also silently
+ * drops the hero CTA back to navigating away to the dateless booking page (see `hasStays` in
+ * landing-renderer.tsx), because there is nothing on the page to scroll to. `buildExampleStays`
+ * returns [] rather than throwing — availability unreadable, no free run in the window, or a window
+ * already in the past — so without this count the whole thing is indistinguishable from success.
+ */
+export async function generateLandingAction(campaignId: string, slug: string): Promise<Ok<{ slug: string; stayCount: number }> | Err> {
   return guard(async (actor) => {
     const cleanSlug = slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     if (!cleanSlug) return { ok: false, error: 'Enter a valid slug (letters, numbers, dashes).' };
@@ -104,9 +113,13 @@ export async function generateLandingAction(campaignId: string, slug: string): P
     await db.collection('landingPages').doc(cleanSlug).set(clean({
       ...draft, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
     }));
-    logger.info('landing generated from campaign', { campaignId, slug: cleanSlug, actor });
+    const stayCount = (draft.exampleStays ?? []).length;
+    if (stayCount === 0) {
+      logger.warn('landing generated with NO example stays', { campaignId, slug: cleanSlug, period: draft.period });
+    }
+    logger.info('landing generated from campaign', { campaignId, slug: cleanSlug, actor, stayCount });
     revalidatePath('/admin/landing');
-    return { ok: true, slug: cleanSlug };
+    return { ok: true, slug: cleanSlug, stayCount };
   });
 }
 

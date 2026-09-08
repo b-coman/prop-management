@@ -27,6 +27,9 @@ import { capacityParts, asLanguage } from '@/lib/occupancy';
 
 const t = (lang: string, en: string, ro: string) => (lang === 'ro' ? ro : en);
 
+/** Anchor the hero button scrolls to. Language-neutral on purpose: the id is a target, not copy. */
+const STAYS_ANCHOR = 'stays';
+
 function fmtRange(start: string, end: string, lang: string): string {
   const loc = lang === 'ro' ? 'ro-RO' : 'en-GB';
   const f = new Intl.DateTimeFormat(loc, { day: 'numeric', month: 'short' });
@@ -82,6 +85,30 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
   // actually land in the row, not the total number of stays.
   const featuredStay = m.exampleStays.find((s) => s.featured) ?? null;
   const otherStays = m.exampleStays.filter((s) => s !== featuredStay);
+  /**
+   * Does this page have an offer of its own to point at? Measured 17 Aug - 8 Sep: the hero button
+   * took 67 clicks from 54 people and the four stay cards took 8 from 7, because at 390px the hero
+   * sits at y=486 — the only booking control in the first screen — while the first card starts at
+   * y=1055, a full screen below. The hero then navigated to the DATELESS booking page, which builds
+   * its own suggestions from a generic 60-day season query and so offered windows the ad never
+   * mentioned (25-28 Sep and 24-28 Oct against an ad selling 14-17 Sep, 23-30 Sep, 2-4 Oct, 4-8 Oct).
+   * The biggest control on the page was walking visitors past the offer and into a different one.
+   *
+   * So when the page HAS stays, the hero scrolls to them and the picker becomes a secondary link.
+   * When it has none there is nothing to scroll to, and the old navigation is still the right answer
+   * — which is also what keeps this safe for any campaign, not just the ones with cards.
+   */
+  const hasStays = m.exampleStays.length > 0;
+
+  /**
+   * NO SMOOTH SCROLLING HERE, deliberately. Two versions were tried and measured on the running page,
+   * and both left the button dead: `scrollIntoView({ behavior: 'smooth' })` after a `preventDefault`
+   * moved scrollTop 0 → 0, and so did `scroll-behavior: smooth` on the scrolling element with the
+   * native jump — the hash reached the URL, the page stayed put. Smooth scrolling is driven by
+   * animation frames, so anything that starves them (a backgrounded document, reduced-motion, an
+   * embedded context) turns the page's primary call to action into a no-op that still reports a
+   * click. An instant jump has no such dependency. The polish is not worth the failure mode.
+   */
   const staysCols = (() => {
     const n = otherStays.length;
     if (n <= 1) return 'max-w-sm grid-cols-1';
@@ -175,10 +202,41 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
               {m.phone && <CallButton phone={m.phone} label={t(lang, 'Call us', 'Sună-ne')} size="lg" className="w-full sm:w-auto" />}
               {m.showBooking && (
                 <Button variant="outline" size="lg" asChild className="w-full border-white bg-white/10 text-white backdrop-blur-sm hover:bg-white hover:text-foreground sm:w-auto">
-                  <Link href={m.checkDatesUrl} onClick={() => track.trackCtaClick('hero')}><CalendarDays className="mr-2 h-5 w-5" />{t(lang, 'Check dates', 'Vezi datele')}</Link>
+                  {hasStays ? (
+                    /**
+                     * A PLAIN ANCHOR, and the click handler only reports. The first version called
+                     * `preventDefault()` and then `scrollIntoView({ behavior: 'smooth' })`, which
+                     * measured as scrollTop 0 → 0: the smooth animation is silently dropped in some
+                     * contexts (no user activation, a backgrounded document, reduced-motion), and
+                     * having already cancelled the native jump the button then did NOTHING while
+                     * still firing its tracking event. That is the exact failure this page has been
+                     * bitten by before — a large, obvious control that only looked alive in GA4.
+                     *
+                     * So navigation is the browser's native hash jump, which cannot fail. See the
+                     * note above `hasStays` for why it is not smoothed.
+                     */
+                    <a
+                      href={`#${STAYS_ANCHOR}`}
+                      onClick={() => track.trackCtaClick('hero')}
+                    ><CalendarDays className="mr-2 h-5 w-5" />{t(lang, 'See available stays', 'Vezi sejururile libere')}</a>
+                  ) : (
+                    <Link href={m.checkDatesUrl} onClick={() => track.trackCtaClick('hero')}><CalendarDays className="mr-2 h-5 w-5" />{t(lang, 'Check dates', 'Vezi datele')}</Link>
+                  )}
                 </Button>
               )}
             </div>
+            {/* The escape hatch, deliberately quiet. It has to exist — 41 of 154 dated booking views
+                were `unavailable`, so some visitors genuinely want other dates — but it must not be
+                the loudest thing on screen, or it sends people away from the four stays being sold. */}
+            {m.showBooking && hasStays && (
+              <div className="mt-4 text-center">
+                <Link
+                  href={m.checkDatesUrl}
+                  onClick={() => track.trackCtaClick('hero_other_dates')}
+                  className="text-sm text-white/80 underline underline-offset-4 drop-shadow hover:text-white"
+                >{t(lang, 'Looking for other dates?', 'Caut alte date')}</Link>
+              </div>
+            )}
           </div>
         </section>
 
@@ -199,7 +257,9 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
             No section was added or removed, so the page is no taller; the order changed. */}
         {/* ── EXAMPLE STAYS ── */}
         {m.exampleStays.length > 0 && (
-          <section className="bg-muted/40 py-14 sm:py-20">
+          // `scroll-mt` keeps the heading clear of the sticky header when the hero button lands here;
+          // without it the browser aligns the section top to the viewport top and the header covers it.
+          <section id={STAYS_ANCHOR} className="scroll-mt-20 bg-muted/40 py-14 sm:py-20">
             <div className="mx-auto max-w-5xl px-5">
               <h2 className="text-center text-2xl font-semibold sm:text-3xl">{t(lang, 'Stays that fit this window', 'Sejururi potrivite pentru această perioadă')}</h2>
               <p className="mx-auto mt-2 max-w-xl text-center text-muted-foreground">{t(lang, 'Real dates, ready to book.', 'Date reale, gata de rezervare.')}</p>

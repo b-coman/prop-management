@@ -48,7 +48,15 @@ export function LandingList({ propertyId, landings, campaigns }: {
     if (!campaignId) { toast({ variant: 'destructive', description: 'Pick a campaign first.' }); return; }
     startTransition(async () => {
       const res = await generateLandingAction(campaignId, slug);
-      if (res.ok) { toast({ description: `Draft landing “${res.slug}” created.` }); router.push(`/admin/landing/${res.slug}`); }
+      if (res.ok) {
+        // A page with zero stays still generates "successfully", so say so loudly rather than let a
+        // priceless page look like a normal result. The editor repeats it, because a toast is gone
+        // by the time anyone reaches Publish.
+        toast(res.stayCount === 0
+          ? { variant: 'destructive', description: `Draft “${res.slug}” created, but the reasoner found NO free stays in this campaign's window — the page has no dates and no prices on it. Check the window in the editor before publishing.` }
+          : { description: `Draft landing “${res.slug}” created with ${res.stayCount} stay(s).` });
+        router.push(`/admin/landing/${res.slug}`);
+      }
       else toast({ variant: 'destructive', description: res.error });
     });
   };

@@ -113,7 +113,13 @@ export function useLandingTracking(base: LandingEventBase, product?: LandingProd
      * untracked, and worse than untracked: with no #hero on a landing page the header's fallback
      * navigated paid visitors to the property homepage instead of the booking flow.
      */
-    trackCtaClick: (position: 'hero' | 'footer' | 'header' | 'mobile_bar') => emit('check_dates_click', base, { position }),
+    /**
+     * `hero_other_dates` is the small link under the hero button, and it is deliberately a SEPARATE
+     * position rather than another `hero`. The hero button now scrolls to the advertised stays, so
+     * the two controls express opposite intents: "show me what you advertised" and "none of those
+     * suit me". Collapsed into one bucket they would average into a number that answers neither.
+     */
+    trackCtaClick: (position: 'hero' | 'hero_other_dates' | 'footer' | 'header' | 'mobile_bar') => emit('check_dates_click', base, { position }),
 
     /** Leaving the landing page for the main site — the page did not close the argument. */
     trackNavToSite: (destination: string) => emit('nav_to_site', base, { destination }),

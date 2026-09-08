@@ -70,7 +70,12 @@ export function LandingEditor({ initialConfig, propertyImages }: {
   });
   const onRegenStays = () => startBusy(async () => {
     const res = await regenerateStaysAction(cfg.slug);
-    if (res.ok) { setCfg(c => ({ ...c, exampleStays: res.stays })); savedRef.current = { ...savedRef.current, exampleStays: res.stays }; toast({ description: `Refreshed ${res.stays.length} stay(s) from the live calendar.` }); }
+    if (res.ok) {
+      setCfg(c => ({ ...c, exampleStays: res.stays })); savedRef.current = { ...savedRef.current, exampleStays: res.stays };
+      toast(res.stays.length === 0
+        ? { variant: 'destructive', description: 'The live calendar has NO free stay in this period — the page now has no dates and no prices. Widen the period or free some nights.' }
+        : { description: `Refreshed ${res.stays.length} stay(s) from the live calendar.` });
+    }
     else toast({ variant: 'destructive', description: res.error });
   });
 
@@ -162,6 +167,21 @@ export function LandingEditor({ initialConfig, propertyImages }: {
           </div>
         </CardHeader>
         <CardContent>
+          {/* THE STATE THAT SHIPS, so it gets a banner rather than a toast. Zero stays is not just a
+              thinner page: the hero CTA has nothing to scroll to, so it reverts to sending visitors
+              to the dateless booking page, which proposes windows from a generic 60-day query and so
+              advertises dates this campaign never mentioned. Measured 17 Aug - 8 Sep, that hero took
+              67 of the 75 booking clicks on the page, so the fallback is not a corner case. */}
+          {stays.length === 0 && (
+            <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm">
+              <p className="font-medium text-destructive">This page has no stays, so it shows no dates and no prices.</p>
+              <p className="mt-1 text-muted-foreground">
+                Its main button will also fall back to sending visitors to the generic date picker, which
+                suggests windows from the next 60 days rather than the ones this campaign advertises.
+                Either widen the period, free some nights, or add a stay by hand before publishing.
+              </p>
+            </div>
+          )}
           <SortableList
             items={stays}
             addLabel="Add a stay"
