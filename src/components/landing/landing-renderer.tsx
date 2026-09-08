@@ -165,7 +165,15 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
             {m.period.label && (
               // Every colour below is paired: a legible value on the phone's solid surface, and the
               // original white-on-photo restored from `sm` up. A drop-shadow off the photo is just blur.
-              <Badge className="mb-3 border-primary/20 bg-primary/10 text-foreground sm:mb-4 sm:border-white/20 sm:bg-white/15 sm:text-white sm:backdrop-blur-sm">{m.period.label}</Badge>
+              /**
+               * HIDDEN ON A PHONE. It is the weakest thing competing for the ~700px a real Safari
+               * window actually gives you: its first half restates the headline ("Evadare de toamnă"
+               * against "Toamna pe Valea Prahovei") and the exact dates it hints at are spelled out,
+               * with prices, on the stay cards one tap away — which is now precisely what the primary
+               * button promises. Two lines of metadata is a poor trade for a button above the fold.
+               * Kept in full from `sm` up, where the space is not contested.
+               */
+              <Badge className="mb-3 hidden border-primary/20 bg-primary/10 text-foreground sm:mb-4 sm:inline-flex sm:border-white/20 sm:bg-white/15 sm:text-white sm:backdrop-blur-sm">{m.period.label}</Badge>
             )}
             <h1 className="text-3xl font-bold leading-tight sm:text-4xl sm:drop-shadow-md md:text-5xl">{m.hero.headline}</h1>
             {m.hero.subcopy && <p className="order-last mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:order-none sm:mt-4 sm:text-lg sm:text-white/90 sm:drop-shadow">{m.hero.subcopy}</p>}
@@ -217,10 +225,14 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
               </ul>
             )}
 
+            {/* THE STAYS CTA LEADS, and the phone follows. Measured 17 Aug - 8 Sep: calling took 6
+                clicks from 5 people, the stays button 67 from 54. The solid green was on the control
+                people wanted ten times less, and it sat first, so on a phone it was often the only
+                one above the fold. Weight and order now follow the behaviour, on every width — the
+                same argument holds on desktop, and one `variant` swap reverts it if you disagree. */}
             <div className="mt-5 flex w-full flex-col items-center justify-center gap-3 sm:mt-7 sm:w-auto sm:flex-row">
-              {m.phone && <CallButton phone={m.phone} label={t(lang, 'Call us', 'Sună-ne')} size="lg" className="w-full sm:w-auto" />}
               {m.showBooking && (
-                <Button variant="outline" size="lg" asChild className="w-full sm:w-auto sm:border-white sm:bg-white/10 sm:text-white sm:backdrop-blur-sm sm:hover:bg-white sm:hover:text-foreground">
+                <Button variant="cta" size="lg" asChild className="w-full sm:w-auto">
                   {hasStays ? (
                     /**
                      * A PLAIN ANCHOR, and the click handler only reports. The first version called
@@ -237,12 +249,14 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                     <a
                       href={`#${STAYS_ANCHOR}`}
                       onClick={() => track.trackCtaClick('hero')}
-                    ><CalendarDays className="mr-2 h-5 w-5" />{t(lang, 'See available stays', 'Vezi sejururile libere')}</a>
+                    ><CalendarDays className="mr-2 h-5 w-5" />{t(lang, 'Available dates', 'Date libere')}</a>
                   ) : (
                     <Link href={m.checkDatesUrl} onClick={() => track.trackCtaClick('hero')}><CalendarDays className="mr-2 h-5 w-5" />{t(lang, 'Check dates', 'Vezi datele')}</Link>
                   )}
                 </Button>
               )}
+              {m.phone && <CallButton phone={m.phone} label={t(lang, 'Call us', 'Sună-ne')} size="lg" variant="outline"
+                className="w-full sm:w-auto sm:border-white sm:bg-white/10 sm:text-white sm:backdrop-blur-sm sm:hover:bg-white sm:hover:text-foreground" />}
             </div>
             {/* The escape hatch, deliberately quiet. It has to exist — 41 of 154 dated booking views
                 were `unavailable`, so some visitors genuinely want other dates — but it must not be
