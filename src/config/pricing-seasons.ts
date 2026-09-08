@@ -59,9 +59,16 @@ export const OCCASIONS: SeasonRule[] = [
     anchor: { kind: 'holiday', slug: 'ziua-unirii', window: 'travel' },
     note: 'Resolves to nothing worth pricing in years when 24 January lands inside the weekend.' },
 
-  { slug: 'vacanta-paste', name: 'Easter', priority: 100, tier: 'medium', minStay: 'auto',
-    anchor: { kind: 'holiday', slug: 'paste', window: 'travel' },
-    note: 'A moveable feast — fetched from the seeded calendar, never computed.' },
+  /**
+   * Anchored on the SCHOOL BREAK, not on the Easter weekend, and for the same reason Autumn Break is:
+   * what the property sells here is a family window, and the family window is the break. The Easter
+   * holiday itself is a 4-day window inside it. Priority 110 so it absorbs Labour Day in the years
+   * the two collide — 1 May 2027 falls inside this break, and the seeded row says so.
+   */
+  { slug: 'vacanta-paste', name: 'Easter Break', priority: 110, tier: 'medium', minStay: 3,
+    anchor: { kind: 'holiday', slug: 'vacanta-primavara', window: 'exact', shiftStart: -1, shiftEnd: -1 },
+    certainty: 'provisional',
+    note: 'A moveable feast wrapped in a ministerial break — both fetched from the seeded calendar, never computed.' },
 
   { slug: '1-mai', name: 'Labour Day', priority: 100, tier: 'high', minStay: 'auto',
     anchor: { kind: 'holiday', slug: 'ziua-muncii', window: 'travel' },
@@ -103,4 +110,17 @@ export const SEASON_RULES: SeasonRule[] = [...BACKGROUNDS, ...OCCASIONS];
  * until they round-trip — every entry needs a reason a person would recognise as a business
  * decision, and a growing list for the same rule means the rule is wrong.
  */
-export const SEASON_EXCEPTIONS: YearException[] = [];
+const HAND_DRAWN_2026 =
+  'Drawn by hand in February 2026, before the rules existed, and already in the past. The rule is ' +
+  'the canon from 2027 on; this records what 2026 actually charged rather than pretending the rule ' +
+  'produced it.';
+
+export const SEASON_EXCEPTIONS: YearException[] = [
+  // The four windows the 2026 table drew to a different convention than the one National Day,
+  // Christmas, New Year, Autumn Break and Russian Christmas all follow. Each ran later than the
+  // travel window and carried a 2-night minimum where the long-weekend rule asks for 3.
+  { year: 2026, slug: 'ziua-unirii', reason: HAND_DRAWN_2026, patch: { endDate: '2026-01-26' } },
+  { year: 2026, slug: 'vacanta-paste', reason: HAND_DRAWN_2026, patch: { startDate: '2026-04-10', endDate: '2026-04-20', minStay: 2, priority: 100 } },
+  { year: 2026, slug: '1-mai', reason: HAND_DRAWN_2026, patch: { startDate: '2026-05-01', endDate: '2026-05-03', minStay: 2 } },
+  { year: 2026, slug: 'rusalii-1-iunie', reason: HAND_DRAWN_2026, patch: { endDate: '2026-06-01', minStay: 2 } },
+];

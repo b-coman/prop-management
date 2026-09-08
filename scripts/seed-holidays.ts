@@ -23,6 +23,7 @@ const DRY = process.argv.includes('--dry-run');
 
 const SRC_HOL_2026 = 'https://zilelibere.com/zilelibere2026.html';
 const SRC_HOL_2027 = 'https://zilelibere.com/zilelibere2027.html';
+const SRC_SCHOOL_2025 = 'OMEC nr. 3463/2025 — https://idays.ro/vacante/2025-2026';
 const SRC_SCHOOL = 'https://www.edupedu.ro/oficial-calendarul-anului-scolar-2026-2027-publicat-in-monitorul-oficial-cursurile-incep-pe-7-septembrie-si-se-incheie-pe-18-iunie/';
 
 type Row = {
@@ -76,6 +77,15 @@ const ROWS: Row[] = [
   // PERIOD decision, not a holiday-calendar one.
   { slug: 'punte-craciun-revelion', name: 'Punte Craciun-Revelion', startDate: '2026-12-28', endDate: '2026-12-31', type: 'bridge-day', source: 'owner observation 2026-09-07', official: false, notes: 'Mon-Thu between Craciun (Fri-Sat) and Anul Nou (Fri-Sat). Nominally working days; in practice almost nobody works them.' },
   { slug: 'punte-craciun-revelion', name: 'Punte Craciun-Revelion', startDate: '2027-12-27', endDate: '2027-12-31', type: 'bridge-day', source: 'owner observation 2026-09-07', official: false, notes: 'Mon-Fri between Craciun (Sat-Sun) and Anul Nou (Sat-Sun). Five working days on paper, none in practice.' },
+
+  // ---------------- school year 2025-2026 (OMEC 3463/2025) ----------------
+  // Seeded late, and only from the winter break onward: the pricing horizon starts in January 2026
+  // and rows before that price nothing. Their absence is why the 2026 Easter period had no anchor to
+  // check against — the rule looked for a spring break the collection did not have.
+  { slug: 'vacanta-iarna', name: 'Vacanta de iarna', startDate: '2025-12-20', endDate: '2026-01-07', type: 'school-break', source: SRC_SCHOOL_2025, official: true, notes: '19 days, ends 7 Jan 2026.' },
+  { slug: 'vacanta-mobila-fereastra', name: 'Vacanta mobila (fereastra)', startDate: '2026-02-09', endDate: '2026-03-01', type: 'school-break', source: SRC_SCHOOL_2025, official: true, notes: 'Each county picks ONE week inside this window. Confirmed against edu.ro, which publishes the window and not the county choices.' },
+  { slug: 'vacanta-primavara', name: 'Vacanta de primavara', startDate: '2026-04-04', endDate: '2026-04-14', type: 'school-break', source: SRC_SCHOOL_2025, official: true, notes: '11 days, wraps Orthodox Easter (12 Apr 2026). NOTE: the hand-drawn 2026 Easter pricing period ran 10-20 Apr, which is neither this break nor the holiday window — it is recorded as a 2026 exception.' },
+  { slug: 'vacanta-vara', name: 'Vacanta de vara', startDate: '2026-06-20', endDate: '2026-09-06', type: 'school-break', source: SRC_SCHOOL_2025, official: true, notes: 'Courses ended 19 Jun 2026.' },
 
   // ---------------- school year 2026-2027 (Monitorul Oficial) ----------------
   { slug: 'scoala-start', name: 'Inceputul cursurilor 2026-2027', startDate: '2026-09-07', endDate: '2026-09-07', type: 'school-break', source: SRC_SCHOOL, official: true, notes: 'Marker, not a break. Courses run 7 Sep 2026 -> 18 Jun 2027 (36 weeks). Anything before this date sells on "before school starts".' },
