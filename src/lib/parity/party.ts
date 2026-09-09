@@ -78,6 +78,34 @@ export function partyForGuests(parties: Party[], guests: number): Party {
     ?? { adults: Math.min(guests, 5), children: Math.max(0, guests - 5) };
 }
 
+/**
+ * Two parties of the same SIZE are one cell, and that is a data-integrity problem, not a style one.
+ *
+ * `cellId` keys on `(property, checkIn, checkOut, guests, channel)` — the headcount, never the shape.
+ * So `4 adults + 1 infant` and `5 adults` are the same cell: a fresh capture of one silently
+ * supersedes the other, and the two price very differently on the OTAs (Booking charges for a fifth
+ * adult and nothing for an infant) while pricing IDENTICALLY here, where only heads are counted.
+ * Adding an infant party at 5 heads on 2026-09-09 would have overwritten 16 stored five-adult
+ * readings and shown the overwrite as a large improvement.
+ *
+ * The real fix is for `cellId` to carry the shape; that changes every existing id and blanks the
+ * store's history, so until it is done the mix must keep one party per headcount.
+ */
+function headcountClash(parties: Party[]): string | undefined {
+  const seen = new Map<number, Party>();
+  for (const p of parties) {
+    const n = partySize(p);
+    const prev = seen.get(n);
+    if (prev) {
+      return `compareParties has two parties of ${n} guests (${partyLabel(prev)} and ${partyLabel(p)}). ` +
+        'Cells are keyed by headcount, so they share one cell and each capture overwrites the other. ' +
+        'Give one of them a different size.';
+    }
+    seen.set(n, p);
+  }
+  return undefined;
+}
+
 export interface PartyMix {
   parties: Party[];
   source: string;
@@ -91,7 +119,11 @@ export interface PartyMix {
 export function partiesFor(cfg: unknown): PartyMix {
   const c = cfg as { compareParties?: Party[]; compareOccupancies?: number[] } | undefined;
   if (c?.compareParties?.length) {
-    return { parties: c.compareParties, source: 'property.channelPricing.compareParties' };
+    return {
+      parties: c.compareParties,
+      source: 'property.channelPricing.compareParties',
+      warning: headcountClash(c.compareParties),
+    };
   }
   if (c?.compareOccupancies?.length) {
     return {

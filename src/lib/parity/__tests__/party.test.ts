@@ -118,3 +118,24 @@ describe('an infant is a different product from a child', () => {
     expect(url).not.toContain('infants=');
   });
 });
+
+describe('two parties of the same size are one cell', () => {
+  // cellId keys on the headcount, never the shape, so a mix with two parties of the same size has
+  // them overwriting each other in the store — and they can price very differently on the OTAs.
+  it('warns when the configured mix has a headcount collision', () => {
+    const mix = partiesFor({ compareParties: [
+      { adults: 5, children: 0 },
+      { adults: 4, children: 1, childAges: [1] },   // also 5 guests
+    ] });
+    expect(mix.warning).toMatch(/two parties of 5 guests/);
+    expect(mix.warning).toMatch(/overwrites/);
+  });
+
+  it('says nothing when every party has its own size', () => {
+    const mix = partiesFor({ compareParties: [
+      { adults: 2, children: 1 }, { adults: 4, children: 0 },
+      { adults: 4, children: 2 }, { adults: 5, children: 2, childAges: [10, 1] },
+    ] });
+    expect(mix.warning).toBeUndefined();
+  });
+});
