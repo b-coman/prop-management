@@ -111,14 +111,26 @@ export const AD_RESERVE_PCT = 0.2;
 /**
  * Floor for a flight's daily budget, bani (20 RON/day).
  *
- * Not a preference — a delivery threshold. Meta wants ~50 optimisation events
- * per ad set per week to leave the learning phase. Smearing 4,000 RON across
- * seven months is ~19 RON/day, which is below it. The honest output of the
- * allocator is therefore to fund FEW windows properly and mark the rest
- * explicitly unfunded. Do NOT lower this to "cover more windows" — that buys
- * coverage on paper and delivery nowhere.
+ * A delivery threshold, but it binds on the OPTIMISATION EVENT, and which event
+ * that is changes the answer completely.
+ *
+ * Meta wants ~50 optimisation events per ad set per week to leave the learning
+ * phase. This account has no conversion history, so it optimises for TRAFFIC and
+ * the event is a link click. Measured over its whole life: 377.89 RON bought 9,301
+ * link clicks, a CPC of 0.041 RON. At 15 RON/day that is ~369 clicks a day, about
+ * 2,584 a week — fifty times the threshold.
+ *
+ * So 20 was far too conservative. The earlier comment here reasoned as if the
+ * event were a purchase, where 50 a week really would be out of reach; on traffic
+ * it never was. Owner's model, 2026-09-09: think in DAYS ON AIR rather than
+ * per-window envelopes — 15 RON/day on a 4,000 RON year is 267 days of running,
+ * which is roughly one flight a month, continuously.
+ *
+ * Meta's own ad-set floor is 4 RON/day, so 15 still leaves real headroom. Do not
+ * drop below it without re-checking the CPC: the reasoning is the arithmetic
+ * above, not the number.
  */
-export const MIN_VIABLE_DAILY_MINOR = 2_000;
+export const MIN_VIABLE_DAILY_MINOR = 1_500;
 
 /** Days a window needs between planning and check-in for a cold phase to be worth running. */
 export const MIN_LEAD_DAYS = 14;

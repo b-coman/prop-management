@@ -24,6 +24,7 @@ const POLICY: AllocatorPolicy = {
   maxSpendRatioOfValue: 0.15,
   ...DEFAULT_PHASE_POLICY,
   accountCpc: null,
+  paceBudgetMinor: null,   // no pacing in these tests unless a case sets it
   retargetPossible: true,
 };
 

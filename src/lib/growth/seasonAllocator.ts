@@ -70,6 +70,17 @@ export interface AllocatorPolicy {
   targetClicksPerDay: number;
   /** False when no custom audience is `deliverable` — then no retarget phase can be planned. */
   retargetPossible: boolean;
+  /**
+   * What this horizon may spend, from the owner's days-on-air model: horizon length x his daily
+   * rate. Null means no pacing (the old behaviour).
+   *
+   * Without it the allocator spends `ledger.remainingMinor` — the whole YEAR's money — on whatever
+   * span it happens to be handed. Asked for a 61-day horizon on 2026-09-09 it proposed 2,423 RON,
+   * 89% of everything left for the following twelve months, and stacked five overlapping flights
+   * totalling 144 flight-days into those 61 calendar days: about 40 RON/day of real spend against
+   * an intended 15.
+   */
+  paceBudgetMinor: number | null;
 }
 
 export const DEFAULT_PHASE_POLICY = {
@@ -466,7 +477,18 @@ export function allocateSeasonBudget(
 
   const order = ranked.filter((x) => !x.gated).sort((a, b) => a.rank - b.rank);
   const daily = minViableDailyMinor(policy);
-  let spendable = Math.max(0, ledger.remainingMinor);
+  // The horizon is a rolling window, not a one-shot season: whatever is not spent here is for the
+  // next one. So pace against the daily rate as well as the annual envelope, and take the tighter.
+  const paced = policy.paceBudgetMinor != null
+    ? Math.min(Math.max(0, ledger.remainingMinor), policy.paceBudgetMinor)
+    : Math.max(0, ledger.remainingMinor);
+  if (policy.paceBudgetMinor != null && policy.paceBudgetMinor < ledger.remainingMinor) {
+    warnings.push(
+      `pace: this horizon may spend ${policy.paceBudgetMinor} bani (its length at the owner's daily ` +
+      `rate), not the ${ledger.remainingMinor} left in the year. The rest is for the horizons after it.`
+    );
+  }
+  let spendable = paced;
 
   const allocated = new Map<string, number>();
   const shapes = new Map<string, FlightShape>();

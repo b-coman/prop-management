@@ -387,6 +387,8 @@ export async function buildSeasonPack(opts: SeasonPackOptions): Promise<SeasonPa
     ...DEFAULT_PHASE_POLICY,
     accountCpc: account.available ? (account.lifetimeCpc ?? null) : null,
     retargetPossible: deliverableAudienceIds.length > 0,
+    // Days on air, not an envelope per window: the horizon's own length at the owner's daily rate.
+    paceBudgetMinor: Math.round(dates.length * AD_DOCTRINE.budgetModel.dailyRon * 100),
   };
   const ranked = rankSeasonWindows(candidates, policy, asOfYmd);
   const allocation = allocateSeasonBudget(candidates, ranked, ledger, policy, asOfYmd);

@@ -24,6 +24,8 @@ export interface AdDoctrine {
   cadence: Array<{ stage: string; when: string; what: string }>;
   /** Things that move parity for reasons the parity tools cannot see. */
   parityInteractions: string[];
+  /** How the owner thinks about the money: days on air at a daily rate, not envelopes per window. */
+  budgetModel: { dailyRon: number; annualRon: number; daysOnAir: number; why: string };
 }
 
 export const AD_DOCTRINE: AdDoctrine = {
@@ -71,6 +73,20 @@ export const AD_DOCTRINE: AdDoctrine = {
     { stage: 'competition analysis', when: '4-5 months out', what: 'am I competitive against the comparable set' },
     { stage: 'OTA parity', when: 'after the competition analysis', what: 'how the DIRECT price should adapt to what the channels are charging' },
   ],
+
+  budgetModel: {
+    dailyRon: 15,
+    annualRon: 4000,
+    daysOnAir: 267,
+    why:
+      'Owner, 2026-09-09: "I imagine I\'m not running ads all the time, so 20 lei per day max ' +
+      '(could be less)... If we are on 15 lei average this will be around 270 days." Think in days ' +
+      'on air, not in a budget per window. 15 RON/day on 4,000 a year is 267 days — about one ' +
+      '24-day flight a month, running near-continuously and rotating which window is being sold. ' +
+      'This replaces the allocator\'s habit of treating whatever span it is handed as "the season" ' +
+      'and spending the year\'s remaining money on it: asked for a 61-day horizon on 2026-09-09 it ' +
+      'proposed 2,423 RON, 89% of what was left for the following twelve months.',
+  },
 
   parityInteractions: [
     'An OTA promotion lowers that channel\'s guest price, so direct must come down a little too or it ' +
