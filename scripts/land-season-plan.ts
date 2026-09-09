@@ -34,6 +34,8 @@ if (!process.env.META_ADS_TOKENS) {
 }
 
 import { validateSeasonPlan } from '@/lib/growth/validateSeasonPlan';
+import { applyPlannerEdits, allocateSeasonBudget } from '@/lib/growth/seasonAllocator';
+import type { SeasonPlanEdits } from '@/lib/growth/contracts';
 import { landSeasonPlan } from '@/services/growth/seasonPlanService';
 import { computeSeasonLedger } from '@/lib/growth/seasonLedger';
 import { fetchInFlight, fetchTrackedMetaCampaignIds } from '@/lib/growth/inFlight';
@@ -56,6 +58,38 @@ type LandablePlan = Pick<SeasonPlan, 'slots' | 'excluded' | 'season' | 'envelope
   method?: string[];
 };
 
+/**
+ * Turn the planner's edits into a landable plan, using the pack's own baseline and allocator. This
+ * script decides nothing: it re-runs the same ranking and allocation the pack ran, with the planner's
+ * exclusions and emphasis applied, then attaches the angles.
+ */
+function applyEditsToPack(pack: SeasonPack, edits: SeasonPlanEdits): LandablePlan {
+  // `meta.asOf` is a full timestamp; every date helper in the allocator appends `T00:00:00Z`, so it
+  // must be sliced to YYYY-MM-DD or it builds `...092ZT00:00:00Z` and throws Invalid time value.
+  const asOfYmd = pack.meta.asOf.slice(0, 10);
+  const ranked = applyPlannerEdits(pack.baseline.ranked, pack.candidates, edits);
+  const alloc = allocateSeasonBudget(pack.candidates, ranked, pack.ledger, pack.baseline.policy, asOfYmd);
+  const angleFor = new Map((edits.angle ?? []).map((a) => [a.candidateId, a]));
+  return {
+    propertyId: pack.meta.generatedFor,
+    seasonKey: pack.meta.seasonKey,
+    season: pack.season,
+    asOf: pack.meta.asOf,
+    envelope: {
+      annualMinor: pack.ledger.annualMinor,
+      remainingMinor: pack.ledger.remainingMinor,
+      plannedMinor: alloc.slots.reduce((n, s) => n + (s.advisoryBudgetMinor ?? 0), 0),
+    } as never,
+    slots: alloc.slots.map((s) => {
+      const a = angleFor.get(s.candidateId);
+      return a ? { ...s, angle: a.angle, angleRationale: a.rationale ?? null } : s;
+    }) as never,
+    excluded: alloc.excluded,
+    narrative: edits.narrative,
+    method: pack.baseline.method,
+  };
+}
+
 async function main() {
   const planFile = arg('plan');
   if (!planFile) {
@@ -63,10 +97,29 @@ async function main() {
     process.exit(2);
   }
 
-  const plan = readJson(planFile) as LandablePlan;
+  const raw = readJson(planFile) as LandablePlan | SeasonPlanEdits;
   const packFile = arg('pack');
   const dryRun = has('dry-run');
   const activate = has('activate');
+
+  // The planner emits EDITS — {exclude, emphasis, angle, narrative} — not a finished plan. The skill
+  // has always said so; this script expected a full LandablePlan, and the two contracts sat
+  // disagreeing until 2026-09-09, when the first attempt to land anything crashed on
+  // `plan.asOf.slice` of undefined. Nobody had noticed because no season plan had ever been landed.
+  //
+  // So: accept either. Edits are applied to the pack's own baseline, which is the only way to turn
+  // them into slots without this script re-deciding anything.
+  let plan: LandablePlan;
+  if ('slots' in raw) {
+    plan = raw;
+  } else {
+    if (!packFile) {
+      console.error('a plan of EDITS needs --pack: the edits are applied to the pack\'s baseline.');
+      process.exit(2);
+    }
+    plan = applyEditsToPack(readJson(packFile) as SeasonPack, raw);
+    console.log(`applied planner edits to the pack baseline — ${plan.slots.length} slot(s)`);
+  }
 
   // ── 1. re-validate against the pack the plan was built from ──
   let pack: SeasonPack | null = null;

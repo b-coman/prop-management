@@ -96,7 +96,22 @@ export interface SeasonPack {
   doctrine: AdDoctrine & { horizonToday: { start: string; end: string }; note: string };
   candidates: SeasonCandidate[];
   /** A complete, usable plan BEFORE any reasoning. The skill edits this; it does not build it. */
-  baseline: { ranked: RankedWindow[]; slots: SeasonSlot[]; excluded: SeasonPlan['excluded']; method: string[]; warnings: string[] };
+  baseline: {
+    ranked: RankedWindow[];
+    slots: SeasonSlot[];
+    excluded: SeasonPlan['excluded'];
+    method: string[];
+    warnings: string[];
+    /**
+     * The exact policy this baseline was allocated with, so the allocation can be REPLAYED.
+     *
+     * `constraints` is a human-readable summary and is not this. Landing a plan re-runs the
+     * allocator with the planner's exclusions applied, and without the real policy it has to invent
+     * one — which on 2026-09-09 produced `Invalid time value` from an undefined phase offset. A pack
+     * that cannot reproduce its own baseline is not a fact pack.
+     */
+    policy: AllocatorPolicy;
+  };
   ledger: SeasonLedger;
   inFlight: InFlightBlock;
   account: { available: boolean; hasConversionHistory?: boolean; lifetimeCpc?: number | null; warnings?: string[]; error?: string };
@@ -419,6 +434,7 @@ export async function buildSeasonPack(opts: SeasonPackOptions): Promise<SeasonPa
       slots: allocation.slots,
       excluded: allocation.excluded,
       method: allocation.method,
+      policy,
       warnings: allocation.warnings,
     },
     ledger,
