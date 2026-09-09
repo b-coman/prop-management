@@ -59,7 +59,10 @@ export function detectDrift(status: string | undefined, effectiveStatus: string 
 export interface ReconcileResult {
   checked: number;
   updated: number;
+  /** Untracked campaigns found in the account that are delivering or have spent. */
   escapes: number;
+  /** Of those, how many were newly given a doc so they count against the envelope. */
+  adopted: number;
   finalized: number;
   flags: string[];
 }
@@ -171,22 +174,84 @@ export async function reconcileAdCampaigns(): Promise<ReconcileResult> {
     }
   }
 
-  // Account-level escape scan: any campaign ACTIVE in the account that we don't track.
+  // Account-level escape scan, and ADOPTION.
+  //
+  // Flagging an untracked campaign was not enough. The owner works in Ads Manager too — on
+  // 2026-09-09 he had duplicated a paused campaign and the copy was live and spending, while a
+  // boosted page post had been running since August. Neither existed in `adCampaigns`, so:
+  //   - the ledger counted their spend as anonymous "unplanned", against an envelope it could not
+  //     attribute;
+  //   - the in-flight block could not warn a planner that those cities were already being bought;
+  //   - and they could never enter the learning loop, because that only reads our own docs.
+  // The system's picture of reality was wrong whenever he acted outside it, which is exactly when
+  // he most needs it to be right.
+  //
+  // So we adopt: create a doc for any untracked campaign that is delivering OR has spent money.
+  // Dormant campaigns with no spend are left alone — this account carries eleven from 2023 and
+  // adopting them would be noise. An adopted doc is marked `origin: 'adopted'` and carries no
+  // `proposal`: we know what it DID, never what it was for, and must not pretend otherwise.
+  //
+  // Read-only against Meta. Writes only our own Firestore.
   let escapes = 0;
+  let adopted = 0;
   for (const [propertyId, tracked] of trackedByProperty) {
     try {
       const ctx = await resolveAdContext(propertyId);
       if (!ctx) continue;
-      const res = await metaGraph<{ data?: Array<{ id: string; name?: string; effective_status?: string }> }>(
+      const res = await metaGraph<{
+        data?: Array<{
+          id: string; name?: string; effective_status?: string; stop_time?: string;
+          daily_budget?: string; insights?: { data?: Array<{ spend?: string }> };
+        }>;
+      }>(
         `${ctx.adAccountId}/campaigns`,
-        { method: 'GET', params: { fields: 'id,name,effective_status', limit: 200 }, token: ctx.token, propertyId }
+        {
+          method: 'GET',
+          params: { fields: 'id,name,effective_status,stop_time,daily_budget,insights{spend}', limit: 200 },
+          token: ctx.token,
+          propertyId,
+        }
       );
       if (!res.ok) continue;
       for (const c of res.data.data ?? []) {
-        if (c.effective_status === DELIVERING && !tracked.has(c.id)) {
-          escapes += 1;
-          flags.push(`ESCAPE (${propertyId}): Meta campaign ${c.id} "${c.name ?? ''}" is ACTIVE but NOT tracked by us`);
-        }
+        if (tracked.has(c.id)) continue;
+        const delivering = c.effective_status === DELIVERING;
+        const spend = Number(c.insights?.data?.[0]?.spend ?? 0) || 0;
+        if (!delivering && spend <= 0) continue;   // dormant and never spent — not ours to care about
+
+        escapes += 1;
+        flags.push(
+          `ESCAPE (${propertyId}): Meta campaign ${c.id} "${c.name ?? ''}" is ${c.effective_status} ` +
+          `with ${spend.toFixed(2)} spent and was NOT tracked by us`
+        );
+
+        // Keyed by the Meta id, so re-running adopts nothing twice and the doc is obviously not one
+        // this system composed.
+        const ref = db.collection('adCampaigns').doc(`meta_${c.id}`);
+        if ((await ref.get()).exists) continue;
+        await ref.set({
+          propertyId,
+          metaCampaignId: c.id,
+          name: c.name ?? null,
+          status: delivering ? 'active' : 'paused',
+          effectiveStatus: c.effective_status ?? null,
+          endTime: c.stop_time ?? null,
+          dailyBudgetMinor: c.daily_budget ? Number(c.daily_budget) : null,
+          insights: { spend },
+          origin: 'adopted',
+          adoptedAt: FieldValue.serverTimestamp(),
+          adoptedBy: 'meta-reconcile escape scan',
+          note:
+            'Created in Ads Manager, not by this system. Adopted so its spend counts against the ' +
+            'envelope and it appears in the in-flight check. It has no proposal because we know ' +
+            'what it did, not what it was for.',
+          createdAt: FieldValue.serverTimestamp(),
+          lastSyncedAt: FieldValue.serverTimestamp(),
+        });
+        adopted += 1;
+        logger.info('reconcileAdCampaigns: adopted an untracked Meta campaign', {
+          propertyId, metaCampaignId: c.id, name: c.name, spend, effectiveStatus: c.effective_status,
+        });
       }
     } catch (error) {
       logger.warn('reconcileAdCampaigns: escape scan failed (continuing)', { propertyId, error: String(error) });
@@ -214,6 +279,6 @@ export async function reconcileAdCampaigns(): Promise<ReconcileResult> {
   if (flags.length) {
     logger.error('reconcileAdCampaigns: DRIFT/ESCAPE detected', undefined, { count: flags.length, flags });
   }
-  logger.info('reconcileAdCampaigns: done', { checked, updated, escapes, finalized, flagCount: flags.length });
-  return { checked, updated, escapes, finalized, flags };
+  logger.info('reconcileAdCampaigns: done', { checked, updated, escapes, adopted, finalized, flagCount: flags.length });
+  return { checked, updated, escapes, adopted, finalized, flags };
 }
