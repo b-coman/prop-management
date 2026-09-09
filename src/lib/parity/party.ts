@@ -19,6 +19,16 @@
 export interface Party {
   adults: number;
   children: number;
+  /**
+   * This party's child ages, oldest first, overriding the property-wide `CHILD_AGES`.
+   *
+   * Needed because the shared list cannot express an INFANT. Booking hosts 0-2 free and charges for
+   * 3-17 (confirmed from the owner's settings, 2026-09-09), while the direct engine charges the same
+   * per-head fee whatever the age — so a family with a baby is the shape where direct is
+   * structurally dearest, and the standard mix (ages 10 and 4) could never reveal it. A party that
+   * states its own ages can.
+   */
+  childAges?: number[];
 }
 
 export const DEFAULT_PARTIES: Party[] = [
@@ -42,10 +52,23 @@ export const CHILD_AGES = [10, 4];
  * such as whether one is old enough for a room of their own — must read them from here rather than
  * assume, so a change to the configured ages moves every such judgement with it.
  */
-export const childAges = (p: Party): number[] => CHILD_AGES.slice(0, p.children);
+export const childAges = (p: Party): number[] =>
+  (p.childAges ?? CHILD_AGES).slice(0, p.children);
 
 export const partySize = (p: Party): number => p.adults + p.children;
-export const partyLabel = (p: Party): string => `${p.adults}a${p.children ? `+${p.children}c` : ''}`;
+export const partyLabel = (p: Party): string => {
+  if (!p.children) return `${p.adults}a`;
+  // Ages are part of the identity when they are not the default: "4a+1c" and "4a+1i" price
+  // identically on our side and very differently on Booking's, and a label that hid the difference
+  // would make two distinct measurements look like a repeat.
+  const ages = childAges(p);
+  const infants = ages.filter((a: number) => a <= INFANT_MAX_AGE).length;
+  const kids = p.children - infants;
+  return `${p.adults}a${kids ? `+${kids}c` : ''}${infants ? `+${infants}i` : ''}`;
+};
+
+/** The oldest age still counted an infant. Booking's own band is 0-2 and this mirrors it. */
+export const INFANT_MAX_AGE = 2;
 
 /** The party a stored cell refers to. Cells carry only a headcount, so the shape comes from the mix. */
 export function partyForGuests(parties: Party[], guests: number): Party {
@@ -89,15 +112,22 @@ export function buildCaptureUrl(
 ): string | null {
   if (!listingUrl) return null;
   const { adults, children } = p.party;
+  const partyAges = childAges(p.party);
+  // Both platforms treat an under-2 as a different product from a child, and each says so its own
+  // way: Airbnb has a separate `infants` parameter (free, not counted in `children`), Booking prices
+  // by the age you send. Collapsing an infant into `children` asks for — and prices — a party that
+  // is not the one travelling.
+  const infants = partyAges.filter((a) => a <= INFANT_MAX_AGE).length;
+  const kids = children - infants;
   if (channel === 'airbnb') {
     const id = listingUrl.match(/\/rooms\/(\d+)/)?.[1];
     if (!id) return null;
     return `https://www.airbnb.com/rooms/${id}?check_in=${p.checkIn}&check_out=${p.checkOut}` +
-           `&adults=${adults}${children ? `&children=${children}` : ''}`;
+           `&adults=${adults}${kids ? `&children=${kids}` : ''}${infants ? `&infants=${infants}` : ''}`;
   }
   if (channel === 'booking.com') {
     const base = listingUrl.split('?')[0];
-    const ages = CHILD_AGES.slice(0, children).map((a) => `&age=${a}`).join('');
+    const ages = childAges(p.party).map((a) => `&age=${a}`).join('');
     return `${base}?checkin=${p.checkIn}&checkout=${p.checkOut}&group_adults=${adults}` +
            `&group_children=${children}${ages}&no_rooms=1&selected_currency=RON`;
   }

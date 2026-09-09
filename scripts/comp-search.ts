@@ -25,7 +25,7 @@ import {
   type SearchCard,
 } from '@/lib/competitive/searchResults';
 import { bookingRows } from '@/lib/competitive/captureRows';
-import { partiesFor, CHILD_AGES, partyLabel, type Party } from '@/lib/parity/party';
+import { partiesFor, childAges, partyLabel, type Party } from '@/lib/parity/party';
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 
 const arg = (n: string, d?: string) => {
@@ -47,7 +47,7 @@ function parseParty(s: string): Party {
 }
 
 const searchUrl = (party: Party, checkIn: string, checkOut: string) => {
-  const ages = CHILD_AGES.slice(0, party.children).map((a) => `&age=${a}`).join('');
+  const ages = childAges(party).map((a) => `&age=${a}`).join('');
   return `https://www.booking.com/searchresults.en-gb.html?ss=${DEST}&dest_id=${DEST_ID}` +
     `&dest_type=city&checkin=${checkIn}&checkout=${checkOut}` +
     `&group_adults=${party.adults}&no_rooms=1&group_children=${party.children}${ages}` +

@@ -38,7 +38,7 @@ import {
   type SearchCard,
 } from '@/lib/competitive/searchResults';
 import { bookingRows } from '@/lib/competitive/captureRows';
-import { partyLabel, CHILD_AGES, type Party } from '@/lib/parity/party';
+import { partyLabel, childAges, type Party } from '@/lib/parity/party';
 
 const arg = (n: string, d?: string) => {
   const i = process.argv.indexOf(`--${n}`);
@@ -58,7 +58,7 @@ function parseParty(s: string): Party {
 const nightsBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000);
 
 const searchUrl = (p: Party, checkIn: string, checkOut: string) => {
-  const ages = CHILD_AGES.slice(0, p.children).map((a) => `&age=${a}`).join('');
+  const ages = childAges(p).map((a) => `&age=${a}`).join('');
   return `https://www.booking.com/searchresults.en-gb.html?ss=${DEST}&dest_id=${DEST_ID}` +
     `&dest_type=city&checkin=${checkIn}&checkout=${checkOut}` +
     `&group_adults=${p.adults}&no_rooms=1&group_children=${p.children}${ages}` +
