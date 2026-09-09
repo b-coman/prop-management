@@ -33,6 +33,7 @@ if (!process.env.META_ADS_TOKENS) {
 }
 
 import { buildSeasonPack } from '@/lib/growth/seasonPack';
+import { AD_DOCTRINE, doctrineHorizon } from '@/config/ad-doctrine';
 
 const arg = (n: string, d?: string) => {
   const i = process.argv.indexOf(`--${n}`);
@@ -40,14 +41,22 @@ const arg = (n: string, d?: string) => {
 };
 
 async function main() {
-  const start = arg('start');
-  const end = arg('end');
-  if (!start || !end) {
-    console.error('required: --start <YYYY-MM-DD> --end <YYYY-MM-DD> [--property slug] [--label "..."] [--as-of YYYY-MM-DD] [--out file.json]');
-    process.exit(2);
-  }
   const propertyId = arg('property', 'prahova-mountain-chalet')!;
   const asOfArg = arg('as-of');
+  const today = asOfArg ?? new Date().toISOString().slice(0, 10);
+
+  // Default to the OWNER'S horizon rather than demanding dates. Asking for them looks harmless and
+  // is not: the first unconstrained run spanned a whole year and put its largest slice on Summer
+  // 2027, 284 days out, in the season he sells through the OTAs. The allocator ranks by value at
+  // risk and has no idea when people book, so the horizon has to come from somewhere — and a
+  // default that is right is better than a flag someone has to remember.
+  const dh = doctrineHorizon(today);
+  const start = arg('start') ?? dh.start;
+  const end = arg('end') ?? dh.end;
+  if (!arg('start') || !arg('end')) {
+    console.error(`horizon: D+${AD_DOCTRINE.horizon.minDaysOut}..D+${AD_DOCTRINE.horizon.maxDaysOut} ` +
+      `= ${start} → ${end} (owner doctrine; pass --start/--end to override)`);
+  }
   const pack = await buildSeasonPack({
     propertyId,
     start,

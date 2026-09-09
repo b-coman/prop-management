@@ -29,6 +29,7 @@ import {
   type AllocatorPolicy,
   type RankedWindow,
 } from '@/lib/growth/seasonAllocator';
+import { AD_DOCTRINE, doctrineHorizon, type AdDoctrine } from '@/config/ad-doctrine';
 import { computeSeasonLedger, type SeasonLedger } from '@/lib/growth/seasonLedger';
 import { fetchInFlight, fetchTrackedMetaCampaignIds, type InFlightBlock } from '@/lib/growth/inFlight';
 import { buildAdLearnings } from '@/lib/growth/adLearnings';
@@ -86,6 +87,13 @@ export interface SeasonPack {
     occupancyPct: number;
     note: string;
   };
+  /**
+   * How the owner actually sells. A CONSTRAINT on what may be proposed, not background reading:
+   * the allocator ranks by value at risk and knows nothing about when people book, so on a
+   * full-year run it put its largest slice on Summer 2027 — 284 days out, in a season the owner
+   * sells through the OTAs. Read this before reading `baseline`.
+   */
+  doctrine: AdDoctrine & { horizonToday: { start: string; end: string }; note: string };
   candidates: SeasonCandidate[];
   /** A complete, usable plan BEFORE any reasoning. The skill edits this; it does not build it. */
   baseline: { ranked: RankedWindow[]; slots: SeasonSlot[]; excluded: SeasonPlan['excluded']; method: string[]; warnings: string[] };
@@ -433,6 +441,15 @@ export async function buildSeasonPack(opts: SeasonPackOptions): Promise<SeasonPa
         'more windows buys coverage on paper and delivery nowhere.',
     },
     deliverableAudienceIds,
+    doctrine: {
+      ...AD_DOCTRINE,
+      horizonToday: doctrineHorizon(asOfYmd),
+      note:
+        'These are the owner\'s own constraints, stated 2026-09-09. A window outside horizonToday ' +
+        'is not automatically wrong to propose — but it needs a reason that beats "it has the most ' +
+        'value at risk", because that is the reasoning that put summer top of a September plan. ' +
+        'Windows nearer than the horizon are a WhatsApp job, not an ad job.',
+    },
     method: PACK_METHOD,
     note: PACK_NOTE,
     warnings: [...warnings, ...allocation.warnings, ...ledger.warnings],

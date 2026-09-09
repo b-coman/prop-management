@@ -31,6 +31,8 @@ budget, copy and photos. You never do its job, and it never does yours.
 ## How to run
 
 ```bash
+# No dates = the owner's own horizon (D+30..D+90). Pass --start/--end only to override it deliberately.
+npx tsx scripts/season-pack.ts --out /tmp/season.json
 npx tsx scripts/season-pack.ts --start 2026-10-11 --end 2027-04-29 --label "Winter 2026-27" --out /tmp/season.json
 ```
 
@@ -52,6 +54,17 @@ The pack carries them, but run them too when something looks off — they print 
 npx tsx scripts/periods.ts list              # the owner's own commercial windows
 npx tsx scripts/holiday-windows.ts           # do the periods cover the stays that actually sell?
 ```
+
+🔴 **Read `doctrine` before `baseline`.** The pack carries how the owner actually sells, and it is a
+CONSTRAINT on what you may propose, not background reading. The allocator ranks by value at risk and
+knows nothing about when people book — on an unconstrained run it put its largest slice on a summer
+window 284 days out, in the season he sells through the OTAs. `doctrine.horizonToday` is the stay
+window a plan made today should cover; `doctrine.channelFit` says where paid social is the wrong
+instrument entirely (a gap a month away is a WhatsApp job, summer is an OTA job);
+`doctrine.bookingRhythms` names demand that books on its own clock rather than a fixed number of days
+out. A window outside the horizon is not automatically wrong to propose, but it needs a reason that
+beats "it has the most value at risk" — because that is exactly the reasoning the doctrine exists to
+overrule.
 
 🔴 **`periods` outranks `candidates`.** A period is a decision the owner made about when a window
 starts, how long it must be and what it costs. A candidate is something the code derived. Where they
