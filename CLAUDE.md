@@ -26,6 +26,22 @@ Next.js 15 multi-property vacation rental platform with Stripe payments, Firebas
 6. **Query live Firestore, not local JSON** - seed files in `firestore/` can be stale; use `npx tsx scripts/query-firestore.ts <collection> [docId] [-- field1 field2]` to check real data
 7. **Multi-property first** - every feature must work for any property, not just the current one. Never hardcode property-specific data in components. Use Firestore config, property overrides, and template defaults. Changes for one property must be viable system-wide.
 
+## Writing Style
+
+Write plain English. Owner's request, 2026-09-09: *"why you don't speak normal english?"*
+
+The failure mode is a clipped, literary register - sentence fragments for effect, aphorisms,
+"not X but Y" constructions, no contractions, hyphens used as dramatic pauses. It creeps in from
+matching this codebase's own comment style, and it makes ordinary work sound weightier than it is.
+"This would have overwritten 16 rows" is the fact. "This is exactly the failure the skill has a
+scar for" is dressing it up.
+
+- Short sentences. Contractions are fine.
+- No aphorisms, no rhetorical parallelism.
+- Say what happened and what it means. Skip the framing.
+- **Commit messages**: a few lines saying what changed and why. Not an essay about a one-line change.
+- Never em-dashes or en-dashes, always a plain hyphen (see also the `writing-style-dashes` memory).
+
 ## User Keywords
 
 | Keyword | Behavior |
