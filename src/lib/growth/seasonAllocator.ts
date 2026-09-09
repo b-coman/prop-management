@@ -503,6 +503,9 @@ export function allocateSeasonBudget(
   // set them bidding against each other in the same auction. The higher-ranked
   // one wins the nights; the other is recorded as unfunded, with the reason.
   const fundedStays: Array<{ id: string; from: string; to: string }> = [];
+  /** Flights already on air, so a second campaign never runs alongside one we funded. */
+  const fundedFlights: Array<{ id: string; start: string; end: string }> = [];
+  const f2 = (x: { start: string; end: string }) => `${x.start}→${x.end}`;
   let exhaustedAt: number | null = null;
   for (const r of order) {
     const c = byId.get(r.candidateId)!;
@@ -523,10 +526,27 @@ export function allocateSeasonBudget(
       notes.set(c.id, `unfunded — these nights are already covered by ${clash.id}, which ranked higher`);
       continue;
     }
+    // One flight at a time. Two campaigns whose FLIGHTS overlap are on air together, and at this
+    // budget that is not a portfolio, it is a division: the same daily money split between two ad
+    // sets, each too thin to leave the learning phase, often bidding for the same city.
+    //
+    // Without this, a 61-day horizon was planned as five flights totalling 144 flight-days — about
+    // 40 RON/day of real spend against an intended 15, and two or three campaigns live at once. The
+    // owner's model is one flight a month, rotating which window it sells. Rank order runs first, so
+    // the best windows claim their slot before the weaker ones.
+    const onAir = fundedFlights.find((f) => shape.start <= f.end && f.start <= shape.end);
+    if (onAir) {
+      allocated.set(c.id, 0);
+      notes.set(c.id,
+        `unfunded — its flight (${shape.start}→${shape.end}) would run alongside ${onAir.id} ` +
+        `(${f2(onAir)}), and one flight at a time is the plan`);
+      continue;
+    }
     if (spendable >= shape.minFlightMinor) {
       allocated.set(c.id, shape.minFlightMinor);
       spendable -= shape.minFlightMinor;
       fundedStays.push({ id: c.id, from: c.covers.from, to: c.covers.to });
+      fundedFlights.push({ id: c.id, start: shape.start, end: shape.end });
     } else {
       allocated.set(c.id, 0);
       if (exhaustedAt == null) exhaustedAt = r.rank;
