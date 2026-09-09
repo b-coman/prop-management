@@ -94,6 +94,27 @@ export interface SeasonPack {
    * sells through the OTAs. Read this before reading `baseline`.
    */
   doctrine: AdDoctrine & { horizonToday: { start: string; end: string }; note: string };
+  /**
+   * What the situation analyst has already routed, still pending a decision.
+   *
+   * The analyst is the router: it reads the whole business, weighs the outreach and cancellation
+   * ledgers, and assigns each window to an instrument — often several in parallel, a warm WhatsApp
+   * arm beside a cold ads push. This layer decides MONEY and ORDER, not whether a window is an ads
+   * problem in the first place. Planning without reading it is how, on 2026-09-09, a season plan was
+   * built for the Oct/Nov gap while the analyst had already routed that same gap to ads WITH a
+   * parallel WhatsApp arm nobody here knew about.
+   */
+  analystOpportunities: {
+    available: boolean;
+    count: number;
+    note: string;
+    rows: Array<{
+      id: string; action: string; status: string;
+      window: { start: string; end: string; nights: number } | null;
+      occasion: string | null; valueAtRisk: number | null;
+      audience: string | null; rationale: string | null; createdAt: string | null;
+    }>;
+  };
   candidates: SeasonCandidate[];
   /** A complete, usable plan BEFORE any reasoning. The skill edits this; it does not build it. */
   baseline: {
@@ -389,6 +410,48 @@ export async function buildSeasonPack(opts: SeasonPackOptions): Promise<SeasonPa
     adAccountId: spendRes.ok ? spendRes.data.adAccountId : undefined,
   });
 
+  // ── what the analyst already routed ──
+  //
+  // Read live rather than passed in, so a pack built by any caller carries it. Only PENDING and
+  // APPROVED rows: a dismissed or snoozed opportunity is a decision already taken, and re-surfacing
+  // it here would quietly reopen it.
+  let analystOpportunities: SeasonPack['analystOpportunities'];
+  try {
+    const oppDb = await getAdminDb();
+    const oppSnap = await oppDb.collection('opportunities').where('propertyId', '==', propertyId).get();
+    const rows = oppSnap.docs
+      .map((o): Record<string, unknown> & { id: string } => ({ id: o.id, ...(o.data() as Record<string, unknown>) }))
+      .filter((o) => o.status === 'pending' || o.status === 'approved')
+      .map((o) => ({
+        id: o.id,
+        action: String(o.action ?? o.instrument ?? '?'),
+        status: String(o.status ?? '?'),
+        window: (o.window as { start: string; end: string; nights: number } | undefined) ?? null,
+        occasion: (o.occasion as string | undefined) ?? null,
+        valueAtRisk: (o.valueAtRisk as number | undefined) ?? null,
+        audience: (o.audience as string | undefined) ?? null,
+        rationale: (o.rationale as string | undefined) ?? null,
+        createdAt: typeof o.createdAt === 'string' ? o.createdAt : null,
+      }))
+      .sort((a, b) => (a.window?.start ?? '').localeCompare(b.window?.start ?? ''));
+    analystOpportunities = {
+      available: true,
+      count: rows.length,
+      note:
+        'The situation analyst routes; this layer decides money and order. A window it sent to ' +
+        'whatsapp or page is NOT automatically an ads window — check before funding one, and say so ' +
+        'if you fund it anyway. A window it sent to ads with a parallel warm arm should be funded ' +
+        'knowing the warm arm exists, because the two reach different people and the ads budget ' +
+        'should not be sized as if it were carrying the whole window alone.',
+      rows,
+    };
+  } catch (e) {
+    analystOpportunities = {
+      available: false, count: 0, rows: [],
+      note: `opportunities unreadable: ${(e as Error).message}. Plan without them and say so — do not assume nothing was routed.`,
+    };
+  }
+
   // ── baseline: a complete plan before any reasoning ──
   const deliverableAudienceIds = auds.filter((a) => a.deliverable).map((a) => a.id);
   const policy: AllocatorPolicy = {
@@ -459,6 +522,7 @@ export async function buildSeasonPack(opts: SeasonPackOptions): Promise<SeasonPa
         'more windows buys coverage on paper and delivery nowhere.',
     },
     deliverableAudienceIds,
+    analystOpportunities,
     doctrine: {
       ...AD_DOCTRINE,
       horizonToday: doctrineHorizon(asOfYmd),

@@ -124,6 +124,37 @@ days after it, and they may route to different instruments. And `inventory.fully
 NOT missing data; they are often the emptiest months and deserve a flag + an opportunity,
 never a "cannot assess".
 
+## Periods outrank anything derived
+
+`pack.periods` carries the windows the owner **declared**: when each starts, how long it must be, what
+it costs. `pack.inventory.occasions` is derived from the `holidays` collection and is a guess at the
+same thing. Where they disagree the period is right and the occasion is suspect — say so rather than
+planning around it.
+
+This has a receipt. A plan built from public holidays alone put Revelion on 31 Dec - 3 Jan while the
+period said 30-31 Dec, and both recent Revelion bookings had arrived on the 30th.
+
+A period several times longer than the window it prices is a season, not an occasion. Treat it as
+background and anchor the opportunity to the occasion inside it.
+
+## Parity gates the ads instrument
+
+`pack.parity` carries, per period, where the **direct** price stands against the OTAs, measured from
+captured guest-facing totals. Read it before routing anything to ads.
+
+| verdict | what it means | what it allows |
+|---|---|---|
+| `losing` | a guest can beat your direct price on a platform | **never ads** — a price or `ota` action |
+| `overshoot` | direct is cheaper than it needs to be | a `price` action in its own right |
+| `unmeasured` | never captured — **not** the same as safe | prefer `ota` (go capture it) over ads built on nothing |
+| `healthy` / `level` | direct is honestly the better offer | advertising this window is honest |
+
+The `losing` rule has a receipt too: roughly 182 RON of spend produced a Booking.com reservation
+because direct was only 4.4% cheaper, and the commission came off the top. That is a pricing problem
+wearing an advertising costume.
+
+When `parity.available` is false, treat every period as unmeasured and say so.
+
 ## Choosing the instrument (a prior is not a verdict)
 
 A window's character — a warm audience, an occasion to borrow, nearness — *suggests*

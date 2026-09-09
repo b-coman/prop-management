@@ -59,12 +59,21 @@ npx tsx scripts/holiday-windows.ts           # do the periods cover the stays th
 CONSTRAINT on what you may propose, not background reading. The allocator ranks by value at risk and
 knows nothing about when people book — on an unconstrained run it put its largest slice on a summer
 window 284 days out, in the season he sells through the OTAs. `doctrine.horizonToday` is the stay
-window a plan made today should cover; `doctrine.channelFit` says where paid social is the wrong
-instrument entirely (a gap a month away is a WhatsApp job, summer is an OTA job);
-`doctrine.bookingRhythms` names demand that books on its own clock rather than a fixed number of days
-out. A window outside the horizon is not automatically wrong to propose, but it needs a reason that
-beats "it has the most value at risk" — because that is exactly the reasoning the doctrine exists to
-overrule.
+window a plan made today should cover; `doctrine.bookingRhythms` names demand that books on its own
+clock rather than a fixed number of days out; `doctrine.routing.seasonNotForAds` names the season that
+sells through the OTAs and is therefore not an ads opportunity however much value it carries. A window
+outside the horizon is not automatically wrong to propose, but it needs a reason that beats "it has the
+most value at risk" — because that is exactly the reasoning the doctrine exists to overrule.
+
+🔴 **Read `analystOpportunities` before you fund anything.** The situation analyst is the ROUTER — it
+reads the whole business, weighs the outreach and cancellation ledgers, and assigns each window to an
+instrument, often several in parallel. You decide MONEY and ORDER, never whether a window is an ads
+problem in the first place. A window it routed to `whatsapp` or `page` is not automatically yours; if
+you fund it anyway, say why. A window it routed to `ads` WITH a parallel warm arm should be funded
+knowing that arm exists — the two reach different people, and the ads budget should not be sized as
+if it were carrying the whole window alone. On 2026-09-09 a season plan was built for the Oct/Nov gap
+while the analyst had already routed that same gap to ads with a WhatsApp arm beside it, and neither
+knew about the other.
 
 🔴 **`periods` outranks `candidates`.** A period is a decision the owner made about when a window
 starts, how long it must be and what it costs. A candidate is something the code derived. Where they

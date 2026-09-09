@@ -19,6 +19,8 @@ import { getPageHealth, getAdAccountHealth } from '@/services/growth/metaAds/bra
 import { computeRecentCancellations, computeOutreachLedger, computeFreeRuns, computeOccasions, computeExtendedWindows, type HolidayDoc } from '@/lib/growth/signals';
 import { getNotesByGuest, isTouch } from '@/services/guestNoteService';
 import { normalizeChannel } from '@/lib/channels';
+import { getPeriods } from '@/services/periodService';
+import { loadPeriodPositions } from '@/services/growth/parityPositions';
 import { childrenShare, hadChildren } from '@/lib/occupancy';
 
 const toD = (v: any): Date | null =>
@@ -45,6 +47,10 @@ export interface SituationPack {
   audience: unknown;
   inventory: unknown;
   outreachHistory: unknown;
+  /** The owner's own declared commercial windows. Outranks anything derived from the calendar. */
+  periods: unknown;
+  /** Where the direct price stands against the OTAs, per period. */
+  parity: unknown;
 }
 
 /**
@@ -599,6 +605,67 @@ export async function buildSituationPack(
     };
   };
 
+  // ── the owner's declared PERIODS, and where each stands against the OTAs ──
+  //
+  // Both were missing, and each left an instrument on the menu with nothing behind it.
+  //
+  // PERIODS: the analyst read priceCalendars — the compiled OUTPUT — but never `pricingPeriods`, the
+  // commercial windows the owner actually declared. Occasions derived from the holiday calendar are a
+  // guess at the same thing, and where the two disagree the declaration is right. That lesson has a
+  // receipt: a plan built from public holidays alone put Revelion on 31 Dec-3 Jan when the period said
+  // 30-31 Dec and both recent bookings had arrived on the 30th.
+  //
+  // PARITY: `ota` and `price` sit on the instrument menu while the pack said, in dataQuality.pricing,
+  // that channel rates are not in it. So the analyst could recommend a parity action holding no parity
+  // data, and could route a window to ads that parity calls `losing` — the one case the ad gate exists
+  // to refuse, because an ad then pays to send a guest to a price they can beat on Booking.
+  //
+  // Read through the SAME loader the season pack and the pricing board use, so the three cannot
+  // disagree about where a period stands. Degrades to a stated absence, never to silence.
+  let periodsBlock: unknown;
+  let parityBlock: unknown;
+  try {
+    const periods = (await getPeriods(PROPERTY)).filter(p => p.status === 'active' && p.endDate >= ymd(AS_OF));
+    periodsBlock = {
+      count: periods.length,
+      note:
+        'The owner DECLARED these windows: when each starts, how long it must be, what it costs. They ' +
+        'outrank anything derived from the holidays collection — where a derived occasion disagrees with ' +
+        'a period, the period is right and the occasion is suspect. minStay here is the rule for the ' +
+        'window; priceCalendars carries it per night.',
+      rows: periods.map(p => ({
+        slug: p.slug, name: p.name, startDate: p.startDate, endDate: p.endDate,
+        tier: p.tier, minStay: p.minStay ?? null, priority: p.priority,
+        fixedNightPrice: p.fixedNightPrice ?? null, weekdayRate: p.weekdayRate ?? null,
+      })),
+    };
+  } catch (e) {
+    periodsBlock = { available: false, note: `pricingPeriods unreadable: ${(e as Error).message}` };
+  }
+  try {
+    const { rows, summary, asOf: parityAsOf } = await loadPeriodPositions(PROPERTY);
+    parityBlock = {
+      available: true,
+      asOf: parityAsOf,
+      summary,
+      note:
+        'Where the DIRECT price stands against the OTAs, per period, from captured guest-facing totals. ' +
+        'verdict: healthy = comfortably cheaper direct; level = within noise; losing = a guest can beat ' +
+        'the direct price on a platform; overshoot = cheaper than it needs to be, giving away margin; ' +
+        'unmeasured = never captured, which is NOT the same as safe. ' +
+        'A LOSING period must not be routed to ads: the ad would pay to send a guest to the worse price. ' +
+        'It is a price or ota action instead. An OVERSHOOT period is a price action, not an absence of one.',
+      rows: rows.map(r => ({
+        name: r.name, startDate: r.startDate, endDate: r.endDate, verdict: r.verdict,
+        worstGapPct: r.worstGapPct, dearerCount: r.dearerCount, inBandCount: r.inBandCount,
+        tooCheapCount: r.tooCheapCount, measuredWindows: r.measuredWindows,
+        freshestAgeDays: r.freshestAgeDays, openNights: r.openNights, valueAtRisk: r.valueAtRisk,
+      })),
+    };
+  } catch (e) {
+    parityBlock = { available: false, note: `parity positions unreadable: ${(e as Error).message} — treat every period as unmeasured, which is not the same as safe` };
+  }
+
   // Occasions the free runs can borrow a reason from. Sourced from the `holidays` collection
   // (docs/implementation/firestore-pricing-structure.md §5). If empty, say so — outreach cannot
   // be justified without something true to say.
@@ -702,6 +769,8 @@ export async function buildSituationPack(
     product,
     audience,
     inventory,
+    periods: periodsBlock,
+    parity: parityBlock,
     outreachHistory: {
       pastCampaigns: campaigns,
       note:

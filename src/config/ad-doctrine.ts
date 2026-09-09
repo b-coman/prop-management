@@ -16,8 +16,19 @@
 export interface AdDoctrine {
   /** Plan for stays this many days out. Nearer than `minDaysOut` is a different instrument entirely. */
   horizon: { minDaysOut: number; maxDaysOut: number; why: string };
-  /** Seasons where paid social is the wrong tool, and what is right instead. */
-  channelFit: Array<{ when: string; instrument: string; why: string }>;
+  /**
+   * Where instrument routing actually lives. NOT a copy of it.
+   *
+   * `situationAnalystMethod` already decides which instrument fits a window, and decides it better:
+   * it reads the outreach and cancellation ledgers first, knows that instruments are not exclusive,
+   * and can put a warm WhatsApp arm beside a cold ads push on the same window. A second copy of
+   * those rules here — which is what this field used to hold — is a rule that will drift from the
+   * one actually in force.
+   *
+   * The one thing kept is the fact the analyst cannot know: summer sells through the OTAs for this
+   * property, so a summer window ranking top on value at risk is not an ads opportunity.
+   */
+  routing: { livesIn: string; note: string; seasonNotForAds: string };
   /** Demand that books on its own clock rather than `daysOut` from today. */
   bookingRhythms: Array<{ what: string; boughtWhen: string; forWhen: string }>;
   /** The order the owner works in when preparing a period. */
@@ -39,29 +50,17 @@ export const AD_DOCTRINE: AdDoctrine = {
       'that means selling October, November and perhaps early December.',
   },
 
-  channelFit: [
-    {
-      when: 'summer',
-      instrument: 'OTA, not paid social',
-      why:
-        'People do plan summer early, but "summer is mostly an OTA thing for us". Ranking it top ' +
-        'because it carries the most value at risk mistakes where the demand comes from.',
-    },
-    {
-      when: 'a gap about a month away or nearer',
-      instrument: 'WhatsApp to past Romanian guests',
-      why:
-        'Too close to build a cold audience and retarget it. The people who already know the place ' +
-        'are the only ones who can decide that fast.',
-    },
-    {
-      when: 'a window with very poor OTA activity',
-      instrument: 'an OTA promotion, historically Booking.com',
-      why:
-        'The owner has used this successfully before. It is a channel action, not an ad one — but ' +
-        'it moves parity (see parityInteractions).',
-    },
-  ],
+  routing: {
+    livesIn: 'src/lib/growth/situationAnalystMethod.ts (mirrored in .claude/skills/situation-analyst)',
+    note:
+      'The analyst routes windows to instruments. Read pack.analystOpportunities before funding ' +
+      'anything: a window it sent to whatsapp or page is not automatically an ads window, and one it ' +
+      'sent to ads WITH a parallel warm arm should not be budgeted as if ads carried it alone.',
+    seasonNotForAds:
+      'Summer. People do plan it early, but "summer is mostly an OTA thing for us" (owner, ' +
+      '2026-09-09), so a summer window ranking top on value at risk is not an ads opportunity. This ' +
+      'is a fact about the business the analyst cannot read from the pack, which is why it stays here.',
+  },
 
   bookingRhythms: [
     { what: 'the winter school break with children', boughtWhen: 'November', forWhen: 'mid-February' },
