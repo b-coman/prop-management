@@ -310,7 +310,11 @@
     "occupancyAdults": "At most {{adults}} of them adults.",
     "occupancyBaseRate": "The base rate includes {{base}} guests.",
     "occupancyChildAge": "A child is under {{age}}.",
-    "orBookOnline": "or book online"
+    "orBookOnline": "or book online",
+    "cancellationTitle": "Cancellation",
+    "depositTitle": "Paying",
+    "depositBody": "Pay in full by card, or arrange a 50% deposit by bank transfer over WhatsApp or the phone.",
+    "reviewsWord": "reviews"
   },
   "property": {
     "amenities": "Amenities",

@@ -57,6 +57,8 @@ import { BookingPageV2 } from '@/components/booking-v2';
 import type { EntryStay } from '@/components/booking-v2/components';
 import { buildExampleStays } from '@/lib/landing/exampleStays';
 import { getChannels } from '@/services/channelService';
+import { getPublishedReviewsForProperty } from '@/services/reviewService';
+import { pickBookingReview } from '@/lib/booking/reviewForBooking';
 import type { OtaLink } from '@/components/booking-v2/components';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
 import { LanguageHtmlUpdater } from '@/components/language-html-updater';
@@ -214,6 +216,56 @@ export default async function BookingCheckPage({ params, searchParams }: Booking
     }
   }
 
+  /**
+   * The three things an OTA listing says and this page did not: what happens if you cancel, that a
+   * deposit is possible, and that other people have stayed. Resolved here because reviews need the
+   * Admin SDK and the policy needs the request's language.
+   *
+   * Each piece fails independently and silently — a missing review costs a quote, not the page. The
+   * whole block renders nothing when a property has none of them, which is the same discipline
+   * `buildExampleStays` follows.
+   */
+  const cancellationPolicy = serverTranslateContent(property.cancellationPolicy, detectedLanguage) || null;
+  const ratings = property.ratings && property.ratings.count > 0
+    ? { average: property.ratings.average, count: property.ratings.count }
+    : null;
+
+  let bookingReview: { author: string; rating: number; text: string; source: string } | null = null;
+  try {
+    const published = await getPublishedReviewsForProperty(slug, 40);
+    /**
+     * `date` arrives as a Firestore Timestamp, an ISO string or a `{_seconds}` object depending on
+     * how the row was imported — all three shapes exist in this collection (see CLAUDE.md). Only the
+     * ordering tiebreak uses it, so an unparseable date degrades to 0 rather than throwing.
+     */
+    const epochSeconds = (d: unknown): number => {
+      if (!d) return 0;
+      const asDate = (d as { toDate?: () => Date }).toDate?.()
+        ?? (typeof (d as { _seconds?: number })._seconds === 'number'
+          ? new Date((d as { _seconds: number })._seconds * 1000)
+          : new Date(d as string));
+      const ms = asDate instanceof Date ? asDate.getTime() : NaN;
+      return Number.isFinite(ms) ? Math.floor(ms / 1000) : 0;
+    };
+
+    const picked = pickBookingReview(
+      published.map((r) => ({
+        id: r.id,
+        author: r.guestName || '',
+        rating: Number(r.rating) || 0,
+        text: r.comment || '',
+        source: String(r.source || ''),
+        at: epochSeconds(r.date),
+      })),
+      detectedLanguage,
+    );
+    if (picked) {
+      bookingReview = { author: picked.author, rating: picked.rating, text: picked.text, source: picked.source };
+    }
+  } catch (err) {
+    logger.warn('Could not pick a booking-page review', { slug, error: (err as Error)?.message });
+  }
+
   // Basic validation for search params (only dates now)
   if (!checkIn || !checkOut) {
     logger.warn('Missing date parameters in URL', {
@@ -301,6 +353,9 @@ export default async function BookingCheckPage({ params, searchParams }: Booking
               themeId={propertyThemeId}
               otaLinks={otaLinks}
               entryStays={entryStays}
+              cancellationPolicy={cancellationPolicy}
+              ratings={ratings}
+              review={bookingReview}
             />
           </BookingClientLayout>
         </LanguageProvider>

@@ -310,7 +310,11 @@
     "occupancyAdults": "Dintre care maximum {{adults}} adulți.",
     "occupancyBaseRate": "Tariful de bază include {{base}} persoane.",
     "occupancyChildAge": "Copil = sub {{age}} ani.",
-    "orBookOnline": "sau rezervă online"
+    "orBookOnline": "sau rezervă online",
+    "cancellationTitle": "Anulare",
+    "depositTitle": "Plata",
+    "depositBody": "Poți plăti integral cu cardul sau putem stabili un avans de 50% prin transfer bancar, pe WhatsApp sau la telefon.",
+    "reviewsWord": "recenzii"
   },
   "property": {
     "amenities": "Facilități",

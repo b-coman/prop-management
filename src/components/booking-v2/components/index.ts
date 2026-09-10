@@ -16,3 +16,5 @@ export { TalkActions, OtaAlternatives, CallIconButton, useTalkLinks, reportTalkC
 export type { OtaLink, TalkPosition } from './GuestContactActions';
 export { BookingEntryPanel } from './BookingEntryPanel';
 export type { EntryStay } from './BookingEntryPanel';
+export { BookingReassurance } from './BookingReassurance';
+export type { BookingReassuranceProps, BookingReassuranceReview } from './BookingReassurance';

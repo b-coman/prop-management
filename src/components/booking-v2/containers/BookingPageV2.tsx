@@ -20,7 +20,8 @@
 
 import React, { useEffect, useState, useRef, memo } from 'react';
 import { BookingProvider } from '../contexts';
-import { DateAndGuestSelector, PricingSummary, MobilePriceDrawer, MobileDateSelectorWrapper, TalkActions, OtaAlternatives, CallIconButton, BookingEntryPanel } from '../components';
+import { DateAndGuestSelector, MobilePriceDrawer, MobileDateSelectorWrapper, TalkActions, OtaAlternatives, CallIconButton, BookingEntryPanel, BookingReassurance } from '../components';
+import type { BookingReassuranceReview } from '../components';
 import type { OtaLink, EntryStay } from '../components';
 import { ContactFormV2, HoldFormV2, BookingFormV2 } from '../forms';
 import type { Property, CurrencyCode } from '@/types';
@@ -121,10 +122,24 @@ interface BookingPageV2Props {
    * empty whenever the visitor already arrived with dates or there is nothing honest to offer.
    */
   entryStays?: EntryStay[];
+  /**
+   * The three things an OTA listing says and this page did not. All resolved server-side from the
+   * property's own documents, all optional: each renders only if that property actually has it.
+   */
+  cancellationPolicy?: string | null;
+  ratings?: { average: number; count: number } | null;
+  review?: BookingReassuranceReview | null;
 }
 
 // Internal component that uses the booking context
-function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { className?: string; otaLinks?: OtaLink[]; entryStays?: EntryStay[] }) {
+function BookingPageContent({ className, otaLinks = [], entryStays = [], cancellationPolicy, ratings, review }: {
+  className?: string;
+  otaLinks?: OtaLink[];
+  entryStays?: EntryStay[];
+  cancellationPolicy?: string | null;
+  ratings?: { average: number; count: number } | null;
+  review?: BookingReassuranceReview | null;
+}) {
   const {
     property,
     checkInDate,
@@ -521,6 +536,17 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { cla
                 </CardContent>
               </Card>
             )}
+            {/* OUTSIDE the pricing ternary, not inside one of its arms - each arm has to be a single
+                expression, and this belongs under the panel in every state anyway. Under the card
+                rather than in it: that card is the ACTION surface and stays one scannable block.
+                Desktop only; mobile places the same component after the form. */}
+            <BookingReassurance
+              className="mt-4"
+              cancellationPolicy={cancellationPolicy}
+              ratings={ratings}
+              review={review}
+              canArrangeDeposit={!!property?.contactPhone}
+            />
           </div>
         </div>
 
@@ -985,6 +1011,16 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { cla
               we don't control; placed here it reads as reassurance to someone who was leaving
               anyway. Neutral chips, no accent — see OtaAlternatives for why the economics make this
               worth offering at all. */}
+          {/* Mobile and tablet: after the form, before the OTA chips. It answers what someone asks
+              WHILE looking at the form, so it must not sit above and push the form below the fold -
+              that is the mistake the landing hero already made once. */}
+          <BookingReassurance
+            className="mt-6 lg:hidden"
+            cancellationPolicy={cancellationPolicy}
+            ratings={ratings}
+            review={review}
+            canArrangeDeposit={!!property?.contactPhone}
+          />
           <OtaAlternatives links={otaLinks} className="mt-5 lg:mt-10" />
         </div>
       </div>
@@ -1085,7 +1121,10 @@ export function BookingPageV2({
   themeId,
   className,
   otaLinks,
-  entryStays
+  entryStays,
+  cancellationPolicy,
+  ratings,
+  review
 }: BookingPageV2Props) {
   const { setTheme } = useTheme();
   const [isMounted, setIsMounted] = useState(false);
@@ -1108,7 +1147,8 @@ export function BookingPageV2({
       property={property}
       initialCurrency={initialCurrency}
     >
-      <BookingPageContent className={className} otaLinks={otaLinks} entryStays={entryStays} />
+      <BookingPageContent className={className} otaLinks={otaLinks} entryStays={entryStays}
+        cancellationPolicy={cancellationPolicy} ratings={ratings} review={review} />
     </BookingProvider>
   );
 }
