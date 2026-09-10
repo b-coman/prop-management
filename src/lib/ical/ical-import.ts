@@ -7,6 +7,7 @@
 import { FieldValue, FieldPath } from 'firebase-admin/firestore';
 import { loggers } from '@/lib/logger';
 import type { ICalFeed } from '@/types';
+import { recordOtaBlockObservations, type RecordOtaBlockInput } from '@/services/otaBlockObservations';
 
 const logger = loggers.icalSync;
 
@@ -127,6 +128,16 @@ export async function syncFeedToAvailability(
   // Collect all dates that should be blocked from this feed
   const datesToBlock = new Set<string>(); // "YYYY-MM:day" format for deduplication
 
+  /**
+   * Which reservation produced each night. The expansion below is where event identity used to be
+   * destroyed: after it, a day knew only its feedId, so four nights of one booking were
+   * indistinguishable from four separate bookings. `otaBlockObservations` needs the uid to fold them
+   * back together — otherwise a single four-night stay reports as four, which reads as a working
+   * funnel and is not one. Last writer wins on an overlap, which is the same precedence the block
+   * loop already applies.
+   */
+  const eventByDate = new Map<string, { uid: string; summary: string }>();
+
   for (const event of externalEvents) {
     const current = new Date(event.startDate);
     while (current < event.endDate) {
@@ -136,6 +147,7 @@ export async function syncFeedToAvailability(
       const monthKey = `${year}-${String(month).padStart(2, '0')}`;
       const day = current.getUTCDate();
       datesToBlock.add(`${monthKey}:${day}`);
+      eventByDate.set(`${monthKey}:${day}`, { uid: event.uid, summary: event.summary });
       current.setUTCDate(current.getUTCDate() + 1);
     }
   }
@@ -181,9 +193,17 @@ export async function syncFeedToAvailability(
   // Determine which months we need to touch
   const allMonths = new Set<string>([...datesByMonth.keys(), ...existingBlocksByMonth.keys()]);
 
-  // Process in batches (Firestore batch limit is 500 ops)
-  const batch = db.batch();
+  // Process in batches (Firestore batch limit is 500 ops).
+  // `let`, because a committed WriteBatch cannot be reused — the flush below has to start a new one.
+  let batch = db.batch();
   let batchOps = 0;
+
+  /**
+   * Observations accumulated across every month, written once at the end so a multi-night
+   * reservation shares one `capturedAt` and folds back into a single booking.
+   */
+  const observations: RecordOtaBlockInput[] = [];
+  const capturedAt = new Date().toISOString();
 
   for (const monthKey of allMonths) {
     const docId = `${feed.propertyId}_${monthKey}`;
@@ -211,12 +231,33 @@ export async function syncFeedToAvailability(
         continue;
       }
 
+      /**
+       * FIRST SIGHTING, not "we wrote something". `datesBlocked` below also counts a re-write when
+       * the stored feedId or the available flag drifted out of sync, so it over-reports as a booking
+       * signal. A genuine first observation is the field being ABSENT — verified against live data,
+       * where a missing key, an empty `externalBlocks: {}` and a populated one are all distinguishable.
+       */
+      const wasNotBlockedBefore = currentData.externalBlocks?.[day] === undefined;
+
       // Block the date
       if (currentData.externalBlocks?.[day] !== feed.id || currentData.available?.[day] !== false) {
         updateData[`available.${day}`] = false;
         updateData[`externalBlocks.${day}`] = feed.id;
         hasUpdates = true;
         result.datesBlocked++;
+
+        if (wasNotBlockedBefore) {
+          const event = eventByDate.get(`${monthKey}:${day}`);
+          observations.push({
+            propertyId: feed.propertyId,
+            date: `${monthKey}-${String(day).padStart(2, '0')}`,
+            feedId: feed.id,
+            feedName: feed.name,
+            event: 'appeared',
+            uid: event?.uid,
+            summary: event?.summary,
+          });
+        }
       }
     }
 
@@ -231,6 +272,16 @@ export async function syncFeedToAvailability(
         updateData[`externalBlocks.${day}`] = FieldValue.delete();
         hasUpdates = true;
         result.datesReleased++;
+
+        // A cancellation is as much a signal as a booking, and the stored state that proves it is
+        // being deleted on this very line. No uid: the event that created the block is long gone.
+        observations.push({
+          propertyId: feed.propertyId,
+          date: `${monthKey}-${String(day).padStart(2, '0')}`,
+          feedId: feed.id,
+          feedName: feed.name,
+          event: 'released',
+        });
       }
     }
 
@@ -254,9 +305,11 @@ export async function syncFeedToAvailability(
       }
       batchOps++;
 
-      // Firestore batch limit
+      // Firestore batch limit. The old code committed and then kept writing into the SAME batch
+      // object, which throws once committed — unreachable for one property, but a real bug.
       if (batchOps >= 450) {
         await batch.commit();
+        batch = db.batch();
         batchOps = 0;
       }
     }
@@ -264,6 +317,15 @@ export async function syncFeedToAvailability(
 
   if (batchOps > 0) {
     await batch.commit();
+  }
+
+  /**
+   * AFTER the calendar is committed, never before. The sync's job is to keep the calendar correct;
+   * an observation is bookkeeping. `recordOtaBlockObservations` swallows its own errors for the same
+   * reason — a missing observation costs attribution, a failed sync costs a double booking.
+   */
+  if (observations.length) {
+    await recordOtaBlockObservations(observations, capturedAt);
   }
 
   return result;

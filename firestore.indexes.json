@@ -167,6 +167,14 @@
       ]
     },
     {
+      "collectionGroup": "otaBlockObservations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "propertyId", "order": "ASCENDING" },
+        { "fieldPath": "capturedAt", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "situationReports",
       "queryScope": "COLLECTION",
       "fields": [
