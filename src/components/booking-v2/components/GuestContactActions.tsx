@@ -12,10 +12,22 @@
  * from a text link underneath, for people who would rather write than talk.
  *
  * THE HIERARCHY IS THE DESIGN. Four weights, never five equals:
- *   1. Book now      filled, accent      the only filled button on the page
- *   2. Hold dates    muted fill
- *   3. TalkActions   outlined pair in the accent, grouped under a label   ← here
- *   4. OtaAlternatives  neutral chips, no accent, foot of the page          ← here
+ *   1. WhatsApp      filled, accent      the only filled button on the page   ← here
+ *   2. Book now      muted fill
+ *   3. Hold dates / Call   outlined                                          ← here
+ *   4. OtaAlternatives  neutral chips, no accent, foot of the page           ← here
+ *
+ * THE TOP TWO WERE SWAPPED ON 2026-09-10, AND THE EVIDENCE IS WHY. Book Now held the filled slot
+ * because it is the transaction. But of 304 bookings in this database, 34 direct, **not one carries
+ * a Stripe payment id** — and the checkout has been live since 2025-05-03. Sixteen months, sixteen
+ * direct bookings, every single one a WhatsApp or phone conversation that ended in a bank transfer
+ * ("a platit avans 860 lei"). Meanwhile 53 people were shown a real price after `form_start` shipped
+ * on 24 Aug and none typed a character; the instrument was verified working by typing into the live
+ * field, so that zero is behaviour, not a bug.
+ *
+ * So the filled button now points at the route that actually closes. The card checkout is still here,
+ * one weight down, for anyone who prefers it. If self-serve booking ever starts producing, swap them
+ * back — but swap them back on evidence, not on the principle that a checkout ought to be primary.
  * The OTA chips share no colour with the CTAs above them: pressed by mistake, an Airbnb booking
  * costs ~8% more than a direct one (see `OtaAlternatives` for the arithmetic). They first shipped as
  * bare underlined links with a "↗" and read as an unstyled browser default, so they are now proper
@@ -31,6 +43,7 @@
 import React from 'react';
 import { useBooking } from '../contexts';
 import { useLanguage } from '@/hooks/useLanguage';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { trackUiEvent } from '@/lib/tracking';
 import { trackMetaContact } from '@/lib/meta-tracking';
 import { format } from 'date-fns';
@@ -75,6 +88,48 @@ function waDigits(phone: string): string {
   return phone.replace(/\D/g, '');
 }
 
+export type TalkVariant = 'general' | 'unavailable' | 'no-dates';
+
+/** Minimal shape of the translator, so the message builder below stays testable without a provider. */
+type Translate = (key: string, fallback: string, vars?: Record<string, string | number>) => string;
+
+export interface TalkMessageInput {
+  variant: TalkVariant;
+  propertyName: string;
+  /** Pre-formatted date range ("14 sept – 17 sept"), or null when the visitor has no dates yet. */
+  stay: string | null;
+  guestCount: number;
+  /**
+   * The total EXACTLY as the screen renders it ("1,415 lei") — already converted and formatted, not
+   * a raw number with a separate currency code. Null when there is no price to quote.
+   */
+  shownTotal: string | null;
+  t: Translate;
+}
+
+/**
+ * Builds the prefilled message, as lines. Pure and exported so it can be tested without mounting
+ * three context providers, and so the deferred share-to-group control reuses this rather than
+ * becoming a sixth hand-rolled copy of the same text (there are already five wa.me builders in this
+ * repo).
+ */
+export function buildTalkMessageLines({ variant, propertyName, stay, guestCount, shownTotal, t }: TalkMessageInput): string[] {
+  if (variant === 'no-dates') {
+    // The entry state has no dates and no price to quote, so the prefill has to ASK rather than
+    // state. Someone arriving without dates is usually not being coy about the calendar - they do
+    // not have one yet, which is exactly the question the owner can answer in a sentence.
+    return [t('booking.waNoDates', `Hello! I am interested in ${propertyName}. Which dates do you have free?`, { property: propertyName })];
+  }
+  if (variant === 'unavailable' && stay) {
+    return [t('booking.waUnavailable', `Hello! I tried ${stay} at ${propertyName} but those dates show as taken. What else is free?`, { stay, property: propertyName })];
+  }
+
+  const lines = [t('booking.waGreeting', `Hello! I'm interested in ${propertyName}.`, { property: propertyName })];
+  if (stay) lines.push(t('booking.waDates', `Dates: ${stay}, ${guestCount} guests.`, { stay, guests: guestCount }));
+  if (shownTotal) lines.push(t('booking.waQuoted', `Quoted total: ${shownTotal}.`, { total: shownTotal }));
+  return lines;
+}
+
 /**
  * Hook shared by every talk control: the tel: and wa.me hrefs, or null when the property has no
  * phone configured (in which case nothing renders anywhere).
@@ -83,9 +138,11 @@ function waDigits(phone: string): string {
  * the owner has to ask for the dates, the party size and which property — slower for him than the
  * form this replaces. With it, the first message already carries the answer.
  */
-export function useTalkLinks(variant: 'general' | 'unavailable' | 'no-dates' = 'general') {
+export function useTalkLinks(variant: TalkVariant = 'general') {
   const { property, checkInDate, checkOutDate, guestCount, pricing } = useBooking();
   const { t, currentLang } = useLanguage();
+  // Before the `!phone` bail-out on purpose: hooks cannot run conditionally.
+  const { formatPrice, convertToSelectedCurrency } = useCurrency();
 
   const phone = property?.contactPhone;
   if (!phone) return null;
@@ -98,35 +155,18 @@ export function useTalkLinks(variant: 'general' | 'unavailable' | 'no-dates' = '
     ? `${format(checkInDate, dateFmt, { locale })} – ${format(checkOutDate, dateFmt, { locale })}`
     : null;
 
-  const lines: string[] = [];
-  if (variant === 'no-dates') {
-    // The entry state has no dates and no price to quote, so the prefill has to ASK rather than
-    // state. Someone arriving without dates is usually not being coy about the calendar - they do
-    // not have one yet, which is exactly the question the owner can answer in a sentence.
-    lines.push(t(
-      'booking.waNoDates',
-      `Hello! I am interested in ${propertyName}. Which dates do you have free?`,
-      { property: propertyName }
-    ));
-  } else if (variant === 'unavailable' && stay) {
-    lines.push(t(
-      'booking.waUnavailable',
-      `Hello! I tried ${stay} at ${propertyName} but those dates show as taken. What else is free?`,
-      { stay, property: propertyName }
-    ));
-  } else {
-    lines.push(t('booking.waGreeting', `Hello! I'm interested in ${propertyName}.`, { property: propertyName }));
-    if (stay) {
-      lines.push(t('booking.waDates', `Dates: ${stay}, ${guestCount} guests.`, { stay, guests: guestCount }));
-    }
-    if (pricing?.totalPrice) {
-      lines.push(t(
-        'booking.waQuoted',
-        `Quoted total: ${Math.round(pricing.totalPrice)} ${pricing.currency}.`,
-        { total: Math.round(pricing.totalPrice), currency: pricing.currency }
-      ));
-    }
-  }
+  /**
+   * THE SAME NUMBER THE SCREEN SHOWS. This used to send `pricing.totalPrice` with `pricing.currency`
+   * — the PRICING API's base currency, not the one the visitor is looking at. So someone reading
+   * "1,415 lei" on the sticky bar could send "Total afișat: 284 EUR", and the owner would open the
+   * conversation already disagreeing with the guest about the price. Converted and formatted through
+   * the same two helpers the bar itself uses, so the two cannot drift apart again.
+   */
+  const shownTotal = pricing?.totalPrice
+    ? formatPrice(convertToSelectedCurrency(pricing.totalPrice, pricing.currency))
+    : null;
+
+  const lines = buildTalkMessageLines({ variant, propertyName, stay, guestCount, shownTotal, t });
 
   return {
     tel: `tel:${phone}`,
@@ -190,17 +230,28 @@ export function TalkActions({
   variant = 'general',
   compact = false,
   solo = false,
+  only,
   className = '',
 }: {
   position: TalkPosition;
   variant?: 'general' | 'unavailable' | 'no-dates';
   compact?: boolean;
   /**
-   * One full-width, primary-filled WhatsApp button. For the no-dates entry state, where there is
-   * nothing to book yet and so nothing for a talk button to be secondary TO - asking is the primary
-   * action on that screen, and it should look like it. Calling still lives in the header icon.
+   * One full-width, primary-filled WhatsApp button.
+   *
+   * Originally for the no-dates entry state, where there was nothing to book yet and so nothing for a
+   * talk button to be secondary TO. It now also carries the PRICED state, on both breakpoints, which
+   * is the hierarchy swap recorded at the top of this file: 0 of 304 bookings ever came through the
+   * card checkout, and every direct one was this conversation. Calling stays in the header icon on
+   * mobile and in the pair below the panel on desktop.
    */
   solo?: boolean;
+  /**
+   * Render only one half of the default pair. Exists so the desktop panel can show Call underneath a
+   * promoted WhatsApp without offering WhatsApp twice — two entry points to the same channel is the
+   * "five equals" this file's hierarchy note warns about.
+   */
+  only?: 'whatsapp' | 'call';
   className?: string;
 }) {
   const links = useTalkLinks(variant);
@@ -249,24 +300,28 @@ export function TalkActions({
 
   return (
     <div className={`flex gap-2 ${className}`}>
-      <a
-        href={links.whatsapp}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={() => reportTalkClick('whatsapp', position)}
-        className={base}
-      >
-        <WhatsAppGlyph className="h-4 w-4 flex-shrink-0" />
-        <span className="truncate">{t('booking.whatsApp', 'WhatsApp')}</span>
-      </a>
-      <a
-        href={links.tel}
-        onClick={() => reportTalkClick('call', position)}
-        className={base}
-      >
-        <PhoneGlyph className="h-4 w-4 flex-shrink-0" />
-        <span className="truncate">{callLabel}</span>
-      </a>
+      {only !== 'call' && (
+        <a
+          href={links.whatsapp}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => reportTalkClick('whatsapp', position)}
+          className={base}
+        >
+          <WhatsAppGlyph className="h-4 w-4 flex-shrink-0" />
+          <span className="truncate">{t('booking.whatsApp', 'WhatsApp')}</span>
+        </a>
+      )}
+      {only !== 'whatsapp' && (
+        <a
+          href={links.tel}
+          onClick={() => reportTalkClick('call', position)}
+          className={base}
+        >
+          <PhoneGlyph className="h-4 w-4 flex-shrink-0" />
+          <span className="truncate">{callLabel}</span>
+        </a>
+      )}
     </div>
   );
 }

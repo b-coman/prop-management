@@ -280,7 +280,7 @@
     "writeOnWhatsApp": "Write on WhatsApp",
     "waGreeting": "Hello! I'm interested in {{property}}.",
     "waDates": "Dates: {{stay}}, {{guests}} guests.",
-    "waQuoted": "Quoted total: {{total}} {{currency}}.",
+    "waQuoted": "Quoted total: {{total}}.",
     "waUnavailable": "Hello! I tried {{stay}} at {{property}} but those dates show as taken. What else is free?",
     "bookAlsoOn": "You can also book on",
     "askUs": "Ask us",
@@ -309,7 +309,8 @@
     "occupancyTotal": "Up to {{guests}} guests.",
     "occupancyAdults": "At most {{adults}} of them adults.",
     "occupancyBaseRate": "The base rate includes {{base}} guests.",
-    "occupancyChildAge": "A child is under {{age}}."
+    "occupancyChildAge": "A child is under {{age}}.",
+    "orBookOnline": "or book online"
   },
   "property": {
     "amenities": "Amenities",

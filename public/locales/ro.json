@@ -280,7 +280,7 @@
     "writeOnWhatsApp": "Scrie pe WhatsApp",
     "waGreeting": "Bună ziua! Sunt interesat de {{property}}.",
     "waDates": "Perioada: {{stay}}, {{guests}} persoane.",
-    "waQuoted": "Total afișat: {{total}} {{currency}}.",
+    "waQuoted": "Total afișat: {{total}}.",
     "waUnavailable": "Bună ziua! Am încercat {{stay}} la {{property}}, dar datele apar ocupate. Ce alte perioade aveți libere?",
     "bookAlsoOn": "Poți rezerva și pe",
     "askUs": "Întreabă-ne",
@@ -309,7 +309,8 @@
     "occupancyTotal": "Până la {{guests}} persoane.",
     "occupancyAdults": "Dintre care maximum {{adults}} adulți.",
     "occupancyBaseRate": "Tariful de bază include {{base}} persoane.",
-    "occupancyChildAge": "Copil = sub {{age}} ani."
+    "occupancyChildAge": "Copil = sub {{age}} ani.",
+    "orBookOnline": "sau rezervă online"
   },
   "property": {
     "amenities": "Facilități",

@@ -436,8 +436,21 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { cla
                     </div>
                   </details>
 
-                  {/* Action Buttons - Control Panel */}
+                  {/* Action Buttons - Control Panel.
+                      DESKTOP EQUIVALENT OF THE MOBILE SWAP, not a port of it. The phone gets one
+                      filled control in a fixed bar; here there is a whole sticky panel, so WhatsApp
+                      takes the top of it and the two tabs keep their existing shape underneath. The
+                      tab pair still has to render the "which form am I on" state, which is why they
+                      stay buttons rather than becoming a second filled CTA. */}
                   <div className="pt-3 border-t space-y-3">
+                    <TalkActions position="summary_panel" solo />
+                    <div className="flex items-center gap-2">
+                      <span className="h-px flex-1 bg-border" />
+                      <span className="text-xs tracking-wide text-muted-foreground">
+                        {t('booking.orBookOnline', 'or book online')}
+                      </span>
+                      <span className="h-px flex-1 bg-border" />
+                    </div>
                     <button
                       type="button"
                       onClick={() => handleTabClick('book')}
@@ -460,21 +473,21 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { cla
                     >
                       {t('booking.holdDates', 'Hold Dates')}
                     </button>
-                    {/* The talk path replaces the old "Contact Host" button rather than joining it.
-                        That button opened a four-field form before anyone could say a word, which is
-                        the friction, not the cure — and a panel of five equal buttons reads as five
-                        equal choices. The form is still here, one text link down. */}
+                    {/* WhatsApp is at the TOP of this panel now, so this divider introduces the two
+                        remaining ways to reach a human rather than the only one.
+                        Not uppercase. In Romanian this string is "Ai o întrebare?", and
+                        text-transform turns the "Ai" into "AI" — the divider above the only help
+                        we offer read as a product name rather than a question. */}
                     <div className="flex items-center gap-2 pt-1">
                       <span className="h-px flex-1 bg-border" />
-                      {/* Not uppercase. In Romanian this string is "Ai o întrebare?", and
-                          text-transform turns the "Ai" into "AI" — the divider above the only help
-                          we offer read as a product name rather than a question. */}
                       <span className="text-xs tracking-wide text-muted-foreground">
                         {t('booking.haveAQuestion', 'Have a question?')}
                       </span>
                       <span className="h-px flex-1 bg-border" />
                     </div>
-                    <TalkActions position="summary_panel" />
+                    {/* Call only. WhatsApp already fills the top of the panel, and offering it twice
+                        is exactly the "five equals" the hierarchy note warns about. */}
+                    <TalkActions position="summary_panel" only="call" />
                     <button
                       type="button"
                       onClick={() => handleTabClick('contact')}
@@ -1043,7 +1056,7 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { cla
               />
             </div>
             
-            {/* NO "Rezervă acum" HERE, and this is a bug fix rather than a layout preference.
+            {/* STILL NO "Rezervă acum" HERE, and it is still a bug fix rather than a preference.
                 Pricing auto-selects the `book` tab, so the form is already open by the time this bar
                 appears - and the button called `handleTabClick('book')`, setting the tab to the tab
                 it was already on. Clicked on the running page and diffed before/after: scroll
@@ -1051,10 +1064,12 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [] }: { cla
                 control on the phone did nothing except fire a tracking event, while the real submit
                 ("Continuă către Plată") sat two screens below, unreachable without scrolling past it.
                 That also means `select_booking_action` has been counting taps on a dead control.
-                The form owns its own CTA now; this bar carries the price and a way to ask. */}
-            <div className="flex gap-2">
-              <TalkActions position="mobile_bar" compact />
-            </div>
+
+                What HAS changed: this bar was left with no primary action at all, only an outlined
+                WhatsApp. It is the one control visible for the entire priced state, so the route that
+                actually closes now fills it - `solo` rather than `compact`. See the hierarchy note in
+                GuestContactActions for the 0-of-304 evidence. Calling stays in the sticky header. */}
+            <TalkActions position="mobile_bar" solo />
           </div>
         </div>
       )}
