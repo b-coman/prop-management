@@ -1,19 +1,15 @@
 /**
- * Tests for the iCal sync's write path — which had none, despite two post-ship bugfixes on it
+ * Tests for the iCal sync's write path, which had none despite two post-ship bugfixes on it
  * ("iCal import not writing blocked dates", "sync cleanup now finds availability docs missing
  * propertyId/month").
  *
- * The focus is the OTA observation seam, because its whole value is being trustworthy about WHEN a
- * reservation appeared. A first sighting recorded twice, or a re-sync counted as a new booking, would
- * report a working funnel that isn't one — which is exactly the error this store exists to prevent.
+ * What matters here is conflict resolution: this is the code that decides whether an OTA feed may
+ * overwrite a date we have already sold. Getting that wrong is a double booking, which is the most
+ * expensive failure this repo can produce.
  */
 import { syncFeedToAvailability } from '../ical-import';
-import { recordOtaBlockObservations } from '@/services/otaBlockObservations';
 import type { ICalFeed } from '@/types';
 
-jest.mock('@/services/otaBlockObservations', () => ({
-  recordOtaBlockObservations: jest.fn().mockResolvedValue(0),
-}));
 jest.mock('@/lib/logger', () => ({
   loggers: { icalSync: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } },
 }));
@@ -21,8 +17,6 @@ jest.mock('firebase-admin/firestore', () => ({
   FieldValue: { serverTimestamp: () => '__ts__', delete: () => '__delete__' },
   FieldPath: { documentId: () => '__docId__' },
 }));
-
-const mockRecord = recordOtaBlockObservations as jest.Mock;
 
 const FEED: ICalFeed = {
   id: 'feed-booking',
@@ -33,8 +27,9 @@ const FEED: ICalFeed = {
 };
 
 /**
- * A `db` stub over a single availability month. `docs` maps a month key to the stored document, so a
- * test can express "the 24th was already blocked by this feed" as data rather than as mock choreography.
+ * A `db` stub over a single availability month, so a test can express "the 24th was already blocked
+ * by this feed" as data rather than as mock choreography. `batch.update` calls are inspectable, which
+ * is how the write assertions below work.
  */
 function makeDb(docs: Record<string, Record<string, unknown>> = {}) {
   const commit = jest.fn().mockResolvedValue(undefined);
@@ -56,9 +51,7 @@ function makeDb(docs: Record<string, Record<string, unknown>> = {}) {
         }),
         doc: (docId: string) => {
           const month = docId.slice(`${FEED.propertyId}_`.length);
-          return {
-            get: async () => ({ exists: !!docs[month], data: () => docs[month] }),
-          };
+          return { get: async () => ({ exists: !!docs[month], data: () => docs[month] }) };
         },
       };
     }),
@@ -69,129 +62,101 @@ function makeDb(docs: Record<string, Record<string, unknown>> = {}) {
 /** One night, 24 Oct 2026. iCal end dates are exclusive. */
 const oneNight = (uid = 'bkg-1') => [{
   uid,
-  summary: 'CLOSED - Not available',
+  summary: 'Reserved',
   startDate: new Date(Date.UTC(2026, 9, 24)),
   endDate: new Date(Date.UTC(2026, 9, 25)),
 }];
 
-/** Four nights, 24-27 Oct 2026 — one reservation, four days. */
-const fourNights = (uid = 'bkg-4') => [{
-  uid,
-  summary: 'CLOSED - Not available',
+/** Four nights, 24-27 Oct 2026. */
+const fourNights = () => [{
+  uid: 'bkg-4',
+  summary: 'Reserved',
   startDate: new Date(Date.UTC(2026, 9, 24)),
   endDate: new Date(Date.UTC(2026, 9, 28)),
 }];
 
+const month = (extra: Record<string, unknown> = {}) => ({
+  '2026-10': { propertyId: FEED.propertyId, month: '2026-10', ...extra },
+});
+
 beforeEach(() => jest.clearAllMocks());
 
-describe('OTA block observations', () => {
-  it('records a first sighting when the night was not blocked before', async () => {
-    const { db } = makeDb({ '2026-10': { propertyId: FEED.propertyId, month: '2026-10' } });
+describe('syncFeedToAvailability', () => {
+  it('blocks a night the feed reports and we do not yet hold', async () => {
+    const { db, batch } = makeDb(month());
     const result = await syncFeedToAvailability(db, FEED, oneNight());
 
     expect(result.datesBlocked).toBe(1);
-    expect(mockRecord).toHaveBeenCalledTimes(1);
-    const [rows] = mockRecord.mock.calls[0];
-    expect(rows).toEqual([expect.objectContaining({
-      propertyId: FEED.propertyId,
-      date: '2026-10-24',
-      feedId: 'feed-booking',
-      feedName: 'Booking.com',
-      event: 'appeared',
-      uid: 'bkg-1',
-    })]);
+    expect(batch.update).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      'available.24': false,
+      'externalBlocks.24': 'feed-booking',
+    }));
   });
 
-  it('records NOTHING on a re-sync of a block it already knows about', async () => {
-    // This is the one that matters. The cron runs every 15 minutes; if a steady state produced rows,
-    // one reservation would look like ~96 bookings a day.
-    const { db } = makeDb({
-      '2026-10': { propertyId: FEED.propertyId, month: '2026-10', available: { 24: false }, externalBlocks: { 24: 'feed-booking' } },
-    });
+  it('expands a multi-night event to one entry per night, checkout excluded', async () => {
+    const { db } = makeDb(month());
+    const result = await syncFeedToAvailability(db, FEED, fourNights());
+    expect(result.datesBlocked).toBe(4);   // 24, 25, 26, 27 — not the 28th
+  });
+
+  it('writes nothing when the state already matches', async () => {
+    // The cron runs every 15 minutes; a steady state must be a no-op.
+    const { db, batch } = makeDb(month({ available: { 24: false }, externalBlocks: { 24: 'feed-booking' } }));
     const result = await syncFeedToAvailability(db, FEED, oneNight());
 
     expect(result.datesBlocked).toBe(0);
-    expect(mockRecord).not.toHaveBeenCalled();
+    expect(batch.update).not.toHaveBeenCalled();
   });
 
-  it('does not record a first sighting when another feed already held the night', async () => {
-    // The field is present, so this is a hand-off between feeds, not a new reservation.
-    const { db } = makeDb({
-      '2026-10': { propertyId: FEED.propertyId, month: '2026-10', available: { 24: false }, externalBlocks: { 24: 'feed-airbnb' } },
-    });
+  it('NEVER overwrites a date we have sold ourselves', async () => {
+    // available:false with no externalBlocks entry is our own booking. Losing this check is a
+    // double booking, which is why it is the most important assertion in the file.
+    const { db, batch } = makeDb(month({ available: { 24: false } }));
     const result = await syncFeedToAvailability(db, FEED, oneNight());
 
-    expect(result.datesBlocked).toBe(1); // the calendar is still corrected
-    expect(mockRecord).not.toHaveBeenCalled(); // but it is not a new booking
+    expect(result.skippedOurBookings).toBe(1);
+    expect(result.datesBlocked).toBe(0);
+    expect(batch.update).not.toHaveBeenCalled();
   });
 
-  it('gives every night of one reservation the same uid, so it folds back into one booking', async () => {
-    const { db } = makeDb({ '2026-10': { propertyId: FEED.propertyId, month: '2026-10' } });
-    await syncFeedToAvailability(db, FEED, fourNights('bkg-4'));
-
-    const [rows] = mockRecord.mock.calls[0];
-    expect(rows).toHaveLength(4);
-    expect(rows.map((r: { date: string }) => r.date)).toEqual(['2026-10-24', '2026-10-25', '2026-10-26', '2026-10-27']);
-    expect(new Set(rows.map((r: { uid: string }) => r.uid))).toEqual(new Set(['bkg-4']));
+  it('never overwrites a held date', async () => {
+    const { db } = makeDb(month({ holds: { 24: 'booking-abc' } }));
+    const result = await syncFeedToAvailability(db, FEED, oneNight());
+    expect(result.skippedOurBookings).toBe(1);
+    expect(result.datesBlocked).toBe(0);
   });
 
-  it('shares one capturedAt across the whole run', async () => {
-    const { db } = makeDb({ '2026-10': { propertyId: FEED.propertyId, month: '2026-10' } });
-    await syncFeedToAvailability(db, FEED, fourNights());
-
-    const [, capturedAt] = mockRecord.mock.calls[0];
-    expect(typeof capturedAt).toBe('string');
-    expect(capturedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  it('ignores our own exported events, so the export cannot re-enter as a block', async () => {
+    const { db } = makeDb(month());
+    const result = await syncFeedToAvailability(db, FEED, oneNight('rentalspot-abc123'));
+    expect(result.skippedOwnExport).toBe(1);
+    expect(result.datesBlocked).toBe(0);
   });
 
-  it('records a release when a block disappears from the feed', async () => {
-    const { db } = makeDb({
-      '2026-10': { propertyId: FEED.propertyId, month: '2026-10', available: { 24: false }, externalBlocks: { 24: 'feed-booking' } },
-    });
+  it('releases a block that has disappeared from the feed', async () => {
+    const { db, batch } = makeDb(month({ available: { 24: false }, externalBlocks: { 24: 'feed-booking' } }));
     const result = await syncFeedToAvailability(db, FEED, []);
 
     expect(result.datesReleased).toBe(1);
-    const [rows] = mockRecord.mock.calls[0];
-    expect(rows).toEqual([expect.objectContaining({ date: '2026-10-24', event: 'released' })]);
-    expect(rows[0].uid).toBeUndefined(); // the event that created it is long gone
+    expect(batch.update).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      'available.24': true,
+      'externalBlocks.24': '__delete__',
+    }));
   });
 
-  it('skips our own bookings and records no observation for them', async () => {
-    // available:false with NO externalBlocks entry = our own booking. Must not be counted as an OTA one.
-    const { db } = makeDb({
-      '2026-10': { propertyId: FEED.propertyId, month: '2026-10', available: { 24: false } },
-    });
+  it('takes over a night another feed was holding', async () => {
+    const { db } = makeDb(month({ available: { 24: false }, externalBlocks: { 24: 'feed-airbnb' } }));
     const result = await syncFeedToAvailability(db, FEED, oneNight());
-
-    expect(result.skippedOurBookings).toBe(1);
-    expect(result.datesBlocked).toBe(0);
-    expect(mockRecord).not.toHaveBeenCalled();
+    expect(result.datesBlocked).toBe(1);
   });
 
-  it('skips held dates', async () => {
-    const { db } = makeDb({
-      '2026-10': { propertyId: FEED.propertyId, month: '2026-10', holds: { 24: 'booking-abc' } },
-    });
-    const result = await syncFeedToAvailability(db, FEED, oneNight());
-
-    expect(result.skippedOurBookings).toBe(1);
-    expect(mockRecord).not.toHaveBeenCalled();
-  });
-
-  it('skips our own exported events, so the export cannot re-enter as a booking', async () => {
-    const { db } = makeDb({ '2026-10': { propertyId: FEED.propertyId, month: '2026-10' } });
-    const result = await syncFeedToAvailability(db, FEED, oneNight('rentalspot-abc123'));
-
-    expect(result.skippedOwnExport).toBe(1);
-    expect(result.datesBlocked).toBe(0);
-    expect(mockRecord).not.toHaveBeenCalled();
-  });
-
-  it('does not call the store at all when nothing changed', async () => {
-    const { db } = makeDb({
-      '2026-10': { propertyId: FEED.propertyId, month: '2026-10', available: { 24: false }, externalBlocks: { 24: 'feed-booking' } },
-    });
+  it('always stamps propertyId and month, for docs other code paths created without them', async () => {
+    // The reason for one of the two post-ship bugfixes: cleanup could not find such docs.
+    const { db, batch } = makeDb(month());
     await syncFeedToAvailability(db, FEED, oneNight());
-    expect(mockRecord).not.toHaveBeenCalled();
+    expect(batch.update).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      propertyId: FEED.propertyId,
+      month: '2026-10',
+    }));
   });
 });

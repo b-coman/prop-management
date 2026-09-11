@@ -310,15 +310,6 @@ service cloud.firestore {
       allow write: if false;  // Admin SDK only (parity-capture / parity-pack)
     }
 
-    match /otaBlockObservations/{observationId} {
-      // When an OTA reservation first appeared on a feed, and when it went away. Append-only, and the
-      // reason it is a separate collection rather than a field on the availability doc: recording an
-      // OTA booking as a real booking deletes `externalBlocks.{day}`, which would take the evidence
-      // with it. Written only by the iCal sync (cron + the admin's manual sync).
-      allow read: if isSuperAdmin() || isPropertyOwner();
-      allow write: if false;  // Admin SDK only (ical-import)
-    }
-
     match /competitorListings/{listingId} {
       // The owner-curated comparable set: one document per LISTING (a house on one channel), never
       // per property — the same house on Airbnb and Booking competes in two separate fields.
