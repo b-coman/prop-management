@@ -356,6 +356,7 @@ export default async function BookingCheckPage({ params, searchParams }: Booking
               cancellationPolicy={cancellationPolicy}
               ratings={ratings}
               review={bookingReview}
+              heroImage={heroImage}
             />
           </BookingClientLayout>
         </LanguageProvider>

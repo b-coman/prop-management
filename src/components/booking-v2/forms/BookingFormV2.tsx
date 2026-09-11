@@ -210,7 +210,7 @@ export function BookingFormV2({
             <div className="space-y-6">
               <div className="flex items-center gap-2 mb-6">
                 <div className="w-1 h-6 bg-primary rounded-full"></div>
-                <h3 className="font-semibold text-lg">{t('booking.guestInformation', 'Guest Information')}</h3>
+                <h2 className="font-semibold text-lg">{t('booking.guestInformation', 'Guest Information')}</h2>
               </div>
               
               {/* Personal Information Group */}

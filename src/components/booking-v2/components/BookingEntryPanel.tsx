@@ -163,9 +163,9 @@ export function BookingEntryPanel({ stays = [] }: { stays?: EntryStay[] }) {
           answering early. */}
       {stays.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-sm font-semibold text-foreground">
+          <h2 className="text-sm font-semibold text-foreground">
             {t('booking.entryFreeDates', 'A few dates free right now')}
-          </h3>
+          </h2>
           <div className="flex flex-col gap-2">
             {stays.map((s, i) => (
               <button

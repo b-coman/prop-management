@@ -744,13 +744,13 @@ const BookingSummaryText = memo(function BookingSummaryText({
   t: (key: string, fallback: string, options?: any) => string;
 }) {
   return (
-    <h3 className="text-lg font-semibold">
+    <h2 className="text-lg font-semibold">
       {t('booking.bookingSummary', "You're booking a {{nights}}-night stay for {{guests}} {{guestLabel}}", {
         nights,
         guests,
         guestLabel: guests === 1 ? t('booking.guest', 'guest') : t('booking.guests', 'guests')
       })}
-    </h3>
+    </h2>
   );
 });
 

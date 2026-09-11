@@ -54,13 +54,13 @@ const BookingSummaryText = memo(function BookingSummaryText({
   t: (key: string, fallback: string, options?: any) => string;
 }) {
   return (
-    <h3 className="text-lg font-semibold">
+    <h2 className="text-lg font-semibold">
       {t('booking.bookingSummary', "You're booking a {{nights}}-night stay for {{guests}} {{guestLabel}}", {
         nights,
         guests,
         guestLabel: guests === 1 ? t('booking.guest', 'guest') : t('booking.guests', 'guests')
       })}
-    </h3>
+    </h2>
   );
 });
 
@@ -129,16 +129,25 @@ interface BookingPageV2Props {
   cancellationPolicy?: string | null;
   ratings?: { average: number; count: number } | null;
   review?: BookingReassuranceReview | null;
+  /**
+   * The property's hero image. The route has fetched this since long before V2 and hands it to
+   * BookingClientLayout, which injects it into this component with an untyped `cloneElement` —
+   * where, undeclared, it was silently dropped. So it was a Firestore read paid for on every
+   * booking page load and never rendered. Declared here and passed explicitly by the route now;
+   * the clone injection still supplies the same value, so both routes agree.
+   */
+  heroImage?: string | null;
 }
 
 // Internal component that uses the booking context
-function BookingPageContent({ className, otaLinks = [], entryStays = [], cancellationPolicy, ratings, review }: {
+function BookingPageContent({ className, otaLinks = [], entryStays = [], cancellationPolicy, ratings, review, heroImage }: {
   className?: string;
   otaLinks?: OtaLink[];
   entryStays?: EntryStay[];
   cancellationPolicy?: string | null;
   ratings?: { average: number; count: number } | null;
   review?: BookingReassuranceReview | null;
+  heroImage?: string | null;
 }) {
   const {
     property,
@@ -331,7 +340,17 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [], cancell
         </div>
       </div>
 
-      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 pb-32 lg:pb-8 ${className}`}>
+      {/* A LANDMARK AND A LEVEL-ONE HEADING, neither of which this page had. Measured on the live
+          page: no <main> anywhere in the document, and the whole heading tree was two h3s — one of
+          them display:none on mobile — so the only real heading a phone reader met was "Informații
+          Oaspete", arriving at level three under nothing. The h1 is sr-only because a visible one
+          would push the date picker down, which is the fold mistake this page has already made
+          once; the name of the page is not information a sighted visitor is missing. Reuses
+          `booking.checkAvailabilityAndBook`, already translated — no new string. */}
+      <main className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 pb-32 lg:pb-8 ${className}`}>
+        <h1 className="sr-only">
+          {t('booking.checkAvailabilityAndBook', 'Check Availability & Book')} - {propertyName}
+        </h1>
         {/* V2.7 Reorganized Layout: Control Panel (Left) + Workspace (Right) */}
       <div className="grid lg:grid-cols-5 gap-6 lg:gap-8">
         {/* Left Column: 40% - Control Panel (Date/Guest + Price + Actions) */}
@@ -352,9 +371,9 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [], cancell
                   suggestions are the shortcut, but the DECISION is made in the picker, so the picker
                   gets a name. */}
               {entryStays.length > 0 && (
-                <h3 className="mb-2 mt-6 text-sm font-semibold text-foreground">
+                <h2 className="mb-2 mt-6 text-sm font-semibold text-foreground">
                   {t('booking.entryPickOwn', 'Looking for something else? Pick your dates')}
-                </h3>
+                </h2>
               )}
             </div>
           )}
@@ -540,12 +559,18 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [], cancell
                 expression, and this belongs under the panel in every state anyway. Under the card
                 rather than in it: that card is the ACTION surface and stays one scannable block.
                 Desktop only; mobile places the same component after the form. */}
+            {/* The photo rides along on desktop too. Checked before adding it: this panel is
+                `lg:sticky`, and at 1280x800 it is already 928px — taller than the window. That is
+                safe because a sticky box stops sticking at the bottom of its containing block, and
+                the left column is what sets the grid row height (325 + 24 + 928 = 1277, the row
+                exactly), so the page grows with the panel and its bottom stays reachable. */}
             <BookingReassurance
               className="mt-4"
               cancellationPolicy={cancellationPolicy}
               ratings={ratings}
               review={review}
               canArrangeDeposit={!!property?.contactPhone}
+              heroImage={heroImage}
             />
           </div>
         </div>
@@ -878,9 +903,9 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [], cancell
                   <div className="mb-4">
                     <Calendar className="h-16 w-16 mx-auto text-muted-foreground/30" />
                   </div>
-                  <h3 className="text-lg font-semibold mb-2">
+                  <h2 className="text-lg font-semibold mb-2">
                     {t('booking.readyToBook', 'Ready to Book?')}
-                  </h3>
+                  </h2>
                   <p className="text-sm text-muted-foreground">
                     {t('booking.selectActionInControlPanel', 'Select an action from the control panel on the left to continue')}
                   </p>
@@ -898,9 +923,9 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [], cancell
                   <div className="mb-4">
                     <Loader2 className="h-16 w-16 mx-auto text-muted-foreground/30 animate-spin" />
                   </div>
-                  <h3 className="text-lg font-semibold mb-2">
+                  <h2 className="text-lg font-semibold mb-2">
                     {t('booking.checkingAvailability', 'Checking Availability...')}
-                  </h3>
+                  </h2>
                 </CardContent>
               </Card>
             </div>
@@ -934,9 +959,9 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [], cancell
                     <div className="mb-4">
                       <CalendarX2 className="h-12 w-12 mx-auto text-muted-foreground/40" />
                     </div>
-                    <h3 className="text-lg font-semibold mb-2">
+                    <h2 className="text-lg font-semibold mb-2">
                       {t('booking.datesUnavailableTitle', 'These Dates Are Unavailable')}
-                    </h3>
+                    </h2>
                     <p className="text-sm text-muted-foreground">
                       {t('booking.datesUnavailableHint', 'Try one of the suggested dates, or pick different ones.')}
                     </p>
@@ -1020,11 +1045,12 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [], cancell
             ratings={ratings}
             review={review}
             canArrangeDeposit={!!property?.contactPhone}
+            heroImage={heroImage}
           />
           <OtaAlternatives links={otaLinks} className="mt-5 lg:mt-10" />
         </div>
       </div>
-      </div>
+      </main>
 
       {/* NO DATES YET — the one remaining state with nothing pinned, and the busiest entry of all.
           Everything above it scrolls: the picker is 319px tall on a 393px phone, and the openings
@@ -1124,7 +1150,8 @@ export function BookingPageV2({
   entryStays,
   cancellationPolicy,
   ratings,
-  review
+  review,
+  heroImage
 }: BookingPageV2Props) {
   const { setTheme } = useTheme();
   const [isMounted, setIsMounted] = useState(false);
@@ -1148,7 +1175,7 @@ export function BookingPageV2({
       initialCurrency={initialCurrency}
     >
       <BookingPageContent className={className} otaLinks={otaLinks} entryStays={entryStays}
-        cancellationPolicy={cancellationPolicy} ratings={ratings} review={review} />
+        cancellationPolicy={cancellationPolicy} ratings={ratings} review={review} heroImage={heroImage} />
     </BookingProvider>
   );
 }
