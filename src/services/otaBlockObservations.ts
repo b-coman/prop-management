@@ -29,6 +29,7 @@
  * written down.
  */
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
+import type { IcalEventKind } from '@/lib/ical/classifyEvent';
 import { loggers } from '@/lib/logger';
 
 const logger = loggers.icalSync;
@@ -54,6 +55,15 @@ export interface OtaBlockObservation {
   uid?: string;
   /** Feed-provided summary, trimmed. Booking.com uses "CLOSED - Not available"; Airbnb names the guest. */
   summary?: string;
+  /**
+   * Whether this was a guest stay or an OTA closing inventory. Attribution counts 'reservation' only.
+   * Without it the store filled with phantom bookings on its first day live: Booking.com publishes a
+   * rolling 551-night "CLOSED - Not available" horizon block, and every time that horizon moved it
+   * looked like a reservation appearing and another being cancelled.
+   */
+  kind: IcalEventKind;
+  /** Nights in the SOURCE event, not this row. 551 is a horizon, not somebody's holiday. */
+  eventNights?: number;
   capturedAt: string;
   createdAt: unknown;
 }
@@ -71,6 +81,8 @@ export interface RecordOtaBlockInput {
   event: OtaBlockEvent;
   uid?: string;
   summary?: string;
+  kind?: IcalEventKind;
+  eventNights?: number;
   /** Shared across one sync run so a multi-night reservation gets one timestamp, not four. */
   capturedAt?: string;
 }
@@ -118,6 +130,8 @@ export async function recordOtaBlockObservations(
           event: input.event,
           ...(input.uid ? { uid: input.uid } : {}),
           ...(input.summary ? { summary: input.summary.slice(0, 200) } : {}),
+          kind: input.kind ?? 'unknown',
+          ...(typeof input.eventNights === 'number' ? { eventNights: input.eventNights } : {}),
           capturedAt: input.capturedAt ?? capturedAt,
           createdAt: FieldValue.serverTimestamp(),
         };
@@ -161,28 +175,59 @@ export async function loadOtaBlockObservations(
  * Fold night-level observations into reservations.
  *
  * A four-night booking arrives as four rows. Counting rows would report four bookings, which is the
- * kind of number that reads as a working funnel and is not one. Groups by `uid` where the feed gave
- * us one; otherwise by runs of consecutive nights on the same feed seen in the same capture.
+ * kind of number that reads as a working funnel and is not one.
+ *
+ * ONLY 'reservation' ROWS COUNT. On its first day live this store recorded Booking.com's rolling
+ * 551-night "CLOSED - Not available" horizon as reservations appearing and, an hour later, as
+ * cancellations — pure noise in the one number the store exists to produce. `classifyIcalEvent` tells
+ * the two apart; `includeKinds` is there so a reader can deliberately look at the rest.
+ *
+ * GROUPED BY UID, OR BY CONSECUTIVE NIGHTS. The first version fell back to grouping by capture
+ * instant when a feed gave no uid, which folded 2027-09-05 and 2028-03-10 into one "2-night stay"
+ * purely because the same sync saw both. Nights are now only joined when they actually touch.
  */
 export function groupIntoReservations(
   observations: OtaBlockObservation[],
-): Array<{ feedId: string; feedName: string; uid?: string; nights: string[]; capturedAt: string }> {
-  const appeared = observations.filter(o => o.event === 'appeared');
-  const groups = new Map<string, { feedId: string; feedName: string; uid?: string; nights: string[]; capturedAt: string }>();
+  includeKinds: IcalEventKind[] = ['reservation'],
+): Array<{ feedId: string; feedName: string; uid?: string; nights: string[]; capturedAt: string; kind: IcalEventKind }> {
+  const nextDay = (d: string) => {
+    const t = new Date(`${d}T00:00:00Z`);
+    t.setUTCDate(t.getUTCDate() + 1);
+    return t.toISOString().slice(0, 10);
+  };
+
+  const appeared = observations
+    .filter((o) => o.event === 'appeared')
+    .filter((o) => includeKinds.includes(o.kind ?? 'unknown'))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const groups: Array<{ feedId: string; feedName: string; uid?: string; nights: string[]; capturedAt: string; kind: IcalEventKind }> = [];
 
   for (const o of appeared) {
-    // Without a uid, the capture instant plus the feed is the best available proxy for "one event".
-    const key = o.uid ? `${o.feedId}|${o.uid}` : `${o.feedId}|${o.capturedAt}`;
-    const existing = groups.get(key);
+    const existing = groups.find(
+      (g) =>
+        g.feedId === o.feedId &&
+        (o.uid
+          ? g.uid === o.uid
+          : // No uid: join only a night that literally continues this run.
+            !g.uid && nextDay(g.nights[g.nights.length - 1]) === o.date),
+    );
     if (existing) {
       existing.nights.push(o.date);
       if (o.capturedAt < existing.capturedAt) existing.capturedAt = o.capturedAt;
     } else {
-      groups.set(key, { feedId: o.feedId, feedName: o.feedName, uid: o.uid, nights: [o.date], capturedAt: o.capturedAt });
+      groups.push({
+        feedId: o.feedId,
+        feedName: o.feedName,
+        uid: o.uid,
+        nights: [o.date],
+        capturedAt: o.capturedAt,
+        kind: o.kind ?? 'unknown',
+      });
     }
   }
 
-  return [...groups.values()]
-    .map(g => ({ ...g, nights: g.nights.sort() }))
+  return groups
+    .map((g) => ({ ...g, nights: [...g.nights].sort() }))
     .sort((a, b) => b.capturedAt.localeCompare(a.capturedAt));
 }
