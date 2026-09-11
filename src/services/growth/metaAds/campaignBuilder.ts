@@ -145,6 +145,11 @@ export interface CreateCreativeSpec {
 
 export interface CreateAdSpec {
   name: string;
+  /**
+   * The page the ad sends traffic to. Used only to derive the ad's `conversion_domain`.
+   * `createCampaignChain` fills it from the ad set spec, so chain callers never set it.
+   */
+  landingUrl?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -407,7 +412,16 @@ export async function createCreative(
   return createResource<{ id: string }>('adcreatives', ctx.adAccountId, ctx.token, payload, propertyId);
 }
 
-/** Create a PAUSED ad under `adSetId`, wired to `creativeId`. Last link in the chain. */
+/**
+ * Create a PAUSED ad under `adSetId`, wired to `creativeId`. Last link in the chain.
+ *
+ * Every ad carries the property's pixel in `tracking_specs`, whatever its ad set optimises for.
+ * Meta only adds the pixel by itself when the ad set optimises for a site event. A traffic ad
+ * without it gets no site events credited in Ads Manager (no ViewContent, Contact or Purchase),
+ * and can't be retuned to optimise on one until the pixel is attached. The September 2026
+ * traffic flights went out like that: hundreds of pixel events from their visitors, zero
+ * credited to the ads. `conversion_domain` goes with it, as on the conversion-optimised ads (§9g).
+ */
 export async function createAd(
   propertyId: string,
   adSetId: string,
@@ -420,6 +434,9 @@ export async function createAd(
     return { ok: false, error: 'no-ad-context' };
   }
 
+  const pixelId = await getPixelIdForProperty(propertyId);
+  const conversionDomain = spec.landingUrl ? deriveConversionDomain(spec.landingUrl) : undefined;
+
   return createResource<{ id: string }>(
     'ads',
     ctx.adAccountId,
@@ -428,6 +445,10 @@ export async function createAd(
       name: spec.name,
       adset_id: adSetId,
       creative: { creative_id: creativeId },
+      ...(pixelId
+        ? { tracking_specs: [{ 'action.type': ['offsite_conversion'], fb_pixel: [pixelId] }] }
+        : {}),
+      ...(pixelId && conversionDomain ? { conversion_domain: conversionDomain } : {}),
     },
     propertyId
   );
@@ -599,7 +620,10 @@ export async function createCampaignChain(
   const creativeId = creativeRes.data.id;
 
   // (f) ad
-  const adRes = await createAd(propertyId, adSetId, creativeId, spec.ad);
+  const adRes = await createAd(propertyId, adSetId, creativeId, {
+    landingUrl: spec.adSet.landingUrl,
+    ...spec.ad,
+  });
   if (!adRes.ok) {
     logger.warn('createCampaignChain: ad stage failed — rolling back', { propertyId, error: adRes.error });
     await rollback(propertyId, ctx.token, [

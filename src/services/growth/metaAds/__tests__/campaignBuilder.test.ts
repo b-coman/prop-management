@@ -177,6 +177,10 @@ describe('createCampaignChain — engine enabled', () => {
     expect(adBody.get('status')).toBe('PAUSED');
     expect(adBody.get('adset_id')).toBe('meta-adset-1');
     expect(JSON.parse(adBody.get('creative') as string)).toEqual({ creative_id: 'meta-creative-1' });
+    expect(JSON.parse(adBody.get('tracking_specs') as string)).toEqual([
+      { 'action.type': ['offsite_conversion'], fb_pixel: ['pixel-123'] },
+    ]);
+    expect(adBody.get('conversion_domain')).toBe('prahova-chalet.ro');
 
     // --- Firestore doc ---
     expect(addMock).toHaveBeenCalledTimes(1);
@@ -370,6 +374,26 @@ describe('createCampaignChain — engine enabled', () => {
     const [, campaignInit] = findCall('campaigns');
     const campaignBody = new URLSearchParams(campaignInit.body as string);
     expect(campaignBody.get('objective')).toBe('OUTCOME_TRAFFIC');
+  });
+
+  it('a traffic ad still carries the pixel, although its ad set optimises for landing page views', async () => {
+    // Meta only attaches the pixel by itself to conversion-optimised ad sets. The September
+    // 2026 traffic flights went out without it and had no site events credited to them.
+    const { db } = makeAdminDb();
+    mockGetAdminDb.mockResolvedValue(db);
+
+    const trafficSpec = { ...CHAIN_SPEC, campaign: { ...CHAIN_SPEC.campaign, objective: 'OUTCOME_TRAFFIC' } };
+    await createCampaignChain(PROPERTY, trafficSpec);
+
+    const adSetBody = new URLSearchParams(findCall('adsets')[1].body as string);
+    expect(adSetBody.get('optimization_goal')).toBe('LANDING_PAGE_VIEWS');
+    expect(adSetBody.has('promoted_object')).toBe(false);
+
+    const adBody = new URLSearchParams(findCall('ads')[1].body as string);
+    expect(JSON.parse(adBody.get('tracking_specs') as string)).toEqual([
+      { 'action.type': ['offsite_conversion'], fb_pixel: ['pixel-123'] },
+    ]);
+    expect(adBody.get('conversion_domain')).toBe('prahova-chalet.ro');
   });
 });
 
