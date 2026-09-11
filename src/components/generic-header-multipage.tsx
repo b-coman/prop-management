@@ -17,6 +17,7 @@ import { useCurrency } from '@/contexts/CurrencyContext';
 import { useLanguage } from '@/hooks/useLanguage';
 import { DEFAULT_LANGUAGE } from '@/lib/language-constants';
 import type { CurrencyCode } from '@/types';
+import { StickyBottomBar } from '@/components/ui/sticky-bottom-bar';
 
 interface HeaderProps {
   propertyName: string;
@@ -503,15 +504,10 @@ export function Header({
       </div>
     </header>
 
-    {/* Mobile sticky bottom bar */}
-    <div
-      className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 lg:hidden",
-        "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t",
-        "transition-transform duration-300 ease-in-out",
-        (showBookingCTA || scrolledPastScreen) && hasMounted ? "translate-y-0" : "translate-y-full"
-      )}
-    >
+    {/* Mobile sticky bottom bar. The chrome (position, layer, border, blur, shadow and the
+        safe-area padding this bar was missing) now comes from StickyBottomBar, shared with the
+        three on the booking page - so the two ends of the funnel stop drifting apart. */}
+    <StickyBottomBar visible={(showBookingCTA || scrolledPastScreen) && hasMounted}>
       <div className="flex items-center justify-between px-4 py-3">
         {formattedPrice && (
           <div className="flex flex-col">
@@ -538,7 +534,7 @@ export function Header({
           {t('booking.checkAvailability', 'Check Availability')}
         </Button>
       </div>
-    </div>
+    </StickyBottomBar>
     </>
   );
 }

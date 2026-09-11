@@ -61,7 +61,7 @@ export function HoldFormV2({
   selectedCurrency
 }: HoldFormV2Props) {
   const { t } = useLanguage();
-  const { convertToSelectedCurrency } = useCurrency();
+  const { convertToSelectedCurrency, formatPrice } = useCurrency();
 
   // Get data from V2 booking context
   const {
@@ -138,13 +138,11 @@ export function HoldFormV2({
   const isLoading = isProcessing || isPending;
   const isFormDisabled = isLoading || !checkInDate || !checkOutDate || !pricingDetails;
 
-  // Format hold fee display - show without decimals for whole numbers
-  const displayHoldFee = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: selectedCurrency,
-    minimumFractionDigits: holdFeeAmount % 1 === 0 ? 0 : 2,
-    maximumFractionDigits: 2
-  }).format(holdFeeAmount);
+  // THE SAME FORMATTER AS THE REST OF THE PAGE. This built its own Intl.NumberFormat pinned to
+  // 'en-US', so on a Romanian page quoting Romanian lei the holding fee read "RON 50" while the
+  // price beside it read "250 lei" - two currencies by appearance, one in fact. formatPrice is what
+  // every other figure in the booking flow goes through, so it is what this goes through now.
+  const displayHoldFee = formatPrice(holdFeeAmount);
 
   return (
     <Card className="w-full">

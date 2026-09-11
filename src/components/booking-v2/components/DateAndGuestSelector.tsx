@@ -379,7 +379,7 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
   }, [property, t]);
 
   return (
-    <div className={`space-y-4 ${className}`}>
+    <div className={`space-y-4 ${className ?? ''}`}>
       {/* THE FOCUS POINT, on mobile. The suggestions above are a shortcut; the decision is made
           here, so this block carries the accent.
           IT NEEDED A SURFACE, NOT JUST AN EDGE. Measured on the entry screen: page background white,

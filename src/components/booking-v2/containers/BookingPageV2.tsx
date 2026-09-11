@@ -21,6 +21,7 @@
 import React, { useEffect, useState, useRef, memo } from 'react';
 import { BookingProvider } from '../contexts';
 import { DateAndGuestSelector, MobilePriceDrawer, MobileDateSelectorWrapper, TalkActions, OtaAlternatives, CallIconButton, BookingEntryPanel, BookingReassurance } from '../components';
+import { StickyBottomBar } from '@/components/ui/sticky-bottom-bar';
 import type { BookingReassuranceReview } from '../components';
 import type { OtaLink, EntryStay } from '../components';
 import { ContactFormV2, HoldFormV2, BookingFormV2 } from '../forms';
@@ -347,7 +348,11 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [], cancell
           would push the date picker down, which is the fold mistake this page has already made
           once; the name of the page is not information a sighted visitor is missing. Reuses
           `booking.checkAvailabilityAndBook`, already translated — no new string. */}
-      <main className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 pb-32 lg:pb-8 ${className}`}>
+      {/* pb-32 was the clearance for the fixed bar, and it was already only 10px clear of it
+          (measured 118px of bar against 128px of padding at 393px). The bar is now taller by the
+          safe-area inset it should always have had, so the clearance has to carry the same term or
+          the last 24px of the page hides under the home indicator. */}
+      <main className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 pb-[calc(8rem+env(safe-area-inset-bottom))] lg:pb-8 ${className ?? ''}`}>
         <h1 className="sr-only">
           {t('booking.checkAvailabilityAndBook', 'Check Availability & Book')} - {propertyName}
         </h1>
@@ -1059,32 +1064,32 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [], cancell
           have scrolled past. Filled, not outlined: with nothing bookable yet there is no primary
           action for this to be secondary to, so asking IS the primary action here. */}
       {!hasValidDates && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] backdrop-blur lg:hidden">
+        <StickyBottomBar>
           {/* The explanatory line above the button is gone, deliberately. It cost 24px on a viewport
               that could not seat the date picker without scrolling, and the button already says
               "Scrie-mi pe WhatsApp" - the sentence was restating the control beneath it. */}
           <div className="container px-4 py-3">
             <TalkActions position="entry_bar" variant="no-dates" solo />
           </div>
-        </div>
+        </StickyBottomBar>
       )}
 
       {/* No price means no sticky bar at all, which left the phone with nothing pinned and the only
           way forward buried mid-scroll. If we cannot offer a price we can still offer a person. */}
       {!(hasValidPricing && pricing) && hasValidDates && !isLoadingPricing && hasPricingAnswer && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] backdrop-blur lg:hidden">
+        <StickyBottomBar>
           <div className="container px-4 py-3">
             <p className="mb-2 text-center text-xs text-muted-foreground">
               {t('booking.askWhatIsFree', "Or ask us, we'll tell you what's free.")}
             </p>
             <TalkActions position="unavailable_dates" variant="unavailable" />
           </div>
-        </div>
+        </StickyBottomBar>
       )}
 
       {/* Mobile Sticky Bottom Bar - Professional Design */}
       {hasValidPricing && pricing && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border/50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] lg:hidden">
+        <StickyBottomBar>
           <div className="container px-4 py-3">
             {/* Compact Price Header with Details Link */}
             {/* `items-baseline`, not `items-center`. The row's height is set by the 2xl price, so
@@ -1133,7 +1138,7 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [], cancell
                 GuestContactActions for the 0-of-304 evidence. Calling stays in the sticky header. */}
             <TalkActions position="mobile_bar" solo />
           </div>
-        </div>
+        </StickyBottomBar>
       )}
     </div>
   );
