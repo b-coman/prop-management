@@ -19,6 +19,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { ChevronDown } from 'lucide-react';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useLanguage } from '@/lib/language-system';
+import { reconcileRoundedAmounts } from '@/lib/pricing/display-rounding';
 import type { Property, PricingResponse } from '@/types';
 
 interface MobilePriceDrawerProps {
@@ -40,6 +41,49 @@ export function MobilePriceDrawer({
 }: MobilePriceDrawerProps) {
   const { formatPrice, selectedCurrency, convertToSelectedCurrency } = useCurrency();
   const { t } = useLanguage();
+
+  /**
+   * THE LINES ARE RECONCILED TO THE TOTAL, not rounded independently.
+   *
+   * formatPrice rounds every figure it is given, so round(a) + round(b) need not equal round(a+b).
+   * In RON it happened to line up: 2267.4 + 200 showed as 2267 + 200 against a total of 2467. The
+   * same stay in euros read 455 + 40 against a total of 496 - a breakdown that visibly does not add
+   * up, in the one place whose entire job is to make a price feel honest.
+   *
+   * The total is what the guest pays, so the total is never adjusted; the lines are. Only the lines
+   * actually rendered take part, in render order, so what is on screen is what sums.
+   */
+  const displayAmounts = React.useMemo(() => {
+    const convert = (v: number) => convertToSelectedCurrency(v, pricing.currency);
+
+    const losDiscount = pricing.lengthOfStayDiscount && pricing.lengthOfStayDiscount.discountAmount > 0
+      ? pricing.lengthOfStayDiscount.discountAmount : 0;
+    const couponDiscount = pricing.couponDiscount && pricing.couponDiscount.discountAmount > 0
+      ? pricing.couponDiscount.discountAmount : 0;
+
+    const raw: Record<string, number> = {
+      accommodation: pricing.accommodationTotal,
+      cleaning: pricing.cleaningFee > 0 ? pricing.cleaningFee : 0,
+      extraGuest: pricing.extraGuestFeeTotal && pricing.extraGuestFeeTotal > 0 ? pricing.extraGuestFeeTotal : 0,
+      taxes: pricing.taxes && pricing.taxes > 0 ? pricing.taxes : 0,
+      // Deductions carry their sign here so they reconcile in the right direction; the rows below
+      // render the minus themselves.
+      los: -losDiscount,
+      coupon: -couponDiscount,
+    };
+
+    const shown = ['accommodation', 'cleaning', 'extraGuest', 'taxes', 'los', 'coupon']
+      .filter((k) => k === 'accommodation' || raw[k] !== 0);
+
+    const reconciled = reconcileRoundedAmounts(
+      shown.map((k) => convert(raw[k])),
+      convert(pricing.totalPrice || pricing.total),
+    );
+
+    const out: Record<string, number> = {};
+    shown.forEach((k, i) => { out[k] = reconciled[i]; });
+    return out;
+  }, [pricing, convertToSelectedCurrency]);
 
   return (
     <Sheet>
@@ -81,7 +125,7 @@ export function MobilePriceDrawer({
                 {formatPrice(convertToSelectedCurrency(pricing.accommodationTotal / nights, pricing.currency))} × {nights}{' '}
                 {nights === 1 ? t('common.night', 'night') : t('common.nights', 'nights')}
               </span>
-              <span className="text-sm font-medium tabular-nums">{formatPrice(convertToSelectedCurrency(pricing.accommodationTotal, pricing.currency))}</span>
+              <span className="text-sm font-medium tabular-nums">{formatPrice(displayAmounts.accommodation)}</span>
             </div>
           </div>
 
@@ -93,19 +137,19 @@ export function MobilePriceDrawer({
               {pricing.cleaningFee > 0 && (
                 <div className="flex justify-between items-center gap-3">
                   <span className="text-sm text-muted-foreground">{t('booking.cleaningFee', 'Cleaning fee')}</span>
-                  <span className="text-sm tabular-nums">{formatPrice(convertToSelectedCurrency(pricing.cleaningFee, pricing.currency))}</span>
+                  <span className="text-sm tabular-nums">{formatPrice(displayAmounts.cleaning)}</span>
                 </div>
               )}
               {pricing.extraGuestFeeTotal && pricing.extraGuestFeeTotal > 0 && (
                 <div className="flex justify-between items-center gap-3">
                   <span className="text-sm text-muted-foreground">{t('booking.extraGuestFee', 'Extra guest fee')}</span>
-                  <span className="text-sm tabular-nums">{formatPrice(convertToSelectedCurrency(pricing.extraGuestFeeTotal, pricing.currency))}</span>
+                  <span className="text-sm tabular-nums">{formatPrice(displayAmounts.extraGuest)}</span>
                 </div>
               )}
               {pricing.taxes && pricing.taxes > 0 && (
                 <div className="flex justify-between items-center gap-3">
                   <span className="text-sm text-muted-foreground">{t('booking.taxes', 'Taxes')}</span>
-                  <span className="text-sm tabular-nums">{formatPrice(convertToSelectedCurrency(pricing.taxes, pricing.currency))}</span>
+                  <span className="text-sm tabular-nums">{formatPrice(displayAmounts.taxes)}</span>
                 </div>
               )}
             </div>
@@ -119,7 +163,7 @@ export function MobilePriceDrawer({
               {pricing.lengthOfStayDiscount && pricing.lengthOfStayDiscount.discountAmount > 0 && (
                 <div className="flex justify-between items-center gap-3 text-green-600">
                   <span className="text-sm">{t('booking.lengthOfStayDiscount', `Length of stay (${pricing.lengthOfStayDiscount.discountPercentage}%)`, { percentage: pricing.lengthOfStayDiscount.discountPercentage })}</span>
-                  <span className="text-sm tabular-nums">-{formatPrice(convertToSelectedCurrency(pricing.lengthOfStayDiscount.discountAmount, pricing.currency))}</span>
+                  <span className="text-sm tabular-nums">-{formatPrice(Math.abs(displayAmounts.los))}</span>
                 </div>
               )}
               {pricing.couponDiscount && pricing.couponDiscount.discountAmount > 0 && (
@@ -133,7 +177,7 @@ export function MobilePriceDrawer({
                       ? t('booking.couponDiscount', `Coupon (${pricing.couponDiscount.discountPercentage}%)`, { percentage: pricing.couponDiscount.discountPercentage })
                       : pricing.couponDiscount.code}
                   </span>
-                  <span className="text-sm tabular-nums">-{formatPrice(convertToSelectedCurrency(pricing.couponDiscount.discountAmount, pricing.currency))}</span>
+                  <span className="text-sm tabular-nums">-{formatPrice(Math.abs(displayAmounts.coupon))}</span>
                 </div>
               )}
             </div>

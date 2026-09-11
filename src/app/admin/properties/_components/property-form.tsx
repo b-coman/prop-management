@@ -31,6 +31,8 @@ import type { Property, CurrencyCode } from '@/types';
 import { SUPPORTED_CURRENCIES } from '@/types';
 import { createPropertyAction, updatePropertyAction } from "../actions"; // Import server actions
 import { sanitizeText } from "@/lib/sanitize"; // Assuming sanitizer
+import { MultilingualInput } from "@/app/admin/website/_components/multilingual-input";
+import { bilingualTextSchema } from "@/lib/admin/bilingual-field";
 
 // Define a Zod schema for the property form
 // Adapt this schema to match ALL fields in your Property type accurately
@@ -85,7 +87,14 @@ const propertyFormSchema = z.object({
     checkOutTime: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
     // House rules might need a different input (e.g., tags input or multi-line textarea)
     // houseRules: z.array(z.string()).optional(),
-    cancellationPolicy: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
+    /**
+     * BILINGUAL, and it has to stay that way. This was `z.string()`, and the form loaded only the
+     * `.en` half into a single textarea - so opening a property and pressing Save replaced
+     * `{en, ro}` with the English string and the Romanian half was gone. That was invisible while
+     * nothing rendered the field. The booking page renders it now. See bilingual-field.ts; the
+     * server action MUST use the same schema or it flattens on write anyway.
+     */
+    cancellationPolicy: bilingualTextSchema,
 
     // Status & Sync
     status: z.enum(['active', 'inactive', 'draft']).default('draft'),
@@ -286,7 +295,8 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
         bedConfiguration: initialData?.bedConfiguration ?? [],
         checkInTime: initialData?.checkInTime ?? '',
         checkOutTime: initialData?.checkOutTime ?? '',
-        cancellationPolicy: typeof initialData?.cancellationPolicy === 'string' ? initialData.cancellationPolicy : initialData?.cancellationPolicy?.en ?? '',
+        // The WHOLE value, not `.en`. Reading only the English half is what made the round-trip lossy.
+        cancellationPolicy: initialData?.cancellationPolicy ?? '',
         status: initialData?.status ?? 'draft',
         ownerId: initialData?.ownerId ?? '', // Handle owner ID logic
         ownerEmail: initialData?.ownerEmail ?? '', // Email for notifications
@@ -566,7 +576,10 @@ export function PropertyForm({ mode, initialData }: PropertyFormProps) {
              <FormField control={form.control} name="checkOutTime" render={({ field }) => ( <FormItem><FormLabel>Check-out Time</FormLabel><FormControl><Input placeholder="e.g., 11:00 AM" {...field} /></FormControl><FormMessage /></FormItem> )} />
          </div>
          {/* TODO: Add better input for houseRules if needed */}
-         <FormField control={form.control} name="cancellationPolicy" render={({ field }) => ( <FormItem><FormLabel>Cancellation Policy</FormLabel><FormControl><Textarea placeholder="Describe your cancellation policy..." {...field} /></FormControl><FormMessage /></FormItem> )} />
+         {/* MultilingualInput, the same control the website editor uses for every other bilingual
+             field. It also marks a missing RO with an orange dot, which is how a property with only
+             English terms becomes visible instead of silently shipping them to Romanian guests. */}
+         <FormField control={form.control} name="cancellationPolicy" render={({ field }) => ( <FormItem><FormControl><MultilingualInput label="Cancellation Policy" value={field.value} onChange={field.onChange} placeholder="Describe your cancellation policy..." multiline /></FormControl><FormMessage /></FormItem> )} />
 
         {/* --- Section: Status & Configuration --- */}
         <Separator className="my-6" />

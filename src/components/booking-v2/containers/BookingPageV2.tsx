@@ -18,10 +18,11 @@
 
 "use client";
 
-import React, { useEffect, useState, useRef, memo } from 'react';
+import React, { useEffect, useState, useRef, useMemo, memo } from 'react';
 import { BookingProvider } from '../contexts';
 import { DateAndGuestSelector, MobilePriceDrawer, MobileDateSelectorWrapper, TalkActions, OtaAlternatives, CallIconButton, BookingEntryPanel, BookingReassurance } from '../components';
 import { StickyBottomBar } from '@/components/ui/sticky-bottom-bar';
+import { reconcileRoundedAmounts } from '@/lib/pricing/display-rounding';
 import type { BookingReassuranceReview } from '../components';
 import type { OtaLink, EntryStay } from '../components';
 import { ContactFormV2, HoldFormV2, BookingFormV2 } from '../forms';
@@ -165,6 +166,66 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [], cancell
   } = useBooking();
   
   const { formatPrice, convertToSelectedCurrency, selectedCurrency, setDefaultCurrency } = useCurrency();
+
+  /**
+   * The desktop breakdown, reconciled to the total. Same defect as the mobile drawer - formatPrice
+   * rounds every figure, so independently rounded lines need not sum to the independently rounded
+   * total - but worse here, because this panel renders ONE LINE PER NIGHT. A fortnight is fourteen
+   * roundings before the fees are even added, so the gap grows with the length of the stay. The
+   * total is what is charged and is never adjusted; the lines are. See display-rounding.ts.
+   */
+  const desktopBreakdown = useMemo(() => {
+    if (!pricing) return null;
+    const convert = (v: number) => convertToSelectedCurrency(v, pricing.currency);
+
+    const nightEntries = pricing.dailyRates && Object.keys(pricing.dailyRates).length > 0
+      ? Object.entries(pricing.dailyRates).sort(([a], [b]) => a.localeCompare(b))
+      : null;
+
+    // Exactly the rows the JSX below renders, in the order it renders them.
+    const rows: number[] = nightEntries
+      ? nightEntries.map(([, rate]) => convert(rate as number))
+      : [convert(pricing.accommodationTotal || pricing.basePrice || pricing.baseRate || 0)];
+    const hasCleaning = pricing.cleaningFee > 0;
+    const hasExtraGuest = !!(pricing.extraGuestFeeTotal && pricing.extraGuestFeeTotal > 0);
+    const hasTaxes = !!(pricing.taxes && pricing.taxes > 0);
+    /**
+     * THE DISCOUNT ROWS, which this panel never had. A 14-night stay here earns a 30% length-of-stay
+     * discount: rates 7836 + cleaning 200 against a total of 5685. The rows were therefore already
+     * out by 2351 lei with nothing on screen to explain it - not a rounding problem, a missing row,
+     * and a missing row that happens to be the best news in the breakdown. Reconciling without them
+     * would have been far worse than the bug it was fixing: the residual would have been spread
+     * across the nights, quietly rewriting a 525 lei night as 357.
+     */
+    const losDiscount = pricing.lengthOfStayDiscount && pricing.lengthOfStayDiscount.discountAmount > 0
+      ? pricing.lengthOfStayDiscount.discountAmount : 0;
+    const couponDiscount = pricing.couponDiscount && pricing.couponDiscount.discountAmount > 0
+      ? pricing.couponDiscount.discountAmount : 0;
+
+    if (hasCleaning) rows.push(convert(pricing.cleaningFee));
+    if (hasExtraGuest) rows.push(convert(pricing.extraGuestFeeTotal!));
+    if (hasTaxes) rows.push(convert(pricing.taxes!));
+    if (losDiscount > 0) rows.push(-convert(losDiscount));
+    if (couponDiscount > 0) rows.push(-convert(couponDiscount));
+
+    const fixed = reconcileRoundedAmounts(rows, convert(pricing.totalPrice || pricing.total));
+
+    let i = nightEntries ? nightEntries.length : 1;
+    return {
+      nightEntries,
+      nights: fixed.slice(0, i),
+      cleaning: hasCleaning ? fixed[i++] : 0,
+      extraGuest: hasExtraGuest ? fixed[i++] : 0,
+      taxes: hasTaxes ? fixed[i++] : 0,
+      losDiscount: losDiscount > 0 ? fixed[i++] : 0,
+      couponDiscount: couponDiscount > 0 ? fixed[i++] : 0,
+      // Required on the type when the discount exists, and the row only renders when it does;
+      // the fallback is purely to keep the value a `number` for the translation options.
+      losPercentage: pricing.lengthOfStayDiscount?.discountPercentage ?? 0,
+      couponCode: pricing.couponDiscount?.code,
+      couponPercentage: pricing.couponDiscount?.discountPercentage,
+    };
+  }, [pricing, convertToSelectedCurrency]);
   const { t, currentLang } = useLanguage();
 
   // Apply the property's default currency, exactly as a property page does (property-page-renderer).
@@ -431,45 +492,64 @@ function BookingPageContent({ className, otaLinks = [], entryStays = [], cancell
                     </summary>
                     <div className="mt-3 space-y-2 px-2">
                       {/* Per-night rates */}
-                      {pricing.dailyRates && Object.keys(pricing.dailyRates).length > 0 ? (
-                        Object.entries(pricing.dailyRates)
-                          .sort(([a], [b]) => a.localeCompare(b))
-                          .map(([dateStr, rate]) => (
+                      {desktopBreakdown?.nightEntries ? (
+                        desktopBreakdown.nightEntries.map(([dateStr], idx) => (
                             <div key={dateStr} className="flex justify-between text-sm">
                               <span className="text-muted-foreground">
                                 {format(parseISO(dateStr), 'EEE, MMM d', { locale: currentLang === 'ro' ? ro : undefined })}
                               </span>
-                              <span>{formatPrice(convertToSelectedCurrency(rate, pricing.currency))}</span>
+                              <span className="tabular-nums">{formatPrice(desktopBreakdown.nights[idx])}</span>
                             </div>
                           ))
                       ) : (
                         <div className="flex justify-between text-sm">
                           <span>{t('booking.basePrice', `Base price (${numberOfNights} ${numberOfNights === 1 ? 'night' : 'nights'})`)}</span>
-                          <span>{formatPrice(convertToSelectedCurrency(pricing.accommodationTotal || pricing.basePrice || pricing.baseRate || 0, pricing.currency))}</span>
+                          <span className="tabular-nums">{formatPrice(desktopBreakdown?.nights[0] ?? 0)}</span>
                         </div>
                       )}
                       {pricing.cleaningFee > 0 && (
                         <div className="flex justify-between text-sm">
                           <span>{t('booking.cleaningFee', 'Cleaning fee')}</span>
-                          <span>{formatPrice(convertToSelectedCurrency(pricing.cleaningFee, pricing.currency))}</span>
+                          <span className="tabular-nums">{formatPrice(desktopBreakdown?.cleaning ?? 0)}</span>
                         </div>
                       )}
                       {pricing.extraGuestFeeTotal && pricing.extraGuestFeeTotal > 0 && (
                         <div className="flex justify-between text-sm">
                           <span>{t('booking.extraGuestFee', 'Extra guest fee')}</span>
-                          <span>{formatPrice(convertToSelectedCurrency(pricing.extraGuestFeeTotal, pricing.currency))}</span>
+                          <span className="tabular-nums">{formatPrice(desktopBreakdown?.extraGuest ?? 0)}</span>
                         </div>
                       )}
                       {pricing.taxes && pricing.taxes > 0 && (
                         <div className="flex justify-between text-sm">
                           <span>{t('booking.taxes', 'Taxes')}</span>
-                          <span>{formatPrice(convertToSelectedCurrency(pricing.taxes, pricing.currency))}</span>
+                          <span className="tabular-nums">{formatPrice(desktopBreakdown?.taxes ?? 0)}</span>
+                        </div>
+                      )}
+                      {/* Same rows the mobile drawer has always had. Green, because a discount is
+                          the one line in a price breakdown that is good news. */}
+                      {!!desktopBreakdown?.losDiscount && (
+                        <div className="flex justify-between text-sm text-green-600">
+                          <span>{t('booking.lengthOfStayDiscount', `Length of stay (${desktopBreakdown.losPercentage}%)`, { percentage: desktopBreakdown.losPercentage })}</span>
+                          <span className="tabular-nums">-{formatPrice(Math.abs(desktopBreakdown.losDiscount))}</span>
+                        </div>
+                      )}
+                      {!!desktopBreakdown?.couponDiscount && (
+                        <div className="flex justify-between text-sm text-green-600">
+                          <span>
+                            {/* Same reason as the mobile drawer: couponDiscount.discountPercentage is
+                                optional, so rather than print "Cupon (0%)" beside a real deduction,
+                                fall back to the code the type does guarantee. */}
+                            {typeof desktopBreakdown.couponPercentage === 'number'
+                              ? t('booking.couponDiscount', `Coupon (${desktopBreakdown.couponPercentage}%)`, { percentage: desktopBreakdown.couponPercentage })
+                              : desktopBreakdown.couponCode}
+                          </span>
+                          <span className="tabular-nums">-{formatPrice(Math.abs(desktopBreakdown.couponDiscount))}</span>
                         </div>
                       )}
                       <div className="border-t pt-3">
                         <div className="flex justify-between font-semibold">
                           <span>{t('booking.total', 'Total')}</span>
-                          <span>{formatPrice(convertToSelectedCurrency(pricing.totalPrice || pricing.total, pricing.currency))}</span>
+                          <span className="tabular-nums">{formatPrice(convertToSelectedCurrency(pricing.totalPrice || pricing.total, pricing.currency))}</span>
                         </div>
                       </div>
                     </div>

@@ -6,6 +6,7 @@ import { getAdminDb, Timestamp, FieldValue } from "@/lib/firebaseAdminSafe";
 import type { Property, SerializableTimestamp } from "@/types";
 import { revalidatePath } from "next/cache";
 import { sanitizeText } from "@/lib/sanitize";
+import { bilingualTextSchema } from '@/lib/admin/bilingual-field';
 import { loggers } from '@/lib/logger';
 import { regenerateCalendarsAfterChange } from '@/app/admin/pricing/server-actions-hybrid';
 import {
@@ -63,7 +64,9 @@ const propertyActionSchema = z.object({
     })).optional(),
     checkInTime: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
     checkOutTime: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
-    cancellationPolicy: z.string().optional().transform(val => val ? sanitizeText(val) : ''),
+    /** Bilingual `{en, ro}` or plain text. Shared with the client form - see bilingual-field.ts
+     *  for why both ends must use the same schema. */
+    cancellationPolicy: bilingualTextSchema,
     status: z.enum(['active', 'inactive', 'draft']),
     ownerId: z.string().optional(),
     ownerEmail: z.string().email().optional().or(z.literal('')).transform(val => val || null),
