@@ -225,6 +225,15 @@ export async function createPendingBookingAction(
       },
     }).catch(() => {}); // Never fail the booking for tracking
 
+    // Tell the owner NOW, not when the payment succeeds. Someone who has typed their name, email
+    // and phone and reached the card page is the warmest contact this site produces, and until
+    // this line nothing announced them: the 12 Sep attempt sat unseen for a day while the guest
+    // went back to Facebook. Non-blocking, like the tracking above - a mail failure must never
+    // cost a booking.
+    import('@/services/emailService')
+      .then(({ sendPendingBookingEmail }) => sendPendingBookingEmail(docRef.id, 'started'))
+      .catch(() => {});
+
     // Revalidate relevant pages
     try {
       revalidatePath(`/properties/${propertyId}`); // Revalidate property page

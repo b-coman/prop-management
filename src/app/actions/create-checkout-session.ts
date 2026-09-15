@@ -130,6 +130,11 @@ export async function createCheckoutSession(
       success_url: `${origin}/booking/success?session_id={CHECKOUT_SESSION_ID}${pendingBookingId ? `&booking_id=${pendingBookingId}` : ''}`,
       cancel_url: `${origin}/booking/cancel`,
       automatic_tax: { enabled: false },
+      // A guest who reaches the card page and leaves has told us more than any visitor who
+      // browsed: they typed their name, email and phone first. Stripe can mail them the same
+      // checkout link when the session expires, which is the only automatic second chance this
+      // funnel has. It needs `customer_email`, set below whenever we have it.
+      after_expiration: { recovery: { enabled: true, allow_promotion_codes: false } },
       metadata: {
         type: 'booking_full', // MUST be 'booking_full' or 'booking_hold'
         propertyId: property.id,

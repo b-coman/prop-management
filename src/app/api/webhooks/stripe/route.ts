@@ -231,6 +231,12 @@ export async function POST(req: NextRequest) {
         const { updateBookingStatus } = await import('@/services/bookingService');
         await updateBookingStatus(bookingId, 'payment_failed');
         logger.info('Booking marked as payment_failed due to expired session', { bookingId, sessionId });
+
+        // Close the loop with the owner: the guest never paid, the dates are still on sale, and
+        // their phone number is sitting on the record. Non-blocking - the webhook must still 200.
+        import('@/services/emailService')
+          .then(({ sendPendingBookingEmail }) => sendPendingBookingEmail(bookingId, 'abandoned'))
+          .catch(() => {});
       } else {
         logger.info('Booking already processed, skipping expired session', { bookingId, currentStatus: booking.status, sessionId });
       }

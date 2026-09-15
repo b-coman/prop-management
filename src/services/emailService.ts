@@ -475,6 +475,102 @@ ${booking.pricing.discountAmount ? `<tr><td>Discount</td><td class="right">-${fo
 }
 
 /**
+ * Tell the owner about a booking that has NOT been paid for: once when the guest reaches the card
+ * page (`started`), and again if the Stripe session expires unpaid (`abandoned`).
+ *
+ * Why this exists: on 12 September 2026 a guest arrived from a Facebook ad at 02:08, filled the
+ * form, reached Stripe and left. Their name, email and phone sat in Firestore and nobody was told,
+ * that night or the next day. A confirmed booking already notifies the owner; the near miss, which
+ * is the one that still needs a human, notified no one. In this market the recovery is a phone call
+ * or a WhatsApp message, so the alert has to arrive while the guest is still awake.
+ *
+ * Owner-facing, so English only, like the other two owner templates. Reply-To is the GUEST, so
+ * hitting Reply writes to them.
+ */
+export async function sendPendingBookingEmail(
+  bookingId: string,
+  stage: 'started' | 'abandoned',
+  recipientEmail?: string
+): Promise<{ success: boolean; messageId?: string; previewUrl?: string; error?: string }> {
+  try {
+    const booking = await getBookingById(bookingId);
+    if (!booking) return { success: false, error: 'Booking not found' };
+
+    const property = await getPropertyBySlug(booking.propertyId);
+    const propertyName = getPropertyName(property, booking.propertyId);
+    const ownerEmail = recipientEmail || property?.ownerEmail || process.env.ADMIN_EMAIL;
+    if (!ownerEmail) return { success: false, error: 'No owner email configured for property' };
+
+    const checkIn = formatDate(booking.checkInDate);
+    const checkOut = formatDate(booking.checkOutDate);
+    const total = formatCurrency(booking.pricing.total, booking.pricing.currency);
+    const guest = `${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''}`.trim();
+    const phone = booking.guestInfo.phone || 'Not provided';
+    const email = booking.guestInfo.email || 'Not provided';
+    const adminUrl = `${getAppBaseUrl()}/admin/bookings/${booking.id}`;
+
+    const headline = stage === 'started'
+      ? 'Someone is paying right now'
+      : 'They did not finish paying';
+    const opening = stage === 'started'
+      ? 'A guest has filled in the booking form and reached the card page. You will get the usual confirmation email if the payment goes through. If no confirmation arrives, this is who to call.'
+      : 'The payment page expired without a payment. The dates were never blocked, so they are still on sale. This guest typed in everything and stopped at the card, which is as close as anyone gets without booking.';
+
+    const text = `${headline}
+
+${opening}
+
+Guest: ${guest}
+Phone: ${phone}
+Email: ${email}
+
+Property: ${propertyName}
+Dates: ${checkIn} to ${checkOut}
+Guests: ${ownerGuestsLine(booking as any)}
+Total: ${total}
+
+Booking record: ${adminUrl}
+`;
+
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+body{font-family:Arial,sans-serif;line-height:1.6;color:#16211a;max-width:600px;margin:0 auto;padding:20px}
+h1{font-size:20px;margin:0 0 12px}
+.lede{color:#3b483f;margin:0 0 20px}
+table{width:100%;border-collapse:collapse;margin-bottom:20px}
+td{padding:6px 0;border-bottom:1px solid #e5e7eb}
+td.k{color:#5f6d63;width:40%}
+.total{font-weight:bold}
+a.button{display:inline-block;background:#2f7d4b;color:#fff;padding:10px 18px;text-decoration:none;border-radius:4px}
+.footer{font-size:12px;color:#6b7280;margin-top:24px}
+</style></head><body>
+<h1>${headline}</h1>
+<p class="lede">${opening}</p>
+<table>
+<tr><td class="k">Guest</td><td>${guest}</td></tr>
+<tr><td class="k">Phone</td><td>${phone}</td></tr>
+<tr><td class="k">Email</td><td>${email}</td></tr>
+<tr><td class="k">Property</td><td>${propertyName}</td></tr>
+<tr><td class="k">Dates</td><td>${checkIn} to ${checkOut}</td></tr>
+<tr><td class="k">Guests</td><td>${ownerGuestsLine(booking as any)}</td></tr>
+<tr><td class="k total">Total</td><td class="total">${total}</td></tr>
+</table>
+<a class="button" href="${adminUrl}">Open the booking record</a>
+<p class="footer">Reply to this email to write to the guest directly.</p>
+</body></html>`;
+
+    const subject = stage === 'started'
+      ? `Booking started - ${guest} - ${propertyName}`
+      : `Not paid - ${guest} - ${propertyName}`;
+
+    return sendEmail(ownerEmail, subject, text, html, undefined, booking.guestInfo.email || undefined);
+  } catch (error) {
+    console.error(`[EmailService] Error sending ${stage} booking email for ${bookingId}:`, error);
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/**
  * Sends an inquiry confirmation email to the guest
  */
 export async function sendInquiryConfirmationEmail(

@@ -15,7 +15,7 @@
  * full week costs LESS than two weekends and gives seven nights instead of four. That is the whole
  * pitch and it is checkable, which is why the headline states it plainly.
  *
- * It falls out of the length-of-stay ladder already in the rate card (-15% at 4 nights, -25% at 7),
+ * It falls out of the length-of-stay ladder already in the rate card (-10% at 4 nights, -15% at 5, -25% at 7),
  * so it rewards exactly the behaviour worth selling here: the midweek nights are both the cheapest
  * (405 vs 526.50) and the most available.
  *
@@ -89,8 +89,8 @@ const DOC = {
       ro: 'Nu e concediu dacă lucrezi. E doar altă priveliște.',
     },
     body: {
-      en: 'The rate drops 15% at four nights and 25% at a full week, and midweek nights are the cheapest of all - so the longer you stay, the less each night costs. Tuesday to Tuesday, work from the terrace, and finish the day at the fire instead of in traffic. The firewood is on the house, and the internet is unlimited.',
-      ro: 'Prețul scade cu 15% de la patru nopți și cu 25% la o săptămână întreagă, iar nopțile din mijlocul săptămânii sunt oricum cele mai ieftine. Așa că, cu cât stai mai mult, cu atât te costă mai puțin fiecare noapte. De marți până marți, lucrezi de pe terasă și termini ziua la foc, nu în trafic. Lemnele sunt din partea casei, iar internetul e la discreție.',
+      en: 'The rate drops 10% at four nights, 15% at five and 25% at a full week, and midweek nights are the cheapest of all - so the longer you stay, the less each night costs. Tuesday to Tuesday, work from the terrace, and finish the day at the fire instead of in traffic. The firewood is on the house, and the internet is unlimited.',
+      ro: 'Prețul scade cu 10% de la patru nopți, cu 15% de la cinci și cu 25% la o săptămână întreagă, iar nopțile din mijlocul săptămânii sunt oricum cele mai ieftine. Așa că, cu cât stai mai mult, cu atât te costă mai puțin fiecare noapte. De marți până marți, lucrezi de pe terasă și termini ziua la foc, nu în trafic. Lemnele sunt din partea casei, iar internetul e la discreție.',
     },
   },
   // All three verified open in the availability calendar (22 Sep - 8 Oct is one unbroken run;
@@ -111,7 +111,7 @@ const DOC = {
     },
     {
       start: '2026-09-28', end: '2026-10-02', nights: 4, guests: 2, priceHint: null as number | null,
-      label: { en: 'Monday to Friday - 15% off', ro: 'De luni până vineri - 15% reducere' },
+      label: { en: 'Monday to Friday - 10% off', ro: 'De luni până vineri - 10% reducere' },
     },
     {
       start: '2026-10-04', end: '2026-10-09', nights: 5, guests: 2, priceHint: null as number | null,
