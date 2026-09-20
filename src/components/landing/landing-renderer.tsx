@@ -388,11 +388,17 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                           the card with no party size next to it, which is the one thing a reader
                           needs to judge it. */}
                       {s.note ? <p className="mt-1 text-xs text-muted-foreground">{s.note}</p> : null}
-                      <Button variant="cta" className="mt-6 mt-auto" asChild>
-                        {/* Just "Rezervă" — "Rezervă acesta" is a literal translation of "Book this"
-                            and reads stilted; Romanian drops the pronoun on a button. */}
-                        <Link href={s.bookUrl} onClick={() => track.trackStayClick(s, i)}>{t(lang, 'Book this', 'Rezervă')}<ArrowRight className="ml-1 h-4 w-4" /></Link>
-                      </Button>
+                      {/* `mt-6 mt-auto` on the button was two competing margins and `mt-auto` won, so
+                          the gap came only from cards being unequal heights. Once every card carried
+                          a note they matched exactly, mt-auto resolved to 0, and the note sat flush
+                          against the green. The wrapper keeps the bottom alignment AND a real gap. */}
+                      <div className="mt-auto pt-5">
+                        <Button variant="cta" className="w-full" asChild>
+                          {/* Just "Rezervă" — "Rezervă acesta" is a literal translation of "Book this"
+                              and reads stilted; Romanian drops the pronoun on a button. */}
+                          <Link href={s.bookUrl} onClick={() => track.trackStayClick(s, i)}>{t(lang, 'Book this', 'Rezervă')}<ArrowRight className="ml-1 h-4 w-4" /></Link>
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
