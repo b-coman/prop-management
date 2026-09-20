@@ -39,6 +39,10 @@ function fmtRange(start: string, end: string, lang: string): string {
 // RO needs the singular for 1 (noapte) vs plural (nopți); EN night/nights.
 const nightsWord = (n: number, lang: string) => (lang === 'ro' ? (n === 1 ? 'noapte' : 'nopți') : (n === 1 ? 'night' : 'nights'));
 
+/** One rule for money on this page. Bare `toLocaleString()` uses the RUNTIME's locale, which
+ *  rendered "1,253 RON" — an English thousands separator — on a Romanian landing page. */
+const money = (n: number, lang: string) => Math.round(n).toLocaleString(lang === 'ro' ? 'ro-RO' : 'en-US');
+
 /** One gallery tile: a fixed-aspect box with a fill image (used by the single/pair/mosaic layouts). */
 function GTile({ img, ratio, sizes }: { img: LandingImage; ratio: string; sizes: string }) {
   return (
@@ -221,7 +225,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                 {m.advertisedRate ? (
                   <li className="inline-flex items-center gap-1.5">
                     <span aria-hidden className="hidden text-white/40 sm:inline">·</span>
-                    <span>{t(lang, 'from', 'de la')} <span className="font-semibold">{Math.round(m.advertisedRate).toLocaleString()} {m.baseCurrency}</span>{t(lang, ' / night', ' / noapte')}{m.advertisedRateNote ? <span aria-hidden="true">*</span> : null}</span>
+                    <span>{t(lang, 'from', 'de la')} <span className="font-semibold">{money(m.advertisedRate, lang)} {m.baseCurrency}</span>{t(lang, ' / night', ' / noapte')}{m.advertisedRateNote ? <span aria-hidden="true">*</span> : null}</span>
                   </li>
                 ) : null}
               </ul>
@@ -323,7 +327,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                       {featuredStay.priceHint ? (
                         <p className="text-sm text-muted-foreground">
                           {t(lang, 'from', 'de la')}{' '}
-                          <span className="text-2xl font-bold text-foreground">{Math.round(featuredStay.priceHint).toLocaleString()} {m.baseCurrency}</span>
+                          <span className="text-2xl font-bold text-foreground">{money(featuredStay.priceHint, lang)} {m.baseCurrency}</span>
                         </p>
                       ) : null}
                       <Button variant="cta" size="lg" asChild>
@@ -355,8 +359,14 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                           (4,024.5) reads as careless. Rounding up by <1 RON can only
                           ever quote ABOVE what the booking form will charge. */}
                       {s.priceHint ? (
-                        <p className="mt-3 text-sm text-muted-foreground">{t(lang, 'from', 'de la')} <span className="text-lg font-bold text-foreground">{Math.round(s.priceHint).toLocaleString()} {m.baseCurrency}</span></p>
+                        <p className="mt-3 text-sm text-muted-foreground">{t(lang, 'from', 'de la')} <span className="text-lg font-bold text-foreground">{money(s.priceHint, lang)} {m.baseCurrency}</span></p>
                       ) : null}
+                      {/* The note carries what the price is FOR ("pentru 3 persoane, curățenia
+                          inclusă"). It used to render only on the featured card, so a page with no
+                          featured stay configured its note and got nothing — the price then sat on
+                          the card with no party size next to it, which is the one thing a reader
+                          needs to judge it. */}
+                      {s.note ? <p className="mt-1 text-xs text-muted-foreground">{s.note}</p> : null}
                       <Button variant="cta" className="mt-6 mt-auto" asChild>
                         {/* Just "Rezervă" — "Rezervă acesta" is a literal translation of "Book this"
                             and reads stilted; Romanian drops the pronoun on a button. */}
