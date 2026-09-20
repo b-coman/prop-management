@@ -187,7 +187,7 @@ env:
   # Business Tools Terms). That is why it is a date rather than a switch — leave it alone and the
   # banner comes back. To end it EARLY: set an empty value, or any past date, and deploy.
   - variable: NEXT_PUBLIC_CONSENT_SUSPENDED_UNTIL
-    value: "2026-09-23"
+    value: "2026-09-30"
     availability:
       - BUILD
       - RUNTIME
