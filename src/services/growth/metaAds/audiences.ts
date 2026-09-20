@@ -117,6 +117,12 @@ export async function audienceCandidates(propertyId: string): Promise<AudienceCa
 
 export interface CreateWebsiteAudienceSpec {
   name: string;
+  /**
+   * KEEP IT SHORT — roughly a hundred characters. Meta silently caps this field and answers an
+   * over-long one with `(#2654) Failed to create custom audience`, a generic error that names
+   * neither the field nor the limit. Cost an hour on 2026-09-20: the same call succeeded unchanged
+   * once the description was trimmed from ~380 characters to ~65.
+   */
   description?: string;
   /** Matched case-insensitively against the visited URL — e.g. a landing slug. */
   urlContains: string;
