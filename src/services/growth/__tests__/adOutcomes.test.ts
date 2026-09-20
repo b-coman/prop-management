@@ -1,6 +1,6 @@
 /** @jest-environment node */
 
-import { computeVerdict, computeCaveats } from '../adOutcomes';
+import { computeVerdict, computeCaveats, utmIdsForCampaign } from '../adOutcomes';
 
 describe('computeVerdict', () => {
   it('flags a rejected ad regardless of delivery', () => {
@@ -32,5 +32,31 @@ describe('computeCaveats', () => {
   });
   it('flags a manual compose with no framing metadata', () => {
     expect(computeCaveats({ spend: 100, metaPurchases: 0, utmBookings: 0, source: 'manual' }).some((x) => x.includes('manual compose'))).toBe(true);
+  });
+});
+
+describe('utmIdsForCampaign', () => {
+  it('is just the doc id when the ads carry nothing foreign', () => {
+    expect(utmIdsForCampaign('abc', [])).toEqual(['abc']);
+    expect(utmIdsForCampaign('abc', undefined)).toEqual(['abc']);
+  });
+
+  it('includes the id an Ads-Manager duplicate actually carries', () => {
+    // The live case: spend on meta_120252194647430114, clicks tagged OU3kBSXI2FkiJxxp7vkr.
+    expect(utmIdsForCampaign('meta_120252194647430114', ['OU3kBSXI2FkiJxxp7vkr']))
+      .toEqual(['meta_120252194647430114', 'OU3kBSXI2FkiJxxp7vkr']);
+  });
+
+  it('never repeats the doc id, so the Firestore `in` clause stays valid', () => {
+    expect(utmIdsForCampaign('abc', ['abc', 'abc'])).toEqual(['abc']);
+  });
+
+  it('drops blanks rather than querying for an empty campaign', () => {
+    expect(utmIdsForCampaign('abc', ['', '   '])).toEqual(['abc']);
+  });
+
+  it('caps at Firestore\'s 30-value `in` limit', () => {
+    const many = Array.from({ length: 40 }, (_, i) => `id${i}`);
+    expect(utmIdsForCampaign('abc', many)).toHaveLength(30);
   });
 });

@@ -1,6 +1,6 @@
 /** @jest-environment node */
 
-import { detectDrift, LIVE_CAPABLE } from '../adReconciliation';
+import { detectDrift, LIVE_CAPABLE, parseUtmCampaign, utmCampaignsFromCreative } from '../adReconciliation';
 
 describe('LIVE_CAPABLE', () => {
   it('includes `pushed` — the Meta chain exists from the push, so it can be activated in Ads Manager', () => {
@@ -45,5 +45,52 @@ describe('detectDrift', () => {
 
   it('flags the benign drift — we think active but Meta shows it paused (nothing running)', () => {
     expect(detectDrift('active', 'CAMPAIGN_PAUSED').some((f) => f.includes('not actually delivering'))).toBe(true);
+  });
+});
+
+describe('parseUtmCampaign', () => {
+  it('reads utm_campaign from a real ad link', () => {
+    expect(parseUtmCampaign('https://prahova-chalet.ro/lp/toamna-lunga/ro?utm_source=facebook&utm_medium=paid&utm_campaign=OU3kBSXI2FkiJxxp7vkr'))
+      .toBe('OU3kBSXI2FkiJxxp7vkr');
+  });
+  it('is null when the link carries no campaign', () => {
+    expect(parseUtmCampaign('https://prahova-chalet.ro/lp/toamna-lunga/ro?utm_source=facebook')).toBeNull();
+  });
+  it('is null for missing/empty input rather than throwing', () => {
+    expect(parseUtmCampaign(null)).toBeNull();
+    expect(parseUtmCampaign(undefined)).toBeNull();
+    expect(parseUtmCampaign('')).toBeNull();
+  });
+  it('still reads a relative or malformed link', () => {
+    expect(parseUtmCampaign('/lp/toamna-lunga/ro?utm_campaign=abc123')).toBe('abc123');
+  });
+});
+
+describe('utmCampaignsFromCreative', () => {
+  it('reads the Dynamic Creative shape (asset_feed_spec.link_urls)', () => {
+    // The shape the live Constanta retry actually returns.
+    expect(utmCampaignsFromCreative({
+      asset_feed_spec: { link_urls: [{ website_url: 'https://prahova-chalet.ro/lp/x/ro?utm_campaign=OU3kBSXI2FkiJxxp7vkr' }] },
+    })).toEqual(['OU3kBSXI2FkiJxxp7vkr']);
+  });
+
+  it('reads the single-image shape (object_story_spec.link_data.link)', () => {
+    expect(utmCampaignsFromCreative({
+      object_story_spec: { link_data: { link: 'https://prahova-chalet.ro/lp/x/ro?utm_campaign=D8bMrAmnf1wnZTREMIhL' } },
+    })).toEqual(['D8bMrAmnf1wnZTREMIhL']);
+  });
+
+  it('reads url_tags, which is a bare query fragment with no leading ?', () => {
+    expect(utmCampaignsFromCreative({ url_tags: 'utm_source=facebook&utm_campaign=tagged123' })).toEqual(['tagged123']);
+  });
+
+  it('dedupes when every image in a dynamic creative points at the same link', () => {
+    const one = { website_url: 'https://prahova-chalet.ro/lp/x/ro?utm_campaign=same' };
+    expect(utmCampaignsFromCreative({ asset_feed_spec: { link_urls: [one, one, one] } })).toEqual(['same']);
+  });
+
+  it('is empty for a creative with no link at all', () => {
+    expect(utmCampaignsFromCreative({})).toEqual([]);
+    expect(utmCampaignsFromCreative(undefined)).toEqual([]);
   });
 });

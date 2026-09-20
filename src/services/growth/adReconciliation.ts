@@ -56,6 +56,72 @@ export function detectDrift(status: string | undefined, effectiveStatus: string 
   return flags;
 }
 
+/**
+ * The `utm_campaign` value a creative's click-through link carries, or null.
+ *
+ * Pure so the parsing is unit-testable without Meta: the link shapes below are exactly what the
+ * account returns (a Dynamic Creative keeps it in `asset_feed_spec.link_urls[]`, a single-image ad
+ * in `object_story_spec.link_data.link`).
+ */
+export function parseUtmCampaign(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).searchParams.get('utm_campaign') || null;
+  } catch {
+    // Not an absolute URL — fall back to a plain query scan rather than dropping the reading.
+    const m = /[?&]utm_campaign=([^&#]+)/.exec(String(url));
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+}
+
+/** Every link a creative can hold, across both of the shapes this account produces. */
+interface AdCreativeLinks {
+  asset_feed_spec?: { link_urls?: Array<{ website_url?: string }> };
+  object_story_spec?: { link_data?: { link?: string } };
+  url_tags?: string;
+}
+
+/** Distinct `utm_campaign` values found on the given creative payload. */
+export function utmCampaignsFromCreative(creative: AdCreativeLinks | undefined): string[] {
+  if (!creative) return [];
+  const urls: Array<string | undefined> = [
+    ...(creative.asset_feed_spec?.link_urls ?? []).map((l) => l.website_url),
+    creative.object_story_spec?.link_data?.link,
+    // `url_tags` is a bare query fragment ("utm_source=..&utm_campaign=..") appended by Meta.
+    creative.url_tags ? `?${creative.url_tags}` : undefined,
+  ];
+  const found = urls.map(parseUtmCampaign).filter((v): v is string => Boolean(v));
+  return [...new Set(found)];
+}
+
+/**
+ * Read the `utm_campaign` ids the campaign's ads actually carry.
+ *
+ * Read-only, and returns NULL rather than [] when it could not read (no context, Graph failure, no
+ * ads yet) — the caller must be able to tell "no foreign ids" from "no answer", or a rate-limited
+ * run would quietly erase a recorded alias. A probe can never fail a reconcile run.
+ */
+async function readAdUtmCampaigns(propertyId: string, metaCampaignId: string): Promise<string[] | null> {
+  const ctx = await resolveAdContext(propertyId);
+  if (!ctx) return null;
+  const res = await metaGraph<{ data?: Array<{ id: string; creative?: AdCreativeLinks }> }>(
+    `${metaCampaignId}/ads`,
+    {
+      method: 'GET',
+      params: { fields: 'id,creative{asset_feed_spec,object_story_spec,url_tags}', limit: 50 },
+      token: ctx.token,
+      propertyId,
+    }
+  );
+  if (!res.ok) return null;
+  const ads = res.data.data ?? [];
+  // No ads at all is not evidence of "no foreign utm" — it is no reading. Returning [] here would
+  // erase a known alias the moment Meta rate-limited or the chain was mid-build.
+  if (!ads.length) return null;
+  const all = ads.flatMap((ad) => utmCampaignsFromCreative(ad.creative));
+  return [...new Set(all)];
+}
+
 export interface ReconcileResult {
   checked: number;
   updated: number;
@@ -69,6 +135,7 @@ export interface ReconcileResult {
 
 interface AdCampaignReconData {
   propertyId?: string;
+  utmCampaignIds?: string[];
   metaCampaignId?: string;
   metaAdSetIds?: string[];
   status?: AdCampaignStatus;
@@ -152,6 +219,37 @@ export async function reconcileAdCampaigns(): Promise<ReconcileResult> {
           if (knownEvent && opt.data.optimizationEvent && knownEvent !== opt.data.optimizationEvent) {
             flags.push(`${d.id} (${data.propertyId}): optimisation event changed on Meta — we had ${knownEvent}, Meta has ${opt.data.optimizationEvent}`);
           }
+        }
+      }
+
+      // Which utm_campaign do this campaign's ads actually carry? Normally its own doc id, because
+      // that is what built the link. A campaign DUPLICATED in Ads Manager keeps the ORIGINAL's link,
+      // so its clicks are tagged with another doc's id — spend lands here, bookings land there, and
+      // both outcome records come out wrong.
+      //
+      // Probed on EVERY run, not once: editing a creative's URL would otherwise silently un-fix this,
+      // and silent wrong attribution is the whole bug. Flagged only when the answer CHANGES, so a
+      // known-and-handled mismatch does not shout on every cron tick.
+      const carriedUtm = await readAdUtmCampaigns(data.propertyId, data.metaCampaignId);
+      const foreignUtm = (carriedUtm ?? []).filter((id) => id !== d.id).sort();
+      const knownUtm = [...(data.utmCampaignIds ?? [])].sort();
+      // `null` = we got no reading this run; leave whatever is stored alone.
+      const utmChanged = carriedUtm !== null
+        && (data.utmCampaignIds === undefined || foreignUtm.join('|') !== knownUtm.join('|'));
+      if (utmChanged) {
+        patch.utmCampaignIds = foreignUtm;
+        if (foreignUtm.length) {
+          flags.push(
+            `${d.id} (${data.propertyId}): ads carry utm_campaign=${foreignUtm.join(',')}, not this doc's id — ` +
+            `bookings would have been credited elsewhere; the utm join now covers both`
+          );
+          logger.warn('reconcileAdCampaigns: campaign ads carry a foreign utm_campaign', {
+            adCampaignId: d.id, propertyId: data.propertyId, metaCampaignId: data.metaCampaignId,
+            carried: foreignUtm, previously: knownUtm,
+          });
+        } else if (knownUtm.length) {
+          // It used to carry a foreign id and no longer does — say so, because the join just narrowed.
+          flags.push(`${d.id} (${data.propertyId}): ads no longer carry ${knownUtm.join(',')} — utm join narrowed to this doc`);
         }
       }
 

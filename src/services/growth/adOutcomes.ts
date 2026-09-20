@@ -27,16 +27,35 @@ export interface UtmAttribution {
 }
 
 /**
+ * The `utm_campaign` values whose bookings belong to this campaign: its own doc id, plus any id its
+ * ads actually carry (`AdCampaign.utmCampaignIds` — a campaign duplicated in Ads Manager keeps the
+ * ORIGINAL's link, see that field's note). Deduped, and capped at Firestore's 30-value `in` limit.
+ *
+ * Exported for the unit tests: this is the whole of the fix's judgement.
+ */
+export function utmIdsForCampaign(adCampaignId: string, extraUtmIds?: string[]): string[] {
+  const ids = [adCampaignId, ...(extraUtmIds ?? [])]
+    .map((id) => String(id ?? '').trim())
+    .filter(Boolean);
+  return [...new Set(ids)].slice(0, 30);
+}
+
+/**
  * First-party attribution: bookings whose first- OR last-touch utm_campaign is this campaign id
  * (union — last-touch overwrite means an assisting click survives only in firstTouch; at this volume
  * we count "touched by this campaign at any point"). Cancelled/failed excluded. A structural FLOOR —
  * misses cross-device, cookie-loss, and phone/walk-in bookings.
+ *
+ * `extraUtmIds` carries the doc's `utmCampaignIds`. Without it an Ads-Manager duplicate reports zero
+ * bookings forever, because every click it paid for is tagged with the id of the campaign it was
+ * copied from.
  */
-export async function captureUtmAttribution(adCampaignId: string): Promise<UtmAttribution> {
+export async function captureUtmAttribution(adCampaignId: string, extraUtmIds?: string[]): Promise<UtmAttribution> {
   const db = await getAdminDb();
+  const ids = utmIdsForCampaign(adCampaignId, extraUtmIds);
   const [lastSnap, firstSnap] = await Promise.all([
-    db.collection('bookings').where('attribution.lastTouch.campaign', '==', adCampaignId).get(),
-    db.collection('bookings').where('attribution.firstTouch.campaign', '==', adCampaignId).get(),
+    db.collection('bookings').where('attribution.lastTouch.campaign', 'in', ids).get(),
+    db.collection('bookings').where('attribution.firstTouch.campaign', 'in', ids).get(),
   ]);
   const byId = new Map<string, Record<string, unknown>>();
   for (const d of [...lastSnap.docs, ...firstSnap.docs]) byId.set(d.id, d.data());
@@ -88,6 +107,7 @@ export function computeCaveats(input: {
 
 interface AdCampaignForOutcome {
   propertyId?: string;
+  utmCampaignIds?: string[];
   status?: string;
   effectiveStatus?: string;
   endTime?: string | null;
@@ -134,7 +154,7 @@ export async function finalizeAdOutcome(adCampaignId: string, opts?: { settleDay
   const metaPurchases = Number(ins.bookings) || 0; // NB: reconcile stores Meta's pixel purchases here
   const metaReported = { purchases: metaPurchases, purchaseValue: Number(ins.purchaseValue) || 0, roas: Number(ins.roas) || 0 };
 
-  const utm = await captureUtmAttribution(adCampaignId);
+  const utm = await captureUtmAttribution(adCampaignId, doc.utmCampaignIds);
   const source: 'opportunity-engine' | 'manual' = doc.proposal?.source === 'opportunity-engine' ? 'opportunity-engine' : 'manual';
   const p = doc.proposal;
   const occ = p?.occasion;

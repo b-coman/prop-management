@@ -858,6 +858,24 @@ export interface AdCampaign {
   assetHashes?: string[];
   /** Phase 2b — `assetHashes.length`, denormalized for a list view (e.g. "3 photos, dynamic") without reading the array. */
   imageCount?: number;
+  /**
+   * OTHER `utm_campaign` values whose bookings belong to this campaign.
+   *
+   * Normally `utm_campaign` IS the `adCampaigns` doc id, because `landingUrl` builds the link from
+   * it. Duplicating a campaign in Ads Manager breaks that: the copy is a new Meta campaign (so
+   * reconcile adopts it under a NEW doc, `meta_<metaCampaignId>`) but its creative still carries the
+   * ORIGINAL doc's id in the link. Spend then lands on one doc and bookings on another, and the
+   * outcome record for both is wrong — the copy looks like it converted nothing, the original like
+   * it converted without spending.
+   *
+   * Found on 2026-09-19: "OU3kBSXI2FkiJxxp7vkr - Copy" (the Constanța retry) had spent 112 RON under
+   * `meta_120252194647430114` while every click it bought was tagged `OU3kBSXI2FkiJxxp7vkr`.
+   *
+   * Reconcile reads each live campaign's creative link once and records the mismatch here, so the
+   * utm→booking join can ask for this doc's id AND the ids its ads actually carry. An empty array
+   * means "checked, no mismatch" — that is what stops it being probed again.
+   */
+  utmCampaignIds?: string[];
   approvedBy?: string;
   approvalSnapshot?: {
     dailyBudgetMinor?: number;
