@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPropertyWithDb, getPriceCalendarWithDb } from '@/lib/pricing/pricing-with-db';
-import { getMonthsBetweenDates } from '@/lib/pricing/price-calendar-generator';
-import { calculateBookingPrice, LengthOfStayDiscount } from '@/lib/pricing/price-calculation';
-import { differenceInDays, format, addDays, parseISO } from 'date-fns';
-import { checkAvailabilityWithFlags } from '@/lib/availability-service';
+import { quoteStay } from '@/lib/pricing/quote-stay';
+import { parseISO } from 'date-fns';
 import { loggers } from '@/lib/logger';
 import { checkRateLimit, rateLimitHeaders } from '@/lib/rate-limiter';
 import { validateParty, type PartyRejection, type OccupancyLimits } from '@/lib/occupancy';
@@ -98,25 +95,10 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Get property details
-    const property = await getPropertyWithDb(propertyId);
-    
-    logger.debug('Property details', {
-      propertyId,
-      baseOccupancy: property.baseOccupancy,
-      extraGuestFee: property.extraGuestFee,
-      pricePerNight: property.pricePerNight
-    });
-
     // ---- occupancy ----
-    // Until now this route priced ANY headcount, including one above `maxGuests`: 8 guests came back
-    // with a real total for a house that sleeps 7.
-    //
-    // The adult cap can only be applied to a party whose composition is actually stated. A bare
-    // `guests` count says nothing about who those people are, and treating it as all-adults would
-    // refuse a perfectly legal family of six — and would break every existing caller, the parity pack
-    // among them, which quotes 4 adults + 2 children as the headcount 6. So: split given, both rules;
-    // headcount only, ceiling only.
+    // A caller may state the party either way round: a bare `guests` headcount (every caller before
+    // the split existed) or an `adults`/`children` split. The adult cap can only be applied to a
+    // stated split — treating a headcount as all-adults would refuse a legal family of six.
     const hasSplit = adults != null;
     const partyAdults = hasSplit ? Number(adults) : Number(guests);
     const partyChildren = hasSplit ? Number(children ?? 0) : 0;
@@ -126,165 +108,61 @@ export async function POST(request: NextRequest) {
       // Never pick a winner between two headcounts the caller disagrees with itself about — that is
       // how a party gets priced for one size and charged for another.
       return NextResponse.json(
-        {
-          error: `guests (${guests}) does not equal adults + children (${headcount})`,
-          reason: 'party_mismatch',
-        },
+        { error: `guests (${guests}) does not equal adults + children (${headcount})`, reason: 'party_mismatch' },
         { status: 400 }
       );
     }
 
-    const limits = {
-      maxGuests: (property as any).maxGuests,
-      maxAdults: hasSplit ? ((property as any).maxAdults ?? null) : null,
-    };
-    const partyCheck = validateParty({ adults: partyAdults, children: partyChildren }, limits);
-
-    if (!partyCheck.ok) {
-      logger.debug('Party refused', { propertyId, adults: partyAdults, children: partyChildren, reason: partyCheck.reason });
-      return NextResponse.json(
-        {
-          available: false,
-          error: OCCUPANCY_MESSAGES[partyCheck.reason](limits),
-          reason: partyCheck.reason,
-          // The caller renders its own copy from these; the message above is for logs and dev.
-          limits: { maxGuests: (property as any).maxGuests, maxAdults: (property as any).maxAdults ?? null },
-        },
-        { status: 400 }
-      );
-    }
-    
-    // Get number of nights
-    const nights = differenceInDays(checkOutDate, checkInDate);
-    
-    // Check availability first using the availability service
-    const availabilityResult = await checkAvailabilityWithFlags(propertyId, checkInDate, checkOutDate);
-    logger.debug('Availability result', {
-      isAvailable: availabilityResult.isAvailable,
-      source: availabilityResult.source,
-      unavailableDatesCount: availabilityResult.unavailableDates.length
+    // Every rule now lives in `quoteStay` (availability, per-night rates, minimum stay, occupancy,
+    // length-of-stay discounts) so this route and the landing pages cannot disagree about what is
+    // sellable. This function's remaining job is HTTP: parse, translate, set a status code.
+    const quote = await quoteStay({
+      propertyId,
+      checkIn: checkInDate,
+      checkOut: checkOutDate,
+      adults: partyAdults,
+      children: partyChildren,
+      hasSplit,
     });
-    
-    // If dates are not available, return early
-    if (!availabilityResult.isAvailable) {
-      logger.debug('Unavailable dates found', {
-        unavailableDates: availabilityResult.unavailableDates,
-        checkIn,
-        checkOut
-      });
 
-      return NextResponse.json({
-        available: false,
-        reason: 'unavailable_dates',
-        unavailableDates: availabilityResult.unavailableDates
-      });
-    }
-    
-    // Get all required price calendars for pricing
-    const months = getMonthsBetweenDates(checkInDate, checkOutDate);
-    const calendars = await Promise.all(
-      months.map(async ({ year, month }) => {
-        const calendar = await getPriceCalendarWithDb(propertyId, year, month);
-        return calendar;
-      })
-    );
-    
-    // Check if any calendars are missing
-    if (calendars.some(calendar => calendar === null)) {
-      return NextResponse.json(
-        { error: 'Price information not available for the selected dates' },
-        { status: 404 }
-      );
-    }
-    
-    // Now we only need to calculate pricing (availability already checked)
-    const dailyPrices: Record<string, number> = {};
-    let minimumStay = (property as any).defaultMinimumStay || 1;
-    
-    // Calculate pricing for each day (availability already checked)
-    const currentDate = new Date(checkInDate);
-    logger.debug('Calculating pricing', { nights, startDate: format(checkInDate, 'yyyy-MM-dd') });
-    
-    for (let night = 0; night < nights; night++) {
-      const dateStr = format(currentDate, 'yyyy-MM-dd');
-      const year = currentDate.getFullYear();
-      const month = currentDate.getMonth() + 1;
-      const day = currentDate.getDate().toString();
-      
-      
-      // Find the relevant calendar
-      const calendar = calendars.find(c => c?.year === year && c?.month === month);
-      
-      if (!calendar || !calendar.days[day]) {
-        // No price information available - this shouldn't happen as we checked calendars exist
-        return NextResponse.json(
-          { error: `Price information not available for ${dateStr}` },
-          { status: 404 }
-        );
-      }
-      
-      const dayPrice = calendar.days[day];
-      
-      // Record price for this date using the prices dict (includes base occupancy)
-      const occupancyPrice = dayPrice.prices?.[headcount.toString()];
-      if (occupancyPrice !== undefined) {
-        dailyPrices[dateStr] = occupancyPrice;
-      } else {
-        // Fallback: calculate from adjustedPrice (not basePrice, which is the raw property price)
-        const extraGuests = Math.max(0, headcount - property.baseOccupancy);
-        const extraGuestFee = property.extraGuestFee || 0;
-        dailyPrices[dateStr] = dayPrice.adjustedPrice + (extraGuests * extraGuestFee);
-      }
-      
-      // Check minimum stay for all nights - use the highest value found
-      if (dayPrice.minimumStay && dayPrice.minimumStay > minimumStay) {
-        minimumStay = dayPrice.minimumStay;
-      }
-      
-      // Move to next day
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-    
-    // Check if minimum stay requirement is met
-    const meetsMinimumStay = nights >= minimumStay;
-    
-    // Calculate pricing (availability already confirmed)
-    if (meetsMinimumStay) {
-      // Calculate booking price with any applicable discounts
-      // Read discounts from pricingConfig (canonical) or legacy pricing path
-      const discounts = (property.pricingConfig?.lengthOfStayDiscounts
-        || (property as any).pricing?.lengthOfStayDiscounts) as LengthOfStayDiscount[] | undefined;
-      const pricingDetails = calculateBookingPrice(
-        dailyPrices,
-        (property as any).cleaningFee || 0,
-        discounts
-      );
-      
-      // Log the complete pricing response for debugging
-      const finalResponse = {
-        available: true,
-        pricing: {
-          ...pricingDetails,
-          dailyRates: dailyPrices,
-          currency: property.baseCurrency
-        }
-      };
-      
+    if (quote.available) {
       logger.debug('Final pricing response', {
         guests: headcount,
-        total: finalResponse.pricing.total,
-        nights: finalResponse.pricing.numberOfNights
+        total: quote.pricing.total,
+        nights: quote.pricing.numberOfNights,
       });
+      return NextResponse.json({ available: true, pricing: quote.pricing });
+    }
 
-      return NextResponse.json(finalResponse);
-    } else {
-      // Only reason we'd get here is minimum stay not met
-      return NextResponse.json({
-        available: false,
-        reason: 'minimum_stay',
-        minimumStay,
-        requiredNights: minimumStay
-      });
+    switch (quote.reason) {
+      case 'unavailable_dates':
+        logger.debug('Unavailable dates found', { unavailableDates: quote.unavailableDates, checkIn, checkOut });
+        return NextResponse.json({ available: false, reason: 'unavailable_dates', unavailableDates: quote.unavailableDates });
+
+      case 'minimum_stay':
+        return NextResponse.json({
+          available: false,
+          reason: 'minimum_stay',
+          minimumStay: quote.minimumStay,
+          requiredNights: quote.minimumStay,
+        });
+
+      case 'no_pricing':
+        return NextResponse.json({ error: quote.detail }, { status: 404 });
+
+      default: {
+        // An occupancy refusal. The client renders its own localised copy from `reason` + `limits`.
+        logger.debug('Party refused', { propertyId, adults: partyAdults, children: partyChildren, reason: quote.reason });
+        return NextResponse.json(
+          {
+            available: false,
+            error: OCCUPANCY_MESSAGES[quote.reason](quote.limits),
+            reason: quote.reason,
+            limits: quote.limits,
+          },
+          { status: 400 }
+        );
+      }
     }
   } catch (error) {
     logger.error('Error checking pricing', error as Error);

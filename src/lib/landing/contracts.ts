@@ -44,7 +44,30 @@ export interface LandingConfig {
   hero: { imagePath: string; headline: Ml; subcopy?: Ml };
   story?: { title?: Ml; body?: Ml };
   exampleStays?: ExampleStay[];
+  /**
+   * LIVE weekend detection, instead of hand-written `exampleStays`.
+   *
+   * A static stay carries a `priceHint` snapshot that nothing invalidates, which is how the
+   * toamna-lunga page came to advertise 1.415 lei for a stay whose check-in had passed. When this
+   * is set, the cards are built at render time by asking the booking engine which weekends in the
+   * window it will actually sell, and at what price (`lib/landing/openWeekends`).
+   *
+   * It needs no holiday calendar: a booked weekend refuses itself, and so does one inside a block
+   * the owner gave a longer minimum stay. `exampleStays` is ignored when this is present.
+   */
+  autoWeekends?: {
+    from: string;              // YYYY-MM-DD — clamped forward to today, never advertises the past
+    to: string;                // YYYY-MM-DD
+    nights?: number;           // default 2 (Fri→Sun)
+    guests?: number;           // default 3 — must match whatever the page's copy claims
+    weekday?: number;          // default 5 (Friday)
+    limit?: number;            // default 6
+    label?: Ml;                // one label for every card, e.g. "Weekend, 2 nopți"
+    note?: Ml;                 // one note under every price
+  } | null;
   gallery?: string[];                          // storagePaths
+  /** Shown as a link out to the property's full gallery, for people who want more than the strip. */
+  galleryUrl?: string | null;
   offer?: { text: Ml } | null;
   cta?: { phone?: string | null; showBooking?: boolean };
   createdBy?: string;
@@ -103,6 +126,7 @@ export interface LandingModel {
   period: { kind: 'window' | 'season'; start?: string | null; end?: string | null; label: string };
   exampleStays: Array<{ start: string; end: string; nights: number; label: string; occasion?: string | null; priceHint?: number | null; guests?: number | null; featured?: boolean; note?: string | null; bookUrl: string }>;
   gallery: LandingImage[];
+  galleryUrl: string | null;
   offer: string | null;
   phone: string | null;
   showBooking: boolean;

@@ -10,6 +10,7 @@ import { getPropertyBySlug } from '@/lib/property-utils';
 import { serverTranslateContent } from '@/lib/server-language-utils';
 import { DEFAULT_LANGUAGE } from '@/lib/language-constants';
 import type { LandingConfig, LandingModel, LandingImage, Ml } from '@/lib/landing/contracts';
+import { findOpenWeekends } from '@/lib/landing/openWeekends';
 
 function resolveImage(storagePath: string | undefined, images: any[], lang: string): LandingImage | null {
   if (!storagePath) return null;
@@ -129,12 +130,35 @@ export async function buildLandingModel(
       : withDates();
   })();
 
-  const exampleStays = (config.exampleStays ?? []).map((s) => ({
-    start: s.start, end: s.end, nights: s.nights, label: tr(s.label),
-    occasion: s.occasion ?? null, priceHint: s.priceHint ?? null, guests: s.guests ?? null,
-    featured: s.featured === true, note: s.note ? tr(s.note) : null,
-    bookUrl: withDates(s.start, s.end, s.guests),
-  }));
+  // Cards come either from hand-written `exampleStays` (a frozen snapshot) or, when `autoWeekends`
+  // is configured, from asking the booking engine what it will actually sell right now. The live
+  // path cannot advertise a sold or minimum-stay-blocked weekend, because the refusal IS the filter.
+  const exampleStays = config.autoWeekends
+    ? (await findOpenWeekends({
+        propertyId: config.propertyId,
+        from: new Date(`${config.autoWeekends.from}T00:00:00Z`),
+        to: new Date(`${config.autoWeekends.to}T00:00:00Z`),
+        nights: config.autoWeekends.nights,
+        guests: config.autoWeekends.guests,
+        weekday: config.autoWeekends.weekday,
+        limit: config.autoWeekends.limit,
+      })).map((w) => ({
+        start: w.start, end: w.end, nights: w.nights,
+        label: tr(config.autoWeekends?.label),
+        occasion: null,
+        // Not a hint: the engine's own answer, computed on this render.
+        priceHint: w.total,
+        guests: config.autoWeekends?.guests ?? 3,
+        featured: false,
+        note: config.autoWeekends?.note ? tr(config.autoWeekends.note) : null,
+        bookUrl: withDates(w.start, w.end, config.autoWeekends?.guests ?? 3),
+      }))
+    : (config.exampleStays ?? []).map((s) => ({
+        start: s.start, end: s.end, nights: s.nights, label: tr(s.label),
+        occasion: s.occasion ?? null, priceHint: s.priceHint ?? null, guests: s.guests ?? null,
+        featured: s.featured === true, note: s.note ? tr(s.note) : null,
+        bookUrl: withDates(s.start, s.end, s.guests),
+      }));
 
   return {
     slug: config.slug, language: lang, isCustomDomain,
@@ -155,6 +179,7 @@ export async function buildLandingModel(
     period,
     exampleStays,
     gallery: (config.gallery ?? []).map((sp) => resolveImage(sp, images, lang)).filter(Boolean) as LandingImage[],
+    galleryUrl: config.galleryUrl ?? null,
     offer: config.offer ? tr(config.offer.text) : null,
     phone, showBooking: config.cta?.showBooking !== false,
     checkDatesUrl,

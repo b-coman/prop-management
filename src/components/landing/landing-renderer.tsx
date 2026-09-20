@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { SafeImage } from '@/components/ui/safe-image';
 import { CallButton } from '@/components/landing/call-button';
 import { useLandingTracking } from '@/components/landing/use-landing-tracking';
-import { Star, MapPin, ArrowRight, CalendarDays, Moon, Users } from 'lucide-react';
+import { Star, MapPin, ArrowRight, CalendarDays, Moon, Users, Images } from 'lucide-react';
 import type { LandingModel, LandingImage } from '@/lib/landing/contracts';
 import { displaySrc } from '@/lib/image-src';
 import { capacityParts, asLanguage } from '@/lib/occupancy';
@@ -393,6 +393,18 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                       sizes={i === 0 ? '(max-width:640px) 100vw, 40vw' : '(max-width:640px) 50vw, 22vw'} />
                   </div>
                 ))}
+              </div>
+            )}
+            {/* A strip is a taste, not the house. Someone weighing a booking wants the rest, and the
+                alternative to offering it is them leaving to look for it. */}
+            {m.galleryUrl && (
+              <div className="mt-5 text-center">
+                <Button asChild variant="outline" size="lg">
+                  <Link href={m.galleryUrl} onClick={() => track.trackNavToSite('gallery')}>
+                    <Images className="mr-2 h-4 w-4" />
+                    {t(lang, 'See all the photos', 'Vezi toate pozele')}
+                  </Link>
+                </Button>
               </div>
             )}
           </section>
