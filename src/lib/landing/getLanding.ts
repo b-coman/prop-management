@@ -187,6 +187,7 @@ export async function buildLandingModel(
       subtitle: config.staysHeading?.subtitle ? tr(config.staysHeading.subtitle) : null,
     },
     closingSubtitle: config.closing?.subtitle ? tr(config.closing.subtitle) : null,
+    staysLayout: config.staysLayout === 'dates' ? 'dates' : 'cards',
     offer: config.offer ? tr(config.offer.text) : null,
     phone, showBooking: config.cta?.showBooking !== false,
     checkDatesUrl,

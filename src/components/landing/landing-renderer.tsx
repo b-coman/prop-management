@@ -21,6 +21,7 @@ import { SafeImage } from '@/components/ui/safe-image';
 import { CallButton } from '@/components/landing/call-button';
 import { useLandingTracking } from '@/components/landing/use-landing-tracking';
 import { Star, MapPin, ArrowRight, CalendarDays, Moon, Users, Images } from 'lucide-react';
+import { sharedStayFacts } from '@/lib/landing/staysSummary';
 import type { LandingModel, LandingImage } from '@/lib/landing/contracts';
 import { displaySrc } from '@/lib/image-src';
 import { capacityParts, asLanguage } from '@/lib/occupancy';
@@ -308,6 +309,45 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
               {(m.staysHeading.subtitle || !m.staysHeading.title) && (
                 <p className="mx-auto mt-2 max-w-xl text-center text-muted-foreground">{m.staysHeading.subtitle || t(lang, 'Real dates, ready to book.', 'Date reale, gata de rezervare.')}</p>
               )}
+              {m.staysLayout === 'dates' ? (
+                /* ── COMPACT: one offer, several dates ──────────────────────────────────────────
+                   These stays differ in one field. Say what they share once, then show only the
+                   choice. `sharedStayFacts` decides what may be hoisted: anything not identical
+                   across EVERY stay stays on its chip, so a repricing degrades this into per-chip
+                   prices rather than a summary that misquotes four other dates. */
+                (() => {
+                  const shared = sharedStayFacts(m.exampleStays);
+                  const summary = [
+                    shared.label,
+                    shared.nights ? `${shared.nights} ${nightsWord(shared.nights, lang)}` : null,
+                    shared.price ? `${money(shared.price, lang)} ${m.baseCurrency}` : null,
+                    shared.note,
+                  ].filter(Boolean).join(' \u00b7 ');
+                  return (
+                    <>
+                      {summary && <p className="mx-auto mt-3 max-w-2xl text-center text-muted-foreground">{summary}</p>}
+                      <div className="mt-7 flex flex-wrap items-stretch justify-center gap-3">
+                        {m.exampleStays.map((s, i) => {
+                          const extra = [
+                            !shared.nights ? `${s.nights} ${nightsWord(s.nights, lang)}` : null,
+                            !shared.price && s.priceHint ? `${money(s.priceHint, lang)} ${m.baseCurrency}` : null,
+                          ].filter(Boolean).join(' \u00b7 ');
+                          return (
+                            <Button key={i} variant="outline" size="lg" asChild
+                              className="h-auto flex-col gap-0.5 border-primary/30 bg-background py-3 hover:border-primary hover:bg-primary/5">
+                              <Link href={s.bookUrl} onClick={() => track.trackStayClick(s, i)}>
+                                <span className="text-base font-semibold">{fmtRange(s.start, s.end, lang)}</span>
+                                {extra && <span className="text-xs font-normal text-muted-foreground">{extra}</span>}
+                              </Link>
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  );
+                })()
+              ) : (
+              <>
               {/* THE RECOMMENDATION, full width and visually ahead of the alternatives.
                   A row of equal cards cannot say "this is the one" — and on this window the whole
                   offer is the long stay, with the shorter ones there only so a reader who cannot
@@ -403,6 +443,8 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                   </Card>
                 ))}
               </div>
+              </>
+              )}
             </div>
           </section>
         )}

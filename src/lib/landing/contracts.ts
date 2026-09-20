@@ -83,6 +83,19 @@ export interface LandingConfig {
    * reason to stop.
    */
   closing?: { subtitle?: Ml };
+  /**
+   * How the stays are shown.
+   *
+   * 'cards' (default) is right when the stays differ in KIND — a weekend against a full week. Each
+   * card then carries different information and earns its space.
+   *
+   * 'dates' is for a list that differs in one field only, which is what `autoWeekends` produces. A
+   * card grid there repeats the label, the nights, the price, the note and the button once per
+   * stay to communicate a date, which on a phone is five screens of the same sentence. The compact
+   * form states what they share once and shows only the choice. Whatever does NOT match across
+   * every stay stays on its own chip, so a repricing cannot turn the summary into a misquote.
+   */
+  staysLayout?: 'cards' | 'dates';
   /** Overrides the stays section's heading. The default ("Stays that fit this window" / "Real dates,
    *  ready to book") says nothing a reader can act on — which window, and as opposed to what? */
   staysHeading?: { title?: Ml; subtitle?: Ml | null };
@@ -155,6 +168,7 @@ export interface LandingModel {
   hideAdvertisedRate: boolean;
   staysHeading: { title: string | null; subtitle: string | null };
   closingSubtitle: string | null;
+  staysLayout: 'cards' | 'dates';
   offer: string | null;
   phone: string | null;
   showBooking: boolean;
