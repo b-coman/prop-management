@@ -152,6 +152,7 @@ export async function buildLandingModel(
         featured: false,
         note: config.autoWeekends?.note ? tr(config.autoWeekends.note) : null,
         bookUrl: withDates(w.start, w.end, config.autoWeekends?.guests ?? 3),
+        dateLed: true,
       }))
     : (config.exampleStays ?? []).map((s) => ({
         start: s.start, end: s.end, nights: s.nights, label: tr(s.label),
@@ -185,6 +186,7 @@ export async function buildLandingModel(
       title: config.staysHeading?.title ? tr(config.staysHeading.title) : null,
       subtitle: config.staysHeading?.subtitle ? tr(config.staysHeading.subtitle) : null,
     },
+    closingSubtitle: config.closing?.subtitle ? tr(config.closing.subtitle) : null,
     offer: config.offer ? tr(config.offer.text) : null,
     phone, showBooking: config.cta?.showBooking !== false,
     checkDatesUrl,

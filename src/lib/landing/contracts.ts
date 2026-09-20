@@ -74,6 +74,15 @@ export interface LandingConfig {
    * only; the property's own pages are untouched.
    */
   hideAdvertisedRate?: boolean;
+  /**
+   * Overrides the closing section's sub-line.
+   *
+   * The default is "Call us for the best price, or check the dates online." That is right for a page
+   * that only invites a phone call. On a page that publishes real prices with a Book button on each
+   * one, it tells the reader those prices are not the best price — and gives anyone about to click a
+   * reason to stop.
+   */
+  closing?: { subtitle?: Ml };
   /** Overrides the stays section's heading. The default ("Stays that fit this window" / "Real dates,
    *  ready to book") says nothing a reader can act on — which window, and as opposed to what? */
   staysHeading?: { title?: Ml; subtitle?: Ml | null };
@@ -136,11 +145,16 @@ export interface LandingModel {
   hero: { image: LandingImage | null; headline: string; subcopy: string };
   story: { title: string; body: string } | null;
   period: { kind: 'window' | 'season'; start?: string | null; end?: string | null; label: string };
-  exampleStays: Array<{ start: string; end: string; nights: number; label: string; occasion?: string | null; priceHint?: number | null; guests?: number | null; featured?: boolean; note?: string | null; bookUrl: string }>;
+  exampleStays: Array<{ start: string; end: string; nights: number; label: string; occasion?: string | null; priceHint?: number | null; guests?: number | null; featured?: boolean; note?: string | null; bookUrl: string;
+    /** Lead the card with the DATE instead of the label. Auto-weekend cards share one label by
+     *  construction, so the label is the identical part and the date is the differing one; leading
+     *  with the label makes five cards look the same and hides the only thing that varies. */
+    dateLed?: boolean }>;
   gallery: LandingImage[];
   galleryUrl: string | null;
   hideAdvertisedRate: boolean;
   staysHeading: { title: string | null; subtitle: string | null };
+  closingSubtitle: string | null;
   offer: string | null;
   phone: string | null;
   showBooking: boolean;

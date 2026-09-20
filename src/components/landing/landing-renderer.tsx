@@ -356,11 +356,26 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                 {otherStays.map((s, i) => (
                   <Card key={i} className="flex w-full flex-col overflow-hidden transition-shadow hover:shadow-lg">
                     <CardContent className="flex flex-1 flex-col p-5">
-                      <p className="text-lg font-semibold">{s.label}</p>
-                      <div className="mt-3 flex items-center gap-4 text-sm text-muted-foreground">
-                        <span className="inline-flex items-center gap-1"><CalendarDays className="h-4 w-4" />{fmtRange(s.start, s.end, lang)}</span>
-                        <span className="inline-flex items-center gap-1"><Moon className="h-4 w-4" />{s.nights} {nightsWord(s.nights, lang)}</span>
-                      </div>
+                      {/* `dateLed` cards (auto-weekends) all carry the SAME label, so leading with it
+                          made five cards look identical and buried the dates — the only part that
+                          differs — in small grey text. Lead with what varies. */}
+                      {s.dateLed ? (
+                        <>
+                          <p className="text-lg font-semibold">{fmtRange(s.start, s.end, lang)}</p>
+                          <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                            {s.label ? <><span>{s.label}</span><span aria-hidden>·</span></> : null}
+                            <span className="inline-flex items-center gap-1"><Moon className="h-4 w-4" />{s.nights} {nightsWord(s.nights, lang)}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-lg font-semibold">{s.label}</p>
+                          <div className="mt-3 flex items-center gap-4 text-sm text-muted-foreground">
+                            <span className="inline-flex items-center gap-1"><CalendarDays className="h-4 w-4" />{fmtRange(s.start, s.end, lang)}</span>
+                            <span className="inline-flex items-center gap-1"><Moon className="h-4 w-4" />{s.nights} {nightsWord(s.nights, lang)}</span>
+                          </div>
+                        </>
+                      )}
                       {/* Rounded: this is a "from" price, and a stray decimal
                           (4,024.5) reads as careless. Rounding up by <1 RON can only
                           ever quote ABOVE what the booking form will charge. */}
@@ -458,14 +473,17 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
             </h2>
             {/* "cel mai bun preț", not "cel mai bun preț direct" — the qualifier made it sound like a
                 category of price rather than simply the best one. */}
-            <p className="mx-auto mt-3 max-w-md text-primary-foreground/85">{t(lang, 'Call us for the best price, or check the dates online.', 'Sună-ne pentru cel mai bun preț, sau vezi datele online.')}</p>
+            <p className="mx-auto mt-3 max-w-md text-primary-foreground/85">{m.closingSubtitle || t(lang, 'Call us for the best price, or check the dates online.', 'Sună-ne pentru cel mai bun preț, sau vezi datele online.')}</p>
+            {/* AVAILABILITY LEADS, the phone follows — the same order, and for the same measured
+                reason, as the hero above: 17 Aug - 8 Sep the stays button took 67 clicks from 54
+                people against 6 calls from 5. The footer had kept the opposite arrangement. */}
             <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              {m.phone && <CallButton phone={m.phone} label={m.phone} size="lg" className="w-full bg-white text-foreground hover:bg-white/90 sm:w-auto" />}
               {m.showBooking && (
-                <Button variant="outline" size="lg" asChild className="w-full border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground hover:text-primary sm:w-auto">
+                <Button size="lg" asChild className="w-full bg-white text-foreground hover:bg-white/90 sm:w-auto">
                   <Link href={m.checkDatesUrl} onClick={() => track.trackCtaClick('footer')}><MapPin className="mr-2 h-5 w-5" />{t(lang, 'See availability', 'Vezi disponibilitatea')}</Link>
                 </Button>
               )}
+              {m.phone && <CallButton phone={m.phone} label={m.phone} size="lg" variant="outline" className="w-full border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground hover:text-primary sm:w-auto" />}
             </div>
           </div>
         </section>
