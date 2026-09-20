@@ -180,6 +180,11 @@ export async function buildLandingModel(
     exampleStays,
     gallery: (config.gallery ?? []).map((sp) => resolveImage(sp, images, lang)).filter(Boolean) as LandingImage[],
     galleryUrl: config.galleryUrl ?? null,
+    hideAdvertisedRate: config.hideAdvertisedRate === true,
+    staysHeading: {
+      title: config.staysHeading?.title ? tr(config.staysHeading.title) : null,
+      subtitle: config.staysHeading?.subtitle ? tr(config.staysHeading.subtitle) : null,
+    },
     offer: config.offer ? tr(config.offer.text) : null,
     phone, showBooking: config.cta?.showBooking !== false,
     checkDatesUrl,

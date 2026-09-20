@@ -65,6 +65,18 @@ export interface LandingConfig {
     label?: Ml;                // one label for every card, e.g. "Weekend, 2 nopți"
     note?: Ml;                 // one note under every price
   } | null;
+  /**
+   * Hide the property's "from N RON / night" line in the hero.
+   *
+   * `advertisedRate` is a whole-property figure (here: the per-night rate on a WEEK, in autumn, for
+   * three). On a page that only sells two-night weekends at nearly double that, it is the first
+   * number a reader sees and it undercuts every card below it. True suppresses it for this page
+   * only; the property's own pages are untouched.
+   */
+  hideAdvertisedRate?: boolean;
+  /** Overrides the stays section's heading. The default ("Stays that fit this window" / "Real dates,
+   *  ready to book") says nothing a reader can act on — which window, and as opposed to what? */
+  staysHeading?: { title?: Ml; subtitle?: Ml | null };
   gallery?: string[];                          // storagePaths
   /** Shown as a link out to the property's full gallery, for people who want more than the strip. */
   galleryUrl?: string | null;
@@ -127,6 +139,8 @@ export interface LandingModel {
   exampleStays: Array<{ start: string; end: string; nights: number; label: string; occasion?: string | null; priceHint?: number | null; guests?: number | null; featured?: boolean; note?: string | null; bookUrl: string }>;
   gallery: LandingImage[];
   galleryUrl: string | null;
+  hideAdvertisedRate: boolean;
+  staysHeading: { title: string | null; subtitle: string | null };
   offer: string | null;
   phone: string | null;
   showBooking: boolean;

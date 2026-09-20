@@ -130,12 +130,14 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
         <Header
           propertyName={m.propertyName}
           propertySlug={m.propertySlug}
+          /* rate + note are hidden together: a footnote explaining an asterisk the page never
+             prints is worse than no footnote. */
           menuItems={m.menuItems}
           logoSrc={m.logoSrc}
           logoAlt={m.logoAlt}
           isCustomDomain={m.isCustomDomain}
-          advertisedRate={m.advertisedRate}
-          advertisedRateNote={m.advertisedRateNote}
+          advertisedRate={m.hideAdvertisedRate ? undefined : m.advertisedRate}
+          advertisedRateNote={m.hideAdvertisedRate ? undefined : m.advertisedRateNote}
           baseCurrency={m.baseCurrency as never}
           onNavClick={track.trackNavToSite}
           bookingHref={hasStays ? `#${STAYS_ANCHOR}` : m.checkDatesUrl}
@@ -192,7 +194,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
 
                 Wraps to a centred stack on a phone and sits on one line from `sm` up; the dot
                 separators are hidden when wrapped so a broken row never shows a dangling bullet. */}
-            {(m.ratings || m.maxGuests || m.advertisedRate) && (
+            {(m.ratings || m.maxGuests || (m.advertisedRate && !m.hideAdvertisedRate)) && (
               <ul className="mx-auto mt-4 flex max-w-2xl flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-sm text-foreground sm:mt-5 sm:max-w-3xl sm:gap-x-4 sm:text-base sm:text-white/95 sm:drop-shadow">
                 {m.ratings && m.ratings.count > 0 && (
                   <li className="inline-flex items-center gap-1.5">
@@ -222,10 +224,10 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
                     </li>
                   );
                 })()}
-                {m.advertisedRate ? (
+                {m.advertisedRate && !m.hideAdvertisedRate ? (
                   <li className="inline-flex items-center gap-1.5">
                     <span aria-hidden className="hidden text-white/40 sm:inline">·</span>
-                    <span>{t(lang, 'from', 'de la')} <span className="font-semibold">{money(m.advertisedRate, lang)} {m.baseCurrency}</span>{t(lang, ' / night', ' / noapte')}{m.advertisedRateNote ? <span aria-hidden="true">*</span> : null}</span>
+                    <span>{t(lang, 'from', 'de la')} <span className="font-semibold">{money(m.advertisedRate, lang)} {m.baseCurrency}</span>{t(lang, ' / night', ' / noapte')}{m.advertisedRateNote && !m.hideAdvertisedRate ? <span aria-hidden="true">*</span> : null}</span>
                   </li>
                 ) : null}
               </ul>
@@ -300,8 +302,12 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
           // without it the browser aligns the section top to the viewport top and the header covers it.
           <section id={STAYS_ANCHOR} className="scroll-mt-20 bg-muted/40 py-14 sm:py-20">
             <div className="mx-auto max-w-5xl px-5">
-              <h2 className="text-center text-2xl font-semibold sm:text-3xl">{t(lang, 'Stays that fit this window', 'Sejururi potrivite pentru această perioadă')}</h2>
-              <p className="mx-auto mt-2 max-w-xl text-center text-muted-foreground">{t(lang, 'Real dates, ready to book.', 'Date reale, gata de rezervare.')}</p>
+              <h2 className="text-center text-2xl font-semibold sm:text-3xl">{m.staysHeading.title || t(lang, 'Stays that fit this window', 'Sejururi potrivite pentru această perioadă')}</h2>
+              {/* A configured heading may deliberately carry no subtitle. Only fall back to the
+                  default line when the page has not overridden the heading at all. */}
+              {(m.staysHeading.subtitle || !m.staysHeading.title) && (
+                <p className="mx-auto mt-2 max-w-xl text-center text-muted-foreground">{m.staysHeading.subtitle || t(lang, 'Real dates, ready to book.', 'Date reale, gata de rezervare.')}</p>
+              )}
               {/* THE RECOMMENDATION, full width and visually ahead of the alternatives.
                   A row of equal cards cannot say "this is the one" — and on this window the whole
                   offer is the long stay, with the shorter ones there only so a reader who cannot
@@ -465,7 +471,7 @@ export function LandingRenderer({ m }: { m: LandingModel }) {
         </section>
 
         <Footer
-          advertisedRateNote={m.advertisedRateNote}
+          advertisedRateNote={m.hideAdvertisedRate ? undefined : m.advertisedRateNote}
           quickLinks={m.footer.quickLinks}
           contactInfo={m.footer.contactInfo}
           socialLinks={m.footer.socialLinks}
