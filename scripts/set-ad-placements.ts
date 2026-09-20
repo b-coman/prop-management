@@ -32,7 +32,11 @@ import { resolveAdContext } from '@/services/growth/metaAds/adContext';
 import { metaGraph } from '@/services/growth/metaAds/client';
 
 const PROPERTY = 'prahova-mountain-chalet';
-const AD_SETS = ['120251858082340114', '120251858058290114'];
+const AD_SETS = [
+  '120252160782510114',  // Bucharest cold — Toamnă lungă
+  '120252194669560114',  // Constanța cold — Toamnă lungă retry
+  '120252388020700114',  // Ceaun retarget — RETARGETING, see the extra assert below
+];
 const APPLY = process.argv.includes('--apply');
 
 /** Feed and Stories on both platforms. Everything else — Reels above all — is off. */
@@ -83,6 +87,19 @@ const PLACEMENTS = {
     const geoKept = JSON.stringify(t.geo_locations ?? {}) === JSON.stringify(targeting.geo_locations ?? {});
     console.log('    Meta now holds:', JSON.stringify(held));
     console.log(`    reels excluded: ${reelsGone ? 'YES' : 'NO — CHECK THIS'} · geo unchanged: ${geoKept ? 'yes' : 'NO — CHECK THIS'}`);
+
+    // RETARGETING SURVIVAL. `targeting` is REPLACE, so a placement write that drops
+    // `custom_audiences` or resets `targeting_automation.advantage_audience` to its default of 1
+    // turns a retarget into prospecting — same spend, strangers. Nothing else on the ad set would
+    // look wrong, so assert it here rather than hope.
+    const audsBefore = JSON.stringify((targeting as any).custom_audiences ?? []);
+    const audsAfter = JSON.stringify((t as any).custom_audiences ?? []);
+    const advBefore = (targeting as any).targeting_automation?.advantage_audience;
+    const advAfter = (t as any).targeting_automation?.advantage_audience;
+    if (audsBefore !== '[]' || advBefore !== undefined) {
+      const ok = audsBefore === audsAfter && advBefore === advAfter;
+      console.log(`    custom_audiences kept: ${audsBefore === audsAfter ? 'yes' : 'NO — CHECK THIS'} · advantage_audience ${advBefore} -> ${advAfter} ${ok ? '' : ' — CHECK THIS'}`);
+    }
   }
   if (!APPLY) console.log('\nDry run. Re-run with --apply to write.\n');
 })().catch((e) => { console.error(e); process.exit(1); });

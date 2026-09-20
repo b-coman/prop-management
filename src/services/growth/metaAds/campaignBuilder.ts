@@ -271,8 +271,23 @@ export async function createAdSet(
   // this default path. A caller that sets its own `targeting_automation`
   // (e.g. an explicit `advantage_audience:0` escape hatch, which MAY then
   // carry age/gender/interests) overrides this default via the spread below.
+  // PLACEMENTS. With no `publisher_platforms` Meta runs Advantage+ placements and spends wherever
+  // clicks are cheapest, which on this account means Reels: measured 17-18 Aug, Facebook Reels took
+  // 33% of spend and produced 121 of 220 link clicks at 0.065 lei against Feed's 0.169 — and
+  // converted none of them. An 8.3% click-through on a STATIC photo in a vertical-video surface is
+  // thumb-taps, not interest, and those cheap non-converting clicks also train the optimiser toward
+  // more of the same. It was patched on live ad sets in September, but never here, so every campaign
+  // the engine created went back to the default: on 20 Sep all three live ad sets were on Advantage+
+  // placements again, ~18% of delivery in Reels at more than double the feed CPM.
+  //
+  // Feed and Stories, both platforms. Reels is worth buying DELIBERATELY with video creative; this
+  // system composes still photographs, so it should not be the default sink for a 5 lei/day budget.
+  // A caller that wants Reels overrides it through `spec.targeting`, same as every other key here.
   const targeting = {
     targeting_automation: { advantage_audience: 1 },
+    publisher_platforms: ['facebook', 'instagram'],
+    facebook_positions: ['feed', 'story'],
+    instagram_positions: ['stream', 'story'],
     ...spec.targeting,
   };
 
