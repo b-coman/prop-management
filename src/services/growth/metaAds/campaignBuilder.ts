@@ -33,6 +33,34 @@ import { loggers } from '@/lib/logger';
 import { isAdsEngineEnabled } from '@/config/growth-ads';
 import { getPixelIdForProperty } from '@/lib/meta-pixels';
 import { resolveAdContext } from './adContext';
+
+/**
+ * PLACEMENTS - the single source of truth for where a composed ad may appear. Exported because
+ * `scripts/set-ad-placements.ts` patches live ad sets with the SAME list; when these two disagree,
+ * every new campaign silently reverts whatever was fixed by hand. That already happened once: the
+ * September flight was patched on the live ad sets but not in this builder, so on 20 Sep all three
+ * live ad sets were back on Advantage+ placements with ~18% of delivery in Reels.
+ *
+ * Reels is out. Measured 17-20 Sep it took 51% of the two cold ad sets' spend and converted nothing;
+ * an 8.3% click-through on a STATIC photo in a vertical-video surface is thumb-taps, not interest,
+ * and those cheap non-converting clicks train the optimiser toward more of the same. It is worth
+ * buying DELIBERATELY with video creative, which this system does not compose.
+ *
+ * Stories is out: 0.8% of spend over the same window, so allowing it bought nothing.
+ *
+ * Marketplace and Search are IN. They were 6% of spend and 38 link clicks, and an earlier version
+ * of the patch script cut them by accident when it narrowed to feed+story.
+ *
+ * Caveat worth keeping honest (21 Sep): this list is what the three live ad sets carry, but it has
+ * only hours of data under it. Marketplace has started serving (14 impressions across the two cold
+ * ad sets); Search has not served at all. Both are far too small to judge. Revisit with a few days
+ * of breakdown data before treating either as having earned its place.
+ */
+export const AD_PLACEMENTS = {
+  publisher_platforms: ['facebook', 'instagram'],
+  facebook_positions: ['feed', 'marketplace', 'search'],
+  instagram_positions: ['stream'],
+};
 import { createResource, deleteResource, type GraphParamValue, type GraphResult } from './client';
 
 const logger = loggers.ads;
@@ -271,23 +299,13 @@ export async function createAdSet(
   // this default path. A caller that sets its own `targeting_automation`
   // (e.g. an explicit `advantage_audience:0` escape hatch, which MAY then
   // carry age/gender/interests) overrides this default via the spread below.
-  // PLACEMENTS. With no `publisher_platforms` Meta runs Advantage+ placements and spends wherever
-  // clicks are cheapest, which on this account means Reels: measured 17-18 Aug, Facebook Reels took
-  // 33% of spend and produced 121 of 220 link clicks at 0.065 lei against Feed's 0.169 — and
-  // converted none of them. An 8.3% click-through on a STATIC photo in a vertical-video surface is
-  // thumb-taps, not interest, and those cheap non-converting clicks also train the optimiser toward
-  // more of the same. It was patched on live ad sets in September, but never here, so every campaign
-  // the engine created went back to the default: on 20 Sep all three live ad sets were on Advantage+
-  // placements again, ~18% of delivery in Reels at more than double the feed CPM.
-  //
-  // Feed and Stories, both platforms. Reels is worth buying DELIBERATELY with video creative; this
-  // system composes still photographs, so it should not be the default sink for a 5 lei/day budget.
-  // A caller that wants Reels overrides it through `spec.targeting`, same as every other key here.
+  // PLACEMENTS come from the shared AD_PLACEMENTS constant (see its definition above) so that the
+  // composed default and the set-ad-placements patch script cannot drift apart. A caller that wants
+  // something else - Reels with video creative, say - overrides it through `spec.targeting`, same
+  // as every other key here.
   const targeting = {
     targeting_automation: { advantage_audience: 1 },
-    publisher_platforms: ['facebook', 'instagram'],
-    facebook_positions: ['feed', 'story'],
-    instagram_positions: ['stream', 'story'],
+    ...AD_PLACEMENTS,
     ...spec.targeting,
   };
 

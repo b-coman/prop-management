@@ -10,7 +10,7 @@ jest.mock('@/lib/firebaseAdminSafe', () => ({
   FieldValue: { serverTimestamp: jest.fn(() => 'server-ts') },
 }));
 
-import { createCampaignChain } from '../campaignBuilder';
+import { createCampaignChain, AD_PLACEMENTS } from '../campaignBuilder';
 import { resolveAdContext } from '../adContext';
 import { getPixelIdForProperty } from '@/lib/meta-pixels';
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
@@ -477,6 +477,34 @@ describe('createCampaignChain — Phase 2b: advantage_audience default + single-
     expect(targeting.targeting_automation).toEqual({ advantage_audience: 1 });
     expect(targeting).not.toHaveProperty('age_min');
     expect(targeting).not.toHaveProperty('age_max');
+  });
+
+  // The composed default and scripts/set-ad-placements.ts both read AD_PLACEMENTS. Nothing used to
+  // pin the list, so the two drifted apart twice: the September flight was patched on the live ad
+  // sets but not in the builder, and on 20 Sep every live ad set was back on Advantage+ placements
+  // with ~18% of delivery in Reels. These two tests are what makes that drift fail loudly.
+  it('sends exactly the shared AD_PLACEMENTS list on the default path', async () => {
+    const { db } = makeAdminDb();
+    mockGetAdminDb.mockResolvedValue(db);
+
+    await createCampaignChain(PROPERTY, CHAIN_SPEC);
+
+    const [, adSetInit] = findCall('adsets');
+    const targeting = JSON.parse(new URLSearchParams(adSetInit.body as string).get('targeting') as string);
+    expect(targeting.publisher_platforms).toEqual(AD_PLACEMENTS.publisher_platforms);
+    expect(targeting.facebook_positions).toEqual(AD_PLACEMENTS.facebook_positions);
+    expect(targeting.instagram_positions).toEqual(AD_PLACEMENTS.instagram_positions);
+  });
+
+  it('never composes Reels by default — it is opt-in, with video creative', async () => {
+    const { db } = makeAdminDb();
+    mockGetAdminDb.mockResolvedValue(db);
+
+    await createCampaignChain(PROPERTY, CHAIN_SPEC);
+
+    const [, adSetInit] = findCall('adsets');
+    const targeting = JSON.parse(new URLSearchParams(adSetInit.body as string).get('targeting') as string);
+    expect(JSON.stringify(targeting)).not.toContain('reels');
   });
 
   it('a caller-supplied targeting_automation overrides the advantage_audience default', async () => {

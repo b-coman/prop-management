@@ -30,6 +30,7 @@ process.env.META_ADS_TOKENS = execSync(
 ).trim();
 import { resolveAdContext } from '@/services/growth/metaAds/adContext';
 import { metaGraph } from '@/services/growth/metaAds/client';
+import { AD_PLACEMENTS } from '@/services/growth/metaAds/campaignBuilder';
 
 const PROPERTY = 'prahova-mountain-chalet';
 const AD_SETS = [
@@ -39,18 +40,31 @@ const AD_SETS = [
 ];
 const APPLY = process.argv.includes('--apply');
 
-/** Feed and Stories on both platforms. Everything else — Reels above all — is off. */
+const arg = (name: string): string | undefined =>
+  process.argv.find((a) => a.startsWith(`--${name}=`))?.split('=').slice(1).join('=');
+
+/** `--only=<id,id>` narrows the run to specific ad sets. Default is all of AD_SETS. */
+const only = arg('only')?.split(',').map((s) => s.trim()).filter(Boolean);
+const TARGETS = only?.length ? AD_SETS.filter((id) => only.includes(id)) : AD_SETS;
+
+/**
+ * Placements to allow. The list itself lives in AD_PLACEMENTS next to the composer, so that
+ * patching live ad sets here and composing new ones there cannot drift apart - that drift is the
+ * bug this script existed to clean up in the first place.
+ *
+ * `--fb=feed,story --ig=stream,story` overrides it for a one-off run without touching the default.
+ */
 const PLACEMENTS = {
-  publisher_platforms: ['facebook', 'instagram'],
-  facebook_positions: ['feed', 'story'],
-  instagram_positions: ['stream', 'story'],
+  publisher_platforms: AD_PLACEMENTS.publisher_platforms,
+  facebook_positions: arg('fb')?.split(',') ?? AD_PLACEMENTS.facebook_positions,
+  instagram_positions: arg('ig')?.split(',') ?? AD_PLACEMENTS.instagram_positions,
 };
 
 (async () => {
   const ctx = await resolveAdContext(PROPERTY);
   if (!ctx) { console.error('no ad context for', PROPERTY); process.exit(1); }
 
-  for (const id of AD_SETS) {
+  for (const id of TARGETS) {
     const read = await metaGraph<{ name: string; effective_status: string; targeting: Record<string, unknown> }>(
       id, { params: { fields: 'name,effective_status,targeting' }, token: ctx.token, propertyId: PROPERTY }
     );
@@ -64,7 +78,18 @@ const PLACEMENTS = {
       instagram_positions: targeting.instagram_positions ?? '(all)',
     }));
 
-    const next = { ...targeting, ...PLACEMENTS };
+    // `targeting` is REPLACE, so the whole object goes back. Strip `location_types` on the way
+    // out: Meta retired it, and an ad set that carries it EXPLICITLY cannot be edited in Ads
+    // Manager at all - "your audience contains a location targeting option that has been removed"
+    // (docs/meta-ads-infrastructure-2026.md §9h). Reading targeting back hands us Meta's own
+    // default for it, so writing it unchanged is how a hand-editable ad set quietly became a
+    // locked one. Meta re-applies its default anyway, so this does not change who is targeted.
+    const next: Record<string, unknown> = { ...targeting, ...PLACEMENTS };
+    if (next.geo_locations && typeof next.geo_locations === 'object') {
+      const geo = { ...(next.geo_locations as Record<string, unknown>) };
+      delete geo.location_types;
+      next.geo_locations = geo;
+    }
     if (!APPLY) {
       console.log('    after :', JSON.stringify(PLACEMENTS), '  [dry run — nothing written]');
       continue;
@@ -73,18 +98,41 @@ const PLACEMENTS = {
     const write = await metaGraph(id, { method: 'POST', params: { targeting: next }, token: ctx.token, propertyId: PROPERTY });
     if (!write.ok) { console.error(`    WRITE FAILED — ${write.error}`); continue; }
 
-    const verify = await metaGraph<{ targeting: Record<string, unknown> }>(
+    // Read the write back to prove what Meta holds (doc §9h). But the read is EVENTUALLY
+    // CONSISTENT: a verify issued immediately after a successful POST can still return the old
+    // targeting, which reads exactly like "the write silently did nothing" and invites a pointless
+    // second write on a live ad set. Retry until Meta echoes what we sent, then report.
+    const sent = JSON.stringify(PLACEMENTS.facebook_positions);
+    let verify = await metaGraph<{ targeting: Record<string, unknown> }>(
       id, { params: { fields: 'targeting' }, token: ctx.token, propertyId: PROPERTY }
     );
+    for (let i = 0; i < 4; i++) {
+      if (verify.ok && JSON.stringify(verify.data.targeting.facebook_positions) === sent) break;
+      await new Promise((r) => setTimeout(r, 2500));
+      verify = await metaGraph<{ targeting: Record<string, unknown> }>(
+        id, { params: { fields: 'targeting' }, token: ctx.token, propertyId: PROPERTY }
+      );
+    }
     if (!verify.ok) { console.error(`    wrote, but read-back failed — ${verify.error}`); continue; }
     const t = verify.data.targeting;
+    if (JSON.stringify(t.facebook_positions) !== sent) {
+      console.log('    NOTE: Meta still echoes the old placements after ~10s. Re-read before acting;');
+      console.log('          a stale verify is far more likely here than a silently dropped write.');
+    }
     const held = {
       publisher_platforms: t.publisher_platforms,
       facebook_positions: t.facebook_positions,
       instagram_positions: t.instagram_positions,
     };
     const reelsGone = !JSON.stringify(held).includes('reels');
-    const geoKept = JSON.stringify(t.geo_locations ?? {}) === JSON.stringify(targeting.geo_locations ?? {});
+    // Compare the geography itself, not `location_types` - Meta re-adds its own default to that
+    // key on read-back, which would otherwise show up as a spurious "geo changed" alarm.
+    const geoOnly = (g: unknown) => {
+      const c = { ...((g ?? {}) as Record<string, unknown>) };
+      delete c.location_types;
+      return JSON.stringify(c);
+    };
+    const geoKept = geoOnly(t.geo_locations) === geoOnly(targeting.geo_locations);
     console.log('    Meta now holds:', JSON.stringify(held));
     console.log(`    reels excluded: ${reelsGone ? 'YES' : 'NO — CHECK THIS'} · geo unchanged: ${geoKept ? 'yes' : 'NO — CHECK THIS'}`);
 
