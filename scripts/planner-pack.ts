@@ -75,10 +75,26 @@ async function main() {
   const start = new Date(`${START}T00:00:00Z`), end = new Date(`${END}T00:00:00Z`);
   const nights = days(start, end);
   const targetSeason = seasonOf(start);
-  // occasion: a holiday/school-break overlapping the window
+  // occasion: the holiday/school-break that overlaps this window in SELLABLE NIGHTS.
+  //
+  // A holiday record's endDate is its last DAY, and the last night anyone buys is the night before
+  // that - they drive home on the final day. Ranking by earliest startDate instead picked, for a
+  // November window, the autumn break (24 Oct-1 Nov), whose only overlap is 1 Nov: the day families
+  // return, a night that is never sold. It passed over Sfantul Andrei + Ziua Nationala (30 Nov-1 Dec),
+  // which the holiday record itself calls November's only anchor. Rank by nights actually in play.
+  const nightsInWindow = (h: { startDate: string; endDate: string }) => {
+    const from = h.startDate > START ? h.startDate : START;
+    const lastNight = new Date(`${h.endDate}T00:00:00Z`); lastNight.setUTCDate(lastNight.getUTCDate() - 1);
+    const toStr = ymd(lastNight);
+    const to = toStr < END ? toStr : END;
+    return from > to ? 0 : days(new Date(`${from}T00:00:00Z`), new Date(`${to}T00:00:00Z`)) + 1;
+  };
   const occ = hSnap.docs.map(d => d.data() as any)
     .filter(h => h.startDate <= END && h.endDate >= START)
-    .sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)))[0];
+    .map(h => ({ h, n: nightsInWindow(h) }))
+    .filter(x => x.n > 0)
+    .sort((a, b) => b.n - a.n || String(a.h.startDate).localeCompare(String(b.h.startDate)))
+    .map(x => x.h)[0];
 
   // ---------- offer constraint (net-to-owner ADR; the inequality from plan §0.5) ----------
   // net ADR by channel from the last ~18 months of stays (amounts are net-to-owner, plan §7.11).
