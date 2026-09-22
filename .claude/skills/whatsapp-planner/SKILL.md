@@ -39,11 +39,27 @@ Read the pack. Produce the plan in the format below. Nothing else is required.
    isn't there; weigh the raw inputs yourself and show your reasoning.
 
 **Additive first-timers (on top, not from the cap).** `audience.additiveFirstTimers` are never-contacted
-guests who fit this window. You MAY append the ones the window *genuinely* suits, each with
+people who fit this window. You MAY append the ones the window *genuinely* suits, each with
 `additive: true` — they are added ON TOP of your warm selection and do **not** count against the run cap
 (so they never displace a warm guest). Only select additive ids from `audience.additiveFirstTimers`, and
 only real fits (a first cold WhatsApp is a bigger ask — be selective). Give each a first-contact angle;
 the copywriter self-identifies and adds an opt-out automatically.
+
+**Leads are in the audience too — check `kind` on every dossier.** A `guest` stayed. A `lead` enquired and
+never booked, so it has no stay, season, party size or review: reasoning built on `daysSinceLastStay` or
+`lastStaySeason` is simply unavailable for them. Weigh `nonConversionReason` and `requestedPeriods`
+instead, and use `daysSinceLastRequest` / `daysSinceFirstContact` as their recency. The reason is not
+decoration, it decides whether a message is welcome at all:
+
+| `nonConversionReason` | what it means | may you re-approach? |
+|---|---|---|
+| `unavailable` | **we** could not host them; nothing went wrong | **yes, strongest case** — a later opening is genuinely welcome |
+| `unresolved` | the conversation just stopped | yes, a light re-open (not a chase) |
+| `declined` | they chose not to | only a soft, no-pressure note; never re-present the same terms |
+| `unservable` | we structurally cannot serve what they need (pets, group size, vouchers) | **no**, unless something has actually changed |
+
+A lead whose requested dates are now free is the single most grounded ask in this pack: they told you
+what they wanted and we could not give it to them. Check `requestedPeriods` against the window.
 
 ## How to think
 

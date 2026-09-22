@@ -154,6 +154,15 @@ async function main() {
     if (lastCampaignAt && days(lastCampaignAt, AS_OF) < FREQ_CAP_DAYS) reasons.push('frequency-cap');
     if (daysSinceOut !== null && daysSinceOut < PACING_FLOOR[tier]) reasons.push(`pacing-floor-${tier}(${PACING_FLOOR[tier]}d)`);
 
+    // A LEAD has no stay, so "recent enough to still remember us" cannot key on one. Its recency is
+    // when they first reached out and when they last asked about dates. Without these, a
+    // never-contacted lead has daysSinceLastStay === null, fails the additive filter below, and
+    // disappears from the pack entirely - the highest-intent contacts we have are the ones who
+    // enquired and never booked.
+    const askedOnAll = ((g.requestedPeriods || []) as Array<{ askedOn?: string }>).map(r => r.askedOn).filter(Boolean).sort() as string[];
+    const firstContact = toD(g.firstContactAt) ?? (askedOnAll.length ? new Date(`${askedOnAll[0]}T00:00:00Z`) : null);
+    const lastRequest = askedOnAll.length ? new Date(`${askedOnAll[askedOnAll.length - 1]}T00:00:00Z`) : null;
+
     dossiers.push({
       guestId: g.id,
       firstName: g.firstName || null,
@@ -163,6 +172,8 @@ async function main() {
       // later message may honestly do.
       kind: g.kind || 'guest',
       firstContactAt: g.firstContactAt || null,
+      daysSinceFirstContact: firstContact ? days(firstContact, AS_OF) : null,
+      daysSinceLastRequest: lastRequest ? days(lastRequest, AS_OF) : null,   // a lead who asked 3 weeks ago is not a lead who asked 8 months ago
       nonConversionReason: g.nonConversionReason || null,
       requestedPeriods: g.requestedPeriods || [],
       eligible: reasons.length === 0,
@@ -191,10 +202,17 @@ async function main() {
   const eligibleAll = dossiers.filter(d => d.eligible);
   // WARM audience = contacted-before or repeat (tier != unknown) — the run cap applies to these.
   // ADDITIVE first-timers = never-contacted (tier 'unknown') who are recent enough to still remember
-  // (<=600d since stay) — appended ON TOP of the warm selection, NOT counted against the run cap.
+  // us (<=600d) — appended ON TOP of the warm selection, NOT counted against the run cap.
   // (unknown + cold >600d are left out of the gap-fill entirely; they belong to the cold-reintro warm-up.)
+  //
+  // Recency is "since we last had a signal from them", and which signal exists depends on who they
+  // are: a GUEST has a stay, a LEAD never stayed and has only an enquiry. Keying this on the stay
+  // alone silently dropped every never-contacted lead, because daysSinceLastStay is null for all of
+  // them. Prefer the stay, then the last date request, then first contact.
+  const recencyDays = (d: { daysSinceLastStay: number | null; daysSinceLastRequest: number | null; daysSinceFirstContact: number | null }) =>
+    d.daysSinceLastStay ?? d.daysSinceLastRequest ?? d.daysSinceFirstContact;
   const eligible = eligibleAll.filter(d => d.tier !== 'unknown');
-  const additiveFirstTimers = eligibleAll.filter(d => d.tier === 'unknown' && d.daysSinceLastStay != null && d.daysSinceLastStay <= 600);
+  const additiveFirstTimers = eligibleAll.filter(d => { const r = recencyDays(d); return d.tier === 'unknown' && r != null && r <= 600; });
 
   // live return-season-transition matrix over Romania-based repeat guests (the fit signal: a guest
   // whose last-stay season → target season is a common transition is a good fit, NOT "same season").
@@ -243,7 +261,7 @@ async function main() {
       ineligibleCount: dossiers.length - eligibleAll.length,
       eligible,
       additiveFirstTimers,   // append the FITTING ones with additive:true — ON TOP, they don't use the run cap
-      additiveNote: 'additiveFirstTimers are never-contacted guests who fit this window (recent enough to remember). You MAY append the ones the window genuinely suits with `additive:true` — they are ADDED ON TOP of your warm selection and do NOT count against the run cap. Give each a first-contact angle; the copywriter self-IDs + adds an opt-out automatically. Do not force them in; pick only real fits.',
+      additiveNote: 'additiveFirstTimers are never-contacted people who fit this window (recent enough to remember us). You MAY append the ones the window genuinely suits with `additive:true` — they are ADDED ON TOP of your warm selection and do NOT count against the run cap. Give each a first-contact angle; the copywriter self-IDs + adds an opt-out automatically. Do not force them in; pick only real fits. CHECK `kind`: this bucket holds both never-contacted GUESTS (recency = their stay) and LEADS who enquired and never booked (recency = `daysSinceLastRequest` / `daysSinceFirstContact`). A lead has no stay, season, party or review to reason from — weigh `nonConversionReason` and `requestedPeriods` instead, and read the reason honestly: `unavailable` means WE could not host them, so a later opening is genuinely welcome and is the strongest case in this bucket; `unresolved` means the conversation just stopped; `declined` means they chose not to; `unservable` means we structurally cannot serve what they need, so do not raise it again unless something has actually changed.',
       ineligible: dossiers.filter(d => !d.eligible).map(d => ({ guestId: d.guestId, tier: d.tier, reasons: d.ineligibleReasons })),
     },
   };
