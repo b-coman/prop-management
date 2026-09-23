@@ -128,3 +128,15 @@ describe('validateDrafts - with a master message', () => {
     expect(r.perGuest[0].warnings.join(' ')).not.toMatch(/numbers the master/);
   });
 });
+
+describe('validateDrafts - taste claims need evidence', () => {
+  it('WARNS on "stiu ca ti-a placut" with no review or note', () => {
+    const r = validateDrafts([lead({ audienceKind: 'guest' })], [draft(`Salut Marius!${FILLER} Stiu ca ti-a placut toamna acolo.${SELF_ID}`)]);
+    expect(r.perGuest[0].warnings.join(' ')).toMatch(/no review or note backs it/);
+  });
+  it('is quiet when a review backs it', () => {
+    const g = lead({ audienceKind: 'guest', groundedFacts: [...facts, { key: 'reviewPraised:Peaceful', value: 'Peaceful' }] });
+    const r = validateDrafts([g], [draft(`Salut Marius!${FILLER} Linistea care stiu ca ti-a placut.${SELF_ID}`, ['firstName', 'reviewPraised:Peaceful'])]);
+    expect(r.perGuest[0].warnings.join(' ')).not.toMatch(/no review or note/);
+  });
+});

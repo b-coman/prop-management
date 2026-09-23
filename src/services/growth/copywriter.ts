@@ -160,7 +160,7 @@ async function draftOneGuest(
  * and gives each failing guest ONE repair. Returns ok:false with the errors if any guest still
  * fails - never silently ships an ungrounded message.
  */
-export async function generateDrafts(brief: CampaignBrief, opts?: { asOf?: Date; maxRepairs?: number; model?: ModelChoice }): Promise<GenerateDraftsResult> {
+export async function generateDrafts(brief: CampaignBrief, opts?: { asOf?: Date; maxRepairs?: number; model?: ModelChoice; warmCache?: boolean }): Promise<GenerateDraftsResult> {
   const client = getAnthropicClient();
   if (!client) throw new Error('ANTHROPIC_API_KEY not configured — the in-app copywriter is unavailable');
 
@@ -180,9 +180,12 @@ export async function generateDrafts(brief: CampaignBrief, opts?: { asOf?: Date;
   const errors: string[] = pack.guests.filter((g: any) => g.error).map((g: any) => `${g.guestId}: ${g.error}`);
   const results: Array<GuestResult & { guestId: string }> = [];
   // The first guest runs alone so it writes the shared-pack cache; the rest then read it instead of
-  // all missing at once (4 parallel first calls each paid the full cache write in testing).
-  for (let i = 0; i < guests.length; i = i === 0 ? 1 : i + CONCURRENCY) {
-    const batch = guests.slice(i, i === 0 ? 1 : i + CONCURRENCY);
+  // all missing at once (4 parallel first calls each paid the full cache write in testing). A caller
+  // that already warmed the cache in an earlier batch passes warmCache: false and runs straight away.
+  const warm = opts?.warmCache ?? true;
+  const first = warm ? 1 : CONCURRENCY;
+  for (let i = 0; i < guests.length; i = i === 0 ? first : i + CONCURRENCY) {
+    const batch = guests.slice(i, i === 0 ? first : i + CONCURRENCY);
     const done = await Promise.all(batch.map(async (g: any) => {
       try {
         return { guestId: g.guestId, ...(await draftOneGuest(client, sharedBlock, g, rules, maxRepairs, model)) };

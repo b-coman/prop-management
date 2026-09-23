@@ -219,6 +219,26 @@ export async function setCampaignDrafts(
   logger.info('Campaign drafts set', { campaignId: id, count: drafts.length });
 }
 
+/**
+ * Merge freshly written drafts into a campaign, one guest at a time, inside a transaction. The
+ * owner's page writes messages in small batches; a batch whose request timed out in the browser can
+ * still finish on the server while the next batch saves, so a plain read-modify-write could drop one.
+ */
+export async function mergeCampaignDrafts(
+  id: string,
+  fresh: import('@/lib/growth/contracts').ProposedDraft[]
+): Promise<void> {
+  const db = await getAdminDb();
+  const ref = db.collection('campaigns').doc(id);
+  const byGuest = new Map(fresh.map((d) => [d.guestId, d]));
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const current = ((snap.data() ?? {}).perGuestDrafts ?? []) as import('@/lib/growth/contracts').ProposedDraft[];
+    tx.update(ref, { perGuestDrafts: current.map((d) => byGuest.get(d.guestId) ?? d), updatedAt: FieldValue.serverTimestamp() });
+  });
+  logger.info('Campaign drafts merged', { campaignId: id, count: fresh.length });
+}
+
 /** Approve a manual campaign: store the copy, record the approver, move to sending. */
 export async function markCampaignQueued(
   id: string,

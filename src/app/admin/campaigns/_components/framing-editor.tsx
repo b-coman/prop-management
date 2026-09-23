@@ -30,11 +30,14 @@ export function FramingEditor({
   proposal,
   copywriterAvailable,
   onRegenerated,
+  guestIds,
 }: {
   campaignId: string;
   proposal: CampaignProposal;
   copywriterAvailable: boolean;
   onRegenerated: () => void;
+  /** Every recipient, so the page can write their messages in small batches. */
+  guestIds: string[];
 }) {
   const { toast } = useToast();
   const [busy, startGen] = useTransition();
@@ -53,6 +56,7 @@ export function FramingEditor({
   const [masterNote, setMasterNote] = useState<string[]>([]);
   const [drafting, startDraft] = useTransition();
   const [saving, startSave] = useTransition();
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
 
   const buildOffer = (): CampaignOffer => {
     const base = { type: offerType, description: offerDesc } as CampaignOffer;
@@ -102,29 +106,44 @@ export function FramingEditor({
       }
     });
 
+  // One request per small batch of guests: a whole campaign in one request ran past the ~60s the
+  // connection allows (20 guests took ~90s) and the page reported a failure that hadn't happened.
+  // The first batch is a single guest so it warms the shared prompt cache for the rest.
+  const batches = (ids: string[]) => ids.length ? [ids.slice(0, 1), ...Array.from({ length: Math.ceil((ids.length - 1) / 3) }, (_, k) => ids.slice(1 + k * 3, 4 + k * 3))] : [];
+
   const regenerate = () =>
     startGen(async () => {
       setErrors([]);
-      try {
-        const res = await generateMessagesAction(campaignId, { ...currentFraming(), masterMessage: masterMessage.trim() });
-        if (res.success && res.ok) {
-          toast({ title: `Wrote ${res.count ?? 0} messages`, description: 'Review them below, then approve to queue.' });
-          onRegenerated();
-        } else if (res.success && !res.ok) {
-          setErrors(res.errors ?? ['The copywriter output failed validation.']);
-          toast({
-            title: res.count ? `Wrote ${res.count} messages, some failed` : 'Generation rejected',
-            description: res.count ? 'Guests listed below kept their previous message.' : 'No message passed the checks. Nothing was changed.',
-            variant: 'destructive',
-          });
-          if (res.count) onRegenerated();
-        } else {
-          toast({ title: 'Could not generate', description: res.error, variant: 'destructive' });
+      const failed: string[] = [];
+      let written = 0;
+      const plan = batches(guestIds);
+      setProgress({ done: 0, total: guestIds.length });
+      for (let b = 0; b < plan.length; b++) {
+        try {
+          const res = await generateMessagesAction(
+            campaignId,
+            b === 0 ? { ...currentFraming(), masterMessage: masterMessage.trim() } : null,
+            { guestIds: plan[b], warmCache: b === 0 },
+          );
+          if (!res.success) {
+            // The first batch also saves the framing, so stop if it fails outright.
+            if (b === 0) { toast({ title: 'Could not generate', description: res.error, variant: 'destructive' }); setProgress(null); return; }
+            failed.push(`${plan[b].length} guest(s): ${res.error ?? 'failed'}`);
+          } else {
+            written += res.count ?? 0;
+            if (!res.ok) failed.push(...(res.errors ?? []));
+          }
+        } catch (e) {
+          // A dropped connection doesn't mean the server failed; it may still save this batch.
+          failed.push(`${plan[b].length} guest(s): connection dropped, the server may still finish them - reload in a minute`);
         }
-      } catch (e) {
-        // Never let a rejection bubble to the root error boundary — show it inline.
-        toast({ title: 'Could not generate', description: (e as Error)?.message || 'Unexpected error', variant: 'destructive' });
+        setProgress({ done: Math.min(guestIds.length, plan.slice(0, b + 1).flat().length), total: guestIds.length });
       }
+      setProgress(null);
+      setErrors(failed);
+      if (failed.length === 0) toast({ title: `Wrote ${written} messages`, description: 'Review them below, then approve to queue.' });
+      else toast({ title: `Wrote ${written} of ${guestIds.length} messages`, description: 'See below for the ones that did not finish.', variant: 'destructive' });
+      onRegenerated();
     });
 
   return (
@@ -215,7 +234,7 @@ export function FramingEditor({
 
         {errors.length > 0 && (
           <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive">
-            <p className="mb-1 flex items-center gap-1 font-medium"><AlertCircle className="h-3.5 w-3.5" /> These guests failed the checks and kept their previous message:</p>
+            <p className="mb-1 flex items-center gap-1 font-medium"><AlertCircle className="h-3.5 w-3.5" /> Not written this time (these guests kept their previous message):</p>
             <ul className="space-y-0.5">{errors.map((e, i) => <li key={i}>• {e}</li>)}</ul>
           </div>
         )}
@@ -230,7 +249,7 @@ export function FramingEditor({
             {masterMessage.trim() ? 'Save & personalise for each guest' : 'Save & write each message'}
           </Button>
           {!copywriterAvailable && <span className="text-xs text-muted-foreground">Copywriter unavailable — ANTHROPIC_API_KEY not set.</span>}
-          {busy && <span className="text-xs text-muted-foreground">Writing one message per guest, about 2-3 minutes for 20…</span>}
+          {busy && <span className="text-xs text-muted-foreground">{progress ? `Writing messages: ${progress.done} of ${progress.total}…` : 'Writing messages…'}</span>}
         </div>
       </CardContent>
     </Card>

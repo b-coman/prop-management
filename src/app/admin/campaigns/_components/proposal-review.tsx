@@ -92,6 +92,7 @@ export function ProposalReview({ campaignId }: { campaignId: string }) {
           proposal={proposal}
           copywriterAvailable={copywriterAvailable}
           onRegenerated={() => { void load(); }}
+          guestIds={rows.map((r) => r.guestId)}
         />
       )}
 

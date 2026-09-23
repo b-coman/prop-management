@@ -68,6 +68,8 @@ const DISCOUNT_WORDS = /\d+\s*(%|la\s*suta|procent)|\b(reducer|discount|pret red
 // Naming an OTA or selling the direct channel. Fine for a guest who only ever booked on an OTA
 // (it is their news); odd for someone who already books direct, and meaningless for a lead.
 const CHANNEL_TALK = /\b(booking(\.com)?|airbnb|platform)|rezerv\w* direct|direct la mine|direct cu mine/i;
+// "I know you liked..." is a claim about the guest's taste; it needs a review or note behind it.
+const CLAIMS_TASTE = /stiu ca (ti|v)-a(ti)? placut|stiu ca (iti|va) place|stiu cat de mult (ti|v)-a/i;
 // Early access is not exclusivity: the dates stay bookable on the site and the OTAs.
 const CLAIMS_EXCLUSIVE = /nimeni altcineva|(inainte|pana) (sa|nu) (le|il|o) (vada|vede|rezerve) (altcineva|nimeni)|doar pentru (tine|voi)|ai prioritate|aveti prioritate/i;
 const loose = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -136,6 +138,10 @@ export function validateDrafts(
     const isLead = g.audienceKind === 'lead';
     if (isLead && CLAIMS_A_STAY.test(body)) {
       errors.push('claims a past stay for a LEAD who has never stayed — build on what they asked for (requestedPeriod / nonConversionReason), not on a visit that never happened');
+    }
+
+    if (CLAIMS_TASTE.test(loose(body)) && !(d.factsUsed || []).some((k) => k.startsWith('reviewPraised:') || k.startsWith('note:'))) {
+      warnings.push('says you know what they liked, but no review or note backs it - say when they stayed instead');
     }
 
     // 1c. offer, dashes, exclusivity: the checks every campaign text gets

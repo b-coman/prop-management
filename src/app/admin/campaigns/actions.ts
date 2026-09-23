@@ -5,7 +5,7 @@ import { loggers } from '@/lib/logger';
 import { requireSuperAdmin, handleAuthError, AuthorizationError } from '@/lib/authorization';
 import type { Campaign, SegmentDefinition, MessageVariant, OutboxMessage } from '@/types';
 import { PREDEFINED_SEGMENTS, previewAudience } from '@/services/segmentService';
-import { listCampaigns, createCampaign, approveCampaign, sendCampaign, createManualCampaign, markCampaignQueued, markCampaignSent, deleteCampaign, getCampaign, updateCampaignFraming, campaignToBrief, setCampaignDrafts } from '@/services/campaignService';
+import { listCampaigns, createCampaign, approveCampaign, sendCampaign, createManualCampaign, markCampaignQueued, markCampaignSent, deleteCampaign, getCampaign, updateCampaignFraming, campaignToBrief, mergeCampaignDrafts } from '@/services/campaignService';
 import { buildAudience, type AudienceCandidate } from '@/services/audienceService';
 import { renderMessages, queueMessages, queueDrafts, type RenderedMessage, type SkippedRender } from '@/services/campaignMessaging';
 import { fetchOutboxForCampaign, markOutboxSent } from '@/services/outboxService';
@@ -320,7 +320,8 @@ export async function fetchProposalAction(
  */
 export async function generateMessagesAction(
   campaignId: string,
-  framing: { occasion: { name: string | null; point: string }; offer: CampaignOffer; updates: CampaignUpdate[]; generalAngle: string; masterMessage?: string }
+  framing: { occasion: { name: string | null; point: string }; offer: CampaignOffer; updates: CampaignUpdate[]; generalAngle: string; masterMessage?: string } | null,
+  opts?: { guestIds?: string[]; warmCache?: boolean }
 ): Promise<{ success: boolean; ok?: boolean; count?: number; errors?: string[]; warnings?: string[]; error?: string }> {
   try {
     await requireSuperAdmin();
@@ -332,18 +333,19 @@ export async function generateMessagesAction(
     return { success: false, error: 'The copywriter is not configured (ANTHROPIC_API_KEY missing).' };
   }
   try {
-    await updateCampaignFraming(campaignId, framing);
+    // framing is null on the 2nd+ batch: the page saved it with the first one.
+    if (framing) await updateCampaignFraming(campaignId, framing);
     const campaign = await getCampaign(campaignId);
     if (!campaign) return { success: false, error: 'Campaign not found' };
-    const brief = campaignToBrief(campaign);
-    const res = await generateDrafts(brief);
+    const full = campaignToBrief(campaign);
+    // The page writes in small batches of guests so each request finishes well inside the ~60s
+    // the connection allows (a 20-guest run took ~90s and the browser reported a failure).
+    const only = opts?.guestIds ? new Set(opts.guestIds) : null;
+    const brief = only ? { ...full, audience: full.audience.filter((a) => only.has(a.guestId)) } : full;
+    const res = await generateDrafts(brief, { warmCache: opts?.warmCache });
     // Save every draft that passed; a guest whose new draft failed keeps the message they had, so
-    // one bad draft doesn't throw away the other nineteen (or drop that guest from the campaign).
-    if (res.drafts.length > 0) {
-      const fresh = new Map(toProposedDrafts(brief, res.drafts).map((d) => [d.guestId, d]));
-      const previous = (campaign as unknown as { perGuestDrafts?: ProposedDraft[] }).perGuestDrafts ?? [];
-      await setCampaignDrafts(campaignId, previous.map((d) => fresh.get(d.guestId) ?? d));
-    }
+    // one bad draft doesn't throw away the others (or drop that guest from the campaign).
+    if (res.drafts.length > 0) await mergeCampaignDrafts(campaignId, toProposedDrafts(brief, res.drafts));
     // NOTE: no revalidatePath here — the client refetches via fetchProposalAction (load()).
     // Revalidating the route mid-transition forced a redundant RSC re-render that surfaced as
     // the root error boundary on success; the client-side refetch is the single refresh path.
