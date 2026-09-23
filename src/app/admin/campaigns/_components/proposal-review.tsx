@@ -169,6 +169,7 @@ export function ProposalReview({ campaignId }: { campaignId: string }) {
                   rows={5}
                   disabled={isOut}
                   className="text-sm"
+                  placeholder="Not written yet. Draft a master message above, then personalise."
                 />
                 {r.factsUsed.length > 0 && (
                   <p className="mt-1 text-[11px] text-muted-foreground">Grounded in: {r.factsUsed.join(', ')}</p>

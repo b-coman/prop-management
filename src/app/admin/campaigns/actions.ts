@@ -10,7 +10,7 @@ import { buildAudience, type AudienceCandidate } from '@/services/audienceServic
 import { renderMessages, queueMessages, queueDrafts, type RenderedMessage, type SkippedRender } from '@/services/campaignMessaging';
 import { fetchOutboxForCampaign, markOutboxSent } from '@/services/outboxService';
 import { getGuestById } from '@/services/guestService';
-import { generateDrafts } from '@/services/growth/copywriter';
+import { generateDrafts, generateMasterMessage } from '@/services/growth/copywriter';
 import { isCopywriterAvailable } from '@/lib/growth/anthropic';
 import { toProposedDrafts, type CampaignProposal, type ProposedDraft, type CampaignOffer, type CampaignUpdate } from '@/lib/growth/contracts';
 
@@ -320,7 +320,7 @@ export async function fetchProposalAction(
  */
 export async function generateMessagesAction(
   campaignId: string,
-  framing: { occasion: { name: string | null; point: string }; offer: CampaignOffer; updates: CampaignUpdate[]; generalAngle: string }
+  framing: { occasion: { name: string | null; point: string }; offer: CampaignOffer; updates: CampaignUpdate[]; generalAngle: string; masterMessage?: string }
 ): Promise<{ success: boolean; ok?: boolean; count?: number; errors?: string[]; warnings?: string[]; error?: string }> {
   try {
     await requireSuperAdmin();
@@ -337,8 +337,12 @@ export async function generateMessagesAction(
     if (!campaign) return { success: false, error: 'Campaign not found' };
     const brief = campaignToBrief(campaign);
     const res = await generateDrafts(brief);
-    if (res.ok) {
-      await setCampaignDrafts(campaignId, toProposedDrafts(brief, res.drafts));
+    // Save every draft that passed; a guest whose new draft failed keeps the message they had, so
+    // one bad draft doesn't throw away the other nineteen (or drop that guest from the campaign).
+    if (res.drafts.length > 0) {
+      const fresh = new Map(toProposedDrafts(brief, res.drafts).map((d) => [d.guestId, d]));
+      const previous = (campaign as unknown as { perGuestDrafts?: ProposedDraft[] }).perGuestDrafts ?? [];
+      await setCampaignDrafts(campaignId, previous.map((d) => fresh.get(d.guestId) ?? d));
     }
     // NOTE: no revalidatePath here — the client refetches via fetchProposalAction (load()).
     // Revalidating the route mid-transition forced a redundant RSC re-render that surfaced as
@@ -347,6 +351,36 @@ export async function generateMessagesAction(
   } catch (error) {
     logger.error('generateMessagesAction failed', error as Error);
     return { success: false, error: (error as Error).message || 'Failed to generate messages' };
+  }
+}
+
+/**
+ * Gate 0, master message: save the framing and draft ONE master message from it for the owner to
+ * edit. Does not store the master (the owner edits it first; "Save & personalise" stores it) and
+ * does not touch the per-guest drafts.
+ */
+export async function draftMasterMessageAction(
+  campaignId: string,
+  framing: { occasion: { name: string | null; point: string }; offer: CampaignOffer; updates: CampaignUpdate[]; generalAngle: string }
+): Promise<{ success: boolean; ok?: boolean; body?: string; notes?: string; errors?: string[]; warnings?: string[]; error?: string }> {
+  try {
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return handleAuthError(error);
+    throw error;
+  }
+  if (!isCopywriterAvailable()) {
+    return { success: false, error: 'The copywriter is not configured (ANTHROPIC_API_KEY missing).' };
+  }
+  try {
+    await updateCampaignFraming(campaignId, framing);
+    const campaign = await getCampaign(campaignId);
+    if (!campaign) return { success: false, error: 'Campaign not found' };
+    const res = await generateMasterMessage(campaignToBrief(campaign));
+    return { success: true, ok: res.ok, body: res.body, notes: res.notes, errors: res.errors, warnings: res.warnings };
+  } catch (error) {
+    logger.error('draftMasterMessageAction failed', error as Error);
+    return { success: false, error: (error as Error).message || 'Failed to draft the master message' };
   }
 }
 

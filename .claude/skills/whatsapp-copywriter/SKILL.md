@@ -39,9 +39,9 @@ Read the pack. For every guest in `guests`, produce one `DraftMessage`. Output t
    what *booked*). Match register, not content. **Write each message in that guest's
    `writeLanguage`** (thread-detected `ro`/`en`) — an English-speaking expat living here gets an
    English message; do NOT trust `recordLanguage` (blanket "ro"). Obey `voiceRules`: Romanian
-   **without diacritics**, 300–600 chars, **no emoji**, open by identifying himself ("Bogdan sunt,
-   de la casuta din Comarnic…" / "Bogdan here, from the little chalet in Comarnic…"), opt-out line
-   only on a first contact (empty thread).
+   **without diacritics**, 300-600 chars, emoji allowed but sparingly (one or two at most, only to
+   underline a warm note, never decorative), self-ID when it helps (first contact, lapsed or silent
+   guests), opt-out line for first contacts, silent guests and every lead.
 3. **Positive, and careful with complaints.** Every message is warm and forward-looking. If a guest
    carries `careFlags: ["complaint-in-thread"]`: only if a grounded `issueResolved:*` fact is
    present may you add a brief, genuine PS acknowledging the fix ("si apropo, am rezolvat cu…").
@@ -59,8 +59,14 @@ Read the pack. For every guest in `guests`, produce one `DraftMessage`. Output t
 - **Match the guest to the framing** — a family (`hadChildren`) gets the kids-window framing; an
   adults-only guest gets the quiet-autumn-reset framing. A repeat guest (`isRepeatGuest`) can be
   greeted as someone who keeps coming back.
-- **Carry the offer** (`campaign.offer`) — lead with first refusal where the brief says so; state
-  the discount plainly if there is one; only `gap_fill` carries an offer.
+- **Carry the offer** (`campaign.offer`) - phrase what the owner set, nothing more; only `gap_fill`
+  carries an offer. If there is no discount, write no percentage and no "reducere" at all (a hard
+  error in `validateDrafts`), even though some past exemplars quote one. Early access means "you
+  hear about these dates before I promote them anywhere else", NOT "nobody else can book them".
+- **The booking channel, per guest.** A guest with `booksDirect` already books with you: say
+  nothing about booking direct or prices versus Booking/Airbnb. A guest with `pastOtaChannel` only
+  ever booked on that platform: you may say once that they can now book directly with you at a
+  better price than on that platform, naming it (tag `pastOtaChannel`). A lead: no channel talk.
 - **Don't repeat the thread.** If he already told them about the fire pit last month, don't repeat
   it — build on it or say something new.
 - **Vary the wording between guests.** Real per-guest variation (not one template with the name
@@ -78,7 +84,8 @@ A short human summary (who got what angle, any care handling), then the machine 
 
 ## If the validator rejects a draft
 
-You get per-guest errors (an ungrounded fact key, emoji, missing self-ID, a complaint reference).
+You get per-guest errors (an ungrounded fact key, an invented discount, missing self-ID on a first
+contact, a complaint reference).
 Fix exactly those for exactly those guests and re-emit — a bounded repair, not a rewrite of the
 whole set. Never queue a message with an ungrounded claim.
 
@@ -86,5 +93,5 @@ whole set. Never queue a message with an ungrounded claim.
 
 - Never assert a guest-specific fact absent from that guest's `groundedFacts`.
 - One message per guest in `guests`; none for anyone else.
-- No emoji. Diacritic-free Romanian. Self-ID on line one. Opt-out only on first contact.
+- Emoji only sparingly. Diacritic-free Romanian. No discount the owner did not set.
 - You draft. The owner reviews every message at Gate 1 and taps send at Gate 2. You never send.

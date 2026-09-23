@@ -7,6 +7,10 @@
  * — then hits "Save & regenerate", which runs the in-app copywriter to rewrite every per-guest
  * message from the edited framing. The copywriter adapts (voice, per-guest history, channel, which
  * news applies); the owner shapes the substance here, once, instead of editing 14 messages.
+ *
+ * Optional MASTER MESSAGE: draft one message from the framing, edit it until it reads right, and
+ * "Save & personalise" rewrites THAT text per guest (greeting, tu/voi, their history) instead of
+ * writing each message from the angle. Empty master = the old behaviour.
  */
 import { useState, useTransition } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -15,8 +19,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Wand2, Plus, X, AlertCircle } from 'lucide-react';
-import { generateMessagesAction } from '../actions';
+import { Loader2, Wand2, Plus, X, AlertCircle, FileText } from 'lucide-react';
+import { generateMessagesAction, draftMasterMessageAction } from '../actions';
 import type { CampaignProposal, CampaignOffer, CampaignUpdate, CampaignOfferType } from '@/lib/growth/contracts';
 
 type OfferType = NonNullable<CampaignOfferType>;
@@ -45,6 +49,9 @@ export function FramingEditor({
   const [offerDesc, setOfferDesc] = useState(proposal.offer?.description ?? '');
   const [updates, setUpdates] = useState<CampaignUpdate[]>(proposal.updates ?? []);
   const [errors, setErrors] = useState<string[]>([]);
+  const [masterMessage, setMasterMessage] = useState(proposal.masterMessage ?? '');
+  const [masterNote, setMasterNote] = useState<string[]>([]);
+  const [drafting, startDraft] = useTransition();
 
   const buildOffer = (): CampaignOffer => {
     const base = { type: offerType, description: offerDesc } as CampaignOffer;
@@ -59,23 +66,46 @@ export function FramingEditor({
   const addUpdate = () => setUpdates((prev) => [...prev, { id: `u${prev.length + 1}`, text: '', effectiveDate: '' }]);
   const removeUpdate = (i: number) => setUpdates((prev) => prev.filter((_, idx) => idx !== i));
 
+  const currentFraming = () => ({
+    occasion: { name: occasionName || null, point },
+    offer: buildOffer(),
+    updates: updates.filter((u) => u.text.trim() && u.effectiveDate.trim()),
+    generalAngle,
+  });
+
+  const draftMaster = () =>
+    startDraft(async () => {
+      setMasterNote([]);
+      try {
+        const res = await draftMasterMessageAction(campaignId, currentFraming());
+        if (res.success && res.body) {
+          setMasterMessage(res.body);
+          setMasterNote([...(res.errors ?? []), ...(res.warnings ?? []), ...(res.notes ? [res.notes] : [])]);
+          toast({ title: 'Master message drafted', description: 'Edit it until it reads right, then personalise.' });
+        } else {
+          toast({ title: 'Could not draft', description: res.error ?? res.errors?.join('; '), variant: 'destructive' });
+        }
+      } catch (e) {
+        toast({ title: 'Could not draft', description: (e as Error)?.message || 'Unexpected error', variant: 'destructive' });
+      }
+    });
+
   const regenerate = () =>
     startGen(async () => {
       setErrors([]);
       try {
-        const framing = {
-          occasion: { name: occasionName || null, point },
-          offer: buildOffer(),
-          updates: updates.filter((u) => u.text.trim() && u.effectiveDate.trim()),
-          generalAngle,
-        };
-        const res = await generateMessagesAction(campaignId, framing);
+        const res = await generateMessagesAction(campaignId, { ...currentFraming(), masterMessage: masterMessage.trim() });
         if (res.success && res.ok) {
-          toast({ title: `Regenerated ${res.count ?? 0} messages`, description: 'Review them below, then approve to queue.' });
+          toast({ title: `Wrote ${res.count ?? 0} messages`, description: 'Review them below, then approve to queue.' });
           onRegenerated();
         } else if (res.success && !res.ok) {
-          setErrors(res.errors ?? ['The copywriter output failed validation — nothing was changed.']);
-          toast({ title: 'Generation rejected', description: 'Some drafts failed the checks — messages left unchanged.', variant: 'destructive' });
+          setErrors(res.errors ?? ['The copywriter output failed validation.']);
+          toast({
+            title: res.count ? `Wrote ${res.count} messages, some failed` : 'Generation rejected',
+            description: res.count ? 'Guests listed below kept their previous message.' : 'No message passed the checks. Nothing was changed.',
+            variant: 'destructive',
+          });
+          if (res.count) onRegenerated();
         } else {
           toast({ title: 'Could not generate', description: res.error, variant: 'destructive' });
         }
@@ -126,7 +156,7 @@ export function FramingEditor({
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Offer wording (the copywriter may adapt it per guest)</Label>
-            <Textarea value={offerDesc} onChange={(e) => setOfferDesc(e.target.value)} rows={2} placeholder="e.g. 10% la rezervarea directa" />
+            <Textarea value={offerDesc} onChange={(e) => setOfferDesc(e.target.value)} rows={2} placeholder="e.g. acces prioritar: le spun inainte sa promovez datele altundeva" />
           </div>
         </div>
 
@@ -152,9 +182,28 @@ export function FramingEditor({
           <Textarea value={generalAngle} onChange={(e) => setGeneralAngle(e.target.value)} rows={2} />
         </div>
 
+        <div className="space-y-1 rounded-md border bg-muted/30 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <Label className="flex items-center gap-1 text-xs"><FileText className="h-3.5 w-3.5" /> Master message (optional)</Label>
+            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={draftMaster} disabled={drafting || busy || !copywriterAvailable}>
+              {drafting ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Wand2 className="mr-1 h-3.5 w-3.5" />}
+              {masterMessage.trim() ? 'Redraft from framing' : 'Draft from framing'}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Write or draft one message and edit it until it reads right. Each guest then gets this message adapted to them:
+            their name, tu or voi, your past conversation, and anything that doesn&apos;t fit them. Leave it empty to write each
+            message from the angle instead.
+          </p>
+          <Textarea value={masterMessage} onChange={(e) => setMasterMessage(e.target.value)} rows={7} className="bg-background text-sm" placeholder="Buna! ..." />
+          {masterNote.length > 0 && (
+            <ul className="space-y-0.5 text-xs text-amber-700">{masterNote.map((n, i) => <li key={i}>• {n}</li>)}</ul>
+          )}
+        </div>
+
         {errors.length > 0 && (
           <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive">
-            <p className="mb-1 flex items-center gap-1 font-medium"><AlertCircle className="h-3.5 w-3.5" /> Generation rejected — messages unchanged:</p>
+            <p className="mb-1 flex items-center gap-1 font-medium"><AlertCircle className="h-3.5 w-3.5" /> These guests failed the checks and kept their previous message:</p>
             <ul className="space-y-0.5">{errors.map((e, i) => <li key={i}>• {e}</li>)}</ul>
           </div>
         )}
@@ -162,10 +211,10 @@ export function FramingEditor({
         <div className="flex items-center gap-3 border-t pt-3">
           <Button onClick={regenerate} disabled={busy || !copywriterAvailable}>
             {busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Wand2 className="mr-1 h-4 w-4" />}
-            Save &amp; regenerate messages
+            {masterMessage.trim() ? 'Save & personalise for each guest' : 'Save & write each message'}
           </Button>
           {!copywriterAvailable && <span className="text-xs text-muted-foreground">Copywriter unavailable — ANTHROPIC_API_KEY not set.</span>}
-          {busy && <span className="text-xs text-muted-foreground">Writing per-guest messages…</span>}
+          {busy && <span className="text-xs text-muted-foreground">Writing one message per guest, about 2-3 minutes for 20…</span>}
         </div>
       </CardContent>
     </Card>

@@ -69,3 +69,62 @@ describe('validateDrafts — relationship state beats thread length', () => {
     expect(r.ok).toBe(false);   // empty thread ⇒ first contact ⇒ self-ID required (legacy behaviour)
   });
 });
+
+describe('validateDrafts - the offer is the owner\'s, never invented', () => {
+  const guest = (over: Partial<GuestForDraftValidation> = {}) => lead({ audienceKind: 'guest', ...over });
+  const noDiscount = { offer: { type: 'none' as const, description: 'first refusal' }, intent: 'gap_fill' };
+
+  it('REJECTS a percentage when the campaign has no discount', () => {
+    const r = validateDrafts([guest()], [draft(`Buna Marius!${FILLER} Ai 10% direct fata de pretul de pe platforme.${SELF_ID}`)], noDiscount);
+    expect(r.ok).toBe(false);
+    expect(r.perGuest[0].errors.join(' ')).toMatch(/NO discount/);
+  });
+
+  it('REJECTS "reducere" when discountPct is null', () => {
+    const r = validateDrafts([guest()], [draft(`Buna Marius!${FILLER} Iti fac si o reducere.${SELF_ID}`)],
+      { offer: { discountPct: null, description: 'first refusal' }, intent: 'gap_fill' });
+    expect(r.ok).toBe(false);
+  });
+
+  it('REJECTS discount words on a no-ask share, whatever the offer says', () => {
+    const r = validateDrafts([guest()], [draft(`Buna Marius!${FILLER} Ai 15% reducere.${SELF_ID}`)],
+      { offer: { discountPct: 15, description: '15%' }, intent: 'share' });
+    expect(r.ok).toBe(false);
+  });
+
+  it('ALLOWS a percentage when the owner set one', () => {
+    const r = validateDrafts([guest()], [draft(`Buna Marius!${FILLER} Ai 10% reducere la rezervarea directa.${SELF_ID}`)],
+      { offer: { discountPct: 10, description: '10%' }, intent: 'gap_fill' });
+    expect(r.ok).toBe(true);
+  });
+
+  it('WARNS (does not block) when a direct-booking guest is sold "book direct"', () => {
+    const r = validateDrafts([guest({ booksDirect: true })], [draft(`Buna Marius!${FILLER} Poti rezerva direct cu mine, mai bine ca pe Booking.${SELF_ID}`)], noDiscount);
+    expect(r.ok).toBe(true);
+    expect(r.perGuest[0].warnings.join(' ')).toMatch(/already books direct/);
+  });
+
+  it('is silent on channel talk for an OTA-only guest - it is their news', () => {
+    const r = validateDrafts([guest()], [draft(`Buna Marius!${FILLER} Acum poti rezerva direct cu mine, la un pret mai bun decat pe Booking.${SELF_ID}`)], noDiscount);
+    expect(r.perGuest[0].warnings.join(' ')).not.toMatch(/Booking\/Airbnb/);
+  });
+});
+
+describe('validateDrafts - early access is not exclusivity', () => {
+  it('WARNS when a message says nobody else will see the dates', () => {
+    const r = validateDrafts([lead({ audienceKind: 'guest' })], [draft(`Buna Marius!${FILLER} Am vrut sa afli printre primii, pana nu il vede nimeni altcineva.${SELF_ID}`)]);
+    expect(r.perGuest[0].warnings.join(' ')).toMatch(/not exclusivity/);
+  });
+});
+
+describe('validateDrafts - with a master message', () => {
+  const master = 'Buna! De sambata 28 noiembrie pana marti 1 decembrie ies patru zile libere. Trei nopti, cam 2.226 lei pentru 4 persoane.';
+  it('WARNS when a guest message carries a price the master does not', () => {
+    const r = validateDrafts([lead({ audienceKind: 'guest' })], [draft(`Buna Marius!${FILLER} Trei nopti, cam 2.046 lei pentru 3 persoane.${SELF_ID}`)], { masterMessage: master });
+    expect(r.perGuest[0].warnings.join(' ')).toMatch(/numbers the master message does not: 2046, 3/);
+  });
+  it('accepts the master\'s own numbers in either format', () => {
+    const r = validateDrafts([lead({ audienceKind: 'guest' })], [draft(`Buna Marius!${FILLER} Pe 28 noiembrie, 2226 lei pentru 4 persoane.${SELF_ID}`)], { masterMessage: master });
+    expect(r.perGuest[0].warnings.join(' ')).not.toMatch(/numbers the master/);
+  });
+});

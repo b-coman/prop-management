@@ -18,7 +18,7 @@ import { loggers } from '@/lib/logger';
 
 const logger = loggers.campaign;
 
-const SITUATION_TOOL = {
+export const SITUATION_TOOL = {
   name: 'emit_situation',
   description: 'Emit the Situation Report (the diagnosis) and the routed opportunities.',
   input_schema: {

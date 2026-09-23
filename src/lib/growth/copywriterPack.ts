@@ -15,8 +15,8 @@
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { detectLanguage } from '@/lib/growth/audience';
 import { getNotesByGuest, isTouch, isLive } from '@/services/guestNoteService';
-import type { CampaignBrief } from '@/lib/growth/contracts';
-import { normalizeChannel } from '@/lib/channels';
+import { effectiveDiscountPct, type CampaignBrief } from '@/lib/growth/contracts';
+import { normalizeChannel, CHANNEL_LABELS, type ChannelId } from '@/lib/channels';
 import { hadChildren } from '@/lib/occupancy';
 
 const toD = (v: any): Date | null => v?._seconds ? new Date(v._seconds * 1000) : v?.toDate ? v.toDate() : typeof v === 'string' ? new Date(v) : v instanceof Date ? v : null;
@@ -27,19 +27,31 @@ const days = (a: Date, b: Date) => Math.round((+b - +a) / 86400000);
 // check-in access, heating/water troubleshooting) from the voice pool — they are not the warm
 // reactivation register we want modeled; and PREFER outreach/reactivation messages within the pool.
 const VOICE_LOGISTICS = /waze|goo\.gl\/maps|maps\.app|maps\.google|google maps|plus code|localizare|check[\s-]?in|codul de acces|cheia|drum bun|\bharta\b|calorifer|presiune|termometru|temperatur/i;
-const VOICE_OUTREACH = /perioada liber|fereastra liber|s-a eliberat|s-a deschis|\bmi s-a\b|anulare|revii|reveni|prima ocazie|imi aduc aminte|mi-am adus aminte|va doriti|discount|reducere|oferta|weekendul asta liber/i;
+const VOICE_OUTREACH = /perioada liber|fereastra liber|s-a eliberat|s-a deschis|\bmi s-a\b|anulare|revii|reveni|prima ocazie|imi aduc aminte|mi-am adus aminte|va doriti|oferta|weekendul asta liber/i;
+// A past message that quotes a discount. When the campaign has no discount these are dropped from
+// the voice pool: the model copies content from exemplars despite being told not to (Sep 2026 it
+// wrote "10% direct fata de pretul de pe platforme" into a no-discount campaign).
+const VOICE_DISCOUNT = /\d+\s*(%|la\s*suta)|reducere|discount/i;
 const seasonOf = (d: Date) => { const m = d.getUTCMonth() + 1; return m === 12 || m <= 2 ? 'winter' : m <= 5 ? 'spring' : m <= 8 ? 'summer' : 'autumn'; };
 function lastStayPhrase(last: Date | null, asOf: Date): string | null {
   if (!last) return null;
   const y = last.getUTCFullYear(), nowY = asOf.getUTCFullYear();
   const s = ({ winter: 'iarna', spring: 'primavara', summer: 'vara', autumn: 'toamna' } as any)[seasonOf(last)];
   if (last.getUTCMonth() + 1 === 12 && last.getUTCDate() >= 27) return 'de Revelion';
+  // A winter spans the new year, so count winters by the December they start in. A Jan 2026 stay,
+  // read in Sep 2026, is "iarna trecuta" (the winter of Dec 2025), not "iarna aceasta".
+  if (seasonOf(last) === 'winter') {
+    const winterOf = (d: Date) => d.getUTCMonth() + 1 <= 2 ? d.getUTCFullYear() - 1 : d.getUTCFullYear();
+    // Outside winter, "this winter" would be the one starting this December.
+    const back = (seasonOf(asOf) === 'winter' ? winterOf(asOf) : asOf.getUTCFullYear()) - winterOf(last);
+    return back === 0 ? 'iarna aceasta' : back === 1 ? 'iarna trecuta' : `in iarna lui ${y}`;
+  }
   return y === nowY ? `${s} aceasta` : y === nowY - 1 ? `${s} trecuta` : `in ${s} lui ${y}`;
 }
 
 export interface CopywriterPack {
   meta: { generatedFor: string; asOf: string; generator: string; briefId?: string };
-  campaign: { occasion: unknown; offer: unknown; updates: unknown[]; intent: string; generalAngle: string };
+  campaign: { occasion: unknown; offer: unknown; updates: unknown[]; intent: string; generalAngle: string; masterMessage: string | null };
   voiceProfile: { note: string; exemplars: Array<{ outcome: string; date: string; text: string }> };
   voiceRules: Record<string, unknown>;
   guests: any[];
@@ -66,6 +78,7 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
 
   // ── voice profile: the owner's own substantive outbound, outcome-labeled (§7.6) ──
   const exemplars: any[] = [];
+  const campaignHasDiscount = effectiveDiscountPct(brief.offer) !== 0 && brief.intent !== 'share';
   tSnap.docs.forEach(d => {
     const t: any = d.data(); const g = guestById.get(d.id);
     const stays = g ? ((g as any).bookingIds || []).map((id: string) => bookingById.get(id)).filter(Boolean) : [];
@@ -73,6 +86,7 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
       const text = m.text || '';
       if (m.direction !== 'out' || text.length < 260) return;
       if (VOICE_LOGISTICS.test(text)) return;   // strip directions / check-in / troubleshooting from the voice pool
+      if (!campaignHasDiscount && VOICE_DISCOUNT.test(text)) return;
       const after = (t.messages || []).slice(i + 1);
       const replied = after.some((x: any) => x.direction === 'in' && (+new Date(x.ts) - +new Date(m.ts)) / 86400000 <= 14);
       const booked = stays.some((b: any) => { const c = toD(b.createdAt); return c && +c > +new Date(m.ts) && (+c - +new Date(m.ts)) / 86400000 <= 90; });
@@ -103,6 +117,10 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
     const otaCount = channels.length - directCount;
     const lastChannel = channels.length ? channels[channels.length - 1] : null;
     const booksDirect = directCount > 0;
+    // The OTA an OTA-only guest actually used, for "now you can book directly with me". Only a real
+    // OTA from CHANNEL_LABELS; 'direct' never qualifies.
+    const pastOtaChannel = !booksDirect && lastChannel && lastChannel !== 'direct' && (CHANNEL_LABELS as Record<string, string>)[lastChannel as ChannelId]
+      ? (CHANNEL_LABELS as Record<string, string>)[lastChannel as ChannelId] : null;
     const applicableUpdates = framingUpdates.filter((u: any) => {
       const eff = toD(u.effectiveDate); return eff && last && +last < +eff;
     }).map((u: any) => ({ id: u.id, text: u.text }));
@@ -165,6 +183,7 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
     if (lastBk && hadChildren(lastBk) === true) groundedFacts.push({ key: 'hadChildren', value: true, source: `bookings/${lastBk.id}` });
     if (totalBookings >= 2) groundedFacts.push({ key: 'isRepeatGuest', value: totalBookings, source: `guests/${gid}` });
     if (booksDirect) groundedFacts.push({ key: 'booksDirect', value: { directBookings: directCount, otaBookings: otaCount }, source: `bookings(guests/${gid})` });
+    if (pastOtaChannel) groundedFacts.push({ key: 'pastOtaChannel', value: pastOtaChannel, source: `bookings/${lastBk.id}` });
     reviewThemes.forEach(t => groundedFacts.push({ key: `reviewPraised:${t}`, value: t, source: `reviews/${(rv[0] || {}).id || gid}` }));
     applicableUpdates.forEach((u: any) => groundedFacts.push({ key: `update:${u.id}`, value: u.text, source: 'campaign.updates' }));
     // Only an ASSERTABLE note is admitted to the whitelist; the rest are context (tone, topic) and
@@ -202,7 +221,7 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
         // writer whose whole contract is that it may only assert what the pack grounds.
         hadChildren: lastBk ? hadChildren(lastBk) : null,
         reviewThemes,
-        bookingChannel: { lastChannel, directCount, otaCount },
+        bookingChannel: { lastChannel, directCount, otaCount, pastOtaChannel },
       },
       applicableUpdates,
       groundedFacts,
@@ -221,7 +240,7 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
 
   return {
     meta: { generatedFor: brief.propertyId, asOf: ymd(AS_OF), generator: 'src/lib/growth/copywriterPack.ts', briefId: brief.opportunity?.id },
-    campaign: { occasion: brief.occasion, offer: brief.offer, updates: framingUpdates, intent: brief.intent, generalAngle: brief.generalAngle },
+    campaign: { occasion: brief.occasion, offer: brief.offer, updates: framingUpdates, intent: brief.intent, generalAngle: brief.generalAngle, masterMessage: brief.masterMessage?.trim() || null },
     voiceProfile: {
       note: 'Imitate this register — these are the owner\'s REAL past messages, tagged by outcome (booked/replied/silent). Copy the voice, not the content. Prefer what "booked".',
       exemplars: voiceExemplars,
@@ -229,8 +248,11 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
     voiceRules: {
       language: 'Write each message in that guest\'s writeLanguage (thread-detected: "ro" or "en"). Romanian is written WITHOUT diacritics (matches the owner). Do NOT trust recordLanguage — it is a blanket "ro" default. An English-speaking expat living here (RO phone) gets an English message.',
       register: 'Pick ONE register per message and keep it consistent throughout — either tu (informal: tu/iti/te/ai) OR voi/dumneavoastra (formal: voi/va/ati). NEVER mix them in the same message (not even "ati fost… iti dau"). Choose per guest: if there is a prior thread, match how the owner addressed them there; if there is NO prior thread (a first contact), use polite voi (you do not address a stranger with tu); otherwise default to the warm informal tu.',
-      length: '300–600 characters, 3–6 short sentences',
-      emoji: 'Use emoji SPARINGLY — at most one or two in a message, only to underline a warm note (a 🍂 for autumn, a 😉 for a wink, a ;) like the owner does), never decorative, never several in a row. Match the owner\'s real light touch; when in doubt, none.',
+      length: '300-600 characters, 3-6 short sentences',
+      punctuation: 'Never use an em dash or en dash; the owner writes a plain hyphen or a comma. Plain, everyday Romanian, the way he texts - not literary.',
+      master: 'If campaign.masterMessage is set, the owner wrote or approved it and it is THE message. Personalise it for this guest; do not write a new one. Keep its substance: the same dates, prices, offer and ideas, in roughly the same order, and add no campaign claim it does not make. Keep his wording wherever it fits. Change only what this guest needs: the greeting and name, tu or voi, continuity with the thread (never re-say what the thread already told them), one or two grounded personal touches, and anything that is wrong for this guest - a price for a party size that is not theirs (drop it or offer to send the exact price), a Booking/Airbnb line for someone who books direct, a stay reference for a lead. When there is no masterMessage, write from generalAngle as below.',
+      variety: 'campaign.generalAngle is a BRIEF for you, not text to copy. Do not lift its phrases into the message; say the idea in your own words, differently for each guest, and pick only the one or two details that fit THIS guest.',
+      emoji: 'Emoji are allowed but used with care: most messages need none, a few carry one to underline a warm note (like the owner\'s own ;) ). Never decorative, never several, and never the same emoji across the whole campaign.',
       continuity: 'These are ONGOING relationships, not cold sends. READ the guest\'s `thread`, `notes` and `relationship` and continue it naturally — pick up where you left off, and where it fits, nod to the last exchange. NEVER re-say something the thread shows you already told them (see `updates`). Use `relationship.state`, which is computed across BOTH channels (messages AND logged calls): "active" (engaged, spoke ≤120d ago) → continue warmly, do NOT re-introduce yourself; "lapsed" (engaged before, long ago) → a light reconnect ("a trecut ceva vreme"); "silent" (contacted before, never engaged at all) → a fresh, low-pressure note; "first-contact" (no history whatsoever) → introduce yourself. `relationship.lastExchangeVia` says whether the last contact was WhatsApp or a call — if it was a call, continue from the call, not from the last message.',
       audienceKind: 'Check `audienceKind` FIRST — it changes what you have to work with. A "guest" STAYED: you may reference the stay, the season, the party, what their review praised. A "lead" NEVER stayed — they asked about a stay and it did not happen. Never imply otherwise: no "cand ati fost la noi", no season reference, no review, no "va asteptam din nou". What a lead has instead is in `lead`: the period they asked for (`requestedPeriod`) and `nonConversionReason` — read it, because the four cases are not interchangeable. "unavailable" = WE could not host them, nothing negative happened, so a later "acum s-a eliberat / am putea gasi altceva" is genuinely welcome and is your strongest opening. "declined" = they chose not to; do NOT re-present the same terms as if nothing happened — a lighter, no-pressure note only. "unservable" = we structurally cannot serve what they need; do not raise it again unless something changed. "unresolved" = the conversation simply stopped; a light re-open, not a follow-up. If the reason is null, do not guess one.',
       naming: 'Use `nameConfidence`. "verified" — greet by firstName normally. "unverified" — the name came from a WhatsApp push-name, which may be a nickname, a handle or a shop name; use it ONLY if it plainly reads as a real first name, otherwise greet without a name ("Buna ziua!"). "none" — there is no name at all; greet without one and never invent or guess a name from the phone number or the thread.',
@@ -238,9 +260,9 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
       selfId: 'Identify yourself ("Bogdan sunt, de la casuta din Comarnic") ONLY when it helps — a first-contact, a "lapsed"/"silent" state, or a long gap. For an "active" recent thread they know who you are; opening with a re-introduction reads as a form letter — just continue. (Self-ID must still appear somewhere for a first/cold contact — the validator checks it there.)',
       partnerGreeting: 'If a `partnerName` grounded fact is present, the WhatsApp number belongs to that partner (who booked under the guest firstName) — greet BOTH warmly, e.g. "Buna Razvan si Loredana!", and tag `partnerName` in factsUsed. If there is no partnerName, greet only by firstName.',
       optOut: 'Give a graceful, low-pressure way out to a FIRST contact AND to a "silent" guest (messaged before, never replied) — e.g. "daca preferi sa nu-ti mai scriu, spune-mi". An "active"/"lapsed" guest who has replied does NOT need one — it would be odd. Use judgment from `relationship.state`. Any LEAD (audienceKind "lead") gets one regardless of state: a past guest has a real relationship with you, whereas someone who enquired once and never stayed has a much thinner basis for being written to again — so always leave the door open in both directions.',
-      grounding: 'assert ONLY facts present in that guest\'s groundedFacts; tag each claim in factsUsed with its key. No emoji. No invented stays/preferences.',
+      grounding: 'assert ONLY facts present in that guest\'s groundedFacts; tag each claim in factsUsed with its key. No invented stays/preferences.',
       intent: 'campaign.intent sets the ASK. "gap_fill" = a warm invite that carries the offer (see offerPresentation). "share" = a NO-ASK keep-in-touch or re-introduction: do NOT mention any offer or discount, do NOT ask them to book — write a genuine, short, warm hello that only keeps the door open (e.g. "cand va doriti, stiti unde ne gasiti"). For a "share" to a long-lapsed or first contact, gently remind them who you are and roughly when they stayed, and ALWAYS include an easy opt-out. Pure good mood, zero pressure.',
-      offerPresentation: 'ONLY for intent "gap_fill". The offer (campaign.offer) is set by the owner — never inflate or invent one, only phrase it. Adapt HOW you present it per guest: a guest with a `booksDirect` fact already knows they get your best price directly, so acknowledge that warmly (e.g. "si asa cum stii deja, iti pot da cea mai buna oferta direct") rather than quoting a discount as if it were news; a guest who has only booked via an OTA gets the explicit offer. For a free-night/value offer, describe the value in words, not a bare percentage. Tag `booksDirect` in factsUsed when you use that angle. A LEAD has no booking channel at all — do not reach for either branch. They came to you directly, which is already the best channel there is, so present the offer plainly and warmly, without implying they ever paid a different price.',
+      offerPresentation: 'ONLY for intent "gap_fill". The offer (campaign.offer) is set by the owner - never inflate or invent one, only phrase it. If the offer has no discount (type "none" or discountPct null), write NO percentage, NO "reducere", NO "discount", NO price cut of any kind - the offer is what campaign.offer.description says (e.g. early access: you are telling them before the dates are promoted anywhere else). Early access is NOT exclusivity: the dates stay bookable by anyone on the site, Booking and Airbnb, so never write that nobody else can see or book them ("pana nu le vede altcineva", "doar pentru tine", "ai prioritate"). And never say or imply they booked direct before unless they have `booksDirect`. Past exemplars that quote a discount are NOT the offer. The booking channel is handled per guest: (a) a guest with `booksDirect` already books with you directly - do NOT talk about booking direct, better prices than Booking/Airbnb or platforms at all; it is not news to them and reads like a sales line. (b) a guest with `pastOtaChannel` has only ever booked through that platform - you MAY add, once and plainly, that they can now book directly with you at a better price than on that platform, naming it (e.g. "acum poti rezerva direct cu mine, la un pret mai bun decat pe Booking"); tag `pastOtaChannel`. Compare with booking on that platform today, never with what they paid back then. (c) a LEAD never booked anywhere - no channel talk.',
       updates: 'Each guest\'s `applicableUpdates` lists campaign news new SINCE THAT guest\'s last stay (date-filtered). BUT before mentioning one, CHECK the thread: if you already told this guest about it in a previous message, do NOT re-announce it as "noutate" — either build on it ("cum ti-am zis, avem acum…") or leave it out; mention only the part that is genuinely new to them. Decide per guest whether it is worth raising at all — do not force it into every message. You may mention ONLY updates in that guest\'s applicableUpdates, tagging factsUsed with the `update:<id>` key.',
       sentiment: 'always positive. For a careFlag complaint: if (and only if) an issueResolved:* fact is present, you MAY add a warm PS acknowledging the fix; otherwise do NOT mention the past problem at all — write a normal forward-looking message.',
     },

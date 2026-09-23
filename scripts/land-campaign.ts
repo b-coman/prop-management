@@ -11,6 +11,10 @@
  * Usage:
  *   npx tsx scripts/land-campaign.ts --brief /tmp/brief.json --drafts /tmp/drafts.json \
  *     [--name "Autumn gap – RO past guests"] [--plan-pack /tmp/plan.json] [--copy-pack /tmp/copy.json]
+ *   npx tsx scripts/land-campaign.ts --brief /tmp/brief.json --master-first [--name ...]
+ *
+ * --master-first lands the audience with no messages written, so the owner drafts and edits a master
+ * message at Gate 0 and the copywriter personalises it from there.
  *
  * If --plan-pack / --copy-pack are given, it re-validates (validatePlan / validateDrafts) and
  * REFUSES to land on any hard error — defense in depth. Without them it trusts upstream validation
@@ -28,13 +32,14 @@ const readJson = (p: string) => JSON.parse(fs.readFileSync(p, 'utf8'));
 async function main() {
   const briefFile = arg('brief');
   const draftsFile = arg('drafts');
-  if (!briefFile || !draftsFile) {
-    console.error('required: --brief <brief.json> --drafts <drafts.json> [--name ...] [--plan-pack ...] [--copy-pack ...]');
+  const masterFirst = process.argv.includes('--master-first');
+  if (!briefFile || (!draftsFile && !masterFirst)) {
+    console.error('required: --brief <brief.json> and either --drafts <drafts.json> or --master-first [--name ...] [--plan-pack ...] [--copy-pack ...]');
     process.exit(2);
   }
 
   const brief = readJson(briefFile) as CampaignBrief;
-  const drafts = readJson(draftsFile) as DraftMessage[];
+  const drafts = draftsFile ? readJson(draftsFile) as DraftMessage[] : [];
   const planPackFile = arg('plan-pack');
   const copyPackFile = arg('copy-pack');
 
@@ -49,7 +54,7 @@ async function main() {
     console.log('⚠ no --plan-pack given — trusting upstream validatePlan');
   }
 
-  if (copyPackFile) {
+  if (copyPackFile && drafts.length) {
     const copyPack = readJson(copyPackFile);
     const guests: GuestForDraftValidation[] = (copyPack.guests ?? copyPack).map((g: {
       guestId: string; careFlags?: string[]; groundedFacts?: Array<{ key: string; value: unknown }>; thread?: unknown[];
@@ -61,14 +66,17 @@ async function main() {
       thread: g.thread ?? [],
       audienceKind: g.audienceKind,
       relationshipState: g.relationship?.state,
+      booksDirect: (g.groundedFacts ?? []).some((f) => f.key === 'booksDirect'),
     }));
-    const dv = validateDrafts(guests, drafts);
+    const dv = validateDrafts(guests, drafts, { offer: brief.offer, intent: brief.intent });
     console.log(`draft validation — ${dv.ok ? 'PASS' : 'REJECT'}`);
     dv.errors.forEach((e) => console.log(`  ✖ ${e}`));
     dv.perGuest.forEach((p) => { p.errors.forEach((e) => console.log(`  ✖ ${p.guestId}: ${e}`)); p.warnings.forEach((w) => console.log(`  ⚠ ${p.guestId}: ${w}`)); });
     if (!dv.ok) { console.error('refusing to land — drafts invalid'); process.exit(1); }
-  } else {
+  } else if (drafts.length) {
     console.log('⚠ no --copy-pack given — trusting upstream validateDrafts');
+  } else {
+    console.log('master-first: landing the audience with no messages written yet');
   }
 
   const name = arg('name') || `${brief.occasion.name ?? 'Campaign'} — ${briefGuestIds(brief).length} recipients`;

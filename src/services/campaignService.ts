@@ -125,12 +125,14 @@ export async function createProposedCampaign(input: {
   brief: import('@/lib/growth/contracts').CampaignBrief;
   drafts: import('@/lib/growth/contracts').DraftMessage[];
 }): Promise<string> {
+  // No drafts = land the audience first and write the master message at Gate 0.
+  const masterFirst = input.drafts.length === 0;
   const { briefGuestIds, isDeclined, toProposedDrafts, toCampaignProposal } = await import('@/lib/growth/contracts');
   if (isDeclined(input.brief)) {
     throw new Error('createProposedCampaign: brief declined to act (no audience) — nothing to land');
   }
   const guestIds = briefGuestIds(input.brief);
-  const perGuestDrafts = toProposedDrafts(input.brief, input.drafts);
+  const perGuestDrafts = toProposedDrafts(input.brief, input.drafts, { keepUnwritten: masterFirst });
   if (perGuestDrafts.length === 0) {
     throw new Error('createProposedCampaign: no per-guest drafts after join — validate drafts before landing');
   }
@@ -183,6 +185,7 @@ export function campaignToBrief(
     updates: p.updates ?? [],
     audience: drafts.map((d) => ({ guestId: d.guestId, angle: d.angle, careFlags: d.careFlags })),
     generalAngle: p.generalAngle,
+    masterMessage: p.masterMessage || undefined,
     rationale: p.rationale,
   };
 }
@@ -190,7 +193,7 @@ export function campaignToBrief(
 /** Persist owner edits to a draft campaign's FRAMING (the Gate-0 fields). Does not regenerate. */
 export async function updateCampaignFraming(
   id: string,
-  framing: Partial<Pick<import('@/lib/growth/contracts').CampaignProposal, 'occasion' | 'offer' | 'updates' | 'generalAngle'>>
+  framing: Partial<Pick<import('@/lib/growth/contracts').CampaignProposal, 'occasion' | 'offer' | 'updates' | 'generalAngle' | 'masterMessage'>>
 ): Promise<void> {
   const db = await getAdminDb();
   const patch: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
@@ -198,6 +201,7 @@ export async function updateCampaignFraming(
   if (framing.offer !== undefined) patch['proposal.offer'] = framing.offer;
   if (framing.updates !== undefined) patch['proposal.updates'] = framing.updates;
   if (framing.generalAngle !== undefined) patch['proposal.generalAngle'] = framing.generalAngle;
+  if (framing.masterMessage !== undefined) patch['proposal.masterMessage'] = framing.masterMessage;
   await db.collection('campaigns').doc(id).update(patch);
   logger.info('Campaign framing updated', { campaignId: id, fields: Object.keys(framing) });
 }

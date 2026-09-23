@@ -153,6 +153,11 @@ export interface CampaignBrief {
   updates?: CampaignUpdate[];                           // news to weave in, date-targeted (framing)
   audience: BriefAudienceEntry[];                       // ⊆ the eligible set (enforced by validatePlan)
   generalAngle: string;                                 // the brief the copywriter particularises
+  /**
+   * The owner-approved master message. When set, the copywriter personalises THIS text per guest
+   * instead of writing from the angle: same substance, adapted greeting, register and history.
+   */
+  masterMessage?: string;
   rationale: string;
 }
 
@@ -275,6 +280,8 @@ export interface CampaignProposal {
   offer: CampaignOffer;
   updates?: CampaignUpdate[];
   generalAngle: string;
+  /** See CampaignBrief.masterMessage. Empty = no master; the copywriter writes from the angle. */
+  masterMessage?: string;
   rationale: string;
   opportunity: WhatsAppOpportunity;
 }
@@ -295,12 +302,15 @@ export function isDeclined(brief: Pick<CampaignBrief, 'act' | 'audience'>): bool
  */
 export function toProposedDrafts(
   brief: Pick<CampaignBrief, 'audience'>,
-  drafts: DraftMessage[]
+  drafts: DraftMessage[],
+  opts?: { keepUnwritten?: boolean }
 ): ProposedDraft[] {
   const draftFor = new Map(drafts.map((d) => [d.guestId, d]));
   const rows: ProposedDraft[] = [];
   for (const a of brief.audience) {
-    const d = draftFor.get(a.guestId);
+    // keepUnwritten: land the audience before any message exists (the master-message-first flow),
+    // as rows with an empty body. Approval skips empty bodies, so nothing unwritten can be queued.
+    const d = draftFor.get(a.guestId) ?? (opts?.keepUnwritten ? { guestId: a.guestId, language: 'ro' as LanguageCode, body: '', factsUsed: [] } as DraftMessage : undefined);
     if (!d) continue;
     // Default every optional field — Firestore's Admin SDK rejects `undefined` on write, and these
     // are persisted verbatim by createProposedCampaign/setCampaignDrafts.
@@ -326,6 +336,7 @@ export function toCampaignProposal(brief: CampaignBrief): CampaignProposal {
     offer: brief.offer,
     updates: brief.updates ?? [],
     generalAngle: brief.generalAngle,
+    masterMessage: brief.masterMessage ?? '',
     rationale: brief.rationale,
     opportunity: brief.opportunity,
   };

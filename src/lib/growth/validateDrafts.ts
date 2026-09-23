@@ -9,6 +9,9 @@
  *                    grounded. Also: no affection/"we-fixed-it" claim for a complaint guest unless a
  *                    grounded issueResolved:* fact backs it.
  *   1b. Audience   — a LEAD never stayed, so any phrase asserting a past stay is a factual error.
+ *   1c. Offer      - the copywriter only PHRASES the owner's offer. With no discount in the brief,
+ *                    any percentage or discount word is an invented offer (the owner's past
+ *                    messages carry "10% reducere" lines the model will otherwise copy).
  *   2. Voice       — emoji kept light; self-ID present; length in range; an opt-out for a first
  *                    contact, for anyone who never engaged, and for every lead.
  *   3. Coverage    — exactly one draft per selected guest, each with matching phone/language later
@@ -17,7 +20,7 @@
  * Pure — importable by the prototype CLI and the eventual in-app orchestration. A failure feeds
  * back to the copywriter (bounded repair, §7.4 pattern); never queue an ungrounded message.
  */
-import type { DraftMessage } from './contracts';
+import { effectiveDiscountPct, type CampaignOffer, type DraftMessage } from './contracts';
 
 export interface GuestForDraftValidation {
   guestId: string;
@@ -28,6 +31,8 @@ export interface GuestForDraftValidation {
   audienceKind?: 'guest' | 'lead';
   /** Cross-channel state from the pack (a logged phone call counts, unlike thread length alone). */
   relationshipState?: 'first-contact' | 'silent' | 'active' | 'lapsed';
+  /** Has booked direct before. The copy must not sell "book direct / cheaper than Booking" to them. */
+  booksDirect?: boolean;
 }
 
 /**
@@ -41,9 +46,15 @@ export interface DraftRules {
   minChars?: number; maxChars?: number;
   selfIdMarkers?: string[];             // any one must appear (case-insensitive, diacritic-loose)
   optOutMarkers?: string[];             // any one must appear on a first contact
+  /** The campaign's offer. When it carries no discount, discount language is a hard error. */
+  offer?: CampaignOffer | null;
+  /** 'share' is a no-ask message, so it may never carry discount language either. */
+  intent?: string;
+  /** The owner-approved master message, when the campaign has one. Numbers must come from it. */
+  masterMessage?: string;
 }
 
-const DEFAULTS: Required<DraftRules> = {
+const DEFAULTS: Required<Omit<DraftRules, 'offer' | 'intent' | 'masterMessage'>> = {
   minChars: 200, maxChars: 700,
   selfIdMarkers: ['bogdan', 'comarnic', 'casuta', 'căsuța'],
   optOutMarkers: ['stop', 'dezabon', 'nu va mai', 'nu te mai', 'nu iti mai scriu', 'nu mai doriti', 'nu mai vreti', 'spuneti-mi', 'scrieti-mi', 'nu va mai deranjez'],
@@ -52,7 +63,34 @@ const DEFAULTS: Required<DraftRules> = {
 const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}]/gu;
 const EMOJI_MAX = 3;
 const COMPLAINT_WORDS = /problem|scuze|imi pare rau|îmi pare rău|neplac|deranj|presiune|defect|stricat|reparat|rezolvat/i;
+// Discount language: a percentage, or the words for a discount/price cut. Checked diacritic-loose.
+const DISCOUNT_WORDS = /\d+\s*(%|la\s*suta|procent)|\b(reducer|discount|pret redus|mai ieftin cu)/i;
+// Naming an OTA or selling the direct channel. Fine for a guest who only ever booked on an OTA
+// (it is their news); odd for someone who already books direct, and meaningless for a lead.
+const CHANNEL_TALK = /\b(booking(\.com)?|airbnb|platform)|rezerv\w* direct|direct la mine|direct cu mine/i;
+// Early access is not exclusivity: the dates stay bookable on the site and the OTAs.
+const CLAIMS_EXCLUSIVE = /nimeni altcineva|(inainte|pana) (sa|nu) (le|il|o) (vada|vede|rezerve) (altcineva|nimeni)|doar pentru (tine|voi)|ai prioritate|aveti prioritate/i;
 const loose = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+/**
+ * Checks that apply to ANY campaign text, a guest's message or the master message: no invented
+ * discount, no em/en dashes, no exclusivity claim. Pure.
+ */
+export function checkCampaignCopy(body: string, rules: Pick<DraftRules, 'offer' | 'intent'>): { errors: string[]; warnings: string[] } {
+  const errors: string[] = []; const warnings: string[] = [];
+  // No discount in the brief (type none / discountPct null) or a no-ask share means no discount words.
+  const noDiscount = rules.intent === 'share' || (rules.offer != null && effectiveDiscountPct(rules.offer) === 0);
+  if (noDiscount && DISCOUNT_WORDS.test(loose(body))) {
+    errors.push('mentions a discount or percentage, but this campaign has NO discount. The offer is early access, so do not invent a price cut');
+  }
+  // The owner never uses em or en dashes, and a message full of them reads as machine-written.
+  if (/[\u2013\u2014]/.test(body)) errors.push('uses an em or en dash - use a plain hyphen or a comma instead');
+  if (CLAIMS_EXCLUSIVE.test(loose(body))) warnings.push('implies nobody else can see or book these dates - early access is not exclusivity, they stay bookable on the site and the OTAs');
+  return { errors, warnings };
+}
+
+// Every number in a text (prices like 2.226 or 2226, dates, counts), normalised.
+const numbersIn = (t: string) => new Set((t.match(/\d[\d.,]*/g) || []).map((n) => n.replace(/[.,](?=\d{3}\b)/g, '').replace(/[.,]$/, '')));
 
 export interface DraftsValidationResult {
   ok: boolean;
@@ -69,6 +107,7 @@ export function validateDrafts(
   const byGuest = new Map(guests.map((g) => [g.guestId, g]));
   const draftFor = new Map(drafts.map((d) => [d.guestId, d]));
   const campaignErrors: string[] = [];
+  const masterNumbers = rules.masterMessage ? numbersIn(rules.masterMessage) : null;
 
   // coverage: exactly one draft per selected guest, and no draft for an unselected guest.
   for (const g of guests) if (!draftFor.has(g.guestId)) campaignErrors.push(`no draft for selected guest ${g.guestId}`);
@@ -97,6 +136,20 @@ export function validateDrafts(
     const isLead = g.audienceKind === 'lead';
     if (isLead && CLAIMS_A_STAY.test(body)) {
       errors.push('claims a past stay for a LEAD who has never stayed — build on what they asked for (requestedPeriod / nonConversionReason), not on a visit that never happened');
+    }
+
+    // 1c. offer, dashes, exclusivity: the checks every campaign text gets
+    const copy = checkCampaignCopy(body, rules);
+    errors.push(...copy.errors); warnings.push(...copy.warnings);
+    // With a master message, a price or date the master doesn't carry was made up per guest.
+    if (masterNumbers) {
+      const factNumbers = numbersIn(g.groundedFacts.map((f) => JSON.stringify(f.value)).join(' '));
+      const invented = [...numbersIn(body)].filter((n) => !masterNumbers.has(n) && !factNumbers.has(n));
+      if (invented.length) warnings.push(`has numbers the master message does not: ${invented.join(', ')} - check prices and dates`);
+    }
+    if (CHANNEL_TALK.test(loose(body))) {
+      if (isLead) warnings.push('talks about Booking/Airbnb or booking direct to a LEAD, who never booked anywhere - they came to you directly');
+      else if (g.booksDirect) warnings.push('talks about Booking/Airbnb or booking direct to a guest who already books direct with you - leave the channel out');
     }
 
     // 2. voice
