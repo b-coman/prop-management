@@ -53,6 +53,8 @@ export function FramingEditor({
   const [updates, setUpdates] = useState<CampaignUpdate[]>(proposal.updates ?? []);
   const [errors, setErrors] = useState<string[]>([]);
   const [masterMessage, setMasterMessage] = useState(proposal.masterMessage ?? '');
+  const [stayIn, setStayIn] = useState(proposal.stay?.checkIn ?? '');
+  const [stayOut, setStayOut] = useState(proposal.stay?.checkOut ?? '');
   const [masterNote, setMasterNote] = useState<string[]>([]);
   const [drafting, startDraft] = useTransition();
   const [saving, startSave] = useTransition();
@@ -76,6 +78,7 @@ export function FramingEditor({
     offer: buildOffer(),
     updates: updates.filter((u) => u.text.trim() && u.effectiveDate.trim()),
     generalAngle,
+    stay: stayIn && stayOut && stayIn < stayOut ? { checkIn: stayIn, checkOut: stayOut } : null,
   });
 
   const draftMaster = () =>
@@ -206,6 +209,16 @@ export function FramingEditor({
               </div>
             </div>
           ))}
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs">Stay to quote (each guest gets the site&apos;s price for their own party size)</Label>
+          <div className="flex items-center gap-2">
+            <Input type="date" value={stayIn} onChange={(e) => setStayIn(e.target.value)} className="w-40 text-xs" aria-label="Check-in" />
+            <span className="text-xs text-muted-foreground">to</span>
+            <Input type="date" value={stayOut} onChange={(e) => setStayOut(e.target.value)} className="w-40 text-xs" aria-label="Check-out" />
+            {!(stayIn && stayOut) && <span className="text-xs text-muted-foreground">Empty = no per-guest price, only the example in the master.</span>}
+          </div>
         </div>
 
         <div className="space-y-1">

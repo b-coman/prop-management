@@ -320,7 +320,7 @@ export async function fetchProposalAction(
  */
 export async function generateMessagesAction(
   campaignId: string,
-  framing: { occasion: { name: string | null; point: string }; offer: CampaignOffer; updates: CampaignUpdate[]; generalAngle: string; masterMessage?: string } | null,
+  framing: { occasion: { name: string | null; point: string }; offer: CampaignOffer; updates: CampaignUpdate[]; generalAngle: string; masterMessage?: string; stay?: { checkIn: string; checkOut: string } | null } | null,
   opts?: { guestIds?: string[]; warmCache?: boolean }
 ): Promise<{ success: boolean; ok?: boolean; count?: number; errors?: string[]; warnings?: string[]; error?: string }> {
   try {
@@ -362,7 +362,7 @@ export async function generateMessagesAction(
  */
 export async function saveFramingAction(
   campaignId: string,
-  framing: { occasion: { name: string | null; point: string }; offer: CampaignOffer; updates: CampaignUpdate[]; generalAngle: string; masterMessage: string }
+  framing: { occasion: { name: string | null; point: string }; offer: CampaignOffer; updates: CampaignUpdate[]; generalAngle: string; masterMessage: string; stay?: { checkIn: string; checkOut: string } | null }
 ): Promise<{ success: boolean; error?: string }> {
   try {
     await requireSuperAdmin();
@@ -386,7 +386,7 @@ export async function saveFramingAction(
  */
 export async function draftMasterMessageAction(
   campaignId: string,
-  framing: { occasion: { name: string | null; point: string }; offer: CampaignOffer; updates: CampaignUpdate[]; generalAngle: string }
+  framing: { occasion: { name: string | null; point: string }; offer: CampaignOffer; updates: CampaignUpdate[]; generalAngle: string; stay?: { checkIn: string; checkOut: string } | null }
 ): Promise<{ success: boolean; ok?: boolean; body?: string; notes?: string; errors?: string[]; warnings?: string[]; error?: string }> {
   try {
     await requireSuperAdmin();

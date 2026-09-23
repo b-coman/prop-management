@@ -18,6 +18,8 @@ import { getNotesByGuest, isTouch, isLive } from '@/services/guestNoteService';
 import { effectiveDiscountPct, type CampaignBrief } from '@/lib/growth/contracts';
 import { normalizeChannel, CHANNEL_LABELS, type ChannelId } from '@/lib/channels';
 import { hadChildren } from '@/lib/occupancy';
+import { quoteStay } from '@/lib/pricing/quote-stay';
+import { parseISO } from 'date-fns';
 
 const toD = (v: any): Date | null => v?._seconds ? new Date(v._seconds * 1000) : v?.toDate ? v.toDate() : typeof v === 'string' ? new Date(v) : v instanceof Date ? v : null;
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
@@ -51,7 +53,7 @@ function lastStayPhrase(last: Date | null, asOf: Date): string | null {
 
 export interface CopywriterPack {
   meta: { generatedFor: string; asOf: string; generator: string; briefId?: string };
-  campaign: { occasion: unknown; offer: unknown; updates: unknown[]; intent: string; generalAngle: string; masterMessage: string | null };
+  campaign: { occasion: unknown; offer: unknown; updates: unknown[]; intent: string; generalAngle: string; masterMessage: string | null; stay: { checkIn: string; checkOut: string } | null };
   voiceProfile: { note: string; exemplars: Array<{ outcome: string; date: string; text: string }> };
   voiceRules: Record<string, unknown>;
   guests: any[];
@@ -100,6 +102,24 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
     ...rank(exemplars.filter(e => e.outcome === 'replied')).slice(0, 5),
     ...rank(exemplars.filter(e => e.outcome === 'silent')).slice(0, 2),
   ].map(e => ({ outcome: e.outcome, date: e.date, text: String(e.text).replace(/^\d+\s*kB\s+/, '').trim() })); // strip scrape file-size artifacts
+
+  // ── the site's own price for the campaign stay, per party size ──
+  // Quoted through quoteStay, the same function the booking page uses, so a message can never name a
+  // price the site won't honour. Computed once per distinct party size among the selected guests.
+  const priceByParty = new Map<number, number>();
+  if (brief.stay?.checkIn && brief.stay?.checkOut) {
+    const sizes = new Set<number>();
+    wantIds.forEach(gid => {
+      const g: any = guestById.get(gid);
+      const last = (g?.bookingIds || []).map((id: string) => bookingById.get(id)).filter((b: any) => b && b.status !== 'cancelled' && toD(b.checkInDate) && toD(b.checkInDate)! < AS_OF)
+        .sort((a: any, b: any) => +toD(a.checkInDate)! - +toD(b.checkInDate)!).pop();
+      if (last?.numberOfGuests) sizes.add(Number(last.numberOfGuests));
+    });
+    await Promise.all([...sizes].map(async (n) => {
+      const q = await quoteStay({ propertyId: brief.propertyId, checkIn: parseISO(brief.stay!.checkIn), checkOut: parseISO(brief.stay!.checkOut), adults: n, children: 0, hasSplit: false });
+      if (q.available) priceByParty.set(n, Math.round(q.pricing.total));
+    }));
+  }
 
   // ── per-guest packs ──
   const guests = wantIds.map(gid => {
@@ -180,6 +200,8 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
     if (last) groundedFacts.push({ key: 'lastStayPhrase', value: lastStayPhrase(last, AS_OF), source: `bookings/${lastBk.id}` });
     if (last) groundedFacts.push({ key: 'lastStaySeason', value: seasonOf(last), source: `bookings/${lastBk.id}` });
     if (lastBk?.numberOfGuests) groundedFacts.push({ key: 'partySize', value: lastBk.numberOfGuests, source: `bookings/${lastBk.id}` });
+    const partyPrice = lastBk?.numberOfGuests ? priceByParty.get(Number(lastBk.numberOfGuests)) : undefined;
+    if (partyPrice && brief.stay) groundedFacts.push({ key: 'priceForParty', value: { guests: Number(lastBk.numberOfGuests), totalLei: partyPrice, checkIn: brief.stay.checkIn, checkOut: brief.stay.checkOut }, source: 'quoteStay (the site price)' });
     if (lastBk && hadChildren(lastBk) === true) groundedFacts.push({ key: 'hadChildren', value: true, source: `bookings/${lastBk.id}` });
     if (totalBookings >= 2) groundedFacts.push({ key: 'isRepeatGuest', value: totalBookings, source: `guests/${gid}` });
     if (booksDirect) groundedFacts.push({ key: 'booksDirect', value: { directBookings: directCount, otaBookings: otaCount }, source: `bookings(guests/${gid})` });
@@ -240,7 +262,7 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
 
   return {
     meta: { generatedFor: brief.propertyId, asOf: ymd(AS_OF), generator: 'src/lib/growth/copywriterPack.ts', briefId: brief.opportunity?.id },
-    campaign: { occasion: brief.occasion, offer: brief.offer, updates: framingUpdates, intent: brief.intent, generalAngle: brief.generalAngle, masterMessage: brief.masterMessage?.trim() || null },
+    campaign: { occasion: brief.occasion, offer: brief.offer, updates: framingUpdates, intent: brief.intent, generalAngle: brief.generalAngle, masterMessage: brief.masterMessage?.trim() || null, stay: brief.stay ?? null },
     voiceProfile: {
       note: 'Imitate this register — these are the owner\'s REAL past messages, tagged by outcome (booked/replied/silent). Copy the voice, not the content. Prefer what "booked".',
       exemplars: voiceExemplars,
@@ -250,7 +272,7 @@ export async function buildCopywriterPack(brief: CampaignBrief, opts?: { asOf?: 
       register: 'Pick ONE register per message and keep it consistent throughout — either tu (informal: tu/iti/te/ai) OR voi/dumneavoastra (formal: voi/va/ati). NEVER mix them in the same message (not even "ati fost… iti dau"). Choose per guest: if there is a prior thread, match how the owner addressed them there; if there is NO prior thread (a first contact), use polite voi (you do not address a stranger with tu); otherwise default to the warm informal tu.',
       length: '300-600 characters, 3-6 short sentences',
       punctuation: 'Never use an em dash or en dash; the owner writes a plain hyphen or a comma. Plain, everyday Romanian, the way he texts - not literary.',
-      master: 'If campaign.masterMessage is set, the owner wrote or approved it and it is THE message. Personalise it for this guest; do not write a new one. Keep its substance: the same dates, prices, offer and ideas, in roughly the same order, and add no campaign claim it does not make. Keep his wording wherever it fits. Change only what this guest needs: the greeting and name, tu or voi, continuity with the thread (never re-say what the thread already told them), one or two grounded personal touches, and anything that is wrong for this guest - a price for a party size that is not theirs (drop it or offer to send the exact price), a Booking/Airbnb line for someone who books direct, a stay reference for a lead. When there is no masterMessage, write from generalAngle as below.',
+      master: 'If campaign.masterMessage is set, the owner wrote or approved it and it is THE message. Personalise it for this guest; do not write a new one. Keep its substance: the same dates, prices, offer and ideas, in roughly the same order, and add no campaign claim it does not make. Keep his wording wherever it fits. Change only what this guest needs: the greeting and name, tu or voi, continuity with the thread (never re-say what the thread already told them), one or two grounded personal touches, and anything that is wrong for this guest - a Booking/Airbnb line for someone who books direct, a stay reference for a lead. PRICE: if the guest has a `priceForParty` fact, replace the example price in the master with THAT price for their party size (e.g. "pentru voi 5, 3 nopti sunt 2.406 lei"), written with a dot for thousands, and tag priceForParty. Only if there is no priceForParty (a lead, or an unknown party size) keep the example price from the master and offer the exact price for their group. When there is no masterMessage, write from generalAngle as below.',
       variety: 'campaign.generalAngle is a BRIEF for you, not text to copy. Do not lift its phrases into the message; say the idea in your own words, differently for each guest, and pick only the one or two details that fit THIS guest.',
       emoji: 'Emoji are allowed but used with care: most messages need none, a few carry one to underline a warm note (like the owner\'s own ;) ). Never decorative, never several, and never the same emoji across the whole campaign.',
       continuity: 'These are ONGOING relationships, not cold sends. READ the guest\'s `thread`, `notes` and `relationship` and continue it naturally — pick up where you left off, and where it fits, nod to the last exchange. NEVER re-say something the thread shows you already told them (see `updates`). Use `relationship.state`, which is computed across BOTH channels (messages AND logged calls): "active" (engaged, spoke ≤120d ago) → continue warmly, do NOT re-introduce yourself; "lapsed" (engaged before, long ago) → a light reconnect ("a trecut ceva vreme"); "silent" (contacted before, never engaged at all) → a fresh, low-pressure note; "first-contact" (no history whatsoever) → introduce yourself. `relationship.lastExchangeVia` says whether the last contact was WhatsApp or a call — if it was a call, continue from the call, not from the last message.',

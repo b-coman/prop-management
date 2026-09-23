@@ -158,6 +158,11 @@ export interface CampaignBrief {
    * instead of writing from the angle: same substance, adapted greeting, register and history.
    */
   masterMessage?: string;
+  /**
+   * The stay the messages quote a price for (e.g. 28 Nov - 1 Dec). When set, each guest gets the
+   * site's own price for THEIR party size as a grounded fact, instead of one example price.
+   */
+  stay?: { checkIn: string; checkOut: string };
   rationale: string;
 }
 
@@ -282,6 +287,8 @@ export interface CampaignProposal {
   generalAngle: string;
   /** See CampaignBrief.masterMessage. Empty = no master; the copywriter writes from the angle. */
   masterMessage?: string;
+  /** See CampaignBrief.stay. */
+  stay?: { checkIn: string; checkOut: string } | null;
   rationale: string;
   opportunity: WhatsAppOpportunity;
 }
@@ -337,6 +344,7 @@ export function toCampaignProposal(brief: CampaignBrief): CampaignProposal {
     updates: brief.updates ?? [],
     generalAngle: brief.generalAngle,
     masterMessage: brief.masterMessage ?? '',
+    stay: brief.stay ?? null,
     rationale: brief.rationale,
     opportunity: brief.opportunity,
   };

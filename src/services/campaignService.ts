@@ -186,6 +186,7 @@ export function campaignToBrief(
     audience: drafts.map((d) => ({ guestId: d.guestId, angle: d.angle, careFlags: d.careFlags })),
     generalAngle: p.generalAngle,
     masterMessage: p.masterMessage || undefined,
+    stay: p.stay ?? undefined,
     rationale: p.rationale,
   };
 }
@@ -193,7 +194,7 @@ export function campaignToBrief(
 /** Persist owner edits to a draft campaign's FRAMING (the Gate-0 fields). Does not regenerate. */
 export async function updateCampaignFraming(
   id: string,
-  framing: Partial<Pick<import('@/lib/growth/contracts').CampaignProposal, 'occasion' | 'offer' | 'updates' | 'generalAngle' | 'masterMessage'>>
+  framing: Partial<Pick<import('@/lib/growth/contracts').CampaignProposal, 'occasion' | 'offer' | 'updates' | 'generalAngle' | 'masterMessage' | 'stay'>>
 ): Promise<void> {
   const db = await getAdminDb();
   const patch: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
@@ -202,6 +203,7 @@ export async function updateCampaignFraming(
   if (framing.updates !== undefined) patch['proposal.updates'] = framing.updates;
   if (framing.generalAngle !== undefined) patch['proposal.generalAngle'] = framing.generalAngle;
   if (framing.masterMessage !== undefined) patch['proposal.masterMessage'] = framing.masterMessage;
+  if (framing.stay !== undefined) patch['proposal.stay'] = framing.stay;
   await db.collection('campaigns').doc(id).update(patch);
   logger.info('Campaign framing updated', { campaignId: id, fields: Object.keys(framing) });
 }
