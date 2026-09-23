@@ -355,9 +355,32 @@ export async function generateMessagesAction(
 }
 
 /**
- * Gate 0, master message: save the framing and draft ONE master message from it for the owner to
- * edit. Does not store the master (the owner edits it first; "Save & personalise" stores it) and
- * does not touch the per-guest drafts.
+ * Gate 0, save only: store the framing and the master message without writing any guest message.
+ * Lets the owner save half-way, come back later, or have the master reviewed before personalising.
+ */
+export async function saveFramingAction(
+  campaignId: string,
+  framing: { occasion: { name: string | null; point: string }; offer: CampaignOffer; updates: CampaignUpdate[]; generalAngle: string; masterMessage: string }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireSuperAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) return handleAuthError(error);
+    throw error;
+  }
+  try {
+    await updateCampaignFraming(campaignId, framing);
+    return { success: true };
+  } catch (error) {
+    logger.error('saveFramingAction failed', error as Error);
+    return { success: false, error: 'Failed to save' };
+  }
+}
+
+/**
+ * Gate 0, master message: save the framing, draft ONE master message from it, and store that draft
+ * straight away so it survives a reload (the owner then edits it and saves again). Does not touch
+ * the per-guest drafts.
  */
 export async function draftMasterMessageAction(
   campaignId: string,
@@ -377,6 +400,7 @@ export async function draftMasterMessageAction(
     const campaign = await getCampaign(campaignId);
     if (!campaign) return { success: false, error: 'Campaign not found' };
     const res = await generateMasterMessage(campaignToBrief(campaign));
+    if (res.body) await updateCampaignFraming(campaignId, { masterMessage: res.body });
     return { success: true, ok: res.ok, body: res.body, notes: res.notes, errors: res.errors, warnings: res.warnings };
   } catch (error) {
     logger.error('draftMasterMessageAction failed', error as Error);

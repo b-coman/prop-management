@@ -19,8 +19,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Wand2, Plus, X, AlertCircle, FileText } from 'lucide-react';
-import { generateMessagesAction, draftMasterMessageAction } from '../actions';
+import { Loader2, Wand2, Plus, X, AlertCircle, FileText, Save } from 'lucide-react';
+import { generateMessagesAction, draftMasterMessageAction, saveFramingAction } from '../actions';
 import type { CampaignProposal, CampaignOffer, CampaignUpdate, CampaignOfferType } from '@/lib/growth/contracts';
 
 type OfferType = NonNullable<CampaignOfferType>;
@@ -52,6 +52,7 @@ export function FramingEditor({
   const [masterMessage, setMasterMessage] = useState(proposal.masterMessage ?? '');
   const [masterNote, setMasterNote] = useState<string[]>([]);
   const [drafting, startDraft] = useTransition();
+  const [saving, startSave] = useTransition();
 
   const buildOffer = (): CampaignOffer => {
     const base = { type: offerType, description: offerDesc } as CampaignOffer;
@@ -81,12 +82,23 @@ export function FramingEditor({
         if (res.success && res.body) {
           setMasterMessage(res.body);
           setMasterNote([...(res.errors ?? []), ...(res.warnings ?? []), ...(res.notes ? [res.notes] : [])]);
-          toast({ title: 'Master message drafted', description: 'Edit it until it reads right, then personalise.' });
+          toast({ title: 'Master message drafted and saved', description: 'Edit it, then Save, or personalise when it reads right.' });
         } else {
           toast({ title: 'Could not draft', description: res.error ?? res.errors?.join('; '), variant: 'destructive' });
         }
       } catch (e) {
         toast({ title: 'Could not draft', description: (e as Error)?.message || 'Unexpected error', variant: 'destructive' });
+      }
+    });
+
+  const save = () =>
+    startSave(async () => {
+      try {
+        const res = await saveFramingAction(campaignId, { ...currentFraming(), masterMessage: masterMessage.trim() });
+        if (res.success) toast({ title: 'Saved', description: 'Framing and master message saved. No guest messages were written.' });
+        else toast({ title: 'Could not save', description: res.error, variant: 'destructive' });
+      } catch (e) {
+        toast({ title: 'Could not save', description: (e as Error)?.message || 'Unexpected error', variant: 'destructive' });
       }
     });
 
@@ -209,7 +221,11 @@ export function FramingEditor({
         )}
 
         <div className="flex items-center gap-3 border-t pt-3">
-          <Button onClick={regenerate} disabled={busy || !copywriterAvailable}>
+          <Button variant="outline" onClick={save} disabled={saving || busy || drafting}>
+            {saving ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Save className="mr-1 h-4 w-4" />}
+            Save
+          </Button>
+          <Button onClick={regenerate} disabled={busy || drafting || saving || !copywriterAvailable}>
             {busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Wand2 className="mr-1 h-4 w-4" />}
             {masterMessage.trim() ? 'Save & personalise for each guest' : 'Save & write each message'}
           </Button>
