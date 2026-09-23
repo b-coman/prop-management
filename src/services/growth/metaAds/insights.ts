@@ -13,12 +13,38 @@
 import { loggers } from '@/lib/logger';
 import { resolveAdContext } from './adContext';
 import { metaGraph, type GraphResult } from './client';
+import { todayInTimezone } from './accountSpend';
 
 const logger = loggers.ads;
 
 export interface GetInsightsOptions {
-  /** Meta `date_preset` — defaults to 'maximum' (the object's full lifetime). */
+  /**
+   * Meta `date_preset`. Leave unset for the object's full lifetime INCLUDING today. Every preset,
+   * 'maximum' too, silently drops the current day (docs/meta-ads-infrastructure-2026.md §9i), so the
+   * default is an explicit `time_range` ending today in the ad account's timezone.
+   */
   datePreset?: string;
+}
+
+/** Meta's `time_range` limit is 37 months; 36 covers any campaign this account has run. */
+const LIFETIME_MONTHS = 36;
+
+/**
+ * A lifetime `time_range` that ends TODAY in the ad account's own timezone (not the server clock).
+ * Falls back to Europe/Bucharest if the account's timezone can't be read.
+ */
+export async function lifetimeTimeRange(adAccountId: string, token: string, propertyId: string): Promise<string> {
+  const meta = await metaGraph<{ timezone_name?: string }>(adAccountId, {
+    method: 'GET',
+    params: { fields: 'timezone_name' },
+    token,
+    propertyId,
+  });
+  const tz = (meta.ok && meta.data?.timezone_name) || 'Europe/Bucharest';
+  const until = todayInTimezone(tz);
+  const d = new Date(`${until}T00:00:00Z`);
+  d.setUTCMonth(d.getUTCMonth() - LIFETIME_MONTHS);
+  return JSON.stringify({ since: d.toISOString().slice(0, 10), until });
 }
 
 export interface AdInsights {
@@ -104,11 +130,14 @@ export async function getInsights(
     return { ok: false, error: 'no-ad-context' };
   }
 
+  const window = opts?.datePreset
+    ? { date_preset: opts.datePreset }
+    : { time_range: await lifetimeTimeRange(ctx.adAccountId, ctx.token, propertyId) };
   const result = await metaGraph<MetaInsightsResponse>(`${objectId}/insights`, {
     method: 'GET',
     params: {
       fields: 'spend,impressions,clicks,actions,action_values,purchase_roas',
-      date_preset: opts?.datePreset ?? 'maximum',
+      ...window,
     },
     token: ctx.token,
     propertyId,

@@ -21,6 +21,7 @@
 import { loggers } from '@/lib/logger';
 import { resolveAdContext, type AdContext } from './adContext';
 import { metaGraph, type GraphResult } from './client';
+import { lifetimeTimeRange } from './insights';
 
 const logger = loggers.ads;
 
@@ -292,7 +293,8 @@ export async function getAdAccountHealth(propertyId: string): Promise<GraphResul
 
   const insRes = await metaGraph<AccountInsightsResponse>(`${ctx.adAccountId}/insights`, {
     method: 'GET',
-    params: { level: 'account', date_preset: 'maximum', fields: 'spend,impressions,clicks,ctr,cpc,reach,actions' },
+    // Explicit lifetime range: date_preset 'maximum' silently drops today.
+    params: { level: 'account', time_range: await lifetimeTimeRange(ctx.adAccountId, ctx.token, propertyId), fields: 'spend,impressions,clicks,ctr,cpc,reach,actions' },
     token: ctx.token,
     propertyId,
   });

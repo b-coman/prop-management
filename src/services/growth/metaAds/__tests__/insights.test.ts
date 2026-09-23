@@ -31,18 +31,18 @@ describe('getInsights — request shape', () => {
     mockResolveAdContext.mockResolvedValue({ adAccountId: 'act_1', token: 'tok' });
   });
 
-  it('GETs <objectId>/insights with the expected fields and defaults date_preset to "maximum"', async () => {
-    mockMetaGraph.mockResolvedValue({ ok: true, data: { data: [] } });
+  it('defaults to an explicit lifetime time_range ending today in the account timezone (presets drop today)', async () => {
+    mockMetaGraph
+      .mockResolvedValueOnce({ ok: true, data: { timezone_name: 'Europe/Bucharest' } })
+      .mockResolvedValueOnce({ ok: true, data: { data: [] } });
     await getInsights(PROPERTY, OBJECT_ID);
-    expect(mockMetaGraph).toHaveBeenCalledWith(`${OBJECT_ID}/insights`, {
-      method: 'GET',
-      params: {
-        fields: 'spend,impressions,clicks,actions,action_values,purchase_roas',
-        date_preset: 'maximum',
-      },
-      token: 'tok',
-      propertyId: PROPERTY,
-    });
+    expect(mockMetaGraph).toHaveBeenNthCalledWith(1, 'act_1', expect.objectContaining({ params: { fields: 'timezone_name' } }));
+    const [path, opts] = mockMetaGraph.mock.calls[1];
+    expect(path).toBe(`${OBJECT_ID}/insights`);
+    expect(opts.params.date_preset).toBeUndefined();
+    const range = JSON.parse(opts.params.time_range);
+    expect(range.until).toBe(new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Bucharest' }).format(new Date()));
+    expect(range.since < range.until).toBe(true);
   });
 
   it('honors a caller-supplied date_preset override', async () => {
