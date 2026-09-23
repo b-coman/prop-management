@@ -851,6 +851,44 @@ export async function sendCalendarExpiryAlert(
 }
 
 /**
+ * Tells the owner a campaign draft is waiting for review. Campaign drafts are written automatically
+ * (the monthly warm-up) but only ever sent by hand, so a draft nobody opens is a campaign that never
+ * happens: the 1 Aug 2026 keep-in-touch sat unread for seven weeks and stalled the next run.
+ */
+export async function sendCampaignDraftReadyEmail(
+  recipientEmail: string,
+  input: { propertyName: string; campaignName: string; count: number; reviewUrl: string; note?: string }
+): Promise<{ success: boolean; messageId?: string; previewUrl?: string; error?: string }> {
+  try {
+    const subject = `${input.count} WhatsApp message${input.count === 1 ? '' : 's'} ready for you to review - ${input.propertyName}`;
+    const text = [
+      `A campaign draft is ready: ${input.campaignName}.`,
+      '',
+      `${input.count} message${input.count === 1 ? ' is' : 's are'} written. Nothing has been sent. Read them, edit if needed, approve, then send each one from your phone.`,
+      input.note ? `\n${input.note}` : '',
+      '',
+      `Review: ${input.reviewUrl}`,
+    ].join('\n');
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="border: 1px solid #e5e7eb; padding: 24px; border-radius: 8px;">
+          <h2 style="margin: 0 0 12px;">Messages ready for review</h2>
+          <p><strong>${input.campaignName}</strong> (${input.propertyName})</p>
+          <p>${input.count} message${input.count === 1 ? ' is' : 's are'} written. <strong>Nothing has been sent.</strong> Read them, edit if needed, approve, then send each one from your phone.</p>
+          ${input.note ? `<p style="color: #92400e;">${input.note}</p>` : ''}
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${input.reviewUrl}" style="background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">Review the messages</a>
+          </div>
+        </div>
+      </div>
+    `;
+    return sendEmail(recipientEmail, subject, text, html);
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/**
  * Sends a post-stay review request email to the guest
  */
 export async function sendReviewRequestEmail(

@@ -86,10 +86,22 @@ export interface DashboardInquiry {
   createdAt: string | null;
 }
 
+/** A campaign that needs the owner: a draft to review, or approved messages still to send by hand. */
+export interface DashboardCampaign {
+  id: string;
+  propertyId: string;
+  name: string;
+  status: 'draft' | 'sending';
+  createdAt: string | null;
+  /** draft: messages written; sending: approved messages not sent yet. */
+  count: number;
+}
+
 export interface DashboardData {
   bookings: DashboardBooking[];
   inquiries: DashboardInquiry[];
   properties: AdminProperty[];
+  campaignsWaiting: DashboardCampaign[];
 }
 
 export async function fetchDashboardData(): Promise<DashboardData> {
@@ -97,10 +109,12 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     const user = await requireAdmin();
     const db = await getAdminDb();
 
-    const [bookingsSnapshot, inquiriesSnapshot, propertiesSnapshot] = await Promise.all([
+    const [bookingsSnapshot, inquiriesSnapshot, propertiesSnapshot, campaignsSnapshot, outboxSnapshot] = await Promise.all([
       db.collection('bookings').orderBy('createdAt', 'desc').get(),
       db.collection('inquiries').orderBy('createdAt', 'desc').get(),
       db.collection('properties').get(),
+      db.collection('campaigns').where('status', 'in', ['draft', 'sending']).get(),
+      db.collection('outbox').where('status', 'in', ['approved_pending_send', 'claimed']).get(),
     ]);
 
     const allBookings: DashboardBooking[] = bookingsSnapshot.docs.map(doc => {
@@ -146,19 +160,41 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     const inquiries = filterInquiriesForUser(allInquiries, user);
     const properties = filterPropertiesForUser(allProperties, user);
 
+    // Campaigns are written automatically but only ever sent by hand, so the dashboard says what is
+    // waiting on the owner. Same property scoping as everything else here.
+    const unsentByCampaign = new Map<string, number>();
+    outboxSnapshot.docs.forEach((d) => { const c = d.data().campaignId; if (c) unsentByCampaign.set(c, (unsentByCampaign.get(c) ?? 0) + 1); });
+    const visible = new Set(properties.map((p) => p.id));
+    const campaignsWaiting: DashboardCampaign[] = campaignsSnapshot.docs
+      .map((doc) => {
+        const data = doc.data();
+        const status = data.status as 'draft' | 'sending';
+        const drafts = (data.perGuestDrafts ?? []) as Array<{ body?: string }>;
+        return {
+          id: doc.id,
+          propertyId: data.propertyId,
+          name: data.name || doc.id,
+          status,
+          createdAt: serializeTimestamp(data.createdAt),
+          count: status === 'draft' ? drafts.filter((x) => (x.body ?? '').trim()).length : unsentByCampaign.get(doc.id) ?? 0,
+        };
+      })
+      .filter((c) => visible.has(c.propertyId) && (c.status === 'draft' || c.count > 0))
+      .sort((a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? ''));
+
     logger.info('Dashboard data fetched', {
       bookings: bookings.length,
       inquiries: inquiries.length,
       properties: properties.length,
     });
 
-    return { bookings, inquiries, properties };
+    return { bookings, inquiries, properties, campaignsWaiting };
   } catch (error) {
     if (error instanceof AuthorizationError) {
       logger.warn('Authorization failed for fetchDashboardData');
-      return { bookings: [], inquiries: [], properties: [] };
+      return { bookings: [], inquiries: [], properties: [], campaignsWaiting: [] };
     }
     logger.error('Error fetching dashboard data', error as Error);
-    return { bookings: [], inquiries: [], properties: [] };
+    return { bookings: [], inquiries: [], properties: [], campaignsWaiting: [] };
   }
 }

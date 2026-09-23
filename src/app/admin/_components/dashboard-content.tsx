@@ -16,6 +16,7 @@ import {
   Sliders,
   FileText,
   Sparkles,
+  Megaphone,
 } from 'lucide-react';
 import {
   format,
@@ -34,7 +35,7 @@ import type { LucideIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { usePropertySelector } from '@/contexts/PropertySelectorContext';
-import type { DashboardData, DashboardBooking, DashboardInquiry, AdminProperty } from '../_actions';
+import type { DashboardData, DashboardBooking, DashboardInquiry, AdminProperty, DashboardCampaign } from '../_actions';
 
 // ============================================================================
 // Helpers
@@ -372,6 +373,46 @@ function QuickActions() {
 // Main component
 // ============================================================================
 
+/**
+ * Campaigns waiting on the owner. Drafts are written automatically (the monthly warm-up) but sent
+ * only by hand, so an unopened one is invisible work: the 1 Aug 2026 draft sat for seven weeks.
+ */
+function CampaignsWaiting({ campaigns, now }: { campaigns: DashboardCampaign[]; now: Date }) {
+  if (campaigns.length === 0) return null;
+  return (
+    <Card className="border-amber-300 bg-amber-50/50 dark:bg-amber-950/20">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <Megaphone className="h-4 w-4 text-amber-700" />
+          Waiting for you: WhatsApp campaigns
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {campaigns.map((c) => {
+          const age = c.createdAt ? differenceInDays(now, new Date(c.createdAt)) : null;
+          return (
+            <Link key={c.id} href={`/admin/campaigns/${c.id}`} className="flex items-center justify-between gap-3 rounded-md border bg-background p-2 text-sm hover:bg-muted/50">
+              <div className="min-w-0">
+                <p className="truncate font-medium">{c.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {c.status === 'draft'
+                    ? `${c.count} message${c.count === 1 ? '' : 's'} to review`
+                    : `${c.count} approved message${c.count === 1 ? '' : 's'} still to send`}
+                  {age !== null && ` · ${age === 0 ? 'today' : `${age} day${age === 1 ? '' : 's'} ago`}`}
+                </p>
+              </div>
+              <Badge variant={age !== null && age >= 14 ? 'destructive' : 'secondary'} className="shrink-0">
+                {c.status === 'draft' ? 'Review' : 'Send'}
+              </Badge>
+            </Link>
+          );
+        })}
+        <p className="text-xs text-muted-foreground">Nothing sends on its own. You review, approve, then send each message from your phone.</p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function DashboardContent({ data }: { data: DashboardData }) {
   const { selectedPropertyId } = usePropertySelector();
 
@@ -440,6 +481,11 @@ export function DashboardContent({ data }: { data: DashboardData }) {
             : 'Overview of your rental business'}
         </p>
       </div>
+
+      <CampaignsWaiting
+        campaigns={(data.campaignsWaiting ?? []).filter((c) => !selectedPropertyId || c.propertyId === selectedPropertyId)}
+        now={now}
+      />
 
       {/* Metric cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

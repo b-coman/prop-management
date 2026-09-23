@@ -32,6 +32,11 @@ export interface RomaniaBasedInput {
   phone?: string | null;
   country?: string | null;
   stays?: number;   // non-cancelled stays (for the repeat-returner extension)
+  /**
+   * The owner's word on where the guest lives, set on the guest record when the phone misleads
+   * (Natalia Makhno: a Ukrainian number, but she lives in Romania). Beats the phone/country guess.
+   */
+  residency?: Residency | null;
 }
 
 /**
@@ -50,6 +55,7 @@ export interface RomaniaBasedInput {
  * (Individuals we never want to contact are handled separately via suppressionList / unsubscribed.)
  */
 export function isRomaniaBased(g: RomaniaBasedInput): boolean {
+  if (g.residency === 'domestic' || g.residency === 'diaspora') return true;         // owner said so
   if ((g.stays ?? 0) >= 2) return true;                                          // proven repeat returner
   if (hasRomanianPhone(g.normalizedPhone) || hasRomanianPhone(g.phone)) return true; // domestic
   if (['RO', 'ROMANIA'].includes(String(g.country || '').toUpperCase())) return true; // Romanian (diaspora if foreign phone)
@@ -64,6 +70,7 @@ export type Residency = 'domestic' | 'diaspora' | 'foreign';
  * only present here as a proven repeat returner (kept for loyalty, judge case by case).
  */
 export function classifyResidency(g: RomaniaBasedInput): Residency {
+  if (g.residency) return g.residency;                                              // owner said so
   if (hasRomanianPhone(g.normalizedPhone) || hasRomanianPhone(g.phone)) return 'domestic';
   if (['RO', 'ROMANIA'].includes(String(g.country || '').toUpperCase())) return 'diaspora';
   return 'foreign';

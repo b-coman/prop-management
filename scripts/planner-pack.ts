@@ -124,7 +124,7 @@ async function main() {
     // operating constraint: reactivation = guests BASED IN ROMANIA (RO phone / country), or a
     // proven repeat returner — NOT "ethnically Romanian". Foreign expats living here qualify;
     // one-off foreign tourists (foreign phone, single stay) do not. See src/lib/growth/audience.ts.
-    if (!isRomaniaBased({ normalizedPhone: g.normalizedPhone, phone: g.phone, country: g.country, stays: stayB.length })) continue;
+    if (!isRomaniaBased({ normalizedPhone: g.normalizedPhone, phone: g.phone, country: g.country, residency: g.residency, stays: stayB.length })) continue;
     const stays = stayB.map((b: any) => toD(b.checkInDate)!);
     const last = stays.length ? stays[stays.length - 1] : null;
     const lastBk: any = stayB.length ? stayB[stayB.length - 1] : null;
@@ -195,7 +195,7 @@ async function main() {
       eligible: reasons.length === 0,
       ineligibleReasons: reasons,
       tier,
-      residency: classifyResidency({ normalizedPhone: g.normalizedPhone, phone: g.phone, country: g.country, stays: stayB.length }),
+      residency: classifyResidency({ normalizedPhone: g.normalizedPhone, phone: g.phone, country: g.country, residency: g.residency, stays: stayB.length }),
       totalBookings,
       lastStay: last ? ymd(last) : null,
       daysSinceLastStay: last ? days(last, AS_OF) : null,
@@ -237,7 +237,7 @@ async function main() {
     const st = (g.bookingIds || []).map((id: string) => bookingById.get(id)).filter(Boolean)
       .filter((b: any) => b.status !== 'cancelled' && toD(b.checkInDate) && toD(b.checkInDate)! < AS_OF)
       .map((b: any) => toD(b.checkInDate)!).sort((a: Date, b: Date) => +a - +b);
-    if (!isRomaniaBased({ normalizedPhone: g.normalizedPhone, phone: g.phone, country: g.country, stays: st.length })) return;
+    if (!isRomaniaBased({ normalizedPhone: g.normalizedPhone, phone: g.phone, country: g.country, residency: g.residency, stays: st.length })) return;
     for (let i = 1; i < st.length; i++) transitions.set(`${seasonOf(st[i - 1])}->${seasonOf(st[i])}`, (transitions.get(`${seasonOf(st[i - 1])}->${seasonOf(st[i])}`) || 0) + 1);
   });
   const transitionsToTarget = Object.fromEntries([...transitions.entries()].filter(([k]) => k.endsWith(`->${targetSeason}`)).sort((a, b) => b[1] - a[1]));

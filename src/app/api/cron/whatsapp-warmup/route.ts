@@ -4,7 +4,8 @@
  *
  * Intended cadence: every ~6–8 weeks via Cloud Scheduler (GET). It self-skips if nobody newly
  * qualifies or a previous keep-in-touch draft is still pending review, so a slow cadence is safe.
- * Only the recurring keepintouch segment runs here; coldreintro stays operator-triggered (occasional).
+ * The recurring segments run here: keepintouch, then leadfollowup (leads have no stay, so they need
+ * their own no-ask follow-up or they simply go cold). coldreintro stays operator-triggered.
  *
  * Auth: Cloud Scheduler header (X-Appengine-Cron) or a Bearer token — same gate as the other crons.
  */
@@ -22,8 +23,9 @@ export async function GET(request: NextRequest) {
   }
   try {
     const result = await generateWarmupCampaign('keepintouch');
-    logger.info('whatsapp-warmup cron ran', result);
-    return NextResponse.json({ ok: true, ...result });
+    const leads = await generateWarmupCampaign('leadfollowup');
+    logger.info('whatsapp-warmup cron ran', { keepintouch: result, leadfollowup: leads });
+    return NextResponse.json({ ok: true, ...result, leadfollowup: leads });
   } catch (error) {
     logger.error('whatsapp-warmup cron failed', error as Error);
     return NextResponse.json({ ok: false, error: (error as Error).message }, { status: 500 });
