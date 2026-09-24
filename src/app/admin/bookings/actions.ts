@@ -11,6 +11,7 @@ import { revalidatePath } from "next/cache";
 import { addHours, parseISO, isValid, differenceInCalendarDays } from 'date-fns';
 import { loggers } from '@/lib/logger';
 import { normalizeCountryCode } from '@/lib/country-utils';
+import { convertTimestampsToISOStrings } from '@/lib/utils';
 import { propertyDateAt, formatBucharestDate, formatBucharestDateTime, iterateBucharestStayDays } from '@/lib/dates/property-times';
 import {
   requireAdmin,
@@ -76,7 +77,9 @@ export async function fetchBookingById(bookingId: string): Promise<Booking | nul
 
     const booking: Booking = {
       id: bookingSnap.id,
-      ...data,
+      // Every Timestamp, not just the known date fields: crons add new ones (reviewRequestSentAt,
+      // checkoutEmailSentAt) and a raw Timestamp crashes the page when passed to a client component.
+      ...convertTimestampsToISOStrings(data),
       checkInDate: serializeTimestamp(data.checkInDate),
       checkOutDate: serializeTimestamp(data.checkOutDate),
       holdUntil: serializeTimestamp(data.holdUntil),
@@ -252,7 +255,9 @@ export async function fetchBookings(): Promise<Booking[]> {
       // Serialize Timestamps for client components
       bookings.push({
         id: docSnap.id,
-        ...data,
+        // Every Timestamp, not just the known date fields: the 23 Sep review-request cron added
+        // reviewRequestSentAt/checkoutEmailSentAt and the list page crashed on the first booking with them.
+        ...convertTimestampsToISOStrings(data),
         checkInDate: serializeTimestamp(data.checkInDate),
         checkOutDate: serializeTimestamp(data.checkOutDate),
         holdUntil: serializeTimestamp(data.holdUntil),
