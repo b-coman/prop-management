@@ -164,7 +164,13 @@ async function main() {
     const reasons: string[] = [];
     if (suppressed.has(norm(g.normalizedPhone || '').slice(-9))) reasons.push('suppressed');
     if (g.unsubscribed) reasons.push('unsubscribed');
-    const activeFuture = stayB.some((b: any) => { const e = toD(b.checkOutDate) ?? toD(b.checkInDate); return e && +e >= Date.UTC(AS_OF.getUTCFullYear(), AS_OF.getUTCMonth(), AS_OF.getUTCDate()); });
+    // Every booking at this property, not stayB: stayB holds only stays that have already begun, so
+    // checking it could only catch someone staying right now. Marian (booked 9-11 Oct on 1 Sep) was
+    // planned into the Nov campaign because of this; the gateway caught it at send. Same rule as
+    // executionGateway.hasActiveFutureBooking.
+    const activeFuture = (g.bookingIds || []).map((id: string) => bookingById.get(id)).filter(Boolean)
+      .filter((b: any) => b.propertyId === PROPERTY && b.status !== 'cancelled')
+      .some((b: any) => { const e = toD(b.checkOutDate) ?? toD(b.checkInDate); return e && +e >= Date.UTC(AS_OF.getUTCFullYear(), AS_OF.getUTCMonth(), AS_OF.getUTCDate()); });
     if (activeFuture) reasons.push('active-future-booking');
     const lastCampaignAt = toD(g.lastCampaignAt);
     if (lastCampaignAt && days(lastCampaignAt, AS_OF) < FREQ_CAP_DAYS) reasons.push('frequency-cap');
