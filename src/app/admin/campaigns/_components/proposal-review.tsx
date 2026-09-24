@@ -172,6 +172,9 @@ export function ProposalReview({ campaignId }: { campaignId: string }) {
                   className="text-sm"
                   placeholder="Not written yet. Draft a master message above, then personalise."
                 />
+                {r.continuity && (
+                  <p className="mt-1 text-[11px] text-muted-foreground"><span className="font-medium text-foreground">Picks up: </span>{r.continuity}</p>
+                )}
                 {r.factsUsed.length > 0 && (
                   <p className="mt-1 text-[11px] text-muted-foreground">Grounded in: {r.factsUsed.join(', ')}</p>
                 )}

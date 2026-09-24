@@ -26,7 +26,7 @@ export interface GuestForDraftValidation {
   guestId: string;
   careFlags?: string[];
   groundedFacts: Array<{ key: string; value: unknown }>;
-  thread: Array<unknown>;               // length 0 ⇒ first contact ⇒ opt-out required
+  thread: Array<unknown>;               // length 0 ⇒ first contact ⇒ opt-out required (items carry ts/dir)
   /** 'lead' = never stayed. Stay language is a factual error for them, not a style choice. */
   audienceKind?: 'guest' | 'lead';
   /** Cross-channel state from the pack (a logged phone call counts, unlike thread length alone). */
@@ -124,7 +124,9 @@ export function validateDrafts(
     const body = d.body || '';
 
     // 1. grounding — declared facts must all be whitelisted
-    const ungrounded = (d.factsUsed || []).filter((k) => !facts.has(k));
+    // thread:<ts> cites a message in the conversation; it is grounded if that message exists.
+    const threadTs = new Set((g.thread || []).map((m) => String((m as { ts?: string }).ts ?? '')));
+    const ungrounded = (d.factsUsed || []).filter((k) => !facts.has(k) && !(k.startsWith('thread:') && threadTs.has(k.slice(7))));
     if (ungrounded.length) errors.push(`ungrounded factsUsed (not in groundedFacts): ${ungrounded.join(', ')}`);
 
     // sentiment: complaint guest + no grounded resolution ⇒ must not touch the problem
@@ -156,6 +158,16 @@ export function validateDrafts(
     if (CHANNEL_TALK.test(loose(body))) {
       if (isLead) warnings.push('talks about Booking/Airbnb or booking direct to a LEAD, who never booked anywhere - they came to you directly');
       else if (g.booksDirect) warnings.push('talks about Booking/Airbnb or booking direct to a guest who already books direct with you - leave the channel out');
+    }
+
+    // A real conversation that the message doesn't pick up reads as a mass message.
+    const theySpoke = (g.thread || []).some((m) => (m as { dir?: string; direction?: string }).dir === 'in' || (m as { direction?: string }).direction === 'in');
+    const citesThread = (d.factsUsed || []).some((k) => k.startsWith('thread:'));
+    if (theySpoke && !citesThread) warnings.push('does not pick up anything from your conversation with them - it may read like a mass message');
+    if (rules.masterMessage && theySpoke) {
+      const firstLine = (t: string) => loose(t.split('\n').map((l) => l.trim()).filter(Boolean).slice(1, 2).join(' ')).slice(0, 60);
+      const mLine = firstLine(rules.masterMessage);
+      if (mLine.length > 20 && loose(body).includes(mLine)) warnings.push('reuses the master\'s wording word for word - write it as your next message to this person');
     }
 
     // 2. voice

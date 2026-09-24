@@ -259,6 +259,8 @@ export interface DraftMessage {
   body: string;
   factsUsed: string[];           // every guest-specific claim, each keyed to a groundedFacts entry
   careHandled?: string;          // how a careFlag was addressed (e.g. resolved-issue PS)
+  /** What in the conversation this message picks up from, in one line. Shown at Gate 1. */
+  continuity?: string;
 }
 
 // ── landing: planner brief + copywriter drafts → a reviewable draft campaign ──
@@ -276,6 +278,7 @@ export interface ProposedDraft {
   body: string;               // the copywriter's per-guest message
   factsUsed: string[];        // grounding contract (already validated)
   careHandled?: string;
+  continuity?: string;
 }
 
 /** The campaign-level "what & why now" stored alongside the per-guest drafts. */
@@ -330,6 +333,7 @@ export function toProposedDrafts(
       body: d.body,
       factsUsed: d.factsUsed ?? [],
       careHandled: d.careHandled ?? '',
+      continuity: d.continuity ?? '',
     });
   }
   return rows;

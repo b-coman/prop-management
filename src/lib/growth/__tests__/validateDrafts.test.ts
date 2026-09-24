@@ -140,3 +140,20 @@ describe('validateDrafts - taste claims need evidence', () => {
     expect(r.perGuest[0].warnings.join(' ')).not.toMatch(/no review or note/);
   });
 });
+
+describe('validateDrafts - picking up the conversation', () => {
+  const thread = [{ ts: '2026-06-16T10:00:00', dir: 'in', text: 'o sa revin pentru iulie sau august' }];
+  it('accepts a thread:<ts> citation of a message that exists', () => {
+    const r = validateDrafts([lead({ audienceKind: 'guest', thread })], [draft(`Salut Marius!${FILLER} Ziceai de vara.${SELF_ID}`, ['firstName', 'thread:2026-06-16T10:00:00'])]);
+    expect(r.perGuest[0].errors).toEqual([]);
+    expect(r.perGuest[0].warnings.join(' ')).not.toMatch(/mass message/);
+  });
+  it('REJECTS a citation of a message that is not in the thread', () => {
+    const r = validateDrafts([lead({ audienceKind: 'guest', thread })], [draft(`Salut Marius!${FILLER}${SELF_ID}`, ['firstName', 'thread:2026-06-17T10:00:00'])]);
+    expect(r.perGuest[0].errors.join(' ')).toMatch(/ungrounded/);
+  });
+  it('WARNS when they talked to you and the message picks up nothing', () => {
+    const r = validateDrafts([lead({ audienceKind: 'guest', thread })], [draft(`Salut Marius!${FILLER}${SELF_ID}`)]);
+    expect(r.perGuest[0].warnings.join(' ')).toMatch(/mass message/);
+  });
+});

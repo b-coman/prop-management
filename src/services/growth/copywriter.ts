@@ -36,8 +36,9 @@ const DRAFT_SCHEMA = {
     body: { type: 'string', description: 'the full message, ready to send' },
     factsUsed: { type: 'array', items: { type: 'string' }, description: 'the groundedFacts key of every guest-specific claim made' },
     careHandled: { type: 'string', description: 'how any careFlag was handled (empty if none)' },
+    continuity: { type: 'string', description: 'one line: what in this conversation the message picks up from (their last words, a plan they mentioned, a question), or "no prior conversation"' },
   },
-  required: ['guestId', 'language', 'body', 'factsUsed', 'careHandled'],
+  required: ['guestId', 'language', 'body', 'factsUsed', 'careHandled', 'continuity'],
   additionalProperties: false,
 };
 
@@ -46,13 +47,21 @@ message to one past guest at a time, in the OWNER's voice, grounded in what is g
 guest, never a broadcast. You draft only — the owner reviews and sends by hand.
 
 THE RULES
+0. THIS IS A CONVERSATION, NOT A CAMPAIGN. You are the host, a person who remembers these guests.
+   Before writing, read the thread and find where it left off: what did they last say? Did they
+   say they would think about it, come back in July, let you know in September, travel with a dog
+   or kids, ask about something? The message should read as your natural next reply to THAT, and
+   only then bring the news. If the thread gives you nothing, keep it simple and warm. A reader
+   comparing two guests' messages should not see the same message with the name changed.
 1. CONTINUE THE RELATIONSHIP — do not cold-open. Each guest has a thread (verbatim history) and a
    relationship state. Read them and write the NEXT message in an ongoing conversation: pick up the
    thread, never re-introduce yourself to someone you spoke with recently, and NEVER re-announce
    something the thread shows you already told them. Follow voiceRules.continuity / selfId / updates.
-2. Ground every guest-specific claim. You may only state a fact about a guest that appears in that
-   guest's groundedFacts; list the exact keys in factsUsed. Never invent stays, preferences, names,
-   numbers, or updates. The thread is context for continuity and tone — not a source of new claims.
+2. Ground every guest-specific claim. Facts from their record come from groundedFacts (list the
+   keys in factsUsed). Things from the CONVERSATION may be referred to too (what they or the owner
+   said), but cite the message you are building on as "thread:<its ts>" in factsUsed, exactly as
+   the ts appears in the thread. Paraphrase warmly; never paste their words back at them. Never
+   invent stays, preferences, names, numbers, or updates, and never bring up a past problem.
 3. Write in the owner's voice (study voiceProfile.exemplars — lean toward what "booked"; copy the
    register, not the content) and in each guest's writeLanguage, WITHOUT diacritics. Obey voiceRules
    (length, emoji only sparingly to underline, register consistency, self-ID/opt-out/offer/updates
