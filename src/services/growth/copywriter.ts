@@ -19,6 +19,8 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicClient, WHATSAPP_COPYWRITER_MODEL, WHATSAPP_COPYWRITER_EFFORT } from '@/lib/growth/anthropic';
 import { buildCopywriterPack } from '@/lib/growth/copywriterPack';
+import { quoteStay } from '@/lib/pricing/quote-stay';
+import { parseISO } from 'date-fns';
 import { validateDrafts, checkCampaignCopy, type GuestForDraftValidation } from '@/lib/growth/validateDrafts';
 import type { CampaignBrief, DraftMessage } from '@/lib/growth/contracts';
 import { loggers } from '@/lib/logger';
@@ -229,6 +231,9 @@ personalises it for each guest. So write the one message he would send to a typi
   claim (no "when you stayed", no season of their stay, no party size). Those are added per guest.
 - Carry the campaign: the occasion and why now, the exact dates, the offer as campaign.offer
   describes it, and for "gap_fill" a light, warm ask. For "share" there is no offer and no ask.
+- If examplePrice is given, include it as an example ("de exemplu, 3 nopti ... pentru 4 persoane
+  sunt 2.287 lei"), written with a dot for thousands. Each guest later gets the price for their
+  own party size in its place.
 - Leave out the booking channel (Booking, Airbnb, booking direct): it depends on the guest and is
   added per guest.
 - campaign.generalAngle is a brief for you, not text to copy. Say it in plain, everyday words.
@@ -270,8 +275,18 @@ export async function generateMasterMessage(brief: CampaignBrief, opts?: { model
     activeThreads: guests.filter((g: any) => g.relationship?.state === 'active').length,
   };
   const { masterMessage: _unused, ...campaign } = pack.campaign;
+  // An example price for the most common party size on the list, from the site's own quote. The
+  // master is written for no one in particular, so without this it has no number to show.
+  let examplePrice: { guests: number; totalLei: number; checkIn: string; checkOut: string; nights: number } | null = null;
+  if (brief.stay) {
+    const sizes = guests.map((g: any) => g.dossier?.partySize).filter((n: any) => Number(n) > 0).map(Number);
+    const counts = new Map<number, number>(); sizes.forEach((n) => counts.set(n, (counts.get(n) ?? 0) + 1));
+    const common = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? 4;
+    const q = await quoteStay({ propertyId: brief.propertyId, checkIn: parseISO(brief.stay.checkIn), checkOut: parseISO(brief.stay.checkOut), adults: common, children: 0, hasSplit: false });
+    if (q.available) examplePrice = { guests: common, totalLei: Math.round(q.pricing.total), checkIn: brief.stay.checkIn, checkOut: brief.stay.checkOut, nights: q.pricing.numberOfNights };
+  }
   const messages: Anthropic.Beta.BetaMessageParam[] = [
-    { role: 'user', content: `Write the master message.\n\n${JSON.stringify({ campaign, audience, voiceProfile: pack.voiceProfile, voiceRules: pack.voiceRules })}` },
+    { role: 'user', content: `Write the master message.\n\n${JSON.stringify({ campaign, audience, examplePrice, voiceProfile: pack.voiceProfile, voiceRules: pack.voiceRules })}` },
   ];
   const usage: TokenUsage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
   let result: MasterMessageResult = { ok: false, body: '', notes: '', errors: ['not attempted'], warnings: [], usage };
