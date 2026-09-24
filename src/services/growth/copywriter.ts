@@ -53,8 +53,9 @@ THE RULES
    Before writing, read the thread and find where it left off: what did they last say? Did they
    say they would think about it, come back in July, let you know in September, travel with a dog
    or kids, ask about something? The message should read as your natural next reply to THAT, and
-   only then bring the news. If the thread gives you nothing, keep it simple and warm. A reader
-   comparing two guests' messages should not see the same message with the name changed.
+   only then bring the news. If the thread gives you nothing, keep it simple and warm. When the
+   owner has written a master message, the news part is HIS text - keep it; what makes each
+   message personal is the opening from your conversation and the details that are theirs.
 1. CONTINUE THE RELATIONSHIP — do not cold-open. Each guest has a thread (verbatim history) and a
    relationship state. Read them and write the NEXT message in an ongoing conversation: pick up the
    thread, never re-introduce yourself to someone you spoke with recently, and NEVER re-announce

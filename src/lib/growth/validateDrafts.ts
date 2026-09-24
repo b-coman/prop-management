@@ -152,7 +152,7 @@ export function validateDrafts(
     // With a master message, a price or date the master doesn't carry was made up per guest.
     if (masterNumbers) {
       const factNumbers = numbersIn(g.groundedFacts.map((f) => JSON.stringify(f.value)).join(' '));
-      const invented = [...numbersIn(body)].filter((n) => !masterNumbers.has(n) && !factNumbers.has(n));
+      const invented = [...numbersIn(body)].filter((n) => n.length > 1 && !masterNumbers.has(n) && !factNumbers.has(n));
       if (invented.length) warnings.push(`has numbers the master message does not: ${invented.join(', ')} - check prices and dates`);
     }
     if (CHANNEL_TALK.test(loose(body))) {
@@ -164,10 +164,12 @@ export function validateDrafts(
     const theySpoke = (g.thread || []).some((m) => (m as { dir?: string; direction?: string }).dir === 'in' || (m as { direction?: string }).direction === 'in');
     const citesThread = (d.factsUsed || []).some((k) => k.startsWith('thread:'));
     if (theySpoke && !citesThread) warnings.push('does not pick up anything from your conversation with them - it may read like a mass message');
-    if (rules.masterMessage && theySpoke) {
-      const firstLine = (t: string) => loose(t.split('\n').map((l) => l.trim()).filter(Boolean).slice(1, 2).join(' ')).slice(0, 60);
-      const mLine = firstLine(rules.masterMessage);
-      if (mLine.length > 20 && loose(body).includes(mLine)) warnings.push('reuses the master\'s wording word for word - write it as your next message to this person');
+    // With a master, the owner's framing must survive: most of his words should still be there.
+    if (rules.masterMessage) {
+      const words = (t: string) => loose(t).split(/[^a-z0-9]+/).filter((w) => w.length > 3);
+      const mw = new Set(words(rules.masterMessage.split('\n').slice(1).join(' ')));
+      const kept = [...mw].filter((w) => new Set(words(body)).has(w)).length;
+      if (mw.size >= 10 && kept / mw.size < 0.5) warnings.push(`keeps only ${Math.round((100 * kept) / mw.size)}% of your master's words - it may have rewritten your message instead of personalising it`);
     }
 
     // 2. voice

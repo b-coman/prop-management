@@ -121,7 +121,7 @@ describe('validateDrafts - with a master message', () => {
   const master = 'Buna! De sambata 28 noiembrie pana marti 1 decembrie ies patru zile libere. Trei nopti, cam 2.226 lei pentru 4 persoane.';
   it('WARNS when a guest message carries a price the master does not', () => {
     const r = validateDrafts([lead({ audienceKind: 'guest' })], [draft(`Buna Marius!${FILLER} Trei nopti, cam 2.046 lei pentru 3 persoane.${SELF_ID}`)], { masterMessage: master });
-    expect(r.perGuest[0].warnings.join(' ')).toMatch(/numbers the master message does not: 2046, 3/);
+    expect(r.perGuest[0].warnings.join(' ')).toMatch(/numbers the master message does not: 2046 -/);
   });
   it('accepts the master\'s own numbers in either format', () => {
     const r = validateDrafts([lead({ audienceKind: 'guest' })], [draft(`Buna Marius!${FILLER} Pe 28 noiembrie, 2226 lei pentru 4 persoane.${SELF_ID}`)], { masterMessage: master });
