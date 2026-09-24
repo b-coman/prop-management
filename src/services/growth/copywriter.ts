@@ -234,7 +234,7 @@ personalises it for each guest. So write the one message he would send to a typi
   describes it, and for "gap_fill" a light, warm ask. For "share" there is no offer and no ask.
 - If examplePrice is given, include it as an example ("de exemplu, 3 nopti ... pentru 4 persoane
   sunt 2.287 lei"), written with a dot for thousands. Each guest later gets the price for their
-  own party size in its place.
+  own party size in its place. Say "cam" before it if you like: it is rounded.
 - Leave out the booking channel (Booking, Airbnb, booking direct): it depends on the guest and is
   added per guest.
 - campaign.generalAngle is a brief for you, not text to copy. Say it in plain, everyday words.
@@ -284,7 +284,8 @@ export async function generateMasterMessage(brief: CampaignBrief, opts?: { model
     const counts = new Map<number, number>(); sizes.forEach((n) => counts.set(n, (counts.get(n) ?? 0) + 1));
     const common = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? 4;
     const q = await quoteStay({ propertyId: brief.propertyId, checkIn: parseISO(brief.stay.checkIn), checkOut: parseISO(brief.stay.checkOut), adults: common, children: 0, hasSplit: false });
-    if (q.available) examplePrice = { guests: common, totalLei: Math.round(q.pricing.total), checkIn: brief.stay.checkIn, checkOut: brief.stay.checkOut, nights: q.pricing.numberOfNights };
+    // Rounded down to 50 lei, the way the owner quotes (see priceForParty in copywriterPack).
+    if (q.available) examplePrice = { guests: common, totalLei: Math.floor(Math.round(q.pricing.total) / 50) * 50, checkIn: brief.stay.checkIn, checkOut: brief.stay.checkOut, nights: q.pricing.numberOfNights };
   }
   const messages: Anthropic.Beta.BetaMessageParam[] = [
     { role: 'user', content: `Write the master message.\n\n${JSON.stringify({ campaign, audience, examplePrice, voiceProfile: pack.voiceProfile, voiceRules: pack.voiceRules })}` },

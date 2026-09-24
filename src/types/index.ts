@@ -556,7 +556,7 @@ export interface OutboxMessage {
 // See plans/engagement-system.md §7.0/§7.1.
 
 export type WhatsAppDirection = 'in' | 'out'; // 'out' = owner→guest, 'in' = guest→owner
-export type WhatsAppMessageType = 'text' | 'media' | 'link' | 'system';
+export type WhatsAppMessageType = 'text' | 'media' | 'link' | 'system' | 'reaction'; // reaction = an emoji reaction to a message (text says which)
 
 export interface WhatsAppMessage {
   ts: string;                 // Bucharest local wall-clock, 'YYYY-MM-DDTHH:MM:SS' — sortable, DST-safe
