@@ -68,6 +68,38 @@ export async function upsertThreadMessages(input: {
   return { added, total: merged.length, reconcile };
 }
 
+/** Bucharest wall-clock 'YYYY-MM-DDTHH:MM:SS', the vault's timestamp format. */
+function bucharestTs(d: Date): string {
+  return new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Europe/Bucharest', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  }).format(d).replace(' ', 'T');
+}
+
+/**
+ * Record a message the owner just sent from a campaign into that guest's thread, so every later
+ * campaign sees it (what was said, when) without waiting for a WhatsApp resync. Marked
+ * source:'app'; when the resync later captures the real message, it replaces this record.
+ * Never throws: a failed record must not undo a send.
+ */
+export async function recordSentMessage(guestId: string, text: string, at: Date = new Date()): Promise<void> {
+  try {
+    const db = await getAdminDb();
+    const [guestSnap, threadSnap] = await Promise.all([
+      db.collection('guests').doc(guestId).get(),
+      db.collection('whatsappThreads').doc(guestId).get(),
+    ]);
+    const guest = guestSnap.data() as Guest | undefined;
+    const thread = threadSnap.data() as WhatsAppThread | undefined;
+    const phone = thread?.phone || guest?.normalizedPhone || guest?.phone || '';
+    // Same sender label as the owner's captured messages in this thread, so the record reads alike.
+    const sender = thread?.messages?.slice().reverse().find((m) => m.direction === 'out')?.sender || process.env.WHATSAPP_OWNER_NAME || 'owner';
+    await upsertThreadMessages({ guestId, phone, messages: [{ ts: bucharestTs(at), direction: 'out', sender, text, type: 'text', source: 'app' }] });
+  } catch (e) {
+    logger.error('recordSentMessage failed', e as Error, { guestId });
+  }
+}
+
 /**
  * Archive a raw import batch, immutably, before it is folded into a thread.
  *

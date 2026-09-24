@@ -173,3 +173,36 @@ describe('reconcileAuthoritative (official export folded into the vault)', () =>
     expect(twice).toHaveLength(once.length);
   });
 });
+
+describe('mergeMessages - a send recorded by the app', () => {
+  const app: WhatsAppMessage = { ts: '2026-09-24T13:14:05', direction: 'out', sender: OWNER, text: 'Salut Cristi!\nIti scriu inainte...', type: 'text', source: 'app' };
+  const captured: WhatsAppMessage = { ts: '2026-09-24T13:12:00', direction: 'out', sender: OWNER, text: 'Salut Cristi! Iti scriu inainte...', type: 'text' };
+
+  it('replaces the app record with the WhatsApp capture of the same message', () => {
+    const merged = mergeMessages([app], [captured]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].source).toBeUndefined();
+    expect(merged[0].ts).toBe('2026-09-24T13:12:00');
+  });
+
+  it('does not add the app record when the capture is already stored', () => {
+    expect(mergeMessages([captured], [app])).toHaveLength(1);
+  });
+
+  it('never collapses two real identical messages', () => {
+    const ok1: WhatsAppMessage = { ts: '2026-09-24T10:00:00', direction: 'out', sender: OWNER, text: 'ok', type: 'text' };
+    const ok2: WhatsAppMessage = { ...ok1, ts: '2026-09-24T10:05:00' };
+    expect(mergeMessages([ok1], [ok2])).toHaveLength(2);
+  });
+
+  it('keeps both when the texts differ or the times are far apart', () => {
+    expect(mergeMessages([app], [{ ...captured, text: 'alt mesaj' }])).toHaveLength(2);
+    expect(mergeMessages([app], [{ ...captured, ts: '2026-09-24T18:00:00' }])).toHaveLength(2);
+  });
+
+  it('an authoritative export does not rescue the app record as a separate message', () => {
+    const r = reconcileAuthoritative([app], [{ ...captured, ts: '2026-09-24T13:12:41' }]);
+    expect(r.messages).toHaveLength(1);
+    expect(r.rescued).toHaveLength(0);
+  });
+});

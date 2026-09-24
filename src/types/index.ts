@@ -564,6 +564,12 @@ export interface WhatsAppMessage {
   sender: string;             // display name / number from WhatsApp's data-pre-plain-text
   text: string;
   type: WhatsAppMessageType;
+  /**
+   * 'app' = recorded by the app when the owner marked a campaign message sent, not captured from
+   * WhatsApp. Its time is when he marked it, which can be a few minutes off the real send, so a
+   * later WhatsApp capture of the same text replaces it (see mergeMessages).
+   */
+  source?: 'app';
 }
 
 export interface WhatsAppThread {

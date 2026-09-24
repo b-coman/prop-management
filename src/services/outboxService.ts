@@ -5,6 +5,7 @@
  *
  * Plain server module (NOT 'use server').
  */
+import { recordSentMessage } from '@/services/whatsappThreadService';
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
 import type { OutboxMessage } from '@/types';
@@ -60,6 +61,8 @@ export async function markOutboxSent(
       logger.warn('markOutboxSent: messageLog update failed (non-blocking)', { outboxId, messageLogId: row.messageLogId });
     }
   }
+  // Put the message in the guest's WhatsApp vault too, so the next campaign knows what was said.
+  if (row.guestId && sentText) await recordSentMessage(row.guestId, sentText);
   if (row.guestId) {
     try {
       await db.collection('guests').doc(row.guestId).update({ lastCampaignAt: FieldValue.serverTimestamp() });

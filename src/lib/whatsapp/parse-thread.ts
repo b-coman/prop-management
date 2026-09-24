@@ -125,15 +125,37 @@ export function parseWhatsAppRows(rows: RawRow[], opts: ParseOptions): WhatsAppM
  */
 export function mergeMessages(existing: WhatsAppMessage[], incoming: WhatsAppMessage[]): WhatsAppMessage[] {
   const seen = new Set(existing.map(fingerprint));
-  const merged = [...existing];
+  let merged = [...existing];
   for (const m of incoming) {
     const fp = fingerprint(m);
     if (seen.has(fp)) continue;
+    // An app-recorded send and the real WhatsApp capture of it are one message. Keep the capture
+    // (it has WhatsApp's own time); if the app record arrives second, it is already covered.
+    const twin = merged.find((x) => sameSend(x, m));
+    if (twin) {
+      if (twin.source === 'app' && m.source !== 'app') merged = merged.map((x) => (x === twin ? m : x));
+      seen.add(fp);
+      continue;
+    }
     seen.add(fp);
     merged.push(m);
   }
   merged.sort((a, b) => a.ts.localeCompare(b.ts));
   return merged;
+}
+
+/** How far an app-recorded send's time can be from the real WhatsApp time of the same message. */
+const APP_SEND_TOLERANCE_MS = 30 * 60 * 1000;
+
+/**
+ * Same message, one side recorded by the app: same direction and text, within the tolerance. Only
+ * applies when exactly one side is an app record, so two genuine identical messages ("ok", "ok")
+ * are never collapsed.
+ */
+function sameSend(a: WhatsAppMessage, b: WhatsAppMessage): boolean {
+  if ((a.source === 'app') === (b.source === 'app')) return false;
+  if (a.direction !== b.direction || looseText(a.text) !== looseText(b.text)) return false;
+  return Math.abs(Date.parse(`${a.ts}Z`) - Date.parse(`${b.ts}Z`)) <= APP_SEND_TOLERANCE_MS;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -201,7 +223,8 @@ export function reconcileAuthoritative(existing: WhatsAppMessage[], incoming: Wh
   });
 
   const batchKeys = new Set(batch.map(looseFingerprint));
-  const rescued = existing.filter((m) => !batchKeys.has(looseFingerprint(m)));
+  // An app-recorded send the export also contains is the same message, not one to rescue.
+  const rescued = existing.filter((m) => !batchKeys.has(looseFingerprint(m)) && !(m.source === 'app' && batch.some((b) => sameSend(m, b))));
   const messages = [...batch, ...rescued].sort((a, b) => a.ts.localeCompare(b.ts));
 
   const earliest = (arr: WhatsAppMessage[]) => (arr.length ? arr.reduce((min, m) => (m.ts < min ? m.ts : min), arr[0].ts) : undefined);
