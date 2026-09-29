@@ -3,9 +3,27 @@
 import nodemailer from 'nodemailer';
 import { Resend } from 'resend';
 import { format } from 'date-fns';
-import { formatBucharestDateTime } from '@/lib/dates/property-times';
+import { formatBucharestDateTime, formatClockTime } from '@/lib/dates/property-times';
 import type { Booking, Property, Inquiry, LanguageCode } from '@/types';
 import { getPropertyBySlug } from '@/lib/property-utils';
+// Structured logger for the paths added here. The older console.log calls in this file predate it
+// and are invisible in production (Cloud Logging only captures single-line JSON).
+import { loggers } from '@/lib/logger';
+import { resolveGuideFacts, type GuideFacts } from '@/lib/guide-facts';
+import { generateGuideToken, guideIdentity } from '@/lib/guide-token';
+import {
+  createPreArrivalTemplate,
+  type BookingEmailData,
+  type PreArrivalEmailData,
+} from '@/services/emailTemplates';
+import {
+  formatDate,
+  formatCurrency,
+  getPropertyName,
+  buildConfirmationPayload,
+  buildPreArrivalPayload,
+  type GuestEmailContext,
+} from '@/services/guestEmailPayloads';
 import { getAppBaseUrl } from '@/lib/app-url';
 import { getEmailPalette } from '@/lib/email-theme';
 import { getPropertyHeroImage } from '@/lib/property-utils';
@@ -155,44 +173,34 @@ async function sendEmail(
 }
 
 // Format dates for display in Europe/Bucharest TZ (independent of server TZ).
-function formatDate(date: any, language: LanguageCode = 'en'): string {
-  if (!date) return 'N/A';
+
+/**
+ * Prefer a banner-cropped hero for email, by convention: `foo.jpg` -> `foo-email.jpg`.
+ *
+ * The site hero is a 4:3 photograph. At the 600px an email renders at, that is 450px of image
+ * before a single word, and on a phone about 60% of the first screen — so the reader scrolls past
+ * a postcard to find out whether they are booked. A 3:1 band costs 200px and still carries the
+ * house.
+ *
+ * Convention rather than configuration: drop a `-email` sibling next to any property's hero and
+ * that property starts using it, with no field to set and nothing to keep in sync. Checked on
+ * disk rather than over HTTP because a missing image in an email is invisible — it just renders
+ * as a gap — so guessing is not safe. Falls back silently to the original.
+ */
+function preferEmailCrop(heroPath: string): string {
   try {
-    const dateObj = date instanceof Date ? date : new Date(date);
-    // A Romanian email was rendering "September 3rd, 2026". date-fns defaults to
-    // en-US unless handed a locale, so pass one for any non-English email.
-    const locale = language === 'ro' ? require('date-fns/locale/ro').ro : undefined;
-    return formatBucharestDateTime(dateObj, 'PPP', locale);
-  } catch (e) {
-    return 'Invalid date';
+    const rel = heroPath.startsWith('/') ? heroPath.slice(1) : heroPath;
+    const dot = rel.lastIndexOf('.');
+    if (dot <= 0) return heroPath;
+    const candidate = `${rel.slice(0, dot)}-email${rel.slice(dot)}`;
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const fs = require('fs');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const path = require('path');
+    return fs.existsSync(path.join(process.cwd(), 'public', candidate)) ? `/${candidate}` : heroPath;
+  } catch {
+    return heroPath;
   }
-}
-
-// Format currency for display
-function formatCurrency(amount: number, currency: string): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency || 'USD',
-  }).format(amount);
-}
-
-// Helper to get booking by ID (avoids circular dependencies)
-async function getBookingById(bookingId: string): Promise<Booking | null> {
-  try {
-    const { getBookingById: fetchBooking } = await import('./bookingService');
-    return await fetchBooking(bookingId);
-  } catch (error) {
-    console.error(`[EmailService] Error importing getBookingById: ${error}`);
-    return null;
-  }
-}
-
-// Helper to get property name
-function getPropertyName(property: Property | null, fallback: string): string {
-  if (!property?.name) return fallback;
-  return typeof property.name === 'string'
-    ? property.name
-    : (property.name as any)?.en || fallback;
 }
 
 /**
@@ -217,7 +225,10 @@ async function buildEmailBrand(
   let heroImageUrl: string | undefined;
   try {
     const hero = await getPropertyHeroImage(slug);
-    if (hero) heroImageUrl = /^https?:\/\//.test(hero) ? hero : `${publicBase}${hero.startsWith('/') ? '' : '/'}${hero}`;
+    if (hero) {
+      const chosen = /^https?:\/\//.test(hero) ? hero : preferEmailCrop(hero);
+      heroImageUrl = /^https?:\/\//.test(chosen) ? chosen : `${publicBase}${chosen.startsWith('/') ? '' : '/'}${chosen}`;
+    }
   } catch (e) {
     console.warn('[EmailService] Hero image lookup failed; sending without it');
   }
@@ -232,6 +243,74 @@ async function buildEmailBrand(
 }
 
 /**
+ * The guest's personalised guide link, or undefined if it cannot be built.
+ *
+ * The token is an HMAC over the booking (see guide-token.ts) and needs REVIEW_TOKEN_SECRET. If
+ * that is missing the generator throws, and a missing guide link must never cost the guest their
+ * confirmation email - so this swallows the failure and the template simply omits the block.
+ *
+ * NOTE for whoever rotates secrets: this token is derived, not stored, so changing
+ * REVIEW_TOKEN_SECRET silently invalidates every guide link already sent to every guest.
+ */
+function buildGuideUrl(bookingId: string, guestInfo: any, publicBase?: string): string | undefined {
+  if (!publicBase) return undefined;
+  try {
+    const token = generateGuideToken(bookingId, guideIdentity(guestInfo));
+    return `${publicBase}/g/${bookingId}?t=${token}`;
+  } catch {
+    return undefined;
+  }
+}
+
+
+
+// Helper to get booking by ID (avoids circular dependencies)
+async function getBookingById(bookingId: string): Promise<Booking | null> {
+  try {
+    const { getBookingById: fetchBooking } = await import('./bookingService');
+    return await fetchBooking(bookingId);
+  } catch (error) {
+    console.error(`[EmailService] Error importing getBookingById: ${error}`);
+    return null;
+  }
+}
+
+/**
+ * Do all the I/O for one booking's emails: the booking, the property, the brand, the guide facts
+ * and the personalised guide link. Returns null when there is nothing to send to.
+ */
+export async function loadGuestEmailContext(
+  bookingId: string,
+  recipientEmail?: string,
+  /** Render in this language instead of the booking's. Only the preview tool uses it — the send
+   *  path must always follow the guest's own stored preference. */
+  languageOverride?: LanguageCode
+): Promise<GuestEmailContext | null> {
+  const booking = await getBookingById(bookingId);
+  if (!booking) return null;
+
+  const email = recipientEmail || booking.guestInfo?.email;
+  if (!email) return null;
+
+  const property = await getPropertyBySlug(booking.propertyId);
+  const propertyName = getPropertyName(property, booking.propertyId);
+  const language: LanguageCode = languageOverride || booking.language || 'en';
+  const brand = await buildEmailBrand(property, propertyName, booking.propertyId);
+  const guide = await resolveGuideFacts(booking.propertyId, property, language);
+
+  return {
+    booking,
+    property,
+    propertyName,
+    language,
+    brand,
+    guide,
+    guideUrl: buildGuideUrl(booking.id, booking.guestInfo, brand?.websiteUrl),
+    recipientEmail: email,
+  };
+}
+
+/**
  * Sends a booking confirmation email to the guest
  */
 export async function sendBookingConfirmationEmail(
@@ -239,63 +318,43 @@ export async function sendBookingConfirmationEmail(
   recipientEmail?: string
 ): Promise<{ success: boolean; messageId?: string; previewUrl?: string; error?: string }> {
   try {
-    console.log(`[EmailService] Preparing booking confirmation for ${bookingId}`);
+    const ctx = await loadGuestEmailContext(bookingId, recipientEmail);
+    if (!ctx) return { success: false, error: 'Booking not found or no recipient email' };
 
-    const booking = await getBookingById(bookingId);
-    if (!booking) {
-      return { success: false, error: 'Booking not found' };
-    }
-
-    const email = recipientEmail || booking.guestInfo.email;
-    if (!email) {
-      return { success: false, error: 'No recipient email' };
-    }
-
-    const property = await getPropertyBySlug(booking.propertyId);
-    const propertyName = getPropertyName(property, booking.propertyId);
-
-    // Use stored language preference, default to 'en'
-    const language: LanguageCode = booking.language || 'en';
-
-    const brand = await buildEmailBrand(property, propertyName, booking.propertyId);
-
-    const { text, html, subject } = createBookingConfirmationTemplate({
-      guestName: `${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''}`.trim(),
-      bookingId: booking.id,
-      propertyName,
-      brand,
-      checkInDate: formatDate(booking.checkInDate, language),
-      checkOutDate: formatDate(booking.checkOutDate, language),
-      checkInTime: property?.checkInTime,
-      checkOutTime: property?.checkOutTime,
-      numberOfGuests: booking.numberOfGuests,
-      numberOfAdults: (booking as any).numberOfAdults,
-      numberOfChildren: (booking as any).numberOfChildren,
-      numberOfNights: booking.pricing.numberOfNights,
-      baseAmount: formatCurrency(booking.pricing.baseRate * booking.pricing.numberOfNights, booking.pricing.currency),
-      cleaningFee: formatCurrency(booking.pricing.cleaningFee, booking.pricing.currency),
-      extraGuestFee: booking.pricing.extraGuestFee ? formatCurrency(booking.pricing.extraGuestFee, booking.pricing.currency) : undefined,
-      totalAmount: formatCurrency(booking.pricing.total, booking.pricing.currency),
-      currency: booking.pricing.currency,
-      // The policy is stored bilingually ({en, ro}); this used to always take .en,
-      // so a Romanian confirmation carried an English cancellation policy.
-      cancellationPolicy: typeof property?.cancellationPolicy === 'string'
-        ? property.cancellationPolicy
-        : ((property?.cancellationPolicy as any)?.[language] ?? (property?.cancellationPolicy as any)?.en),
-      propertyAddress: property?.location ? `${property.location.address}, ${property.location.city}, ${property.location.state}, ${property.location.country}` : undefined,
-      hostName: (property as any)?.hostInfo?.name,
-      hostPhone: (property as any)?.hostInfo?.phone,
-      specialRequests: (booking as any).specialRequests,
-      isPaid: booking.paymentInfo?.status === 'succeeded' || booking.paymentInfo?.status === 'paid',
-      paidOnDate: booking.paymentInfo?.paidAt ? formatDate(booking.paymentInfo.paidAt, language) : undefined
-    }, language);
-
-    const emailSubject = `${subject} - ${propertyName}`;
-    console.log(`[EmailService] Sending booking confirmation (${language}) to ${email}`);
-
-    return sendEmail(email, emailSubject, text, html, undefined, brand?.replyToEmail);
+    const { text, html, subject } = createBookingConfirmationTemplate(
+      buildConfirmationPayload(ctx),
+      ctx.language
+    );
+    return sendEmail(ctx.recipientEmail!, `${subject} - ${ctx.propertyName}`, text, html, undefined, ctx.brand?.replyToEmail);
   } catch (error) {
-    console.error('[EmailService] Error sending booking confirmation:', error);
+    loggers.email?.error?.('Booking confirmation email failed', error as Error, { bookingId });
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/**
+ * Sends the pre-arrival note to the guest.
+ *
+ * NOT WIRED TO ANY TRIGGER YET, on purpose. The guide copy is still being reviewed by the owner,
+ * and this email points guests at it - so it is callable and tested, and nothing fires it
+ * automatically. Wiring it means a cron that finds bookings checking in in N days and has not
+ * already been sent one (that de-dup does not exist yet and must, or a guest gets it daily).
+ *
+ * Every fact comes from the guest guide's own config, so this can never quote a gate number or a
+ * phone the guide disagrees with.
+ */
+export async function sendPreArrivalEmail(
+  bookingId: string,
+  recipientEmail?: string
+): Promise<{ success: boolean; messageId?: string; previewUrl?: string; error?: string }> {
+  try {
+    const ctx = await loadGuestEmailContext(bookingId, recipientEmail);
+    if (!ctx) return { success: false, error: 'Booking not found or no recipient email' };
+
+    const { text, html, subject } = createPreArrivalTemplate(buildPreArrivalPayload(ctx), ctx.language);
+    return sendEmail(ctx.recipientEmail!, `${subject} - ${ctx.propertyName}`, text, html, undefined, ctx.brand?.replyToEmail);
+  } catch (error) {
+    loggers.email?.error?.('Pre-arrival email failed', error as Error, { bookingId });
     return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
@@ -766,8 +825,8 @@ export async function sendBookingCancellationEmail(
       brand,
       checkInDate: formatDate(booking.checkInDate, language),
       checkOutDate: formatDate(booking.checkOutDate, language),
-      checkInTime: property?.checkInTime,
-      checkOutTime: property?.checkOutTime,
+      checkInTime: formatClockTime(property?.checkInTime, language),
+      checkOutTime: formatClockTime(property?.checkOutTime, language),
       numberOfGuests: booking.numberOfGuests,
       numberOfAdults: (booking as any).numberOfAdults,
       numberOfChildren: (booking as any).numberOfChildren,

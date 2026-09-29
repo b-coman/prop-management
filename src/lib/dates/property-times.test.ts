@@ -8,6 +8,7 @@ import {
   getBucharestHourMinute,
   formatBucharestDateTime,
   iterateBucharestStayDays,
+  formatClockTime,
 } from './property-times';
 
 describe('parseAmPmTime', () => {
@@ -195,5 +196,41 @@ describe('iterateBucharestStayDays', () => {
   test('zero-night booking (checkOut == checkIn)', () => {
     const d = new Date('2026-05-22T11:00:00.000Z');
     expect([...iterateBucharestStayDays(d, d)]).toEqual([]);
+  });
+});
+
+// Added 2026-09-29: "3:00 PM" was being dropped straight into Romanian emails and the Romanian
+// guest guide — "(După 3:00 PM)" — which no Romanian writes. The stored value is unchanged;
+// only the rendering is language-aware.
+describe('formatClockTime', () => {
+  it('renders 24-hour for Romanian', () => {
+    expect(formatClockTime('3:00 PM', 'ro')).toBe('15:00');
+    expect(formatClockTime('11:00 AM', 'ro')).toBe('11:00');
+    expect(formatClockTime('12:00 AM', 'ro')).toBe('00:00');
+    expect(formatClockTime('12:00 PM', 'ro')).toBe('12:00');
+  });
+
+  it('leaves English alone — 3:00 PM is how English writes it', () => {
+    expect(formatClockTime('3:00 PM', 'en')).toBe('3:00 PM');
+  });
+
+  it('defaults to English when no language is given', () => {
+    expect(formatClockTime('3:00 PM')).toBe('3:00 PM');
+  });
+
+  it('passes through a value already stored as 24-hour rather than mangling it', () => {
+    expect(formatClockTime('15:00', 'ro')).toBe('15:00');
+    expect(formatClockTime('15:00', 'en')).toBe('15:00');
+  });
+
+  it('returns undefined for empty input so the template omits the line', () => {
+    expect(formatClockTime(undefined, 'ro')).toBeUndefined();
+    expect(formatClockTime('', 'ro')).toBeUndefined();
+    expect(formatClockTime('   ', 'ro')).toBeUndefined();
+  });
+
+  it('tolerates the sloppy forms parseAmPmTime accepts', () => {
+    expect(formatClockTime('3PM', 'ro')).toBe('15:00');
+    expect(formatClockTime(' 3:30pm ', 'ro')).toBe('15:30');
   });
 });

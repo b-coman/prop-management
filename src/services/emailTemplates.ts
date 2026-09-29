@@ -45,6 +45,25 @@ const emailTranslations = {
     amountPaid: 'Amount paid',
     specialRequests: 'Special Requests',
 
+    // Guest guide + pre-arrival. Romanian wording deliberately mirrors the guide page itself
+    // ("Cum ajungeți", "Căutați numărul acesta pe poartă") so a guest who reads both does not
+    // meet two different phrasings for the same thing.
+    guideHeading: 'Your guest guide',
+    guidePrompt: 'Directions, the gate number, the Wi-Fi and who to call are all in your guide. Keep this link - it works until after you leave.',
+    guideCta: 'Open your guide',
+    preArrival: 'See you soon',
+    preArrivalMessage: 'You arrive on {date}. Below is everything you need for check-in.',
+    preArrivalDirections: 'Getting here',
+    preArrivalWaze: 'Waze',
+    preArrivalMaps: 'Google Maps',
+    preArrivalGate: 'Look for this number on the gate',
+    // Composed from the host contact rather than taken from the guide's own call note: the guide
+    // lists the caretakers by name because its contacts card introduces them, but an arriving
+    // guest reading an email has never heard of them.
+    preArrivalCall: 'Call {name} on {phone} about 10-15 minutes before you arrive.',
+    preArrivalWhatTime: 'What time will you arrive?',
+    preArrivalWhatTimeBody: 'Reply to this email and let us know - it helps us have everything ready for you.',
+
     // Hold confirmation
     holdConfirmation: 'Hold Confirmation',
     holdCreatedMessage: 'Your temporary hold has been created! Please complete your booking before it expires.',
@@ -120,22 +139,22 @@ const emailTranslations = {
   ro: {
     // Common
     dear: 'Dragă',
-    thankYou: 'Vă mulțumim!',
+    thankYou: 'Mulțumim!',
     theTeam: 'Echipa {propertyName}',
     automatedMessage: 'Acesta este un mesaj automat. Vă rugăm să nu răspundeți la acest email.',
-    thankYouForChoosing: 'Vă mulțumim că ați ales {propertyName}!',
+    thankYouForChoosing: 'Mulțumim că ai ales {propertyName}!',
 
     // Booking confirmation
     bookingConfirmation: 'Confirmare Rezervare',
-    bookingConfirmedMessage: 'Vă mulțumim pentru rezervare! Rezervarea dumneavoastră este confirmată.',
+    bookingConfirmedMessage: 'Îți mulțumim, rezervarea ta este confirmată.',
     bookingDetails: 'Detalii Rezervare',
     bookingId: 'Referință rezervare',
     property: 'Proprietate',
     checkIn: 'Check-in',
     checkOut: 'Check-out',
     guests: 'Oaspeți',
-    after: 'După',
-    before: 'Înainte de',
+    after: 'după',
+    before: 'înainte de',
     paymentSummary: 'Sumar Plată',
     nights: 'nopți',
     cleaningFee: 'Taxă curățenie',
@@ -144,13 +163,28 @@ const emailTranslations = {
     propertyInformation: 'Informații Proprietate',
     address: 'Adresă',
     host: 'Gazdă',
-    hostPhone: 'Telefon Gazdă',
+    hostPhone: 'Telefon gazdă',
     cancellationPolicy: 'Politica de Anulare',
     paidInFull: 'Achitat integral',
-    replyPrompt: 'Acest mesaj a fost trimis automat, dar puteți răspunde - mesajul ajunge la noi.',
+    replyPrompt: 'Acest mesaj a fost trimis automat, dar poți răspunde - mesajul ajunge la noi.',
     paidOn: 'Achitat pe {date}',
     amountPaid: 'Sumă achitată',
     specialRequests: 'Cereri Speciale',
+
+    // Ghid + înainte de sosire. Formularea urmează intenționat pagina de ghid, ca un oaspete
+    // care le citește pe amândouă să nu întâlnească două exprimări diferite pentru același lucru.
+    guideHeading: 'Ghidul tău',
+    guidePrompt: 'Cum ajungi, detalii despre proprietate, WiFi - toate le găsești aici în ghid.',
+    guideCta: 'Deschide ghidul',
+    preArrival: 'Vă așteptăm în curând',
+    preArrivalMessage: 'Sosești pe {date}. Mai jos ai tot ce îți trebuie pentru check-in.',
+    preArrivalDirections: 'Cum ajungi',
+    preArrivalWaze: 'Waze',
+    preArrivalMaps: 'Google Maps',
+    preArrivalGate: 'Caută numărul acesta pe poartă',
+    preArrivalCall: 'Sună-l pe {name} la {phone} cu 10-15 minute înainte să ajungi.',
+    preArrivalWhatTime: 'La ce oră ajungi?',
+    preArrivalWhatTimeBody: 'Răspunde la acest e-mail și spune-ne - ne ajută să avem totul pregătit.',
 
     // Hold confirmation
     holdConfirmation: 'Confirmare Blocare Temporară',
@@ -164,7 +198,7 @@ const emailTranslations = {
 
     // Inquiry confirmation
     inquiryConfirmation: 'Confirmare Solicitare',
-    inquiryReceivedMessage: 'Vă mulțumim pentru solicitare! Am primit mesajul dvs. și vă vom răspunde cât mai curând posibil.',
+    inquiryReceivedMessage: 'Mulțumim pentru solicitare! Am primit mesajul tău și îți răspundem cât mai curând.',
     inquiryDetails: 'Detalii Solicitare',
     inquiryId: 'ID Solicitare',
     yourMessage: 'Mesajul Dvs.',
@@ -203,7 +237,7 @@ const emailTranslations = {
     reviewRequestPrompt: 'Durează doar un minut să vă împărtășiți gândurile.',
 
     // Checkout confirmation (Day 0)
-    checkoutConfirmation: 'Vă Mulțumim pentru Sejur!',
+    checkoutConfirmation: 'Mulțumim pentru sejur!',
     checkoutConfirmationMessage: 'Sperăm că ați avut o experiență minunată la {propertyName}. Drum bun spre casă!',
     checkoutSafeTravel: 'Vă dorim călătorie plăcută și sperăm să vă revedem curând.',
 
@@ -300,7 +334,7 @@ interface SeasonalReminderEmailData {
   unsubscribeUrl: string;
 }
 
-interface BookingEmailData {
+export interface BookingEmailData {
   guestName: string;
   bookingId: string;
   propertyName: string;
@@ -325,8 +359,11 @@ interface BookingEmailData {
   paidOnDate?: string;
   propertyAddress?: string;
   hostName?: string;
+  /** Display form - localised. The dial form lives in hostPhoneHref. */
   hostPhone?: string;
   specialRequests?: string;
+  /** Personalised guest-guide link. Omitted (and the whole block hidden) when it cannot be built. */
+  guideUrl?: string;
 }
 
 interface HoldEmailData {
@@ -418,8 +455,15 @@ function createHeader(title: string, brand?: EmailBrand): string {
     td { padding:8px 0; font-size:16px; }
     .right { text-align:right; }
     .total-row td { border-top:1px solid ${c.border}; padding-top:16px; font-weight:700; font-size:21px; font-family:${c.headingFont}; color:${c.foreground}; }
-    .paid-pill { display:inline-block; padding:7px 14px; background:${c.primary}; color:#ffffff; font-family:${c.bodyFont}; font-size:12px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; }
-    .button { display:inline-block; background:${c.primary}; color:#ffffff !important; padding:13px 28px; text-decoration:none; border-radius:2px; font-family:${c.bodyFont}; font-size:14px; font-weight:600; letter-spacing:0.02em; margin-top:6px; }
+    /* States a fact; it is not pressable. Solid primary + white + uppercase made it the loudest
+       thing on the page and indistinguishable from the button, so people reached for it. Now it
+       is quiet text in the brand colour, sentence case, with a hairline instead of a fill. */
+    .paid-pill { display:inline-block; padding:5px 12px; background:transparent; border:1px solid ${c.border}; border-radius:4px; color:${c.primary}; font-family:${c.bodyFont}; font-size:13px; font-weight:600; letter-spacing:0; text-transform:none; }
+    /* A button has to look pressable, and it has to look DIFFERENT from the paid badge below -
+       both were solid primary with white text, so the badge read as clickable and this read as a
+       section label. Rounder corners, a deeper pad and a soft shadow do the work; the shadow is
+       ignored by Outlook, which still gets a solid, well-padded, rounded block. */
+    .button { display:inline-block; background:${c.primary}; color:#ffffff !important; padding:15px 34px; text-decoration:none; border-radius:8px; font-family:${c.bodyFont}; font-size:16px; font-weight:700; letter-spacing:0.01em; margin-top:6px; box-shadow:0 2px 5px rgba(0,0,0,0.18); }
     .footer { padding:28px 40px 36px 40px; text-align:center; font-family:${c.bodyFont}; font-size:13px; line-height:1.6; color:${c.mutedForeground}; border-top:1px solid ${c.border}; }
     ul { margin:10px 0; padding-left:20px; } li { margin-bottom:6px; }
     a { color:${c.primary}; }
@@ -507,7 +551,11 @@ ${t(lang, 'bookingDetails')}:
 - ${t(lang, 'checkOut')}: ${data.checkOutDate}${data.checkOutTime ? ` (${t(lang, 'before')} ${data.checkOutTime})` : ''}
 - ${t(lang, 'guests')}: ${guestsLine(data, lang)}
 - ${t(lang, 'bookingId')}: ${data.bookingId}
-
+${data.guideUrl ? `
+${t(lang, 'guideHeading')}:
+${t(lang, 'guidePrompt')}
+${data.guideUrl}
+` : ''}
 ${t(lang, 'paymentSummary')}:
 - ${data.numberOfNights} ${t(lang, 'nights')}: ${data.baseAmount}
 - ${t(lang, 'cleaningFee')}: ${data.cleaningFee}
@@ -541,6 +589,18 @@ ${createHeader(t(lang, 'bookingConfirmation'), data.brand)}
            something goes wrong. So it closes the block quietly instead of leading it. -->
       <p class="reference">${t(lang, 'bookingId')} ${data.bookingId}</p>
     </div>
+
+    ${data.guideUrl ? `
+    <!-- The guide carries the directions, gate number, Wi-Fi and contacts that this email
+         deliberately does not repeat. It sits above the payment summary because it is the only
+         part of this message the guest will come back to, and on a phone anything below the
+         total is a scroll away. -->
+    <div class="info-box">
+      <h2>${t(lang, 'guideHeading')}</h2>
+      <p>${t(lang, 'guidePrompt')}</p>
+      <p style="margin:18px 0 0 0;"><a href="${data.guideUrl}" class="button">${t(lang, 'guideCta')}</a></p>
+    </div>
+    ` : ''}
 
     <div class="info-box">
       <h2>${t(lang, 'paymentSummary')}</h2>
@@ -595,6 +655,119 @@ ${createHeader(t(lang, 'bookingConfirmation'), data.brand)}
     ` : ''}
   </div>
 ${createFooter(lang, data.brand || data.propertyName)}
+`;
+
+  return { text, html, subject };
+}
+
+/**
+ * The pre-arrival note, sent a few days before check-in.
+ *
+ * WHY IT EXISTS. Until now the sequence went confirmation -> checkout -> review, with nothing at
+ * all between booking and arrival. A guest who booked in July heard nothing for months, and a
+ * guest driving up a mountain road had a street address and no gate number.
+ *
+ * WHAT IT DELIBERATELY IS NOT. It does not repeat the guide. It carries only the three things
+ * that matter while someone is in a car - how to drive there, which gate, who to ring - and
+ * points at the guide for everything else. Every one of those facts is read from the guide's own
+ * config, so the two cannot drift apart.
+ *
+ * The closing question is the point of the whole email: asking what time they expect to arrive
+ * opens a conversation before anything can go wrong, and it is the reply-to that makes it work.
+ */
+export interface PreArrivalEmailData {
+  guestName: string;
+  propertyName: string;
+  brand?: EmailBrand;
+  checkInDate: string;
+  checkInTime?: string;
+  guideUrl?: string;
+  wazeUrl?: string;
+  mapsUrl?: string;
+  gateNumber?: string;
+  hostName?: string;
+  /** Display form - localised (a Romanian reads 0723..., not +40723...). */
+  hostPhone?: string;
+  /** E.164 for the `tel:` link, so it still dials from a foreign SIM. */
+  hostPhoneHref?: string;
+  unsubscribeUrl?: string;
+}
+
+export function createPreArrivalTemplate(
+  data: PreArrivalEmailData,
+  language: LanguageCode = 'en'
+): { text: string; html: string; subject: string } {
+  const lang = language;
+  const subject = t(lang, 'preArrival');
+  const arrivalLine = `${data.checkInDate}${data.checkInTime ? ` (${t(lang, 'after')} ${data.checkInTime})` : ''}`;
+  // Composed here rather than taken from the guide's `arrival.call`: the guide names the
+  // caretakers because its contacts card introduces them first, but a guest reading this email
+  // has never heard of them. One instruction, one name, one number.
+  const callLine = data.hostName && data.hostPhone
+    ? t(lang, 'preArrivalCall', { name: data.hostName, phone: data.hostPhone })
+    : undefined;
+  const hasDirections = data.wazeUrl || data.mapsUrl || data.gateNumber || callLine;
+
+  const text = `
+${t(lang, 'preArrival')}
+
+${t(lang, 'dear')} ${data.guestName},
+
+${t(lang, 'preArrivalMessage', { date: arrivalLine })}
+${hasDirections ? `
+${t(lang, 'preArrivalDirections')}:
+${data.wazeUrl ? `- Waze: ${data.wazeUrl}` : ''}
+${data.mapsUrl ? `- Google Maps: ${data.mapsUrl}` : ''}
+${data.gateNumber ? `- ${t(lang, 'preArrivalGate')}: ${data.gateNumber}` : ''}
+${callLine ? `\n${callLine}` : ''}
+` : ''}
+${data.guideUrl ? `
+${t(lang, 'guideHeading')}:
+${t(lang, 'guidePrompt')}
+${data.guideUrl}
+` : ''}
+${t(lang, 'preArrivalWhatTime')}
+${t(lang, 'preArrivalWhatTimeBody')}
+
+${t(lang, 'thankYou')}
+${t(lang, 'theTeam', { propertyName: data.propertyName })}
+`;
+
+  const html = `
+${createHeader(t(lang, 'preArrival'), data.brand)}
+  <div class="content">
+    <p>${t(lang, 'dear')} ${data.guestName},</p>
+    <p>${t(lang, 'preArrivalMessage', { date: arrivalLine })}</p>
+
+    ${hasDirections ? `
+    <div class="info-box">
+      <h2>${t(lang, 'preArrivalDirections')}</h2>
+      ${data.wazeUrl || data.mapsUrl ? `
+      <!-- Routes lead the section. Someone opening this in a car wants the map before they want
+           prose, and the gate number only matters once they have arrived. -->
+      <p style="margin:0 0 16px 0;">
+        ${data.wazeUrl ? `<a href="${data.wazeUrl}" class="button" style="margin-right:8px;">${t(lang, 'preArrivalWaze')}</a>` : ''}
+        ${data.mapsUrl ? `<a href="${data.mapsUrl}" class="button">${t(lang, 'preArrivalMaps')}</a>` : ''}
+      </p>
+      ` : ''}
+      ${data.gateNumber ? `<p><strong>${t(lang, 'preArrivalGate')}:</strong> ${data.gateNumber}</p>` : ''}
+      ${callLine ? `<p>${data.hostPhoneHref ? callLine.replace(data.hostPhone!, `<a href="tel:${data.hostPhoneHref.replace(/\s/g, '')}">${data.hostPhone}</a>`) : callLine}</p>` : ''}
+    </div>
+    ` : ''}
+
+    ${data.guideUrl ? `
+    <p style="margin-top:24px;">${t(lang, 'guidePrompt')}</p>
+    <p><a href="${data.guideUrl}" class="button">${t(lang, 'guideCta')}</a></p>
+    ` : ''}
+
+    <!-- The whole point of this email. Asking opens a conversation before anything can go wrong,
+         so it gets a panel of its own rather than closing as a throwaway line. -->
+    <div class="highlight" style="margin-top:28px;">
+      <p style="margin:0 0 6px 0; font-weight:700;">${t(lang, 'preArrivalWhatTime')}</p>
+      <p style="margin:0;">${t(lang, 'preArrivalWhatTimeBody')}</p>
+    </div>
+  </div>
+${createFooter(lang, data.brand || data.propertyName, data.unsubscribeUrl)}
 `;
 
   return { text, html, subject };

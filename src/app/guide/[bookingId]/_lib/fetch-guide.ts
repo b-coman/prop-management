@@ -14,6 +14,7 @@ import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { getLocalizedString } from '@/lib/multilingual-utils';
 import { guideIdentity, validateGuideToken } from '@/lib/guide-token';
 import { loggers } from '@/lib/logger';
+import { formatClockTime } from '@/lib/dates/property-times';
 import type { LanguageCode, MultilingualString } from '@/types';
 
 /** How long after checkout the personalised link keeps working. */
@@ -335,8 +336,10 @@ export async function fetchGuide(bookingId: string, token?: string): Promise<Gui
     data.guestFirstName = (booking.guestInfo?.firstName ?? '').trim() || undefined;
     data.checkIn = checkInDate ? formatStayDate(checkInDate, language) : undefined;
     data.checkOut = checkOutDate ? formatStayDate(checkOutDate, language) : undefined;
-    data.checkInTime = property.checkInTime;
-    data.checkOutTime = property.checkOutTime;
+    // Same helper the emails use, so the guide and the confirmation never disagree about how a
+    // time is written. `language` here is the guide's resolved language, not the browser's.
+    data.checkInTime = formatClockTime(property.checkInTime, language);
+    data.checkOutTime = formatClockTime(property.checkOutTime, language);
     if (guide.wifi?.network && guide.wifi?.password) {
       data.wifi = { network: guide.wifi.network, password: guide.wifi.password };
     }

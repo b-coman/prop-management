@@ -9,7 +9,8 @@ import {
   createHoldConfirmationTemplate,
   createInquiryConfirmationTemplate,
   createInquiryResponseTemplate,
-  createBookingCancellationTemplate
+  createBookingCancellationTemplate,
+  createPreArrivalTemplate
 } from '../emailTemplates';
 
 describe('Email Templates', () => {
@@ -77,7 +78,7 @@ describe('Email Templates', () => {
       expect(result.subject).toBe('Confirmare Rezervare');
       expect(result.html).toContain('Confirmare Rezervare');
       expect(result.html).toContain('Dragă John Doe');
-      expect(result.html).toContain('Vă mulțumim pentru rezervare');
+      expect(result.html).toContain('Îți mulțumim, rezervarea ta este confirmată');
       expect(result.text).toContain('Confirmare Rezervare');
     });
 
@@ -270,6 +271,105 @@ describe('Email Templates', () => {
 
       const roResult = createBookingCancellationTemplate(sampleBookingData, 'ro');
       expect(roResult.html).toContain('5-10 zile lucrătoare');
+    });
+  });
+
+  // The guest guide holds the directions, gate number, Wi-Fi and contacts that these emails
+  // deliberately do not repeat. It existed, fully written, for months without a single email
+  // linking to it - so these assert the link is actually rendered, in both formats.
+  describe('guest guide link', () => {
+    const withGuide = { ...sampleBookingData, guideUrl: 'https://example.com/g/BOOK-123?t=abc123' };
+
+    it('renders the guide link in both html and text when a url is given', () => {
+      const out = createBookingConfirmationTemplate(withGuide as any, 'en');
+      expect(out.html).toContain('https://example.com/g/BOOK-123?t=abc123');
+      expect(out.text).toContain('https://example.com/g/BOOK-123?t=abc123');
+      expect(out.html).toContain('class="button"');
+    });
+
+    it('omits the whole block when there is no url, rather than rendering an empty button', () => {
+      const out = createBookingConfirmationTemplate(sampleBookingData as any, 'en');
+      expect(out.html).not.toContain('class="button"');
+      expect(out.text).not.toContain('/g/');
+    });
+
+    it('localises the guide copy', () => {
+      const ro = createBookingConfirmationTemplate(withGuide as any, 'ro');
+      expect(ro.html).toContain('Deschide ghidul');
+      expect(createBookingConfirmationTemplate(withGuide as any, 'en').html).toContain('Open your guide');
+    });
+  });
+
+  describe('createPreArrivalTemplate', () => {
+    const base = {
+      guestName: 'John Doe',
+      propertyName: 'Mountain View Cabin',
+      checkInDate: 'October 2, 2026',
+      checkInTime: '15:00',
+    };
+    const full = {
+      ...base,
+      guideUrl: 'https://example.com/g/B1?t=abc',
+      wazeUrl: 'https://waze.example/x',
+      mapsUrl: 'https://maps.example/y',
+      gateNumber: '197',
+      hostName: 'Bogdan',
+      // The builder always sets both: display is localised, href stays E.164 so it dials abroad.
+      hostPhone: '0723200868',
+      hostPhoneHref: '+40723200868',
+    };
+
+    it('carries the three things that matter in a car: route, gate, phone', () => {
+      const out = createPreArrivalTemplate(full as any, 'en');
+      expect(out.html).toContain('https://waze.example/x');
+      expect(out.html).toContain('197');
+      expect(out.html).toContain('0723200868');
+      expect(out.text).toContain('197');
+    });
+
+    it('makes the phone tappable, because it is read on a phone in a car', () => {
+      expect(createPreArrivalTemplate(full as any, 'en').html).toContain('href="tel:+40723200868"');
+    });
+
+    it('always asks what time they arrive — the point of the whole email', () => {
+      expect(createPreArrivalTemplate(base as any, 'ro').text).toContain('La ce oră ajungi');
+      expect(createPreArrivalTemplate(base as any, 'en').text).toContain('What time will you arrive');
+    });
+
+    it('gives that question a panel of its own so it is not a throwaway closing line', () => {
+      expect(createPreArrivalTemplate(base as any, 'ro').html).toContain('class="highlight"');
+    });
+
+    it('composes the call line from the host contact, naming nobody the guest has not met', () => {
+      const out = createPreArrivalTemplate(full as any, 'ro');
+      expect(out.text).toContain('Sună-l pe Bogdan');
+      expect(out.text).toContain('10-15 minute');
+      expect(out.text).not.toContain('Corina');
+    });
+
+    it('omits the call line entirely when there is no host name or phone', () => {
+      expect(createPreArrivalTemplate(base as any, 'ro').text).not.toContain('10-15');
+    });
+
+    it('labels the route buttons plainly and puts them above the gate number', () => {
+      const html = createPreArrivalTemplate(full as any, 'ro').html;
+      expect(html).toContain('>Waze<');
+      expect(html).toContain('>Google Maps<');
+      expect(html.indexOf('Waze')).toBeLessThan(html.indexOf('197'));
+    });
+
+    it('degrades to a short note when the guide has no arrival data', () => {
+      const out = createPreArrivalTemplate(base as any, 'en');
+      expect(out.html).not.toContain('waze');
+      expect(out.html).not.toContain('tel:');
+      expect(out.subject).toBe('See you soon');
+    });
+
+    it('returns text, html and subject like every other template', () => {
+      const out = createPreArrivalTemplate(full as any, 'ro');
+      expect(out.subject).toBe('Vă așteptăm în curând');
+      expect(out.html).toContain('<!DOCTYPE html>');
+      expect(out.text.length).toBeGreaterThan(50);
     });
   });
 

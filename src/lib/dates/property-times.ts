@@ -36,6 +36,38 @@ export function parseAmPmTime(s: string | undefined | null): { hours: number; mi
 }
 
 /**
+ * Languages that write clock times in 12-hour form. Everything else gets 24-hour.
+ *
+ * This is a property of the LANGUAGE, not of the property: a Romanian guest reads 15:00 whether
+ * the chalet is in Comarnic or Cornwall, and an English one reads 3:00 PM either way.
+ */
+const TWELVE_HOUR_LANGUAGES = new Set(['en']);
+
+/**
+ * Render a property's stored check-in/out time the way the guest's language writes clocks.
+ *
+ * WHY. `checkInTime` is stored as a raw display string, "3:00 PM". That was being dropped
+ * straight into Romanian emails and the Romanian guest guide - "Check-in: 2 octombrie 2026
+ * (După 3:00 PM)" - which no Romanian writes or reads comfortably. The stored value stays as it
+ * is; only the rendering changes, so nothing about the booking engine moves.
+ *
+ * Unparseable input passes through untouched rather than being guessed at: a property that has
+ * already stored "15:00" is correct for Romanian and should not be mangled into something else.
+ */
+export function formatClockTime(
+  raw: string | undefined | null,
+  language: string = 'en'
+): string | undefined {
+  if (!raw) return undefined;
+  const trimmed = String(raw).trim();
+  if (!trimmed) return undefined;
+  if (TWELVE_HOUR_LANGUAGES.has(language)) return trimmed;
+  const parsed = parseAmPmTime(trimmed);
+  if (!parsed) return trimmed;
+  return `${String(parsed.hours).padStart(2, '0')}:${String(parsed.minutes).padStart(2, '0')}`;
+}
+
+/**
  * Resolve a property's check-in or check-out time. Falls back to defaults if the field
  * is missing or unparseable.
  */
