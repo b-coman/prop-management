@@ -337,6 +337,7 @@ const quickActions = [
   { title: 'Calendar', description: 'Availability & sync', icon: CalendarDays, href: '/admin/calendar', propertyAware: true },
   { title: 'Pricing', description: 'Rates & seasons', icon: Sliders, href: '/admin/pricing', propertyAware: true },
   { title: 'Pages & Content', description: 'Website content', icon: FileText, href: '/admin/website', propertyAware: true },
+  { title: 'Guest guide', description: 'Arrival, Wi-Fi, contacts, sections', icon: FileText, href: '/admin/guide', propertyAware: true },
   { title: 'Housekeeping', description: 'Cleaning schedule', icon: Sparkles, href: '/admin/housekeeping', propertyAware: true },
   { title: 'Coupons', description: 'Manage discounts', icon: Ticket, href: '/admin/coupons', propertyAware: false },
 ];
