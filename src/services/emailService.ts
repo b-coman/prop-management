@@ -89,7 +89,8 @@ async function sendWithResend(
   text: string,
   html: string,
   from?: string,
-  replyTo?: string
+  replyTo?: string,
+  bcc?: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     const resend = getResendClient();
@@ -110,6 +111,10 @@ async function sendWithResend(
       text,
       html,
       ...(replyTo ? { replyTo } : {}),
+      // The owner is blind-copied on everything that goes to a guest, so "did it actually send?"
+      // is answerable from his own inbox rather than from logs he cannot see. Never set on the
+      // owner-notification email — he is already the To on that one.
+      ...(bcc && bcc !== to ? { bcc: [bcc] } : {}),
     });
 
     if (error) {
@@ -162,11 +167,12 @@ async function sendEmail(
   text: string,
   html: string,
   from?: string,
-  replyTo?: string
+  replyTo?: string,
+  bcc?: string
 ): Promise<{ success: boolean; messageId?: string; previewUrl?: string; error?: string }> {
   // Use Resend if API key is configured
   if (useResend()) {
-    return sendWithResend(to, subject, text, html, from, replyTo);
+    return sendWithResend(to, subject, text, html, from, replyTo, bcc);
   }
   // Fall back to Ethereal for development/testing
   return sendWithNodemailer(to, subject, text, html, from);
@@ -239,6 +245,8 @@ async function buildEmailBrand(
     heroImageUrl,
     websiteUrl: publicBase || undefined,
     replyToEmail: (property as any)?.contactEmail || property?.ownerEmail || undefined,
+    // Per-property, not a constant: each property's own owner gets copied on its guests' mail.
+    bccEmail: property?.ownerEmail || undefined,
   };
 }
 
@@ -325,7 +333,7 @@ export async function sendBookingConfirmationEmail(
       buildConfirmationPayload(ctx),
       ctx.language
     );
-    return sendEmail(ctx.recipientEmail!, `${subject} - ${ctx.propertyName}`, text, html, undefined, ctx.brand?.replyToEmail);
+    return sendEmail(ctx.recipientEmail!, `${subject} - ${ctx.propertyName}`, text, html, undefined, ctx.brand?.replyToEmail, ctx.brand?.bccEmail);
   } catch (error) {
     loggers.email?.error?.('Booking confirmation email failed', error as Error, { bookingId });
     return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -352,7 +360,7 @@ export async function sendPreArrivalEmail(
     if (!ctx) return { success: false, error: 'Booking not found or no recipient email' };
 
     const { text, html, subject } = createPreArrivalTemplate(buildPreArrivalPayload(ctx), ctx.language);
-    return sendEmail(ctx.recipientEmail!, `${subject} - ${ctx.propertyName}`, text, html, undefined, ctx.brand?.replyToEmail);
+    return sendEmail(ctx.recipientEmail!, `${subject} - ${ctx.propertyName}`, text, html, undefined, ctx.brand?.replyToEmail, ctx.brand?.bccEmail);
   } catch (error) {
     loggers.email?.error?.('Pre-arrival email failed', error as Error, { bookingId });
     return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -405,7 +413,7 @@ export async function sendHoldConfirmationEmail(
     const emailSubject = `${subject} - ${propertyName}`;
     console.log(`[EmailService] Sending hold confirmation (${language}) to ${email}`);
 
-    return sendEmail(email, emailSubject, text, html, undefined, brand?.replyToEmail);
+    return sendEmail(email, emailSubject, text, html, undefined, brand?.replyToEmail, brand?.bccEmail);
   } catch (error) {
     console.error('[EmailService] Error sending hold confirmation:', error);
     return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -841,7 +849,7 @@ export async function sendBookingCancellationEmail(
     const emailSubject = `${subject} - ${propertyName}`;
     console.log(`[EmailService] Sending booking cancellation (${language}) to ${email}`);
 
-    return sendEmail(email, emailSubject, text, html, undefined, brand?.replyToEmail);
+    return sendEmail(email, emailSubject, text, html, undefined, brand?.replyToEmail, brand?.bccEmail);
   } catch (error) {
     console.error('[EmailService] Error sending booking cancellation:', error);
     return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -992,7 +1000,7 @@ export async function sendReviewRequestEmail(
 
     console.log(`[EmailService] Sending review request (${language}) to ${email}`);
 
-    return sendEmail(email, subject, text, html, undefined, brand?.replyToEmail);
+    return sendEmail(email, subject, text, html, undefined, brand?.replyToEmail, brand?.bccEmail);
   } catch (error) {
     console.error('[EmailService] Error sending review request:', error);
     return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -1037,7 +1045,7 @@ export async function sendCheckoutConfirmationEmail(
     }, language);
 
     console.log(`[EmailService] Sending checkout confirmation (${language}) to ${email}`);
-    return sendEmail(email, subject, text, html, undefined, brand?.replyToEmail);
+    return sendEmail(email, subject, text, html, undefined, brand?.replyToEmail, brand?.bccEmail);
   } catch (error) {
     console.error('[EmailService] Error sending checkout confirmation:', error);
     return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -1084,7 +1092,7 @@ export async function sendReturnIncentiveEmail(
     }, language);
 
     console.log(`[EmailService] Sending return incentive (${language}) to ${email}`);
-    return sendEmail(email, subject, text, html, undefined, brand?.replyToEmail);
+    return sendEmail(email, subject, text, html, undefined, brand?.replyToEmail, brand?.bccEmail);
   } catch (error) {
     console.error('[EmailService] Error sending return incentive:', error);
     return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -1125,7 +1133,7 @@ export async function sendSeasonalReminderEmail(
     }, language);
 
     console.log(`[EmailService] Sending seasonal reminder (${language}) to ${email}`);
-    return sendEmail(email, subject, text, html, undefined, brand?.replyToEmail);
+    return sendEmail(email, subject, text, html, undefined, brand?.replyToEmail, brand?.bccEmail);
   } catch (error) {
     console.error('[EmailService] Error sending seasonal reminder:', error);
     return { success: false, error: error instanceof Error ? error.message : String(error) };

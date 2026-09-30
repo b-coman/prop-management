@@ -51,12 +51,14 @@ const emailTranslations = {
     guideHeading: 'Your guest guide',
     guidePrompt: 'Directions, the gate number, the Wi-Fi and who to call are all in your guide. Keep this link - it works until after you leave.',
     guideCta: 'Open your guide',
-    preArrival: 'See you soon',
-    preArrivalMessage: 'You arrive on {date}. Below is everything you need for check-in.',
+    preArrival: 'We are looking forward to it',
+    // Used only when check-in really IS the next day, so the word stays true whenever it is sent.
+    preArrivalTomorrow: 'We look forward to seeing you tomorrow',
+    preArrivalMessage: '{date} is your check-in date at our house in Comarnic. Everything you need is below.',
     preArrivalDirections: 'Getting here',
     preArrivalWaze: 'Waze',
     preArrivalMaps: 'Google Maps',
-    preArrivalGate: 'Look for this number on the gate',
+    preArrivalGate: 'the number you will see on the gate',
     // Composed from the host contact rather than taken from the guide's own call note: the guide
     // lists the caretakers by name because its contacts card introduces them, but an arriving
     // guest reading an email has never heard of them.
@@ -176,12 +178,14 @@ const emailTranslations = {
     guideHeading: 'Ghidul tău',
     guidePrompt: 'Cum ajungi, detalii despre proprietate, WiFi - toate le găsești aici în ghid.',
     guideCta: 'Deschide ghidul',
-    preArrival: 'Vă așteptăm în curând',
-    preArrivalMessage: 'Sosești pe {date}. Mai jos ai tot ce îți trebuie pentru check-in.',
+    preArrival: 'Vă așteptăm cu drag',
+    // Folosit doar când check-in-ul chiar e a doua zi, ca „mâine" să rămână adevărat.
+    preArrivalTomorrow: 'Vă așteptăm cu drag mâine',
+    preArrivalMessage: '{date} este data check-in-ului tău la căsuța noastră din Comarnic. Ai mai jos toate detaliile necesare.',
     preArrivalDirections: 'Cum ajungi',
     preArrivalWaze: 'Waze',
     preArrivalMaps: 'Google Maps',
-    preArrivalGate: 'Caută numărul acesta pe poartă',
+    preArrivalGate: 'numărul pe care îl vezi pe poartă',
     preArrivalCall: 'Sună-l pe {name} la {phone} cu 10-15 minute înainte să ajungi.',
     preArrivalWhatTime: 'La ce oră ajungi?',
     preArrivalWhatTimeBody: 'Răspunde la acest e-mail și spune-ne - ne ajută să avem totul pregătit.',
@@ -397,6 +401,8 @@ interface InquiryEmailData {
  * Creates email header with consistent styling
  */
 export interface EmailBrand {
+  /** Owner address blind-copied on guest mail, so sends are verifiable from his own inbox. */
+  bccEmail?: string;
   propertyName: string;
   palette: EmailPalette;
   /** Absolute URL of the property hero. Omitted -> the card simply has no image. */
@@ -681,10 +687,16 @@ export interface PreArrivalEmailData {
   brand?: EmailBrand;
   checkInDate: string;
   checkInTime?: string;
+  /** True only when check-in is the next day; drives the "tomorrow" wording. */
+  isTomorrow?: boolean;
   guideUrl?: string;
   wazeUrl?: string;
   mapsUrl?: string;
   gateNumber?: string;
+  /** The walk up from the parking, and what it means for luggage. Read from the guide's own
+   *  `arrival.access`, so the two cannot disagree. Acted on BEFORE packing, which is the whole
+   *  reason this email goes out days ahead rather than on the morning. */
+  accessNote?: string;
   hostName?: string;
   /** Display form - localised (a Romanian reads 0723..., not +40723...). */
   hostPhone?: string;
@@ -698,18 +710,25 @@ export function createPreArrivalTemplate(
   language: LanguageCode = 'en'
 ): { text: string; html: string; subject: string } {
   const lang = language;
-  const subject = t(lang, 'preArrival');
-  const arrivalLine = `${data.checkInDate}${data.checkInTime ? ` (${t(lang, 'after')} ${data.checkInTime})` : ''}`;
+  // "mâine" is only true if check-in actually is the next day. The cron selects on exactly that,
+  // but this email is also sent by hand days ahead — so the claim is made by the data, not by the
+  // schedule, and a missed run can never produce an email that lies about the date.
+  const subject = data.isTomorrow ? t(lang, 'preArrivalTomorrow') : t(lang, 'preArrival');
+  // The date opens the sentence, so it goes in clean. The time is arrival logistics and sits with
+  // the gate number instead, where someone actually looks for it.
+  const arrivalLine = data.checkInDate;
+  const checkInLine = data.checkInTime ? `${t(lang, 'checkIn')}: ${t(lang, 'after')} ${data.checkInTime}` : undefined;
+  const hasDetails = (x: unknown) => Boolean(x);
   // Composed here rather than taken from the guide's `arrival.call`: the guide names the
   // caretakers because its contacts card introduces them first, but a guest reading this email
   // has never heard of them. One instruction, one name, one number.
   const callLine = data.hostName && data.hostPhone
     ? t(lang, 'preArrivalCall', { name: data.hostName, phone: data.hostPhone })
     : undefined;
-  const hasDirections = data.wazeUrl || data.mapsUrl || data.gateNumber || callLine;
+  const hasDirections = data.wazeUrl || data.mapsUrl || data.gateNumber || callLine || data.accessNote || checkInLine;
 
   const text = `
-${t(lang, 'preArrival')}
+${subject}
 
 ${t(lang, 'dear')} ${data.guestName},
 
@@ -718,8 +737,10 @@ ${hasDirections ? `
 ${t(lang, 'preArrivalDirections')}:
 ${data.wazeUrl ? `- Waze: ${data.wazeUrl}` : ''}
 ${data.mapsUrl ? `- Google Maps: ${data.mapsUrl}` : ''}
-${data.gateNumber ? `- ${t(lang, 'preArrivalGate')}: ${data.gateNumber}` : ''}
+${checkInLine ? `- ${checkInLine}` : ''}
+${data.gateNumber ? `- ${data.gateNumber} - ${t(lang, 'preArrivalGate')}` : ''}
 ${callLine ? `\n${callLine}` : ''}
+${data.accessNote ? `\n${data.accessNote}` : ''}
 ` : ''}
 ${data.guideUrl ? `
 ${t(lang, 'guideHeading')}:
@@ -734,7 +755,7 @@ ${t(lang, 'theTeam', { propertyName: data.propertyName })}
 `;
 
   const html = `
-${createHeader(t(lang, 'preArrival'), data.brand)}
+${createHeader(subject, data.brand)}
   <div class="content">
     <p>${t(lang, 'dear')} ${data.guestName},</p>
     <p>${t(lang, 'preArrivalMessage', { date: arrivalLine })}</p>
@@ -750,8 +771,10 @@ ${createHeader(t(lang, 'preArrival'), data.brand)}
         ${data.mapsUrl ? `<a href="${data.mapsUrl}" class="button">${t(lang, 'preArrivalMaps')}</a>` : ''}
       </p>
       ` : ''}
-      ${data.gateNumber ? `<p><strong>${t(lang, 'preArrivalGate')}:</strong> ${data.gateNumber}</p>` : ''}
+      ${checkInLine ? `<p><strong>${t(lang, 'checkIn')}:</strong> ${t(lang, 'after')} ${data.checkInTime}</p>` : ''}
+      ${data.gateNumber ? `<p><strong>${data.gateNumber}</strong> - ${t(lang, 'preArrivalGate')}</p>` : ''}
       ${callLine ? `<p>${data.hostPhoneHref ? callLine.replace(data.hostPhone!, `<a href="tel:${data.hostPhoneHref.replace(/\s/g, '')}">${data.hostPhone}</a>`) : callLine}</p>` : ''}
+      ${data.accessNote ? `<p>${data.accessNote}</p>` : ''}
     </div>
     ` : ''}
 

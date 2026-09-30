@@ -356,18 +356,41 @@ describe('Email Templates', () => {
       expect(html).toContain('>Waze<');
       expect(html).toContain('>Google Maps<');
       expect(html.indexOf('Waze')).toBeLessThan(html.indexOf('197'));
+      // The number leads the line; the phrase follows it.
+      const ro = createPreArrivalTemplate(full as any, 'ro').text;
+      expect(ro).toContain('197 - numărul pe care îl vezi pe poartă');
     });
 
     it('degrades to a short note when the guide has no arrival data', () => {
-      const out = createPreArrivalTemplate(base as any, 'en');
+      const out = createPreArrivalTemplate({ guestName: 'John Doe', propertyName: 'X', checkInDate: 'Friday, 2 October 2026' } as any, 'en');
       expect(out.html).not.toContain('waze');
       expect(out.html).not.toContain('tel:');
-      expect(out.subject).toBe('See you soon');
+    });
+
+    // "tomorrow" must be true whenever the email is sent, not whenever the cron intended to send
+    // it. A missed run must never produce an email that lies about the date.
+    it('only says tomorrow when check-in actually IS tomorrow', () => {
+      expect(createPreArrivalTemplate({ ...base, isTomorrow: true } as any, 'ro').subject)
+        .toBe('Vă așteptăm cu drag mâine');
+      expect(createPreArrivalTemplate({ ...base, isTomorrow: true } as any, 'en').subject)
+        .toBe('We look forward to seeing you tomorrow');
+    });
+
+    it('drops the tomorrow claim when it is further out', () => {
+      expect(createPreArrivalTemplate(base as any, 'ro').subject).toBe('Vă așteptăm cu drag');
+      expect(createPreArrivalTemplate(base as any, 'ro').subject).not.toContain('mâine');
+    });
+
+    it('keeps the check-in time out of the opening sentence and with the arrival details', () => {
+      const out = createPreArrivalTemplate(full as any, 'ro');
+      const opening = out.text.split('\n').find((l) => l.includes('data check-in-ului')) ?? '';
+      expect(opening).not.toContain('15:00');
+      expect(out.text).toContain('Check-in: după 15:00');
     });
 
     it('returns text, html and subject like every other template', () => {
       const out = createPreArrivalTemplate(full as any, 'ro');
-      expect(out.subject).toBe('Vă așteptăm în curând');
+      expect(out.subject).toBe('Vă așteptăm cu drag');
       expect(out.html).toContain('<!DOCTYPE html>');
       expect(out.text.length).toBeGreaterThan(50);
     });

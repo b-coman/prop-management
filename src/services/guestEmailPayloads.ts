@@ -37,6 +37,22 @@ export function formatDate(date: any, language: LanguageCode = 'en'): string {
 }
 
 // Format currency for display
+/**
+ * Same as formatDate but with the weekday, and capitalised — it opens a sentence.
+ * Romanian lowercases weekdays mid-sentence, so the capital is applied here rather than stored.
+ */
+export function formatDateWithWeekday(date: any, language: LanguageCode = 'en'): string {
+  if (!date) return 'N/A';
+  try {
+    const d = date instanceof Date ? date : (date?.toDate ? date.toDate() : new Date(date));
+    const locale = language === 'ro' ? require('date-fns/locale/ro').ro : undefined;
+    const out = formatBucharestDateTime(d, 'EEEE, d MMMM yyyy', locale);
+    return out.charAt(0).toUpperCase() + out.slice(1);
+  } catch {
+    return formatDate(date, language);
+  }
+}
+
 export function formatCurrency(amount: number, currency: string): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -119,18 +135,31 @@ export function buildConfirmationPayload(ctx: GuestEmailContext): BookingEmailDa
 }
 
 /** The pre-arrival payload. PURE, same reasoning as above. */
+/** Midnight-to-midnight in the property's timezone, so "tomorrow" means the calendar day, not 24h. */
+function isCheckInTomorrow(checkIn: any, now = new Date()): boolean {
+  const d = checkIn?.toDate ? checkIn.toDate() : new Date(checkIn);
+  if (Number.isNaN(d.getTime())) return false;
+  const day = (x: Date) => formatBucharestDateTime(x, 'yyyy-MM-dd');
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  return day(d) === day(tomorrow);
+}
+
 export function buildPreArrivalPayload(ctx: GuestEmailContext): PreArrivalEmailData {
   const { booking, property, language, guide } = ctx;
   return {
     guestName: `${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''}`.trim(),
     propertyName: ctx.propertyName,
     brand: ctx.brand,
-    checkInDate: formatDate(booking.checkInDate, language),
+    // Leads the sentence now ("Vineri, 2 octombrie 2026 este data check-in-ului..."), so it
+    // carries the weekday and takes a capital.
+    checkInDate: formatDateWithWeekday(booking.checkInDate, language),
     checkInTime: formatClockTime(property?.checkInTime, language),
+    isTomorrow: isCheckInTomorrow(booking.checkInDate),
     guideUrl: ctx.guideUrl,
     wazeUrl: guide.arrival.wazeUrl,
     mapsUrl: guide.arrival.mapsUrl,
     gateNumber: guide.arrival.gateNumber,
+    accessNote: guide.arrival.access,
     hostName: guide.host.name,
     hostPhone: guide.host.phoneDisplay || guide.host.phone,
     hostPhoneHref: guide.host.phone,
