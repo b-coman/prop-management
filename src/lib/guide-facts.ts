@@ -106,6 +106,8 @@ export interface ArrivalFacts {
   gateNumber?: string;
   /** The host's own words about the handover, already written bilingually in the guide. */
   callNote?: string;
+  /** The walk up from the parking and what it means for luggage. Acted on before packing. */
+  access?: string;
 }
 
 /** Derive the arrival card from an already-loaded guide block. PURE. */
@@ -117,6 +119,7 @@ export function deriveArrivalFacts(guide: any, language: string = 'en'): Arrival
     mapsUrl: arrival.mapsUrl || undefined,
     gateNumber: arrival.gateNumber ? String(arrival.gateNumber) : undefined,
     callNote: getLocalizedString(arrival.call, language) || undefined,
+    access: getLocalizedString(arrival.access, language) || undefined,
   };
 }
 
