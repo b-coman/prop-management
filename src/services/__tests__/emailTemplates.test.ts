@@ -10,7 +10,9 @@ import {
   createInquiryConfirmationTemplate,
   createInquiryResponseTemplate,
   createBookingCancellationTemplate,
-  createPreArrivalTemplate
+  createPreArrivalTemplate,
+  createReturnIncentiveTemplate,
+  createSeasonalReminderTemplate
 } from '../emailTemplates';
 
 describe('Email Templates', () => {
@@ -393,6 +395,36 @@ describe('Email Templates', () => {
       expect(out.subject).toBe('Vă așteptăm cu drag');
       expect(out.html).toContain('<!DOCTYPE html>');
       expect(out.text.length).toBeGreaterThan(50);
+    });
+  });
+
+  // These two fired for months with a dead call-to-action: the templates read
+  // NEXT_PUBLIC_APP_URL, which has never been set on the running service, so the button pointed at
+  // a bare "/booking/check/..." — relative, and therefore nothing in a mail client.
+  describe('post-stay emails link somewhere real', () => {
+    const brand = { propertyName: 'X', websiteUrl: 'https://prahova-chalet.ro' } as any;
+    const base = {
+      guestName: 'John', propertyName: 'X', propertyId: 'p1',
+      couponCode: 'C10', discount: 10, expiryDate: '1 Dec', unsubscribeUrl: 'https://u',
+    };
+
+    it('return incentive builds an absolute url from the brand', () => {
+      const out = createReturnIncentiveTemplate({ ...base, brand } as any, 'ro');
+      expect(out.html).toContain('https://prahova-chalet.ro/booking/check/p1');
+      expect(out.html).not.toContain('"/booking/check');
+    });
+
+    it('seasonal reminder builds an absolute url from the brand', () => {
+      const out = createSeasonalReminderTemplate({ ...base, brand } as any, 'ro');
+      expect(out.html).toContain('https://prahova-chalet.ro/booking/check/p1');
+    });
+
+    it('reads no environment variable — the template must not depend on deploy config', () => {
+      const before = process.env.NEXT_PUBLIC_APP_URL;
+      delete process.env.NEXT_PUBLIC_APP_URL;
+      const out = createReturnIncentiveTemplate({ ...base, brand } as any, 'en');
+      expect(out.html).toContain('https://prahova-chalet.ro/booking/check/p1');
+      if (before !== undefined) process.env.NEXT_PUBLIC_APP_URL = before;
     });
   });
 

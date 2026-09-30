@@ -1168,7 +1168,12 @@ export function createReturnIncentiveTemplate(
   const lang = language;
 
   const subject = t(lang, 'returnIncentive');
-  const bookUrl = `${process.env.NEXT_PUBLIC_APP_URL || ''}/booking/check/${data.propertyId}`;
+  // From the brand, not from env. NEXT_PUBLIC_APP_URL has never been set on the running service,
+  // so this read produced a bare "/booking/check/..." — a relative path, which is dead in every
+  // mail client. It is the only call to action in this email, so the email was pointless whenever
+  // it fired. `brand.websiteUrl` is the property's custom domain, or the app base, already
+  // resolved; every other link in these templates comes from there.
+  const bookUrl = `${data.brand?.websiteUrl ?? ''}/booking/check/${data.propertyId}`;
 
   const text = `
 ${t(lang, 'returnIncentive')}
@@ -1220,7 +1225,12 @@ export function createSeasonalReminderTemplate(
   const lang = language;
 
   const subject = t(lang, 'seasonalReminder', { propertyName: data.propertyName });
-  const bookUrl = `${process.env.NEXT_PUBLIC_APP_URL || ''}/booking/check/${data.propertyId}`;
+  // From the brand, not from env. NEXT_PUBLIC_APP_URL has never been set on the running service,
+  // so this read produced a bare "/booking/check/..." — a relative path, which is dead in every
+  // mail client. It is the only call to action in this email, so the email was pointless whenever
+  // it fired. `brand.websiteUrl` is the property's custom domain, or the app base, already
+  // resolved; every other link in these templates comes from there.
+  const bookUrl = `${data.brand?.websiteUrl ?? ''}/booking/check/${data.propertyId}`;
 
   const text = `
 ${t(lang, 'seasonalReminder', { propertyName: data.propertyName })}
