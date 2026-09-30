@@ -9,6 +9,7 @@ import {
   formatBucharestDateTime,
   iterateBucharestStayDays,
   formatClockTime,
+  bucharestDayOffset,
 } from './property-times';
 
 describe('parseAmPmTime', () => {
@@ -232,5 +233,42 @@ describe('formatClockTime', () => {
   it('tolerates the sloppy forms parseAmPmTime accepts', () => {
     expect(formatClockTime('3PM', 'ro')).toBe('15:00');
     expect(formatClockTime(' 3:30pm ', 'ro')).toBe('15:30');
+  });
+});
+
+// Added 2026-09-30 with the guest-email schedule. The three cron sweeps each measured "how long
+// since checkout" differently — two in elapsed UTC hours, one by comparing Bucharest day strings.
+describe('bucharestDayOffset', () => {
+  const at = (iso: string) => new Date(iso);
+
+  it('is 0 for two moments on the same Bucharest day', () => {
+    expect(bucharestDayOffset(at('2026-10-04T08:00:00Z'), at('2026-10-04T20:00:00Z'))).toBe(0);
+  });
+
+  it('counts calendar days, not elapsed hours', () => {
+    // 13 hours apart, but either side of Bucharest midnight: that is one day.
+    expect(bucharestDayOffset(at('2026-10-04T20:00:00Z'), at('2026-10-05T09:00:00Z'))).toBe(1);
+    // 19 hours apart and still the same Bucharest day (04:00 to 23:00): zero.
+    expect(bucharestDayOffset(at('2026-10-04T01:00:00Z'), at('2026-10-04T20:00:00Z'))).toBe(0);
+    // 23:00 UTC is already tomorrow in Bucharest, which is the trap this function exists to avoid.
+    expect(bucharestDayOffset(at('2026-10-04T01:00:00Z'), at('2026-10-04T23:00:00Z'))).toBe(1);
+  });
+
+  it('is negative when the anchor is in the future', () => {
+    expect(bucharestDayOffset(at('2026-10-02T12:00:00Z'), at('2026-10-01T12:00:00Z'))).toBe(-1);
+  });
+
+  it('gives the same answer across the autumn DST change', () => {
+    // Romania falls back on 25 Oct 2026. A checkout on the 23rd is still "3 days ago" on the 26th.
+    expect(bucharestDayOffset(at('2026-10-23T08:00:00Z'), at('2026-10-26T08:00:00Z'))).toBe(3);
+  });
+
+  it('gives the same answer across the spring DST change', () => {
+    // Romania springs forward on 29 Mar 2026.
+    expect(bucharestDayOffset(at('2026-03-27T08:00:00Z'), at('2026-03-30T08:00:00Z'))).toBe(3);
+  });
+
+  it('counts a long gap correctly (the day-90 stage)', () => {
+    expect(bucharestDayOffset(at('2026-07-04T08:00:00Z'), at('2026-10-02T08:00:00Z'))).toBe(90);
   });
 });

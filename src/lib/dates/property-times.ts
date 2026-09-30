@@ -270,3 +270,20 @@ export function* iterateBucharestStayDays(
     cur = new Date(cur.getTime() + 86400000);
   }
 }
+
+/**
+ * Whole calendar days from `anchor` to `now`, counted in Bucharest.
+ *
+ * Positive means `now` is after `anchor`. Counting calendar days rather than elapsed hours is
+ * what makes a daily cron predictable: a stay that ends at 11:00 and one that ends at 23:00 are
+ * both "2 days ago" on the same morning, so the same run catches both. Elapsed-hour arithmetic
+ * put them on different sides of a threshold, and did it in UTC, so the boundary moved twice a
+ * year with DST.
+ */
+export function bucharestDayOffset(anchor: Date, now: Date): number {
+  const day = (d: Date) => {
+    const [y, m, dd] = formatBucharestDateTime(d, 'yyyy-MM-dd').split('-').map(Number);
+    return Date.UTC(y, m - 1, dd);
+  };
+  return Math.round((day(now) - day(anchor)) / 86400000);
+}
