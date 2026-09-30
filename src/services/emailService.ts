@@ -36,7 +36,6 @@ import {
   createInquiryResponseTemplate,
   createBookingCancellationTemplate,
   createReviewRequestTemplate,
-  createCheckoutConfirmationTemplate,
   createReturnIncentiveTemplate,
   createSeasonalReminderTemplate,
 } from './emailTemplates';
@@ -239,8 +238,14 @@ async function buildEmailBrand(
     console.warn('[EmailService] Hero image lookup failed; sending without it');
   }
 
+  // Postal address, from the property's own `location`. Every footer carries it: it is what a
+  // guest needs to find the place, and what a bulk sender is expected to show.
+  const { formatPostalAddress } = await import('@/services/guestEmailPayloads');
+  const postalAddress = formatPostalAddress((property as any)?.location);
+
   return {
     propertyName,
+    postalAddress,
     palette: getEmailPalette((property as any)?.themeId),
     heroImageUrl,
     websiteUrl: publicBase || undefined,
@@ -978,9 +983,15 @@ export async function sendReviewRequestEmail(
     const property = await getPropertyBySlug(booking.propertyId);
     const propertyName = getPropertyName(property, booking.propertyId);
 
+    // Google first: a public review brings new guests, which the internal page cannot. Stored per
+    // property (`googleReviewUrl`) rather than built from googlePlaceId, because the g.page short
+    // link Google hands out is a different encoding and is the one that opens the review sheet
+    // directly. Falls back to the tokenised internal page for a property that has no Google link
+    // yet - Coltei has none, and a review request with no link at all would be worse.
+    const googleReviewUrl = (property as any)?.googleReviewUrl?.trim();
     const { generateReviewToken } = await import('@/lib/review-token');
     const token = generateReviewToken(bookingId, email);
-    const reviewUrl = `${getAppBaseUrl()}/review/${bookingId}?token=${token}`;
+    const reviewUrl = googleReviewUrl || `${getAppBaseUrl()}/review/${bookingId}?token=${token}`;
 
     const { getUnsubscribeUrl } = await import('@/lib/unsubscribe-token');
     const unsubscribeUrl = getUnsubscribeUrl(email);
@@ -988,15 +999,15 @@ export async function sendReviewRequestEmail(
     const language: LanguageCode = booking.language || 'en';
 
     const brand = await buildEmailBrand(property, propertyName, booking.propertyId);
-    const { text, html, subject } = createReviewRequestTemplate({
-      guestName: `${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''}`.trim(),
-      propertyName,
-      brand,
-      checkInDate: formatDate(booking.checkInDate, language),
-      checkOutDate: formatDate(booking.checkOutDate, language),
-      reviewUrl,
-      unsubscribeUrl,
-    }, language);
+    const { buildReviewRequestPayload } = await import('@/services/guestEmailPayloads');
+    const { text, html, subject } = createReviewRequestTemplate(
+      buildReviewRequestPayload(
+        { booking, property, propertyName, language, brand, guide: {} as any },
+        reviewUrl,
+        unsubscribeUrl
+      ),
+      language
+    );
 
     console.log(`[EmailService] Sending review request (${language}) to ${email}`);
 
@@ -1008,64 +1019,20 @@ export async function sendReviewRequestEmail(
 }
 
 /**
- * Sends a checkout confirmation / thank-you email (Day 0)
- */
-export async function sendCheckoutConfirmationEmail(
-  bookingId: string
-): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  try {
-    const booking = await getBookingById(bookingId);
-    if (!booking) return { success: false, error: 'Booking not found' };
-
-    const email = booking.guestInfo.email;
-    if (!email) return { success: false, error: 'No recipient email' };
-
-    const { isGuestUnsubscribed } = await import('@/services/guestService');
-    if (await isGuestUnsubscribed(email)) {
-      return { success: false, error: 'Guest is unsubscribed' };
-    }
-
-    const property = await getPropertyBySlug(booking.propertyId);
-    const propertyName = getPropertyName(property, booking.propertyId);
-    const { getUnsubscribeUrl } = await import('@/lib/unsubscribe-token');
-
-    const language: LanguageCode = booking.language || 'en';
-
-    const brand = await buildEmailBrand(property, propertyName, booking.propertyId);
-    const { text, html, subject } = createCheckoutConfirmationTemplate({
-      guestName: `${booking.guestInfo.firstName} ${booking.guestInfo.lastName || ''}`.trim(),
-      propertyName,
-      brand,
-      propertyId: booking.propertyId,
-      checkInDate: formatDate(booking.checkInDate, language),
-      checkOutDate: formatDate(booking.checkOutDate, language),
-      totalAmount: formatCurrency(booking.pricing.total, booking.pricing.currency),
-      currency: booking.pricing.currency,
-      unsubscribeUrl: getUnsubscribeUrl(email),
-    }, language);
-
-    console.log(`[EmailService] Sending checkout confirmation (${language}) to ${email}`);
-    return sendEmail(email, subject, text, html, undefined, brand?.replyToEmail, brand?.bccEmail);
-  } catch (error) {
-    console.error('[EmailService] Error sending checkout confirmation:', error);
-    return { success: false, error: error instanceof Error ? error.message : String(error) };
-  }
-}
-
-/**
  * Sends a return incentive email with coupon code (Day 14)
  */
 export async function sendReturnIncentiveEmail(
   bookingId: string,
   couponCode: string,
   discount: number,
-  expiryDate: string
+  expiryDate: string,
+  recipientEmail?: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     const booking = await getBookingById(bookingId);
     if (!booking) return { success: false, error: 'Booking not found' };
 
-    const email = booking.guestInfo.email;
+    const email = recipientEmail || booking.guestInfo.email;
     if (!email) return { success: false, error: 'No recipient email' };
 
     const { isGuestUnsubscribed } = await import('@/services/guestService');
@@ -1103,13 +1070,14 @@ export async function sendReturnIncentiveEmail(
  * Sends a seasonal reminder email (Day 90)
  */
 export async function sendSeasonalReminderEmail(
-  bookingId: string
+  bookingId: string,
+  recipientEmail?: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     const booking = await getBookingById(bookingId);
     if (!booking) return { success: false, error: 'Booking not found' };
 
-    const email = booking.guestInfo.email;
+    const email = recipientEmail || booking.guestInfo.email;
     if (!email) return { success: false, error: 'No recipient email' };
 
     const { isGuestUnsubscribed } = await import('@/services/guestService');

@@ -21,7 +21,7 @@ import { formatBucharestDateTime, formatClockTime } from '@/lib/dates/property-t
 import type { Booking, Property, LanguageCode } from '@/types';
 import type { EmailBrand } from '@/services/emailTemplates';
 import type { GuideFacts } from '@/lib/guide-facts';
-import type { BookingEmailData, PreArrivalEmailData } from '@/services/emailTemplates';
+import type { BookingEmailData, PreArrivalEmailData, ReviewRequestEmailData } from '@/services/emailTemplates';
 
 export function formatDate(date: any, language: LanguageCode = 'en'): string {
   if (!date) return 'N/A';
@@ -92,6 +92,25 @@ export interface GuestEmailContext {
 }
 
 /**
+ * One-line postal address from a property's `location`.
+ *
+ * Shared on purpose: the confirmation prints the address in its body AND every footer prints it,
+ * and they were two separate derivations that already disagreed - the body dropped the postcode.
+ * Two spellings of the same address in one email.
+ */
+export function formatPostalAddress(location: any): string | undefined {
+  if (!location) return undefined;
+  const clean = (x: any) => String(x ?? '').trim();
+  const parts = [
+    clean(location.address),
+    [clean(location.city), clean(location.zipCode)].filter(Boolean).join(' '),
+    clean(location.state),
+    clean(location.country),
+  ].filter(Boolean);
+  return parts.length ? parts.join(', ') : undefined;
+}
+
+/**
  * The confirmation payload. PURE - no I/O, so the preview and the send path cannot disagree, and
  * the assembly is unit-testable without Firestore or Resend.
  */
@@ -122,9 +141,7 @@ export function buildConfirmationPayload(ctx: GuestEmailContext): BookingEmailDa
     cancellationPolicy: typeof property?.cancellationPolicy === 'string'
       ? property.cancellationPolicy
       : (property?.cancellationPolicy?.[language] ?? property?.cancellationPolicy?.en),
-    propertyAddress: property?.location
-      ? `${property.location.address}, ${property.location.city}, ${property.location.state}, ${property.location.country}`
-      : undefined,
+    propertyAddress: formatPostalAddress(property?.location),
     hostName: guide.host.name,
     hostPhone: guide.host.phoneDisplay || guide.host.phone,
     specialRequests: booking.specialRequests,
@@ -166,3 +183,25 @@ export function buildPreArrivalPayload(ctx: GuestEmailContext): PreArrivalEmailD
   };
 }
 
+
+/**
+ * The review request. First name only - this email opens "Salut Liviu" - and the property's own
+ * town, so a Bucharest guest is never asked how they liked Comarnic.
+ *
+ * `reviewUrl` and `unsubscribeUrl` are passed in rather than derived: both need secrets, and this
+ * file is pure.
+ */
+export function buildReviewRequestPayload(
+  ctx: GuestEmailContext,
+  reviewUrl: string,
+  unsubscribeUrl?: string
+): ReviewRequestEmailData {
+  return {
+    guestName: (ctx.booking.guestInfo?.firstName || '').trim(),
+    propertyName: ctx.propertyName,
+    city: (ctx.property as any)?.location?.city?.trim() || ctx.propertyName,
+    brand: ctx.brand,
+    reviewUrl,
+    unsubscribeUrl,
+  };
+}

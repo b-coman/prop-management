@@ -13,6 +13,11 @@
  * something no guest would ever receive. A preview that lies is worse than no preview, because
  * it is trusted.
  *
+ * Renders EVERY guest email, so the whole journey can be read in order rather than one at a time.
+ * Values the send path computes for real (guide link, review token, unsubscribe link) are computed
+ * here too. Values a cron invents at send time (the return-incentive coupon) are SAMPLES and are
+ * labelled as such in the output.
+ *
  *   npx tsx scripts/preview-guest-emails.ts <bookingId> [--lang=ro|en]
  */
 import * as dotenv from 'dotenv';
@@ -50,10 +55,12 @@ const OUT = '/tmp/prahova-emails';
 
 (async () => {
   const { loadGuestEmailContext } = await import('@/services/emailService');
-  const { buildConfirmationPayload, buildPreArrivalPayload } =
+  const { buildConfirmationPayload, buildPreArrivalPayload, buildReviewRequestPayload } =
     await import('@/services/guestEmailPayloads');
-  const { createBookingConfirmationTemplate, createPreArrivalTemplate } =
-    await import('@/services/emailTemplates');
+  const t = await import('@/services/emailTemplates');
+  const { createBookingConfirmationTemplate, createPreArrivalTemplate } = t;
+  const { generateReviewToken } = await import('@/lib/review-token');
+  const { getUnsubscribeUrl } = await import('@/lib/unsubscribe-token');
 
   fs.mkdirSync(OUT, { recursive: true });
   const langs = (ONLY ? [ONLY] : ['ro', 'en']) as any[];
@@ -65,9 +72,34 @@ const OUT = '/tmp/prahova-emails';
       process.exit(1);
     }
 
+    const b = ctx.booking;
+    const guestName = `${b.guestInfo.firstName} ${b.guestInfo.lastName || ''}`.trim();
+    const email = ctx.recipientEmail!;
+    const common = { guestName, propertyName: ctx.propertyName, brand: ctx.brand, propertyId: b.propertyId };
+    const unsubscribeUrl = getUnsubscribeUrl(email);
+    const conf = buildConfirmationPayload(ctx);
+
+    // A sample: the day-14 cron mints a fresh coupon at send time.
+    const SAMPLE_COUPON = `RETURN-${String(b.id ?? 'XXXXXX').slice(-6).toUpperCase()}`;
+
     const rendered = [
-      ['confirmation', createBookingConfirmationTemplate(buildConfirmationPayload(ctx), ctx.language)],
-      ['pre-arrival', createPreArrivalTemplate(buildPreArrivalPayload(ctx), ctx.language)],
+      ['1-confirmation', createBookingConfirmationTemplate(conf, ctx.language)],
+      ['2-pre-arrival', createPreArrivalTemplate(buildPreArrivalPayload(ctx), ctx.language)],
+      // Same builder the send path uses, so this cannot drift from what the guest receives.
+      ['3-review-request', t.createReviewRequestTemplate(buildReviewRequestPayload(
+        ctx,
+        // Mirrors emailService: Google when the property has one, the internal page otherwise.
+        (ctx.property as any)?.googleReviewUrl?.trim()
+          || `${ctx.brand?.websiteUrl ?? ''}/review/${b.id}?token=${generateReviewToken(b.id, email)}`,
+        unsubscribeUrl,
+      ), ctx.language)],
+      ['4-return-incentive', t.createReturnIncentiveTemplate({
+        ...common, couponCode: SAMPLE_COUPON, discount: 10,
+        expiryDate: '29 decembrie 2026', unsubscribeUrl,
+      } as any, ctx.language)],
+      ['5-seasonal-reminder', t.createSeasonalReminderTemplate({
+        ...common, unsubscribeUrl,
+      } as any, ctx.language)],
     ] as const;
 
     for (const [name, out] of rendered) {

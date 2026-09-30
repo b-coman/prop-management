@@ -15,8 +15,7 @@ const emailTranslations = {
     dear: 'Dear',
     thankYou: 'Thank you!',
     theTeam: 'The {propertyName} Team',
-    automatedMessage: 'This is an automated message. Please do not reply to this email.',
-    thankYouForChoosing: 'Thank you for choosing {propertyName}!',
+    thankYouForChoosing: 'Thank you for choosing us! ❤️',
 
     // Booking confirmation
     bookingConfirmation: 'Booking Confirmation',
@@ -40,7 +39,6 @@ const emailTranslations = {
     hostPhone: 'Host Phone',
     cancellationPolicy: 'Cancellation Policy',
     paidInFull: 'Paid in full',
-    replyPrompt: 'This confirmation was sent automatically, but you can reply to it - your message reaches us.',
     paidOn: 'Paid on {date}',
     amountPaid: 'Amount paid',
     specialRequests: 'Special Requests',
@@ -109,17 +107,16 @@ const emailTranslations = {
     refundProcessingTime: 'Your refund will be processed within 5-10 business days.',
 
     // Review request
-    reviewRequest: 'How Was Your Stay?',
-    reviewRequestMessage: 'We hope you enjoyed your stay at {propertyName}! We would love to hear about your experience.',
-    reviewStayDetails: 'Your Stay',
-    leaveReview: 'Leave a Review',
-    reviewRequestThanks: 'Your feedback helps future guests and helps us improve.',
-    reviewRequestPrompt: 'It only takes a minute to share your thoughts.',
+    // Sentence case, not Title Case. The place is named from the property's own `location.city`
+    // so this stays usable for an apartment in Bucharest instead of hardcoding Comarnic.
+    reviewRequest: 'Did you enjoy {city}?',
+    // This one email greets informally by first name ("Salut Liviu"); the rest keep `dear`.
+    reviewGreeting: 'Hi',
+    reviewRequestMessage: 'I hope you had a lovely few days at our place in {city}, and that we went beyond what you expected :)',
+    reviewRequestPrompt: 'It would mean a lot, and it would really help us, if you left a short review on Google. It only takes a minute.',
+    leaveReview: 'Leave a review on Google',
 
     // Checkout confirmation (Day 0)
-    checkoutConfirmation: 'Thank You for Your Stay!',
-    checkoutConfirmationMessage: 'We hope you had a wonderful time at {propertyName}. Have a safe journey home!',
-    checkoutSafeTravel: 'We wish you safe travels and hope to welcome you back soon.',
 
     // Return incentive (Day 14)
     returnIncentive: 'A Special Offer Just for You',
@@ -135,7 +132,7 @@ const emailTranslations = {
     seasonalReminderBook: 'Check Availability',
 
     // Unsubscribe
-    unsubscribeText: 'If you no longer wish to receive these emails, you can',
+    unsubscribeText: 'If you no longer wish to receive these messages, you can',
     unsubscribeLink: 'unsubscribe here',
   },
   ro: {
@@ -143,8 +140,7 @@ const emailTranslations = {
     dear: 'Dragă',
     thankYou: 'Mulțumim!',
     theTeam: 'Echipa {propertyName}',
-    automatedMessage: 'Acesta este un mesaj automat. Vă rugăm să nu răspundeți la acest email.',
-    thankYouForChoosing: 'Mulțumim că ai ales {propertyName}!',
+    thankYouForChoosing: 'Mulțumim că ne-ați ales! ❤️',
 
     // Booking confirmation
     bookingConfirmation: 'Confirmare Rezervare',
@@ -168,7 +164,6 @@ const emailTranslations = {
     hostPhone: 'Telefon gazdă',
     cancellationPolicy: 'Politica de Anulare',
     paidInFull: 'Achitat integral',
-    replyPrompt: 'Acest mesaj a fost trimis automat, dar poți răspunde - mesajul ajunge la noi.',
     paidOn: 'Achitat pe {date}',
     amountPaid: 'Sumă achitată',
     specialRequests: 'Cereri Speciale',
@@ -233,17 +228,13 @@ const emailTranslations = {
     refundProcessingTime: 'Rambursarea va fi procesată în 5-10 zile lucrătoare.',
 
     // Review request
-    reviewRequest: 'Cum a Fost Sejurul Dvs.?',
-    reviewRequestMessage: 'Sperăm că v-a plăcut sejurul la {propertyName}! Ne-ar plăcea să aflăm despre experiența dvs.',
-    reviewStayDetails: 'Detalii Sejur',
-    leaveReview: 'Lăsați o Recenzie',
-    reviewRequestThanks: 'Feedback-ul dvs. ajută viitorii oaspeți și ne ajută să ne îmbunătățim.',
-    reviewRequestPrompt: 'Durează doar un minut să vă împărtășiți gândurile.',
+    reviewRequest: 'Ți-a plăcut la {city}?',
+    reviewGreeting: 'Salut',
+    reviewRequestMessage: 'Sper că ați petrecut câteva zile frumoase la căsuța noastră de la {city} și că v-am depășit așteptările :)',
+    reviewRequestPrompt: 'M-ar bucura mult și ne-ar fi de mare ajutor dacă ne-ai lăsa un review scurt pe Google. Durează doar un minut.',
+    leaveReview: 'Lasă un review pe Google',
 
     // Checkout confirmation (Day 0)
-    checkoutConfirmation: 'Mulțumim pentru sejur!',
-    checkoutConfirmationMessage: 'Sperăm că ați avut o experiență minunată la {propertyName}. Drum bun spre casă!',
-    checkoutSafeTravel: 'Vă dorim călătorie plăcută și sperăm să vă revedem curând.',
 
     // Return incentive (Day 14)
     returnIncentive: 'O Ofertă Specială pentru Dvs.',
@@ -259,7 +250,7 @@ const emailTranslations = {
     seasonalReminderBook: 'Verifică Disponibilitatea',
 
     // Unsubscribe
-    unsubscribeText: 'Dacă nu mai doriți să primiți aceste emailuri, puteți',
+    unsubscribeText: 'Dacă nu mai vrei să primești aceste mesaje, te poți',
     unsubscribeLink: 'dezabona aici',
   }
 } as const;
@@ -297,27 +288,17 @@ function tArray(lang: LanguageCode, key: TranslationKey): readonly string[] {
   return translations[key] as readonly string[];
 }
 
-interface ReviewRequestEmailData {
+export interface ReviewRequestEmailData {
+  /** First name only - this email opens "Salut Liviu", not "Dragă Liviu Musat". */
   guestName: string;
   propertyName: string;
+  /** The property's own town, so the copy names a place without hardcoding one. */
+  city: string;
   brand?: EmailBrand;
-  checkInDate: string;
-  checkOutDate: string;
   reviewUrl: string;
   unsubscribeUrl?: string;
 }
 
-interface CheckoutConfirmationEmailData {
-  guestName: string;
-  propertyName: string;
-  brand?: EmailBrand;
-  propertyId: string;
-  checkInDate: string;
-  checkOutDate: string;
-  totalAmount: string;
-  currency: string;
-  unsubscribeUrl: string;
-}
 
 interface ReturnIncentiveEmailData {
   guestName: string;
@@ -410,6 +391,8 @@ export interface EmailBrand {
   websiteUrl?: string;
   /** An inbox a human reads. Set -> the footer invites a reply instead of forbidding one. */
   replyToEmail?: string;
+  /** One-line postal address, built from the property's own `location`. Shown in every footer. */
+  postalAddress?: string;
 }
 
 const NEUTRAL_BRAND_PALETTE = getEmailPalette(undefined);
@@ -507,21 +490,23 @@ ${hero}        <tr>
  */
 function createFooter(lang: LanguageCode, brandOrName: EmailBrand | string, unsubscribeUrl?: string): string {
   const brand = typeof brandOrName === 'string' ? undefined : brandOrName;
-  const propertyName = typeof brandOrName === 'string' ? brandOrName : brandOrName.propertyName;
   const c = brand?.palette || NEUTRAL_BRAND_PALETTE;
+  // Three groups: thanks + site, then the postal address, then the opt-out. Identical on every
+  // guest email except the opt-out, which a booking confirmation must not carry - nobody can
+  // unsubscribe from the confirmation of a stay they just paid for.
   return `
           </td>
         </tr>
         <tr>
           <td class="footer">
-            <p style="margin:0 0 8px 0; color:${c.foreground};">${t(lang, 'thankYouForChoosing', { propertyName })}</p>
-            ${brand?.websiteUrl ? `<p style="margin:0 0 8px 0;"><a href="${brand.websiteUrl}" style="color:${c.primary}; text-decoration:none;">${brand.websiteUrl.replace(/^https?:\/\//, '')}</a></p>` : ''}
+            <p style="margin:0 0 2px 0; color:${c.foreground};">${t(lang, 'thankYouForChoosing')}</p>
+            ${brand?.websiteUrl ? `<p style="margin:0;"><a href="${brand.websiteUrl}" style="color:${c.primary}; text-decoration:none;">${brand.websiteUrl.replace(/^https?:\/\//, '')}</a></p>` : ''}
+            ${brand?.postalAddress ? `<p style="margin:16px 0 0 0; color:${c.mutedForeground};">${brand.postalAddress}</p>` : ''}
             ${unsubscribeUrl ? `
-            <p style="margin-top:10px; font-size:11px;">
+            <p style="margin:16px 0 0 0; font-size:11px;">
               ${t(lang, 'unsubscribeText')} <a href="${unsubscribeUrl}" style="color:${c.mutedForeground}; text-decoration:underline;">${t(lang, 'unsubscribeLink')}</a>.
             </p>
             ` : ''}
-            <p style="margin-top:10px; font-size:11px;">${brand?.replyToEmail ? t(lang, 'replyPrompt') : t(lang, 'automatedMessage')}</p>
           </td>
         </tr>
       </table>
@@ -1055,102 +1040,38 @@ export function createReviewRequestTemplate(
 ): { text: string; html: string; subject: string } {
   const lang = language;
 
-  const subject = lang === 'ro'
-    ? `Cum a Fost Sejurul la ${data.propertyName}?`
-    : `How Was Your Stay at ${data.propertyName}?`;
+  // Subject is the headline, same as every other email in this set.
+  const subject = t(lang, 'reviewRequest', { city: data.city });
+  const greeting = `${t(lang, 'reviewGreeting')} ${data.guestName},`;
 
+  // No stay-details box here. The guest just left; repeating their own dates back at them adds
+  // nothing and breaks the tone of a short personal note.
   const text = `
-${t(lang, 'reviewRequest')}
+${t(lang, 'reviewRequest', { city: data.city })}
 
-${t(lang, 'dear')} ${data.guestName},
+${greeting}
 
-${t(lang, 'reviewRequestMessage', { propertyName: data.propertyName })}
-
-${t(lang, 'reviewStayDetails')}:
-- ${t(lang, 'checkIn')}: ${data.checkInDate}
-- ${t(lang, 'checkOut')}: ${data.checkOutDate}
+${t(lang, 'reviewRequestMessage', { city: data.city, propertyName: data.propertyName })}
 
 ${t(lang, 'reviewRequestPrompt')}
 
 ${data.reviewUrl}
-
-${t(lang, 'reviewRequestThanks')}
 
 ${t(lang, 'thankYou')}
 ${t(lang, 'theTeam', { propertyName: data.propertyName })}
 `;
 
   const html = `
-${createHeader(t(lang, 'reviewRequest'), data.brand)}
+${createHeader(t(lang, 'reviewRequest', { city: data.city }), data.brand)}
   <div class="content">
-    <p>${t(lang, 'dear')} ${data.guestName},</p>
-    <p>${t(lang, 'reviewRequestMessage', { propertyName: data.propertyName })}</p>
-
-    <div class="info-box">
-      <h2>${t(lang, 'reviewStayDetails')}</h2>
-      <p><strong>${t(lang, 'checkIn')}:</strong> ${data.checkInDate}</p>
-      <p><strong>${t(lang, 'checkOut')}:</strong> ${data.checkOutDate}</p>
-    </div>
+    <p>${greeting}</p>
+    <p>${t(lang, 'reviewRequestMessage', { city: data.city, propertyName: data.propertyName })}</p>
 
     <p>${t(lang, 'reviewRequestPrompt')}</p>
 
     <div style="text-align: center; margin-top: 30px;">
       <a href="${data.reviewUrl}" class="button">${t(lang, 'leaveReview')}</a>
     </div>
-
-    <p style="margin-top: 20px; color: #6b7280; font-size: 14px;">${t(lang, 'reviewRequestThanks')}</p>
-  </div>
-${createFooter(lang, data.brand || data.propertyName, data.unsubscribeUrl)}
-`;
-
-  return { text, html, subject };
-}
-
-/**
- * Creates checkout confirmation email template (Day 0)
- */
-export function createCheckoutConfirmationTemplate(
-  data: CheckoutConfirmationEmailData,
-  language: LanguageCode = 'en'
-): { text: string; html: string; subject: string } {
-  const lang = language;
-
-  const subject = t(lang, 'checkoutConfirmation');
-
-  const text = `
-${t(lang, 'checkoutConfirmation')}
-
-${t(lang, 'dear')} ${data.guestName},
-
-${t(lang, 'checkoutConfirmationMessage', { propertyName: data.propertyName })}
-
-${t(lang, 'reviewStayDetails')}:
-- ${t(lang, 'property')}: ${data.propertyName}
-- ${t(lang, 'checkIn')}: ${data.checkInDate}
-- ${t(lang, 'checkOut')}: ${data.checkOutDate}
-- ${t(lang, 'total')}: ${data.totalAmount}
-
-${t(lang, 'checkoutSafeTravel')}
-
-${t(lang, 'thankYou')}
-${t(lang, 'theTeam', { propertyName: data.propertyName })}
-`;
-
-  const html = `
-${createHeader(t(lang, 'checkoutConfirmation'), data.brand)}
-  <div class="content">
-    <p>${t(lang, 'dear')} ${data.guestName},</p>
-    <p>${t(lang, 'checkoutConfirmationMessage', { propertyName: data.propertyName })}</p>
-
-    <div class="info-box">
-      <h2>${t(lang, 'reviewStayDetails')}</h2>
-      <p><strong>${t(lang, 'property')}:</strong> ${data.propertyName}</p>
-      <p><strong>${t(lang, 'checkIn')}:</strong> ${data.checkInDate}</p>
-      <p><strong>${t(lang, 'checkOut')}:</strong> ${data.checkOutDate}</p>
-      <p><strong>${t(lang, 'total')}:</strong> ${data.totalAmount}</p>
-    </div>
-
-    <p>${t(lang, 'checkoutSafeTravel')}</p>
   </div>
 ${createFooter(lang, data.brand || data.propertyName, data.unsubscribeUrl)}
 `;
