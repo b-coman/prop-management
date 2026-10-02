@@ -1,8 +1,9 @@
 // src/components/property/policies-list.tsx
 "use client";
 
+import * as AccordionPrimitive from '@radix-ui/react-accordion';
 import { PoliciesListBlock } from '@/lib/overridesSchemas-multipage';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Accordion, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 
@@ -43,9 +44,24 @@ export function PoliciesList({ content }: PoliciesListProps) {
                     <span>{tc(policy.title)}</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pt-4 pb-2 px-2">
-                  <p className="text-muted-foreground whitespace-pre-line">{tc(policy.description)}</p>
-                </AccordionContent>
+                {/*
+                  forceMount keeps every answer in the server HTML. With the default content,
+                  Radix renders nothing for a closed item, so crawlers saw the rule titles and
+                  none of the rules. Closed items collapse to zero height and are invisible
+                  (also hidden from screen readers); the grid-rows transition replaces the
+                  height animation, which needs Radix to measure content it no longer unmounts.
+                  The transition sits on the inner element because Radix zeroes transitions on
+                  the content element itself while it measures.
+                */}
+                <AccordionPrimitive.Content forceMount className="group text-sm">
+                  <div className="grid grid-rows-[0fr] invisible transition-[grid-template-rows,visibility] duration-200 ease-out group-data-[state=open]:grid-rows-[1fr] group-data-[state=open]:visible">
+                    <div className="overflow-hidden">
+                      <div className="pt-4 pb-2 px-2">
+                        <p className="text-muted-foreground whitespace-pre-line">{tc(policy.description)}</p>
+                      </div>
+                    </div>
+                  </div>
+                </AccordionPrimitive.Content>
               </AccordionItem>
             ))}
           </Accordion>

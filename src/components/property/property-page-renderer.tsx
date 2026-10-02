@@ -101,6 +101,7 @@ import { AreaGuideSection } from '@/components/property/area-guide-section';
 import { ReviewsListSection } from '@/components/property/reviews-list-section';
 import { useLanguage } from '@/hooks/useLanguage';
 import { languageToLocale } from '@/lib/utils';
+import { buildDisplayedPolicies } from '@/lib/house-policies';
 
 // Map of block types to their rendering components
 const blockComponents: Record<string, React.FC<{ content: any; language?: string }>> = {
@@ -388,42 +389,16 @@ export function PropertyPageRenderer({
             specifications: autoSpecs,
           };
         }
-      } else if (type === 'policiesList' && property) {
-        // Auto-populate policies from property data when override has none
-        const existingPolicies = blockContent?.policies;
-        if (!existingPolicies || existingPolicies.length === 0) {
-          const autoPolicies: Array<{ title: string | Record<string, string>; description: string | Record<string, string> }> = [];
-          if (property.checkInTime || property.checkOutTime) {
-            autoPolicies.push({
-              title: { en: 'Check-in / Check-out', ro: 'Check-in / Check-out' },
-              description: {
-                en: `Check-in: ${property.checkInTime || 'Flexible'}\nCheck-out: ${property.checkOutTime || 'Flexible'}`,
-                ro: `Check-in: ${property.checkInTime || 'Flexibil'}\nCheck-out: ${property.checkOutTime || 'Flexibil'}`,
-              },
-            });
-          }
-          if (property.cancellationPolicy) {
-            const cp = property.cancellationPolicy;
-            autoPolicies.push({
-              title: { en: 'Cancellation Policy', ro: 'Politica de anulare' },
-              description: { en: cp.en, ro: cp.ro || cp.en },
-            });
-          }
-          if (property.houseRules && property.houseRules.length > 0) {
-            autoPolicies.push({
-              title: { en: 'House Rules', ro: 'Regulile casei' },
-              description: {
-                en: property.houseRules.map(r => typeof r === 'string' ? r : (r.en || '')).join('\n'),
-                ro: property.houseRules.map(r => typeof r === 'string' ? r : (r.ro || r.en || '')).join('\n'),
-              },
-            });
-          }
-          if (autoPolicies.length > 0) {
-            blockContent = {
-              ...blockContent,
-              policies: autoPolicies,
-            };
-          }
+      } else if ((type === 'policiesList' || type === 'rulesSection') && property) {
+        // Configured policies, or ones built from property fields when nothing is configured.
+        // The cancellation item always shows property.cancellationPolicy, the same field the
+        // booking page, the emails and the FAQ JSON-LD read (see lib/house-policies.ts).
+        const policies = buildDisplayedPolicies(blockContent?.policies, property);
+        if (policies.length > 0) {
+          blockContent = {
+            ...blockContent,
+            policies,
+          };
         }
       } else if (type === 'fullMap') {
         // Map data priority: explicit page override > property.location > template default
