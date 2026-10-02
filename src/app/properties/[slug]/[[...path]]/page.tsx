@@ -195,6 +195,101 @@ async function resolveOverrideAmenityRefs(overrides: any): Promise<any> {
   return enriched;
 }
 
+/**
+ * Property fields no guest page reads. The property object crosses into the RSC payload, so
+ * anything left on it is published in every page's HTML, for every crawler.
+ */
+const SERVER_ONLY_PROPERTY_FIELDS = [
+  'icalExportToken',
+  'shareCalendarToken',
+  'guestCalendarToken',
+  'ownerEmail',
+  'ownerId',
+  'analytics',
+  'brandVoice',
+  'channelPricing',
+  '_translationStatus',
+  'updatedBy',
+] as const;
+
+/**
+ * The slice of the overrides doc the renderer reads (see PropertyPageRenderer): visibility, menu,
+ * footer, propertyMeta, the current page, and the location page for the homepage preview. The rest
+ * - the guest guide above all, with its WiFi password and arrival instructions - stays on the server.
+ */
+function overridesForClient(overrides: any, pageName: string): any {
+  const keys = ['visiblePages', 'menuItems', 'footer', 'propertyMeta', pageName];
+  if (pageName === 'homepage') keys.push('location');
+  const result: Record<string, unknown> = {};
+  for (const key of keys) {
+    if (overrides?.[key] !== undefined) result[key] = overrides[key];
+  }
+  return result;
+}
+
+/**
+ * The slice of the template the renderer reads for this page. The full template carries demo
+ * content for every block on every page (a 14-day cancellation policy, contact@example.com, the
+ * example.com social links) and all of it was shipping in the page HTML, where crawlers read it as
+ * this property's terms. Kept: the current page (and the homepage it falls back to), the header and
+ * footer fallbacks the overrides do not already replace, and only the defaults of blocks rendered
+ * here, minus any fields every one of those blocks overrides.
+ */
+function templateForClient(template: any, overrides: any, pageName: string): any {
+  const pages: Record<string, unknown> = {};
+  if (template.pages?.[pageName]) pages[pageName] = template.pages[pageName];
+  if (template.pages?.homepage) pages.homepage = template.pages.homepage;
+
+  const page = template.pages?.[pageName] || template.pages?.homepage;
+  const pageOverrides = (overrides?.[pageName] || {}) as Record<string, any>;
+  const blocks: Array<{ id: string; type: string }> = page?.blocks || [];
+  const visibleBlocks: string[] = pageOverrides.visibleBlocks || blocks.map((b) => b.id);
+
+  // Which blocks use which default (same lookup as the renderer: by id, then by type)
+  const users = new Map<string, Array<Record<string, any> | undefined>>();
+  for (const block of blocks) {
+    if (!visibleBlocks.includes(block.id)) continue;
+    const key = template.defaults?.[block.id] !== undefined ? block.id
+      : template.defaults?.[block.type] !== undefined ? block.type
+      : null;
+    if (!key) continue;
+    users.set(key, [...(users.get(key) || []), pageOverrides[block.id]]);
+  }
+
+  const defaults: Record<string, unknown> = {};
+  for (const [key, blockOverrides] of users) {
+    const value = template.defaults[key];
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      defaults[key] = value;
+      continue;
+    }
+    // A field is dead weight only when every block using this default overrides it
+    const trimmed: Record<string, unknown> = {};
+    for (const [field, fieldValue] of Object.entries(value)) {
+      const overriddenEverywhere = blockOverrides.every(
+        (o) => o && typeof o === 'object' && o[field] !== undefined,
+      );
+      if (!overriddenEverywhere) trimmed[field] = fieldValue;
+    }
+    defaults[key] = trimmed;
+  }
+
+  const header = { ...template.header };
+  if (overrides?.menuItems) delete header.menuItems;
+  const footer: Record<string, unknown> = {};
+  if (!overrides?.footer?.quickLinks && template.footer?.quickLinks) footer.quickLinks = template.footer.quickLinks;
+  if (!overrides?.footer?.contactInfo && template.footer?.contactInfo) footer.contactInfo = template.footer.contactInfo;
+
+  return {
+    templateId: template.templateId,
+    name: template.name,
+    pages,
+    header,
+    footer,
+    defaults,
+  };
+}
+
 interface PropertyPageProps {
   params: Promise<{
     slug: string;
@@ -613,6 +708,13 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     ...property,
     images: property.images?.map(({ aiDescription, ...img }) => img),
   };
+  for (const field of SERVER_ONLY_PROPERTY_FIELDS) {
+    delete (clientProperty as Record<string, unknown>)[field];
+  }
+
+  // Same reasoning for the template and overrides: send what this page renders, nothing else.
+  const clientTemplate = templateForClient(template, overrides, pageName);
+  const clientOverrides = overridesForClient(overrides, pageName);
 
   // Always wrap in LanguageProvider to keep the component tree structure identical
   // across language switches (prevents React from unmounting/remounting everything)
@@ -665,8 +767,8 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
       <LanguageProvider initialLanguage={language} initialTranslations={getServerTranslations(language)}>
         <Suspense fallback={<div>Loading property details...</div>}>
           <PropertyPageRenderer
-            template={template}
-            overrides={overrides}
+            template={clientTemplate}
+            overrides={clientOverrides}
             propertyName={renderedPropertyName}
             propertySlug={slug}
             pageName={renderedPageName}
