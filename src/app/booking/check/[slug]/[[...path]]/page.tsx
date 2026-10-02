@@ -48,6 +48,7 @@ import { notFound } from 'next/navigation';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 // Import all needed utilities
 import { getPropertyBySlug, getPropertyHeroImage } from '@/lib/property-utils';
+import { toClientProperty } from '@/lib/client-property';
 import { db } from '@/lib/firebase'; // Import db for data fetching
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import BookingClientLayout from './booking-client-layout';
@@ -347,7 +348,7 @@ export default async function BookingCheckPage({ params, searchParams }: Booking
             initialLanguage={detectedLanguage}
           >
             <BookingPageV2
-              property={property}
+              property={toClientProperty(property)}
               initialCurrency={currency as any}
               initialLanguage={detectedLanguage}
               themeId={propertyThemeId}

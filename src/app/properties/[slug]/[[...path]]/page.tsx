@@ -26,6 +26,7 @@ export const dynamic = 'force-dynamic'; // Ensures the page is always dynamicall
 // Import the utility function
 import type { Review, RichReview } from '@/types';
 import { getPropertyBySlug, getPublishedReviewCount } from '@/lib/property-utils';
+import { toClientProperty } from '@/lib/client-property';
 import { getPublishedReviewsForProperty, getAllPublishedReviewsForProperty } from '@/services/reviewService';
 
 // Alias for backward compatibility
@@ -194,23 +195,6 @@ async function resolveOverrideAmenityRefs(overrides: any): Promise<any> {
 
   return enriched;
 }
-
-/**
- * Property fields no guest page reads. The property object crosses into the RSC payload, so
- * anything left on it is published in every page's HTML, for every crawler.
- */
-const SERVER_ONLY_PROPERTY_FIELDS = [
-  'icalExportToken',
-  'shareCalendarToken',
-  'guestCalendarToken',
-  'ownerEmail',
-  'ownerId',
-  'analytics',
-  'brandVoice',
-  'channelPricing',
-  '_translationStatus',
-  'updatedBy',
-] as const;
 
 /**
  * The slice of the overrides doc the renderer reads (see PropertyPageRenderer): visibility, menu,
@@ -704,13 +688,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   // costing roughly 31 KB of every guest page and growing with each photo
   // added. Strip it from the copy the client gets; the server keeps the full
   // object for JSON-LD and everything else above.
-  const clientProperty = {
-    ...property,
-    images: property.images?.map(({ aiDescription, ...img }) => img),
-  };
-  for (const field of SERVER_ONLY_PROPERTY_FIELDS) {
-    delete (clientProperty as Record<string, unknown>)[field];
-  }
+  const clientProperty = toClientProperty(property);
 
   // Same reasoning for the template and overrides: send what this page renders, nothing else.
   const clientTemplate = templateForClient(template, overrides, pageName);
