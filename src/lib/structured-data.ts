@@ -1,5 +1,7 @@
 import type { Property, Amenity, Review, RichReview } from '@/types';
 import { normalizeCountryCode } from '@/lib/country-utils';
+import { serverT } from '@/lib/language-system/server-translations';
+import { DEFAULT_LANGUAGE } from '@/lib/language-constants';
 
 // Map amenity English names (lowercased) to schema.org LocationFeatureSpecification names
 // Reference: https://developers.google.com/search/docs/appearance/structured-data/vacation-rental
@@ -58,6 +60,10 @@ interface VacationRentalJsonLdOptions {
   publishedReviews?: Review[];
   language?: string;
   descriptionOverride?: string | { en?: string; ro?: string };
+  /** Shared node id (see propertyEntityId). */
+  entityId?: string;
+  /** Listings of the same property elsewhere (see buildSameAs). */
+  sameAs?: string[];
 }
 
 function isPlaceholderValue(value?: string): boolean {
@@ -66,8 +72,83 @@ function isPlaceholderValue(value?: string): boolean {
   return lower.includes('example') || lower.includes('(555)') || lower.includes('555-');
 }
 
+/**
+ * What the place is and where, in the page language: "Mountain chalet rental in Comarnic, Prahova"
+ * or "Cabană de închiriat în Comarnic, Prahova". The type phrase comes from the locale files
+ * (seo.propertyType.*) keyed by `property.propertyType`; the place from `property.location`.
+ */
+export function buildPropertyTagline(
+  property: Pick<Property, 'propertyType' | 'location'>,
+  language: string = DEFAULT_LANGUAGE,
+): string {
+  const type = serverT(
+    language,
+    `seo.propertyType.${property.propertyType || 'default'}`,
+    serverT(language, 'seo.propertyType.default', 'Vacation rental'),
+  );
+  const place = [property.location?.city, property.location?.state].filter(Boolean).join(', ');
+  return place ? serverT(language, 'seo.typeIn', `${type} in ${place}`, { type, place }) : type;
+}
+
+/**
+ * The nightly price the site advertises ("De la 350 lei" in the header), as text for JSON-LD
+ * `priceRange` and llms.txt. `advertisedRate` is what the page shows; `pricePerNight` is the
+ * engine's base rate and only a fallback.
+ */
+export function formatAdvertisedPrice(
+  property: Pick<Property, 'advertisedRate' | 'pricePerNight' | 'baseCurrency'>,
+  language: string = DEFAULT_LANGUAGE,
+): string | undefined {
+  const rate = property.advertisedRate || property.pricePerNight;
+  if (!rate) return undefined;
+  const price = Math.round(rate);
+  return serverT(language, 'seo.priceFromPerNight', `From ${price} ${property.baseCurrency} per night`, {
+    price,
+    currency: property.baseCurrency,
+  });
+}
+
+/**
+ * Stable JSON-LD node id for the property, shared by every block that describes it (VacationRental,
+ * LodgingBusiness, the reviews page) and by both languages, so they read as one entity.
+ */
+export function propertyEntityId(canonicalBaseUrl: string): string {
+  return `${canonicalBaseUrl.replace(/\/+$/, '')}/#lodging`;
+}
+
+/**
+ * `sameAs` links: the property's own listings elsewhere. OTA listing URLs come from the `channels`
+ * collection, the Google Maps place from `property.googlePlaceId`, social profiles from the footer
+ * override. Template placeholders (example.com) are dropped.
+ */
+export function buildSameAs(options: {
+  property: Pick<Property, 'googlePlaceId' | 'name'>;
+  listingUrls?: string[];
+  socialLinks?: Array<{ platform?: string; url?: string }>;
+}): string[] {
+  const { property, listingUrls = [], socialLinks = [] } = options;
+  const urls: string[] = [...listingUrls];
+
+  if (property.googlePlaceId) {
+    const name = typeof property.name === 'string' ? property.name : property.name?.en || '';
+    urls.push(
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}&query_place_id=${encodeURIComponent(property.googlePlaceId)}`,
+    );
+  }
+
+  for (const link of socialLinks) {
+    if (link?.url && !isPlaceholderValue(link.url)) urls.push(link.url);
+  }
+
+  return Array.from(new Set(urls.filter((u) => /^https?:\/\//.test(u))));
+}
+
+function alternateNamesOf(property: Pick<Property, 'alternateNames'>): string[] {
+  return (property.alternateNames || []).map((n) => (typeof n === 'string' ? n.trim() : '')).filter(Boolean);
+}
+
 export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions): Record<string, unknown> {
-  const { property, amenities = [], canonicalUrl, telephone, publishedReviewCount, publishedReviews = [], language = 'en', descriptionOverride } = options;
+  const { property, amenities = [], canonicalUrl, telephone, publishedReviewCount, publishedReviews = [], language = 'en', descriptionOverride, entityId, sameAs = [] } = options;
   // Prefer per-property contactPhone, fall back to template-level telephone
   const rawPhone = property.contactPhone || telephone;
   const validTelephone = rawPhone && !isPlaceholderValue(rawPhone) ? rawPhone : undefined;
@@ -227,10 +308,9 @@ export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions):
       }
     : undefined;
 
-  // Build price range from base price
-  const priceRange = property.pricePerNight
-    ? `${property.pricePerNight} ${property.baseCurrency}/night`
-    : undefined;
+  // Same "from" price the page header shows, not the engine's base rate
+  const priceRange = formatAdvertisedPrice(property, language);
+  const alternateName = alternateNamesOf(property);
 
   // Build individual Review objects (up to 5) from published reviews
   const reviewJsonLd = publishedReviews.slice(0, 5).map((review) => {
@@ -269,8 +349,10 @@ export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions):
   const jsonLd: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'VacationRental',
+    ...(entityId && { '@id': entityId }),
     ...(rentalSubtype && { additionalType: rentalSubtype }),
     name,
+    ...(alternateName.length > 0 && { alternateName }),
     identifier: property.slug || property.id,
     url: canonicalUrl,
     ...(description && { description }),
@@ -287,6 +369,7 @@ export function buildVacationRentalJsonLd(options: VacationRentalJsonLdOptions):
     containsPlace,
     ...(aggregateRating && { aggregateRating }),
     ...(reviewJsonLd.length > 0 && { review: reviewJsonLd }),
+    ...(sameAs.length > 0 && { sameAs }),
     knowsLanguage: ['en', 'ro'],
   };
 
@@ -300,17 +383,20 @@ export function buildBreadcrumbJsonLd(
   pageName?: string,
   pageLabel?: string,
   customDomain?: string | null,
+  language: string = DEFAULT_LANGUAGE,
 ): Record<string, unknown> {
-  // On custom domains, the property is at root; on main app, it's under /properties/{slug}
+  // On custom domains, the property is at root; on main app, it's under /properties/{slug}.
+  // Non-default languages live under /{lang}, so a Romanian page's trail stays in Romanian.
+  const langSegment = language !== DEFAULT_LANGUAGE ? `/${language}` : '';
   const propertyUrl = customDomain
-    ? baseUrl
-    : `${baseUrl}/properties/${propertySlug}`;
+    ? `${baseUrl}${langSegment}`
+    : `${baseUrl}/properties/${propertySlug}${langSegment}`;
 
   const items: Record<string, unknown>[] = [
     {
       '@type': 'ListItem',
       position: 1,
-      name: 'Home',
+      name: serverT(language, 'seo.breadcrumbHome', 'Home'),
       item: propertyUrl,
     },
   ];
@@ -387,8 +473,10 @@ export function buildLodgingBusinessJsonLd(options: {
   publishedReviews?: Review[];
   language?: string;
   descriptionOverride?: string | { en?: string; ro?: string };
+  entityId?: string;
+  sameAs?: string[];
 }): Record<string, unknown> {
-  const { property, canonicalUrl, telephone, publishedReviewCount, publishedReviews = [], language = 'en', descriptionOverride } = options;
+  const { property, canonicalUrl, telephone, publishedReviewCount, publishedReviews = [], language = 'en', descriptionOverride, entityId, sameAs = [] } = options;
 
   const pickLang = (value: string | { en?: string; ro?: string } | undefined): string | undefined => {
     if (!value) return undefined;
@@ -435,15 +523,18 @@ export function buildLodgingBusinessJsonLd(options: {
       }
     : undefined;
 
-  const priceRange = property.pricePerNight
-    ? `${property.pricePerNight} ${property.baseCurrency}/night`
-    : undefined;
+  const priceRange = formatAdvertisedPrice(property, language);
+  const alternateName = alternateNamesOf(property);
 
+  // Same @id as the VacationRental block: this adds the Maps-oriented fields to that one entity
+  // instead of describing a second business.
   return {
     '@context': 'https://schema.org',
     '@type': 'LodgingBusiness',
+    ...(entityId && { '@id': entityId }),
     additionalType: 'VacationRental',
     name,
+    ...(alternateName.length > 0 && { alternateName }),
     url: canonicalUrl,
     ...(description && { description }),
     ...(images.length > 0 && { image: images }),
@@ -467,6 +558,7 @@ export function buildLodgingBusinessJsonLd(options: {
       opens: '00:00',
       closes: '23:59',
     },
+    ...(sameAs.length > 0 && { sameAs }),
     knowsLanguage: ['en', 'ro'],
   };
 }
@@ -690,8 +782,9 @@ export function buildReviewPageJsonLd(options: {
   reviews: RichReview[];
   canonicalUrl: string;
   language?: string;
+  entityId?: string;
 }): Record<string, unknown> {
-  const { property, reviews, canonicalUrl, language = 'en' } = options;
+  const { property, reviews, canonicalUrl, language = 'en', entityId } = options;
 
   const pickLang = (value: string | { en?: string; ro?: string } | undefined): string | undefined => {
     if (!value) return undefined;
@@ -726,6 +819,7 @@ export function buildReviewPageJsonLd(options: {
   return {
     '@context': 'https://schema.org',
     '@type': 'VacationRental',
+    ...(entityId && { '@id': entityId }),
     name,
     url: canonicalUrl,
     ...(totalCount > 0 && {

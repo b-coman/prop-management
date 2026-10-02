@@ -10,7 +10,10 @@ import { LanguageProvider } from '@/lib/language-system';
 import { getServerTranslations } from '@/lib/language-system/server-translations';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
 import { serverTranslateContent } from '@/lib/server-language-utils';
-import { buildVacationRentalJsonLd, buildBreadcrumbJsonLd, buildLodgingBusinessJsonLd, buildImageGalleryJsonLd, buildFAQPageJsonLd, buildAreaGuideJsonLd, buildReviewPageJsonLd, getCanonicalUrl, getBaseUrl } from '@/lib/structured-data';
+import { buildVacationRentalJsonLd, buildBreadcrumbJsonLd, buildLodgingBusinessJsonLd, buildImageGalleryJsonLd, buildFAQPageJsonLd, buildAreaGuideJsonLd, buildReviewPageJsonLd, getCanonicalUrl, getBaseUrl, buildPropertyTagline, buildSameAs, propertyEntityId } from '@/lib/structured-data';
+import { serverT } from '@/lib/language-system/server-translations';
+import { getPublicListings } from '@/services/channelService';
+import { textInLanguage, getPageLabel } from '@/lib/site-property';
 import { resolveOgImage } from '@/lib/og-image';
 import { getAmenitiesByRefs } from '@/lib/amenity-utils';
 import { TrackViewItem } from '@/components/tracking/track-page-view';
@@ -228,13 +231,20 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
     overrides?.propertyMeta?.name || property.name,
     language,
   );
-  const propertyDescription = serverTranslateContent(
-    overrides?.propertyMeta?.shortDescription || overrides?.propertyMeta?.description ||
-    property.shortDescription || property.description,
-    language,
-  ) || (language === 'ro'
-    ? `Rezervă ${propertyName} - cazare de vacanță`
-    : `Book ${propertyName} - vacation rental`);
+  // "Mountain chalet rental in Comarnic, Prahova" / "Cabană de închiriat în Comarnic, Prahova"
+  const tagline = buildPropertyTagline(property, language);
+  // First description that exists in THIS language. Falling back to another language's text is
+  // how the Romanian homepage ended up with English metadata.
+  const propertyDescription = [
+    overrides?.propertyMeta?.shortDescription,
+    overrides?.propertyMeta?.description,
+    property.shortDescription,
+    property.description,
+  ].map((value) => textInLanguage(value, language)).find(Boolean)
+    || serverT(language, 'seo.homeDescriptionFallback', `${tagline}. Book ${propertyName} directly.`, {
+      tagline,
+      name: propertyName,
+    });
 
   // Build page-specific meta description
   const city = property.location?.city || '';
@@ -284,16 +294,13 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
   })();
 
   // Build page-specific title with location keywords for SEO
-  // Homepage: "Property Name - City, Region" | Subpages: "Page Label - Property Name, City"
+  // Homepage: "Property Name - <what it is> in City, Region" | Subpages: "Page Label - Property Name, City"
   const locationCity = city || '';
   let pageTitle = propertyName;
   if (pageName === 'homepage') {
-    const locationParts = [city, region].filter(Boolean).join(', ');
-    if (locationParts) {
-      pageTitle = `${propertyName} - ${locationParts}`;
-    }
-  } else if (template?.pages?.[pageName]?.title) {
-    const pageLabel = serverTranslateContent(template.pages[pageName].title, language);
+    pageTitle = `${propertyName} - ${tagline}`;
+  } else {
+    const pageLabel = getPageLabel(pageName, language, template, overrides);
     if (pageLabel) {
       pageTitle = locationCity
         ? `${pageLabel} - ${propertyName}, ${locationCity}`
@@ -548,19 +555,28 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   let publishedReviews: Review[] = [];
   let allReviews: RichReview[] = [];
 
+  // One JSON-LD entity per property, whatever the page or language
+  const entityId = propertyEntityId(getCanonicalUrl(slug, customDomain));
+
   if (pageName === 'homepage') {
-    // Homepage: VacationRental + LodgingBusiness (for Google Maps)
-    const [amenities, publishedReviewCount, fetchedReviews] = await Promise.all([
+    // Homepage: VacationRental + LodgingBusiness (for Google Maps), one entity via the shared @id
+    const [amenities, publishedReviewCount, fetchedReviews, listings] = await Promise.all([
       property.amenityRefs?.length ? getAmenitiesByRefs(property.amenityRefs) : [],
       getPublishedReviewCount(slug),
       getPublishedReviewsForProperty(slug, 10),
+      getPublicListings(slug),
     ]);
     publishedReviews = fetchedReviews;
     const telephone = template?.footer?.contactInfo?.phone || undefined;
     // Prefer override description for JSON-LD (same priority as meta description)
     const descriptionOverride = overrides?.propertyMeta?.description || overrides?.propertyMeta?.shortDescription;
-    vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl, telephone, publishedReviewCount, publishedReviews, language, descriptionOverride });
-    lodgingBusinessJsonLd = buildLodgingBusinessJsonLd({ property, canonicalUrl, telephone, publishedReviewCount, publishedReviews, language, descriptionOverride });
+    const sameAs = buildSameAs({
+      property,
+      listingUrls: listings.map((l) => l.url),
+      socialLinks: overrides?.footer?.socialLinks,
+    });
+    vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl, telephone, publishedReviewCount, publishedReviews, language, descriptionOverride, entityId, sameAs });
+    lodgingBusinessJsonLd = buildLodgingBusinessJsonLd({ property, canonicalUrl, telephone, publishedReviewCount, publishedReviews, language, descriptionOverride, entityId, sameAs });
     faqPageJsonLd = buildFAQPageJsonLd({ property, language });
   } else if (pageName === 'gallery') {
     // Gallery page: ImageGallery schema
@@ -573,15 +589,15 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     // Reviews page: fetch all reviews + build AggregateRating JSON-LD
     allReviews = await getAllPublishedReviewsForProperty(slug);
     if (allReviews.length > 0) {
-      reviewPageJsonLd = buildReviewPageJsonLd({ property, reviews: allReviews, canonicalUrl, language });
+      reviewPageJsonLd = buildReviewPageJsonLd({ property, reviews: allReviews, canonicalUrl, language, entityId });
     }
   }
 
-  // Build breadcrumb with subpage level when not on homepage
-  const pageLabel = pageName !== 'homepage' && template?.pages?.[pageName]?.title
-    ? serverTranslateContent(template.pages[pageName].title, language)
+  // Build breadcrumb with subpage level when not on homepage, in the page language
+  const pageLabel = pageName !== 'homepage'
+    ? getPageLabel(pageName, language, template, overrides)
     : undefined;
-  const breadcrumbJsonLd = buildBreadcrumbJsonLd(propertyNameStr, slug, baseUrl, pageName, pageLabel || undefined, customDomain);
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd(propertyNameStr, slug, baseUrl, pageName, pageLabel || undefined, customDomain, language);
 
   // Local image blur map for blur placeholders (imported as JSON module)
   const localBlurMap = blurMapData as Record<string, string>;

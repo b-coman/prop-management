@@ -60,6 +60,29 @@ export async function getChannels(propertyId: string): Promise<ChannelSet> {
   };
 }
 
+/** A public OTA listing of the property, for `sameAs` links and llms.txt. */
+export interface PublicListing {
+  channelId: ChannelId;
+  displayName: string;
+  url: string;
+}
+
+/**
+ * The property's live listings on other sites: active OTA channels that have a listing URL.
+ * Public-page helper, so it never throws - a failed read just means no links on that render.
+ */
+export async function getPublicListings(propertyId: string): Promise<PublicListing[]> {
+  try {
+    const { active } = await getChannels(propertyId);
+    return active
+      .filter((c) => c.channelId !== 'direct' && typeof c.listingUrl === 'string' && /^https?:\/\//.test(c.listingUrl))
+      .map((c) => ({ channelId: c.channelId, displayName: c.displayName || c.channelId, url: c.listingUrl as string }));
+  } catch (error) {
+    logger.warn('Could not read public listings', { propertyId, error: (error as Error)?.message });
+    return [];
+  }
+}
+
 export async function getChannel(propertyId: string, channelId: ChannelId): Promise<ChannelConfig | null> {
   const db = await getAdminDb();
   const doc = await db.collection(COLLECTION).doc(channelDocId(propertyId, channelId)).get();
