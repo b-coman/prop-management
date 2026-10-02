@@ -102,6 +102,7 @@ import { ReviewsListSection } from '@/components/property/reviews-list-section';
 import { useLanguage } from '@/hooks/useLanguage';
 import { languageToLocale } from '@/lib/utils';
 import { buildDisplayedPolicies } from '@/lib/house-policies';
+import { DEFAULT_LANGUAGE } from '@/lib/language-constants';
 
 // Map of block types to their rendering components
 const blockComponents: Record<string, React.FC<{ content: any; language?: string }>> = {
@@ -239,6 +240,17 @@ export function PropertyPageRenderer({
   // Logo - use template defaults
   const logoSrc = template.header.logo?.src;
   const logoAlt = template.header.logo?.alt ? tc(template.header.logo.alt) : undefined;
+
+  // Links between this property's pages, in the page language: /ro/gallery on a custom domain,
+  // /properties/{slug}/ro/gallery on the app host. Same shape the header menu produces. Absolute
+  // URLs are left alone.
+  const localizeUrl = (url: string): string => {
+    if (!url.startsWith('/')) return url;
+    const langPrefix = language !== DEFAULT_LANGUAGE ? `/${language}` : '';
+    const pagePath = url === '/' ? '' : url;
+    if (isCustomDomain) return `${langPrefix}${pagePath}` || '/';
+    return `/properties/${propertySlug}${langPrefix}${pagePath}`;
+  };
 
   // Most blocks store a bare image URL string rather than a PropertyImage, so
   // the 1200px derivative is swapped in by exact-URL match at the block
@@ -462,12 +474,9 @@ export function PropertyPageRenderer({
         }
         // Process viewAllUrl for proper routing (same pattern as CTA buttonUrl)
         if (blockContent?.viewAllUrl) {
-          const rawUrl = blockContent.viewAllUrl;
           blockContent = {
             ...blockContent,
-            viewAllUrl: (!rawUrl.startsWith('http') && !isCustomDomain)
-              ? `/properties/${propertySlug}${rawUrl}`
-              : rawUrl,
+            viewAllUrl: localizeUrl(blockContent.viewAllUrl),
           };
         }
       } else if (type === 'cta') {
@@ -484,9 +493,7 @@ export function PropertyPageRenderer({
         if (!configuredUrl || configuredUrl === '/') {
           processedUrl = `/booking/check/${propertySlug}`;
         } else {
-          processedUrl = (!configuredUrl.startsWith('http') && !isCustomDomain)
-            ? `/properties/${propertySlug}${configuredUrl}`
-            : configuredUrl;
+          processedUrl = localizeUrl(configuredUrl);
         }
         blockContent = {
           ...blockContent,
@@ -591,9 +598,7 @@ export function PropertyPageRenderer({
             propertyLocation: property.location,
             attractions: homepageAttractions,
             compactPreview: isCompactPreview,
-            locationPageUrl: isCompactPreview
-              ? (isCustomDomain ? '/location' : `/properties/${propertySlug}/location`)
-              : undefined,
+            locationPageUrl: isCompactPreview ? localizeUrl('/location') : undefined,
           };
         } else if (type === 'testimonials') {
           // Convert date from various Firestore formats (string, Timestamp, Date),
@@ -784,6 +789,7 @@ export function PropertyPageRenderer({
           propertyName={propertyName}
           propertySlug={propertySlug}
           isCustomDomain={isCustomDomain}
+          currentPagePath={pageName === 'homepage' ? '' : `/${pageName}`}
         />
       </div>
     </ThemeProvider>
