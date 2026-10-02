@@ -633,6 +633,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   let reviewPageJsonLd: Record<string, unknown> | null = null;
   let publishedReviews: Review[] = [];
   let allReviews: RichReview[] = [];
+  let reviewListings: Array<{ channelId: string; displayName: string; url: string }> = [];
 
   // One JSON-LD entity per property, whatever the page or language
   const entityId = propertyEntityId(getCanonicalUrl(slug, customDomain));
@@ -666,7 +667,12 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     areaGuideJsonLd = buildAreaGuideJsonLd({ property, canonicalUrl, language, descriptionOverride });
   } else if (pageName === 'reviews') {
     // Reviews page: fetch all reviews + build AggregateRating JSON-LD
-    allReviews = await getAllPublishedReviewsForProperty(slug);
+    [allReviews, reviewListings] = await Promise.all([
+      getAllPublishedReviewsForProperty(slug),
+      // The same place is listed on the OTAs under other names; the reviews page names them and
+      // links them, so guests and AI readers can tell it is one property.
+      getPublicListings(slug),
+    ]);
     if (allReviews.length > 0) {
       reviewPageJsonLd = buildReviewPageJsonLd({ property, reviews: allReviews, canonicalUrl, language, entityId });
     }
@@ -755,6 +761,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
             property={clientProperty}
             publishedReviews={publishedReviews}
             allReviews={allReviews.length > 0 ? allReviews : undefined}
+            otaListings={reviewListings.length > 0 ? reviewListings : undefined}
             localBlurMap={localBlurMap}
             isCustomDomain={isCustomDomain}
           />

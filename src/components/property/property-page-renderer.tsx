@@ -156,6 +156,7 @@ interface PropertyPageRendererProps {
   property?: Property; // Full property object for homepage rendering
   publishedReviews?: Review[]; // Real reviews from Firestore
   allReviews?: RichReview[]; // All published reviews with rich metadata (for reviews page)
+  otaListings?: Array<{ channelId: string; displayName: string; url: string }>; // OTA listings of this property (for reviews page)
   localBlurMap?: Record<string, string>; // Blur placeholders for local images
   isCustomDomain?: boolean; // Whether the request came through a custom domain
 }
@@ -177,6 +178,7 @@ export function PropertyPageRenderer({
   property, // Homepage-specific property data
   publishedReviews, // Real reviews from Firestore
   allReviews, // All published reviews with rich metadata (for reviews page)
+  otaListings,
   localBlurMap,
   isCustomDomain = false,
 }: PropertyPageRendererProps) {
@@ -679,6 +681,8 @@ export function PropertyPageRenderer({
             sourceBreakdown: sourceCounts,
           },
           propertySlug: propertySlug,
+          otaListings,
+          alternateNames: property?.alternateNames,
         };
       }
 

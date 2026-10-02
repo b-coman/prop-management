@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/hooks/useLanguage';
 import { ReviewCard } from '@/components/property/review-card';
+import { trackUiEvent } from '@/lib/tracking';
 import type { RichReview } from '@/types';
 
 interface AggregateStats {
@@ -24,6 +25,10 @@ interface ReviewsListContent {
   reviews?: RichReview[];
   aggregateStats?: AggregateStats;
   propertySlug?: string;
+  // The same place on the OTAs, often under another name (Booking.com and Airbnb titles differ from
+  // ours). Naming and linking them tells guests, search engines and AI assistants it is one property.
+  otaListings?: Array<{ channelId: string; displayName: string; url: string }>;
+  alternateNames?: string[];
 }
 
 interface ReviewsListSectionProps {
@@ -48,6 +53,10 @@ const labels = {
   clearFilters: { en: 'Clear filters', ro: 'Șterge filtrele' },
   loadMore: { en: 'Load more reviews', ro: 'Încarcă mai multe recenzii' },
   remaining: { en: 'remaining', ro: 'rămase' },
+  alsoFoundAs: { en: 'You can also find us as', ro: 'Ne găsiți și sub numele' },
+  or: { en: 'or', ro: 'sau' },
+  on: { en: 'on', ro: 'pe' },
+  alsoFoundOn: { en: 'You can also find us on', ro: 'Ne găsiți și pe' },
 } as const;
 
 function renderStars(rating: number) {
@@ -303,6 +312,41 @@ export function ReviewsListSection({ content }: ReviewsListSectionProps) {
               {l('loadMore')} ({filteredReviews.length - visibleCount} {l('remaining')})
             </Button>
           </div>
+        )}
+
+        {/* Other listings of this same property */}
+        {!!content.otaListings?.length && (
+          <p className="mt-10 text-center text-sm text-muted-foreground">
+            {content.alternateNames?.length ? (
+              <>
+                {l('alsoFoundAs')}{' '}
+                {content.alternateNames.map((name, i) => (
+                  <span key={name}>
+                    {i > 0 && ` ${l('or')} `}
+                    <span className="font-medium text-foreground">{lang === 'ro' ? '„' : '“'}{name}”</span>
+                  </span>
+                ))}{' '}
+                {l('on')}{' '}
+              </>
+            ) : (
+              <>{l('alsoFoundOn')} </>
+            )}
+            {content.otaListings.map((listing, i) => (
+              <span key={listing.channelId}>
+                {i > 0 && ', '}
+                <a
+                  href={listing.url}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  className="underline underline-offset-2 hover:text-foreground"
+                  onClick={() => trackUiEvent('ota_click', { ota_channel: listing.channelId })}
+                >
+                  {listing.displayName}
+                </a>
+              </span>
+            ))}
+            .
+          </p>
         )}
       </div>
     </section>
