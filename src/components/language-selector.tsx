@@ -10,11 +10,7 @@ import {
 import { Globe, Check, ChevronDown } from "lucide-react";
 import { useLanguage } from "@/hooks/useLanguage";
 import { cn } from "@/lib/utils";
-
-const languages = [
-  { code: 'en', name: 'English', flag: 'EN' },
-  { code: 'ro', name: 'Română', flag: 'RO' }
-];
+import { LANGUAGE_OPTIONS as languages } from "@/lib/language-constants";
 
 interface LanguageSelectorProps {
   className?: string;

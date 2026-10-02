@@ -48,7 +48,30 @@ function guideRateLimited(request: NextRequest): boolean {
   return entry.count > GUIDE_MAX;
 }
 
+/**
+ * Firebase App Hosting also serves the whole app on its default `*.hosted.app` domain. Those pages
+ * are copies of the custom-domain pages (plus a generic RentalSpot root) and must not compete with
+ * them in search, so every response on that host says noindex. Redirecting is deliberately not done:
+ * the default domain is still useful for checking a deploy.
+ */
+function isAppHostingDefaultDomain(request: NextRequest): boolean {
+  const host = (request.headers.get('x-forwarded-host') || request.headers.get('host') || '')
+    .split(',')[0]
+    .trim()
+    .toLowerCase()
+    .split(':')[0];
+  return host.endsWith('.hosted.app');
+}
+
 export async function middleware(request: NextRequest) {
+  const response = await routeRequest(request);
+  if (isAppHostingDefaultDomain(request)) {
+    response.headers.set('X-Robots-Tag', 'noindex');
+  }
+  return response;
+}
+
+async function routeRequest(request: NextRequest): Promise<NextResponse> {
   const url = request.nextUrl.clone();
   const pathname = url.pathname;
 

@@ -598,5 +598,23 @@
     "now": "Acum",
     "soon": "Curând",
     "later": "Mai Târziu"
+  },
+  "seo": {
+    "propertyType": {
+      "chalet": "Cabană de închiriat",
+      "cabin": "Cabană de închiriat",
+      "villa": "Vilă de închiriat",
+      "apartment": "Apartament de închiriat",
+      "house": "Casă de vacanță de închiriat",
+      "cottage": "Căsuță de vacanță de închiriat",
+      "studio": "Garsonieră de închiriat",
+      "bungalow": "Bungalou de închiriat",
+      "entire_place": "Cazare de închiriat",
+      "default": "Cazare de închiriat"
+    },
+    "typeIn": "{{type}} în {{place}}",
+    "homeDescriptionFallback": "{{tagline}}. Rezervă direct la {{name}}.",
+    "priceFromPerNight": "De la {{price}} {{currency}} pe noapte",
+    "breadcrumbHome": "Acasă"
   }
 }

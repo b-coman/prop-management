@@ -598,5 +598,23 @@
     "now": "Now",
     "soon": "Soon",
     "later": "Later"
+  },
+  "seo": {
+    "propertyType": {
+      "chalet": "Mountain chalet rental",
+      "cabin": "Cabin rental",
+      "villa": "Villa rental",
+      "apartment": "Apartment rental",
+      "house": "Holiday home rental",
+      "cottage": "Cottage rental",
+      "studio": "Studio rental",
+      "bungalow": "Bungalow rental",
+      "entire_place": "Vacation rental",
+      "default": "Vacation rental"
+    },
+    "typeIn": "{{type}} in {{place}}",
+    "homeDescriptionFallback": "{{tagline}}. Book {{name}} directly.",
+    "priceFromPerNight": "From {{price}} {{currency}} per night",
+    "breadcrumbHome": "Home"
   }
 }

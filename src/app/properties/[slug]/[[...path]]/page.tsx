@@ -10,7 +10,10 @@ import { LanguageProvider } from '@/lib/language-system';
 import { getServerTranslations } from '@/lib/language-system/server-translations';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
 import { serverTranslateContent } from '@/lib/server-language-utils';
-import { buildVacationRentalJsonLd, buildBreadcrumbJsonLd, buildLodgingBusinessJsonLd, buildImageGalleryJsonLd, buildFAQPageJsonLd, buildAreaGuideJsonLd, buildReviewPageJsonLd, getCanonicalUrl, getBaseUrl } from '@/lib/structured-data';
+import { buildVacationRentalJsonLd, buildBreadcrumbJsonLd, buildLodgingBusinessJsonLd, buildImageGalleryJsonLd, buildFAQPageJsonLd, buildAreaGuideJsonLd, buildReviewPageJsonLd, getCanonicalUrl, getBaseUrl, buildPropertyTagline, buildSameAs, propertyEntityId } from '@/lib/structured-data';
+import { serverT } from '@/lib/language-system/server-translations';
+import { getPublicListings } from '@/services/channelService';
+import { textInLanguage, getPageLabel } from '@/lib/site-property';
 import { resolveOgImage } from '@/lib/og-image';
 import { getAmenitiesByRefs } from '@/lib/amenity-utils';
 import { TrackViewItem } from '@/components/tracking/track-page-view';
@@ -192,6 +195,101 @@ async function resolveOverrideAmenityRefs(overrides: any): Promise<any> {
   return enriched;
 }
 
+/**
+ * Property fields no guest page reads. The property object crosses into the RSC payload, so
+ * anything left on it is published in every page's HTML, for every crawler.
+ */
+const SERVER_ONLY_PROPERTY_FIELDS = [
+  'icalExportToken',
+  'shareCalendarToken',
+  'guestCalendarToken',
+  'ownerEmail',
+  'ownerId',
+  'analytics',
+  'brandVoice',
+  'channelPricing',
+  '_translationStatus',
+  'updatedBy',
+] as const;
+
+/**
+ * The slice of the overrides doc the renderer reads (see PropertyPageRenderer): visibility, menu,
+ * footer, propertyMeta, the current page, and the location page for the homepage preview. The rest
+ * - the guest guide above all, with its WiFi password and arrival instructions - stays on the server.
+ */
+function overridesForClient(overrides: any, pageName: string): any {
+  const keys = ['visiblePages', 'menuItems', 'footer', 'propertyMeta', pageName];
+  if (pageName === 'homepage') keys.push('location');
+  const result: Record<string, unknown> = {};
+  for (const key of keys) {
+    if (overrides?.[key] !== undefined) result[key] = overrides[key];
+  }
+  return result;
+}
+
+/**
+ * The slice of the template the renderer reads for this page. The full template carries demo
+ * content for every block on every page (a 14-day cancellation policy, contact@example.com, the
+ * example.com social links) and all of it was shipping in the page HTML, where crawlers read it as
+ * this property's terms. Kept: the current page (and the homepage it falls back to), the header and
+ * footer fallbacks the overrides do not already replace, and only the defaults of blocks rendered
+ * here, minus any fields every one of those blocks overrides.
+ */
+function templateForClient(template: any, overrides: any, pageName: string): any {
+  const pages: Record<string, unknown> = {};
+  if (template.pages?.[pageName]) pages[pageName] = template.pages[pageName];
+  if (template.pages?.homepage) pages.homepage = template.pages.homepage;
+
+  const page = template.pages?.[pageName] || template.pages?.homepage;
+  const pageOverrides = (overrides?.[pageName] || {}) as Record<string, any>;
+  const blocks: Array<{ id: string; type: string }> = page?.blocks || [];
+  const visibleBlocks: string[] = pageOverrides.visibleBlocks || blocks.map((b) => b.id);
+
+  // Which blocks use which default (same lookup as the renderer: by id, then by type)
+  const users = new Map<string, Array<Record<string, any> | undefined>>();
+  for (const block of blocks) {
+    if (!visibleBlocks.includes(block.id)) continue;
+    const key = template.defaults?.[block.id] !== undefined ? block.id
+      : template.defaults?.[block.type] !== undefined ? block.type
+      : null;
+    if (!key) continue;
+    users.set(key, [...(users.get(key) || []), pageOverrides[block.id]]);
+  }
+
+  const defaults: Record<string, unknown> = {};
+  for (const [key, blockOverrides] of users) {
+    const value = template.defaults[key];
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      defaults[key] = value;
+      continue;
+    }
+    // A field is dead weight only when every block using this default overrides it
+    const trimmed: Record<string, unknown> = {};
+    for (const [field, fieldValue] of Object.entries(value)) {
+      const overriddenEverywhere = blockOverrides.every(
+        (o) => o && typeof o === 'object' && o[field] !== undefined,
+      );
+      if (!overriddenEverywhere) trimmed[field] = fieldValue;
+    }
+    defaults[key] = trimmed;
+  }
+
+  const header = { ...template.header };
+  if (overrides?.menuItems) delete header.menuItems;
+  const footer: Record<string, unknown> = {};
+  if (!overrides?.footer?.quickLinks && template.footer?.quickLinks) footer.quickLinks = template.footer.quickLinks;
+  if (!overrides?.footer?.contactInfo && template.footer?.contactInfo) footer.contactInfo = template.footer.contactInfo;
+
+  return {
+    templateId: template.templateId,
+    name: template.name,
+    pages,
+    header,
+    footer,
+    defaults,
+  };
+}
+
 interface PropertyPageProps {
   params: Promise<{
     slug: string;
@@ -228,13 +326,20 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
     overrides?.propertyMeta?.name || property.name,
     language,
   );
-  const propertyDescription = serverTranslateContent(
-    overrides?.propertyMeta?.shortDescription || overrides?.propertyMeta?.description ||
-    property.shortDescription || property.description,
-    language,
-  ) || (language === 'ro'
-    ? `Rezervă ${propertyName} - cazare de vacanță`
-    : `Book ${propertyName} - vacation rental`);
+  // "Mountain chalet rental in Comarnic, Prahova" / "Cabană de închiriat în Comarnic, Prahova"
+  const tagline = buildPropertyTagline(property, language);
+  // First description that exists in THIS language. Falling back to another language's text is
+  // how the Romanian homepage ended up with English metadata.
+  const propertyDescription = [
+    overrides?.propertyMeta?.shortDescription,
+    overrides?.propertyMeta?.description,
+    property.shortDescription,
+    property.description,
+  ].map((value) => textInLanguage(value, language)).find(Boolean)
+    || serverT(language, 'seo.homeDescriptionFallback', `${tagline}. Book ${propertyName} directly.`, {
+      tagline,
+      name: propertyName,
+    });
 
   // Build page-specific meta description
   const city = property.location?.city || '';
@@ -284,16 +389,13 @@ export async function generateMetadata({ params }: PropertyPageProps): Promise<M
   })();
 
   // Build page-specific title with location keywords for SEO
-  // Homepage: "Property Name - City, Region" | Subpages: "Page Label - Property Name, City"
+  // Homepage: "Property Name - <what it is> in City, Region" | Subpages: "Page Label - Property Name, City"
   const locationCity = city || '';
   let pageTitle = propertyName;
   if (pageName === 'homepage') {
-    const locationParts = [city, region].filter(Boolean).join(', ');
-    if (locationParts) {
-      pageTitle = `${propertyName} - ${locationParts}`;
-    }
-  } else if (template?.pages?.[pageName]?.title) {
-    const pageLabel = serverTranslateContent(template.pages[pageName].title, language);
+    pageTitle = `${propertyName} - ${tagline}`;
+  } else {
+    const pageLabel = getPageLabel(pageName, language, template, overrides);
     if (pageLabel) {
       pageTitle = locationCity
         ? `${pageLabel} - ${propertyName}, ${locationCity}`
@@ -548,19 +650,28 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   let publishedReviews: Review[] = [];
   let allReviews: RichReview[] = [];
 
+  // One JSON-LD entity per property, whatever the page or language
+  const entityId = propertyEntityId(getCanonicalUrl(slug, customDomain));
+
   if (pageName === 'homepage') {
-    // Homepage: VacationRental + LodgingBusiness (for Google Maps)
-    const [amenities, publishedReviewCount, fetchedReviews] = await Promise.all([
+    // Homepage: VacationRental + LodgingBusiness (for Google Maps), one entity via the shared @id
+    const [amenities, publishedReviewCount, fetchedReviews, listings] = await Promise.all([
       property.amenityRefs?.length ? getAmenitiesByRefs(property.amenityRefs) : [],
       getPublishedReviewCount(slug),
       getPublishedReviewsForProperty(slug, 10),
+      getPublicListings(slug),
     ]);
     publishedReviews = fetchedReviews;
     const telephone = template?.footer?.contactInfo?.phone || undefined;
     // Prefer override description for JSON-LD (same priority as meta description)
     const descriptionOverride = overrides?.propertyMeta?.description || overrides?.propertyMeta?.shortDescription;
-    vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl, telephone, publishedReviewCount, publishedReviews, language, descriptionOverride });
-    lodgingBusinessJsonLd = buildLodgingBusinessJsonLd({ property, canonicalUrl, telephone, publishedReviewCount, publishedReviews, language, descriptionOverride });
+    const sameAs = buildSameAs({
+      property,
+      listingUrls: listings.map((l) => l.url),
+      socialLinks: overrides?.footer?.socialLinks,
+    });
+    vacationRentalJsonLd = buildVacationRentalJsonLd({ property, amenities, canonicalUrl, telephone, publishedReviewCount, publishedReviews, language, descriptionOverride, entityId, sameAs });
+    lodgingBusinessJsonLd = buildLodgingBusinessJsonLd({ property, canonicalUrl, telephone, publishedReviewCount, publishedReviews, language, descriptionOverride, entityId, sameAs });
     faqPageJsonLd = buildFAQPageJsonLd({ property, language });
   } else if (pageName === 'gallery') {
     // Gallery page: ImageGallery schema
@@ -573,15 +684,15 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     // Reviews page: fetch all reviews + build AggregateRating JSON-LD
     allReviews = await getAllPublishedReviewsForProperty(slug);
     if (allReviews.length > 0) {
-      reviewPageJsonLd = buildReviewPageJsonLd({ property, reviews: allReviews, canonicalUrl, language });
+      reviewPageJsonLd = buildReviewPageJsonLd({ property, reviews: allReviews, canonicalUrl, language, entityId });
     }
   }
 
-  // Build breadcrumb with subpage level when not on homepage
-  const pageLabel = pageName !== 'homepage' && template?.pages?.[pageName]?.title
-    ? serverTranslateContent(template.pages[pageName].title, language)
+  // Build breadcrumb with subpage level when not on homepage, in the page language
+  const pageLabel = pageName !== 'homepage'
+    ? getPageLabel(pageName, language, template, overrides)
     : undefined;
-  const breadcrumbJsonLd = buildBreadcrumbJsonLd(propertyNameStr, slug, baseUrl, pageName, pageLabel || undefined, customDomain);
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd(propertyNameStr, slug, baseUrl, pageName, pageLabel || undefined, customDomain, language);
 
   // Local image blur map for blur placeholders (imported as JSON module)
   const localBlurMap = blurMapData as Record<string, string>;
@@ -597,6 +708,13 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     ...property,
     images: property.images?.map(({ aiDescription, ...img }) => img),
   };
+  for (const field of SERVER_ONLY_PROPERTY_FIELDS) {
+    delete (clientProperty as Record<string, unknown>)[field];
+  }
+
+  // Same reasoning for the template and overrides: send what this page renders, nothing else.
+  const clientTemplate = templateForClient(template, overrides, pageName);
+  const clientOverrides = overridesForClient(overrides, pageName);
 
   // Always wrap in LanguageProvider to keep the component tree structure identical
   // across language switches (prevents React from unmounting/remounting everything)
@@ -649,8 +767,8 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
       <LanguageProvider initialLanguage={language} initialTranslations={getServerTranslations(language)}>
         <Suspense fallback={<div>Loading property details...</div>}>
           <PropertyPageRenderer
-            template={template}
-            overrides={overrides}
+            template={clientTemplate}
+            overrides={clientOverrides}
             propertyName={renderedPropertyName}
             propertySlug={slug}
             pageName={renderedPageName}

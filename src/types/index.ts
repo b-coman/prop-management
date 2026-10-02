@@ -117,6 +117,12 @@ export interface Property {
   id: string; // Document ID from Firestore (which is the slug)
   slug: string; // URL-friendly identifier, same as id
   name: MultilingualString;
+  /**
+   * Other names the same property is listed under, e.g. its Booking.com or Airbnb listing title.
+   * Output as JSON-LD `alternateName` and in llms.txt so search engines and AI assistants can tell
+   * the listings are one place. Set by hand in Firestore; optional.
+   */
+  alternateNames?: string[];
   description?: MultilingualString;
   shortDescription?: MultilingualString;
   location: Location;

@@ -1,90 +1,76 @@
 import type { MetadataRoute } from 'next';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { headers } from 'next/headers';
+import { getAdminDb } from '@/lib/firebaseAdminSafe';
+import { loggers } from '@/lib/logger';
+import { publicOriginForProperty } from '@/lib/domain-map';
+import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/lib/language-constants';
+import {
+  requestHostFrom,
+  resolvePropertySlugForHost,
+  loadPropertySite,
+  pageUrl,
+  type PropertySite,
+} from '@/lib/site-property';
 
-function normalizeHost(): string {
-  let host = process.env.NEXT_PUBLIC_MAIN_APP_HOST || 'localhost:3000';
-  host = host.replace(/^https?:\/\//, '').replace(/\/+$/, '');
-  const protocol = host.includes('localhost') ? 'http' : 'https';
-  return `${protocol}://${host}`;
+const logger = loggers.contentData;
+
+/**
+ * Every page of a property in every language as its own <loc>, each carrying the full hreflang
+ * set. Only pages the property shows, and a lastmod only when the data records a real edit.
+ */
+function entriesFor(site: PropertySite): MetadataRoute.Sitemap {
+  const entries: MetadataRoute.Sitemap = [];
+  for (const pageName of site.visiblePages) {
+    const languages: Record<string, string> = {};
+    for (const lang of SUPPORTED_LANGUAGES) languages[lang] = pageUrl(site.baseUrl, pageName, lang);
+    languages['x-default'] = pageUrl(site.baseUrl, pageName, DEFAULT_LANGUAGE);
+
+    for (const lang of SUPPORTED_LANGUAGES) {
+      entries.push({
+        url: pageUrl(site.baseUrl, pageName, lang),
+        ...(site.lastModified && { lastModified: site.lastModified }),
+        changeFrequency: pageName === 'homepage' ? 'weekly' : 'monthly',
+        priority: pageName === 'homepage' ? 1.0 : 0.8,
+        alternates: { languages },
+      });
+    }
+  }
+  return entries;
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = normalizeHost();
-  const entries: MetadataRoute.Sitemap = [];
-  const subPages = ['gallery', 'location', 'details', 'booking', 'area-guide', 'reviews', 'privacy-policy', 'terms-of-service'];
-
-  // Detect requesting domain to filter sitemap per custom domain
-  const headersList = await headers();
-  const forwardedHost = headersList.get('x-forwarded-host') || headersList.get('host') || '';
-  const requestHost = forwardedHost.replace(/^https?:\/\//, '').replace(/\/+$/, '').replace(/^www\./, '');
-  const mainAppHost = (process.env.NEXT_PUBLIC_MAIN_APP_HOST || '').replace(/^https?:\/\//, '').replace(/\/+$/, '');
-  const isCustomDomainRequest = requestHost && requestHost !== mainAppHost && !requestHost.includes('localhost');
+  const host = requestHostFrom(await headers());
 
   try {
-    const propertiesRef = collection(db, 'properties');
-    const snapshot = await getDocs(propertiesRef);
-
-    for (const doc of snapshot.docs) {
-      const data = doc.data();
-      const slug = doc.id;
-      const customDomain = data.useCustomDomain && data.customDomain ? data.customDomain : null;
-      const normalizedCustomDomain = customDomain?.replace(/^https?:\/\//, '').replace(/\/+$/, '');
-
-      // If accessed from a custom domain, only include that domain's property
-      if (isCustomDomainRequest && normalizedCustomDomain !== requestHost) {
-        continue;
-      }
-
-      // Use custom domain as canonical URL when available, otherwise use main app URL
-      let propertyBase: string;
-      if (customDomain) {
-        const domain = customDomain.replace(/^https?:\/\//, '').replace(/\/+$/, '');
-        propertyBase = `https://${domain}`;
-      } else {
-        propertyBase = `${baseUrl}/properties/${slug}`;
-      }
-
-      const roBase = `${propertyBase}/ro`;
-
-      // Homepage
-      entries.push({
-        url: propertyBase,
-        lastModified: new Date(),
-        changeFrequency: 'weekly',
-        priority: 1.0,
-        alternates: {
-          languages: {
-            en: propertyBase,
-            ro: roBase,
-            'x-default': propertyBase,
-          },
-        },
-      });
-
-      // Subpages
-      for (const page of subPages) {
-        const pageUrl = `${propertyBase}/${page}`;
-        const roPageUrl = `${roBase}/${page}`;
-        entries.push({
-          url: pageUrl,
-          lastModified: new Date(),
-          changeFrequency: 'monthly',
-          priority: 0.8,
-          alternates: {
-            languages: {
-              en: pageUrl,
-              ro: roPageUrl,
-              'x-default': pageUrl,
-            },
-          },
-        });
-      }
+    // A property's own domain lists that property only.
+    const servedSlug = await resolvePropertySlugForHost(host);
+    if (servedSlug) {
+      const site = await loadPropertySite(servedSlug);
+      return site ? entriesFor(site) : [];
     }
-  } catch (error) {
-    console.error('Error generating sitemap:', error);
-  }
 
-  return entries;
+    // Any other host (the app host, *.hosted.app, localhost): list only properties whose public
+    // address is known to work. A property with a custom domain that is not wired up in the domain
+    // map is skipped rather than advertised: a domain saved on the property doc may not resolve yet.
+    const db = await getAdminDb();
+    const snapshot = await db.collection('properties').get();
+    const sites = await Promise.all(
+      snapshot.docs
+        .filter((doc) => (doc.data().status ?? 'active') === 'active')
+        .filter((doc) => {
+          const data = doc.data();
+          const hasCustomDomain = !!(data.useCustomDomain && data.customDomain);
+          return hasCustomDomain ? !!publicOriginForProperty(doc.id) : true;
+        })
+        .map((doc) => loadPropertySite(doc.id, doc.data())),
+    );
+    return sites
+      .filter((site): site is PropertySite => !!site)
+      // Pages on the App Hosting default domain are noindex (see middleware), so never list them
+      .filter((site) => !new URL(site.baseUrl).hostname.endsWith('.hosted.app'))
+      .flatMap(entriesFor);
+  } catch (error) {
+    logger.error('Error generating sitemap', error as Error, { host });
+    return [];
+  }
 }

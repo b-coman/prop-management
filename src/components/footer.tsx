@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Facebook, Instagram, Twitter } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
-import { DEFAULT_LANGUAGE } from '@/lib/language-constants';
+import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, LANGUAGE_OPTIONS } from '@/lib/language-constants';
 
 const socialIcons: Record<string, React.FC<{ size?: string | number }>> = {
   facebook: Facebook,
@@ -25,6 +25,11 @@ interface FooterProps {
   advertisedRateNote?: { en: string; ro: string };
   /** See HeaderProps.onNavClick — same contract, so a landing page records both ends of its nav. */
   onNavClick?: (destination: string) => void;
+  /**
+   * The current property page relative to the property root ('' for the homepage, '/gallery').
+   * When set, the footer links to the same page in the other languages.
+   */
+  currentPagePath?: string;
 }
 
 export function Footer({
@@ -36,10 +41,26 @@ export function Footer({
   isCustomDomain = false,
   advertisedRateNote,
   onNavClick,
+  currentPagePath,
 }: FooterProps) {
   const { t, tc, currentLang, getLocalizedPath } = useLanguage();
 
   const basePath = isCustomDomain ? '' : (propertySlug ? `/properties/${propertySlug}` : '');
+
+  // Plain links to this page in the other languages. The language switcher is a dropdown whose
+  // options only exist after a click, so crawlers found no link between /gallery and /ro/gallery.
+  // A normal <a> (full page load) on purpose: the server renders each language, and the language
+  // system picks it up from the URL as it does for any direct visit.
+  const otherLanguageLinks = currentPagePath !== undefined && (isCustomDomain || propertySlug)
+    ? SUPPORTED_LANGUAGES.filter((lang) => lang !== currentLang).map((lang) => {
+        const prefix = lang !== DEFAULT_LANGUAGE ? `/${lang}` : '';
+        return {
+          lang,
+          href: `${basePath}${prefix}${currentPagePath}` || '/',
+          label: LANGUAGE_OPTIONS.find((option) => option.code === lang)?.name || lang.toUpperCase(),
+        };
+      })
+    : [];
 
   const resolveUrl = (url: string) => {
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
@@ -137,6 +158,20 @@ export function Footer({
             >
               {t('footer.cookieSettings', 'Cookie Settings')}
             </button>
+            {otherLanguageLinks.map((link) => (
+              <span key={link.lang}>
+                {' · '}
+                <a
+                  href={link.href}
+                  hrefLang={link.lang}
+                  lang={link.lang}
+                  className="underline hover:text-foreground transition-colors"
+                  onClick={() => onNavClick?.(link.href)}
+                >
+                  {link.label}
+                </a>
+              </span>
+            ))}
           </p>
         </div>
       </div>

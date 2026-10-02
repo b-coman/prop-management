@@ -23,3 +23,37 @@ export function getServerTranslations(language: string | undefined): Record<stri
   if (language && DICTIONARIES[language]) return DICTIONARIES[language];
   return DICTIONARIES[DEFAULT_LANGUAGE] ?? {};
 }
+
+/**
+ * `t()` for server code: metadata, JSON-LD, sitemap and llms.txt are built before any provider
+ * exists. Same lookup and `{{var}}` substitution as the client `t()`, so a key reads the same on
+ * both sides. Falls back to the default language's string, then to `fallback`.
+ */
+export function serverT(
+  language: string | undefined,
+  key: string,
+  fallback?: string,
+  variables?: Record<string, string | number>,
+): string {
+  const lookup = (dict: Record<string, unknown>): string | undefined => {
+    let value: unknown = dict;
+    for (const k of key.split('.')) {
+      if (!value || typeof value !== 'object') return undefined;
+      value = (value as Record<string, unknown>)[k];
+    }
+    return typeof value === 'string' ? value : undefined;
+  };
+
+  let result =
+    lookup(getServerTranslations(language)) ??
+    lookup(getServerTranslations(DEFAULT_LANGUAGE)) ??
+    fallback ??
+    key;
+
+  if (variables) {
+    for (const [name, value] of Object.entries(variables)) {
+      result = result.split(`{{${name}}}`).join(String(value));
+    }
+  }
+  return result;
+}
