@@ -28,6 +28,7 @@ import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
 import { formatBucharestDate, getBucharestDay, getBucharestMonth } from '@/lib/dates/property-times';
 import { markOutboxSent } from '@/services/outboxService';
+import { getPropertySecrets } from '@/lib/property-secrets';
 
 const logger = loggers.adminBookings;
 
@@ -137,10 +138,7 @@ async function loadActiveBookings(propertyId: string): Promise<BookingDoc[]> {
 }
 
 async function loadShareToken(propertyId: string): Promise<string | undefined> {
-  const db = await getAdminDb();
-  const doc = await db.collection('properties').doc(propertyId).get();
-  if (!doc.exists) return undefined;
-  return doc.data()?.shareCalendarToken || undefined;
+  return (await getPropertySecrets(propertyId)).shareCalendarToken;
 }
 
 function calendarUrl(req: NextRequest, token: string | undefined): string | undefined {

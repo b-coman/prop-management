@@ -14,6 +14,7 @@
 
 import 'server-only';
 import { getAdminDb, Timestamp } from '@/lib/firebaseAdminSafe';
+import { findPropertyIdBySecret } from '@/lib/property-secrets';
 import { formatBucharestDate, iterateBucharestStayDays } from '@/lib/dates/property-times';
 import { getDaysInMonth } from 'date-fns';
 
@@ -84,14 +85,16 @@ function nightsBetween(checkIn: Date, checkOut: Date): number {
 export async function resolvePropertyByToken(token: string): Promise<{ propertyId: string; propertyName: string; mode: CalendarMode; imageUrl?: string } | null> {
   if (!token) return null;
   const db = await getAdminDb();
-  const [fullSnap, guestSnap] = await Promise.all([
-    db.collection('properties').where('shareCalendarToken', '==', token).limit(1).get(),
-    db.collection('properties').where('guestCalendarToken', '==', token).limit(1).get(),
+  const [fullId, guestId] = await Promise.all([
+    findPropertyIdBySecret('shareCalendarToken', token),
+    findPropertyIdBySecret('guestCalendarToken', token),
   ]);
-  const doc = !fullSnap.empty ? fullSnap.docs[0] : (!guestSnap.empty ? guestSnap.docs[0] : null);
-  if (!doc) return null;
-  const mode: CalendarMode = !fullSnap.empty ? 'full' : 'anonymized';
-  const data = doc.data();
+  const propertyId = fullId ?? guestId;
+  if (!propertyId) return null;
+  const mode: CalendarMode = fullId ? 'full' : 'anonymized';
+  const doc = await db.collection('properties').doc(propertyId).get();
+  if (!doc.exists) return null;
+  const data = doc.data() || {};
 
   // Pick a hero image for the link preview (og:image): featured first, then the
   // lowest sortOrder, then whatever is first.

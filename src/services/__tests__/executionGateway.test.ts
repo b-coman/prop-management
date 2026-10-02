@@ -6,6 +6,7 @@ jest.mock('@/lib/firebaseAdminSafe', () => ({
   FieldValue: { serverTimestamp: jest.fn(() => 'server-ts') },
 }));
 jest.mock('@/services/guestService', () => ({ getGuestById: jest.fn() }));
+jest.mock('@/lib/property-secrets', () => ({ getPropertySecrets: jest.fn().mockResolvedValue({}) }));
 jest.mock('@/services/whatsappService', () => ({
   // 2-arg (name, language) so we can assert language-variant selection
   resolveWhatsAppTemplateSid: jest.fn((name: string, lang: string) => (name === 'winter_invite' ? `HX-${lang}` : undefined)),
@@ -15,6 +16,7 @@ jest.mock('@/services/whatsappService', () => ({
 import { executeSend, isConsentBlocked, maskContact, resolveGuestLanguage, clearPropertyContextCache } from '../executionGateway';
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { getGuestById } from '@/services/guestService';
+import { getPropertySecrets } from '@/lib/property-secrets';
 import { sendWhatsAppTemplateBySid, resolveWhatsAppTemplateSid } from '@/services/whatsappService';
 import type { Guest } from '@/types';
 
@@ -22,6 +24,7 @@ const mockGetAdminDb = getAdminDb as jest.Mock;
 const mockGetGuestById = getGuestById as jest.Mock;
 const mockSendWhatsApp = sendWhatsAppTemplateBySid as jest.Mock;
 const mockResolve = resolveWhatsAppTemplateSid as jest.Mock;
+const mockGetPropertySecrets = getPropertySecrets as jest.Mock;
 
 function chainableGet(result: unknown) {
   const q: Record<string, jest.Mock> = {};
@@ -116,6 +119,7 @@ beforeEach(() => {
   delete process.env.GROWTH_ENGINE_ENABLED;
   delete process.env.GROWTH_ENGINE_SEND_MODE;
   clearPropertyContextCache(); // per-process cache must not leak between tests
+  mockGetPropertySecrets.mockResolvedValue({});
   mockSendWhatsApp.mockClear();
   mockSendWhatsApp.mockResolvedValue({ success: true, sid: 'SM-1' });
 });
@@ -303,9 +307,9 @@ describe('executeSend — live mode (both switches on)', () => {
         name: 'Prahova Mountain Chalet',
         useCustomDomain: true,
         customDomain: 'prahova-chalet.ro',
-        guestCalendarToken: 'tok123',
       },
     });
+    mockGetPropertySecrets.mockResolvedValue({ guestCalendarToken: 'tok123' });
     mockGetAdminDb.mockResolvedValue(db);
     mockGetGuestById.mockResolvedValue(guest());
     await executeSend({ guestId: 'g1', propertyId: 'prahova-mountain-chalet', channel: 'whatsapp', templateName: 'winter_invite' });

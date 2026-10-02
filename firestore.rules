@@ -49,6 +49,12 @@ service cloud.firestore {
       allow update: if canManageProperty(propertySlug);
     }
 
+    // Per-property secrets (calendar share tokens, iCal export token). Server-only via the
+    // Admin SDK. These used to sit on the public properties doc, readable by anyone.
+    match /propertySecrets/{propertyId} {
+      allow read, write: if false;
+    }
+
     // PropertyOverrides collection
     match /propertyOverrides/{propertyId} {
       allow read: if true;

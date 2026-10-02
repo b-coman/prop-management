@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
+import { getPropertySecrets } from '@/lib/property-secrets';
 import { loggers } from '@/lib/logger';
 import { convertTimestampsToISOStrings } from '@/lib/utils';
 import { normalizePhone } from '@/lib/sanitize';
@@ -335,7 +336,7 @@ export async function fetchReengagementContactsAction(propertyId: string): Promi
     // Branded guest calendar link from the property's custom domain (multi-property safe)
     const propDoc = await db.collection('properties').doc(propertyId).get();
     const p = propDoc.data() || {};
-    const token = p.guestCalendarToken;
+    const token = (await getPropertySecrets(propertyId)).guestCalendarToken;
     let calendarLink: string | null = null;
     if (token) {
       const base = p.useCustomDomain && p.customDomain ? `https://${p.customDomain}` : '';

@@ -69,7 +69,7 @@ async function main() {
 
   const propDoc = await db.collection('properties').doc(propertySlug).get();
   if (!propDoc.exists) { console.error(`Property '${propertySlug}' not found.`); process.exit(1); }
-  const token = propDoc.data()?.guestCalendarToken;
+  const token = (await db.collection('propertySecrets').doc(propertySlug).get()).data()?.guestCalendarToken;
   if (!token) { console.error(`Property '${propertySlug}' has no guestCalendarToken.`); process.exit(1); }
   const calendarLink = `${CONFIG.calendarBaseUrl.replace(/\/$/, '')}/calendar/${token}`;
   // Prefer the per-property template saved from the admin dialog; fall back to CONFIG.

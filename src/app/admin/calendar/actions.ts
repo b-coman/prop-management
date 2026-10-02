@@ -12,6 +12,7 @@ import type { MonthAvailabilityData, AvailabilityDayData, DayStatus } from './_l
 import { fetchAndParseICalFeed, syncFeedToAvailability } from '@/lib/ical/ical-import';
 import { getDaysInMonth, parseISO } from 'date-fns';
 import { formatBucharestDate, iterateBucharestStayDays } from '@/lib/dates/property-times';
+import { getPropertySecrets, setPropertySecret } from '@/lib/property-secrets';
 
 const logger = loggers.icalSync;
 const availLogger = loggers.availability;
@@ -217,8 +218,9 @@ export async function fetchExportConfig(propertyId: string): Promise<{
     if (!propertyDoc.exists) return {};
 
     const data = propertyDoc.data()!;
+    const secrets = await getPropertySecrets(propertyId);
     return {
-      icalExportToken: data.icalExportToken || undefined,
+      icalExportToken: secrets.icalExportToken,
       icalExportEnabled: data.icalExportEnabled || false,
     };
   } catch (error) {
@@ -231,13 +233,10 @@ export async function fetchExportConfig(propertyId: string): Promise<{
 export async function fetchShareCalendarConfig(propertyId: string): Promise<{ token?: string; guestToken?: string }> {
   try {
     await requirePropertyAccess(propertyId);
-    const db = await getAdminDb();
-    const propertyDoc = await db.collection('properties').doc(propertyId).get();
-    if (!propertyDoc.exists) return {};
-    const data = propertyDoc.data()!;
+    const secrets = await getPropertySecrets(propertyId);
     return {
-      token: data.shareCalendarToken || undefined,
-      guestToken: data.guestCalendarToken || undefined,
+      token: secrets.shareCalendarToken,
+      guestToken: secrets.guestCalendarToken,
     };
   } catch (error) {
     if (error instanceof AuthorizationError) return {};
@@ -249,12 +248,8 @@ export async function fetchShareCalendarConfig(propertyId: string): Promise<{ to
 export async function generateShareCalendarToken(propertyId: string): Promise<{ token?: string; error?: string }> {
   try {
     await requirePropertyAccess(propertyId);
-    const db = await getAdminDb();
     const token = randomUUID();
-    await db.collection('properties').doc(propertyId).update({
-      shareCalendarToken: token,
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+    await setPropertySecret(propertyId, 'shareCalendarToken', token);
     logger.info('Share calendar token generated', { propertyId });
     revalidatePath('/admin/calendar');
     return { token };
@@ -271,12 +266,8 @@ export async function generateShareCalendarToken(propertyId: string): Promise<{ 
 export async function generateGuestCalendarToken(propertyId: string): Promise<{ token?: string; error?: string }> {
   try {
     await requirePropertyAccess(propertyId);
-    const db = await getAdminDb();
     const token = randomUUID();
-    await db.collection('properties').doc(propertyId).update({
-      guestCalendarToken: token,
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+    await setPropertySecret(propertyId, 'guestCalendarToken', token);
     logger.info('Guest calendar token generated', { propertyId });
     revalidatePath('/admin/calendar');
     return { token };
@@ -293,8 +284,8 @@ export async function generateExportToken(propertyId: string): Promise<{ token?:
     const db = await getAdminDb();
 
     const token = randomUUID();
+    await setPropertySecret(propertyId, 'icalExportToken', token);
     await db.collection('properties').doc(propertyId).update({
-      icalExportToken: token,
       icalExportEnabled: true,
       updatedAt: FieldValue.serverTimestamp(),
     });

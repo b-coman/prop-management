@@ -210,7 +210,6 @@ export interface Property {
   enableContactOption?: boolean; // Toggle for enabling the contact option
   contactPhone?: string; // Per-property contact phone (used in structured data & footer)
   contactEmail?: string; // Per-property contact email (used in structured data & footer)
-  icalExportToken?: string; // Secret token for iCal export URL
   icalExportEnabled?: boolean; // Toggle iCal export on/off
   // Dedicated Open Graph / social-share image (Facebook, Instagram, Twitter link previews).
   // Absolute URL or a path under /public (e.g. "/images/properties/<slug>/og-image.jpg").

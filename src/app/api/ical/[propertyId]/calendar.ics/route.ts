@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import { loggers } from '@/lib/logger';
 import { checkRateLimit, rateLimitHeaders } from '@/lib/rate-limiter';
 import { generateICalExport } from '@/lib/ical/ical-export';
+import { getPropertySecrets } from '@/lib/property-secrets';
 import type { Availability } from '@/types';
 
 const logger = loggers.icalSync;
@@ -62,7 +63,8 @@ export async function GET(
       return NextResponse.json({ error: 'Export disabled' }, { status: 403 });
     }
 
-    if (property.icalExportToken !== token) {
+    const { icalExportToken } = await getPropertySecrets(propertyId);
+    if (!icalExportToken || icalExportToken !== token) {
       logger.warn('Invalid token for iCal export', { propertyId });
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }

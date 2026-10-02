@@ -12,6 +12,7 @@
  * Plain server module (NOT `'use server'`) — exports types + pure helpers.
  */
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
+import { getPropertySecrets } from '@/lib/property-secrets';
 import { loggers } from '@/lib/logger';
 import type { Guest, ChannelType, ConsentState, MessageLogStatus, LanguageCode } from '@/types';
 import { getSendMode, GROWTH_ENGINE_LIMITS } from '@/config/growth-engine';
@@ -231,7 +232,7 @@ export async function getPropertyContext(db: AdminDb, propertyId: string): Promi
           : process.env.NEXT_PUBLIC_MAIN_APP_HOST
             ? `https://${process.env.NEXT_PUBLIC_MAIN_APP_HOST}`
             : undefined;
-      const token = p.guestCalendarToken as string | undefined;
+      const token = (await getPropertySecrets(propertyId)).guestCalendarToken;
       if (base) link = token ? `${base}/calendar/${token}` : base;
     }
     // Prefer the clean brand name when present (properties.name can be an OTA title).
