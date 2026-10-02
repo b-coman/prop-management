@@ -444,6 +444,33 @@ function prevMonthLastDay(year: number, month: number): number {
   return new Date(Date.UTC(year, month - 1, 0)).getUTCDate();
 }
 
+/**
+ * Nights occupied by confirmed/completed bookings, as "YYYY-MM:day" in Bucharest calendar days.
+ * Bookings store real times (check-in 15:00, checkout 11:00), so comparing a midnight date against
+ * them counted the checkout day as booked and missed the check-in night.
+ */
+async function fetchBookedNights(
+  db: FirebaseFirestore.Firestore,
+  propertyId: string
+): Promise<Set<string>> {
+  const bookingsSnapshot = await db.collection('bookings')
+    .where('propertyId', '==', propertyId)
+    .where('status', 'in', ['confirmed', 'completed'])
+    .get();
+
+  const nights = new Set<string>();
+  for (const bookingDoc of bookingsSnapshot.docs) {
+    const data = bookingDoc.data();
+    const checkIn = toDate(data.checkInDate);
+    const checkOut = toDate(data.checkOutDate);
+    if (!checkIn || !checkOut) continue;
+    for (const { monthKey, day } of iterateBucharestStayDays(checkIn, checkOut)) {
+      nights.add(`${monthKey}:${day}`);
+    }
+  }
+  return nights;
+}
+
 export async function fetchAvailabilityCalendarData(
   propertyId: string,
   yearMonth: string
@@ -692,21 +719,10 @@ export async function toggleDateBlocked(
         }
       }
 
-      // Check for active bookings on this day
-      const [year, month] = yearMonth.split('-').map(Number);
-      const dayDate = new Date(year, month - 1, day);
-      const bookingsSnapshot = await db.collection('bookings')
-        .where('propertyId', '==', propertyId)
-        .where('status', 'in', ['confirmed', 'completed'])
-        .get();
-
-      for (const bookingDoc of bookingsSnapshot.docs) {
-        const data = bookingDoc.data();
-        const checkIn = toDate(data.checkInDate);
-        const checkOut = toDate(data.checkOutDate);
-        if (checkIn && checkOut && dayDate >= checkIn && dayDate < checkOut) {
-          return { error: 'Cannot unblock a day with an active booking' };
-        }
+      // Check for active bookings on this night (a checkout day is not a booked night)
+      const bookedNights = await fetchBookedNights(db, propertyId);
+      if (bookedNights.has(`${yearMonth}:${day}`)) {
+        return { error: 'Cannot unblock a day with an active booking' };
       }
     }
 
@@ -764,21 +780,8 @@ export async function toggleDateRangeBlocked(
       availDocs[ym] = await db.collection('availability').doc(docId).get();
     }
 
-    // If unblocking, fetch bookings to check conflicts
-    let activeBookings: { checkIn: Date; checkOut: Date }[] = [];
-    if (!block) {
-      const bookingsSnapshot = await db.collection('bookings')
-        .where('propertyId', '==', propertyId)
-        .where('status', 'in', ['confirmed', 'completed'])
-        .get();
-      activeBookings = bookingsSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          checkIn: toDate(data.checkInDate)!,
-          checkOut: toDate(data.checkOutDate)!,
-        };
-      }).filter(b => b.checkIn && b.checkOut);
-    }
+    // If unblocking, fetch booked nights to check conflicts
+    const bookedNights = block ? new Set<string>() : await fetchBookedNights(db, propertyId);
 
     const batch = db.batch();
     let blockedCount = 0;
@@ -789,8 +792,6 @@ export async function toggleDateRangeBlocked(
       const docRef = db.collection('availability').doc(docId);
       const doc = availDocs[ym];
       const existingData = doc.exists ? doc.data() : null;
-      const [year, month] = ym.split('-').map(Number);
-
       const updates: Record<string, any> = {};
 
       for (const day of byMonth[ym]) {
@@ -799,9 +800,7 @@ export async function toggleDateRangeBlocked(
           if (existingData?.holds?.[day]) { skippedCount++; continue; }
           if (existingData?.externalBlocks?.[day]) { skippedCount++; continue; }
 
-          const dayDate = new Date(year, month - 1, day);
-          const hasBooking = activeBookings.some(b => dayDate >= b.checkIn && dayDate < b.checkOut);
-          if (hasBooking) { skippedCount++; continue; }
+          if (bookedNights.has(`${ym}:${day}`)) { skippedCount++; continue; }
         }
 
         updates[`available.${day}`] = !block;
