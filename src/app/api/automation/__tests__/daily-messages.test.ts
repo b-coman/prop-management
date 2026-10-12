@@ -79,15 +79,15 @@ describe('/api/automation — dailyMessages', () => {
     expect(text).toBe("Saru'mana!... Astazi duminică, 18 octombrie pleaca Maria Iova.");
   });
 
-  it('is empty mid-stay and on free days, so the shortcut sends nothing', async () => {
-    expect((await dailyMessages('2026-10-27')).text).toBe('');
-    expect((await dailyMessages('2026-10-20')).text).toBe('');
+  it('answers "none" mid-stay and on free days, so the shortcut sends nothing', async () => {
+    expect((await dailyMessages('2026-10-27')).text).toBe('none');
+    expect((await dailyMessages('2026-10-20')).text).toBe('none');
   });
 
-  it('fails quietly: a bad token returns an empty body, never "Unauthorized"', async () => {
+  it('fails quietly: a bad token answers "none", never "Unauthorized"', async () => {
     const { status, text } = await dailyMessages('2026-10-30', 'wrong');
     expect(status).toBe(401);
-    expect(text).toBe('');
+    expect(text).toBe('none');
   });
 
   it('changedReservations fails as "none" so its shortcut stays silent', async () => {

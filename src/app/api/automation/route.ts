@@ -24,8 +24,8 @@
 //
 //   GET /api/automation?op=dailyMessages&propertyId=<slug>&token=<secret>[&date=YYYY-MM-DD]
 //     → text/plain — today's departure and/or arrival message, ready to send to the
-//       cleaner ("Saru'mana!... Astazi vineri, 30 octombrie pleaca ..."), or '' when nobody
-//       arrives or leaves. Replaces dailyCheck for the Checkin/out Message shortcut.
+//       cleaner ("Saru'mana!... Astazi vineri, 30 octombrie pleaca ..."), or "none" when
+//       nobody arrives or leaves. Replaces dailyCheck for the Checkin/out Message shortcut.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'node:crypto';
@@ -302,7 +302,8 @@ async function dailyCheck(propertyId: string, calUrl?: string): Promise<NextResp
 // The Checkin/out shortcut used to read dailyCheck and build the text on the phone. dailyCheck
 // reports one booking per day, so on a changeover day (one guest leaves, the next arrives) the
 // cleaner only heard about one of them. This op writes the finished text here instead: the
-// departure, then the arrival, or '' on a quiet day so the shortcut skips the send.
+// departure, then the arrival, or "none" on a quiet day. Not '': iOS Shortcuts treats an empty
+// download as "has any value" and still opened the WhatsApp send sheet.
 function dailyMessagesText(bookings: BookingDoc[], todayYmd: string): string {
   let departing: BookingDoc | null = null;
   let arriving: BookingDoc | null = null;
@@ -313,7 +314,7 @@ function dailyMessagesText(bookings: BookingDoc[], todayYmd: string): string {
     if (formatBucharestDate(co) === todayYmd) departing = b;
     if (formatBucharestDate(ci) === todayYmd) arriving = b;
   }
-  if (!departing && !arriving) return '';
+  if (!departing && !arriving) return 'none';
 
   const today = formatRoDate(new Date(`${todayYmd}T12:00:00Z`));
   const lines: string[] = [];
@@ -633,7 +634,7 @@ async function outboxSent(req: NextRequest, propertyId: string): Promise<NextRes
 const QUIET_FAILURE_BODY: Record<string, string> = {
   monthlyReservations: '',
   changedReservations: 'none',
-  dailyMessages: '',
+  dailyMessages: 'none',
 };
 
 export async function GET(req: NextRequest) {
