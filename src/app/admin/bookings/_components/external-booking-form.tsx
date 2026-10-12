@@ -762,7 +762,7 @@ function FullForm({ form, mode, properties, nights, isPending, hardDisabledDates
             <CardTitle className="text-base">Arrival &amp; departure times</CardTitle>
             <p className="text-sm text-muted-foreground">
               Only when the guest told you a time. Leave empty for the property&apos;s standard check-in / check-out.
-              The cleaner&apos;s schedule uses these.
+              The cleaner&apos;s schedule uses these. An arrival before 06:00 counts as after midnight (e.g. 01:30 = late that night).
             </p>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">

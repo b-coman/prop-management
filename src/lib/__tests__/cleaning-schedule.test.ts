@@ -186,3 +186,55 @@ describe('cleaningReminder', () => {
     expect(msg).toContain('la 11:00 pleaca 3 persoane, iar in calendar apare o rezervare noua din aceeasi zi, neconfirmata inca.');
   });
 });
+
+describe('edge cases', () => {
+  it('reads an arrival before 06:00 as after midnight: more time, not an early arrival', () => {
+    const stays = [stay('2026-10-22', '2026-10-25', 4), stay('2026-10-25', '2026-10-30', 3, { arrivalTime: '01:30' })];
+    expect(weeklyCleaningMessage(stays, [], '2026-10-18')).toContain(
+      'La 11:00 pleaca 4 persoane, iar la 01:30 noaptea sosesc 3 persoane (au anuntat sosirea mai tarziu). ' +
+      'Curatenia trebuie facuta intre 11:00 si 01:30 noaptea.'
+    );
+    expect(cleaningReminder(stays, [], '2026-10-24')).toBeNull(); // no "early arrival tomorrow" alarm
+  });
+
+  it('treats an arrival typed as the standard time like an empty field', () => {
+    const msg = weeklyCleaningMessage([stay('2026-11-12', '2026-11-16', 3), stay('2026-11-17', '2026-11-19', 4, { arrivalTime: '15:00' })], [], '2026-11-15')!;
+    expect(msg).toContain('Marti 17.11: sosesc 4 persoane, check-in de la 15:00.');
+  });
+
+  it('flags a checkout on the day an unconfirmed OTA reservation starts', () => {
+    const msg = weeklyCleaningMessage([stay('2026-11-09', '2026-11-12', 3)], ['2026-11-12', '2026-11-13'], '2026-11-08')!;
+    expect(msg).toContain('Joi 12.11: la 11:00 pleaca 3 persoane. ATENTIE: tot azi apare o rezervare noua in calendar, neconfirmata inca.');
+  });
+
+  it('carries a Sunday checkout into a Monday arrival across the week boundary', () => {
+    const msg = weeklyCleaningMessage([stay('2026-11-13', '2026-11-15', 3), stay('2026-11-16', '2026-11-18', 2)], [], '2026-11-08')!;
+    expect(msg).toContain('Duminica 15.11: la 11:00 pleaca 3 persoane. Curatenia trebuie terminata pana maine, Luni 16.11, la 15:00, cand sosesc 2 persoane.');
+  });
+
+  it('labels a week that crosses the new year', () => {
+    expect(weeklyCleaningMessage([stay('2026-12-29', '2026-12-31', 3)], [], '2026-12-27')).toContain('saptamana 28 decembrie - 3 ianuarie');
+  });
+
+  it('puts both notes in one reminder when a changeover today precedes an early changeover tomorrow', () => {
+    const stays = [
+      stay('2026-11-09', '2026-11-11', 3),
+      stay('2026-11-11', '2026-11-12', 2), // one night
+      stay('2026-11-12', '2026-11-14', 4, { arrivalTime: '13:00' }),
+    ];
+    expect(cleaningReminder(stays, [], '2026-11-11')).toBe(
+      'Buna dimineata! Va reamintesc:\n\n' +
+      'Azi, Miercuri 11.11, avem plecare si sosire in aceeasi zi.\n' +
+      'La 11:00 pleaca 3 persoane, iar la 15:00 sosesc 2 persoane. Curatenia trebuie facuta intre 11:00 si 15:00, deci va rog sa fiti acolo la 11:00.\n\n' +
+      'Maine, Joi 12.11, avem plecare si sosire in aceeasi zi, iar oaspetii noi vin mai devreme.\n' +
+      'La 11:00 pleaca 2 persoane, iar la 13:00 sosesc 4 persoane (mai devreme decat de obicei). Curatenia trebuie facuta intre 11:00 si 13:00, deci va rog sa fiti acolo la 11:00.\n\n' +
+      'Multumesc!'
+    );
+  });
+
+  it('appends the calendar link to the weekly message when given', () => {
+    const msg = weeklyCleaningMessage(COLTEI, [], '2026-10-18', 'https://prahova-chalet.ro/calendar/abc')!;
+    expect(msg.endsWith('Aveti aici calendarul complet: https://prahova-chalet.ro/calendar/abc\n\nMultumesc!')).toBe(true);
+    expect(weeklyCleaningMessage(COLTEI, [], '2026-10-18')).not.toContain('calendarul');
+  });
+});

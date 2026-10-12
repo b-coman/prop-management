@@ -394,11 +394,11 @@ async function loadCleaningInputs(propertyId: string, fromYmd: string, toYmd: st
   return { stays, otaBlockedNights };
 }
 
-async function weeklySchedule(req: NextRequest, propertyId: string): Promise<NextResponse> {
+async function weeklySchedule(req: NextRequest, propertyId: string, calUrl?: string): Promise<NextResponse> {
   const todayYmd = requestedDay(req);
   const { start, end } = nextWeek(todayYmd);
   const { stays, otaBlockedNights } = await loadCleaningInputs(propertyId, start, end);
-  const text = weeklyCleaningMessage(stays, otaBlockedNights, todayYmd) ?? 'none';
+  const text = weeklyCleaningMessage(stays, otaBlockedNights, todayYmd, calUrl) ?? 'none';
   return new NextResponse(text, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 }
 
@@ -733,7 +733,7 @@ export async function GET(req: NextRequest) {
       case 'dailyMessages':
         return await dailyMessages(req, propertyId);
       case 'weeklySchedule':
-        return await weeklySchedule(req, propertyId);
+        return await weeklySchedule(req, propertyId, calUrl);
       case 'cleaningReminder':
         return await morningReminder(req, propertyId);
       case 'outbox_next':

@@ -91,17 +91,26 @@ function leave(s: CleaningStay): string {
 }
 
 /** When the guests really arrive / leave: the agreed time, else the booking's standard one. */
+// An announced arrival before 06:00 is the night after the check-in date (a late flight, "ajunge la
+// 1 noaptea"), not a dawn arrival: the guests come later, so the cleaner gets more time, not less.
+const NIGHT_ENDS = '06:00';
+
+function arrivesAfterMidnight(s: CleaningStay): boolean {
+  return !!s.arrivalTime && s.arrivalTime < NIGHT_ENDS;
+}
+/** "15:00", or "01:30 noaptea" for an arrival after midnight. */
 function arrivesAt(s: CleaningStay): string {
-  return s.arrivalTime || clock(s.checkIn);
+  const time = s.arrivalTime || clock(s.checkIn);
+  return arrivesAfterMidnight(s) ? `${time} noaptea` : time;
 }
 function leavesAt(s: CleaningStay): string {
   return s.departureTime || clock(s.checkOut);
 }
 function arrivesEarly(s: CleaningStay): boolean {
-  return !!s.arrivalTime && s.arrivalTime < clock(s.checkIn);
+  return !!s.arrivalTime && !arrivesAfterMidnight(s) && s.arrivalTime < clock(s.checkIn);
 }
 function arrivesLate(s: CleaningStay): boolean {
-  return !!s.arrivalTime && s.arrivalTime > clock(s.checkIn);
+  return !!s.arrivalTime && (arrivesAfterMidnight(s) || s.arrivalTime > clock(s.checkIn));
 }
 
 /** "sosesc 4 persoane", plus why the time differs from the usual check-in when it does. */
@@ -117,11 +126,17 @@ function minutesOf(hm: string): number {
   return h * 60 + m;
 }
 
+/** Minutes from midnight of the check-in date, so an arrival after midnight sorts after 23:59. */
+function arrivalMinutes(s: CleaningStay): number {
+  const time = s.arrivalTime || clock(s.checkIn);
+  return minutesOf(time) + (arrivesAfterMidnight(s) ? 24 * 60 : 0);
+}
+
 /** The body of a same-day changeover note: who leaves, who comes, and the window between. */
 function changeoverText(dep: CleaningStay, arr: CleaningStay): string {
   const from = leavesAt(dep);
   const until = arrivesAt(arr);
-  const gap = minutesOf(until) - minutesOf(from);
+  const gap = arrivalMinutes(arr) - minutesOf(from);
   if (gap <= 0) {
     return `La ${from} ${leave(dep)}, dar oaspetii noi (${people(arr).text}) vor sa ajunga la ${until}, ` +
       `inainte de plecarea celorlalti. Va sun ca sa ne organizam.`;
@@ -219,12 +234,14 @@ export function cleaningReminder(
 
 /**
  * The Sunday message for the week after `todayYmd`, or null when that week needs no cleaning.
- * `otaBlockedNights` (YYYY-MM-DD) are nights an OTA calendar marks as taken.
+ * `otaBlockedNights` (YYYY-MM-DD) are nights an OTA calendar marks as taken. `calendarUrl` is the
+ * property's share-calendar link, appended like the Comarnic cleaner's monthly list.
  */
 export function weeklyCleaningMessage(
   stays: CleaningStay[],
   otaBlockedNights: string[],
   todayYmd: string,
+  calendarUrl?: string,
 ): string | null {
   const { start, end } = nextWeek(todayYmd);
   const inWeek = (ymd: string) => ymd >= start && ymd <= end;
@@ -247,7 +264,10 @@ export function weeklyCleaningMessage(
       const next = dated.find(s => s.in > day);
       const nextUnknown = unknownRanges.find(r => r.from >= day);
       let window: string;
-      if (nextUnknown && (!next || nextUnknown.from < next.in)) {
+      if (nextUnknown && nextUnknown.from === day && (!next || nextUnknown.from < next.in)) {
+        window = `ATENTIE: tot azi apare o rezervare noua in calendar, neconfirmata inca. ` +
+          `Va rog sa faceti curatenia imediat dupa ${from}; va confirm separat.`;
+      } else if (nextUnknown && (!next || nextUnknown.from < next.in)) {
         window = `Curatenie dupa ${from}. Din ${dayLabel(nextUnknown.from)} apare ocupat in calendar ` +
           `(rezervare neconfirmata, va confirm separat), deci ar fi bine ca pana atunci curatenia sa fie gata.`;
       } else if (!next) {
@@ -284,5 +304,6 @@ export function weeklyCleaningMessage(
       ? `O curatenie: ${cleaningDays[0]}.\n\n`
       : `${cleaningDays.length} curatenii: ${cleaningDays.slice(0, -1).join(', ')} si ${cleaningDays[cleaningDays.length - 1]}.\n\n`;
 
-  return `Buna seara! Programul pentru saptamana ${weekLabel(start, end)}:\n\n${summary}${blocks.join('\n\n')}\n\nMultumesc!`;
+  const link = calendarUrl ? `\n\nAveti aici calendarul complet: ${calendarUrl}` : '';
+  return `Buna seara! Programul pentru saptamana ${weekLabel(start, end)}:\n\n${summary}${blocks.join('\n\n')}${link}\n\nMultumesc!`;
 }
