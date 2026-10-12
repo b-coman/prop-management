@@ -220,6 +220,18 @@ async function handleInboundMessage(msg: any, senderName: string): Promise<void>
     await handleInboundStop(from, 'whatsapp-cloud');
   }
 
+  // The owner tapping "Da" / "Nu inca" under a cleaning question. Handled on top of the normal
+  // capture below, and never allowed to stop it.
+  const buttonPayload: unknown = msg?.button?.payload;
+  if (msg?.type === 'button' && typeof buttonPayload === 'string' && buttonPayload.startsWith('cw|')) {
+    try {
+      const { handleCleaningReply } = await import('@/services/cleaningWatchService');
+      await handleCleaningReply(from, buttonPayload);
+    } catch (error) {
+      logger.error('Cleaning reply failed', error as Error);
+    }
+  }
+
   // The vault's invariant is one document per guest, doc id === guestId. Do not
   // break it for unknown senders; park those separately so nothing is lost.
   const { findGuestByPhone } = await import('@/services/guestService');
@@ -271,6 +283,22 @@ async function handleStatus(st: any): Promise<void> {
   if (!wamid || !status) return;
 
   const db = await getAdminDb();
+
+  // Cleaning-watch alerts to the owner are kept under their wamid. A failed one is an error, not a
+  // shrug: the owner channel failing silently is how the old housekeeping WhatsApp died unnoticed.
+  const ownerAlert = db.collection('ownerAlerts').doc(wamid);
+  if ((await ownerAlert.get()).exists) {
+    await ownerAlert.update({
+      deliveryStatus: status,
+      deliveryUpdatedAt: FieldValue.serverTimestamp(),
+      ...(st?.errors ? { deliveryError: JSON.stringify(st.errors).slice(0, 500) } : {}),
+    });
+    if (status === 'failed') {
+      logger.error('Owner alert not delivered', new Error(JSON.stringify(st?.errors ?? {}).slice(0, 300)), { wamid });
+    }
+    return;
+  }
+
   const snap = await db
     .collection('messageLog')
     .where('providerId', '==', wamid)

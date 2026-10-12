@@ -100,6 +100,17 @@ export function propertyDateAt(
   return zonedTimeToUtc(year, month, day, hours, minutes, PROPERTY_TIMEZONE);
 }
 
+/** A Bucharest wall-clock moment ("2026-10-21", "19:00") as a UTC Date. DST-safe. */
+export function bucharestAt(dateStr: string, hhmm: string): Date {
+  const d = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const t = hhmm.match(/^(\d{1,2}):(\d{2})$/);
+  if (!d || !t) throw new Error(`bucharestAt: invalid input ${dateStr} ${hhmm}`);
+  return zonedTimeToUtc(
+    parseInt(d[1], 10), parseInt(d[2], 10), parseInt(d[3], 10),
+    parseInt(t[1], 10), parseInt(t[2], 10), PROPERTY_TIMEZONE
+  );
+}
+
 /**
  * Convert (year, month, day, hour, minute) interpreted in `timeZone` to a UTC Date.
  *

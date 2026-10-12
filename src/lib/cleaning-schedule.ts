@@ -11,6 +11,7 @@
 // owner's rule: she cleans for other owners too), an early one pulls the deadline forward.
 //
 // Pure: the caller passes the stays and the OTA-blocked nights; nothing here reads Firestore.
+// The helpers that are exported are shared with cleaning-watch.ts, which checks the cleanings happen.
 
 import { formatBucharestDate, getBucharestHourMinute } from '@/lib/dates/property-times';
 
@@ -49,7 +50,7 @@ export function nextWeek(todayYmd: string): { start: string; end: string } {
   return { start, end: addDays(start, 6) };
 }
 
-function dayLabel(ymd: string): string {
+export function dayLabel(ymd: string): string {
   return `${DAYS[weekday(ymd)]} ${ymd.slice(8, 10)}.${ymd.slice(5, 7)}`;
 }
 
@@ -68,7 +69,7 @@ function clock(d: Date): string {
 
 /** "4 persoane", "3 persoane (1 adult, 2 copii)". Children are often not recorded, so the
  *  total guest count leads and the split only shows when children were entered. */
-function people(s: CleaningStay): { text: string; count: number } {
+export function people(s: CleaningStay): { text: string; count: number } {
   const children = s.children && s.children > 0 ? s.children : 0;
   const count = s.guests && s.guests > 0 ? s.guests : (s.adults || 0) + children;
   if (!count) return { text: 'oaspeti (numarul de persoane nu este trecut)', count: 0 };
@@ -95,15 +96,15 @@ function leave(s: CleaningStay): string {
 // 1 noaptea"), not a dawn arrival: the guests come later, so the cleaner gets more time, not less.
 const NIGHT_ENDS = '06:00';
 
-function arrivesAfterMidnight(s: CleaningStay): boolean {
+export function arrivesAfterMidnight(s: CleaningStay): boolean {
   return !!s.arrivalTime && s.arrivalTime < NIGHT_ENDS;
 }
 /** "15:00", or "01:30 noaptea" for an arrival after midnight. */
-function arrivesAt(s: CleaningStay): string {
+export function arrivesAt(s: CleaningStay): string {
   const time = s.arrivalTime || clock(s.checkIn);
   return arrivesAfterMidnight(s) ? `${time} noaptea` : time;
 }
-function leavesAt(s: CleaningStay): string {
+export function leavesAt(s: CleaningStay): string {
   return s.departureTime || clock(s.checkOut);
 }
 function arrivesEarly(s: CleaningStay): boolean {
@@ -121,7 +122,7 @@ function arrival(s: CleaningStay): string {
   return arrive(s);
 }
 
-function minutesOf(hm: string): number {
+export function minutesOf(hm: string): number {
   const [h, m] = hm.split(':').map(Number);
   return h * 60 + m;
 }
@@ -132,7 +133,7 @@ function arrivalMinutes(s: CleaningStay): number {
   return minutesOf(time) + (arrivesAfterMidnight(s) ? 24 * 60 : 0);
 }
 
-function hhmm(totalMinutes: number): string {
+export function hhmm(totalMinutes: number): string {
   const m = ((totalMinutes % 1440) + 1440) % 1440;
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 }
@@ -168,7 +169,7 @@ function changeoverText(dep: CleaningStay, arr: CleaningStay): string {
     `Curatenia se face dupa plecarea oaspetilor si trebuie terminata pana la ${until}.${tight}`;
 }
 
-interface DatedStay {
+export interface DatedStay {
   stay: CleaningStay;
   in: string;
   out: string;
@@ -179,7 +180,7 @@ interface DatedStay {
  * (YYYY-MM-DD) that no stay covers. Such a run is a reservation not entered yet: it may still
  * need a cleaning, so the messages flag it rather than stay silent. `to` is its checkout date.
  */
-function prepare(stays: CleaningStay[], otaBlockedNights: string[]) {
+export function prepare(stays: CleaningStay[], otaBlockedNights: string[]) {
   const dated: DatedStay[] = stays
     .map(stay => ({ stay, in: formatBucharestDate(stay.checkIn), out: formatBucharestDate(stay.checkOut) }))
     .filter(s => s.in < s.out)

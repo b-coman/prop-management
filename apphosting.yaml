@@ -239,6 +239,14 @@ env:
     availability:
         - RUNTIME
 
+# Nuki Web API token for the cleaning watch (src/services/nukiClient.ts). Read-only scopes only
+# (smartlock.readOnly + smartlock.log), so it cannot open the door. Holds the placeholder "unset"
+# until the lock is online; a new version needs a redeploy to be picked up.
+  - variable: NUKI_API_TOKEN
+    secret: projects/1061532538391/secrets/NUKI_API_TOKEN/versions/latest
+    availability:
+        - RUNTIME
+
 # Automation endpoint token (auth for /api/automation — used by iOS Shortcuts)
   - variable: AUTOMATION_TOKEN
     secret: projects/1061532538391/secrets/AUTOMATION_TOKEN/versions/latest
