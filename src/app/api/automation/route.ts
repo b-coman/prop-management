@@ -26,6 +26,14 @@
 //     → text/plain — today's departure and/or arrival message, ready to send to the
 //       cleaner ("Saru'mana!... Astazi vineri, 30 octombrie pleaca ..."), or "none" when
 //       nobody arrives or leaves. Replaces dailyCheck for the Checkin/out Message shortcut.
+//
+//   GET /api/automation?op=weeklySchedule&propertyId=<slug>&token=<secret>[&date=YYYY-MM-DD]
+//     → text/plain — the cleaner's schedule for next Monday to Sunday (cleaning days, windows,
+//       guest counts, same-day changeover warnings), or "none" when that week needs no cleaning.
+//
+//   GET /api/automation?op=cleaningReminder&propertyId=<slug>&token=<secret>[&date=YYYY-MM-DD]
+//     → text/plain — a morning reminder on a same-day changeover or a weekend check-in right
+//       after a checkout, or "none" on any other day.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'node:crypto';
@@ -34,6 +42,7 @@ import { loggers } from '@/lib/logger';
 import { formatBucharestDate, getBucharestDay, getBucharestMonth } from '@/lib/dates/property-times';
 import { markOutboxSent } from '@/services/outboxService';
 import { getPropertySecrets } from '@/lib/property-secrets';
+import { addDays, cleaningReminder, nextWeek, weeklyCleaningMessage, type CleaningStay } from '@/lib/cleaning-schedule';
 
 const logger = loggers.adminBookings;
 
@@ -340,6 +349,57 @@ async function dailyMessages(req: NextRequest, propertyId: string): Promise<Next
 }
 
 // ============================================================
+// weeklySchedule
+// ============================================================
+
+// Messages to the cleaner built in src/lib/cleaning-schedule.ts: the Sunday-evening schedule for
+// next Monday to Sunday, and the morning reminder on days she must not miss. OTA-blocked nights go
+// in too, so a reservation not entered yet still shows up as "to confirm".
+
+function requestedDay(req: NextRequest): string {
+  const dateParam = req.nextUrl.searchParams.get('date');
+  return dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : formatBucharestDate(new Date());
+}
+
+async function loadCleaningInputs(propertyId: string, fromYmd: string, toYmd: string) {
+  const bookings = await loadActiveBookings(propertyId);
+  const stays: CleaningStay[] = [];
+  for (const b of bookings) {
+    const checkIn = toDate(b.checkInDate);
+    const checkOut = toDate(b.checkOutDate);
+    if (!checkIn || !checkOut) continue;
+    stays.push({ checkIn, checkOut, guests: b.numberOfGuests, adults: b.numberOfAdults, children: b.numberOfChildren });
+  }
+
+  // A month back covers an unentered reservation that started before the period.
+  const monthKeys = new Set<string>();
+  for (let day = addDays(fromYmd, -31); day <= addDays(toYmd, 1); day = addDays(day, 1)) monthKeys.add(day.slice(0, 7));
+  const db = await getAdminDb();
+  const otaBlockedNights: string[] = [];
+  for (const monthKey of monthKeys) {
+    const doc = await db.collection('availability').doc(`${propertyId}_${monthKey}`).get();
+    const externalBlocks = (doc.exists ? doc.data()?.externalBlocks : null) || {};
+    for (const day of Object.keys(externalBlocks)) otaBlockedNights.push(`${monthKey}-${day.padStart(2, '0')}`);
+  }
+  return { stays, otaBlockedNights };
+}
+
+async function weeklySchedule(req: NextRequest, propertyId: string): Promise<NextResponse> {
+  const todayYmd = requestedDay(req);
+  const { start, end } = nextWeek(todayYmd);
+  const { stays, otaBlockedNights } = await loadCleaningInputs(propertyId, start, end);
+  const text = weeklyCleaningMessage(stays, otaBlockedNights, todayYmd) ?? 'none';
+  return new NextResponse(text, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+}
+
+async function morningReminder(req: NextRequest, propertyId: string): Promise<NextResponse> {
+  const todayYmd = requestedDay(req);
+  const { stays, otaBlockedNights } = await loadCleaningInputs(propertyId, todayYmd, todayYmd);
+  const text = cleaningReminder(stays, otaBlockedNights, todayYmd) ?? 'none';
+  return new NextResponse(text, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+}
+
+// ============================================================
 // changedReservations
 // ============================================================
 
@@ -635,6 +695,8 @@ const QUIET_FAILURE_BODY: Record<string, string> = {
   monthlyReservations: '',
   changedReservations: 'none',
   dailyMessages: 'none',
+  weeklySchedule: 'none',
+  cleaningReminder: 'none',
 };
 
 export async function GET(req: NextRequest) {
@@ -660,6 +722,10 @@ export async function GET(req: NextRequest) {
         return await changedReservations(propertyId, calUrl);
       case 'dailyMessages':
         return await dailyMessages(req, propertyId);
+      case 'weeklySchedule':
+        return await weeklySchedule(req, propertyId);
+      case 'cleaningReminder':
+        return await morningReminder(req, propertyId);
       case 'outbox_next':
         return await outboxNext(propertyId);
       case 'outbox_sent':
