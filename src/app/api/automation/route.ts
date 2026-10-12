@@ -21,6 +21,11 @@
 //       output as monthlyReservations.
 //     Server-side state lives in automationState/{propertyId} (a snapshot of
 //       active-booking ids for the current Bucharest month).
+//
+//   GET /api/automation?op=dailyMessages&propertyId=<slug>&token=<secret>[&date=YYYY-MM-DD]
+//     → text/plain — today's departure and/or arrival message, ready to send to the
+//       cleaner ("Saru'mana!... Astazi vineri, 30 octombrie pleaca ..."), or '' when nobody
+//       arrives or leaves. Replaces dailyCheck for the Checkin/out Message shortcut.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'node:crypto';
@@ -288,6 +293,49 @@ async function dailyCheck(propertyId: string, calUrl?: string): Promise<NextResp
 
   if (calUrl) result.calendarUrl = calUrl;
   return NextResponse.json(result);
+}
+
+// ============================================================
+// dailyMessages
+// ============================================================
+
+// The Checkin/out shortcut used to read dailyCheck and build the text on the phone. dailyCheck
+// reports one booking per day, so on a changeover day (one guest leaves, the next arrives) the
+// cleaner only heard about one of them. This op writes the finished text here instead: the
+// departure, then the arrival, or '' on a quiet day so the shortcut skips the send.
+function dailyMessagesText(bookings: BookingDoc[], todayYmd: string): string {
+  let departing: BookingDoc | null = null;
+  let arriving: BookingDoc | null = null;
+  for (const b of bookings) {
+    const ci = toDate(b.checkInDate);
+    const co = toDate(b.checkOutDate);
+    if (!ci || !co) continue;
+    if (formatBucharestDate(co) === todayYmd) departing = b;
+    if (formatBucharestDate(ci) === todayYmd) arriving = b;
+  }
+  if (!departing && !arriving) return '';
+
+  const today = formatRoDate(new Date(`${todayYmd}T12:00:00Z`));
+  const lines: string[] = [];
+  if (departing) lines.push(`Astazi ${today} pleaca ${guestName(departing)}.`);
+  if (arriving) {
+    const adults = adultsOf(arriving);
+    const children = childrenOf(arriving);
+    const persons = arriving.numberOfGuests || adults + children;
+    const when = departing ? 'Tot astazi' : `Astazi ${today}`;
+    lines.push(`${when} soseste ${guestName(arriving)}. Sunt in total ${persons} persoane (${adults} adulti / ${children} copii).`);
+  }
+  return `Saru'mana!... ${lines.join('\n')}`;
+}
+
+async function dailyMessages(req: NextRequest, propertyId: string): Promise<NextResponse> {
+  // ?date=YYYY-MM-DD checks another day (testing); default is today in Bucharest.
+  const dateParam = req.nextUrl.searchParams.get('date');
+  const todayYmd = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)
+    ? dateParam
+    : formatBucharestDate(new Date());
+  const bookings = await loadActiveBookings(propertyId);
+  return new NextResponse(dailyMessagesText(bookings, todayYmd), { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 }
 
 // ============================================================
@@ -580,14 +628,23 @@ async function outboxSent(req: NextRequest, propertyId: string): Promise<NextRes
 // Route handler
 // ============================================================
 
+// The text ops are forwarded by the iOS Shortcuts straight into the cleaner's WhatsApp, so their
+// failures must read as "nothing to send" ('' or 'none'), never as "Unauthorized".
+const QUIET_FAILURE_BODY: Record<string, string> = {
+  monthlyReservations: '',
+  changedReservations: 'none',
+  dailyMessages: '',
+};
+
 export async function GET(req: NextRequest) {
-  if (!authOk(req)) {
-    return new NextResponse('Unauthorized', { status: 401 });
-  }
   const op = req.nextUrl.searchParams.get('op');
+  const quiet = op ? QUIET_FAILURE_BODY[op] : undefined;
+  if (!authOk(req)) {
+    return new NextResponse(quiet ?? 'Unauthorized', { status: 401 });
+  }
   const propertyId = req.nextUrl.searchParams.get('propertyId');
   if (!propertyId) {
-    return new NextResponse('Missing propertyId', { status: 400 });
+    return new NextResponse(quiet ?? 'Missing propertyId', { status: 400 });
   }
 
   try {
@@ -600,6 +657,8 @@ export async function GET(req: NextRequest) {
         return await dailyCheck(propertyId, calUrl);
       case 'changedReservations':
         return await changedReservations(propertyId, calUrl);
+      case 'dailyMessages':
+        return await dailyMessages(req, propertyId);
       case 'outbox_next':
         return await outboxNext(propertyId);
       case 'outbox_sent':
@@ -609,6 +668,6 @@ export async function GET(req: NextRequest) {
     }
   } catch (err) {
     logger.error('Automation endpoint error', err as Error, { op, propertyId });
-    return new NextResponse('Internal error', { status: 500 });
+    return new NextResponse(quiet ?? 'Internal error', { status: 500 });
   }
 }
