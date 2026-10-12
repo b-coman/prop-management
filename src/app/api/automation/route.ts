@@ -91,6 +91,8 @@ interface BookingDoc {
   numberOfChildren?: number;
   status?: string;
   notes?: string;
+  arrivalTime?: string | null;
+  departureTime?: string | null;
   checkInDate?: { toDate?: () => Date; _seconds?: number } | Date | string;
   checkOutDate?: { toDate?: () => Date; _seconds?: number } | Date | string;
 }
@@ -368,7 +370,15 @@ async function loadCleaningInputs(propertyId: string, fromYmd: string, toYmd: st
     const checkIn = toDate(b.checkInDate);
     const checkOut = toDate(b.checkOutDate);
     if (!checkIn || !checkOut) continue;
-    stays.push({ checkIn, checkOut, guests: b.numberOfGuests, adults: b.numberOfAdults, children: b.numberOfChildren });
+    stays.push({
+      checkIn,
+      checkOut,
+      guests: b.numberOfGuests,
+      adults: b.numberOfAdults,
+      children: b.numberOfChildren,
+      arrivalTime: b.arrivalTime,
+      departureTime: b.departureTime,
+    });
   }
 
   // A month back covers an unentered reservation that started before the period.

@@ -339,6 +339,11 @@ export interface Booking {
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'payment_failed' | 'on-hold'; // Added 'on-hold' status
   paymentInfo: PaymentInfo;
   notes?: string;
+  // Times agreed with the guest (HH:MM, Bucharest) when they differ from the property's standard
+  // check-in / check-out. Only the cleaner's messages read them: checkInDate / checkOutDate keep the
+  // standard times, so availability, the iCal export and pricing never see a guest's arrival plans.
+  arrivalTime?: string | null;
+  departureTime?: string | null;
   source?: string; // e.g., 'website', 'airbnb', 'booking.com', 'direct', 'travelmint'
   externalId?: string; // ID from external platform if applicable
   imported?: boolean; // true for historically imported bookings (skip email crons)

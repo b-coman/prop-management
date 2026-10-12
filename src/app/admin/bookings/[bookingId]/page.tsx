@@ -202,10 +202,16 @@ export default async function BookingDetailPage({ params }: PageProps) {
                 <div>
                   <p className="text-sm text-muted-foreground">Check-in</p>
                   <p className="font-medium">{checkInDate ? format(checkInDate, 'PPP') : '-'}</p>
+                  {booking.arrivalTime && (
+                    <p className="text-sm text-muted-foreground">Arriving at {booking.arrivalTime}</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Check-out</p>
                   <p className="font-medium">{checkOutDate ? format(checkOutDate, 'PPP') : '-'}</p>
+                  {booking.departureTime && (
+                    <p className="text-sm text-muted-foreground">Leaving at {booking.departureTime}</p>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-3">

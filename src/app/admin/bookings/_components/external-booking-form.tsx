@@ -83,6 +83,9 @@ const formSchema = z.object({
   ),
   country: z.string().optional(),
   notes: z.string().optional(),
+  // Agreed with the guest; empty means the property's standard time. Feeds the cleaner's schedule.
+  arrivalTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM').optional().or(z.literal('')),
+  departureTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM').optional().or(z.literal('')),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -137,6 +140,8 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess, comp
       phone: booking.guestInfo?.phone || '',
       country: booking.guestInfo?.country || '',
       notes: booking.notes || '',
+      arrivalTime: booking.arrivalTime || '',
+      departureTime: booking.departureTime || '',
     } : {
       propertyId: defaultProperty?.id || '',
       source: '',
@@ -157,6 +162,8 @@ export function ExternalBookingForm({ mode, booking, properties, onSuccess, comp
       phone: '',
       country: '',
       notes: '',
+      arrivalTime: '',
+      departureTime: '',
     },
   });
 
@@ -440,6 +447,24 @@ function CompactForm({ form, mode, properties, nights, isPending, hardDisabledDa
             </FormItem>
           )} />
           <CountryField form={form} compact />
+        </div>
+
+        {/* Times agreed with the guest */}
+        <div className="grid grid-cols-2 gap-3">
+          <FormField control={form.control} name="arrivalTime" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">Arrival time (if announced)</FormLabel>
+              <FormControl><Input type="time" className={compactInput} {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="departureTime" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">Departure time (if agreed)</FormLabel>
+              <FormControl><Input type="time" className={compactInput} {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
         </div>
 
         {/* Notes — full width */}
@@ -728,6 +753,33 @@ function FullForm({ form, mode, properties, nights, isPending, hardDisabledDates
             )} />
 
             <CountryField form={form} />
+          </CardContent>
+        </Card>
+
+        {/* Times agreed with the guest */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Arrival &amp; departure times</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Only when the guest told you a time. Leave empty for the property&apos;s standard check-in / check-out.
+              The cleaner&apos;s schedule uses these.
+            </p>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4">
+            <FormField control={form.control} name="arrivalTime" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Arrival time</FormLabel>
+                <FormControl><Input type="time" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="departureTime" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Departure time</FormLabel>
+                <FormControl><Input type="time" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
           </CardContent>
         </Card>
 

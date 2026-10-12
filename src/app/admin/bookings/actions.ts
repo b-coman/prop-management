@@ -526,6 +526,12 @@ export async function fetchPropertiesForBookingForm(): Promise<Array<{ id: strin
   }
 }
 
+// An arrival or departure time agreed with the guest: HH:MM, or empty for the property's standard time.
+const agreedTimeField = z.string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Time must be HH:MM')
+  .optional()
+  .or(z.literal(''));
+
 const externalBookingSchema = z.object({
   propertyId: z.string().min(1, 'Property is required'),
   source: z.string().min(1, 'Source is required'),
@@ -548,6 +554,8 @@ const externalBookingSchema = z.object({
     .refine(v => !v || /^\+\d{7,15}$/.test(v), { message: 'Phone must start with + and country code' }),
   country: z.string().optional(),
   notes: z.string().optional(),
+  arrivalTime: agreedTimeField,
+  departureTime: agreedTimeField,
 });
 
 /**
@@ -637,6 +645,8 @@ export async function createExternalBookingAction(
       },
       language: data.language || 'en',
       notes: data.notes || null,
+      arrivalTime: data.arrivalTime || null,
+      departureTime: data.departureTime || null,
       referredBy: data.referredBy || null,
       bookedAt: Timestamp.fromDate(bookedAt),
       createdAt: Timestamp.fromDate(now),
@@ -704,6 +714,8 @@ const editBookingSchema = z.object({
     .refine(v => !v || /^\+\d{7,15}$/.test(v), { message: 'Phone must start with + and country code' }),
   country: z.string().optional(),
   notes: z.string().optional(),
+  arrivalTime: agreedTimeField,
+  departureTime: agreedTimeField,
 });
 
 /**
@@ -796,6 +808,8 @@ export async function editBookingAction(
       'paymentInfo.amount': data.netPayout,
       language: data.language || 'en',
       notes: data.notes || null,
+      arrivalTime: data.arrivalTime || null,
+      departureTime: data.departureTime || null,
       referredBy: data.referredBy || null,
       updatedAt: FieldValue.serverTimestamp(),
     };
