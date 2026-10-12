@@ -132,19 +132,40 @@ function arrivalMinutes(s: CleaningStay): number {
   return minutesOf(time) + (arrivesAfterMidnight(s) ? 24 * 60 : 0);
 }
 
-/** The body of a same-day changeover note: who leaves, who comes, and the window between. */
+function hhmm(totalMinutes: number): string {
+  const m = ((totalMinutes % 1440) + 1440) % 1440;
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+}
+
+/** "Check-in la 15:00", "Sosire anuntata pe la 19:00", "Sosire mai devreme, la 13:00". */
+function arrivalHeading(s: CleaningStay): string {
+  if (arrivesLate(s)) return `Sosire anuntata pe la ${arrivesAt(s)}`;
+  if (arrivesEarly(s)) return `Sosire mai devreme decat de obicei, la ${arrivesAt(s)}`;
+  return `Check-in la ${arrivesAt(s)}`;
+}
+
+/** "sosesc 4 persoane, check-in la 15:00", "..., sosire anuntata pe la 21:00", "... mai devreme decat de obicei, la 13:00". */
+function arrivalLine(s: CleaningStay): string {
+  if (arrivesEarly(s)) return `${arrive(s)} mai devreme decat de obicei, la ${arrivesAt(s)}`;
+  if (arrivesLate(s)) return `${arrive(s)}, sosire anuntata pe la ${arrivesAt(s)}`;
+  return `${arrive(s)}, check-in la ${arrivesAt(s)}`;
+}
+
+/** The body of a same-day changeover note: who leaves, who comes, and the window between.
+ *  Guests rarely walk out on the minute, so the cleaner is asked to come half an hour after
+ *  check-out, not at it. */
 function changeoverText(dep: CleaningStay, arr: CleaningStay): string {
   const from = leavesAt(dep);
   const until = arrivesAt(arr);
   const gap = arrivalMinutes(arr) - minutesOf(from);
   if (gap <= 0) {
-    return `La ${from} ${leave(dep)}, dar oaspetii noi (${people(arr).text}) vor sa ajunga la ${until}, ` +
-      `inainte de plecarea celorlalti. Va sun ca sa ne organizam.`;
+    return `Check-out la ${from}: ${leave(dep)}. Dar oaspetii noi (${people(arr).text}) vor sa ajunga la ${until}, ` +
+      `inainte de check-out. Va sun ca sa ne organizam.`;
   }
-  // Four hours or less (the standard 11:00 to 15:00) is tight enough to fix the start time.
-  const tight = gap <= 240 ? `, deci va rog sa fiti acolo la ${from}` : '';
-  return `La ${from} ${leave(dep)}, iar la ${until} ${arrival(arr)}. ` +
-    `Curatenia trebuie facuta intre ${from} si ${until}${tight}.`;
+  // Four hours or less (the standard 11:00 to 15:00) is tight enough to ask for a start time.
+  const tight = gap <= 240 ? ` Va rog sa veniti pe la ${hhmm(minutesOf(from) + 30)}.` : '';
+  return `Check-out la ${from}: ${leave(dep)}. ${arrivalHeading(arr)}: ${arrive(arr)}.\n` +
+    `Curatenia se face dupa plecarea oaspetilor si trebuie terminata pana la ${until}.${tight}`;
 }
 
 interface DatedStay {
@@ -204,14 +225,14 @@ export function cleaningReminder(
     notes.push(`Azi, ${today}, avem plecare si sosire in aceeasi zi.\n${changeoverText(departing.stay, arriving.stay)}`);
   } else if (departing && unconfirmedArrival) {
     const from = leavesAt(departing.stay);
-    notes.push(`Azi, ${today}, la ${from} ${leave(departing.stay)}, iar in calendar apare o rezervare noua ` +
-      `din aceeasi zi, neconfirmata inca. Va rog sa faceti curatenia imediat dupa ${from}; va confirm separat.`);
+    notes.push(`Azi, ${today}, check-out la ${from}: ${leave(departing.stay)}. In calendar apare si o rezervare noua ` +
+      `din aceeasi zi, neconfirmata inca. Va rog sa faceti curatenia imediat dupa plecarea oaspetilor; va confirm separat.`);
   } else if (arriving && (arrivesEarly(arriving.stay) || (weekend && leftYesterday))) {
     const until = arrivesAt(arriving.stay);
     const lastCleaning = weekend && leftYesterday
-      ? `Oaspetii de dinainte au plecat ieri la ${leavesAt(leftYesterday.stay)}. Daca nu s-a apucat curatenia ieri, va rog sa fie gata azi pana la ${until}.`
+      ? `Oaspetii de dinainte au avut check-out ieri la ${leavesAt(leftYesterday.stay)}. Daca nu s-a apucat curatenia ieri, va rog sa fie gata azi pana la ${until}.`
       : `Va rog ca apartamentul sa fie gata pana la ${until}.`;
-    notes.push(`Azi, ${today}, la ${until} ${arrival(arriving.stay)}. ${lastCleaning}`);
+    notes.push(`Azi, ${today}, ${arrivalLine(arriving.stay)}. ${lastCleaning}`);
   } else if (weekend && leftYesterday && unconfirmedArrival) {
     notes.push(`Azi, ${today}, in calendar apare o rezervare noua, neconfirmata inca, iar oaspetii de dinainte ` +
       `au plecat ieri. Daca nu s-a apucat curatenia ieri, va rog sa fie gata azi; va confirm separat ora sosirii.`);
@@ -224,7 +245,7 @@ export function cleaningReminder(
   } else if (earlyTomorrow) {
     const until = arrivesAt(earlyTomorrow.stay);
     const cleanToday = departing && !arriving
-      ? ` Oaspetii de acum pleaca azi la ${leavesAt(departing.stay)}, deci curatenia trebuie facuta azi sau maine pana la ${until}.`
+      ? ` Azi e check-out la ${leavesAt(departing.stay)}, deci curatenia trebuie facuta azi dupa plecarea oaspetilor sau maine pana la ${until}.`
       : ` Va rog ca apartamentul sa fie gata pana atunci.`;
     notes.push(`Maine, ${dayLabel(tomorrowYmd)}, ${arrive(earlyTomorrow.stay)} mai devreme decat de obicei, la ${until}.${cleanToday}`);
   }
@@ -249,7 +270,16 @@ export function weeklyCleaningMessage(
   const unknownThisWeek = unknownRanges.filter(r => r.from <= end && r.to >= start);
 
   const departures = dated.filter(s => inWeek(s.out));
-  if (departures.length === 0 && unknownThisWeek.length === 0) return null;
+  // A cleaning belongs to the window from a checkout to the next check-in. When guests arrive this
+  // week but the apartment emptied before Monday, that cleaning was announced last Sunday and may
+  // not be done yet, so it is listed again ("carried") with its deadline.
+  const carried = new Map<DatedStay, DatedStay>(); // arrival -> the stay that emptied the apartment
+  for (const arr of dated.filter(s => inWeek(s.in))) {
+    const before = dated.filter(s => s.out <= arr.in && s !== arr);
+    const prev = before[before.length - 1];
+    if (prev && prev.out < start) carried.set(arr, prev);
+  }
+  if (departures.length === 0 && carried.size === 0 && unknownThisWeek.length === 0) return null;
 
   const blocks: string[] = [];
   for (let day = start; day <= end; day = addDays(day, 1)) {
@@ -266,7 +296,7 @@ export function weeklyCleaningMessage(
       let window: string;
       if (nextUnknown && nextUnknown.from === day && (!next || nextUnknown.from < next.in)) {
         window = `ATENTIE: tot azi apare o rezervare noua in calendar, neconfirmata inca. ` +
-          `Va rog sa faceti curatenia imediat dupa ${from}; va confirm separat.`;
+          `Va rog sa faceti curatenia imediat dupa plecarea oaspetilor; va confirm separat.`;
       } else if (nextUnknown && (!next || nextUnknown.from < next.in)) {
         window = `Curatenie dupa ${from}. Din ${dayLabel(nextUnknown.from)} apare ocupat in calendar ` +
           `(rezervare neconfirmata, va confirm separat), deci ar fi bine ca pana atunci curatenia sa fie gata.`;
@@ -279,14 +309,15 @@ export function weeklyCleaningMessage(
       } else {
         window = `Curatenie oricand dupa ${from}, pana ${dayLabel(next.in)} la ${arrivesAt(next.stay)}, cand ${arrival(next.stay)}.`;
       }
-      blocks.push(`${label}: la ${from} ${leave(dep.stay)}. ${window}`);
-    } else if (arr && arrivesEarly(arr.stay)) {
-      blocks.push(`${label}: ATENTIE, ${arrive(arr.stay)} mai devreme decat de obicei, la ${arrivesAt(arr.stay)}. ` +
-        `Apartamentul trebuie sa fie gata pana atunci.`);
-    } else if (arr && arrivesLate(arr.stay)) {
-      blocks.push(`${label}: ${arrive(arr.stay)}, ${people(arr.stay).count === 1 ? 'a anuntat' : 'au anuntat'} sosirea pe la ${arrivesAt(arr.stay)}.`);
+      blocks.push(`${label}: check-out la ${from}, ${leave(dep.stay)}. ${window}`);
     } else if (arr) {
-      blocks.push(`${label}: ${arrive(arr.stay)}, check-in de la ${arrivesAt(arr.stay)}.`);
+      const until = arrivesAt(arr.stay);
+      const prev = carried.get(arr);
+      const cleaning = prev
+        ? ` Apartamentul e liber din ${dayLabel(prev.out)} (check-out la ${leavesAt(prev.stay)}), deci curatenia trebuie ` +
+          `facuta pana ${dayLabel(arr.in)} la ${until}, daca nu ati facut-o deja.`
+        : arrivesEarly(arr.stay) ? ' Apartamentul trebuie sa fie gata pana atunci.' : '';
+      blocks.push(`${label}: ${arrivesEarly(arr.stay) ? 'ATENTIE, ' : ''}${arrivalLine(arr.stay)}.${cleaning}`);
     }
   }
 
@@ -297,7 +328,10 @@ export function weeklyCleaningMessage(
     );
   }
 
-  const cleaningDays = departures.map(s => dayLabel(s.out));
+  const cleaningDays = [
+    ...[...carried.keys()].map(arr => ({ key: arr.in, text: `pana ${dayLabel(arr.in)} (daca nu e deja facuta)` })),
+    ...departures.map(s => ({ key: s.out, text: dayLabel(s.out) })),
+  ].sort((a, b) => a.key.localeCompare(b.key)).map(c => c.text);
   const summary = cleaningDays.length === 0
     ? ''
     : cleaningDays.length === 1

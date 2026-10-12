@@ -29,14 +29,15 @@ describe('nextWeek', () => {
 });
 
 describe('weeklyCleaningMessage', () => {
-  it('warns about a same-day changeover and says when to be there', () => {
+  it('warns about a same-day changeover, asks her to come half an hour after check-out, and carries last week\'s pending cleaning', () => {
     expect(weeklyCleaningMessage(COLTEI, [], '2026-10-18')).toBe(
       'Buna seara! Programul pentru saptamana 19-25 octombrie:\n\n' +
-      'O curatenie: Duminica 25.10.\n\n' +
-      'Joi 22.10: sosesc 4 persoane, check-in de la 15:00.\n\n' +
+      '2 curatenii: pana Joi 22.10 (daca nu e deja facuta) si Duminica 25.10.\n\n' +
+      'Joi 22.10: sosesc 4 persoane, check-in la 15:00. Apartamentul e liber din Duminica 18.10 (check-out la 11:00), ' +
+      'deci curatenia trebuie facuta pana Joi 22.10 la 15:00, daca nu ati facut-o deja.\n\n' +
       'Duminica 25.10: ATENTIE, plecare si sosire in aceeasi zi!\n' +
-      'La 11:00 pleaca 4 persoane, iar la 15:00 sosesc 3 persoane. ' +
-      'Curatenia trebuie facuta intre 11:00 si 15:00, deci va rog sa fiti acolo la 11:00.\n\n' +
+      'Check-out la 11:00: pleaca 4 persoane. Check-in la 15:00: sosesc 3 persoane.\n' +
+      'Curatenia se face dupa plecarea oaspetilor si trebuie terminata pana la 15:00. Va rog sa veniti pe la 11:30.\n\n' +
       'Multumesc!'
     );
   });
@@ -46,17 +47,27 @@ describe('weeklyCleaningMessage', () => {
     expect(msg).toContain('saptamana 26 octombrie - 1 noiembrie');
     expect(msg).toContain('2 curatenii: Vineri 30.10 si Duminica 01.11.');
     expect(msg).toContain('Vineri 30.10: ATENTIE, plecare si sosire in aceeasi zi!');
-    expect(msg).toContain('Duminica 01.11: la 11:00 pleaca 3 persoane. Curatenie oricand dupa 11:00, pana Vineri 20.11 la 15:00, cand sosesc 4 persoane.');
+    expect(msg).toContain('Duminica 01.11: check-out la 11:00, pleaca 3 persoane. Curatenie oricand dupa 11:00, pana Vineri 20.11 la 15:00, cand sosesc 4 persoane.');
   });
 
   it('says "until tomorrow" for a next-day changeover', () => {
     const msg = weeklyCleaningMessage([stay('2026-11-12', '2026-11-16', 3), stay('2026-11-17', '2026-11-19', 4)], [], '2026-11-15')!;
-    expect(msg).toContain('Luni 16.11: la 11:00 pleaca 3 persoane. Curatenia trebuie terminata pana maine, Marti 17.11, la 15:00, cand sosesc 4 persoane.');
+    expect(msg).toContain('Luni 16.11: check-out la 11:00, pleaca 3 persoane. Curatenia trebuie terminata pana maine, Marti 17.11, la 15:00, cand sosesc 4 persoane.');
   });
 
-  it('sends nothing for a week without a checkout, even with an arrival in it', () => {
+  it('sends nothing for a week with no checkout and no arrival to prepare for', () => {
     expect(weeklyCleaningMessage(COLTEI, [], '2026-11-01')).toBeNull();
-    expect(weeklyCleaningMessage([stay('2026-11-19', '2026-11-24', 4)], [], '2026-11-15')).toBeNull();
+    expect(weeklyCleaningMessage([stay('2026-11-12', '2026-11-30', 4)], [], '2026-11-15')).toBeNull(); // mid-stay all week
+  });
+
+  it('lists an arrival whose cleaning window opened last week, even with no checkout this week', () => {
+    expect(weeklyCleaningMessage([stay('2026-11-10', '2026-11-13', 3), stay('2026-11-19', '2026-11-24', 4)], [], '2026-11-15')).toBe(
+      'Buna seara! Programul pentru saptamana 16-22 noiembrie:\n\n' +
+      'O curatenie: pana Joi 19.11 (daca nu e deja facuta).\n\n' +
+      'Joi 19.11: sosesc 4 persoane, check-in la 15:00. Apartamentul e liber din Vineri 13.11 (check-out la 11:00), ' +
+      'deci curatenia trebuie facuta pana Joi 19.11 la 15:00, daca nu ati facut-o deja.\n\n' +
+      'Multumesc!'
+    );
   });
 
   it('flags OTA-blocked nights that no booking covers, and ends the previous window there', () => {
@@ -70,7 +81,7 @@ describe('weeklyCleaningMessage', () => {
   });
 
   it('ignores OTA-blocked nights that a booking already covers', () => {
-    expect(weeklyCleaningMessage(COLTEI, ['2026-11-20', '2026-11-21'], '2026-11-01')).toBeNull();
+    expect(weeklyCleaningMessage(COLTEI, ['2026-11-20', '2026-11-21'], '2026-11-15')).not.toContain('apare ocupat');
   });
 
   it('shows children only when they were recorded, and copes with a missing guest count', () => {
@@ -79,7 +90,7 @@ describe('weeklyCleaningMessage', () => {
       stay('2026-11-13', '2026-11-15', 0),
     ], [], '2026-11-08')!;
     expect(msg).toContain('pleaca 5 persoane (2 adulti, 3 copii)');
-    expect(msg).toContain('sosesc oaspeti (numarul de persoane nu este trecut)');
+    expect(msg).toContain('sosesc oaspeti (numarul de persoane nu este trecut), check-in la 15:00');
   });
 
   it('does not stretch a window to a reservation months away', () => {
@@ -92,15 +103,15 @@ describe('agreed arrival and departure times', () => {
   it('gives the cleaner the extra time of a late arrival on a changeover day', () => {
     const stays = [stay('2026-10-22', '2026-10-25', 4), stay('2026-10-25', '2026-10-30', 3, { arrivalTime: '19:00' })];
     expect(weeklyCleaningMessage(stays, [], '2026-10-18')).toContain(
-      'La 11:00 pleaca 4 persoane, iar la 19:00 sosesc 3 persoane (au anuntat sosirea mai tarziu). ' +
-      'Curatenia trebuie facuta intre 11:00 si 19:00.'
+      'Check-out la 11:00: pleaca 4 persoane. Sosire anuntata pe la 19:00: sosesc 3 persoane.\n' +
+      'Curatenia se face dupa plecarea oaspetilor si trebuie terminata pana la 19:00.\n\n'
     );
   });
 
   it('extends a normal window to the announced arrival and says so', () => {
     const msg = weeklyCleaningMessage([stay('2026-11-12', '2026-11-16', 3), stay('2026-11-17', '2026-11-19', 4, { arrivalTime: '20:30' })], [], '2026-11-15')!;
     expect(msg).toContain('pana maine, Marti 17.11, la 20:30, cand sosesc 4 persoane (au anuntat sosirea mai tarziu).');
-    expect(msg).toContain('Marti 17.11: sosesc 4 persoane, au anuntat sosirea pe la 20:30.');
+    expect(msg).toContain('Marti 17.11: sosesc 4 persoane, sosire anuntata pe la 20:30.');
   });
 
   it('pulls the deadline forward for an early arrival and flags it', () => {
@@ -112,14 +123,15 @@ describe('agreed arrival and departure times', () => {
   it('shortens a changeover window for a late departure', () => {
     const stays = [stay('2026-10-22', '2026-10-25', 4, { departureTime: '13:00' }), stay('2026-10-25', '2026-10-30', 3)];
     expect(weeklyCleaningMessage(stays, [], '2026-10-18')).toContain(
-      'La 13:00 pleaca 4 persoane, iar la 15:00 sosesc 3 persoane. Curatenia trebuie facuta intre 13:00 si 15:00, deci va rog sa fiti acolo la 13:00.'
+      'Check-out la 13:00: pleaca 4 persoane. Check-in la 15:00: sosesc 3 persoane.\n' +
+      'Curatenia se face dupa plecarea oaspetilor si trebuie terminata pana la 15:00. Va rog sa veniti pe la 13:30.'
     );
   });
 
   it('hands a clash (new guests before the old ones leave) back to the owner', () => {
     const stays = [stay('2026-10-22', '2026-10-25', 4), stay('2026-10-25', '2026-10-30', 3, { arrivalTime: '10:00' })];
     expect(weeklyCleaningMessage(stays, [], '2026-10-18')).toContain(
-      'La 11:00 pleaca 4 persoane, dar oaspetii noi (3 persoane) vor sa ajunga la 10:00, inainte de plecarea celorlalti. Va sun ca sa ne organizam.'
+      'Check-out la 11:00: pleaca 4 persoane. Dar oaspetii noi (3 persoane) vor sa ajunga la 10:00, inainte de check-out. Va sun ca sa ne organizam.'
     );
   });
 });
@@ -129,8 +141,8 @@ describe('cleaningReminder', () => {
     expect(cleaningReminder(COLTEI, [], '2026-10-25')).toBe(
       'Buna dimineata! Va reamintesc:\n\n' +
       'Azi, Duminica 25.10, avem plecare si sosire in aceeasi zi.\n' +
-      'La 11:00 pleaca 4 persoane, iar la 15:00 sosesc 3 persoane. ' +
-      'Curatenia trebuie facuta intre 11:00 si 15:00, deci va rog sa fiti acolo la 11:00.\n\n' +
+      'Check-out la 11:00: pleaca 4 persoane. Check-in la 15:00: sosesc 3 persoane.\n' +
+      'Curatenia se face dupa plecarea oaspetilor si trebuie terminata pana la 15:00. Va rog sa veniti pe la 11:30.\n\n' +
       'Multumesc!'
     );
     expect(cleaningReminder(COLTEI, [], '2026-10-30')).toContain('Azi, Vineri 30.10, avem plecare si sosire in aceeasi zi');
@@ -140,13 +152,13 @@ describe('cleaningReminder', () => {
     const friToSat = [stay('2026-11-04', '2026-11-06', 3), stay('2026-11-07', '2026-11-09', 4)];
     expect(cleaningReminder(friToSat, [], '2026-11-07')).toBe(
       'Buna dimineata! Va reamintesc:\n\n' +
-      'Azi, Sambata 07.11, la 15:00 sosesc 4 persoane. ' +
-      'Oaspetii de dinainte au plecat ieri la 11:00. Daca nu s-a apucat curatenia ieri, va rog sa fie gata azi pana la 15:00.\n\n' +
+      'Azi, Sambata 07.11, sosesc 4 persoane, check-in la 15:00. ' +
+      'Oaspetii de dinainte au avut check-out ieri la 11:00. Daca nu s-a apucat curatenia ieri, va rog sa fie gata azi pana la 15:00.\n\n' +
       'Multumesc!'
     );
     const satToSun = [stay('2026-11-05', '2026-11-07', 3), stay('2026-11-08', '2026-11-10', 2, { arrivalTime: '18:00' })];
     expect(cleaningReminder(satToSun, [], '2026-11-08')).toContain(
-      'Azi, Duminica 08.11, la 18:00 sosesc 2 persoane (au anuntat sosirea mai tarziu). Oaspetii de dinainte au plecat ieri la 11:00.'
+      'Azi, Duminica 08.11, sosesc 2 persoane, sosire anuntata pe la 18:00. Oaspetii de dinainte au avut check-out ieri la 11:00.'
     );
   });
 
@@ -155,11 +167,11 @@ describe('cleaningReminder', () => {
     expect(cleaningReminder(stays, [], '2026-11-11')).toBe(
       'Buna dimineata! Va reamintesc:\n\n' +
       'Maine, Joi 12.11, sosesc 4 persoane mai devreme decat de obicei, la 09:00. ' +
-      'Oaspetii de acum pleaca azi la 11:00, deci curatenia trebuie facuta azi sau maine pana la 09:00.\n\n' +
+      'Azi e check-out la 11:00, deci curatenia trebuie facuta azi dupa plecarea oaspetilor sau maine pana la 09:00.\n\n' +
       'Multumesc!'
     );
     expect(cleaningReminder(stays, [], '2026-11-12')).toContain(
-      'Azi, Joi 12.11, la 09:00 sosesc 4 persoane (mai devreme decat de obicei). Va rog ca apartamentul sa fie gata pana la 09:00.'
+      'Azi, Joi 12.11, sosesc 4 persoane mai devreme decat de obicei, la 09:00. Va rog ca apartamentul sa fie gata pana la 09:00.'
     );
   });
 
@@ -167,8 +179,8 @@ describe('cleaningReminder', () => {
     const stays = [stay('2026-11-09', '2026-11-12', 3), stay('2026-11-12', '2026-11-14', 4, { arrivalTime: '13:00' })];
     expect(cleaningReminder(stays, [], '2026-11-11')).toContain(
       'Maine, Joi 12.11, avem plecare si sosire in aceeasi zi, iar oaspetii noi vin mai devreme.\n' +
-      'La 11:00 pleaca 3 persoane, iar la 13:00 sosesc 4 persoane (mai devreme decat de obicei). ' +
-      'Curatenia trebuie facuta intre 11:00 si 13:00, deci va rog sa fiti acolo la 11:00.'
+      'Check-out la 11:00: pleaca 3 persoane. Sosire mai devreme decat de obicei, la 13:00: sosesc 4 persoane.\n' +
+      'Curatenia se face dupa plecarea oaspetilor si trebuie terminata pana la 13:00. Va rog sa veniti pe la 11:30.'
     );
   });
 
@@ -183,7 +195,7 @@ describe('cleaningReminder', () => {
 
   it('reminds when a checkout meets a reservation that is only in the OTA calendar', () => {
     const msg = cleaningReminder([stay('2026-11-09', '2026-11-12', 3)], ['2026-11-12', '2026-11-13'], '2026-11-12');
-    expect(msg).toContain('la 11:00 pleaca 3 persoane, iar in calendar apare o rezervare noua din aceeasi zi, neconfirmata inca.');
+    expect(msg).toContain('check-out la 11:00: pleaca 3 persoane. In calendar apare si o rezervare noua din aceeasi zi, neconfirmata inca.');
   });
 });
 
@@ -191,25 +203,25 @@ describe('edge cases', () => {
   it('reads an arrival before 06:00 as after midnight: more time, not an early arrival', () => {
     const stays = [stay('2026-10-22', '2026-10-25', 4), stay('2026-10-25', '2026-10-30', 3, { arrivalTime: '01:30' })];
     expect(weeklyCleaningMessage(stays, [], '2026-10-18')).toContain(
-      'La 11:00 pleaca 4 persoane, iar la 01:30 noaptea sosesc 3 persoane (au anuntat sosirea mai tarziu). ' +
-      'Curatenia trebuie facuta intre 11:00 si 01:30 noaptea.'
+      'Check-out la 11:00: pleaca 4 persoane. Sosire anuntata pe la 01:30 noaptea: sosesc 3 persoane.\n' +
+      'Curatenia se face dupa plecarea oaspetilor si trebuie terminata pana la 01:30 noaptea.\n\n'
     );
     expect(cleaningReminder(stays, [], '2026-10-24')).toBeNull(); // no "early arrival tomorrow" alarm
   });
 
   it('treats an arrival typed as the standard time like an empty field', () => {
     const msg = weeklyCleaningMessage([stay('2026-11-12', '2026-11-16', 3), stay('2026-11-17', '2026-11-19', 4, { arrivalTime: '15:00' })], [], '2026-11-15')!;
-    expect(msg).toContain('Marti 17.11: sosesc 4 persoane, check-in de la 15:00.');
+    expect(msg).toContain('Marti 17.11: sosesc 4 persoane, check-in la 15:00.');
   });
 
   it('flags a checkout on the day an unconfirmed OTA reservation starts', () => {
     const msg = weeklyCleaningMessage([stay('2026-11-09', '2026-11-12', 3)], ['2026-11-12', '2026-11-13'], '2026-11-08')!;
-    expect(msg).toContain('Joi 12.11: la 11:00 pleaca 3 persoane. ATENTIE: tot azi apare o rezervare noua in calendar, neconfirmata inca.');
+    expect(msg).toContain('Joi 12.11: check-out la 11:00, pleaca 3 persoane. ATENTIE: tot azi apare o rezervare noua in calendar, neconfirmata inca.');
   });
 
   it('carries a Sunday checkout into a Monday arrival across the week boundary', () => {
     const msg = weeklyCleaningMessage([stay('2026-11-13', '2026-11-15', 3), stay('2026-11-16', '2026-11-18', 2)], [], '2026-11-08')!;
-    expect(msg).toContain('Duminica 15.11: la 11:00 pleaca 3 persoane. Curatenia trebuie terminata pana maine, Luni 16.11, la 15:00, cand sosesc 2 persoane.');
+    expect(msg).toContain('Duminica 15.11: check-out la 11:00, pleaca 3 persoane. Curatenia trebuie terminata pana maine, Luni 16.11, la 15:00, cand sosesc 2 persoane.');
   });
 
   it('labels a week that crosses the new year', () => {
@@ -225,9 +237,11 @@ describe('edge cases', () => {
     expect(cleaningReminder(stays, [], '2026-11-11')).toBe(
       'Buna dimineata! Va reamintesc:\n\n' +
       'Azi, Miercuri 11.11, avem plecare si sosire in aceeasi zi.\n' +
-      'La 11:00 pleaca 3 persoane, iar la 15:00 sosesc 2 persoane. Curatenia trebuie facuta intre 11:00 si 15:00, deci va rog sa fiti acolo la 11:00.\n\n' +
+      'Check-out la 11:00: pleaca 3 persoane. Check-in la 15:00: sosesc 2 persoane.\n' +
+      'Curatenia se face dupa plecarea oaspetilor si trebuie terminata pana la 15:00. Va rog sa veniti pe la 11:30.\n\n' +
       'Maine, Joi 12.11, avem plecare si sosire in aceeasi zi, iar oaspetii noi vin mai devreme.\n' +
-      'La 11:00 pleaca 2 persoane, iar la 13:00 sosesc 4 persoane (mai devreme decat de obicei). Curatenia trebuie facuta intre 11:00 si 13:00, deci va rog sa fiti acolo la 11:00.\n\n' +
+      'Check-out la 11:00: pleaca 2 persoane. Sosire mai devreme decat de obicei, la 13:00: sosesc 4 persoane.\n' +
+      'Curatenia se face dupa plecarea oaspetilor si trebuie terminata pana la 13:00. Va rog sa veniti pe la 11:30.\n\n' +
       'Multumesc!'
     );
   });
