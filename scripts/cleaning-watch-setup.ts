@@ -7,6 +7,7 @@
 //       --set ownerPhone=+40723200868 [--set cleanerPhone=+40...]
 //   npx tsx scripts/cleaning-watch-setup.ts <propertyId> --coltei-defaults   (weekly message + shortcut times)
 //   npx tsx scripts/cleaning-watch-setup.ts <propertyId> --enable | --disable
+//   npx tsx scripts/cleaning-watch-setup.ts <propertyId> --json 'shortcuts=[...]' --json watchCleanings=false
 //   npx tsx scripts/cleaning-watch-setup.ts <propertyId> --nuki-list          (locks + recent log names)
 //   npx tsx scripts/cleaning-watch-setup.ts <propertyId> --nuki <smartlockId> --cleaner-names "Mihaela"
 //
@@ -26,6 +27,7 @@ admin.initializeApp({ credential: admin.credential.cert(path.resolve(serviceAcco
 const db = admin.firestore();
 
 const SET_KEYS = new Set(['label', 'cleanerName', 'cleanerPhone', 'ownerPhone']);
+const JSON_KEYS = new Set(['watchCleanings', 'shortcuts', 'weeklyMessage', 'nuki']);
 
 function nukiToken(): string {
   const fromEnv = process.env.NUKI_API_TOKEN?.trim();
@@ -57,6 +59,10 @@ async function main() {
       const [k, ...rest] = (args[++i] || '').split('=');
       if (!SET_KEYS.has(k)) throw new Error(`--set only takes ${[...SET_KEYS].join(', ')}`);
       patch[k] = rest.join('=') || null;
+    } else if (a === '--json') {
+      const [k, ...rest] = (args[++i] || '').split('=');
+      if (!JSON_KEYS.has(k)) throw new Error(`--json only takes ${[...JSON_KEYS].join(', ')}`);
+      patch[k] = JSON.parse(rest.join('='));
     } else if (a === '--enable') {
       patch.enabled = true;
     } else if (a === '--disable') {
