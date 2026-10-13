@@ -85,6 +85,16 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // New OTA-blocked nights can be a last-minute booking: check those properties' cleanings now
+    // rather than at the next cleaning-watch run.
+    const changedProperties = new Set(
+      results.filter(r => r.datesBlocked > 0).map(r => feeds.find(f => f.id === r.feedId)?.propertyId).filter(Boolean) as string[]
+    );
+    if (changedProperties.size) {
+      const { triggerCleaningWatch } = await import('@/services/cleaningWatchService');
+      for (const propertyId of changedProperties) await triggerCleaningWatch(propertyId, 'ota sync');
+    }
+
     const successCount = results.filter(r => !r.error).length;
     const errorCount = results.filter(r => r.error).length;
 

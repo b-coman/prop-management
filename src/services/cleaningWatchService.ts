@@ -51,6 +51,8 @@ export interface CleaningWatchConfig {
   ownerPhone: string;
   /** The lock and the names of the cleaner's keypad codes, exactly as set in the Nuki app. */
   nuki?: { smartlockId: number; cleanerNames: string[] } | null;
+  /** false: only check that the owner's shortcuts ran (Comarnic). Default true. */
+  watchCleanings?: boolean;
   /** When the cleaner's weekly message goes out (Sunday 17:00 for Coltei). */
   weeklyMessage?: WeeklySchedule | null;
   shortcuts?: ShortcutExpectation[];
@@ -245,7 +247,23 @@ export async function runCleaningWatch(opts: { now: Date; dryRun: boolean; prope
   return reports;
 }
 
+/**
+ * Runs the watch for one property right away, after something changed: a booking saved in admin,
+ * a paid website booking, new OTA-blocked nights. A last-minute arrival is then reported within
+ * seconds instead of at the next scheduled run. Never throws: the caller's own work comes first.
+ */
+export async function triggerCleaningWatch(propertyId: string, reason: string): Promise<void> {
+  try {
+    const reports = await runCleaningWatch({ now: new Date(), dryRun: false, propertyId });
+    const sent = reports.flatMap(r => r.messages ?? []).filter(m => m.sent).length;
+    if (reports.length) logger.info('Cleaning watch triggered', { propertyId, reason, sent });
+  } catch (error) {
+    logger.warn('Triggered cleaning watch failed', { propertyId, reason, error: (error as Error).message });
+  }
+}
+
 async function watchProperty(propertyId: string, config: CleaningWatchConfig, now: Date, dryRun: boolean): Promise<WatchReport> {
+  if (config.watchCleanings === false) return watchShortcutsOnly(propertyId, config, now, dryRun);
   const db = await getAdminDb();
   const today = formatBucharestDate(now);
   const from = addDays(today, -45);
@@ -351,6 +369,26 @@ async function watchProperty(propertyId: string, config: CleaningWatchConfig, no
     const stored = storedVisits[c.key];
     if (v && (!stored || (!stored.leftAt && v.leftAt))) {
       await cleaningRef(c).set({ propertyId, key: c.key, visit: { enteredAt: v.enteredAt, leftAt: v.leftAt } }, { merge: true });
+    }
+  }
+  return report;
+}
+
+/** A property whose cleanings are not watched: only tell the owner when a shortcut didn't run. */
+async function watchShortcutsOnly(propertyId: string, config: CleaningWatchConfig, now: Date, dryRun: boolean): Promise<WatchReport> {
+  const db = await getAdminDb();
+  const watchRef = db.collection('cleaningWatch').doc(propertyId);
+  const watch = (await watchRef.get()).data() || {};
+  const messages = planShortcuts(config.shortcuts ?? [], asDates(watch.shortcutCalls), asDates(watch.sent), now);
+  const report: WatchReport = { propertyId, lock: 'none', messages: messages.map(m => ({ key: m.key, kind: m.kind, text: m.text })) };
+  if (dryRun) return report;
+  for (const [i, m] of messages.entries()) {
+    if (!(await claim(watchRef, m.key, { propertyId }))) continue;
+    const result = await deliver(propertyId, config, m);
+    report.messages![i].sent = result.ok;
+    if (!result.ok) {
+      report.messages![i].error = result.error;
+      await release(watchRef, m.key);
     }
   }
   return report;

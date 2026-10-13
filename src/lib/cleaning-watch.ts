@@ -110,6 +110,8 @@ export interface ShortcutExpectation {
   op: string;
   /** 0 = Sunday. */
   weekdays: number[];
+  /** Days of the month it also runs on (the 1st, for a monthly list). */
+  monthDays?: number[];
   /** "17:00" */
   time: string;
   /** What the owner calls it: "programul de duminica pentru Mihaela". */
@@ -543,7 +545,8 @@ export function planShortcuts(
   const today = formatBucharestDate(now);
   const out: OwnerMessage[] = [];
   for (const e of expectations) {
-    if (!e.weekdays.includes(weekdayOf(today))) continue;
+    const dayOfMonth = parseInt(today.slice(8, 10), 10);
+    if (!e.weekdays.includes(weekdayOf(today)) && !(e.monthDays ?? []).includes(dayOfMonth)) continue;
     const due = bucharestAt(today, e.time).getTime();
     const t = now.getTime();
     if (t < due + 20 * MINUTE || t > due + 3 * HOUR) continue;

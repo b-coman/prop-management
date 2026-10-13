@@ -295,6 +295,12 @@ describe('planShortcuts', () => {
       'Deschide aplicatia Shortcuts si ruleaz-o de mana, apoi verifica automatizarea.');
   });
 
+  it('checks a monthly shortcut on its day of the month only', () => {
+    const monthly = [{ op: 'monthlyReservations', weekdays: [], monthDays: [1], time: '09:10', label: 'lista lunara pentru Corina' }];
+    expect(planShortcuts(monthly, {}, {}, at('2026-11-01', '09:31')).map(m => m.key)).toEqual(['shortcut:monthlyReservations:2026-11-01']);
+    expect(planShortcuts(monthly, {}, {}, at('2026-11-02', '09:31'))).toEqual([]);
+  });
+
   it('is quiet when it ran, before the grace period, hours later, or once said', () => {
     expect(planShortcuts(expected, { weeklySchedule: at('2026-10-18', '17:00') }, {}, at('2026-10-18', '17:25'))).toEqual([]);
     expect(planShortcuts(expected, {}, {}, at('2026-10-18', '17:10'))).toEqual([]);

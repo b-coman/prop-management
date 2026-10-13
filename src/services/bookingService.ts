@@ -241,6 +241,16 @@ export async function updateBookingPaymentInfo(
              logger.warn('Missing or invalid check-in/out dates', { bookingId });
         }
 
+        // A paid website booking can be a last-minute arrival the cleaner doesn't know about.
+        if (newStatus === 'confirmed') {
+            try {
+                const { triggerCleaningWatch } = await import('@/services/cleaningWatchService');
+                await triggerCleaningWatch(propertyId, 'website booking paid');
+            } catch (watchError) {
+                logger.warn('Cleaning watch trigger failed (non-blocking)', { bookingId, error: (watchError as Error).message });
+            }
+        }
+
     } catch (error) {
         logger.error('Error updating booking', error as Error, { bookingId });
         throw new Error(`Failed to update booking payment info: ${error instanceof Error ? error.message : String(error)}`);

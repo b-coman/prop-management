@@ -57,6 +57,17 @@ const toDate = (timestamp: SerializableTimestamp | undefined | null): Date | nul
 /**
  * Fetches a single booking by ID with authorization check.
  */
+/** Runs the cleaning watch for the property after a booking change, so a last-minute arrival
+ *  reaches the owner within seconds. Never blocks or fails the save. */
+async function afterBookingChange(propertyId: string, reason: string): Promise<void> {
+  try {
+    const { triggerCleaningWatch } = await import('@/services/cleaningWatchService');
+    await triggerCleaningWatch(propertyId, reason);
+  } catch (error) {
+    logger.warn('Cleaning watch trigger failed (non-blocking)', { propertyId, error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 export async function fetchBookingById(bookingId: string): Promise<Booking | null> {
   logger.debug('Fetching booking by ID', { bookingId });
 
@@ -479,6 +490,7 @@ export async function convertHoldToBookingAction(
         });
 
         logger.info('Hold converted to confirmed', { bookingId });
+        await afterBookingChange(bookingData.propertyId, 'hold converted');
         revalidatePath('/admin/bookings');
 
         // Ensure availability remains blocked (it should already be blocked from the hold)
@@ -678,6 +690,8 @@ export async function createExternalBookingAction(
       }
     }
 
+    await afterBookingChange(data.propertyId, 'admin booking created');
+
     revalidatePath('/admin/bookings');
     revalidatePath('/admin/calendar');
     return { success: true, bookingId };
@@ -820,6 +834,7 @@ export async function editBookingAction(
 
     await bookingRef.update(updateData);
     logger.info('Updated booking', { bookingId: data.bookingId });
+    await afterBookingChange(data.propertyId, 'admin booking edited');
 
     // Note: we do NOT re-upsert the guest here because upsertGuestFromBooking
     // increments totalBookings/totalSpent, which would double-count on edit.
