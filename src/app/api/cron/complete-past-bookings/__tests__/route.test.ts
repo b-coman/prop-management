@@ -6,7 +6,10 @@ jest.mock('@/lib/firebaseAdminSafe', () => ({
 }));
 jest.mock('@/services/guestService', () => ({ advanceGuestLastStay: jest.fn().mockResolvedValue(true) }));
 jest.mock('@/lib/logger', () => ({
-  loggers: { booking: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } },
+  loggers: {
+    booking: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
+    authorization: { warn: jest.fn(), error: jest.fn() },
+  },
 }));
 
 import { GET } from '../route';
@@ -38,7 +41,8 @@ function makeDb(bookings: Array<{ id: string; data: Record<string, unknown> }>) 
   return { db, updates };
 }
 
-const CRON = { 'X-Appengine-Cron': 'true' };
+process.env.CRON_SECRET = 'cron-test-secret';
+const CRON = { Authorization: 'Bearer cron-test-secret' };
 const past = new Date(Date.now() - 10 * 86400000);
 const future = new Date(Date.now() + 10 * 86400000);
 

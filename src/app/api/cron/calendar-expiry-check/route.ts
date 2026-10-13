@@ -18,6 +18,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { rejectIfNotCron } from '@/lib/cron-auth';
 import { getFirestoreForPricing } from '@/lib/firebaseAdminPricing';
 import { loggers } from '@/lib/logger';
 import { sendCalendarExpiryAlert } from '@/services/emailService';
@@ -41,13 +42,8 @@ export async function GET(request: NextRequest) {
   logger.info('Calendar expiry check endpoint called');
 
   // Verify this is a legitimate cron request
-  const authHeader = request.headers.get('Authorization');
-  const cronHeader = request.headers.get('X-Appengine-Cron');
-
-  if (!cronHeader && !authHeader?.startsWith('Bearer ')) {
-    logger.error('Unauthorized access attempt to calendar expiry check endpoint');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const unauthorized = rejectIfNotCron(request, 'calendar-expiry-check');
+  if (unauthorized) return unauthorized;
 
   try {
     const db = await getFirestoreForPricing();

@@ -8,6 +8,7 @@ jest.mock('@/services/guestEmailSweep', () => ({ runGuestEmailSweep: jest.fn() }
 jest.mock('@/lib/logger', () => ({
   loggers: {
     email: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+    authorization: { warn: jest.fn(), error: jest.fn() },
     guest: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
   },
 }));
@@ -19,8 +20,10 @@ import { GET as preArrival } from '../send-pre-arrival/route';
 import { GET as reviewRequests } from '../send-review-requests/route';
 import { GET as sequences } from '../guest-email-sequences/route';
 
+process.env.CRON_SECRET = 'cron-test-secret';
+
 const authed = (path: string, qs = '') =>
-  ({ headers: { get: (h: string) => (h === 'Authorization' ? 'Bearer x' : null) },
+  ({ headers: { get: (h: string) => (h === 'Authorization' ? 'Bearer cron-test-secret' : null) },
      url: `https://x/api/cron/${path}${qs}` } as any);
 const anonymous = { headers: { get: () => null }, url: 'https://x/' } as any;
 

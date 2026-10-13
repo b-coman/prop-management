@@ -2,7 +2,10 @@
 
 jest.mock('@/lib/firebaseAdminSafe', () => ({ getAdminDb: jest.fn(), FieldValue: { serverTimestamp: jest.fn(() => 'ts') } }));
 jest.mock('@/services/guestService', () => ({ recomputeGuestAggregates: jest.fn() }));
-jest.mock('@/lib/logger', () => ({ loggers: { guest: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } } }));
+jest.mock('@/lib/logger', () => ({ loggers: {
+  guest: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+  authorization: { warn: jest.fn(), error: jest.fn() },
+} }));
 
 import { GET } from '../route';
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
@@ -24,7 +27,8 @@ function makeDb(guestIds: string[]) {
   return { collection: () => ({ get: async () => ({ docs }) }) };
 }
 
-const CRON = { 'X-Appengine-Cron': 'true' };
+process.env.CRON_SECRET = 'cron-test-secret';
+const CRON = { Authorization: 'Bearer cron-test-secret' };
 
 beforeEach(() => mockRecompute.mockReset());
 

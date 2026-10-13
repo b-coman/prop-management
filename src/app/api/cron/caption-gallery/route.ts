@@ -7,6 +7,7 @@
  * Intended cadence: daily via Cloud Scheduler (GET). Auth: Cloud Scheduler header or a Bearer token.
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { rejectIfNotCron } from '@/lib/cron-auth';
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { captionUndescribedImages } from '@/services/growth/galleryVision';
 import { loggers } from '@/lib/logger';
@@ -17,11 +18,8 @@ const logger = loggers.ads;
 const PER_RUN_LIMIT = 30;
 
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('Authorization');
-  const cronHeader = request.headers.get('X-Appengine-Cron');
-  if (!cronHeader && !authHeader?.startsWith('Bearer ')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const unauthorized = rejectIfNotCron(request, 'caption-gallery');
+  if (unauthorized) return unauthorized;
   try {
     const db = await getAdminDb();
     const props = await db.collection('properties').get();

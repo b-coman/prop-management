@@ -18,6 +18,7 @@
  * hourly would be spend without information.
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { rejectIfNotCron } from '@/lib/cron-auth';
 import { loggers } from '@/lib/logger';
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { fetchPostEngagement } from '@/services/growth/pagePublisher';
@@ -28,12 +29,8 @@ const logger = loggers.ads;
 const STALE_AFTER_DAYS = 30;
 
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('Authorization');
-  const cronHeader = request.headers.get('X-Appengine-Cron');
-  if (!cronHeader && !authHeader?.startsWith('Bearer ')) {
-    logger.error('Unauthorized access attempt to page-engagement-sync');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const unauthorized = rejectIfNotCron(request, 'page-engagement-sync');
+  if (unauthorized) return unauthorized;
 
   try {
     const db = await getAdminDb();

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { rejectIfNotCron } from '@/lib/cron-auth';
 import { loggers } from '@/lib/logger';
 
 const logger = loggers.housekeeping;
@@ -6,13 +7,8 @@ const logger = loggers.housekeeping;
 export async function GET(request: NextRequest) {
   logger.info('Housekeeping monthly cron endpoint called');
 
-  const authHeader = request.headers.get('Authorization');
-  const cronHeader = request.headers.get('X-Appengine-Cron');
-
-  if (!cronHeader && !authHeader?.startsWith('Bearer ')) {
-    logger.error('Unauthorized access attempt to housekeeping-monthly cron');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const unauthorized = rejectIfNotCron(request, 'housekeeping-monthly');
+  if (unauthorized) return unauthorized;
 
   try {
     const { getPropertiesWithContacts, sendMonthlyScheduleToProperty } =

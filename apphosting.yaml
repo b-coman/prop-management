@@ -239,6 +239,13 @@ env:
     availability:
         - RUNTIME
 
+# The key Cloud Scheduler sends to /api/cron/* (`Authorization: Bearer <CRON_SECRET>`), checked
+# exactly by src/lib/cron-auth.ts. Same value the jobs already carried; change both together.
+  - variable: CRON_SECRET
+    secret: projects/1061532538391/secrets/CRON_SECRET/versions/latest
+    availability:
+        - RUNTIME
+
 # Nuki Web API token for the cleaning watch (src/services/nukiClient.ts). Read-only scopes only
 # (smartlock.readOnly + smartlock.log), so it cannot open the door. Holds the placeholder "unset"
 # until the lock is online; a new version needs a redeploy to be picked up.

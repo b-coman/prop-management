@@ -9,11 +9,12 @@
  * self-heal regardless of which path touched it. Writes only guests whose totals
  * actually changed. `?dryRun=1` reports the corrections without writing.
  *
- * Security: cron-only (X-Appengine-Cron header or Bearer token).
+ * Security: cron-only (`Authorization: Bearer <CRON_SECRET>`, src/lib/cron-auth.ts).
  * Frequency: intended weekly via Cloud Scheduler.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { rejectIfNotCron } from '@/lib/cron-auth';
 import { getAdminDb } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
 import { recomputeGuestAggregates } from '@/services/guestService';
@@ -21,12 +22,8 @@ import { recomputeGuestAggregates } from '@/services/guestService';
 const logger = loggers.guest;
 
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('Authorization');
-  const cronHeader = request.headers.get('X-Appengine-Cron');
-  if (!cronHeader && !authHeader?.startsWith('Bearer ')) {
-    logger.error('Unauthorized access attempt to recompute-guest-aggregates');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const unauthorized = rejectIfNotCron(request, 'recompute-guest-aggregates');
+  if (unauthorized) return unauthorized;
 
   const dryRunParam = request.nextUrl.searchParams.get('dryRun');
   const dryRun = dryRunParam === '1' || dryRunParam === 'true';
@@ -74,9 +71,7 @@ export async function GET(request: NextRequest) {
 
 // POST for manual testing (protected).
 export async function POST(request: NextRequest) {
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const unauthorized = rejectIfNotCron(request, 'recompute-guest-aggregates');
+  if (unauthorized) return unauthorized;
   return GET(request);
 }

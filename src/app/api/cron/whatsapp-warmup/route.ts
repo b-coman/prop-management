@@ -7,20 +7,18 @@
  * The recurring segments run here: keepintouch, then leadfollowup (leads have no stay, so they need
  * their own no-ask follow-up or they simply go cold). coldreintro stays operator-triggered.
  *
- * Auth: Cloud Scheduler header (X-Appengine-Cron) or a Bearer token — same gate as the other crons.
+ * Auth: `Authorization: Bearer <CRON_SECRET>` from Cloud Scheduler (src/lib/cron-auth.ts).
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { rejectIfNotCron } from '@/lib/cron-auth';
 import { generateWarmupCampaign } from '@/services/growth/warmupCampaign';
 import { loggers } from '@/lib/logger';
 
 const logger = loggers.campaign;
 
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('Authorization');
-  const cronHeader = request.headers.get('X-Appengine-Cron');
-  if (!cronHeader && !authHeader?.startsWith('Bearer ')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const unauthorized = rejectIfNotCron(request, 'whatsapp-warmup');
+  if (unauthorized) return unauthorized;
   try {
     const result = await generateWarmupCampaign('keepintouch');
     const leads = await generateWarmupCampaign('leadfollowup');

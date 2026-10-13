@@ -7,6 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { rejectIfNotCron } from '@/lib/cron-auth';
 import { getFirestoreForPricing } from '@/lib/firebaseAdminPricing';
 import { FieldValue } from 'firebase-admin/firestore';
 import { loggers } from '@/lib/logger';
@@ -22,13 +23,8 @@ export async function GET(request: NextRequest) {
   logger.info('iCal feed sync cron triggered');
 
   // Verify legitimate cron request
-  const authHeader = request.headers.get('Authorization');
-  const cronHeader = request.headers.get('X-Appengine-Cron');
-
-  if (!cronHeader && !authHeader?.startsWith('Bearer ')) {
-    logger.error('Unauthorized access attempt to iCal sync cron');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const unauthorized = rejectIfNotCron(request, 'sync-ical-feeds');
+  if (unauthorized) return unauthorized;
 
   try {
     const db = await getFirestoreForPricing();
@@ -191,9 +187,7 @@ async function syncSingleFeed(
 
 // POST method for manual testing (protected)
 export async function POST(request: NextRequest) {
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const unauthorized = rejectIfNotCron(request, 'sync-ical-feeds');
+  if (unauthorized) return unauthorized;
   return GET(request);
 }

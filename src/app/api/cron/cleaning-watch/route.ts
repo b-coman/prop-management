@@ -1,9 +1,9 @@
 /**
- * The cleaning watch: every 15 minutes (Cloud Scheduler), check each watched property's cleanings
- * and tell the owner on WhatsApp when one needs him. See src/services/cleaningWatchService.ts.
+ * The cleaning watch: every 30 minutes 07:00-21:30 (Cloud Scheduler), and right after a booking
+ * change, check each watched property's cleanings and tell the owner on WhatsApp when one needs him. See src/services/cleaningWatchService.ts.
  *
- * Auth: `Authorization: Bearer <AUTOMATION_TOKEN>`, compared exactly. The older crons accept any
- * Bearer token; this one sends WhatsApp messages, so it doesn't.
+ * Auth: `Authorization: Bearer <AUTOMATION_TOKEN>`, compared exactly (the token the owner's
+ * shortcuts already use, so dry runs can be made with it).
  *
  * Testing: `?dryRun=1` plans without sending or writing anything, `&now=<ISO>` pretends it is
  * another moment (dry runs only), `&propertyId=` limits the run to one property (and lets a dry

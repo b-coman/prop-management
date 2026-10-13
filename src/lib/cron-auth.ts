@@ -1,19 +1,27 @@
 /**
  * Authorisation for Cloud Scheduler-triggered routes.
  *
- * Cloud Scheduler is configured to send a Bearer token; App Engine-style cron sends
- * `X-Appengine-Cron` instead. Accepting either was copied into every cron route by hand.
+ * The scheduler jobs send `Authorization: Bearer <CRON_SECRET>`, and only that exact value gets in.
+ * These routes used to accept ANY Bearer token, or an `X-Appengine-Cron` header, which anyone can
+ * set on Cloud Run (only App Engine strips it). Anyone who knew a URL could send guest emails or
+ * run the calendar sync. Without CRON_SECRET the routes refuse everything rather than guess.
  */
+import { timingSafeEqual } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
 
 /** Returns a 401 response when the request is not from the scheduler, or null to proceed. */
 export function rejectIfNotCron(request: NextRequest, routeName: string): NextResponse | null {
-  const authHeader = request.headers.get('Authorization');
-  const cronHeader = request.headers.get('X-Appengine-Cron');
-  if (cronHeader || authHeader?.startsWith('Bearer ')) return null;
+  const expected = process.env.CRON_SECRET?.trim();
+  const got = request.headers.get('Authorization')?.replace(/^Bearer\s+/, '').trim();
+  if (expected && got) {
+    const a = Buffer.from(got);
+    const b = Buffer.from(expected);
+    if (a.length === b.length && timingSafeEqual(a, b)) return null;
+  }
 
   const { loggers } = require('@/lib/logger');
-  loggers.email.error(`Unauthorized access attempt to ${routeName} cron`);
+  if (!expected) loggers.authorization.error(`CRON_SECRET is not set; refusing ${routeName} cron`);
+  else loggers.authorization.warn(`Unauthorized call to ${routeName} cron`);
   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 }
 

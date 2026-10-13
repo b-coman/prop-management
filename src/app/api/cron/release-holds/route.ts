@@ -10,6 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { rejectIfNotCron } from '@/lib/cron-auth';
 import { getFirestoreForPricing } from '@/lib/firebaseAdminPricing';
 import { isValid, parseISO } from 'date-fns';
 import { Timestamp as AdminTimestamp } from 'firebase-admin/firestore';
@@ -22,17 +23,8 @@ export async function GET(request: NextRequest) {
   logger.info('Release expired holds endpoint called');
 
   // Verify this is a legitimate cron request
-  const authHeader = request.headers.get('Authorization');
-  const cronHeader = request.headers.get('X-Appengine-Cron');
-
-  // For Cloud Scheduler, check for Bearer token or cron header
-  if (!cronHeader && !authHeader?.startsWith('Bearer ')) {
-    logger.error('Unauthorized access attempt to cron endpoint');
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    );
-  }
+  const unauthorized = rejectIfNotCron(request, 'release-holds');
+  if (unauthorized) return unauthorized;
 
   try {
     const db = await getFirestoreForPricing();
@@ -157,11 +149,8 @@ export async function GET(request: NextRequest) {
 
 // POST method for manual testing (protected)
 export async function POST(request: NextRequest) {
-  const authHeader = request.headers.get('Authorization');
-  
-  if (!authHeader?.startsWith('Bearer ')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const unauthorized = rejectIfNotCron(request, 'release-holds');
+  if (unauthorized) return unauthorized;
   
   // Call the GET handler for manual testing
   return GET(request);

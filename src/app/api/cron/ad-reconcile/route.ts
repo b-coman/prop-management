@@ -7,20 +7,18 @@
  * Intended cadence: hourly-to-daily via Cloud Scheduler (GET). Cheap and idempotent; a slow cadence
  * is safe because the account-level spend limit is the hard backstop.
  *
- * Auth: Cloud Scheduler header (X-Appengine-Cron) or a Bearer token — same gate as the other crons.
+ * Auth: `Authorization: Bearer <CRON_SECRET>` from Cloud Scheduler (src/lib/cron-auth.ts).
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { rejectIfNotCron } from '@/lib/cron-auth';
 import { reconcileAdCampaigns } from '@/services/growth/adReconciliation';
 import { loggers } from '@/lib/logger';
 
 const logger = loggers.ads;
 
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('Authorization');
-  const cronHeader = request.headers.get('X-Appengine-Cron');
-  if (!cronHeader && !authHeader?.startsWith('Bearer ')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const unauthorized = rejectIfNotCron(request, 'ad-reconcile');
+  if (unauthorized) return unauthorized;
   try {
     const result = await reconcileAdCampaigns();
     logger.info('ad-reconcile cron ran', { checked: result.checked, updated: result.updated, escapes: result.escapes, flags: result.flags.length });
