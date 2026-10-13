@@ -62,6 +62,26 @@ describe('the sheet is periods × channels', () => {
   });
 });
 
+describe('a period priced by an explicit weekday rate', () => {
+  // Since the 1 Sep band pricing, Fall, Autumn Break, Late Fall and others carry `weekdayRate`
+  // instead of a tier. The sheet once compiled without the base price and dropped every one of them.
+  const sheet = build([
+    period({ slug: 'fall', startDate: '2026-09-09', endDate: '2026-10-22', tier: 'low', weekdayRate: 405 }),
+    period({ slug: 'vacanta-toamna', startDate: '2026-10-23', endDate: '2026-10-31', tier: 'medium', weekdayRate: 578, minStay: 3, priority: 100 }),
+  ]);
+
+  it('is on the sheet at its stated rate, not skipped', () => {
+    const direct = (slug: string) => sheet.rows.find((r) => r.periodName === slug && r.channelId === 'direct');
+    expect(direct('fall')?.nightly).toBe(405);
+    expect(direct('vacanta-toamna')?.nightly).toBe(578);
+    expect(sheet.warnings.filter((w) => w.includes('unknown-tier'))).toEqual([]);
+  });
+
+  it('still prices every channel from that rate', () => {
+    expect(sheet.rows.filter((r) => r.periodName === 'fall')).toHaveLength(3);
+  });
+});
+
 describe('hand-set peak prices stay whole', () => {
   const sheet = build([
     period({ slug: 'iarna', startDate: '2026-12-20', endDate: '2026-12-31', tier: 'min' }),

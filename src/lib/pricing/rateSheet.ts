@@ -90,7 +90,9 @@ export function buildRateSheet(input: BuildRateSheetInput): RateSheet {
   } = input;
 
   const warnings: string[] = [];
-  const compiled = compilePeriods(periods, { tierMultipliers, defaultMinimumStay, compiledAt: computedAt });
+  // basePrice turns a period's explicit weekdayRate into a multiplier. Without it every such period
+  // (Fall, Autumn Break, Late Fall, National Day, Early Winter...) was skipped as "unknown-tier".
+  const compiled = compilePeriods(periods, { tierMultipliers, defaultMinimumStay, basePrice, compiledAt: computedAt });
   compiled.warnings.forEach((w) => warnings.push(`[${w.kind}] ${w.message}`));
 
   const periodById = new Map(periods.map((p) => [p.id, p]));
