@@ -18,6 +18,7 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { DEFAULT_LANGUAGE } from '@/lib/language-constants';
 import type { CurrencyCode } from '@/types';
 import { StickyBottomBar } from '@/components/ui/sticky-bottom-bar';
+import { trackUiEvent } from '@/lib/tracking';
 
 interface HeaderProps {
   propertyName: string;
@@ -174,6 +175,9 @@ export function Header({
       return;
     }
     const hero = document.getElementById('hero');
+    // The main site passes no onBookingClick, so these two buttons were never counted there.
+    // `destination` says what the click did: scrolled to the homepage widget, or opened the booking page.
+    trackUiEvent('check_dates_click', { position, destination: hero ? 'hero' : 'booking' });
     if (hero) {
       hero.scrollIntoView({ behavior: 'smooth' });
       // Focus the date input after scroll completes
@@ -183,13 +187,13 @@ export function Header({
         dateInput?.click();
       }, 600);
     } else {
-      // Navigate to property homepage
-      const homePath = isCustomDomain
-        ? (currentLang !== DEFAULT_LANGUAGE ? `/${currentLang}` : '/')
-        : getLocalizedPath(basePath);
-      router.push(homePath);
+      // Gallery, Details, Location and House rules have no date widget. This used to send the visitor
+      // to the homepage, where they had to find the widget again (Oct 2026: only 3% of gallery visitors
+      // reached the booking page). The booking page has its own date picker and proposed stays.
+      const langSeg = currentLang && currentLang !== DEFAULT_LANGUAGE ? `/${currentLang}` : '';
+      router.push(`/booking/check/${propertySlug}${langSeg}`);
     }
-  }, [isCustomDomain, currentLang, getLocalizedPath, basePath, router, bookingHref, onBookingClick]);
+  }, [currentLang, propertySlug, router, bookingHref, onBookingClick]);
 
   // Apply theme-based header styling when scroll state or theme changes
   useEffect(() => {
