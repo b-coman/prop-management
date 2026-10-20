@@ -1,7 +1,7 @@
 // src/components/property/gallery-grid.tsx
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import { GalleryGridBlock } from '@/lib/overridesSchemas-multipage';
 import {
   Dialog,
@@ -16,6 +16,7 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { displaySrc, fullSrc } from '@/lib/image-src';
 import { trackUiEvent } from '@/lib/tracking';
 import { DEFAULT_TAG_LABELS, type TagLabel } from '@/lib/tag-labels';
+import { OpenStays, type OpenStaysContent } from '@/components/property/open-stays';
 
 // Default bilingual labels for common image tags.
 
@@ -34,11 +35,12 @@ function photoId(url: string): string {
 }
 
 interface GalleryGridProps {
-  content: GalleryGridBlock;
+  /** `interlude`: the free periods widget, shown after the `after`-th photo (set by the page renderer). */
+  content: GalleryGridBlock & { interlude?: { after: number; stays: OpenStaysContent } };
 }
 
 export function GalleryGrid({ content }: GalleryGridProps) {
-  const { title, description, layout = 'grid', enableLightbox = true, images: rawImages = [] } = content;
+  const { title, description, layout = 'grid', enableLightbox = true, images: rawImages = [], interlude } = content;
   const images = useMemo(() => rawImages.filter((img: any) => img.showInGallery !== false), [rawImages]);
   const { tc, currentLang } = useLanguage();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -186,8 +188,8 @@ export function GalleryGrid({ content }: GalleryGridProps) {
         {layout === 'grid' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 auto-rows-min">
             {filteredImages.map((image, index) => (
+              <Fragment key={index}>
               <div
-                key={index}
                 className={cn(
                   "relative cursor-pointer overflow-hidden rounded-lg",
                   index === 0 && "md:col-span-2 md:row-span-2",
@@ -209,6 +211,12 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                   blurDataURL={(image as any).blurDataURL}
                 />
               </div>
+              {interlude && index === interlude.after - 1 && index < filteredImages.length - 1 && (
+                <div className="md:col-span-3">
+                  <OpenStays content={interlude.stays} />
+                </div>
+              )}
+              </Fragment>
             ))}
           </div>
         )}
@@ -282,6 +290,14 @@ export function GalleryGrid({ content }: GalleryGridProps) {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* With a filter on, or another layout, the photos may not reach the slot: the widget then
+            closes the gallery instead of disappearing. */}
+        {interlude && (layout !== 'grid' || filteredImages.length <= interlude.after) && (
+          <div className="mt-6">
+            <OpenStays content={interlude.stays} />
           </div>
         )}
 

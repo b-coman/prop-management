@@ -93,6 +93,7 @@ import { AttractionsList } from '@/components/property/attractions-list';
 import { TransportOptions } from '@/components/property/transport-options';
 import { DistancesList } from '@/components/property/distances-list';
 import { GalleryGrid } from '@/components/property/gallery-grid';
+import { OpenStays, type OpenStaysContent } from '@/components/property/open-stays';
 import { PhotoCategories } from '@/components/property/photo-categories';
 import { FullBookingForm } from '@/components/property/full-booking-form';
 import { PoliciesList } from '@/components/property/policies-list';
@@ -135,6 +136,7 @@ const blockComponents: Record<string, React.FC<{ content: any; language?: string
   legalContent: LegalContent,
   areaGuideContent: AreaGuideSection,
   reviewsList: ReviewsListSection,
+  openStays: OpenStays,
 
   // Legacy component aliases for backward compatibility
   propertyDetailsSection: SpecificationsList,
@@ -159,6 +161,7 @@ interface PropertyPageRendererProps {
   otaListings?: Array<{ channelId: string; displayName: string; url: string }>; // OTA listings of this property (for reviews page)
   localBlurMap?: Record<string, string>; // Blur placeholders for local images
   isCustomDomain?: boolean; // Whether the request came through a custom domain
+  openStays?: OpenStaysContent | null; // Free periods widget rows, built server-side (null = not on this page)
 }
 
 // Look up blur data URL for a local image path
@@ -181,6 +184,7 @@ export function PropertyPageRenderer({
   otaListings,
   localBlurMap,
   isCustomDomain = false,
+  openStays = null,
 }: PropertyPageRendererProps) {
   const { tc } = useLanguage();
   const { setDefaultCurrency } = useCurrency();
@@ -234,6 +238,15 @@ export function PropertyPageRenderer({
   // Get visible blocks for this page
   const pageOverrides = overrides[pageName] as Record<string, any> || {};
   const visibleBlocks = pageOverrides.visibleBlocks || templatePage.blocks.map(block => block.id);
+
+  // Free periods widget. The server only sends rows for a page whose overrides switch the block on.
+  // With `galleryAfter` set and a photo grid on the page, it sits between the photos instead of in
+  // its own slot: on a phone the gallery is about 13 screens long and 6 in 10 visitors never reach
+  // the bottom (GA4, Oct 2026).
+  const openStaysBlockId = templatePage.blocks.find((b) => b.type === 'openStays')?.id;
+  const galleryAfter = openStaysBlockId ? Number(pageOverrides[openStaysBlockId]?.galleryAfter) || 0 : 0;
+  const openStaysInGallery = !!openStays && galleryAfter > 0 &&
+    templatePage.blocks.some((b) => b.type === 'galleryGrid' && visibleBlocks.includes(b.id));
   
 
   // Menu items - use overrides if available, otherwise use template defaults
@@ -313,6 +326,11 @@ export function PropertyPageRenderer({
       // explicit per-property override before rendering.
       if (type === 'pricingTable' && !pageOverride) {
         return null;
+      }
+
+      if (type === 'openStays') {
+        if (!openStays || openStaysInGallery) return null;
+        blockContent = openStays;
       }
 
       // If still undefined, skip rendering
@@ -473,6 +491,9 @@ export function PropertyPageRenderer({
             ...blockContent,
             images: propertyGalleryImages,
           };
+        }
+        if (type === 'galleryGrid' && openStaysInGallery && openStays) {
+          blockContent = { ...blockContent, interlude: { after: galleryAfter, stays: { ...openStays, variant: 'inline', embedded: true } } };
         }
         // Process viewAllUrl for proper routing (same pattern as CTA buttonUrl)
         if (blockContent?.viewAllUrl) {

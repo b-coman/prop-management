@@ -616,5 +616,11 @@
     "homeDescriptionFallback": "{{tagline}}. Rezervă direct la {{name}}.",
     "priceFromPerNight": "De la {{price}} {{currency}} pe noapte",
     "breadcrumbHome": "Acasă"
+  },
+  "openStays": {
+    "title": "Date libere în curând",
+    "moreDates": "Alte date",
+    "weekend": "Weekend",
+    "from": "de la"
   }
 }

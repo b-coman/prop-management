@@ -17,6 +17,7 @@ import { AttractionsForm } from './block-forms/attractions-form';
 import { TransportForm } from './block-forms/transport-form';
 import { DistancesForm } from './block-forms/distances-form';
 import { GalleryGridForm } from './block-forms/gallery-grid-form';
+import { OpenStaysForm } from './block-forms/open-stays-form';
 import { BookingFormConfig } from './block-forms/booking-form-config';
 import { PoliciesForm } from './block-forms/policies-form';
 import { VideoForm } from './block-forms/video-form';
@@ -60,6 +61,7 @@ const FORM_COMPONENTS: Record<string, React.ComponentType<{
   video: VideoForm,
   areaGuideContent: AreaGuideForm,
   reviewsList: ReviewsListForm,
+  openStays: OpenStaysForm,
 };
 
 // Check if block content is essentially empty (only has _hidden or no real values)

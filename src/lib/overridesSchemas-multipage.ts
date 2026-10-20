@@ -279,6 +279,18 @@ export const galleryGridSchema = z.object({
   images: z.array(galleryImageSchema).optional(),
 });
 
+// Free periods widget (components/property/open-stays.tsx). Rows come from the live calendar; these are its settings.
+export const openStaysSchema = z.object({
+  variant: z.enum(['section', 'inline']).optional(),
+  title: multilingualString.optional(),
+  maxRows: z.number().int().min(1).max(8).optional(),
+  horizonDays: z.number().int().min(14).max(180).optional(),
+  galleryAfter: z.number().int().min(0).optional(),
+  minSearches: z.number().int().min(1).optional(),
+  badges: z.record(z.string(), z.union([multilingualString, z.literal(false)])).optional(),
+  pinned: z.array(z.object({ start: z.string(), text: multilingualString })).optional(),
+});
+
 export const photoCategoriesSchema = z.object({
   title: multilingualString,
   categories: z.array(
@@ -407,6 +419,7 @@ export const blockSchemas: Record<string, z.ZodTypeAny> = {
   video: videoSectionSchema,
   areaGuideContent: areaGuideContentSchema,
   reviewsList: reviewsListSchema,
+  openStays: openStaysSchema,
 };
 
 // Schema for the entire template

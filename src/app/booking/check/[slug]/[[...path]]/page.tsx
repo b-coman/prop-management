@@ -57,6 +57,7 @@ import { serverTranslateContent } from '@/lib/server-language-utils';
 import { BookingPageV2 } from '@/components/booking-v2';
 import type { EntryStay } from '@/components/booking-v2/components';
 import { buildExampleStays } from '@/lib/landing/exampleStays';
+import { recordStaySearch } from '@/lib/website/staySearches';
 import { getChannels } from '@/services/channelService';
 import { getPublishedReviewsForProperty } from '@/services/reviewService';
 import { pickBookingReview } from '@/lib/booking/reviewForBooking';
@@ -157,6 +158,10 @@ export default async function BookingCheckPage({ params, searchParams }: Booking
     languagePath: path ? path.join('/') : 'Not provided',
     detectedLanguage
   });
+  // Counted for the website's free periods widget ("high demand"). Not awaited: never slows the page.
+  if (slug && typeof checkIn === 'string' && typeof checkOut === 'string') {
+    void recordStaySearch(slug, checkIn, checkOut);
+  }
 
   if (!slug) {
     logger.error('Slug is missing from params - returning 404');

@@ -616,5 +616,11 @@
     "homeDescriptionFallback": "{{tagline}}. Book {{name}} directly.",
     "priceFromPerNight": "From {{price}} {{currency}} per night",
     "breadcrumbHome": "Home"
+  },
+  "openStays": {
+    "title": "Free dates coming up",
+    "moreDates": "Other dates",
+    "weekend": "Weekend",
+    "from": "from"
   }
 }

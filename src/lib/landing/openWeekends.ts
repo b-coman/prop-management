@@ -73,24 +73,25 @@ export function weekendStarts(from: Date, to: Date, weekday = 5, now: Date = new
 export async function findOpenWeekends(opts: FindOpenWeekendsOptions): Promise<OpenWeekend[]> {
   const { propertyId, from, to, nights = 2, guests = 3, weekday = 5, limit = 6 } = opts;
 
-  const found: OpenWeekend[] = [];
-  for (const d of weekendStarts(from, to, weekday)) {
-    if (found.length >= limit) break;
+  // All Fridays are quoted at once. One after another, a 75-day window took about 7 s, which the
+  // website widget cannot wait for. Order and `limit` are applied afterwards, so the result is the same.
+  const quoted = await Promise.all(weekendStarts(from, to, weekday).map(async (d): Promise<OpenWeekend | null> => {
     const checkIn = new Date(d);
     const checkOut = addDays(checkIn, nights);
     try {
       const q = await quoteStay({ propertyId, checkIn, checkOut, adults: guests, children: 0, hasSplit: false });
-      if (!q.available) continue;   // booked, min-stay, or occupancy — all mean "do not advertise it"
-      found.push({
+      if (!q.available) return null;   // booked, min-stay, or occupancy — all mean "do not advertise it"
+      return {
         start: format(checkIn, 'yyyy-MM-dd'),
         end: format(checkOut, 'yyyy-MM-dd'),
         nights,
         total: q.pricing.totalPrice,
         currency: q.pricing.currency,
-      });
+      };
     } catch {
       // One bad quote must not cost the whole page. Drop the card, keep the rest.
+      return null;
     }
-  }
-  return found;
+  }));
+  return quoted.filter((w): w is OpenWeekend => w !== null).slice(0, limit);
 }

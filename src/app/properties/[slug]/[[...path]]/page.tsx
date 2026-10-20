@@ -20,6 +20,8 @@ import { TrackViewItem } from '@/components/tracking/track-page-view';
 import blurMapData from '@/data/blur-map.json';
 import { headers } from 'next/headers';
 import { loggers } from '@/lib/logger';
+import { getOpenStays } from '@/lib/website/openStaysServer';
+import type { OpenStaysContent } from '@/components/property/open-stays';
 
 export const dynamic = 'force-dynamic'; // Ensures the page is always dynamically rendered
 
@@ -624,6 +626,10 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   const propertyNameStr = serverTranslateContent(propertyNameSource, language);
   const propertyNameForLang = serverTranslateContent(propertyNameSource, language);
 
+  // Free periods widget, started now and awaited just before render so it overlaps the reads below.
+  // Only on a page whose overrides carry settings for the block: opt-in per property.
+  const openStaysPromise = loadOpenStays(slug, pageName, language, template, overrides);
+
   // Build page-specific structured data (JSON-LD)
   let vacationRentalJsonLd: Record<string, unknown> | null = null;
   let lodgingBusinessJsonLd: Record<string, unknown> | null = null;
@@ -695,6 +701,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   // added. Strip it from the copy the client gets; the server keeps the full
   // object for JSON-LD and everything else above.
   const clientProperty = toClientProperty(property);
+  const openStays = await openStaysPromise;
 
   // Same reasoning for the template and overrides: send what this page renders, nothing else.
   const clientTemplate = templateForClient(template, overrides, pageName);
@@ -764,9 +771,47 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
             otaListings={reviewListings.length > 0 ? reviewListings : undefined}
             localBlurMap={localBlurMap}
             isCustomDomain={isCustomDomain}
+            openStays={openStays}
           />
         </Suspense>
       </LanguageProvider>
     </>
   );
+}
+
+/**
+ * The free periods widget's rows for this page, in the page language, or null when the page does
+ * not use the block or nothing is free. Never throws: a missing widget costs a block, not the page.
+ */
+async function loadOpenStays(
+  slug: string, pageName: string, language: string, template: any, overrides: any,
+): Promise<OpenStaysContent | null> {
+  try {
+    const block = template?.pages?.[pageName]?.blocks?.find((b: any) => b.type === 'openStays');
+    const pageOverrides = overrides?.[pageName];
+    const settings = block ? pageOverrides?.[block.id] : undefined;
+    if (!settings || (pageOverrides?.visibleBlocks && !pageOverrides.visibleBlocks.includes(block.id))) return null;
+
+    const data = await getOpenStays(slug, {
+      maxRows: settings.maxRows, horizonDays: settings.horizonDays, badges: settings.badges,
+      pinned: settings.pinned, minSearches: settings.minSearches,
+    });
+    if (!data) return null;
+    const tr = (v: any) => (v ? serverTranslateContent(v, language) || null : null);
+    return {
+      variant: settings.variant === 'inline' ? 'inline' : 'section',
+      title: tr(settings.title),
+      rows: data.rows.map((r) => ({
+        start: r.start, end: r.end, nights: r.nights, price: r.price,
+        label: tr(r.label),
+        badge: r.badge ? { kind: r.badge.kind, text: tr(r.badge.text) || '' } : null,
+      })),
+      currency: data.currency,
+      bookBase: `/booking/check/${slug}${language !== DEFAULT_LANGUAGE ? `/${language}` : ''}`,
+      position: pageName === 'homepage' ? 'home' : pageName,
+    };
+  } catch (err) {
+    loggers.booking.warn('Open stays: could not load for page', { slug, pageName, error: (err as Error)?.message });
+    return null;
+  }
 }
