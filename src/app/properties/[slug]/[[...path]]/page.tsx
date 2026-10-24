@@ -21,6 +21,7 @@ import blurMapData from '@/data/blur-map.json';
 import { headers } from 'next/headers';
 import { loggers } from '@/lib/logger';
 import { getOpenStays } from '@/lib/website/openStaysServer';
+import { openStaysSettings } from '@/lib/website/openStays';
 import type { OpenStaysContent } from '@/components/property/open-stays';
 
 export const dynamic = 'force-dynamic'; // Ensures the page is always dynamically rendered
@@ -787,10 +788,8 @@ async function loadOpenStays(
   slug: string, pageName: string, language: string, template: any, overrides: any,
 ): Promise<OpenStaysContent | null> {
   try {
-    const block = template?.pages?.[pageName]?.blocks?.find((b: any) => b.type === 'openStays');
-    const pageOverrides = overrides?.[pageName];
-    const settings = block ? pageOverrides?.[block.id] : undefined;
-    if (!settings || (pageOverrides?.visibleBlocks && !pageOverrides.visibleBlocks.includes(block.id))) return null;
+    const settings = openStaysSettings(template, overrides, pageName);
+    if (!settings) return null;
 
     const data = await getOpenStays(slug, {
       maxRows: settings.maxRows, horizonDays: settings.horizonDays, badges: settings.badges,

@@ -74,6 +74,18 @@ const parse = (s: string) => new Date(`${s}T00:00:00Z`);
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
 const addDays = (s: string, n: number) => ymd(new Date(+parse(s) + n * DAY));
 
+/**
+ * The block's settings on one page, or null when that page doesn't show the block: the template
+ * has no openStays block there, the property never configured it, or it's hidden.
+ */
+export function openStaysSettings(template: any, overrides: any, pageName: string): (OpenStaysConfig & Record<string, any>) | null {
+  const block = template?.pages?.[pageName]?.blocks?.find((b: any) => b.type === 'openStays');
+  const pageOverrides = overrides?.[pageName];
+  const settings = block ? pageOverrides?.[block.id] : undefined;
+  if (!settings || (pageOverrides?.visibleBlocks && !pageOverrides.visibleBlocks.includes(block.id))) return null;
+  return settings;
+}
+
 /** Stays share at least one night. */
 export const overlaps = (a: { start: string; end: string }, b: { start: string; end: string }) =>
   a.start < b.end && b.start < a.end;

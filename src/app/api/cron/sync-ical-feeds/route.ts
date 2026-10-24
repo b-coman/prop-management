@@ -1,9 +1,10 @@
 /**
  * @fileoverview Cron endpoint for syncing external iCal feeds.
- * Fetches all enabled iCal feeds, parses them, and updates availability.
+ * Fetches all enabled iCal feeds, parses them, and updates availability. Then rebuilds the
+ * website's free dates widget, so it sees the bookings that just came in.
  *
  * Security: Only accessible via cron job with proper authorization header.
- * Frequency: Every 15 minutes via Cloud Scheduler.
+ * Frequency: Every hour via Cloud Scheduler.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -12,6 +13,7 @@ import { getFirestoreForPricing } from '@/lib/firebaseAdminPricing';
 import { FieldValue } from 'firebase-admin/firestore';
 import { loggers } from '@/lib/logger';
 import { fetchAndParseICalFeed, syncFeedToAvailability } from '@/lib/ical/ical-import';
+import { refreshOpenStays } from '@/lib/website/openStaysServer';
 import type { ICalFeed } from '@/types';
 import type { SyncResult } from '@/lib/ical/ical-import';
 
@@ -26,6 +28,12 @@ export async function GET(request: NextRequest) {
   const unauthorized = rejectIfNotCron(request, 'sync-ical-feeds');
   if (unauthorized) return unauthorized;
 
+  const response = await syncAllFeeds();
+  await refreshOpenStays();
+  return response;
+}
+
+async function syncAllFeeds(): Promise<NextResponse> {
   try {
     const db = await getFirestoreForPricing();
     if (!db) {

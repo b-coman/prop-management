@@ -1,7 +1,7 @@
 /** @jest-environment node */
 
 import {
-  mergeStays, pickBadges, searchScore, lastFreeWeekendByMonth, overlaps,
+  mergeStays, pickBadges, searchScore, lastFreeWeekendByMonth, overlaps, openStaysSettings,
   type CandidateStay,
 } from '../openStays';
 
@@ -17,6 +17,17 @@ describe('overlaps', () => {
   it('needs a shared night, not a shared changeover day', () => {
     expect(overlaps({ start: '2026-11-20', end: '2026-11-22' }, { start: '2026-11-22', end: '2026-11-24' })).toBe(false);
     expect(overlaps({ start: '2026-11-20', end: '2026-11-23' }, { start: '2026-11-22', end: '2026-11-24' })).toBe(true);
+  });
+});
+
+describe('openStaysSettings', () => {
+  const template = { pages: { homepage: { blocks: [{ id: 'hero', type: 'hero' }, { id: 'open-stays', type: 'openStays' }] }, gallery: { blocks: [] } } };
+  it('returns the settings only where the block exists, is configured and is not hidden', () => {
+    expect(openStaysSettings(template, { homepage: { 'open-stays': { maxRows: 4 } } }, 'homepage')).toEqual({ maxRows: 4 });
+    expect(openStaysSettings(template, { homepage: {} }, 'homepage')).toBeNull();
+    expect(openStaysSettings(template, { homepage: { 'open-stays': {}, visibleBlocks: ['hero'] } }, 'homepage')).toBeNull();
+    expect(openStaysSettings(template, { gallery: { 'open-stays': {} } }, 'gallery')).toBeNull();
+    expect(openStaysSettings(null, null, 'homepage')).toBeNull();
   });
 });
 
