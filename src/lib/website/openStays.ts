@@ -84,6 +84,10 @@ export const overlaps = (a: { start: string; end: string }, b: { start: string; 
  * Occasion stays (1 Decembrie, a school break) win over a plain weekend they overlap: showing
  * "20-22 Nov" and "20-23 Nov" next to each other only makes the reader compare two near-identical
  * lines. Rows never overlap each other.
+ *
+ * The last row goes to the next occasion the soonest rows don't reach. Soonest-first alone stopped
+ * at mid-December in October 2026, while most dated searches before the widget were for Christmas
+ * and New Year (owner, 2026-10-24).
  */
 export function mergeStays(weekends: CandidateStay[], occasions: CandidateStay[], maxRows = 4): CandidateStay[] {
   const picked: CandidateStay[] = [];
@@ -93,7 +97,12 @@ export function mergeStays(weekends: CandidateStay[], occasions: CandidateStay[]
   for (const w of weekends) {
     if (!picked.some((p) => overlaps(p, w))) picked.push(w);
   }
-  return picked.sort((a, b) => a.start.localeCompare(b.start)).slice(0, Math.max(0, maxRows));
+  const max = Math.max(0, maxRows);
+  const sorted = picked.sort((a, b) => a.start.localeCompare(b.start));
+  const rows = sorted.slice(0, max);
+  const nextOccasion = sorted.slice(max).find((s) => s.kind === 'occasion');
+  if (nextOccasion && max >= 2) rows[max - 1] = nextOccasion;
+  return rows;
 }
 
 /** Sum of searches whose dates share a night with this stay. */

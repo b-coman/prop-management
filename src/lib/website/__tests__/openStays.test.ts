@@ -34,6 +34,21 @@ describe('mergeStays', () => {
     const rows = mergeStays([wk('2026-12-11', '2026-12-13'), wk('2026-11-20', '2026-11-22'), wk('2026-12-04', '2026-12-06')], [], 2);
     expect(rows.map((r) => r.start)).toEqual(['2026-11-20', '2026-12-04']);
   });
+
+  it('gives the last row to the next occasion the soonest rows miss', () => {
+    const weekends = [wk('2026-11-20', '2026-11-22'), wk('2026-12-04', '2026-12-06'), wk('2026-12-11', '2026-12-13')];
+    const occasions = [
+      occ('2026-11-28', '2026-12-02', 2421, 'Minivacanța de 1 Decembrie'),
+      occ('2026-12-25', '2026-12-30', 4017, 'Vacanța de iarnă'),
+      occ('2027-01-03', '2027-01-08', 3128, 'Vacanța de iarnă'),
+    ];
+    expect(mergeStays(weekends, occasions, 4).map((r) => r.start)).toEqual(['2026-11-20', '2026-11-28', '2026-12-04', '2026-12-25']);
+    expect(mergeStays(weekends, occasions, 3).map((r) => r.start)).toEqual(['2026-11-20', '2026-11-28', '2026-12-25']);
+    // Nothing later to show: plain soonest-first.
+    expect(mergeStays(weekends, occasions.slice(0, 1), 4).map((r) => r.start)).toEqual(['2026-11-20', '2026-11-28', '2026-12-04', '2026-12-11']);
+    // A single row stays the soonest stay.
+    expect(mergeStays(weekends, occasions, 1).map((r) => r.start)).toEqual(['2026-11-20']);
+  });
 });
 
 describe('lastFreeWeekendByMonth', () => {
