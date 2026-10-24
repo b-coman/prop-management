@@ -18,7 +18,9 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
 
   return {
     rules: [
-      { userAgent: '*', allow: '/', disallow: ['/admin/', '/api/'] },
+      // Dated booking pages (`?checkIn=...`) are one page per stay, linked from every free-dates row.
+      // Nothing to index there, and crawling them quoted a price per link.
+      { userAgent: '*', allow: '/', disallow: ['/admin/', '/api/', '/booking/check/*?'] },
       { userAgent: 'GPTBot', allow: '/' },
       { userAgent: 'ClaudeBot', allow: '/' },
       { userAgent: 'PerplexityBot', allow: '/' },

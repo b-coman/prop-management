@@ -57,7 +57,7 @@ import { serverTranslateContent } from '@/lib/server-language-utils';
 import { BookingPageV2 } from '@/components/booking-v2';
 import type { EntryStay } from '@/components/booking-v2/components';
 import { buildExampleStays } from '@/lib/landing/exampleStays';
-import { recordStaySearch } from '@/lib/website/staySearches';
+import { StaySearchBeacon } from './stay-search-beacon';
 import { getChannels } from '@/services/channelService';
 import { getPublishedReviewsForProperty } from '@/services/reviewService';
 import { pickBookingReview } from '@/lib/booking/reviewForBooking';
@@ -158,10 +158,6 @@ export default async function BookingCheckPage({ params, searchParams }: Booking
     languagePath: path ? path.join('/') : 'Not provided',
     detectedLanguage
   });
-  // Counted for the website's free periods widget ("high demand"). Not awaited: never slows the page.
-  if (slug && typeof checkIn === 'string' && typeof checkOut === 'string') {
-    void recordStaySearch(slug, checkIn, checkOut);
-  }
 
   if (!slug) {
     logger.error('Slug is missing from params - returning 404');
@@ -335,6 +331,11 @@ export default async function BookingCheckPage({ params, searchParams }: Booking
   return (
     <>
       <LanguageHtmlUpdater initialLanguage={detectedLanguage} />
+      {/* Counted for the website's free periods widget ("high demand"), from the browser only:
+          crawlers render this page too. */}
+      {typeof checkIn === 'string' && typeof checkOut === 'string' && (
+        <StaySearchBeacon propertyId={slug} checkIn={checkIn} checkOut={checkOut} />
+      )}
       <Suspense fallback={<div>Loading booking system...</div>}>
         {/* Same pattern as the property pages: a page-scoped provider carrying the language this
             route already resolved from its path, PLUS that language's dictionary. The root layout's

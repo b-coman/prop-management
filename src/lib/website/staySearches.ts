@@ -8,6 +8,9 @@
  * One doc per property per day, `staySearches/{propertyId}_{YYYY-MM-DD}`, with a counter per date
  * range. Counts are page loads, not people: someone checking the same weekend three times counts
  * three. Good enough to rank stays against each other, which is all it is used for.
+ *
+ * Written from the browser (/api/stay-search), never from the booking page's server render: crawlers
+ * render that page too, and Googlebot following the widget's own links made it count itself.
  */
 import { getAdminDb, FieldValue } from '@/lib/firebaseAdminSafe';
 import { loggers } from '@/lib/logger';
@@ -20,7 +23,7 @@ const YMD = /^\d{4}-\d{2}-\d{2}$/;
 const today = () => new Date().toISOString().slice(0, 10);
 
 /**
- * Count one search. Never throws and never blocks the page: the caller does not await it.
+ * Count one search. Never throws.
  * Ignores anything that is not a plausible future stay (bad dates, past check-in, over 30 nights).
  */
 export async function recordStaySearch(propertyId: string, checkIn: string, checkOut: string): Promise<void> {
