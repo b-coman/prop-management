@@ -132,6 +132,14 @@ export async function buildExampleStays(
   //    windows), restricted to ones overlapping the search window. Same source + algorithms as the analyst.
   const holidays = await getHolidays();
   const occasions = computeOccasions(holidays, asOf, 40).filter(o => o.startDate <= searchEnd && o.endDate >= searchStart);
+  // A stay is named after the shortest occasion inside its own nights, so a holiday beats the school
+  // break around it: 25-30 Dec is "Crăciun la munte", not "Vacanța de iarnă la munte" (owner,
+  // 2026-10-24). The window or occasion a candidate came from can be weeks long and name it wrongly.
+  const specificOccasion = (start: string, end: string): string | null => {
+    const inside = occasions.filter(o => o.startDate < end && o.endDate >= start);
+    inside.sort((a, b) => nightsBetween(a.startDate, a.endDate) - nightsBetween(b.startDate, b.endDate));
+    return inside[0]?.name ?? null;
+  };
   const windows = computeExtendedWindows(holidays, asOf).filter(w => w.start <= searchEnd && w.end >= searchStart);
 
   // 6. Candidate generation. Push a candidate only if it fits inside ONE free run and meets the minimum
@@ -151,7 +159,8 @@ export async function buildExampleStays(
     const nights = clamp(wantNights, minStay, capacity);
     const daysOut = nightsBetween(today, start);
     const score = base + (includesWeekendNight(start, nights) ? 15 : 0) - daysOut * 0.05;
-    candidates.push({ start, nights, kind, occasionName, score });
+    const name = kind === 'occasion' ? specificOccasion(start, addDays(start, nights)) ?? occasionName : occasionName;
+    candidates.push({ start, nights, kind, occasionName: name, score });
   };
   const firstWeekday = (run: FreeRun, weekday: number): string | null => {
     for (let s = maxYmd(run.start, today); s <= run.end; s = addDays(s, 1)) if (weekdayOf(s) === weekday) return s;
