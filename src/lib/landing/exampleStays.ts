@@ -156,7 +156,16 @@ export async function buildExampleStays(
     const capacity = nightsBetween(start, addDays(run.end, 1)); // free nights from `start` to run end
     const minStay = Math.max(minNights, minStayFor(start)); // per-date calendar minimum, but never below the landing floor
     if (capacity < minStay) return; // run too short to host the minimum from here
-    const nights = clamp(wantNights, minStay, capacity);
+    let nights = clamp(wantNights, minStay, capacity);
+    // The strictest night inside the stay binds all of it, as in quoteStay. Growing can take in a
+    // stricter night, so repeat; a stay that can't meet it here isn't proposed.
+    for (let i = 0; i < 5; i++) {
+      let need = minStay;
+      for (let k = 0; k < nights; k++) need = Math.max(need, minStayFor(addDays(start, k)));
+      if (need <= nights) break;
+      if (need > capacity) return;
+      nights = need;
+    }
     const daysOut = nightsBetween(today, start);
     const score = base + (includesWeekendNight(start, nights) ? 15 : 0) - daysOut * 0.05;
     const name = kind === 'occasion' ? specificOccasion(start, addDays(start, nights)) ?? occasionName : occasionName;
@@ -168,13 +177,19 @@ export async function buildExampleStays(
   };
 
   for (const run of freeRuns) {
-    // (a) long-weekend / bridge windows overlapping this run — the strongest anchor
+    // (a) long-weekend / bridge windows overlapping this run — the strongest anchor. The stay is the
+    //     minimum stay from the window's first free day, not the whole free window. Offered 28 Nov-2 Dec
+    //     (4 nights) for 1 Decembrie, 3 of 5 visitors tried a shorter stay, and the 8-night Bobotează
+    //     row got no taps at all (owner, 2026-11-02: "propose a stay more close to the minimum").
     for (const w of windows) {
       const s = maxYmd(w.start, run.start, today);
       const e = minYmd(w.end, run.end);
       if (s > e) continue;
+      // When the window's own start is taken, its first free day is only where a booking ends (3 Jan
+      // after a sold New Year), not a reason to arrive. The holidays inside it get their own stays in (b).
+      if (s !== w.start) continue;
       const occ = occasions.find(o => o.startDate <= w.end && o.endDate >= w.start);
-      push(s, nightsBetween(s, addDays(e, 1)), 'occasion', occ?.name ?? null, 100);
+      push(s, minNights, 'occasion', occ?.name ?? null, 100);
     }
     // (b) holidays / school breaks overlapping this run (not necessarily a bridge)
     for (const o of occasions) {
