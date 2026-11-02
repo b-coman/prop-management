@@ -65,6 +65,7 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
     adults,
     children,
     unavailableDates,
+    minimumStays,
     isLoadingUnavailable,
     unavailableError,
     pricing,
@@ -697,6 +698,7 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
                   checkInDate={checkInDate}
                   checkOutDate={checkOutDate}
                   unavailableDates={unavailableDates}
+                  minimumStays={minimumStays}
                   property={property}
                   setCheckInDate={setCheckInDate}
                   setCheckOutDate={setCheckOutDate}
@@ -716,6 +718,7 @@ export function DateAndGuestSelector({ className }: DateAndGuestSelectorProps) {
                   checkInDate={checkInDate}
                   checkOutDate={checkOutDate}
                   unavailableDates={unavailableDates}
+                  minimumStays={minimumStays}
                   property={property}
                   setCheckInDate={setCheckInDate}
                   setCheckOutDate={setCheckOutDate}
@@ -790,6 +793,7 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
   checkInDate,
   checkOutDate,
   unavailableDates,
+  minimumStays,
   property,
   setCheckInDate,
   setCheckOutDate,
@@ -802,6 +806,7 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
   checkInDate: Date | null;
   checkOutDate: Date | null;
   unavailableDates: Date[];
+  minimumStays: Record<string, number>;
   property: any;
   setCheckInDate: (date: Date | null) => void;
   setCheckOutDate: (date: Date | null) => void;
@@ -850,6 +855,7 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
           checkOut: checkOutDate,
           unavailableDates: unavailableDates || [],
           minStay: minimumStay,
+          minStayByNight: minimumStays,
         })
       : [];
 
@@ -861,6 +867,8 @@ const PricingStatusDisplay = memo(function PricingStatusDisplay({
           return t('booking.suggestionShiftEarlierToMinimum', 'Arrive earlier');
         case 'shorter-stay':
           return t('booking.suggestionShorterStay', 'Your dates, shorter stay');
+        case 'weekend':
+          return t('booking.suggestionFreeWeekend', 'Free weekend');
         case 'earlier-window':
           return t('booking.suggestionEarlierWindow', 'Just before');
         case 'later-window':

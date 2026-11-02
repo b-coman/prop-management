@@ -185,10 +185,12 @@ export async function GET(request: NextRequest) {
     // Sort dates for convenience
     unavailableDates.sort();
 
+    const minimumStays = await readMinimumStays(db, propertySlug, monthDocIds);
 
     // Return the unavailable dates as ISO strings (will be converted back to Date objects on the client)
     return NextResponse.json({
       unavailableDates,
+      minimumStays,
       meta: {
         propertySlug,
         months: monthsToFetch,
@@ -233,5 +235,39 @@ export async function POST(request: NextRequest) {
       { error: 'Invalid request format' },
       { status: 400 }
     );
+  }
+}
+
+type PricingDb = NonNullable<Awaited<ReturnType<typeof getFirestoreForPricing>>>;
+
+/**
+ * Nights whose minimum stay is stricter than the property's default, keyed YYYY-MM-DD. The booking
+ * page needs them to propose dates that will actually price: a weekend offered inside a 3-night
+ * holiday period has to be 3 nights. Only the stricter nights are sent, so the answer stays small.
+ * On a failure it sends none and the page falls back to the default minimum, as before.
+ */
+async function readMinimumStays(db: PricingDb, propertyId: string, monthDocIds: string[]): Promise<Record<string, number>> {
+  try {
+    const [propertyDoc, ...calendars] = await db.getAll(
+      db.collection('properties').doc(propertyId),
+      ...monthDocIds.map((id) => db.collection('priceCalendars').doc(id)),
+    );
+    const defaultMinStay = propertyDoc.data()?.defaultMinimumStay || 1;
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const minimumStays: Record<string, number> = {};
+    for (const calendar of calendars) {
+      const month = calendar.id.slice(propertyId.length + 1); // YYYY-MM
+      for (const [day, cell] of Object.entries(calendar.data()?.days ?? {})) {
+        const minimumStay = (cell as { minimumStay?: number }).minimumStay;
+        const date = `${month}-${day.padStart(2, '0')}`; // calendar days are unpadded keys
+        if (typeof minimumStay === 'number' && minimumStay > defaultMinStay && date >= today) {
+          minimumStays[date] = minimumStay;
+        }
+      }
+    }
+    return minimumStays;
+  } catch (error) {
+    logger.warn('Minimum stays unreadable, sending none', { propertyId, error: (error as Error).message });
+    return {};
   }
 }

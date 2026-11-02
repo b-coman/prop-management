@@ -119,6 +119,7 @@
     "suggestionEarlierWindow": "Just before",
     "suggestionLaterWindow": "Just after",
     "suggestionShorterStay": "Your dates, shorter stay",
+    "suggestionFreeWeekend": "Free weekend",
     "extendStay": "Extend your stay to {{date}} ({{nights}} nights minimum)",
     "nextAvailable": "Next available: {{startDate}} - {{endDate}}",
     "nextAvailableWeekend": "Next available weekend: {{startDate}} - {{endDate}}",

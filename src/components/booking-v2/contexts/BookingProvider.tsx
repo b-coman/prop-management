@@ -44,6 +44,8 @@ interface BookingState {
   
   // API Data State
   unavailableDates: Date[];
+  /** Nights whose minimum stay is stricter than the property default (YYYY-MM-DD -> nights). */
+  minimumStays: Record<string, number>;
   isLoadingUnavailable: boolean;
   unavailableError: string | null;
   
@@ -126,7 +128,7 @@ type BookingAction =
   | { type: 'SET_CHECK_OUT_DATE'; payload: Date | null }
   | { type: 'SET_GUEST_COUNT'; payload: number }
   | { type: 'SET_PARTY'; payload: { adults: number; children: number } }
-  | { type: 'SET_UNAVAILABLE_DATES'; payload: { dates: Date[]; loading: boolean; error: string | null } }
+  | { type: 'SET_UNAVAILABLE_DATES'; payload: { dates: Date[]; minimumStays?: Record<string, number>; loading: boolean; error: string | null } }
   | { type: 'SET_PRICING'; payload: { pricing: PricingResponse | null; loading: boolean; error: string | null } }
   | { type: 'SET_SELECTED_ACTION'; payload: 'book' | 'hold' | 'contact' | null }
   | { type: 'SET_MIN_STAY_WARNING'; payload: boolean }
@@ -160,6 +162,7 @@ function bookingReducer(state: BookingState, action: BookingAction): BookingStat
       return {
         ...state,
         unavailableDates: action.payload.dates,
+        minimumStays: action.payload.minimumStays ?? state.minimumStays,
         isLoadingUnavailable: action.payload.loading,
         unavailableError: action.payload.error
       };
@@ -263,6 +266,7 @@ export function BookingProvider({
     guestCount: property.baseOccupancy || 2,
     ...splitHeadcount(property.baseOccupancy || 2, limitsOf(property)),
     unavailableDates: [],
+    minimumStays: {},
     isLoadingUnavailable: false,
     unavailableError: null,
     pricing: null,
@@ -472,8 +476,9 @@ export function BookingProvider({
       
       const data = await response.json();
       const dates = data.unavailableDates.map((dateStr: string) => new Date(dateStr));
+      const minimumStays: Record<string, number> = data.minimumStays ?? {};
       
-      dispatch({ type: 'SET_UNAVAILABLE_DATES', payload: { dates, loading: false, error: null } });
+      dispatch({ type: 'SET_UNAVAILABLE_DATES', payload: { dates, minimumStays, loading: false, error: null } });
       
       loggers.bookingContext.debug('Unavailable dates fetched successfully', {
         propertySlug,

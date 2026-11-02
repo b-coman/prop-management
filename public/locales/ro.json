@@ -119,6 +119,7 @@
     "suggestionEarlierWindow": "Chiar înainte",
     "suggestionLaterWindow": "Chiar după",
     "suggestionShorterStay": "Datele voastre, sejur mai scurt",
+    "suggestionFreeWeekend": "Weekend liber",
     "extendStay": "Extindeți șederea până la {{date}} (minim {{nights}} nopți)",
     "nextAvailable": "Următoarea disponibilă: {{startDate}} - {{endDate}}",
     "nextAvailableWeekend": "Următorul weekend disponibil: {{startDate}} - {{endDate}}",
