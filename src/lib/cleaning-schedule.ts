@@ -200,6 +200,26 @@ export function prepare(stays: CleaningStay[], otaBlockedNights: string[]) {
 }
 
 /**
+ * Whether guests sleep at the property on the night of `todayYmd`: a stay that checked in on or
+ * before today and checks out after today, or an OTA-blocked night (a reservation not entered yet).
+ * The checkout day itself is not a guest night. Used by the owner's evening lights shortcut.
+ */
+/**
+ * The night a lights check at `now` is about. The phone runs the check at sunset where the phone is,
+ * so abroad it can arrive after midnight in Romania; before 06:00 it means the night that started
+ * the evening before, not the coming one.
+ */
+export function lightsNight(now: Date): string {
+  const today = formatBucharestDate(now);
+  return getBucharestHourMinute(now).hour < 6 ? addDays(today, -1) : today;
+}
+
+export function guestsTonight(stays: CleaningStay[], otaBlockedNights: string[], todayYmd: string): boolean {
+  const { dated } = prepare(stays, []);
+  return dated.some(s => s.in <= todayYmd && todayYmd < s.out) || otaBlockedNights.includes(todayYmd);
+}
+
+/**
  * The morning reminder for a day the cleaner must not miss, or null on any other day.
  *
  * Sensitive days: a same-day changeover (any day of the week); a Saturday or Sunday check-in the

@@ -1,4 +1,4 @@
-import { cleaningReminder, nextWeek, weeklyCleaningMessage, type CleaningStay } from '../cleaning-schedule';
+import { cleaningReminder, guestsTonight, lightsNight, nextWeek, weeklyCleaningMessage, type CleaningStay } from '../cleaning-schedule';
 
 // Stays stored the way the booking form writes them for Coltei: check-in 15:00, check-out 11:00
 // Bucharest (UTC+3 until 25 Oct 2026, UTC+2 after).
@@ -250,5 +250,37 @@ describe('edge cases', () => {
     const msg = weeklyCleaningMessage(COLTEI, [], '2026-10-18', 'https://prahova-chalet.ro/calendar/abc')!;
     expect(msg.endsWith('Aveti aici calendarul complet: https://prahova-chalet.ro/calendar/abc\n\nMultumesc!')).toBe(true);
     expect(weeklyCleaningMessage(COLTEI, [], '2026-10-18')).not.toContain('calendarul');
+  });
+});
+
+describe('guestsTonight', () => {
+  it('is yes from the check-in day up to the night before checkout', () => {
+    expect(guestsTonight(COLTEI, [], '2026-11-20')).toBe(true);
+    expect(guestsTonight(COLTEI, [], '2026-11-21')).toBe(true);
+  });
+  it('is no on a checkout day with no new arrival, and on empty nights', () => {
+    expect(guestsTonight(COLTEI, [], '2026-11-22')).toBe(false);
+    expect(guestsTonight(COLTEI, [], '2026-11-24')).toBe(false);
+  });
+  it('is yes on a same-day changeover', () => {
+    expect(guestsTonight(COLTEI, [], '2026-10-25')).toBe(true);
+  });
+  it('counts an OTA-blocked night that has no booking entered yet', () => {
+    expect(guestsTonight(COLTEI, ['2026-11-24'], '2026-11-24')).toBe(true);
+    expect(guestsTonight(COLTEI, ['2026-11-24'], '2026-11-25')).toBe(false);
+  });
+});
+
+describe('lightsNight', () => {
+  it('is today in the evening, Bucharest time', () => {
+    expect(lightsNight(new Date('2026-11-24T14:45:00Z'))).toBe('2026-11-24'); // 16:45 Bucharest
+    expect(lightsNight(new Date('2026-11-24T21:59:00Z'))).toBe('2026-11-24'); // 23:59
+  });
+  it('is the night before when the check arrives after midnight from abroad', () => {
+    expect(lightsNight(new Date('2026-11-24T23:30:00Z'))).toBe('2026-11-24'); // 01:30 on the 25th
+    expect(lightsNight(new Date('2026-11-25T04:00:00Z'))).toBe('2026-11-25'); // 06:00
+  });
+  it('uses Bucharest summer time', () => {
+    expect(lightsNight(new Date('2026-07-01T22:30:00Z'))).toBe('2026-07-01'); // 01:30 on 2 Jul (UTC+3)
   });
 });

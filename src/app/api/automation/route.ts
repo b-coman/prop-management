@@ -45,7 +45,7 @@ import { loggers } from '@/lib/logger';
 import { formatBucharestDate, getBucharestDay, getBucharestMonth } from '@/lib/dates/property-times';
 import { markOutboxSent } from '@/services/outboxService';
 import { getPropertySecrets } from '@/lib/property-secrets';
-import { cleaningReminder, nextWeek, weeklyCleaningMessage } from '@/lib/cleaning-schedule';
+import { cleaningReminder, guestsTonight, lightsNight, nextWeek, weeklyCleaningMessage } from '@/lib/cleaning-schedule';
 import { loadCleaningInputs } from '@/services/cleaningData';
 import { recordShortcutCall } from '@/services/cleaningWatchService';
 
@@ -384,6 +384,20 @@ async function morningReminder(req: NextRequest, propertyId: string): Promise<Ne
 }
 
 // ============================================================
+// guestsTonight
+// ============================================================
+
+// "yes" or "no": do guests sleep here tonight? The owner's evening shortcut turns the outdoor and
+// indoor lights off when the answer is exactly "no". Anything else, including a failure, leaves them
+// on, so a fault never leaves arriving guests in the dark.
+async function guestsTonightOp(req: NextRequest, propertyId: string): Promise<NextResponse> {
+  const todayYmd = req.nextUrl.searchParams.get('date') ? requestedDay(req) : lightsNight(new Date());
+  const { stays, otaBlockedNights } = await loadCleaningInputs(propertyId, todayYmd, todayYmd);
+  const answer = guestsTonight(stays, otaBlockedNights, todayYmd) ? 'yes' : 'no';
+  return new NextResponse(answer, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+}
+
+// ============================================================
 // changedReservations
 // ============================================================
 
@@ -674,13 +688,15 @@ async function outboxSent(req: NextRequest, propertyId: string): Promise<NextRes
 // ============================================================
 
 // The text ops are forwarded by the iOS Shortcuts straight into the cleaner's WhatsApp, so their
-// failures must read as "nothing to send" ('' or 'none'), never as "Unauthorized".
+// failures must read as "nothing to send" ('' or 'none'), never as "Unauthorized". The lights check
+// fails to "yes", which leaves the lights on.
 const QUIET_FAILURE_BODY: Record<string, string> = {
   monthlyReservations: '',
   changedReservations: 'none',
   dailyMessages: 'none',
   weeklySchedule: 'none',
   cleaningReminder: 'none',
+  guestsTonight: 'yes',
 };
 
 export async function GET(req: NextRequest) {
@@ -713,6 +729,8 @@ export async function GET(req: NextRequest) {
         return await weeklySchedule(req, propertyId, calUrl);
       case 'cleaningReminder':
         return await morningReminder(req, propertyId);
+      case 'guestsTonight':
+        return await guestsTonightOp(req, propertyId);
       case 'outbox_next':
         return await outboxNext(propertyId);
       case 'outbox_sent':
